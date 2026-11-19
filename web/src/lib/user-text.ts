@@ -59,6 +59,17 @@ function isTag(c: number): boolean {
   return c >= 0xe0000 && c <= 0xe007f
 }
 
+const flagBase = 0x1f3f4
+
+function hasHiddenCharacter(text: number[], rule: TextRule): boolean {
+  let inFlag = false
+  for (const c of text) {
+    if ((isTag(c) && !inFlag) || (!rule.lines && isZeroWidth(c))) return true
+    inFlag = c === flagBase || (inFlag && isTag(c))
+  }
+  return false
+}
+
 function isControl(c: number, rule: TextRule): boolean {
   if (rule.lines && (c === 0x0a || c === 0x0d || c === 0x09)) return false
   return control.test(String.fromCodePoint(c))
@@ -93,7 +104,7 @@ function problemOf(field: string, raw: string, rule: TextRule): string | null {
   if (text.some(isOverride)) {
     return `${field} must not contain bidirectional override characters (U+202A to U+202E, U+2066 to U+2069); remove them`
   }
-  if (text.some((c) => isTag(c) || (!rule.lines && isZeroWidth(c)))) {
+  if (hasHiddenCharacter(text, rule)) {
     return `${field} must not contain zero-width or hidden characters; remove them`
   }
   if (text.length > rule.max) {

@@ -91,15 +91,17 @@ func Check(field, raw string, rule Rule) error {
 		}
 		return fail(ReasonInvisibleOnly)
 	}
+	inFlag := false
 	for _, r := range raw {
 		switch {
 		case control(r, rule):
 			return fail(ReasonControl)
 		case bidiOverride(r):
 			return fail(ReasonBidi)
-		case hidden(r, rule):
+		case tag(r) && !inFlag, !rule.Lines && zeroWidth(r):
 			return fail(ReasonInvisible)
 		}
+		inFlag = r == flagBase || inFlag && tag(r)
 	}
 	if utf8.RuneCountInString(raw) > rule.Max {
 		return fail(ReasonTooLong)
@@ -134,11 +136,9 @@ func filler(r rune) bool {
 	return false
 }
 
-func tag(r rune) bool { return r >= 0xe0000 && r <= 0xe007f }
+const flagBase = '\U0001F3F4'
 
-func hidden(r rune, rule Rule) bool {
-	return tag(r) || !rule.Lines && zeroWidth(r)
-}
+func tag(r rune) bool { return r >= 0xe0000 && r <= 0xe007f }
 
 func zeroWidth(r rune) bool {
 	switch {

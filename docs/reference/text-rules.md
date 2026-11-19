@@ -21,6 +21,7 @@ Text is checked in this order, and the first failure is reported.
 A title, name or note is one line: line breaks and tabs count as control characters.
 A comment, a prompt and an observation text block may hold line breaks and tabs.
 A zero-width joiner is allowed inside text because emoji sequences and some scripts need it.
+Tag characters (U+E0000 to U+E007F) are allowed only in the sequence that follows a black flag (U+1F3F4), which is how the England, Scotland and Wales flags are written, and are refused anywhere else.
 
 ## Where it applies
 

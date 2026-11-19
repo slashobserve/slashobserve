@@ -56,6 +56,17 @@ describe("textError", () => {
     expect(textError("title", "\u{1f600}".repeat(101), title)).not.toBeNull()
   })
 
+  it("allows tag characters only in the sequence that follows a black flag", () => {
+    const body = textRule(4000)
+    const england =
+      "\u{1f3f4}\u{e0067}\u{e0062}\u{e0065}\u{e006e}\u{e0067}\u{e007f}"
+    expect(textError("body", `go ${england}`, body)).toBeNull()
+    expect(textError("title", england, title)).toBeNull()
+    expect(textError("body", "a\u{e0067}\u{e007f}", body)).toBe(
+      "Body must not contain zero-width or hidden characters; remove them."
+    )
+  })
+
   it("lets text keep line breaks and tabs but not other control characters", () => {
     const body = textRule(4000)
     expect(textError("body", "a\n\tb", body)).toBeNull()
