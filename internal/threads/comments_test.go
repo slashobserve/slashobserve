@@ -258,8 +258,8 @@ func TestCommentRejectsAnEmptyPanelIDAndAMissingVersion(t *testing.T) {
 		t.Errorf("unknown panel: err = %v, want ErrUnknownPanel", err)
 	}
 	for name, panel := range map[string]*string{"whole dashboard": nil, "panel": new("rps")} {
-		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"}); !errors.Is(err, ErrUnknownVersion) {
-			t.Errorf("%s on a missing version: err = %v, want ErrUnknownVersion", name, err)
+		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"}); !errors.Is(err, dashboards.ErrNotFound) {
+			t.Errorf("%s on a missing version: err = %v, want dashboards.ErrNotFound", name, err)
 		}
 	}
 }
