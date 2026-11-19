@@ -92,3 +92,13 @@ func TestTableFrameKeepsADecimalWithMoreDigitsThanAFloatHolds(t *testing.T) {
 		t.Fatalf("price field = %+v", got)
 	}
 }
+
+func TestTableFrameKeepsAFractionalDecimalAsANumber(t *testing.T) {
+	rs := &resultSet{
+		columns: []column{{name: "avg_price", typ: datasource.FieldNumber}},
+		rows:    [][]any{{textDecimal{"12.345678901234567890", 12.345678901234568}}},
+	}
+	if rs.roundsInColumn(0) {
+		t.Fatal("a decimal with a small integer part is held by a float to the precision a chart shows")
+	}
+}

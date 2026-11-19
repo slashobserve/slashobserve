@@ -11,7 +11,6 @@ import (
 
 const (
 	maxExactInteger     = 1 << 53
-	maxExactDigits      = 15
 	roundedValueWarning = "values above 2^53 were rounded to fit a number; select them as strings to keep every digit"
 )
 
@@ -25,7 +24,7 @@ func beyondFloat(v any) bool {
 		return n.CmpAbs(big.NewInt(maxExactInteger)) > 0
 	case interface{ InexactFloat64() float64 }:
 		text, ok := n.(fmt.Stringer)
-		return ok && significantDigits(text.String()) > maxExactDigits
+		return ok && integerPartBeyondFloat(text.String())
 	}
 	rv := reflect.ValueOf(v)
 	switch {
@@ -37,9 +36,10 @@ func beyondFloat(v any) bool {
 	return false
 }
 
-func significantDigits(text string) int {
-	digits := strings.TrimLeft(strings.NewReplacer("-", "", "+", "", ".", "").Replace(text), "0")
-	return len(digits)
+func integerPartBeyondFloat(text string) bool {
+	whole, _, _ := strings.Cut(text, ".")
+	n, ok := new(big.Int).SetString(whole, 10)
+	return ok && n.CmpAbs(big.NewInt(maxExactInteger)) > 0
 }
 
 func (rs *resultSet) roundsInColumn(i int) bool {

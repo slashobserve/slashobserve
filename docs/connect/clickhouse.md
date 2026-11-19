@@ -18,7 +18,7 @@ A ClickHouse entry takes the fields common to every datasource, described in the
 ## Large numbers
 
 A result carries numbers as floating point, which holds integers exactly only up to 2^53.
-In a table, a column with an integer above 2^53 or a decimal with more than 15 significant digits comes back as a string column holding every digit.
+In a table, a column with an integer above 2^53 or a decimal whose whole part is above 2^53 comes back as a string column holding every digit.
 In a time series such a value is still plotted as a number, rounded, and the frame carries `meta.warning` saying so.
 Select the column as a string, for example `toString(id)`, to keep the digits in a series.
 
