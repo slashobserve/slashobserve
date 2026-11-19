@@ -17,7 +17,7 @@ activity:
       `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore);
       `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`;
       `dashboard.deleted` carries `title`;
-      `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never the text;
+      `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`;
       `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token;
       `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`;
       `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`;
