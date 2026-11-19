@@ -25,7 +25,6 @@ export function seriesCount(
 const queryFaultCodes = new Set([
   "query_invalid",
   "query_forbidden",
-  "query_empty",
   "query_too_long",
   "expression_error",
   "unknown_datasource",

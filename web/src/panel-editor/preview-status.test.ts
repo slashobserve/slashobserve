@@ -48,6 +48,7 @@ describe("previewBlocksSave", () => {
       true
     )
     for (const code of [
+      "query_empty",
       "query_timeout",
       "datasource_unavailable",
       "too_many_requests",
