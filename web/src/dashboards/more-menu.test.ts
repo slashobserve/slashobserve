@@ -20,6 +20,8 @@ describe("moreLabel", () => {
   it("lists only what a viewer can use", () => {
     expect(
       moreLabel({ mayEdit: false, canDuplicate: false, folderTv: true })
-    ).toBe("More: open on sign-in, export, print, image, TV mode, TV mode for this folder, chart hover")
+    ).toBe(
+      "More: open on sign-in, export, print, image, TV mode, TV mode for this folder, chart hover"
+    )
   })
 })
