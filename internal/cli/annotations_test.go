@@ -50,7 +50,7 @@ func TestAnnotationsList(t *testing.T) {
 				t.Fatalf("stdout lacks %q:\n%s", want, stdout)
 			}
 		}
-		if !strings.Contains(stderr, "more results: --cursor page2") {
+		if !strings.Contains(stderr, "More: --cursor page2") {
 			t.Fatalf("stderr %q lacks the cursor hint", stderr)
 		}
 	})
