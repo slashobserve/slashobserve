@@ -55,6 +55,14 @@ describe("panelProblem", () => {
     })
   })
 
+  it.each([
+    ["time_range_in_future", "Time range starts in the future"],
+    ["time_range_too_long", "Time range too long"],
+  ])("titles a %s refusal", (code, title) => {
+    const error = new ApiError(422, code, "refused", [])
+    expect(panelProblem(error).title).toBe(title)
+  })
+
   it("offers Retry when a variable's values could not be loaded", () => {
     const problem = panelProblem(new VariableLoadError("Host"))
     expect(problem.title).toBe("Variable failed to load")

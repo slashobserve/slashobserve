@@ -259,7 +259,7 @@ A `traces` panel filters the spans it draws.
 A span matches when it satisfies every filter that is set: `spanSearch` (text found, in any case, in its service, operation, id, attribute keys or attribute values), `serviceNames` and `spanNames` (the span's service or operation is one of the names, or none of them with `excludeServices` or `excludeSpanNames`, which compare whole names), and `minSpanDuration` and `maxSpanDuration` (milliseconds, ends included).
 The spans that do not match are dimmed and a note counts the matches, and `matchesOnly: true` hides them instead, keeping the indentation of the spans that stay.
 
-`criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out.
+`criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out; a span that ends after its parent, or starts after the parent ended, still counts.
 When both options are on, only the spans that match and sit on the critical path stay.
 The agent prompt does not list these options.
 

@@ -26,6 +26,7 @@ Without `make`, run the same stack with `docker compose -f deploy/compose/compos
 Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
 
 The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
+A person appears on that page only after their first sign-in, so sign in once as each of them, then sign back in as the Admin to change their roles.
 
 ## Send a prompt
 

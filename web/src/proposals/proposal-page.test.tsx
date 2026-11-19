@@ -55,6 +55,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
     updated_at: "2026-11-11T10:00:00Z",
     closed_at: null,
     closed_by: null,
+    close_reason: null,
     merged_version: null,
     behind: true,
     latest_version: 4,
@@ -64,6 +65,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
       panels: [{ id: "p-errors", title: "Errors" }],
     },
     changes: [{ kind: "panel", id: "p-errors", change: "changed" }],
+    diff: [],
     conflicts: [clash],
     ...over,
   }
@@ -108,7 +110,25 @@ function mockServer(options: {
       if (pathname === `/api/v1/dashboards/${dashboardId}`) {
         return json({
           dashboard: { id: dashboardId, title: "Checkout" },
-          version: { version: 4, spec: { specVersion: "0", panels: [] } },
+          version: {
+            version: 4,
+            spec: {
+              specVersion: "0",
+              panels: [{ id: "p-errors", title: "Error ratio" }],
+            },
+          },
+        })
+      }
+      if (pathname === `/api/v1/dashboards/${dashboardId}/versions/3`) {
+        return json({
+          dashboard: { id: dashboardId, title: "Checkout" },
+          version: {
+            version: 3,
+            spec: {
+              specVersion: "0",
+              panels: [{ id: "p-errors", title: "Error rate" }],
+            },
+          },
         })
       }
       if (pathname === "/api/v1/threads") {
@@ -155,11 +175,64 @@ describe("ProposalPage", () => {
     expect(screen.getByText("Observe Agent for Ada")).toBeTruthy()
     expect(screen.getByText("Errors")).toBeTruthy()
     expect(
-      screen.getByText("Both you and the proposal changed Errors.")
+      screen.getByText(
+        'Panel "Errors" was changed on the dashboard and in this proposal.'
+      )
     ).toBeTruthy()
+    expect(
+      (await screen.findByText("Dashboard:")).nextSibling?.textContent
+    ).toBe("Error ratio")
+    expect(screen.getByText("Proposal:").nextSibling?.textContent).toBe(
+      "Errors"
+    )
     expect(screen.getByRole("radiogroup", { name: "Errors" })).toBeTruthy()
     expect(
       screen.getByRole("link", { name: "Open the dashboard at version 3" })
+    ).toBeTruthy()
+  })
+
+  it("shows what the proposal changes, field by field", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          conflicts: [],
+          diff: [
+            {
+              op: "replace",
+              path: "/panels/p-errors/title",
+              from: "Error rate",
+              to: "Errors",
+            },
+          ],
+        }),
+      ],
+    })
+    renderPage()
+    expect(
+      await screen.findByRole("heading", {
+        name: "What changes from version 3",
+      })
+    ).toBeTruthy()
+    expect(await screen.findByText('Panel "Errors"')).toBeTruthy()
+    expect(screen.getByText("Error rate")).toBeTruthy()
+  })
+
+  it("links a merged proposal to the version it made", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          state: "merged",
+          merged_version: 5,
+          conflicts: [],
+          allowed_actions: [],
+        }),
+      ],
+    })
+    renderPage()
+    expect(
+      await screen.findByRole("link", {
+        name: "Open the dashboard at version 5",
+      })
     ).toBeTruthy()
   })
 
@@ -250,6 +323,22 @@ describe("ProposalPage", () => {
     renderPage()
     expect(await screen.findByRole("button", { name: "Discard" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Merge" })).toBeNull()
+    expect(
+      screen.getByText(
+        "Only someone who can edit this dashboard can merge a proposal. You can discard this one because you opened it."
+      )
+    ).toBeTruthy()
+  })
+
+  it("explains who can merge when the caller may do neither", async () => {
+    mockServer({ proposals: [proposal({ allowed_actions: [] })] })
+    renderPage()
+    expect(
+      await screen.findByText(
+        "Only someone who can edit this dashboard can merge a proposal."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull()
   })
 
   it("shows the merged line and no action bar on a closed proposal", async () => {
@@ -291,6 +380,49 @@ describe("ProposalPage", () => {
     await waitFor(() =>
       expect(toasts.success).toHaveBeenCalledWith("Discarded")
     )
+  })
+
+  it("sends the reason typed in the discard dialog", async () => {
+    const posts = mockServer({
+      proposals: [proposal({ conflicts: [] })],
+      discard: json({ ...proposal(), state: "discarded" }),
+    })
+    const { user } = renderPage()
+    await user.click(await screen.findByRole("button", { name: "Discard" }))
+    const dialog = screen.getByRole("alertdialog")
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Reason (optional)" }),
+      "  Superseded by the new layout "
+    )
+    await user.click(within(dialog).getByRole("button", { name: "Discard" }))
+    await waitFor(() =>
+      expect(posts).toEqual([
+        {
+          path: `/api/v1/proposals/${proposalId}/discard`,
+          body: { reason: "Superseded by the new layout" },
+        },
+      ])
+    )
+  })
+
+  it("shows why a proposal was discarded", async () => {
+    mockServer({
+      proposals: [
+        proposal({
+          state: "discarded",
+          closed_by: { ...ada, name: "Grace" },
+          close_reason: "Superseded by the new layout",
+          allowed_actions: [],
+          conflicts: [],
+          behind: false,
+        }),
+      ],
+    })
+    renderPage()
+    expect(await screen.findByText("Discarded by Grace")).toBeTruthy()
+    expect(
+      screen.getByText("Reason: Superseded by the new layout")
+    ).toBeTruthy()
   })
 
   it("reloads the proposal and drops picks for conflicts that are gone after a newer revision", async () => {

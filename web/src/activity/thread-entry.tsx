@@ -25,6 +25,7 @@ import {
 } from "./entry-frame"
 import { ReplyForm } from "./reply-form"
 import type { TimelineEntry } from "./timeline-model"
+import { RunProposalState } from "./proposal-state"
 import { threadState, threadVerbText } from "./thread-view"
 
 type Props = {
@@ -129,6 +130,14 @@ export function ThreadEntry({
       break
     case "note":
       state = <MetaState>{view.text}</MetaState>
+      break
+    case "proposal":
+      state = (
+        <RunProposalState
+          dashboardId={dashboardId}
+          requestId={view.requestId}
+        />
+      )
       break
   }
 

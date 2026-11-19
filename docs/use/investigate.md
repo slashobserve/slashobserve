@@ -72,7 +72,8 @@ The comment API takes only the observation as a target: a `finding:<id>` target 
 **Pin to dashboard** adds the finding to its dashboard as an annotation at the end of the finding's window, tagged `finding`, whose text is the finding's first line and a link to it.
 Charts on the dashboard then show it as a marker; see [Annotations](annotations.md).
 The card then reads "Pinned to the dashboard" with an **Open dashboard** link, and pinning again changes nothing.
-Pinning needs Edit on the dashboard.
+Pinning needs Edit on the dashboard, so the button is not shown to a Commenter or Viewer, who see "Pinned to the dashboard" once someone else has pinned it.
+Over the API, `POST /api/v1/findings/{id}/pin` without Edit answers `403` `forbidden_role` with `needed_access` `edit`.
 
 ## Share a finding
 
@@ -97,6 +98,8 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
 Viewers can read the observations in the folders they can view.
+The web app offers Investigate, in a panel's menu and in the activity pane, only to an Editor or Admin who has Edit on that dashboard, so a Viewer or Commenter does not see it even on a copy in their own My Dashboards.
+Over the API, `POST /api/v1/observe` with `kind` `investigate` from a Viewer or Commenter answers `403` `forbidden_role` with `needed_role` `editor`.
 
 ## From an MCP client
 
