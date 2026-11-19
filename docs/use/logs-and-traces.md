@@ -175,6 +175,7 @@ The note under **Fields** says where the list comes from, and the search box nar
 The counts are read after the lines have arrived, so a wide range shows the lines first and the value counts a moment later.
 On a range wider than six hours the counts also wait for the volume strip to answer, so the two heaviest requests on a busy source do not run together, and the label names are asked for after the lines have arrived.
 When the count times out, the column says so with **Retry** and suggests a shorter range.
+
 A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
 On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
