@@ -294,6 +294,9 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"grafana_connection.created", `{"name":"Prod","host":"grafana.example.com"}`, `connected Grafana grafana.example.com as the connection "Prod"`},
 		{"grafana_connection.updated", `{"name":"Prod","host":"grafana.example.com","token_changed":true,"changes":{"host":{"from":"old.example.com","to":"grafana.example.com"}}}`, `changed the Grafana connection "Prod": host old.example.com to grafana.example.com (token replaced)`},
 		{"grafana_connection.deleted", `{"name":"Prod","host":"grafana.example.com"}`, `removed the Grafana connection "Prod"`},
+		{"public_link.created", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout","prefix":"pub_abcdefgh"}`, `created a public link to the dashboard "Checkout"`},
+		{"public_link.revoked", `{"object":{"kind":"observation","id":"o"},"title":"Slow checkout","prefix":"pub_abcdefgh"}`, `revoked a public link to the RCA "Slow checkout"`},
+		{"public_link.revoked", `{"object":{"kind":"dashboard","id":"d"},"prefix":"pub_abcdefgh"}`, `revoked a public link to a dashboard`},
 	}
 	for _, tc := range cases {
 		event, err := decode[activityEvent]([]byte(activityJSON(1, tc.kind, "Sam", "2026-11-01T10:00:00Z", tc.data)))

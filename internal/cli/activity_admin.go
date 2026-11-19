@@ -7,17 +7,21 @@ import (
 )
 
 type adminData struct {
-	Name         string                     `json:"name"`
-	FromRole     string                     `json:"from_role"`
-	ToRole       string                     `json:"to_role"`
-	Manual       bool                       `json:"manual"`
-	Sessions     int                        `json:"sessions"`
-	Grants       int                        `json:"grants"`
-	KeyName      string                     `json:"key_name"`
-	Client       string                     `json:"client"`
-	PersonName   string                     `json:"person_name"`
-	Reason       string                     `json:"reason"`
-	Domain       string                     `json:"domain"`
+	Name       string `json:"name"`
+	FromRole   string `json:"from_role"`
+	ToRole     string `json:"to_role"`
+	Manual     bool   `json:"manual"`
+	Sessions   int    `json:"sessions"`
+	Grants     int    `json:"grants"`
+	KeyName    string `json:"key_name"`
+	Client     string `json:"client"`
+	PersonName string `json:"person_name"`
+	Reason     string `json:"reason"`
+	Domain     string `json:"domain"`
+	Title      string `json:"title"`
+	Object     struct {
+		Kind string `json:"kind"`
+	} `json:"object"`
 	Host         string                     `json:"host"`
 	URLChanged   bool                       `json:"url_changed"`
 	TokenChanged bool                       `json:"token_changed"`
@@ -73,6 +77,9 @@ func describeAdmin(e activityEvent) (string, bool) {
 	if line, ok := describeAccess(e.Type, d); ok {
 		return line, true
 	}
+	if line, ok := describePublicLink(e.Type, d); ok {
+		return line, true
+	}
 	return describeIntegration(e.Type, d)
 }
 
@@ -95,6 +102,18 @@ func describeAccess(typ string, d adminData) (string, bool) {
 		return fmt.Sprintf("revoked the key %q of %s", text(d.KeyName), quotedName("service account", d.Name)), true
 	}
 	return "", false
+}
+
+func describePublicLink(typ string, d adminData) (string, bool) {
+	verb, ok := map[string]string{"public_link.created": "created", "public_link.revoked": "revoked"}[typ]
+	if !ok {
+		return "", false
+	}
+	kind := "dashboard"
+	if d.Object.Kind == "observation" {
+		kind = "RCA"
+	}
+	return verb + " a public link to " + quotedName(kind, d.Title), true
 }
 
 func describeIntegration(typ string, d adminData) (string, bool) {
