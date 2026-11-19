@@ -15,7 +15,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
 | `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its version history, headed "Versions of <title>", and `thread=<thread id>` opens the activity pane on that comment thread. |
-| `/f/<folder id>` | A folder: its dashboards, observations and saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
+| `/f/<folder id>` | A folder: its dashboards with the same search and filters as the Dashboards list, its observations and its saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
@@ -339,3 +339,11 @@ The app follows your system's light or dark setting until you choose one.
 Open Settings, choose **Appearance** in its section list, and pick **Light**, **Dark** or **Match the system** under **Theme**; the choice applies at once.
 The account menu offers the same three choices under **Theme**, and the toolbar's **Switch theme** button and the command palette's **Switch theme** command flip between light and dark.
 The choice stays in this browser's local storage and never reaches the server, so it does not follow you to another browser.
+
+## Time zone
+
+**Appearance** in Settings also has **Time zone**.
+It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
+It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
+It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

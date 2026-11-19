@@ -18,10 +18,14 @@ var (
 	ErrUnavailable    = errors.New("datasource unavailable")
 	ErrNotFound       = errors.New("not found")
 
-	ErrNotReadOnly    = refine(ErrForbiddenQuery)
-	ErrUnsafeGrant    = refine(ErrForbiddenQuery)
-	ErrAuthFailed     = refine(ErrUnavailable)
-	ErrHostNotAllowed = refine(ErrUnavailable)
+	ErrNotReadOnly     = refine(ErrForbiddenQuery)
+	ErrUnsafeGrant     = refine(ErrForbiddenQuery)
+	ErrAuthFailed      = refine(ErrUnavailable)
+	ErrHostNotAllowed  = refine(ErrUnavailable)
+	ErrNoSecretKey     = refine(ErrUnavailable)
+	ErrUnreadable      = refine(ErrUnavailable)
+	ErrNotLoadable     = refine(ErrUnavailable)
+	ErrOutboundBlocked = refine(ErrUnavailable)
 
 	ErrWrongFlavor        = refine(ErrInvalidQuery)
 	ErrIsOpenSearch       = refine(ErrWrongFlavor)
@@ -47,6 +51,7 @@ func (k *refinedKind) Unwrap() error { return k.parent }
 type UpstreamError struct {
 	Kind    error
 	Message string
+	Status  int
 }
 
 func (e *UpstreamError) Error() string {
@@ -66,6 +71,13 @@ func (e *ConfigError) Error() string { return e.Message }
 
 func ConfigErrorf(format string, args ...any) error {
 	return &ConfigError{Message: fmt.Sprintf(format, args...)}
+}
+
+func ErrorfStatus(kind error, status int, format string, args ...any) error {
+	if kind == nil {
+		kind = ErrUnavailable
+	}
+	return &UpstreamError{Kind: kind, Message: fmt.Sprintf(format, args...), Status: status}
 }
 
 func IsTransient(err error) bool {

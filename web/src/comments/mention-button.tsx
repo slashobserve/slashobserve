@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/combobox"
 import { cn } from "@/lib/utils"
 
-import { insertMention, type MentionOption } from "./mentions"
+import { insertMention, typedMentionEnd, type MentionOption } from "./mentions"
 
 type MentionButtonProps = {
   options: readonly MentionOption[]
@@ -46,7 +46,7 @@ export function MentionButton({
     const end =
       replaceFrom === null
         ? (element?.selectionEnd ?? value.length)
-        : replaceFrom + 1
+        : typedMentionEnd(value, replaceFrom, element?.selectionStart ?? 0)
     const next = insertMention(value, start, end, option.token)
     onChange(next.value)
     requestAnimationFrame(() => {

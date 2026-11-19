@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -59,4 +60,29 @@ func TestNewHTTPTransportKeepsConnectionsOfConcurrentCalls(t *testing.T) {
 	if redialed := opened.Load() - before; redialed != 0 {
 		t.Fatalf("the second burst of %d concurrent calls opened %d new connections, want 0", concurrent, redialed)
 	}
+}
+
+func TestTransportNeverDialsALinkLocalOrMetadataAddress(t *testing.T) {
+	transport := NewHTTPTransport()
+	for _, address := range []string{"169.254.169.254:80", "[fe80::1]:80", "[::ffff:169.254.169.254]:80", "0.0.0.0:80"} {
+		conn, err := transport.DialContext(t.Context(), "tcp", address)
+		if conn != nil {
+			_ = conn.Close()
+		}
+		if !errors.Is(err, ErrLinkLocalAddress) {
+			t.Errorf("dial %s = %v, want ErrLinkLocalAddress", address, err)
+		}
+	}
+}
+
+func TestTransportStillReachesALoopbackServer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	t.Cleanup(server.Close)
+	client := &http.Client{Transport: NewHTTPTransport()}
+
+	resp, err := client.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
 }

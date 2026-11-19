@@ -126,6 +126,14 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
+  /datasources/test:
+    $ref: "./paths/datasources.yaml#/datasources-test"
+  /datasources/{uid}:
+    $ref: "./paths/datasources.yaml#/datasources-uid"
+  /datasources/{uid}/config:
+    $ref: "./paths/datasources.yaml#/datasources-uid-config"
+  /datasources/{uid}/recheck:
+    $ref: "./paths/datasources.yaml#/datasources-uid-recheck"
   /datasources/{uid}/lint:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
   /datasources/{uid}/preview:
@@ -1212,10 +1220,10 @@ components:
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
         from_connection:
           type: boolean
-          description: True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host.
+          description: True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host.
         used_by:
           type: array
-          description: The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
+          description: The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
           items:
             type: object
             additionalProperties: false
@@ -1223,7 +1231,7 @@ components:
             properties:
               kind:
                 type: string
-                enum: [webhook, grafana_connection]
+                enum: [webhook, grafana_connection, datasource]
               name:
                 type: string
         added_at:
@@ -1535,7 +1543,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1543,6 +1551,10 @@ components:
           type: string
         name:
           type: string
+        source:
+          type: string
+          enum: [file, app]
+          description: "`file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app."
         index:
           type: string
           description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.
@@ -1553,10 +1565,14 @@ components:
           type: boolean
         message:
           type: string
+          description: A fixed sentence naming the kind of failure; absent when healthy.
+        detail:
+          type: string
+          description: The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret.
         checked_at:
           type: string
           format: date-time
-          description: When the server last checked the datasource; checks are cached for 10 seconds.
+          description: When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
         dashboard_count:
           type: integer
           minimum: 0
@@ -1570,6 +1586,235 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DatasourceStatus"
+    DatasourceLimits:
+      type: object
+      additionalProperties: false
+      properties:
+        timeout:
+          type: string
+          description: A duration such as `30s`; empty uses the adapter default.
+        max_series:
+          type: integer
+          minimum: 0
+        max_points:
+          type: integer
+          minimum: 0
+        max_rows:
+          type: integer
+          minimum: 0
+        max_concurrent_queries:
+          type: integer
+          minimum: 0
+          maximum: 1024
+          description: The most queries this datasource runs at once across the fleet; 0 uses the default of 32.
+    DatasourceFieldRoles:
+      type: object
+      additionalProperties: false
+      description: Which fields of an Elasticsearch or OpenSearch index play which role in logs and traces.
+      properties:
+        message:
+          type: string
+        level:
+          type: string
+        service:
+          type: string
+        trace_id:
+          type: string
+        span_id:
+          type: string
+    DatasourceSecrets:
+      type: object
+      additionalProperties: false
+      description: Credentials, written and never read back. A field left out keeps what is stored; a value replaces it.
+      properties:
+        password:
+          type: string
+          description: The basic-auth password, or the ClickHouse password.
+        bearer_token:
+          type: string
+        api_key:
+          type: string
+          description: The Elasticsearch or OpenSearch API key.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Custom request headers by name. Every value is treated as a credential.
+    DatasourceDraft:
+      type: object
+      additionalProperties: false
+      description: >-
+        A datasource definition. Creating needs `uid`, `type` and `address`.
+        Changing and testing a saved datasource take only the fields to change.
+      properties:
+        uid:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+        type:
+          type: string
+          enum: [prometheus, clickhouse, loki, tempo, elasticsearch, opensearch]
+        name:
+          type: string
+          maxLength: 100
+          description: The display name; the uid when empty.
+        grafana_uids:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+          description: Grafana datasource uids this one stands for when dashboards are imported.
+        address:
+          type: string
+          description: An http or https URL, or `host:port` for ClickHouse. A login belongs in `username` and `secrets`, not here.
+        username:
+          type: string
+          description: The basic-auth user, or the ClickHouse user.
+        database:
+          type: string
+          description: ClickHouse only.
+        tls:
+          type: boolean
+          description: ClickHouse only.
+        tenant_id:
+          type: string
+          description: Loki only.
+        scrape_interval:
+          type: string
+          description: Prometheus only, a duration such as `15s`.
+        index:
+          type: string
+          description: Elasticsearch and OpenSearch only.
+        time_field:
+          type: string
+        query_language:
+          type: string
+          enum: ["", kql, lucene]
+        fields:
+          $ref: "#/components/schemas/DatasourceFieldRoles"
+        limits:
+          $ref: "#/components/schemas/DatasourceLimits"
+        secrets:
+          $ref: "#/components/schemas/DatasourceSecrets"
+        clear_secrets:
+          type: array
+          items:
+            type: string
+          description: Credentials to remove, each `password`, `bearer_token`, `api_key` or `header:<name>`.
+    DatasourceConfig:
+      type: object
+      additionalProperties: false
+      required: [uid, type, name, source, address, secrets_set, created_at, updated_at]
+      description: A datasource added in the app, without its credentials.
+      properties:
+        uid:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+          enum: [app]
+        grafana_uids:
+          type: array
+          items:
+            type: string
+        address:
+          type: string
+        username:
+          type: string
+        database:
+          type: string
+        tls:
+          type: boolean
+        tenant_id:
+          type: string
+        scrape_interval:
+          type: string
+        index:
+          type: string
+        time_field:
+          type: string
+        query_language:
+          type: string
+        fields:
+          $ref: "#/components/schemas/DatasourceFieldRoles"
+        limits:
+          $ref: "#/components/schemas/DatasourceLimits"
+        secrets_set:
+          type: array
+          items:
+            type: string
+          description: Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DatasourceTestResult:
+      type: object
+      additionalProperties: false
+      required: [healthy]
+      properties:
+        healthy:
+          type: boolean
+        message:
+          type: string
+          description: A fixed sentence naming the kind of failure; absent when healthy.
+        detail:
+          type: string
+          description: The cause when the server knows it; never an address, user or secret.
+    InvalidDatasourceError:
+      type: object
+      additionalProperties: false
+      required: [error, code, fields]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_datasource]
+        fields:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    DatasourceInUseError:
+      type: object
+      additionalProperties: false
+      required: [error, code, used_by, hidden]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [datasource_in_use]
+        used_by:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, id, title]
+            properties:
+              kind:
+                type: string
+                enum: [dashboard, saved_search]
+              id:
+                type: string
+                format: uuid
+              title:
+                type: string
+        hidden:
+          type: integer
+          minimum: 0
+          description: How many more dashboards and saved searches use it in folders the caller cannot see.
     MetricName:
       type: object
       additionalProperties: false
@@ -1635,7 +1880,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1656,7 +1901,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, public_link]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
             id:
               type: string
               format: uuid
@@ -1711,7 +1956,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, public_link]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
             id:
               type: string
               format: uuid
@@ -5303,7 +5548,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 72
+          maxItems: 75
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5394,7 +5639,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 72
+          maxItems: 75
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5415,7 +5660,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 72
+          maxItems: 75
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
