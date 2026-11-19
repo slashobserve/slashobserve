@@ -1380,7 +1380,7 @@ func TestDefaultTitleIsAShortCleanFirstLine(t *testing.T) {
 	}
 }
 
-func TestCleanTitleTakesOneLineOfAtMost120Runes(t *testing.T) {
+func TestCheckTitleTakesOneLineOfAtMost120Runes(t *testing.T) {
 	cases := []struct {
 		title string
 		want  string
@@ -1392,11 +1392,23 @@ func TestCleanTitleTakesOneLineOfAtMost120Runes(t *testing.T) {
 		{"two\nlines", "", false},
 		{"   ", "", false},
 		{"bidi \u202e", "", false},
+		{"\u200b", "", false},
 	}
 	for _, c := range cases {
-		got, ok := revisions.CleanTitle(c.title)
-		if got != c.want || ok != c.ok {
-			t.Errorf("CleanTitle(%q) = %q, %v, want %q, %v", c.title, got, ok, c.want, c.ok)
+		got, err := revisions.CheckTitle(c.title)
+		if got != c.want || (err == nil) != c.ok {
+			t.Errorf("CheckTitle(%q) = %q, %v, want %q, ok %v", c.title, got, err, c.want, c.ok)
 		}
+	}
+}
+
+func TestCleanPromptRefusesTextWithNoVisibleCharacter(t *testing.T) {
+	for _, in := range []string{"", "  \n", "\u200b", "\u200b\u2060\ufeff", "\u3164", "\u200d"} {
+		if got, ok := revisions.CleanPrompt(in); ok {
+			t.Errorf("CleanPrompt(%q) = %q, true", in, got)
+		}
+	}
+	if got, ok := revisions.CleanPrompt("\u200b show errors \u200b"); !ok || got != "show errors" {
+		t.Errorf("CleanPrompt = %q, %v", got, ok)
 	}
 }

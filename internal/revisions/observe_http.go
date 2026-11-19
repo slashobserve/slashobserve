@@ -235,9 +235,9 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "prompt is required")
 		return
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	switch {
@@ -652,12 +652,13 @@ func (h *ObserveHandler) patchObserve(c *gin.Context) {
 	clearTitle := bytes.Equal(req.Title, []byte("null"))
 	if req.Title != nil && !clearTitle {
 		var raw string
-		cleaned, valid := "", json.Unmarshal(req.Title, &raw) == nil
-		if valid {
-			cleaned, valid = CleanTitle(raw)
+		if json.Unmarshal(req.Title, &raw) != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "title must be a string or null")
+			return
 		}
-		if !valid {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("title must be 1 to %d characters on one line", MaxTitleRunes))
+		cleaned, err := CheckTitle(raw)
+		if err != nil {
+			httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 			return
 		}
 		title = &cleaned

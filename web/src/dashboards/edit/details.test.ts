@@ -90,15 +90,24 @@ describe("parseTags", () => {
 
 describe("titleError and descriptionError", () => {
   it("requires a title after trimming", () => {
-    expect(titleError("   ")).toBe("Enter a title.")
+    expect(titleError("   ")).toBe(
+      "Title must not be empty; enter 1 to 200 characters."
+    )
+    expect(titleError("\u200b")).toBe(
+      "Title has no visible character; enter 1 to 200 characters of visible text."
+    )
     expect(titleError(" Checkout ")).toBeNull()
   })
 
   it("counts title characters by code point", () => {
     expect(titleError("a".repeat(200))).toBeNull()
-    expect(titleError("a".repeat(201))).toBe("Use at most 200 characters.")
+    expect(titleError("a".repeat(201))).toBe(
+      "Title must be at most 200 characters; shorten it."
+    )
     expect(titleError("😀".repeat(200))).toBeNull()
-    expect(titleError("😀".repeat(201))).toBe("Use at most 200 characters.")
+    expect(titleError("😀".repeat(201))).toBe(
+      "Title must be at most 200 characters; shorten it."
+    )
   })
 
   it("limits the description to 2000 characters by code point", () => {

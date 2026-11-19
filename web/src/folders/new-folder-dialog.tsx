@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cleanText, lineRule, textError } from "@/lib/user-text"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { useCreateFolder, type Folder } from "./queries"
@@ -43,7 +44,10 @@ export function NewFolderDialog({
   const create = useCreateFolder()
   const [title, setTitle] = useState("")
   const [problem, setProblem] = useState<string | null>(null)
-  const trimmed = title.trim()
+  const trimmed = cleanText(title)
+  const inline =
+    title === "" ? null : textError("name", title, lineRule(maxTitleLength))
+  const shown = problem ?? inline
 
   function close() {
     onOpenChange(false)
@@ -54,7 +58,7 @@ export function NewFolderDialog({
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (trimmed === "" || create.isPending) return
+    if (trimmed === "" || inline !== null || create.isPending) return
     setProblem(null)
     create.mutate(trimmed, {
       onSuccess: (folder) => {
@@ -82,7 +86,6 @@ export function NewFolderDialog({
             <Label htmlFor={inputId}>Name</Label>
             <Input
               id={inputId}
-              maxLength={maxTitleLength}
               autoComplete="off"
               value={title}
               onChange={(event) => {
@@ -91,9 +94,9 @@ export function NewFolderDialog({
               }}
             />
           </div>
-          {problem === null ? null : (
+          {shown === null ? null : (
             <Alert variant="destructive">
-              <AlertDescription>{problem}</AlertDescription>
+              <AlertDescription>{shown}</AlertDescription>
             </Alert>
           )}
           <DialogFooter>
@@ -107,7 +110,7 @@ export function NewFolderDialog({
             </Button>
             <Button
               type="submit"
-              disabled={trimmed === ""}
+              disabled={trimmed === "" || inline !== null}
               aria-busy={create.isPending}
             >
               {create.isPending ? (
