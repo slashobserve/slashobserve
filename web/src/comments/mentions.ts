@@ -158,6 +158,19 @@ export function mentionTriggerAt(value: string, caret: number): number | null {
   return before === undefined || /\s/.test(before) ? caret - 1 : null
 }
 
+const typedQuery = new RegExp(`^${handleRune}*$`, "u")
+
+export function typedMentionEnd(
+  value: string,
+  trigger: number,
+  caret: number
+): number {
+  const afterAt = trigger + 1
+  return caret > afterAt && typedQuery.test(value.slice(afterAt, caret))
+    ? caret
+    : afterAt
+}
+
 export function insertMention(
   value: string,
   start: number,

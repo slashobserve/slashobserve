@@ -195,6 +195,24 @@ func TestSlotsUsageListsEveryDatasourceSortedByUID(t *testing.T) {
 	}
 }
 
+func TestSetTotalChangesTheLimitOfARunningDatasource(t *testing.T) {
+	s := NewSlots(nil, nil)
+	s.SetTotal("added", 1)
+	release := mustAcquire(t, s, "added")
+	if !blocks(s, "added") {
+		t.Fatal("a second query ran past a limit of 1")
+	}
+	s.SetTotal("added", 2)
+	if blocks(s, "added") {
+		t.Fatal("a second query still blocked after the limit rose to 2")
+	}
+	release()
+	s.SetTotal("added", 0)
+	if got := s.limit("added"); got != DefaultMaxConcurrentQueries {
+		t.Fatalf("limit after clearing = %d, want %d", got, DefaultMaxConcurrentQueries)
+	}
+}
+
 func TestRunnerUpstreamWaitDefaultsToFiveSecondsAndTakesTheOption(t *testing.T) {
 	if got := NewRunner(nil, nil).UpstreamWait(); got != 5*time.Second {
 		t.Fatalf("default upstream wait = %s, want 5s", got)

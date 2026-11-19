@@ -827,12 +827,12 @@ check_datasources() {
   while IFS= read -r entry; do
     keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
     case "$keys" in
-      checked_at,dashboard_count,healthy,name,type,uid | checked_at,dashboard_count,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
+      checked_at,dashboard_count,healthy,name,source,type,uid | checked_at,dashboard_count,healthy,message,name,source,type,uid | checked_at,dashboard_count,detail,healthy,name,source,type,uid | checked_at,dashboard_count,detail,healthy,message,name,source,type,uid) entries=$((entries + 1)) ;;
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
   [[ "$entries" == 6 ]] || fail "expected 6 datasource entries, found $entries"
-  pass "datasource entries carry exactly uid, type, name, healthy, checked_at, dashboard_count and an optional message"
+  pass "datasource entries carry exactly uid, type, name, source, healthy, checked_at, dashboard_count and an optional message and detail"
 }
 
 API_TOKEN=""

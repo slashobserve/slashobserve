@@ -31,6 +31,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
+	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/draftbudget"
@@ -209,6 +210,18 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
+func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
+	}
+	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
+		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+	}); err != nil {
+		return serviceAccountsExit(err)
+	}
+	return nil
+}
+
 func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Queries, logger *slog.Logger) (*auth.Service, error) {
 	rolePolicy, err := rolePolicyOf(cfg)
 	if err != nil {
@@ -306,13 +319,8 @@ func run() error {
 		return err
 	}
 	authService.RecordChanges(database, activity.AuthChanges{})
-	if err := authService.ReconcileRoles(ctx); err != nil {
-		return withheld("role_reconcile_failed", err)
-	}
-	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
-		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
-	}); err != nil {
-		return serviceAccountsExit(err)
+	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+		return err
 	}
 
 	folderAccess := folders.NewAccess(database)
@@ -452,6 +460,16 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
+	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
+		DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey.Reveal()),
+		Domains: outbound, OutboundLocked: cfg.OutboundDomainsLocked, Access: folderAccess, Logger: logger,
+	})
+	if err := datasourceAdmin.Load(ctx); err != nil {
+		return withheld("datasources_load_failed", err)
+	}
+	stopDatasourceSync := startBackground(ctx, "datasource sync", datasourceAdmin.Run, logger)
+	defer stopDatasourceSync()
+
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
 		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
@@ -515,6 +533,7 @@ func run() error {
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			datasourceadmin.NewHandler(datasourceAdmin, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},

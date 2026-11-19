@@ -6,7 +6,8 @@ description: Control which domains the server may fetch from or call, including 
 SlashObserve can show content that dashboards fetch from other sites, such as the feeds in news panels.
 The server fetches it only from domains that are on the allowlist.
 The list starts empty, so a new deployment makes no such request until someone allows a domain.
-Datasource queries, the identity provider and the model provider are not part of this list.
+Datasources defined in the datasources file, the identity provider and the model provider are not part of this list.
+A datasource an Admin adds in the app is held to it in a narrower way, described in [Add datasources in the app](../connect/datasources-in-the-app.md#addresses).
 
 An entry is `example.com`, which matches that host only, or `*.example.com`, which matches its subdomains but not `example.com` itself.
 Write the domain without a scheme, port or path; an IP address is refused, and a name with non-ASCII letters is stored in its ASCII form.
@@ -19,8 +20,8 @@ Every fetch follows the same rules, whatever the domain:
 - Only public addresses.
   The server checks the address it connects to, so a name that resolves to a private, loopback, link-local or cloud metadata address is refused.
   The one exception is a [Grafana connection](../use/switch-from-grafana.md) an Admin configures: its address may be `http` on any port and may resolve to a private address, and it still has to be on the allowlist.
-  Saving a connection adds its host to the list with `from_connection: true`, shown as "Added for a Grafana connection".
-  Deleting the connection, or moving it to another host, removes that entry again unless a webhook, another connection or an entry added by hand still uses it.
+  Saving a connection, or a datasource added in the app, adds its host to the list with `from_connection: true`, shown as "Added for a connection or datasource".
+  Deleting the connection or datasource, or moving it to another host, removes that entry again unless a webhook, a connection, a datasource or an entry added by hand still uses it.
   An Admin who allows that same domain by hand keeps it: the entry stops being tied to the connection and the call answers `200` instead of `201`.
 - A redirect is followed up to 5 times, and each hop must be an allowed domain on `https`.
 - No cookies, credentials or `Referer` are sent.
@@ -31,7 +32,7 @@ An Editor or an Admin can see the list, because the canvas actions editor needs 
 Only an Admin can allow or remove a domain in Settings or through `/api/v1/outbound-domains`, and service-account keys cannot.
 Every change is logged at INFO as `allowed an outbound domain` or `removed an outbound domain` with the person's id (`actor_id`) and the domain.
 The table also keeps who added each entry and when, but a removed entry leaves only the log line.
-Each entry in `GET /api/v1/outbound-domains` carries `used_by`, the webhooks and Grafana connections whose address it allows, empty for an Editor because those are Admin only, and Settings names them in the confirmation before it removes the entry.
+Each entry in `GET /api/v1/outbound-domains` carries `used_by`, the webhooks, Grafana connections and datasources whose address it allows, empty for an Editor because those are Admin only, and Settings names them in the confirmation before it removes the entry.
 Dashboard feeds, actions and assets are fetched on demand and are not listed, so removing a domain stops them without a warning from the server.
 
 To take the decision away from the Admins, set `SLASHOBSERVE_OUTBOUND_DOMAINS`.

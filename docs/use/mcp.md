@@ -79,6 +79,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
+| `recheck_datasource` | Viewer |
 | `reopen_comment` | Viewer |
 | `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |

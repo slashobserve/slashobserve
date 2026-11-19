@@ -236,6 +236,19 @@ type DashboardViewer struct {
 	SeenAt      pgtype.Timestamptz
 }
 
+type Datasource struct {
+	ID          pgtype.UUID
+	Uid         string
+	Type        string
+	Name        string
+	Config      []byte
+	Secrets     []byte
+	SecretNames []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type DraftQuerySpend struct {
 	PrincipalKey string
 	WindowStart  pgtype.Timestamptz

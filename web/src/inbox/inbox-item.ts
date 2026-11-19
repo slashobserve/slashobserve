@@ -33,6 +33,7 @@ const kindWords: Record<TargetKind, string> = {
   mcp_client: "an agent connection",
   outbound_domain: "an outbound domain",
   grafana_connection: "a Grafana connection",
+  datasource: "a datasource",
   public_link: "a public link",
 }
 

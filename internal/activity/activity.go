@@ -93,6 +93,9 @@ const (
 	TypeGrafanaConnectionCreated = "grafana_connection.created"
 	TypeGrafanaConnectionUpdated = "grafana_connection.updated"
 	TypeGrafanaConnectionDeleted = "grafana_connection.deleted"
+	TypeDatasourceCreated        = "datasource.created"
+	TypeDatasourceUpdated        = "datasource.updated"
+	TypeDatasourceDeleted        = "datasource.deleted"
 )
 
 var publicLinkTypes = []string{
@@ -125,6 +128,9 @@ var adminTypes = []string{
 	TypeGrafanaConnectionCreated,
 	TypeGrafanaConnectionUpdated,
 	TypeGrafanaConnectionDeleted,
+	TypeDatasourceCreated,
+	TypeDatasourceUpdated,
+	TypeDatasourceDeleted,
 }
 
 var workspaceTypes = []string{

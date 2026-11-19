@@ -163,6 +163,19 @@ describe("MentionButton", () => {
     await waitFor(() => expect(body).toHaveValue("hi @observe "))
   })
 
+  it("replaces what was typed after the @ when the field kept the focus", async () => {
+    const user = userEvent.setup()
+    renderWithProviders(
+      <Harness initial="hi @obs" replaceFrom={3} initiallyOpen />
+    )
+    const body = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Body",
+    })
+    body.setSelectionRange(7, 7)
+    await user.click(await screen.findByRole("option", { name: /Observe/ }))
+    await waitFor(() => expect(body).toHaveValue("hi @observe "))
+  })
+
   it("closes on Escape, keeps the text and returns focus to the field", async () => {
     const { user, body } = await setup("hi @", 4)
     await screen.findAllByRole("option")

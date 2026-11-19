@@ -18,6 +18,7 @@ import {
   matchingOptions,
   mentionOptions,
   peopleOptions,
+  typedMentionEnd,
   type MentionAgent,
   type MentionOption,
   type MentionPerson,
@@ -84,7 +85,7 @@ export function MentionButton({
     const end =
       replaceFrom === null
         ? (element?.selectionEnd ?? value.length)
-        : replaceFrom + 1
+        : typedMentionEnd(value, replaceFrom, element?.selectionStart ?? 0)
     const next = insertMention(value, start, end, onPick(option))
     onChange(next.value)
     requestAnimationFrame(() => {

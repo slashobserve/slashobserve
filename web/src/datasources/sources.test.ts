@@ -20,6 +20,7 @@ function source(uid: string, type: string, name = uid): DatasourceStatus {
     uid,
     type,
     name,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
