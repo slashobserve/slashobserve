@@ -29,7 +29,7 @@ export async function expectNoAnimations(locator: Locator) {
 
 export async function selectPanel(page: Page, title: string) {
   await panel(page, title)
-    .getByRole("button", { name: title, exact: true })
+    .getByRole("button", { name: `Select panel: ${title}`, exact: true })
     .click()
   await expect(panel(page, title)).toHaveAttribute("data-selected", "")
   await expect(panel(page, title)).toHaveAttribute("aria-current", "true")
