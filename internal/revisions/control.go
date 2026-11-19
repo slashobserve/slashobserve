@@ -20,7 +20,7 @@ import (
 
 const (
 	continuesKeyIndex = "agent_requests_continues_key"
-	retriesKeyIndex   = "agent_requests_retries_key"
+	successorKeyIndex = "agent_requests_successor_key"
 )
 
 var ErrNotRequester = errors.New("only the person or key that asked can do this")
@@ -312,7 +312,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 func continueFailure(err error) error {
 	var pgErr *pgconn.PgError
 	switch {
-	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == continuesKeyIndex:
+	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && (pgErr.ConstraintName == continuesKeyIndex || pgErr.ConstraintName == successorKeyIndex):
 		return ErrNotContinuable
 	case db.IsForeignKeyViolation(err):
 		return ErrDashboardNotFound
@@ -357,7 +357,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 
 func isRetriesConflict(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == retriesKeyIndex
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == successorKeyIndex
 }
 
 func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) error {

@@ -99,7 +99,7 @@ An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
 **Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
 The new run is yours, whoever started the one you retry.
-A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry is refused with 409 `invalid_transition` instead of starting a duplicate.
+A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
 Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.

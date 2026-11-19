@@ -119,7 +119,7 @@ func (f runFacts) refuses(a Action) bool {
 	case ActionKeepBuild:
 		return !hasBuild || !f.mayEdit
 	case ActionContinue:
-		return f.source == SourceInvestigate || !hasBuild || f.continued
+		return f.source == SourceInvestigate || !hasBuild || f.continued || f.retried
 	case ActionRetry:
 		return !f.retryable()
 	}
