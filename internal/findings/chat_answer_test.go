@@ -150,3 +150,16 @@ func TestAnUnsavedAnswerOnADashboardFollowsWhoCanStillSeeThatDashboard(t *testin
 		t.Errorf("the requester who lost the dashboard reads its answer: %v, want ErrNotFound", err)
 	}
 }
+
+func TestDeletingARunTakesItsUnsavedAnswerWithIt(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, r.open)
+	r.save(t, editor, findings.SaveInput{AgentRequestID: request})
+
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `DELETE FROM dashboards WHERE id = $1`, r.open); err != nil {
+		t.Fatalf("delete the dashboard the run was asked on: %v", err)
+	}
+	if n := r.count(t, `SELECT count(*) FROM findings`); n != 0 {
+		t.Fatalf("%d findings left after their run was deleted", n)
+	}
+}
