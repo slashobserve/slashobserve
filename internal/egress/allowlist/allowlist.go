@@ -89,3 +89,11 @@ func (s *Store) Add(ctx context.Context, by auth.Principal, pattern domains.Patt
 	})
 	return row, err
 }
+
+func (s *Store) Remove(ctx context.Context, pattern domains.Pattern) (bool, error) {
+	if s.lock.Locked {
+		return false, ErrLocked
+	}
+	n, err := s.db.Queries().DeleteOutboundDomain(ctx, pattern.String())
+	return n > 0, err
+}

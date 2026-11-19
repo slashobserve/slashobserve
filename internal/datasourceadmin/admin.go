@@ -275,28 +275,38 @@ func (s *Service) refusal(list domains.List, host endpoint, mayAdd bool) error {
 	return &egress.HostError{Host: host.host, Err: egress.ErrNotAllowed}
 }
 
-func (s *Service) allow(ctx context.Context, by auth.Principal, host endpoint) error {
+func (s *Service) allow(ctx context.Context, by auth.Principal, host endpoint) (bool, error) {
 	list, err := s.domains.Allowed(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	pattern, isDomain := host.domain()
 	if refused := s.refusal(list, host, false); refused == nil || !isDomain {
-		return refused
+		return false, refused
 	}
 	_, err = s.domains.Add(ctx, by, pattern)
 	switch {
 	case err == nil:
 		s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", pattern.String()))
-		return nil
+		return true, nil
 	case errors.Is(err, allowlist.ErrExists):
-		return nil
+		return false, nil
 	case errors.Is(err, allowlist.ErrLocked):
-		return &egress.HostError{Host: host.host, Err: egress.ErrNotAllowed}
+		return false, &egress.HostError{Host: host.host, Err: egress.ErrNotAllowed}
 	case errors.Is(err, allowlist.ErrTooMany):
-		return ErrAllowlistFull
+		return false, ErrAllowlistFull
 	}
-	return err
+	return false, err
+}
+
+func (s *Service) unallow(ctx context.Context, host endpoint, added bool) {
+	pattern, isDomain := host.domain()
+	if !added || !isDomain {
+		return
+	}
+	if _, err := s.domains.Remove(context.WithoutCancel(ctx), pattern); err != nil {
+		s.logger.WarnContext(ctx, "could not take back an outbound domain", logattrs.Failure("allowlist_rollback_failed", err, slog.String("domain", pattern.String()))...)
+	}
 }
 
 func (s *Service) mayConnect(ctx context.Context, host endpoint) error {
@@ -350,11 +360,13 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	if err != nil {
 		return Record{}, err
 	}
-	if err := s.allow(ctx, by, cand.host); err != nil {
+	added, err := s.allow(ctx, by, cand.host)
+	if err != nil {
 		return Record{}, err
 	}
 	config, err := json.Marshal(cand.def)
 	if err != nil {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, err
 	}
 	params := dbsqlc.InsertDatasourceParams{ID: id, Uid: cand.def.UID, Type: cand.def.Type, Name: cand.def.Name, Config: config, Secrets: ciphertext, SecretNames: names}
@@ -364,9 +376,11 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	row, err := s.db.Queries().InsertDatasource(ctx, params)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, ErrUIDTaken
 	}
 	if err != nil {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, err
 	}
 	s.applyRow(ctx, row)
@@ -417,25 +431,30 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
+	added := false
 	if cand.def.Address != current.Definition.Address {
-		if err := s.allow(ctx, by, cand.host); err != nil {
+		if added, err = s.allow(ctx, by, cand.host); err != nil {
 			return Record{}, err
 		}
 	}
 	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Secrets: row.Secrets, SecretNames: row.SecretNames}
 	if !change.empty() {
 		if params.Secrets, params.SecretNames, err = s.seal(row.ID, secrets); err != nil {
+			s.unallow(ctx, cand.host, added)
 			return Record{}, err
 		}
 	}
 	if params.Config, err = json.Marshal(cand.def); err != nil {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, err
 	}
 	updated, err := s.db.Queries().UpdateDatasource(ctx, params)
 	if errors.Is(err, pgx.ErrNoRows) {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, ErrNotFound
 	}
 	if err != nil {
+		s.unallow(ctx, cand.host, added)
 		return Record{}, err
 	}
 	s.applyRow(ctx, updated)

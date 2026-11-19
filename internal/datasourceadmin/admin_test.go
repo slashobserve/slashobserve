@@ -346,3 +346,37 @@ func TestTestingARefusedDomainStillAnswersTheLockedAllowlist(t *testing.T) {
 		t.Fatalf("an IP address on a locked list = %v, want ErrAddressRefused", err)
 	}
 }
+
+func TestACreateThatFailsAfterAddingItsDomainTakesTheDomainBack(t *testing.T) {
+	server := upstream(t, nil)
+	r, svc := newRig(t, testKey)
+	r.insert(t, testKey, prometheus("raced", server.URL), Secrets{})
+
+	_, err := svc.Create(t.Context(), r.admin, prometheus("raced", "http://prom.example.invalid:9090"), Secrets{})
+	if !errors.Is(err, ErrUIDTaken) {
+		t.Fatalf("error = %v, want ErrUIDTaken", err)
+	}
+
+	list, err := r.domains.Allowed(t.Context())
+	if err != nil || len(list) != 0 {
+		t.Fatalf("allowlist after a failed create = %v, error = %v", list, err)
+	}
+}
+
+func TestACreateThatFailsKeepsADomainThatWasAlreadyAllowed(t *testing.T) {
+	server := upstream(t, nil)
+	r, svc := newRig(t, testKey)
+	pattern, _ := domains.ParsePattern("prom.example.invalid")
+	if _, err := r.domains.Add(t.Context(), r.admin, pattern); err != nil {
+		t.Fatal(err)
+	}
+	r.insert(t, testKey, prometheus("raced", server.URL), Secrets{})
+
+	if _, err := svc.Create(t.Context(), r.admin, prometheus("raced", "http://prom.example.invalid:9090"), Secrets{}); !errors.Is(err, ErrUIDTaken) {
+		t.Fatalf("error = %v, want ErrUIDTaken", err)
+	}
+
+	if list, _ := r.domains.Allowed(t.Context()); len(list) != 1 {
+		t.Fatalf("allowlist = %v, want the entry that was there before", list)
+	}
+}

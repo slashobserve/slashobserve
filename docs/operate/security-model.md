@@ -40,6 +40,7 @@ Datasource credentials never reach the browser.
 The datasources list returns health only, with no address, user or secret.
 Only an Admin can read a datasource's address and login, and no route returns a stored credential: passwords, tokens, API keys and header values are sealed with `SLASHOBSERVE_SECRET_KEY` and written, never read.
 An address given in the app passes the outbound allowlist and address checks, and only an Admin can add, change or remove a datasource (see [Add datasources in the app](../connect/datasources-in-the-app.md)).
+A query error shows the datasource's own error text, truncated and never naming an address, so people can fix a query from it; that holds for datasources in the file and in the app, so point a datasource only at a store whose error text may be read by everyone who can run a query on it.
 The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
 There are three exceptions.
 

@@ -33,6 +33,7 @@ type Slots interface {
 type Domains interface {
 	Allowed(ctx context.Context) (domains.List, error)
 	Add(ctx context.Context, by auth.Principal, pattern domains.Pattern) (dbsqlc.InsertOutboundDomainRow, error)
+	Remove(ctx context.Context, pattern domains.Pattern) (bool, error)
 }
 
 type Deps struct {
