@@ -28,7 +28,8 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
-	prep, err := d.prepare(ctx, req.Query, req.Range, req.Step, lim)
+	counted := req.CountedRange()
+	prep, err := d.prepare(ctx, req.Query, counted, req.Step, lim)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 	if err != nil {
 		return nil, err
 	}
-	raw, err := d.search(ctx, volumeBody(prep, d.opts.TimeField, req.Range, roles.Level, step, lim))
+	raw, err := d.search(ctx, volumeBody(prep, d.opts.TimeField, counted, roles.Level, step, lim))
 	if err != nil {
 		return nil, err
 	}

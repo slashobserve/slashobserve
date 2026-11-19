@@ -100,6 +100,10 @@ func (h *Handler) volume(c *gin.Context) {
 	if !ok {
 		return
 	}
+	queried := al.rng
+	if source.kind == queryproxy.KindInstant {
+		queried = al.counted
+	}
 	derived, err := source.derive(*req.Query, al.step)
 	if err != nil {
 		h.exploreFail(c, uid, err)
@@ -111,7 +115,7 @@ func (h *Handler) volume(c *gin.Context) {
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     exploreDashboard(uid, derived, source.kind),
 		PanelID:       explorePanelID,
-		Range:         al.rng,
+		Range:         queried,
 		Selections:    map[string]queryproxy.Selection{},
 		MaxDataPoints: al.maxDataPoints,
 		Limits:        queryproxy.DraftLimits,
@@ -158,27 +162,32 @@ func volumeProblem(err error) error {
 	return err
 }
 
-func (h *Handler) volumeWindow(c *gin.Context, uid string, req volumeRequest, d *spec.Dashboard) (alignment, bool) {
+func (h *Handler) volumeWindow(c *gin.Context, uid string, req volumeRequest, d *spec.Dashboard) (volumeWindowAlignment, bool) {
 	p, err := parseParams(req.values(), false)
 	if err != nil {
 		h.exploreFail(c, uid, err)
-		return alignment{}, false
+		return volumeWindowAlignment{}, false
 	}
 	rng, _, err := p.timeRange(d, time.Now())
 	if err != nil {
 		h.exploreFail(c, uid, err)
-		return alignment{}, false
+		return volumeWindowAlignment{}, false
 	}
 	return volumeAlignment(rng, req.buckets()), true
 }
 
-func volumeAlignment(rng datasource.TimeRange, buckets int) alignment {
+func volumeAlignment(rng datasource.TimeRange, buckets int) volumeWindowAlignment {
 	al := align(rng, queryproxy.KindRange, buckets)
 	if rng.To.After(al.rng.To) {
 		al.rng.To = al.rng.To.Add(al.step)
 		al.maxDataPoints++
 	}
-	return al
+	return volumeWindowAlignment{alignment: al, counted: rng}
+}
+
+type volumeWindowAlignment struct {
+	alignment
+	counted datasource.TimeRange
 }
 
 func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource.LogVolumeSource, req volumeRequest) {
@@ -196,9 +205,10 @@ func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
 	hist, err := source.LogVolume(ctx, datasource.VolumeRequest{
-		Query: datasource.Query{Text: *req.Query, Limits: queryproxy.DraftLimits, Dashboard: d.Title, User: queryproxy.UserFor(principal)},
-		Range: al.rng,
-		Step:  al.step,
+		Query:   datasource.Query{Text: *req.Query, Limits: queryproxy.DraftLimits, Dashboard: d.Title, User: queryproxy.UserFor(principal)},
+		Range:   al.rng,
+		Counted: al.counted,
+		Step:    al.step,
 	})
 	if err != nil {
 		h.exploreFail(c, uid, err)
