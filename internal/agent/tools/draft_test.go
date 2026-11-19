@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -712,5 +713,56 @@ func TestDraftLogsNoQuestionOrQueryText(t *testing.T) {
 	}
 	if text := logs.String(); strings.Contains(text, "timeout\\\"") || strings.Contains(text, "with a timeout") {
 		t.Fatalf("logs carry the question or query: %s", text)
+	}
+}
+
+type fakeBudget struct {
+	allowed  bool
+	resetsIn time.Duration
+	keys     []string
+}
+
+func (f *fakeBudget) Spend(_ context.Context, key string) (bool, time.Duration, error) {
+	f.keys = append(f.keys, key)
+	return f.allowed, f.resetsIn, nil
+}
+
+func TestDraftRefusesAQuestionOnceTheHourlyBudgetIsSpent(t *testing.T) {
+	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	r := draftRegistry(t, provider, draftFakes())
+	budget := &fakeBudget{allowed: false, resetsIn: 17 * time.Minute}
+	r.deps.DraftBudget = budget
+
+	_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "checkout lines"})
+
+	code, message, ok := DraftFailure(err)
+	if !ok || code != "too_many_requests" || !strings.Contains(message, "try again in 18 minutes") {
+		t.Fatalf("code %q message %q ok %v err %v", code, message, ok, err)
+	}
+	if len(provider.requests) != 0 {
+		t.Fatalf("the model was called %d times after the budget was spent", len(provider.requests))
+	}
+	if !slices.Equal(budget.keys, []string{"user:viewer-1"}) {
+		t.Fatalf("budget keys %v", budget.keys)
+	}
+}
+
+func TestDraftSpendsOneBudgetUnitPerQuestionAndIgnoresAnInvalidOne(t *testing.T) {
+	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	r := draftRegistry(t, provider, draftFakes())
+	budget := &fakeBudget{allowed: true}
+	r.deps.DraftBudget = budget
+
+	if _, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: ""}); !errors.Is(err, ErrDraftInvalid) {
+		t.Fatalf("err %v", err)
+	}
+	if len(budget.keys) != 0 {
+		t.Fatalf("an invalid question spent the budget: %v", budget.keys)
+	}
+	if _, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "checkout lines"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(budget.keys) != 1 {
+		t.Fatalf("budget keys %v, want one", budget.keys)
 	}
 }

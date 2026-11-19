@@ -265,7 +265,7 @@ test("goes to sign-in when the stream is rejected after the session ended", asyn
   consoleErrors.length = 0
 })
 
-test("shows not found when the stream keeps failing because the dashboard is gone", async ({
+test("shows deleted when the stream keeps failing because the dashboard is gone", async ({
   page,
   request,
   consoleErrors,
@@ -293,7 +293,7 @@ test("shows not found when the stream keeps failing because the dashboard is gon
 
   await page.goto(`/d/${id}`)
   await expect(
-    page.getByRole("heading", { name: "Dashboard not found" })
+    page.getByRole("heading", { name: "Dashboard deleted" })
   ).toBeVisible({ timeout: 20_000 })
   consoleErrors.length = 0
 })

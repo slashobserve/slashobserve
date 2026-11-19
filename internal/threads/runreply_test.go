@@ -2,6 +2,7 @@ package threads
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -387,5 +388,73 @@ func TestAFindingAnswerLeadsWithItsFirstParagraphAndNeverCutsAWord(t *testing.T)
 	}
 	if got := sentenceEnd(activity.Excerpt(strings.Repeat("word ", 80), maxReplyHeadingRunes)); !strings.HasSuffix(got, "word...") {
 		t.Fatalf("a cut title ends %q, want an ellipsis and no stray full stop", got[len(got)-10:])
+	}
+}
+
+func (r *rig) sweeper() *revisions.Service {
+	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns(r.db.DB)))
+}
+
+func (r *rig) endWithoutAReply(t *testing.T, run dbsqlc.AgentRequest) {
+	t.Helper()
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'the model provider returned an error', failure_code = 'provider_error', finished_at = clock_timestamp() WHERE id = $1`, run.ID)
+}
+
+func TestTheSweepAnswersInTheThreadOfARunThatEndedWithoutAReply(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	replies := r.runReplies(t, thread)
+	if len(replies) != 1 || replies[0].Body != "The run failed: the model provider returned an error." {
+		t.Fatalf("replies = %+v, want one failure reply after two sweeps", replies)
+	}
+}
+
+func TestTheSweepRetriesAReplyThatWasSkippedWhileTheTargetWasLocked(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
+		_, err := q.LockDashboardForDelete(t.Context(), dash)
+		return err
+	})
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v while the dashboard was locked, want none", replies)
+	}
+	deleting.finish(t)
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 1 {
+		t.Fatalf("replies = %+v after the lock was released, want one", replies)
+	}
+}
+
+func TestTheSweepLeavesAnOldRunWithoutAReplyAlone(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+	r.db.Exec(t, `UPDATE agent_requests SET finished_at = clock_timestamp() - interval '3 days' WHERE id = $1`, run.ID)
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v, want none for a run that ended 3 days ago", replies)
 	}
 }

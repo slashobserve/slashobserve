@@ -570,6 +570,155 @@ dashboards-id-versions-version-restore:
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-panels:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: patchDashboardPanels
+    x-surfaces:
+      mcp: [update_panels]
+      cli: [observe dashboards panels]
+    summary: Save a new version that adds, replaces, removes or moves panels, running only the queries of what changed.
+    description: >-
+      The patch is applied to `parent_version` with the same merge as the `update_panels` tool, then saved like `createDashboardVersion` with `merge: auto`.
+      Only the changed panels and variables run their queries, or every query when `dashboard.time` changes.
+      A retried request with the same parent and body answers 200 with `Idempotent-Replay: true`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [summary, parent_version]
+            properties:
+              upsert:
+                type: array
+                maxItems: 50
+                items:
+                  type: object
+                  additionalProperties: true
+                description: Complete panels matched by id; an existing id replaces that panel and keeps its position without `gridPos`, a new id adds one.
+              delete:
+                type: array
+                maxItems: 50
+                items:
+                  type: string
+                description: Ids of panels to remove; a row only with all of its children.
+              layout:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                    gridPos:
+                      type: object
+                      additionalProperties: true
+                    row:
+                      type: string
+                      description: Id of the row to move the panel into; an empty string moves it to the top level.
+                description: Moves of existing panels.
+              variables:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                description: The complete variable list; replaces the existing one.
+              dashboard:
+                type: object
+                additionalProperties: false
+                properties:
+                  time:
+                    type: object
+                    additionalProperties: true
+                  title:
+                    type: string
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  links:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                description: Dashboard-level values to replace; a key left out is kept.
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 500
+              parent_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+              propose_if_needed:
+                type: boolean
+                default: false
+                description: Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+              accept_empty:
+                type: boolean
+                default: false
+                description: Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
+    responses:
+      "200":
+        description: The request repeats the latest version, so that version is returned.
+        headers:
+          Idempotent-Replay:
+            required: true
+            schema:
+              type: string
+              enum: ["true"]
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
+      "201":
+        description: The new version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
+      "202":
+        description: The change became a proposal, or a revision of the caller's open one; no version was saved.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalCreated"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 dashboards-id-duplicate:
   parameters:
     - name: id

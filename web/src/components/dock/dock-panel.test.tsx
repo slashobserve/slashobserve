@@ -140,6 +140,24 @@ describe("DockPanel", () => {
     ).toBeInTheDocument()
   })
 
+  it("becomes a bottom sheet on a tablet when the caller asks for one", () => {
+    setViewport(1024)
+    render(
+      <DockPanel
+        labelledBy="t"
+        width={760}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked="sheet"
+      >
+        <h2 id="t">Edit Requests</h2>
+      </DockPanel>
+    )
+    const aside = screen.getByRole("complementary", { name: "Edit Requests" })
+    expect(aside).toHaveAttribute("data-sheet")
+    expect(screen.queryByRole("separator")).toBeNull()
+  })
+
   it("has no grab bar on a wide screen", () => {
     setViewport(1440)
     render(<Panel />)

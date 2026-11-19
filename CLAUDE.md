@@ -159,7 +159,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - The authoring guide is `internal/agent/prompts/spec_guide.md` plus one `guide/<type>.md` section per datasource type; `prompts.GuideFor` is the only place that picks sections, and a run's system text and `get_spec_guide` carry only the sections of the configured types.
 - Imports are the one tolerant first save: `POST /api/v1/imports` saves version 1 even when queries fail and records those panels and variables in `version.unverified` and the import report.
   Later saves run every query, and a failing panel or variable is kept only while the parent version lists it as unverified and it is unchanged.
-  `update_panels` is the exception: it runs only the changed panels and variables, but every query when it changes the dashboard's default `time`, because each check depends on that range.
+  `update_panels` and the panel patch route `POST /api/v1/dashboards/{id}/panels` behind the web panel editor and `observe dashboards panels` are the exception: they run only the changed panels and variables, but every query when it changes the dashboard's default `time`, because each check depends on that range.
   The agent is told never to delete an unverified panel unless asked.
 - The original Grafana JSON is stored in `imports.original` and is never returned by the API or shown to the agent.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.

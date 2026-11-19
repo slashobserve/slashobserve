@@ -16,6 +16,8 @@ import {
   type Unit,
 } from "@/spec"
 
+import { optionDefault } from "./field-options/values"
+
 export type EditablePanel = DataPanel | TextPanel | DashlistPanel | NewsPanel
 
 export function isEditablePanel(panel: Panel): panel is EditablePanel {
@@ -50,6 +52,7 @@ export type DraftAction =
   | { type: "setThresholds"; thresholds: Threshold[] | null }
   | { type: "setTitle"; title: string }
   | { type: "setDisplay"; key: string; value: unknown }
+  | { type: "setOption"; key: string; value: unknown }
   | { type: "setContent"; content: string }
   | { type: "replace"; panel: EditablePanel }
   | { type: "reset" }
@@ -146,6 +149,14 @@ function setDisplay(
   else panel.display = display
 }
 
+function setOption(panel: DataPanel, key: string, value: unknown) {
+  if (value === undefined || value === optionDefault(key)) {
+    Reflect.deleteProperty(panel, key)
+  } else {
+    Reflect.set(panel, key, value)
+  }
+}
+
 function setType(panel: DataPanel, type: DataPanelType) {
   panel.type = type
   const allowed = displayKeysFor(type)
@@ -231,6 +242,10 @@ export function draftReducer(
       setDisplay(panel, action.key, action.value)
       return withDraftPanel(state, panel)
     }
+    case "setOption":
+      return editData(state, (panel) =>
+        setOption(panel, action.key, action.value)
+      )
     case "setContent": {
       if (state.panel.type !== "text") return state
       const panel = structuredClone(state.panel)

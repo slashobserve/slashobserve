@@ -196,7 +196,7 @@ function Reducers({
   )
 }
 
-function useEntry(stored: string) {
+export function useEntry(stored: string) {
   const [entry, setEntry] = useState(stored)
   const [synced, setSynced] = useState(stored)
   if (stored !== synced) {
@@ -212,7 +212,7 @@ function useEntry(stored: string) {
   }
 }
 
-function EntryField({
+export function EntryField({
   label,
   hint,
   invalid,

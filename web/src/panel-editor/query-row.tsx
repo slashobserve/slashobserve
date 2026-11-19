@@ -23,7 +23,8 @@ import { CheckboxField } from "./field-controls"
 
 export const maxQueryLength = 20000
 const maxLegendLength = 200
-const validText = "Query is valid. Errors show under the line that has them."
+const validText =
+  "Syntax is valid. The preview runs the query. Errors show under the line that has them."
 
 function hasCoarsePointer() {
   return window.matchMedia("(pointer: coarse)").matches

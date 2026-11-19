@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -179,11 +180,15 @@ func stringOf(v any) string {
 func (rs *resultSet) tableFrame() datasource.Frame {
 	fields := make([]datasource.Field, len(rs.columns))
 	for i, c := range rs.columns {
+		typ := c.typ
+		if rs.roundsInColumn(i) {
+			typ = datasource.FieldString
+		}
 		values := make([]any, len(rs.rows))
 		for r, row := range rs.rows {
-			values[r] = convert(row[i], c.typ)
+			values[r] = convert(row[i], typ)
 		}
-		fields[i] = datasource.Field{Name: c.name, Type: c.typ, Values: values}
+		fields[i] = datasource.Field{Name: c.name, Type: typ, Values: values}
 	}
 	for i, c := range rs.columns {
 		if c.hasNanoseconds() {
@@ -247,7 +252,16 @@ func (rs *resultSet) seriesFrames() []datasource.Frame {
 	if len(frames) == 0 {
 		frames = append(frames, *newFrame(nil))
 	}
+	if slices.ContainsFunc(valueCols, rs.roundsInColumn) {
+		warnRounded(frames)
+	}
 	return frames
+}
+
+func warnRounded(frames []datasource.Frame) {
+	for i := range frames {
+		frames[i].Meta = &datasource.FrameMeta{Warning: roundedValueWarning}
+	}
 }
 
 func orEmpty(v any) any {

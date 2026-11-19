@@ -215,13 +215,6 @@ func (r *Registry) evidenceDashboardWith(ctx context.Context, principal auth.Pri
 	if issues := importOnlyIssues(d, nil); len(issues) > 0 {
 		return nil, suggestionRejected(issues), false, nil
 	}
-	canonical, err := json.Marshal(d)
-	if err != nil {
-		return nil, Result{}, false, err
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return nil, suggestionRejected(issues), false, nil
-	}
 	issues, err := r.deps.Runner.CheckPanels(ctx, d, now, queryproxy.UserFor(principal), ids)
 	if err != nil {
 		return nil, Result{}, false, err

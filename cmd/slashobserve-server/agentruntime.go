@@ -85,7 +85,7 @@ func modelSettingsOf(llm config.LLM, sessionRenewBytes int) func() *claims.Model
 	settings := claims.ModelSettings{
 		Provider:              llm.Provider,
 		Model:                 llm.Model,
-		APIKey:                llm.APIKey,
+		APIKey:                llm.APIKey.Reveal(),
 		Effort:                llm.Effort,
 		MaxTokens:             llm.MaxTokens,
 		RequestTimeoutSeconds: int(llm.RequestTimeout.Seconds()),

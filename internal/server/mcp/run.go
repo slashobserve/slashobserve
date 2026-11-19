@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"slices"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
@@ -72,6 +73,9 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 				return nil, nil, errNoRunSessions
 			}
 			scope, err := h.runs.Scope(ctx, req)
+			if errors.Is(err, tools.ErrRunEnded) {
+				return nil, nil, err
+			}
 			if err != nil {
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", err, slog.String("agent_request_id", req.ID))...)
 				return nil, nil, err
@@ -86,9 +90,14 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 	})
 }
 
-func isLoopbackPeer(remoteAddr string) bool {
-	addr, err := netip.ParseAddrPort(remoteAddr)
-	return err == nil && addr.Addr().Unmap().IsLoopback()
+var forwardingHeaders = []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Real-Ip"}
+
+func isLoopbackPeer(r *http.Request) bool {
+	addr, err := netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil || !addr.Addr().Unmap().IsLoopback() {
+		return false
+	}
+	return !slices.ContainsFunc(forwardingHeaders, func(name string) bool { return r.Header.Get(name) != "" })
 }
 
 func (h *handler) serveClaimOnly(w http.ResponseWriter, r *http.Request, claimer claims.Claimer) {

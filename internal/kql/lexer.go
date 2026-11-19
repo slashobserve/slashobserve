@@ -90,7 +90,7 @@ func (l *lexer) quoted() (token, *Diagnostic) {
 		case '\\':
 			if i+1 < len(l.text) {
 				i++
-				b.WriteByte(l.text[i])
+				b.WriteByte(unescaped(l.text[i]))
 			}
 		case '"':
 			l.pos = i + 1
@@ -100,6 +100,18 @@ func (l *lexer) quoted() (token, *Diagnostic) {
 		}
 	}
 	return token{}, errorAt("unterminated string", start, len(l.text))
+}
+
+func unescaped(c byte) byte {
+	switch c {
+	case 'n':
+		return '\n'
+	case 't':
+		return '\t'
+	case 'r':
+		return '\r'
+	}
+	return c
 }
 
 func (l *lexer) word() (token, *Diagnostic) {

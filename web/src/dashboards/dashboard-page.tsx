@@ -120,6 +120,9 @@ import {
   useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
+import { useAddPanel } from "./add-panel-action"
+import { SpecJsonPane } from "./spec-json/spec-json-pane"
+import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
 import { saveToast } from "./save-outcome"
@@ -381,6 +384,8 @@ function DashboardView({
     },
     [saveVersion, spec, version]
   )
+  const layoutActions = usePanelLayoutActions(dashboardId, spec, version)
+  const addPanel = useAddPanel(dashboardId, spec)
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const kiosk = search.kiosk === true
@@ -423,8 +428,15 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const [specOpen, setSpecOpen] = useState(false)
+  const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
-    panelInUrl || search.share === true || editing || inspecting || kiosk
+    panelInUrl ||
+    search.share === true ||
+    editing ||
+    inspecting ||
+    kiosk ||
+    specShown
       ? undefined
       : search.chat
   const threadInUrl = search.thread !== undefined
@@ -432,6 +444,7 @@ function DashboardView({
     (open || panelInUrl || search.share === true || threadInUrl) &&
     !editing &&
     !inspecting &&
+    !specShown &&
     !kiosk &&
     chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
@@ -751,6 +764,8 @@ function DashboardView({
       deleteBlockedBy={editing ? "finish the layout first" : null}
       exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
+      onAddPanel={addPanel}
+      onEditJson={() => setSpecOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -836,6 +851,9 @@ function DashboardView({
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }
+      layoutActions={
+        permissions.edit && !editing && !pinned ? layoutActions : undefined
+      }
       focusOnRender={
         focusesLinkedPanel && item.first && item.panel.id === linkedPanel
       }
@@ -891,7 +909,8 @@ function DashboardView({
                 pageClass(
                   (cardVisible && cardLayout.stacked) ||
                     (chatRequestId !== undefined && chatLayout.stacked) ||
-                    (inspecting && inspectLayout.stacked)
+                    (inspecting && inspectLayout.stacked) ||
+                    (specShown && inspectLayout.stacked)
                 ),
                 "@container min-w-0 @max-[1000px]:has-[[data-panel-host]>aside]:h-auto @max-[1000px]:has-[[data-panel-host]>aside]:min-h-svh @max-[1000px]:has-[[data-panel-host]>aside]:flex-wrap narrow:flex-1"
               )}
@@ -1023,8 +1042,17 @@ function DashboardView({
                 />
               ) : null}
               <div ref={setPanelHost} data-panel-host="" className="contents" />
+              {specOpen ? (
+                <SpecJsonPane
+                  dashboardId={dashboardId}
+                  spec={envelopeSpec}
+                  version={envelopeVersion}
+                  hidden={!specShown}
+                  onClose={() => setSpecOpen(false)}
+                />
+              ) : null}
               <UnsavedBar dashboardId={dashboardId} />
-              {kiosk ? null : (
+              {kiosk || editingPanel ? null : (
                 <CanvasTools
                   permissions={permissions}
                   idle={!editing}

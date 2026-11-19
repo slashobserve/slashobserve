@@ -45,3 +45,18 @@ func TestOnlyAdminsCanUseTheServiceAccountAndKeyRoutes(t *testing.T) {
 		})
 	}
 }
+
+func TestAnAdminCannotAddAKeyToAProvisionedServiceAccount(t *testing.T) {
+	r := newSessionRig(t)
+	r.db.Exec(t, "UPDATE users SET role = 'admin' WHERE id = $1", r.userID)
+	var account string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), "INSERT INTO service_accounts (name, role, provisioned) VALUES ('from-file', 'editor', true) RETURNING id").Scan(&account); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := r.serve(http.MethodPost, "/api/v1/service-accounts/"+account+"/keys", `{"name":"extra"}`)
+
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"code":"provisioned"`) {
+		t.Fatalf("POST keys on a provisioned account = %d %s, want 409 provisioned", rec.Code, rec.Body)
+	}
+}

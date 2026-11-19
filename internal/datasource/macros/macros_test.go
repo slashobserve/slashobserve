@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/kql"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -122,14 +123,33 @@ func TestPromQLVariables(t *testing.T) {
 	})
 }
 
+func TestSearchVariableListsAreAnOrKQLAndLuceneBothRead(t *testing.T) {
+	for _, d := range []macros.Dialect{macros.Elasticsearch, macros.OpenSearch} {
+		got, err := macros.Expand(d, `service.name:$svc`, envWith(val("svc", "a", "b")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		root, diags := kql.Parse(got.Text)
+		if len(diags) != 0 || root == nil {
+			t.Fatalf("KQL does not parse %q: %v", got.Text, diags)
+		}
+		if !strings.Contains(got.Text, `"a" OR "b"`) {
+			t.Errorf("%q has no uppercase OR, which Lucene needs", got.Text)
+		}
+		if strings.Contains(got.Text, " or ") {
+			t.Errorf("%q has a lowercase or, which Lucene reads as a term", got.Text)
+		}
+	}
+}
+
 func TestSearchVariables(t *testing.T) {
 	adhoc := datasource.Variable{Name: "f", Adhoc: true, Filters: []datasource.AdhocFilter{{Key: "a", Op: "=", Value: "b"}}}
 	runExpandCases(t, []expandCase{
 		{name: "one value in code is quoted", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "checkout")), want: `service.name:"checkout"`},
-		{name: "two values in code become an or group", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
-		{name: "all with values in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(all("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "two values in code become an or group", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" OR "b")`},
+		{name: "all with values in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(all("svc", "a", "b")), want: `service.name:("a" OR "b")`},
 		{name: "quote and backslash are escaped in code", d: macros.Elasticsearch, query: `message:${m}`, env: envWith(val("m", `a"b\c`)), want: `message:"a\"b\\c"`},
-		{name: "opensearch shares the rules", d: macros.OpenSearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "opensearch shares the rules", d: macros.OpenSearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" OR "b")`},
 		{name: "one value inside a string", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", `it "quoted"`)), want: `message:"it \"quoted\""`},
 		{name: "two values inside a string are refused", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", "a", "b")), err: true},
 		{name: "pipe format inside a string", d: macros.Elasticsearch, query: `message:"${x:pipe}"`, env: envWith(val("x", "a", "b")), want: `message:"a|b"`},
