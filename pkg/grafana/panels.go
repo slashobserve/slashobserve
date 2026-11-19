@@ -2,7 +2,6 @@ package grafana
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -360,22 +359,37 @@ func placeholderPanel(n *panelNode, reason string) *builtPanel {
 	return &builtPanel{node: n, panel: panel, line: line}
 }
 
-var indexedKey = regexp.MustCompile(`^(.*?)((?:\[[0-9]+\])*)$`)
+func splitIndexes(key string) (name, indexes string) {
+	end := len(key)
+	for end > 0 && key[end-1] == ']' {
+		open := end - 2
+		for open >= 0 && key[open] >= '0' && key[open] <= '9' {
+			open--
+		}
+		if open < 0 || key[open] != '[' || open == end-2 {
+			break
+		}
+		end = open
+	}
+	return key[:end], key[end:]
+}
 
 func lookup(m map[string]any, path string) (any, bool) {
 	var cur any = m
-	for _, key := range strings.Split(path, ".") {
-		parts := indexedKey.FindStringSubmatch(key)
+	for key := range strings.SplitSeq(path, ".") {
+		name, indexes := splitIndexes(key)
 		obj, ok := cur.(map[string]any)
 		if !ok {
 			return nil, false
 		}
-		if cur, ok = obj[parts[1]]; !ok {
+		if cur, ok = obj[name]; !ok {
 			return nil, false
 		}
-		for _, index := range indexPattern.FindAllString(parts[2], -1) {
+		for indexes != "" {
+			closing := strings.IndexByte(indexes, ']')
+			i, _ := strconv.Atoi(indexes[1:closing])
+			indexes = indexes[closing+1:]
 			items, isArray := cur.([]any)
-			i, _ := strconv.Atoi(strings.Trim(index, "[]"))
 			if !isArray || i >= len(items) {
 				return nil, false
 			}

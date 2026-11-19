@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -21,6 +20,8 @@ type webhooksOptions struct {
 	format string
 	events []string
 	limit  int
+	cursor string
+	all    bool
 
 	takeOwnership bool
 }
@@ -74,6 +75,7 @@ type webhookTest struct {
 
 type webhookDeliveries struct {
 	Deliveries []webhookDelivery `json:"deliveries"`
+	NextCursor *string           `json:"next_cursor"`
 }
 
 func (a *app) webhooksCommand() *cobra.Command {
@@ -185,13 +187,15 @@ func (a *app) webhooksDeleteCommand() *cobra.Command {
 
 func (a *app) webhooksDeliveriesCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "deliveries <webhook id> [--limit N]",
+		Use:   "deliveries <webhook id> [--limit N] [--cursor C | --all]",
 		Short: "List a webhook's recent delivery attempts",
 		Long:  "deliveries prints the newest attempts first: when, event, outcome, the receiver's status, the duration and the error code.\nThe server keeps attempts for 7 days.",
 		Args:  exactArgs(1, "a webhook id"),
 		RunE:  a.runWebhooksDeliveries,
 	}
 	cmd.Flags().IntVar(&a.webhooks.limit, "limit", defaultDeliveriesLimit, "the newest attempts to print, 1 to 100")
+	cmd.Flags().StringVar(&a.webhooks.cursor, "cursor", "", "continue from the next_cursor a page ended with")
+	cmd.Flags().BoolVar(&a.webhooks.all, "all", false, "read every page and print them as one list")
 	return cmd
 }
 
@@ -409,14 +413,15 @@ func (a *app) runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if a.webhooks.limit < 1 || a.webhooks.limit > maxDeliveriesLimit {
-		return usagef("--limit must be 1 to %d", maxDeliveriesLimit)
+	paging := pageOptions{limit: a.webhooks.limit, maxLimit: maxDeliveriesLimit, cursor: a.webhooks.cursor, all: a.webhooks.all}
+	if err := paging.check(); err != nil {
+		return err
 	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "webhooks/"+id+"/deliveries", url.Values{"limit": {strconv.Itoa(a.webhooks.limit)}})
+	data, err := c.getPages(cmd.Context(), "webhooks/"+id+"/deliveries", paging.query(), paging.all)
 	if err != nil {
 		return err
 	}
@@ -438,6 +443,7 @@ func (a *app) runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 		rows = append(rows, []string{when(d.AttemptedAt), text(d.EventType), text(d.Outcome), statusCell(d.StatusCode), fmt.Sprintf("%d ms", d.DurationMs), orDash(d.ErrorCode)})
 	}
 	out.table([]string{"WHEN", "EVENT", "OUTCOME", "STATUS", "DURATION", "ERROR"}, rows)
+	pageFooter(out, len(page.Deliveries), nil, page.NextCursor)
 	return nil
 }
 

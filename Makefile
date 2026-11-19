@@ -19,6 +19,7 @@ EVALS_MATRIX ?= evals/matrix.yaml
 EVALS_REPORT_DIR ?= evals/reports/live
 PCT ?= 30
 GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
+GO_TEST_PKGS ?= ./...
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
 # zod 3 under the shadcn CLI, a dev-only tool that pins zod ^3 and ships in no build
 WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
@@ -32,7 +33,7 @@ define DEMO_BANNER
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 endef
 
-.PHONY: build server cli agent agent-deps web web-deps generate test lint ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-search-down demo-down demo-reset demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -61,31 +62,58 @@ generate: web-deps
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 
-test: web-deps agent-deps
-	go test $(GO_TEST_FLAGS) ./...
+test: test-go test-shop test-web test-agent test-scripts
+
+test-go:
+	go test $(GO_TEST_FLAGS) $(GO_TEST_PKGS)
 	$(if $(COVER),go tool cover -func=coverage.out | tail -1)
+
+test-shop:
 	cd $(SHOP_DIR) && go test -race ./...
+
+test-web: web-deps
 	cd web && bun run test $(WEB_TEST_FLAGS)
+
+test-agent: agent-deps
 	cd observe-agent && bun test
+
+test-scripts:
 	scripts/release-scripts-test.sh
 	scripts/install-test.sh
 	scripts/docs-lint-test.sh
+	scripts/ci-changes-test.sh
 
-lint: web-deps agent-deps
+lint: lint-go lint-web lint-agent lint-deploy
+
+lint-go:
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
 	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../.golangci.yaml --diff
 	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../.golangci.yaml ./...
 	$(SQLC) diff
+
+lint-web: lint-web-types lint-web-eslint lint-web-knip lint-web-format
+
+lint-web-types: web-deps
 	cd web && bun run typecheck
 	cd web && bun run spec:check
 	cd web && bun run api:check
+
+lint-web-eslint: web-deps
 	cd web && bun run lint
+
+lint-web-knip: web-deps
 	cd web && bun run knip
+
+lint-web-format: web-deps
 	cd web && bun run format:check
+
+lint-agent: agent-deps
 	cd observe-agent && bun run typecheck
 	cd observe-agent && bun run format:check
+
+lint-deploy:
 	scripts/docs-lint.sh
 	scripts/helm-check.sh
 
@@ -178,6 +206,12 @@ loadtest:
 e2e:
 	scripts/e2e.sh
 
+e2e-warm:
+	scripts/e2e.sh warm
+
+e2e-up:
+	scripts/e2e.sh up
+
 e2e-browser: web-deps
 	scripts/e2e.sh browser
 
@@ -195,8 +229,8 @@ evals-stack-down:
 	scripts/evals-stack.sh down
 
 evals-replay:
-	scripts/evals-stack.sh up replay
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
+	scripts/evals-stack.sh up --no-history replay
+	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --await-history --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
 
 evals-live:
 	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)

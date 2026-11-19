@@ -19,10 +19,7 @@ VALUES ($1::uuid, 1, 'grafana', 3, '\x7b7d', '{}', jsonb_build_object('uid', $2:
 
 func TestGrafanaUIDBackfillGivesEachUIDToItsFirstImport(t *testing.T) {
 	ctx := t.Context()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, v010Version); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, v010Version)
 	seeds := []struct {
 		dashboard, uid, createdAt, want string
 	}{
