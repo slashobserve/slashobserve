@@ -55,6 +55,10 @@ func uuidsOf(ids map[string]bool) []pgtype.UUID {
 	return out
 }
 
+func quotesRun(item InboxItem) bool {
+	return item.Type == TypeRunFailed && item.Reason == ReasonRunFailed
+}
+
 func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 	q := s.db.Queries()
 	byKind := map[string]map[string]bool{"dashboard": {}, "observation": {}, "proposal": {}}
@@ -69,10 +73,9 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 			if id := dataOf(item.Event).MessageID; id != "" {
 				messages[id] = true
 			}
-		case TypeRunFailed:
-			if item.Reason == ReasonRunFailed {
-				runs[item.TargetID] = true
-			}
+		}
+		if quotesRun(item) {
+			runs[item.TargetID] = true
 		}
 	}
 	titles := map[objectRef]string{}

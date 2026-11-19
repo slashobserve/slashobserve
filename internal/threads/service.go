@@ -467,33 +467,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
-	ids := make([]pgtype.UUID, len(rows))
-	messageRows := make([]dbsqlc.ThreadMessage, len(rows))
-	for i, r := range rows {
-		ids[i] = r.ThreadMessage.ID
-		messageRows[i] = r.ThreadMessage
-	}
-	mentions, err := s.mentionsByMessage(ctx, s.db.Queries(), ids)
-	if err != nil {
-		return Page{}, err
-	}
-	quotes, err := quotesOf(ctx, s.db.Queries(), messageRows)
-	if err != nil {
-		return Page{}, err
-	}
-	others, err := s.otherAuthorsOnPage(ctx, by, sc, rows)
-	if err != nil {
-		return Page{}, err
-	}
-	runs, err := runsOf(ctx, s.db.Queries(), ids)
-	if err != nil {
-		return Page{}, err
-	}
-	started, err := s.startedAmong(ctx, s.db.Queries(), by, rows)
-	if err != nil {
-		return Page{}, err
-	}
-	unread, err := s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows))
+	pd, err := s.pageDataOf(ctx, by, sc, rows)
 	if err != nil {
 		return Page{}, err
 	}
@@ -501,17 +475,56 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
 			seen[r.Thread.ID] = true
-			thread := threadOf(r.Thread, latestPanels, sc.rights(started[r.Thread.ID]))
-			thread.Unread = unread[r.Thread.ID]
+			thread := threadOf(r.Thread, latestPanels, sc.rights(pd.started[r.Thread.ID]))
+			thread.Unread = pd.unread[r.Thread.ID]
 			page.Threads = append(page.Threads, thread)
 		}
-		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
-		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && others[r.Thread.ID])
-		message.ReplyTo = quotes[r.ThreadMessage.ID]
-		message.Run = runs[r.ThreadMessage.ID]
+		message := messageOf(r.ThreadMessage, pd.mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && pd.others[r.Thread.ID])
+		message.ReplyTo = pd.quotes[r.ThreadMessage.ID]
+		message.Run = pd.runs[r.ThreadMessage.ID]
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
+}
+
+type pageData struct {
+	mentions map[pgtype.UUID][]Mention
+	quotes   map[pgtype.UUID]*ReplyTo
+	others   map[pgtype.UUID]bool
+	runs     map[pgtype.UUID]*StartedRun
+	started  map[pgtype.UUID]bool
+	unread   map[pgtype.UUID]bool
+}
+
+func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, rows []dbsqlc.ListThreadMessagesRow) (pageData, error) {
+	ids := make([]pgtype.UUID, len(rows))
+	messageRows := make([]dbsqlc.ThreadMessage, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ThreadMessage.ID
+		messageRows[i] = r.ThreadMessage
+	}
+	var pd pageData
+	var err error
+	if pd.mentions, err = s.mentionsByMessage(ctx, s.db.Queries(), ids); err != nil {
+		return pageData{}, err
+	}
+	if pd.quotes, err = quotesOf(ctx, s.db.Queries(), messageRows); err != nil {
+		return pageData{}, err
+	}
+	if pd.others, err = s.otherAuthorsOnPage(ctx, by, sc, rows); err != nil {
+		return pageData{}, err
+	}
+	if pd.runs, err = runsOf(ctx, s.db.Queries(), ids); err != nil {
+		return pageData{}, err
+	}
+	if pd.started, err = s.startedAmong(ctx, s.db.Queries(), by, rows); err != nil {
+		return pageData{}, err
+	}
+	if pd.unread, err = s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows)); err != nil {
+		return pageData{}, err
+	}
+	return pd, nil
 }
 
 func (s *Service) latestRevisions(ctx context.Context, commentIDs []string) (map[string]*CommentRevision, error) {
