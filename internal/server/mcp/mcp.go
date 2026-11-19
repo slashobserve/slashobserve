@@ -341,7 +341,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
-	if cred.Loopback && !isLoopbackPeer(r.RemoteAddr) {
+	if cred.Loopback && !isLoopbackPeer(r) {
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
@@ -400,6 +400,10 @@ func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
 	}
 	defer h.slots.release(s.key)
 	ctx, transport, err := s.prepare(r.Context())
+	if errors.Is(err, tools.ErrRunEnded) {
+		writeError(w, http.StatusConflict, "run_ended", tools.ErrRunEnded.Error())
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", internalErrorMsg)
 		return

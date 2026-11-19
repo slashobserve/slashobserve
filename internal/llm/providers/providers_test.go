@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 )
@@ -229,7 +230,7 @@ func newProvider(t *testing.T, f flavor, up *upstream, opts options) (llm.Provid
 	provider, err := providers.New(config.LLM{
 		Provider:       f.name,
 		Model:          "test-model",
-		APIKey:         key,
+		APIKey:         datasource.NewSecret(key),
 		BaseURL:        up.url(),
 		Effort:         opts.effort,
 		MaxTokens:      opts.maxTokens,

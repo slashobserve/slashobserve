@@ -72,6 +72,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version"
   /dashboards/{id}/versions/{version}/restore:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version-restore"
+  /dashboards/{id}/panels:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-panels"
   /dashboards/{id}/duplicate:
     $ref: "./paths/dashboards.yaml#/dashboards-id-duplicate"
   /dashboards/{id}/diff:
@@ -2804,6 +2806,9 @@ components:
         partial:
           type: boolean
           description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+        warning:
+          type: string
+          description: The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one.
         note:
           type: string
           description: >-

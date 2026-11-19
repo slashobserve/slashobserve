@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 import { isNarrow, type WidthBounds } from "./card-width"
 import { ResizeHandle } from "./resize-handle"
 
-type DockStacking = boolean | "container"
+type DockStacking = boolean | "container" | "sheet"
 
 type Props = {
   labelledBy: string
@@ -55,13 +55,14 @@ export function DockPanel({
 }: Props) {
   const narrow = isNarrow(useViewportWidth())
   const [peek, setPeek] = useState(false)
-  const mode = narrow
-    ? "sheet"
-    : stacked === "container"
-      ? "container"
-      : stacked
-        ? "stacked"
-        : "docked"
+  const mode =
+    narrow || stacked === "sheet"
+      ? "sheet"
+      : stacked === "container"
+        ? "container"
+        : stacked
+          ? "stacked"
+          : "docked"
   const resizable = mode === "docked" || mode === "container"
 
   return (

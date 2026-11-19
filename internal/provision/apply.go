@@ -35,6 +35,7 @@ const (
 	CodeInvalidSpec     = "invalid_spec"
 	CodeVersionConflict = "version_conflict"
 	CodeNotFound        = "not_found"
+	CodeFolderExists    = "folder_exists"
 
 	applySummaryPrefix = "Applied from "
 	maxPathBytes       = 512
@@ -133,26 +134,47 @@ func (a *Applier) Apply(ctx context.Context, by auth.Principal, path string, raw
 	target := bound.DashboardID
 	var folderID pgtype.UUID
 	if !found {
-		folderID, err = a.existingFolder(ctx, path)
+		var early *Result
+		target, folderID, early, err = a.adoptionTarget(ctx, by, res, path, raw)
 		if err != nil {
 			return Result{}, err
 		}
-		if folderID.Valid {
-			candidates, err := a.db.Queries().ApplyCandidates(ctx, dbsqlc.ApplyCandidatesParams{FolderID: folderID, Title: specTitle(raw)})
-			if err != nil {
-				return Result{}, fmt.Errorf("find dashboards to adopt: %w", err)
-			}
-			id, choice := adopt(candidates)
-			if choice == adoptAmbiguous {
-				return refused(res, CodeAmbiguous, "more than one dashboard in the folder has this title; rename one or apply the file under the path it was applied from"), nil
-			}
-			target = id
+		if early != nil {
+			return *early, nil
 		}
 	}
 	if !target.Valid {
 		return a.create(ctx, by, res, folderID, raw, sum)
 	}
 	return a.update(ctx, by, res, target, found && bound.ContentSha256 == sum, raw, sum)
+}
+
+func (a *Applier) adoptionTarget(ctx context.Context, by auth.Principal, res Result, path string, raw json.RawMessage) (target, folderID pgtype.UUID, early *Result, err error) {
+	folderID, err = a.existingFolder(ctx, path)
+	if err != nil || !folderID.Valid {
+		return target, folderID, nil, err
+	}
+	_, abilities, err := a.folders.Folder(ctx, by, folderID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound):
+		refusal := refused(res, CodeFolderExists, "a folder with that name already exists; apply the file under a folder you can edit")
+		return target, folderID, &refusal, nil
+	case err != nil:
+		return target, folderID, nil, err
+	case !abilities.Edit:
+		refusal, ferr := failure(res, folders.ErrForbidden)
+		return target, folderID, &refusal, ferr
+	}
+	candidates, err := a.db.Queries().ApplyCandidates(ctx, dbsqlc.ApplyCandidatesParams{FolderID: folderID, Title: specTitle(raw)})
+	if err != nil {
+		return target, folderID, nil, fmt.Errorf("find dashboards to adopt: %w", err)
+	}
+	id, choice := adopt(candidates)
+	if choice == adoptAmbiguous {
+		refusal := refused(res, CodeAmbiguous, "more than one dashboard in the folder has this title; rename one or apply the file under the path it was applied from")
+		return target, folderID, &refusal, nil
+	}
+	return id, folderID, nil, nil
 }
 
 func (a *Applier) existingFolder(ctx context.Context, path string) (pgtype.UUID, error) {

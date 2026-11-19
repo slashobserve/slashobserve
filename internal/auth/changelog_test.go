@@ -168,13 +168,13 @@ func TestAPolicyRoleChangeIsRecordedOnReconcileAndOnLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}); err != nil {
+	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}, true); err != nil {
 		t.Fatal(err)
 	}
 	if len(log.roles) != 2 || log.roles[1].From != RoleEditor || log.roles[1].To != RoleViewer {
 		t.Errorf("login change = %+v", log.roles)
 	}
-	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}); err != nil {
+	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}, true); err != nil {
 		t.Fatal(err)
 	}
 	if len(log.roles) != 2 {
@@ -192,7 +192,7 @@ func TestAFirstLoginIsNotARoleChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := r.service.assignRole(t.Context(), newcomer, []string{"viewers"}); err != nil {
+	if err := r.service.assignRole(t.Context(), newcomer, []string{"viewers"}, true); err != nil {
 		t.Fatal(err)
 	}
 

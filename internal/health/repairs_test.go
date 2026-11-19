@@ -61,3 +61,22 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 		t.Error("a repair without an agent was accepted")
 	}
 }
+
+func TestRepairWaitsForTheCheckOfTheLatestVersion(t *testing.T) {
+	r := newRig(t)
+	empty := r.create(t, boardSpec("Empty", "up", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE dashboards SET latest_version = latest_version + 1 WHERE id = $1`, empty.String())
+
+	out, err := r.repairs.Repair(t.Context(), r.editor, []pgtype.UUID{empty})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(out.Queued) != 0 || !slices.Equal(out.Skipped, []repairs.Skipped{{DashboardID: empty.String(), Reason: repairs.ReasonNothingToRepair}}) {
+		t.Fatalf("repair = %+v, want nothing_to_repair while the problems belong to an older version", out)
+	}
+}

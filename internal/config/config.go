@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 )
@@ -159,7 +160,7 @@ type GroupRoleSetting struct {
 type LLM struct {
 	Provider       string
 	Model          string
-	APIKey         string
+	APIKey         datasource.Secret
 	BaseURL        *url.URL
 	Effort         string
 	MaxTokens      int
@@ -189,7 +190,7 @@ type Config struct {
 	OIDCIssuerURL       string
 	OIDCInternalURL     *url.URL
 	OIDCClientID        string
-	OIDCClientSecret    string
+	OIDCClientSecret    datasource.Secret
 	SessionTTL          time.Duration
 	ActivityRetention   time.Duration
 	AllowedEmailDomains []string
@@ -213,7 +214,7 @@ type Config struct {
 
 	ProvisionDir string
 	Metrics      bool
-	SecretKey    []byte
+	SecretKey    datasource.Secret
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -334,8 +335,8 @@ func loadClient(lookup func(string) (string, bool), cfg *Config) []error {
 		errs = append(errs, fmt.Errorf("%s is required", envOIDCClientID))
 	}
 
-	cfg.OIDCClientSecret = get(lookup, envOIDCClientSecret)
-	if cfg.OIDCClientSecret == "" {
+	cfg.OIDCClientSecret = datasource.NewSecret(get(lookup, envOIDCClientSecret))
+	if cfg.OIDCClientSecret.IsZero() {
 		errs = append(errs, fmt.Errorf("%s is required", envOIDCClientSecret))
 	}
 
@@ -435,7 +436,7 @@ func loadSecretKey(lookup func(string) (string, bool), cfg *Config) []error {
 	if !ok || len(key) < minSecretKeyBytes {
 		return []error{fmt.Errorf("%s: must be at least %d bytes written as hex or base64", envSecretKey, minSecretKeyBytes)}
 	}
-	cfg.SecretKey = key
+	cfg.SecretKey = datasource.NewSecret(string(key))
 	return nil
 }
 
@@ -535,7 +536,7 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	llm.APIKey = key
+	llm.APIKey = datasource.NewSecret(key)
 
 	if v := get(lookup, envLLMBaseURL); v != "" {
 		if u, err := parseLLMBaseURL(v); err != nil {
@@ -666,7 +667,7 @@ func requireLLMSettings(llm *LLM) []error {
 		if llm.Model == "" {
 			llm.Model = defaultLLMModel
 		}
-		if llm.APIKey == "" {
+		if llm.APIKey.IsZero() {
 			errs = append(errs, fmt.Errorf("%s or %s is required when %s is %s", envLLMAPIKey, envLLMAPIKeyFile, envLLMProvider, llm.Provider))
 		}
 	case LLMProviderOpenAI:

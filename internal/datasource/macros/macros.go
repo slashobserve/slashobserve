@@ -373,13 +373,13 @@ func expandBranch(d Dialect, dsType spec.DatasourceType, ref spec.Reference, tex
 		return "", shiftOffset(err, start)
 	}
 	out := "(" + exp.Text + ")"
-	if !wrapsExactly(out) {
+	if !WrapsExactly(out) {
 		return "", refErrorf(ref, "the condition of %s must have balanced parentheses and no comment that reaches the end of it", refLabel(ref))
 	}
 	return out, nil
 }
 
-func wrapsExactly(text string) bool {
+func WrapsExactly(text string) bool {
 	tokens, err := TokenizeClickHouse(text)
 	if err != nil {
 		return false

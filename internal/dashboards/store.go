@@ -167,10 +167,15 @@ func isFolderGone(err error) bool {
 
 func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
 	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to})
+		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return ErrNotFound
+			if _, err := q.DashboardFolder(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			} else if err != nil {
+				return fmt.Errorf("read dashboard folder: %w", err)
+			}
+			return errFolderMoved
 		case isFolderGone(err):
 			return ErrFolderNotFound
 		case err != nil:

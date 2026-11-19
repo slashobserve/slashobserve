@@ -10,6 +10,8 @@ import (
 
 const maxNULIssues = 50
 
+var nulEscape = []byte(`\u0000`)
+
 func NULIssues(canonical []byte) []Issue {
 	dec := json.NewDecoder(bytes.NewReader(canonical))
 	dec.UseNumber()

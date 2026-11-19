@@ -85,6 +85,12 @@ function isWordChar(c: string): boolean {
   return !isSpace(c) && !wordBreakers.includes(c)
 }
 
+const escapes: Record<string, string> = { n: "\n", t: "\t", r: "\r" }
+
+function unescaped(c: string): string {
+  return Object.hasOwn(escapes, c) ? escapes[c] : c
+}
+
 function lexQuoted(text: string, start: number): Token {
   let value = ""
   for (let i = start + 1; i < text.length; i++) {
@@ -92,7 +98,7 @@ function lexQuoted(text: string, start: number): Token {
     if (c === "\\") {
       if (i + 1 < text.length) {
         i++
-        value += text[i]
+        value += unescaped(text[i])
       }
     } else if (c === '"') {
       return { kind: "quoted", text: value, segments: [], start, end: i + 1 }

@@ -89,7 +89,12 @@ func rawFrames(rs *resultSet, lim datasource.Limits) ([]datasource.Frame, error)
 
 func markTruncated(frames []datasource.Frame, rs *resultSet, lim datasource.Limits) []datasource.Frame {
 	if lim.MaxRows > 0 && len(rs.rows) == lim.MaxRows && len(frames) > 0 {
-		frames[0].Meta = &datasource.FrameMeta{Truncated: true}
+		meta := datasource.FrameMeta{}
+		if frames[0].Meta != nil {
+			meta = *frames[0].Meta
+		}
+		meta.Truncated = true
+		frames[0].Meta = &meta
 	}
 	return frames
 }

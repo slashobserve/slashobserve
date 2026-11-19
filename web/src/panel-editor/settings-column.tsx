@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 import { DisplayOptions } from "./display-options"
 import type { DraftAction, EditablePanel } from "./draft"
+import { FieldOptions } from "./field-options/field-options"
 import { ThresholdsEditor } from "./thresholds-editor"
 import { TypeSelect } from "./type-select"
 import { UnitSelect } from "./unit-select"
@@ -15,6 +16,7 @@ export type SettingsColumnProps = {
   draft: EditablePanel
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
+  onOpenJson?: () => void
 }
 
 const maxTitleLength = 200
@@ -23,6 +25,7 @@ export function SettingsColumn({
   draft,
   dispatch,
   readOnly,
+  onOpenJson,
 }: SettingsColumnProps) {
   const titleId = useId()
   const title = (
@@ -73,6 +76,12 @@ export function SettingsColumn({
         display={draft.display}
         dispatch={dispatch}
         readOnly={readOnly}
+      />
+      <FieldOptions
+        panel={draft}
+        dispatch={dispatch}
+        readOnly={readOnly}
+        onOpenJson={onOpenJson}
       />
     </div>
   )
