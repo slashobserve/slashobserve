@@ -177,7 +177,11 @@ export const maxRetryDelayMs = 30_000
 
 export function isRetryable(error: unknown): boolean {
   if (error instanceof NetworkError) return true
-  if (!(error instanceof ApiError) || !retryableStatuses.has(error.status)) {
+  if (
+    !(error instanceof ApiError) ||
+    !retryableStatuses.has(error.status) ||
+    error.code === "query_timeout"
+  ) {
     return false
   }
   return (

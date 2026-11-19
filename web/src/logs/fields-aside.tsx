@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
@@ -309,12 +310,14 @@ function FieldsPanel({
   const uid = datasource.uid
   const type = datasource.type
   const q = search.q
+  const { ready, slow } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, effectiveQuery, range.from, range.to])
+  )
   const names = useQuery({
     ...labelNamesQuery(uid, { from: range.from, to: range.to }),
-    enabled: type !== "clickhouse",
+    enabled: type !== "clickhouse" && ready,
   })
-  const linesPending =
-    results.isLoading || (results.isFetching && results.isPlaceholderData)
   const facets = useQuery({
     ...logFacetsQuery(uid, {
       query: effectiveQuery ?? "",
@@ -322,7 +325,7 @@ function FieldsPanel({
       to: range.to,
       limit: topValues,
     }),
-    enabled: q !== undefined && !linesPending,
+    enabled: q !== undefined && ready,
   })
   const base: Base = {
     data: facets.data,
@@ -348,16 +351,19 @@ function FieldsPanel({
   }
 
   const problem = facets.isError ? facetsErrorText(facets.error) : null
-  const loading = rows.length === 0 && (names.isLoading || base.pending)
+  const loading =
+    !slow && rows.length === 0 && (names.isLoading || base.pending)
   return (
     <>
       <div className="flex items-start justify-between gap-1 px-4 pt-3 pb-2">
         <div className="flex min-w-0 flex-col">
           <h2 className="m-0 text-[13px] font-medium">Fields</h2>
           <p className="m-0 text-xs text-muted-foreground">
-            {loading
-              ? "Reading the fields"
-              : fieldsNote(type, datasource.index, rows.length)}
+            {slow
+              ? "This source is slow: the fields load when the query answers"
+              : loading
+                ? "Reading the fields"
+                : fieldsNote(type, datasource.index, rows.length)}
           </p>
         </div>
         {onHide === undefined ? null : (

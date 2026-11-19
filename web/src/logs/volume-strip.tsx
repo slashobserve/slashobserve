@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { zonedDateTime } from "@/lib/time"
 import { timeTicks } from "@/lib/time-ticks"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
 
@@ -80,7 +81,23 @@ export function VolumeStrip({
   to: string
 }) {
   const { update, results } = useLogsWorkspace()
-  const volume = useQuery(logVolumeQuery(uid, { query, from, to }))
+  const { ready, slow } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, query, from, to])
+  )
+  const volume = useQuery({
+    ...logVolumeQuery(uid, { query, from, to }),
+    enabled: ready,
+  })
+  if (slow) {
+    return (
+      <div className={cn(cardClasses, "min-h-[134px]")}>
+        <p className="flex h-12 items-center text-[13px] text-muted-foreground">
+          This source is slow: the volume starts when the query answers.
+        </p>
+      </div>
+    )
+  }
   if (volume.isError) {
     return (
       <div className={cardClasses}>

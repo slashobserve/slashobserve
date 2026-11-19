@@ -146,8 +146,9 @@ The row holds at most 50 pills, and the address holds the pills in about 4,000 c
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
 On Elasticsearch, OpenSearch and ClickHouse it counts exactly the lines the results list, so the strip total equals the hits or lines total; the first and last bar hold partial buckets.
-Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
-It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
+Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines; on Loki the total can run a little above the line count by the lines in the two edge buckets that fall outside the range.
+It comes from its own log volume request, which starts once the lines have answered or failed, so one slow source gets one request at a time; when the lines time out the strip says the source is slow instead of starting more requests, and it hides while live tail shows its lines.
+The fields list on the logs page and the trace search statistics wait for the results in the same way.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
 
