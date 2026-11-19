@@ -144,7 +144,7 @@ export type LogsWorkspace = {
   update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
   draft: string
   setDraft: (text: string) => void
-  run: (text?: string, asked?: string) => void
+  run: (text?: string, asked?: string, alongside?: Partial<LogsSearch>) => void
   range: TimeRangeValue
   results: UseQueryResult<PanelDataResponse>
   paging: LogsPaging

@@ -32,6 +32,27 @@ export function searchAfter(
   return { ...state, ...(reset ? { page: undefined } : {}), ...next }
 }
 
+export function runPatch({
+  text,
+  current,
+  asked,
+  alongside,
+}: {
+  text: string
+  current: LogsSearch
+  asked: string | undefined
+  alongside: Partial<LogsSearch> | undefined
+}): Partial<LogsSearch> {
+  const changed =
+    text !== current.q || (asked !== undefined && asked !== current.ask)
+  if (!changed) return { ...alongside }
+  return {
+    ...alongside,
+    q: text,
+    ...(asked !== undefined && { ask: asked }),
+  }
+}
+
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const maxQueryLength = 8000
 const maxAskLength = 2000

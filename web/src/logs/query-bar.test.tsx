@@ -437,18 +437,25 @@ describe("QueryBar", () => {
       })
     }
 
-    it("fills the query, range, columns and filters and says what it did", async () => {
+    it("fills the query, range, columns and filters in one write and says what it did", async () => {
       const { run, setDraft, update } = setup()
       expect(await paste(link)).toBe(false)
       expect(setDraft).toHaveBeenCalledWith("level:error")
-      expect(run).toHaveBeenCalledWith("level:error")
-      const written = update.mock.calls[0][0] as Record<string, string>
+      expect(update).not.toHaveBeenCalled()
+      expect(run).toHaveBeenCalledTimes(1)
+      const [text, asked, written] = run.mock.calls[0] as [
+        string,
+        undefined,
+        Record<string, string>,
+      ]
+      expect(text).toBe("level:error")
+      expect(asked).toBeUndefined()
       expect(written).toMatchObject({
-        q: "level:error",
         from: "now-15m",
         to: "now",
         cols: "message,log.level",
       })
+      expect(written).not.toHaveProperty("q")
       expect(decodePills(written.f)).toMatchObject([
         { kind: "is", field: "service.name", value: "checkout" },
       ])
@@ -487,15 +494,15 @@ describe("QueryBar", () => {
     })
 
     it("imports a link pasted into the Ask field and switches to the query", async () => {
-      const { run, setMode, update } = setup({ mode: "ask" })
+      const { run, setMode } = setup({ mode: "ask" })
       const field = await screen.findByLabelText("Question")
       fireEvent.paste(field, { clipboardData: { getData: () => link } })
       expect(setMode).toHaveBeenCalledWith("code", false)
-      expect(run).toHaveBeenCalledWith("level:error")
-      expect(update.mock.calls[0][0]).toMatchObject({
-        q: "level:error",
-        from: "now-15m",
-      })
+      expect(run).toHaveBeenCalledWith(
+        "level:error",
+        undefined,
+        expect.objectContaining({ from: "now-15m", to: "now" })
+      )
     })
 
     it("pastes the link as plain text on Loki", async () => {

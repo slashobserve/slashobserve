@@ -38,7 +38,7 @@ import { applyPills, decodePills } from "./pills"
 import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import { logsTimeRange, searchAfter, type LogsSearch } from "./search"
+import { logsTimeRange, runPatch, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
 import { isPlainResult } from "./plain-table"
@@ -281,15 +281,14 @@ function LogsWorkspaceView({
     announce("Live tail on")
   }
 
-  function run(raw?: string, asked?: string) {
+  function run(raw?: string, asked?: string, alongside?: Partial<LogsSearch>) {
     const text = (raw ?? draft).trim()
     if (text === "") return
     setTailing(false)
     setTailShown(false)
-    if (text === q) void results.refetch()
-    if (text !== q || (asked !== undefined && asked !== search.ask)) {
-      update(asked === undefined ? { q: text } : { q: text, ask: asked })
-    }
+    const next = runPatch({ text, current: search, asked, alongside })
+    if (Object.keys(next).length === 0) void results.refetch()
+    else update(next)
   }
 
   function selectLine(next: LogSelection | null, tab?: DetailTab) {
