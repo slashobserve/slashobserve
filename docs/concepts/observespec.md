@@ -200,6 +200,7 @@ The legend of a `timeseries` or `trend` panel:
 - hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
+A panel with one series shows its legend only when `legendValues` is not empty, since the legend then carries the values.
 
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series:
 
@@ -286,7 +287,7 @@ A timeline written without `fill` is opaque and one written without `lineWidth` 
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
 
-- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.
+- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the field's name when it has a single row, else the row's time, else its row number.
 - `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
   When `fields` is absent the panel shows the number fields.
   Time fields are never shown as values.

@@ -39,6 +39,11 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
           <span className="block text-xs wrap-anywhere text-muted-foreground">
             {version.summary.trim() === "" ? "No summary" : version.summary}
           </span>
+          {entry.proposal === null ? null : (
+            <span className="block text-xs wrap-anywhere text-muted-foreground">
+              {`Proposed by ${entry.proposal.actor.name}, merged by ${entry.proposal.closed_by?.name ?? actor.who}`}
+            </span>
+          )}
         </span>
         <span className="flex-none text-xs text-muted-foreground">
           See changes

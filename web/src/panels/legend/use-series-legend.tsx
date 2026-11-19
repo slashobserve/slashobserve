@@ -17,7 +17,11 @@ import {
   type LegendItem,
   type LegendPlacement,
 } from "./legend"
-import { effectiveLegendMode, legendOrder } from "./legend-model"
+import {
+  effectiveLegendMode,
+  legendOrder,
+  legendWorthShowing,
+} from "./legend-model"
 import { LegendTable, useLegendTextMeasure } from "./legend-table"
 import { legendTableWidth, rightLegendWidth } from "./legend-width"
 
@@ -96,7 +100,9 @@ export function useSeriesLegend({
     [order, entries]
   )
   const shown =
-    entries.length > 1 && options.legend !== "hidden" && listed.length > 0
+    legendWorthShowing(entries.length, reducers) &&
+    options.legend !== "hidden" &&
+    listed.length > 0
   const hidden = useMemo(
     () => visibleSeries(storedHidden, keys, shown),
     [storedHidden, keys, shown]

@@ -34,6 +34,30 @@ import { ExportItems } from "./print/export-items"
 
 import { moreMenuButtonId } from "./edit/layout-store"
 
+export function moreLabel(menu: {
+  mayEdit: boolean
+  canAddPanel: boolean
+  canDuplicate: boolean
+  folderTv: boolean
+}): string {
+  const items = [
+    menu.mayEdit ? "edit details" : null,
+    menu.mayEdit && menu.canAddPanel ? "add panel" : null,
+    menu.mayEdit ? "edit Spec JSON" : null,
+    "open on sign-in",
+    "export",
+    "dashboards as code",
+    "print",
+    "image",
+    menu.canDuplicate ? "duplicate" : null,
+    "TV mode",
+    menu.folderTv ? "TV mode for this folder" : null,
+    "chart hover",
+    menu.mayEdit ? "delete" : null,
+  ]
+  return `More: ${items.filter((item) => item !== null).join(", ")}`
+}
+
 type Props = {
   dashboardId: string
   mayEdit: boolean
@@ -78,7 +102,12 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, add panel, edit Spec JSON, open on sign-in, export, dashboards as code, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label={moreLabel({
+              mayEdit,
+              canAddPanel: onAddPanel !== null,
+              canDuplicate: onDuplicate !== null,
+              folderTv: onTvModeFolder !== null,
+            })}
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }

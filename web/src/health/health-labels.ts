@@ -172,7 +172,7 @@ export function healthCellText(
   return { group, more }
 }
 
-export const healthyLabel = "Healthy"
+export const healthyLabel = "Queries OK"
 
 export function isHealthy(item: HealthItem): boolean {
   return (
