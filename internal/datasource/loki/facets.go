@@ -155,6 +155,9 @@ func (d *Datasource) detectedFieldsInTime(ctx context.Context, text string, samp
 	if !sampled.From.Before(sampled.To) {
 		return nil, true, nil
 	}
+	if sampled.To.Sub(sampled.From) > datasource.WidestWindow {
+		sampled.From = sampled.To.Add(-datasource.WidestWindow)
+	}
 	win, ok := (&datasource.Pacer{}).Start(ctx, sampled.To.Sub(sampled.From))
 	if !ok {
 		return nil, true, nil

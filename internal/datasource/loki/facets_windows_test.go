@@ -24,6 +24,8 @@ type sampleCall struct {
 type windowedFacetLoki struct {
 	mu        sync.Mutex
 	calls     []sampleCall
+	inFlight  int
+	most      int
 	perWindow int
 	slowRange func(n int) bool
 	slowFound bool
@@ -36,6 +38,15 @@ func (f *windowedFacetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	f.mu.Lock()
 	f.calls = append(f.calls, sampleCall{r.URL.Path, start, end, limit})
+	if r.URL.Path != "/loki/api/v1/labels" {
+		f.inFlight++
+		f.most = max(f.most, f.inFlight)
+		defer func() {
+			f.mu.Lock()
+			f.inFlight--
+			f.mu.Unlock()
+		}()
+	}
 	ranges := 0
 	for _, c := range f.calls {
 		if c.path == "/loki/api/v1/query_range" {
@@ -141,6 +152,12 @@ func TestFacetsWidenTheWindowUntilTheSampleIsFull(t *testing.T) {
 	if !slices.Equal(limits, []int{100, 70, 40, 10}) || got.LinesSampled != 100 {
 		t.Fatalf("limits = %v, lines_sampled = %d, want four windows that fill the sample of 100", limits, got.LinesSampled)
 	}
+	fake.mu.Lock()
+	most := fake.most
+	fake.mu.Unlock()
+	if most != 1 {
+		t.Fatalf("%d sample or detected_fields calls ran at once, want one at a time", most)
+	}
 	if found := fake.to("/loki/api/v1/detected_fields"); len(found) != 1 || !found[0].start.Equal(rangeEnd.Add(-15*time.Hour)) {
 		t.Fatalf("detected_fields requests = %+v, want one over the 15 sampled hours", found)
 	}
@@ -174,5 +191,22 @@ func TestFacetsCountTheSampleWhenDetectedFieldsRunsOutOfTime(t *testing.T) {
 	}
 	if route := fieldNamed(t, got, "route"); route.Kind != datasource.FacetKindField || route.Values[0].Count != 100 {
 		t.Fatalf("route = %+v, want the field read from the sample's labels", route)
+	}
+}
+
+func TestFacetsOverAWeekAskForNoSampleWindowWiderThanADay(t *testing.T) {
+	fake := &windowedFacetLoki{perWindow: 1}
+	ds := serveWindowedFacets(t, fake)
+	if _, err := ds.LogFacets(context.Background(), broadFacets(7, time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	calls := fake.to("/loki/api/v1/query_range")
+	for _, c := range calls {
+		if c.end.Sub(c.start) > 24*time.Hour {
+			t.Fatalf("sample windows = %+v, want none wider than a day", calls)
+		}
+	}
+	if found := fake.to("/loki/api/v1/detected_fields"); len(found) != 1 || !found[0].end.Equal(rangeEnd) || found[0].end.Sub(found[0].start) != 24*time.Hour {
+		t.Fatalf("detected_fields requests = %+v, want one over the newest day of the sampled week", found)
 	}
 }

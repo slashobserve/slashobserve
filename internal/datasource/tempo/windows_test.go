@@ -18,9 +18,11 @@ import (
 type window struct{ start, end int64 }
 
 type windowedTempo struct {
-	mu      sync.Mutex
-	windows []window
-	slow    func(n int) bool
+	mu          sync.Mutex
+	windows     []window
+	inFlight    int
+	maxInFlight int
+	slow        func(n int) bool
 }
 
 func (f *windowedTempo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +31,14 @@ func (f *windowedTempo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.windows = append(f.windows, window{start, end})
 	n := len(f.windows)
+	f.inFlight++
+	f.maxInFlight = max(f.maxInFlight, f.inFlight)
 	f.mu.Unlock()
+	defer func() {
+		f.mu.Lock()
+		f.inFlight--
+		f.mu.Unlock()
+	}()
 	if f.slow != nil && f.slow(n) {
 		<-r.Context().Done()
 		return
@@ -73,6 +82,12 @@ func TestABroadSearchAsksNewestFirstInGrowingWindowsUntilTheLimitIsMet(t *testin
 	if got := fake.sent(); !slices.Equal(got, want) {
 		t.Fatalf("windows = %v, want %v", got, want)
 	}
+	fake.mu.Lock()
+	most := fake.maxInFlight
+	fake.mu.Unlock()
+	if most != 1 {
+		t.Fatalf("%d windows ran at once, want one at a time", most)
+	}
 	if len(frames) != 1 || frames[0].Rows() != 3 {
 		t.Fatalf("frames = %+v, want one frame of 3 traces", frames)
 	}
@@ -91,6 +106,24 @@ func TestASearchCoversTheWholeRangeWhenTheLimitIsNotMet(t *testing.T) {
 	got := fake.sent()
 	if len(got) != 5 || got[len(got)-1].start != day.From.Unix() {
 		t.Fatalf("windows = %v, want 1, 2, 4, 8 and the last 9 hours down to the start", got)
+	}
+}
+
+func TestAWeekLongSearchAsksForNoWindowWiderThanADay(t *testing.T) {
+	fake := &windowedTempo{}
+	ds := serveWindows(t, fake)
+	week := datasource.TimeRange{From: rangeEnd.Add(-7 * 24 * time.Hour), To: rangeEnd}
+	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`, Limits: datasource.Limits{MaxRows: 1000, Timeout: time.Minute}}, week); err != nil {
+		t.Fatal(err)
+	}
+	got := fake.sent()
+	for _, w := range got {
+		if w.end-w.start > 24*3600+1 {
+			t.Fatalf("windows = %v, want none wider than a day", got)
+		}
+	}
+	if got[len(got)-1].start != week.From.Unix() {
+		t.Fatalf("windows = %v, want the week covered", got)
 	}
 }
 

@@ -19,10 +19,13 @@ import (
 type chunk struct{ start, end time.Time }
 
 type chunkedLoki struct {
-	mu     sync.Mutex
-	chunks []chunk
-	slow   func(n int) bool
-	status int
+	mu          sync.Mutex
+	chunks      []chunk
+	queries     []string
+	inFlight    int
+	maxInFlight int
+	slow        func(n int) bool
+	status      int
 }
 
 func (f *chunkedLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,8 +35,16 @@ func (f *chunkedLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	step, _ := strconv.ParseFloat(q.Get("step"), 64)
 	f.mu.Lock()
 	f.chunks = append(f.chunks, chunk{start, end})
+	f.queries = append(f.queries, q.Get("query")+" step="+q.Get("step"))
 	n := len(f.chunks)
+	f.inFlight++
+	f.maxInFlight = max(f.maxInFlight, f.inFlight)
 	f.mu.Unlock()
+	defer func() {
+		f.mu.Lock()
+		f.inFlight--
+		f.mu.Unlock()
+	}()
 	if f.status != 0 {
 		w.WriteHeader(f.status)
 		_, _ = w.Write([]byte(`{"status":"error","errorType":"bad_data","error":"parse error"}`))
@@ -97,6 +108,18 @@ func TestAVolumeOverDaysIsCountedADayAtATimeNewestFirst(t *testing.T) {
 	}
 	if got := fake.sent(); !slices.Equal(got, want) {
 		t.Fatalf("chunks = %v, want %v", got, want)
+	}
+	query := "sum by (level, lvl, severity_text, severity, detected_level) (count_over_time(\n{service_name=\"checkout\"}\n[3600000ms])) step=3600"
+	fake.mu.Lock()
+	queries, most := slices.Clone(fake.queries), fake.maxInFlight
+	fake.mu.Unlock()
+	for i, q := range queries {
+		if q != query {
+			t.Fatalf("chunk %d query = %q, want %q", i, q, query)
+		}
+	}
+	if most != 1 {
+		t.Fatalf("%d chunks ran at once, want one at a time", most)
 	}
 	v := hist.Volume()
 	if v.Partial() || v.Total != 72 || len(v.Buckets) != 72 || v.Buckets[0].Error != 1 || v.Buckets[71].Error != 1 {

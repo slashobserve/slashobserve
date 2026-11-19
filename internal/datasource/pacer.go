@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-const windowReserve = time.Second
+const (
+	windowReserve = time.Second
+	WidestWindow  = 24 * time.Hour
+)
 
 type Pacer struct {
 	took, span time.Duration
@@ -60,7 +63,7 @@ func NewestFirst(r TimeRange, first time.Duration) []TimeRange {
 			from = r.From
 		}
 		out = append(out, TimeRange{From: from, To: to})
-		to, span = from, span*2
+		to, span = from, min(span*2, WidestWindow)
 	}
 	return out
 }

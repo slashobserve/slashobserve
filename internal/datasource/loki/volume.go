@@ -13,10 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const (
-	volumeNeedsLogQuery = `the volume needs a log query that starts with a stream selector, such as {service_name="checkout"}`
-	volumeChunk         = 24 * time.Hour
-)
+const volumeNeedsLogQuery = `the volume needs a log query that starts with a stream selector, such as {service_name="checkout"}`
 
 var _ datasource.LogVolumeSource = (*Datasource)(nil)
 
@@ -80,7 +77,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 }
 
 func volumeChunks(r datasource.TimeRange, step time.Duration) []datasource.TimeRange {
-	size := step * max(1, (volumeChunk+step-1)/step)
+	size := step * max(1, (datasource.WidestWindow+step-1)/step)
 	var out []datasource.TimeRange
 	for to := r.To; to.After(r.From); to = to.Add(-size) {
 		out = append(out, datasource.TimeRange{From: maxTime(to.Add(-size), r.From), To: to})

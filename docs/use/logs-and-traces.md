@@ -159,7 +159,7 @@ The chips filter the lines already loaded, not the query, so another page can ho
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
-On Loki a range longer than a day is counted one day at a time, newest first, so a week does not have to fit in one request.
+On Loki a range longer than a day is counted one day at a time, newest first and one request after another, so a week never has to fit in one request.
 When the next day would not finish in time, the strip shows the days it counted, shades the older bars as not counted, says "N lines since <time>" and explains that the datasource ran out of time; hovering a shaded bar says "Not counted".
 The log volume request then returns `partial: true` with `counted_from`, and `observe datasources log-volume` prints the same note, so an agent knows the older buckets read zero because they were not counted.
 When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
@@ -208,7 +208,7 @@ Facets count the top values of each label, field or column the query matches ove
 Each field says whether its counts are exact or come from a sample of the newest lines.
 
 - On Loki the index labels of the matched streams are counted exactly from the index volume API, in bytes rather than lines, so those fields carry `unit: bytes`; parsed fields (`kind: field`) and structured-metadata fields (`kind: metadata`, the detected fields that no parser produced) are counted from the newest 1,000 lines by default, up to 5,000.
-  Those lines are read from the newest hour first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, so a week does not have to be read whole.
+  Those lines are read from the newest hour first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, at most its newest day; no window is wider than a day, so a week is never read in one request.
   When time runs short, the fields are counted over the lines read so far, and `lines_sampled` and the note under each field say how many.
 - On ClickHouse every field is counted exactly with one `GROUP BY` per field: each result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the 20 most frequent `LogAttributes` keys as `LogAttributes.<key>`.
 - On Elasticsearch and OpenSearch one aggregation request counts every field exactly over the whole range, with `sampled: false` and `lines_sampled: 0`, and `sample` is ignored.
@@ -490,7 +490,7 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
-On a long range the server searches Tempo newest first in growing windows, the last hour, then the two hours before it, then four, and so on, and stops once the page is full, so a broad search costs about as much as the newest window that fills it.
+On a long range the server searches Tempo newest first in growing windows, the last hour, then the two hours before it, then four, and so on up to a day at a time, one request after another, and stops once the page is full, so a broad search costs about as much as the newest window that fills it.
 When the 15 second query limit comes before the range is covered, the server returns the traces it found as a partial result instead of a timeout: the note says these are the newest matches it found and **Next** searches further back, and when it found none the page says Tempo stopped at its time limit before it found a trace, rather than that nothing matched.
 The explore query and `query_instant` return the same result with `meta.partial` set and the note that some matches may be missing, which `observe traces --ask` prints under the table.
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
