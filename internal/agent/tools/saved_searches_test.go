@@ -219,7 +219,7 @@ func TestUpdateSavedSearchRefusesWhatCannotBeChanged(t *testing.T) {
 		{"a trace filter on a logs search", keyCaller, `{"id":"` + saved.ID + `","filters":{"service":"checkout"}}`, codeInvalidRequest},
 		{"a range that does not resolve", keyCaller, `{"id":"` + saved.ID + `","to":"yesterday-ish"}`, codeInvalidRequest},
 		{"a title, which this tool does not change", keyCaller, `{"id":"` + saved.ID + `","title":"x"}`, codeInvalidRequest},
-		{"another person's private search", groupCaller, `{"id":"` + saved.ID + `","from":"now-2h"}`, codeNotFound},
+		{"a caller who can view the folder but not edit in it", groupCaller, `{"id":"` + saved.ID + `","from":"now-2h"}`, codeForbiddenRole},
 	}
 	for _, c := range cases {
 		if res := r.call(t, nil, c.by, nameUpdateSavedSearch, c.input); errorCode(t, res) != c.code {
