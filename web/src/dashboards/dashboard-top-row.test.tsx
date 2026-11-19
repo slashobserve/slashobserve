@@ -104,6 +104,10 @@ describe("DashboardTopRow", () => {
     expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveClass(
       "flex-[1_1_22rem]"
     )
+    expect(screen.getByText("Controls").parentElement).toHaveClass(
+      "max-w-full",
+      "flex-wrap"
+    )
   })
 
   it("leaves the title alone with the version on a phone", async () => {
