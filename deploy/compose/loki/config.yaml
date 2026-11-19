@@ -26,6 +26,9 @@ schema_config:
         prefix: index_
         period: 24h
 
+query_range:
+  cache_results: true
+
 limits_config:
   retention_period: 72h
 
