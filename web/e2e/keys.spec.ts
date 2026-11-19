@@ -123,7 +123,7 @@ test("opens API keys from the Agents page", async ({ page }) => {
   await expect(
     page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Agents" })
+      .getByRole("link", { name: "API keys" })
   ).toHaveAttribute("aria-current", "page")
   await expect(page).toHaveTitle("API keys - SlashObserve")
 })
