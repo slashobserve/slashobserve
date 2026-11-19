@@ -221,7 +221,7 @@ test("offers to save a query that returns no data anyway", async ({
     .getByRole("alert")
     .filter({ hasText: "query returned no data" })
   await expect(notice).toContainText(
-    "query returned no data for the dashboard's default time range and variable values"
+    "Query returned no data for the dashboard's default time range and variable values."
   )
   await expect(
     notice.getByRole("button", { name: "Save anyway" })
@@ -1340,11 +1340,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(sheet(page).locator(".cm-editor .cm-lint-line")).toBeVisible(
         { timeout: 5_000 }
       )
-      await expect(
-        sheet(page)
-          .getByRole("button", { name: /^Error:/ })
-          .first()
-      ).toBeVisible()
+      await expect(sheet(page).getByText(/^Error:/)).toHaveCount(1)
       await draftPreviewRejectionLogged(consoleErrors)
     })
 
