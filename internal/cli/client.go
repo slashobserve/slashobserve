@@ -213,7 +213,7 @@ func (c *client) newRequest(ctx context.Context, method, path string, query url.
 	if payload != nil {
 		body = bytes.NewReader(payload)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, endpoint.String(), body) //nolint:gosec // calling the server the user configured is the CLI's purpose
+	req, err := http.NewRequestWithContext(ctx, method, endpoint.String(), body) //nolint:gosec,nolintlint // calling the server the user configured is the CLI's purpose
 	if err != nil {
 		return nil, fmt.Errorf("build the request: %w", err)
 	}
@@ -244,7 +244,7 @@ func (c *client) do(ctx context.Context, method, path string, query url.Values, 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.http.Do(req) //nolint:gosec // calling the server the user configured is the CLI's purpose
+	resp, err := c.http.Do(req) //nolint:gosec,nolintlint // calling the server the user configured is the CLI's purpose
 	if err != nil {
 		return nil, c.transportError(ctx, err)
 	}
