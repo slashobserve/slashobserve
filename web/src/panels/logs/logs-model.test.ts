@@ -16,6 +16,9 @@ import {
   prettifyMessage,
   showsAttributes,
   type LogsDisplay,
+  withoutLevels,
+  type LogEntry,
+  type LogLevelKind,
 } from "./logs-model"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
@@ -884,5 +887,38 @@ describe("showsAttributes", () => {
       false
     )
     expect(showsAttributes({ showLabels: false })).toBe(false)
+  })
+})
+
+describe("withoutLevels", () => {
+  const line = (kind: LogLevelKind | null) =>
+    ({
+      key: String(kind),
+      level: kind === null ? null : { word: kind, kind },
+    }) as unknown as LogEntry
+
+  const entries = [line("error"), line("info"), line("warning"), line(null)]
+
+  it("keeps every line when no level is hidden", () => {
+    expect(withoutLevels(entries, undefined)).toBe(entries)
+    expect(withoutLevels(entries, new Set())).toBe(entries)
+  })
+
+  it("drops the lines of a hidden level", () => {
+    const shown = withoutLevels(entries, new Set<LogLevelKind>(["info"]))
+    expect(shown.map((entry) => entry.key)).toEqual([
+      "error",
+      "warning",
+      "null",
+    ])
+  })
+
+  it("counts a line with no level as other", () => {
+    const shown = withoutLevels(entries, new Set<LogLevelKind>(["other"]))
+    expect(shown.map((entry) => entry.key)).toEqual([
+      "error",
+      "info",
+      "warning",
+    ])
   })
 })
