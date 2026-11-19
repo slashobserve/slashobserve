@@ -11,7 +11,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/spf13/cobra"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/cli"
 )
 
@@ -158,10 +158,7 @@ func runnableCommands(root *cobra.Command) map[string]bool {
 }
 
 func TestEveryOperationReachesMCPAndTheCLI(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	problems, counts := checkCounting(doc, mcpToolNames(), runnableCommands(cli.Commands()), exceptions)
 	for _, problem := range problems {
 		t.Error(problem)
