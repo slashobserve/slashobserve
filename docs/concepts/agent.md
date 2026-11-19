@@ -153,6 +153,12 @@ The guards steer before they stop, and every refusal and every stop shows as a s
 A run that keeps asking a read it already made is first answered, then refused: a successful read is answered once more from its first result with a note, a failed read or a query result runs again, and a third identical call is refused.
 A save identical to an earlier one is refused.
 When a read was refused because the run reached its window of model calls, the finding the run then saves ends with a line saying reading stopped early and how many reads were refused, so its counts are not taken for complete.
+
+A finding that says a metric is missing is sent back once when no `list_metrics` call of the run set `scope`, and one that says there was no deploy is sent back once when the run did not read `list_annotations`; outside an investigation, which cannot read annotations, the agent is told to say deploys were not checked instead.
+A request may name the person's time zone (`time_zone` on `POST /api/v1/observe`, which the web app always sends): the brief tells the model to write times in it with its label, and `save_finding` answers `wrong_time_zone` for a finding that labels times UTC without ever using that label; a retry or continue keeps the zone, and without one times stay UTC.
+A datasource read that ends in `query_timeout`, `datasource_unavailable` or `too_many_requests` is marked as could not check: its error carries a `note` telling the model the read says nothing about whether the data exists, its step reads "could not check", and the run remembers the datasource until the same tool reads it successfully, so the finding ends with a line naming each datasource that could not be checked and why.
+An empty `list_metrics` search carries a `note` that a service, job or pod is usually a label value, to be listed with `scope` before the model says a service has no metrics.
+
 A run that is stopped after three rejected saves names the panels that kept failing in its reason.
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards (see [MCP](../use/mcp.md#the-run-session-enforces-the-guards)).

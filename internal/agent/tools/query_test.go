@@ -442,19 +442,21 @@ func TestBoundedInt(t *testing.T) {
 
 func TestClassifyRouting(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		wantCode string
-		wantErr  bool
-		wantStep string
+		name      string
+		err       error
+		wantCode  string
+		wantErr   bool
+		wantStep  string
+		unchecked bool
 	}{
-		{"canceled", context.Canceled, "", true, ""},
-		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "tool_failed", false, "Could not run query_instant: tool_failed"},
-		{"deadline", context.DeadlineExceeded, "query_timeout", false, "Ran a query on fake: query_timeout"},
-		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 15s"), "query_timeout", false, "Ran a query on fake: query_timeout"},
-		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), "query_invalid", false, "Ran a query on fake: query_invalid"},
-		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "INSERT"), "query_forbidden", false, "Ran a query on fake: query_forbidden"},
-		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "down"), "datasource_unavailable", false, "Ran a query on fake: datasource_unavailable"},
+		{"canceled", context.Canceled, "", true, "", false},
+		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "tool_failed", false, "Could not run query_instant: tool_failed", false},
+		{"deadline", context.DeadlineExceeded, "query_timeout", false, "Ran a query on fake: could not check, query_timeout", true},
+		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 15s"), "query_timeout", false, "Ran a query on fake: could not check, query_timeout", true},
+		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), "query_invalid", false, "Ran a query on fake: query_invalid", false},
+		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "INSERT"), "query_forbidden", false, "Ran a query on fake: query_forbidden", false},
+		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "down"), "datasource_unavailable", false, "Ran a query on fake: could not check, datasource_unavailable", true},
+		{"busy", queryproxy.ErrUpstreamBusy, "too_many_requests", false, "Ran a query on fake: could not check, too_many_requests", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -480,6 +482,10 @@ func TestClassifyRouting(t *testing.T) {
 			}
 			if res.Step != tt.wantStep {
 				t.Fatalf("step = %q, want %q", res.Step, tt.wantStep)
+			}
+			body, _ := res.Content.(errorBody)
+			if got := res.Unchecked != ""; got != tt.unchecked || (body.Note == uncheckedNote) != tt.unchecked {
+				t.Fatalf("unchecked = %q, note = %q, want unchecked %v", res.Unchecked, body.Note, tt.unchecked)
 			}
 		})
 	}

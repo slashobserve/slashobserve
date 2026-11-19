@@ -166,13 +166,28 @@ func (r *Registry) discover(ctx context.Context, uid string, req datasource.Disc
 	return cat, Result{}, true, nil
 }
 
+const uncheckedNote = "Could not check: this read did not finish, so it says nothing about whether the data exists. Retry it with a narrower range or filter, or say in the answer that this datasource could not be checked; never report it as empty or missing."
+
+func couldNotCheck(code string) bool {
+	switch spec.IssueCode(code) {
+	case queryproxy.CodeQueryTimeout, queryproxy.CodeDatasourceDown, queryproxy.CodeTooManyRequests:
+		return true
+	}
+	return false
+}
+
 func datasourceFailure(step string, err error) (Result, error) {
 	_, code, message := queryproxy.Classify(err)
 	switch code {
 	case string(queryproxy.CodeCanceled), string(queryproxy.CodeInternal):
 		return Result{}, err
 	}
-	return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
+	if !couldNotCheck(code) {
+		return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
+	}
+	res := failure(step+": could not check, "+code, errorBody{Code: code, Message: message, Note: uncheckedNote})
+	res.Unchecked = code
+	return res, nil
 }
 
 func boundedInt(p *int, def, lo, hi int, field string) (int, Result, bool) {
@@ -289,7 +304,12 @@ func described(noun, joiner, part string) string {
 type metricsOut struct {
 	Datasource string              `json:"datasource"`
 	Metrics    []datasource.Metric `json:"metrics"`
+	Note       string              `json:"note,omitempty"`
 	truncation
+}
+
+func noMetricNamed(search string) string {
+	return fmt.Sprintf("no metric name contains %q, which does not mean no metric has it: a service, job or pod is usually a label value, so list metrics with scope set to a selector such as {service=%q}, or read list_label_values, before saying it has no metrics", search, search)
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -321,7 +341,11 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	for i, m := range metrics {
 		listed[i] = m.Name
 	}
-	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut})
+	out := metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut}
+	if len(names.Metrics) == 0 && in.Search != "" {
+		out.Note = noMetricNamed(clip(in.Search, maxStepNameBytes))
+	}
+	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), out)
 	return discovered(res, names.Datasource, described("metrics", "matching", in.Search), listed), nil
 }
 

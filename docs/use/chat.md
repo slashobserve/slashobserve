@@ -99,7 +99,12 @@ The instructions allow three repair attempts; if the agent still cannot save, th
 A save that finishes the dashboard ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
+
 When the agent answers a question after its reads were refused at its limit of model calls (six in a chat, twelve in an investigation), the answer ends with a line saying reading stopped early and the counts may be partial.
+An answer on Home does not read deploy markers, so it says deploys were not checked rather than that none exist; ask with `/investigate` to have them read.
+Times in an answer are in your browser's time zone with its label, such as 19:52 IST, because the chat sends that zone with each request.
+When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why, so a timeout is never read as no data.
+
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
@@ -306,7 +311,8 @@ Only the person who started a chat can rename, pin or delete it.
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
 - **Change an existing dashboard from Home.** A request on Home builds a new dashboard and cannot change one that exists.
-  When the agent finds exactly one dashboard you meant, it answers that the change is asked for there and offers **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt.
+  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt and opens it as a new chat, and **Open dashboard**.
+  Without Edit on that dashboard you get only **Open dashboard**, with a line saying someone who can edit it can ask there.
   When it finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.

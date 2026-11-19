@@ -23,6 +23,7 @@ type StartRequest struct {
 	To            *string `json:"to"`
 	ObservationID *string `json:"observation_id"`
 	FollowsID     *string `json:"follows_id"`
+	TimeZone      *string `json:"time_zone"`
 }
 
 type StartError struct {
@@ -45,6 +46,13 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 	prompt, err := CheckPrompt("prompt", *req.Prompt)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, &StartError{Message: err.Error(), Cause: err}
+	}
+	if req.TimeZone != nil {
+		zone, err := CheckTimeZone(*req.TimeZone)
+		if err != nil {
+			return dbsqlc.AgentRequest{}, &StartError{Message: err.Error(), Cause: err}
+		}
+		ctx = WithTimeZone(ctx, zone)
 	}
 	switch {
 	case req.Kind == nil || *req.Kind == KindBuild:
