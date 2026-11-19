@@ -76,6 +76,8 @@ When a change conflicts, its row says in words which panel, variable or setting 
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
 Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
 **Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
+When you kept the dashboard's side of a conflict, the toast adds which panels, variables or settings the proposed change was dropped for, and a merge that saved nothing reads "Merged without a new version".
+The agent's merge tool says the same in its step.
 **Discard** asks "Discard this proposal?" with an optional **Reason (optional)** field, and shows to the author and to anyone who may merge.
 A discarded proposal's page shows the reason under its state line.
 If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.
