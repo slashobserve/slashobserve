@@ -382,7 +382,7 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 		ID: current.ID, Version: current.Version, FromStates: BlockMachine.From(BlockUpdate),
 		Body: current.Body, Width: current.Width, Position: current.Position,
 	}
-	if len(in.Body) > 0 {
+	if len(in.Body) > 0 && !resendsStoredText(current, in.Body) {
 		body, err := normalBody(Kind(current.Kind), in.Body)
 		if err != nil {
 			return params, err
@@ -400,6 +400,19 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 		params.Position = position
 	}
 	return params, nil
+}
+
+func resendsStoredText(current dbsqlc.ObservationBlock, raw json.RawMessage) bool {
+	if Kind(current.Kind) != KindText {
+		return false
+	}
+	var stored, sent struct {
+		Markdown *string `json:"markdown"`
+	}
+	if json.Unmarshal(current.Body, &stored) != nil || decodeStrict(raw, &sent) != nil {
+		return false
+	}
+	return stored.Markdown != nil && sent.Markdown != nil && *stored.Markdown == *sent.Markdown
 }
 
 func moveBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.ObservationBlock, requested int) (int32, error) {

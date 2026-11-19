@@ -25,6 +25,7 @@ Tag characters (U+E0000 to U+E007F) are allowed only in the sequence that follow
 
 A dashboard or panel title that an earlier version already holds is kept as it is when you save, duplicate or build on that dashboard, even when it breaks the rules above, so an old dashboard never blocks a save over a title nobody touched.
 A title you type or change is checked in full.
+In the same way, an observation text block whose text is sent back unchanged is not checked again, so a block saved earlier with control characters can still be moved or resized.
 
 ## Where it applies
 
