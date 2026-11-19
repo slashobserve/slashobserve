@@ -93,6 +93,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - The strict `Content-Security-Policy` (`contentSecurityPolicy` in `internal/server/server.go`) allows images only from self, `data:` and `blob:`.
   Remote images, tiles and GeoJSON must load through `/api/v1/assets/image` and `/api/v1/assets/geojson`.
 - `server.New` wraps the engine in `compressReads` (`internal/server/compress.go`): gzip only for GET and HEAD responses of 1024 bytes or more and never for `text/event-stream`, because a response to another method can echo a secret it created next to user text, the shape a BREACH attack needs.
+  Files under `assets/` have a build-time `.br` twin (`web/scripts/precompress.mjs`, run by `bun run build`) that `serveFile` sends with `Content-Encoding: br` when the request accepts it, so the gzip wrapper leaves it alone; the twin is never served by its own name.
 - `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts `Authorization: Bearer` service-account keys and OAuth access tokens (a session cookie is ignored); OAuth tokens are accepted nowhere else, and for them the registered client name is the origin client and `clientInfo` is ignored.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.

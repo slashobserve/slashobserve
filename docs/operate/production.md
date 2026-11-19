@@ -28,7 +28,8 @@ The server ignores `X-Forwarded-For`.
 Serve the proxy over HTTP/2.
 The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).
 Over HTTP/2 they load in one wave.
-The server compresses with gzip; a proxy that compresses `/assets/` with brotli makes the largest file, the shared vendor chunk, 6 to 15 percent smaller than gzip does, depending on the level.
+Files under `/assets/` ship brotli-compressed at build time and the server sends that copy to a browser that accepts `br`, which makes the largest file, the shared vendor chunk, about 19 percent smaller than gzip (200 KB against 246 KB); every other response is compressed with gzip.
+A proxy that recompresses responses must pass `Content-Encoding: br` through and key its cache on `Accept-Encoding`, which the server lists in `Vary`.
 Files under `/assets/` carry a content hash in their name and `Cache-Control: immutable`, so a proxy can cache them for a year.
 
 ## Health endpoints
