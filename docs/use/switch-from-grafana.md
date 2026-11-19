@@ -154,8 +154,10 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 | Public dashboards | [Public links](public-links.md) from the Share pane. | Changes |
 | Kiosk mode and playlists | TV mode, which cycles through a dashboard's rows or a folder's dashboards. Playlists themselves stay in Grafana. | Changes |
 | Provisioning files | The server's provisioning directory, or `observe dashboards apply` from Git. | Changes |
-| Alerting rules, contact points and silences | Not imported, and an alert list panel imports as a placeholder. | Waits |
-| Library panels | Imported as a placeholder, as in a single import. | Waits |
+| Alerting rules, contact points and silences | Not imported, and there is no replacement here: keep Grafana alerting, or Prometheus rules with Alertmanager. An alert list panel over a Prometheus `ALERTS` query imports as a list, and any other alert list as a placeholder. | Waits |
+| Library panels and plugin panels | Imported as a placeholder. Each dashboard holds its own copy of a panel, and there is no plugin mechanism. | Waits |
+| Dashboard snapshots, embedded panels and scheduled reports | Not built. A public link always shows the latest version and cannot be framed in another page, and nothing emails a dashboard on a schedule. | Waits |
+| Datasource permissions | Every signed-in person may query every datasource in the [datasources file](../reference/datasources-file.md). | Waits |
 | Users, teams and folder permissions | Stay in Grafana; set [folder permissions](../teams/folders.md) here after the import. | Waits |
 
 ## The API

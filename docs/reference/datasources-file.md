@@ -52,6 +52,11 @@ datasources:
 
 `deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
 
+## Who can query a datasource
+
+Every entry is open to every signed-in person from Viewer up and to every service-account key, through the explore query and the panel editor, under the entry's limits.
+There is no per-team or per-folder datasource access; a restricted folder hides its dashboards, not the datasources they read.
+
 ## Fields common to every entry
 
 | Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                |
