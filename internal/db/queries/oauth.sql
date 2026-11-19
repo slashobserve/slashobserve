@@ -124,6 +124,9 @@ WHERE t.token_hash = $1;
 UPDATE oauth_grants SET revoked_at = now(), revoked_reason = @reason::text, revoked_by = sqlc.narg('by')::uuid
 WHERE id = @id AND revoked_at IS NULL;
 
+-- name: DeleteUnusedUserOAuthCodes :execrows
+DELETE FROM oauth_codes WHERE user_id = @user_id AND used_at IS NULL;
+
 -- name: RevokeUserOAuthGrants :execrows
 UPDATE oauth_grants SET revoked_at = now(), revoked_reason = 'admin', revoked_by = sqlc.narg('by')::uuid
 WHERE user_id = @user_id AND revoked_at IS NULL;

@@ -47,6 +47,9 @@ func Deactivate(ctx context.Context, q *dbsqlc.Queries, by Principal, userID pgt
 	if d.Sessions, err = q.DeleteUserSessions(ctx, userID); err != nil {
 		return Deactivation{}, err
 	}
+	if _, err := q.DeleteUnusedUserOAuthCodes(ctx, userID); err != nil {
+		return Deactivation{}, err
+	}
 	if d.Grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: byID, UserID: userID}); err != nil {
 		return Deactivation{}, err
 	}

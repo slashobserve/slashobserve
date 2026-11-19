@@ -205,6 +205,18 @@ func (q *Queries) DeleteExpiredOAuthRequests(ctx context.Context) error {
 	return err
 }
 
+const deleteUnusedUserOAuthCodes = `-- name: DeleteUnusedUserOAuthCodes :execrows
+DELETE FROM oauth_codes WHERE user_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) DeleteUnusedUserOAuthCodes(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnusedUserOAuthCodes, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getOAuthAccess = `-- name: GetOAuthAccess :one
 SELECT g.id, g.user_id, g.last_used_at, g.mode, c.name
 FROM oauth_tokens t

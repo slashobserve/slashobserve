@@ -87,6 +87,27 @@ func TestDeactivateEndsSessionsAndAgentsAndKeepsThePerson(t *testing.T) {
 	}
 }
 
+func TestDeactivateDropsCodesAnAgentHasNotExchangedYet(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	r.makeAdmin(admin)
+	bob := r.addUser("bob", time.Now())
+	r.addGrant(bob, "client-a")
+	code := opaquetoken.Hash("bob-code")
+	r.db.Exec(t, "INSERT INTO oauth_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, resource, expires_at) VALUES ($1, 'client-a', $2, 'http://127.0.0.1:1/cb', 'challenge', 'http://localhost:8080/mcp', now() + interval '1 minute')", code, bob)
+
+	decodePerson(t, http.StatusOK, r.do(http.MethodPost, "/api/v1/users/"+bob.String()+"/deactivate", adminCaller(admin, "Ada")))
+	decodePerson(t, http.StatusOK, r.do(http.MethodPost, "/api/v1/users/"+bob.String()+"/reactivate", adminCaller(admin, "Ada")))
+
+	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		_, err := q.GetOAuthCode(t.Context(), code)
+		return err
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("a code Bob approved before deactivation can still be exchanged after reactivation: %v", err)
+	}
+}
+
 func TestKeysADeactivatedPersonCreatedKeepWorking(t *testing.T) {
 	r := newRig(t)
 	admin := r.addUser("ada", time.Now())
