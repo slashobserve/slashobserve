@@ -434,6 +434,7 @@ LOCK_FILE=/tmp/slashobserve-e2e-run.lock
 WARM_MARKER=/tmp/slashobserve-e2e-warm
 WARM_MAX_AGE=1800
 WARM_WAIT=600
+ORPHANED_LOCK_WAIT=60
 SSE_PID=""
 CLAIM_LOCK_APP="slashobserve-e2e-claim-lock"
 CLAIM_LOCK_PID=""
@@ -454,6 +455,12 @@ lock_owner() {
   fi
 }
 
+lock_owner_exited() {
+  local owner
+  owner="$(tr -cd '0-9' <"$LOCK_FILE" 2>/dev/null || true)"
+  [[ -n "$owner" ]] && ! kill -0 "$owner" 2>/dev/null
+}
+
 read -r -d '' LOCK_PERL <<'PERL' || true
 use Fcntl qw(:flock);
 my ($path, $pid) = @ARGV;
@@ -468,14 +475,19 @@ chmod(0666, $f);
 PERL
 
 acquire_lock() {
-  local rc=0 waited=0
+  local rc=0 waited=0 orphaned=0
   [[ ! -L "$LOCK_FILE" ]] || fail "$LOCK_FILE is a symlink; remove it"
   [[ ! -d "$LOCK_FILE" ]] || fail "stale directory from an older e2e.sh at $LOCK_FILE; rmdir it"
   { exec 9>>"$LOCK_FILE"; } 2>/dev/null || fail "cannot open $LOCK_FILE"
   while :; do
     rc=0
     perl -e "$LOCK_PERL" "$LOCK_FILE" "$$" || rc=$?
-    [[ "$rc" == 1 && "${1:-}" == wait_for_warm ]] && warm_pending && ((waited++ < WARM_WAIT)) || break
+    [[ "$rc" == 1 && "${1:-}" == wait_for_warm ]] || break
+    if warm_pending; then
+      ((waited++ < WARM_WAIT)) || break
+    else
+      lock_owner_exited && ((orphaned++ < ORPHANED_LOCK_WAIT)) || break
+    fi
     sleep 1
   done
   case "$rc" in
