@@ -61,6 +61,7 @@ type Props = {
   onSavePng?: () => void
   canComment: boolean
   canEdit: boolean
+  canInvestigate: boolean
   onToggleResponsive?: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
   inToolbar?: boolean
@@ -101,6 +102,7 @@ export function PanelMenu({
   onSavePng,
   canComment,
   canEdit,
+  canInvestigate,
   onToggleResponsive,
   composerRef,
   inToolbar = false,
@@ -128,9 +130,17 @@ export function PanelMenu({
         commentOnPanel(setSearch, panel.id)
       },
     })
+  } else {
+    items.push({
+      id: "comment",
+      label: "Comment (needs Comment access on this folder)",
+      icon: <MessageSquarePlusIcon aria-hidden="true" />,
+      disabled: true,
+      onSelect: () => {},
+    })
   }
   const data = isDataPanel(panel)
-  if (canEdit && data && agentAvailable) {
+  if (canInvestigate && data && agentAvailable) {
     items.push({
       id: "investigate",
       label: idle ? "Investigate" : "Investigate (finish the layout first)",

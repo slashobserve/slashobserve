@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent, type Ref } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, PlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -17,7 +18,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
-import { roleLabels } from "@/lib/roles"
+import { usersQuery } from "@/people/queries"
+import { roleAtLeast, roleLabels } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import {
@@ -37,6 +37,7 @@ import {
   SettingsRow,
 } from "@/settings/settings-card"
 
+import { GranteeInput } from "./grantee-input"
 import {
   entriesForPut,
   entryKey,
@@ -131,6 +132,11 @@ function AccessCard({
   const entries = permissions.entries
   const listed = entries.length > 0 || revealed
   const pending = save.isPending
+  const listedEmails = new Set(
+    entries.flatMap((entry) =>
+      entry.user === undefined ? [] : [entry.user.email.toLowerCase()]
+    )
+  )
 
   function apply(change: GrantChange, onDone?: () => void) {
     setProblem(null)
@@ -208,8 +214,19 @@ function AccessCard({
           }
         />
       ) : null}
+      {listed && entries.length === 0 ? (
+        <p role="status" className="border-b px-4 py-3 text-[13px]">
+          Nobody is listed yet, so everyone still sees this folder by role.
+          {readOnly ? "" : " Add a person or group to restrict it."}
+        </p>
+      ) : null}
       {listed && !readOnly ? (
-        <AddGrantForm inputRef={addInput} pending={pending} onAdd={apply} />
+        <AddGrantForm
+          inputRef={addInput}
+          listedEmails={listedEmails}
+          pending={pending}
+          onAdd={apply}
+        />
       ) : null}
       {problem !== null && !confirmingClear ? (
         <div className="px-4 pb-3">
@@ -289,34 +306,22 @@ function GrantTable({
   onRemove: (entry: Entry) => void
 }) {
   return (
-    <TableCard
-      label="People and groups with access"
-      minWidth={520}
-      className="rounded-none border-0 border-b"
-    >
-      <thead>
-        <tr>
-          <HeaderCell>Person or group</HeaderCell>
-          <HeaderCell>Access</HeaderCell>
-          {readOnly ? null : (
-            <HeaderCell>
-              <span className="sr-only">Actions</span>
-            </HeaderCell>
-          )}
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map((entry) => {
-          const name = entryName(entry)
-          return (
-            <tr key={entryKey(entry)}>
-              <Cell>
-                <GranteeLabel entry={entry} />
-              </Cell>
-              <Cell>
-                {readOnly ? (
-                  levelLabels[entry.level]
-                ) : (
+    <ul aria-label="People and groups with access" className="border-b">
+      {entries.map((entry) => {
+        const name = entryName(entry)
+        return (
+          <li
+            key={entryKey(entry)}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3"
+          >
+            <div className="min-w-0 flex-1 basis-48">
+              <GranteeLabel entry={entry} />
+            </div>
+            <div className="flex items-center gap-2">
+              {readOnly ? (
+                <span className="text-[13px]">{levelLabels[entry.level]}</span>
+              ) : (
+                <>
                   <LevelSelect
                     label={`Access for ${name}`}
                     value={entry.level}
@@ -324,10 +329,6 @@ function GrantTable({
                     disabled={pending}
                     onChange={(level) => onSetLevel(entry, level)}
                   />
-                )}
-              </Cell>
-              {readOnly ? null : (
-                <Cell className="text-right">
                   <Button
                     variant="outline"
                     size="sm"
@@ -339,23 +340,20 @@ function GrantTable({
                   >
                     Remove
                   </Button>
-                </Cell>
+                </>
               )}
-            </tr>
-          )
-        })}
-        <tr>
-          <Cell className="text-muted-foreground">
-            <span className="flex items-center gap-2.5">
-              <Mark text="A" round={false} />
-              Instance admins
-            </span>
-          </Cell>
-          <Cell className="text-muted-foreground">Admin, always</Cell>
-          {readOnly ? null : <Cell />}
-        </tr>
-      </tbody>
-    </TableCard>
+            </div>
+          </li>
+        )
+      })}
+      <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13px] text-muted-foreground">
+        <span className="flex min-w-0 flex-1 basis-48 items-center gap-2.5">
+          <Mark text="A" round={false} />
+          Instance admins
+        </span>
+        <span>Admin, always</span>
+      </li>
+    </ul>
   )
 }
 
@@ -456,14 +454,24 @@ function LevelSelect({
 
 function AddGrantForm({
   inputRef,
+  listedEmails,
   pending,
   onAdd,
 }: {
   inputRef: Ref<HTMLInputElement>
+  listedEmails: ReadonlySet<string>
   pending: boolean
   onAdd: (change: GrantChange, onDone: () => void) => void
 }) {
   const instance = useQuery(instanceQuery())
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const mayListPeople = roleAtLeast(principal.role, "admin")
+  const people = useQuery({ ...usersQuery(), enabled: mayListPeople })
+  const suggestions = mayListPeople
+    ? (people.data ?? [])
+        .map((person) => person.email)
+        .filter((email) => !listedEmails.has(email.toLowerCase()))
+    : null
   const [draft, setDraft] = useState("")
   const [level, setLevel] = useState<Level>("view")
   const [draftError, setDraftError] = useState<string | null>(null)
@@ -493,19 +501,17 @@ function AddGrantForm({
       className="flex flex-wrap items-start gap-2 border-b px-4 py-3"
     >
       <div className="min-w-[240px] flex-1">
-        <Input
-          ref={inputRef}
-          aria-label="Add a person or group"
-          placeholder={`Email or group name from ${provider}`}
-          autoComplete="off"
-          spellCheck={false}
+        <GranteeInput
           value={draft}
-          aria-invalid={draftError !== null}
-          aria-describedby={draftError === null ? undefined : errorId}
-          onChange={(event) => {
-            setDraft(event.target.value)
+          onChange={(next) => {
+            setDraft(next)
             setDraftError(null)
           }}
+          suggestions={suggestions}
+          inputRef={inputRef}
+          placeholder={`Email or group name from ${provider}`}
+          invalid={draftError !== null}
+          describedBy={draftError === null ? undefined : errorId}
         />
         {draftError === null ? null : (
           <p id={errorId} className="mt-1 text-xs text-destructive">

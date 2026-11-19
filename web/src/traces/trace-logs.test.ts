@@ -5,6 +5,7 @@ import type { DatasourceStatus } from "@/datasources/queries"
 
 import {
   lineCountText,
+  logsBodyHeight,
   logsDatasourceFor,
   matchNote,
   previewTime,
@@ -197,5 +198,16 @@ describe("line text", () => {
     ["clickhouse", undefined, "Matched on TraceId in otel_logs."],
   ])("explains the %s match for %o", (type, span, note) => {
     expect(matchNote(type, span)).toBe(note)
+  })
+})
+
+describe("logsBodyHeight", () => {
+  it("never reports less than the minimum body height", () => {
+    expect(logsBodyHeight(0)).toBe(320)
+    expect(logsBodyHeight(120)).toBe(320)
+  })
+
+  it("keeps a larger measured height", () => {
+    expect(logsBodyHeight(540)).toBe(540)
   })
 })

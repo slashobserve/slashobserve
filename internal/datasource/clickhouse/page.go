@@ -8,9 +8,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-var _ datasource.PageSource = (*Datasource)(nil)
+var (
+	_ datasource.PageSource    = (*Datasource)(nil)
+	_ datasource.SortablePages = (*Datasource)(nil)
+)
 
 func (d *Datasource) PagesByOffset() bool { return true }
+
+func (d *Datasource) SortsPages() bool { return true }
 
 func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
 	page := max(req.Page, 1)
@@ -21,10 +26,15 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	)
 	err := d.readLines(ctx, req.Query, req.Range, false, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error {
 		lim.MaxRows = min(req.PageSize, lim.MaxRows)
-		pageSQL, params := plainQuery(inner), plainParameters(lim.MaxRows, offset)
+		if req.Sort != nil {
+			if err := d.requireSortColumn(ctx, inner, lim, extra, req.Sort.Column); err != nil {
+				return err
+			}
+		}
+		pageSQL, params := plainQuery(inner, req.Sort), plainParameters(lim.MaxRows, offset)
 		countSQL, countParams := plainCountQuery(inner), ch.Parameters(nil)
 		if timed {
-			pageSQL, params = linesQuery(inner, datasource.Backward), linesParameters(req.Range, lim.MaxRows, offset)
+			pageSQL, params = pageQuery(inner, req.Sort), linesParameters(req.Range, lim.MaxRows, offset)
 			countSQL, countParams = countQuery(inner), rangeParameters(req.Range)
 		}
 		rs, err := d.fetchWith(ctx, pageSQL, lim, params, extra)

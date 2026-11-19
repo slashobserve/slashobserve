@@ -112,8 +112,16 @@ func plainSource(text string, ordered bool) string {
 	return "SELECT * FROM (\n" + text + "\n)\nORDER BY ALL"
 }
 
-func plainQuery(inner string) string {
-	return "SELECT * FROM (\n" + inner + "\n)\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
+func plainQuery(inner string, sort *datasource.PageSort) string {
+	order := ""
+	if sort != nil {
+		direction := "ASC"
+		if sort.Descending {
+			direction = "DESC"
+		}
+		order = "ORDER BY " + quoteIdent(sort.Column) + " " + direction + "\n"
+	}
+	return "SELECT * FROM (\n" + inner + "\n)\n" + order + "LIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
 }
 
 func plainCountQuery(inner string) string {
@@ -124,14 +132,43 @@ func plainParameters(limit, offset int) ch.Parameters {
 	return ch.Parameters{"limit": strconv.Itoa(limit), "offset": strconv.Itoa(offset)}
 }
 
+func (d *Datasource) requireSortColumn(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, column string) error {
+	rs, err := d.fetchWith(ctx, "SELECT * FROM (\n"+inner+"\n) LIMIT 0", lim, nil, extra)
+	if err != nil {
+		return err
+	}
+	names := make([]string, 0, len(rs.columns))
+	for _, c := range rs.columns {
+		if c.name == column {
+			return nil
+		}
+		names = append(names, c.name)
+	}
+	return datasource.Errorf(datasource.ErrInvalidQuery, "sort column %s is not in the result; the columns are %s", column, strings.Join(names, ", "))
+}
+
 func linesQuery(inner string, direction datasource.LineDirection) string {
 	order := "DESC"
 	if direction == datasource.Forward {
 		order = "ASC"
 	}
-	ts := quoteIdent(timestampColumn)
+	return orderedQuery(inner, quoteIdent(timestampColumn)+" "+order)
+}
+
+func pageQuery(inner string, sort *datasource.PageSort) string {
+	if sort == nil {
+		return linesQuery(inner, datasource.Backward)
+	}
+	direction := "ASC"
+	if sort.Descending {
+		direction = "DESC"
+	}
+	return orderedQuery(inner, quoteIdent(sort.Column)+" "+direction+", "+quoteIdent(timestampColumn)+" DESC")
+}
+
+func orderedQuery(inner, order string) string {
 	return "SELECT * FROM (\n" + inner + "\n)\n" + rangeFilter() +
-		"ORDER BY " + ts + " " + order + "\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
+		"ORDER BY " + order + "\nLIMIT {limit:UInt64}\nOFFSET {offset:UInt64}"
 }
 
 func countQuery(inner string) string {

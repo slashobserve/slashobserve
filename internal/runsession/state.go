@@ -21,15 +21,17 @@ const (
 )
 
 type State struct {
-	Guard      guard.State          `json:"guard"`
-	Digest     brief.Digest         `json:"digest"`
-	Restarts   int                  `json:"restarts"`
-	Build      *tools.BuildProgress `json:"build,omitempty"`
-	Suggestion json.RawMessage      `json:"suggestion,omitempty"`
-	IssueCodes []string             `json:"issue_codes,omitempty"`
-	Settled    Settled              `json:"settled"`
-	Usage      revisions.Usage      `json:"usage"`
-	Turn       OpenTurn             `json:"turn"`
+	Guard        guard.State          `json:"guard"`
+	Digest       brief.Digest         `json:"digest"`
+	Restarts     int                  `json:"restarts"`
+	Build        *tools.BuildProgress `json:"build,omitempty"`
+	Suggestion   json.RawMessage      `json:"suggestion,omitempty"`
+	IssueCodes   []string             `json:"issue_codes,omitempty"`
+	Failing      []string             `json:"failing_panels,omitempty"`
+	FailingOther int                  `json:"failing_other,omitempty"`
+	Settled      Settled              `json:"settled"`
+	Usage        revisions.Usage      `json:"usage"`
+	Turn         OpenTurn             `json:"turn"`
 }
 
 type Settled struct {

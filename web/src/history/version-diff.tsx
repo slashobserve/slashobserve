@@ -394,6 +394,16 @@ function DiffBody({
   if (diff.data.changes.length === 0) {
     return <p className="text-sm text-muted-foreground">No differences</p>
   }
+  return <DiffGroupList groups={groups} titles={titles} />
+}
+
+export function DiffGroupList({
+  groups,
+  titles,
+}: {
+  groups: DiffGroup[]
+  titles: TitleMaps
+}) {
   return (
     <div className="flex flex-col gap-3">
       {groups.map((group) => (

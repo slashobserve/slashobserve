@@ -322,6 +322,9 @@ func TestExploreMetaCarriesJobsAndElapsed(t *testing.T) {
 	if meta.JobsDone != 1 || meta.JobsTotal != 6 || meta.InspectedBytes != 10 || !meta.Partial || meta.Bytes != 0 {
 		t.Fatalf("meta = %+v, want 1 of 6 jobs, 10 inspected bytes, partial and no payload size", meta)
 	}
+	if meta.Note != queryproxy.PartialNote {
+		t.Fatalf("note = %q, want the partial note", meta.Note)
+	}
 	if meta.ElapsedMS < 2 {
 		t.Fatalf("elapsed_ms = %d, want at least the time the datasource took", meta.ElapsedMS)
 	}
@@ -534,6 +537,8 @@ func TestExploreRejectsBadPaging(t *testing.T) {
 		{"page_size with limit", "logs", with(func(b map[string]any) { b["limit"] = 10 }), "limit and page_size cannot both be given"},
 		{"page without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["page"] = 2 }), "page and cursor need page_size"},
 		{"cursor without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["cursor"] = "x" }), "page and cursor need page_size"},
+		{"sort without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["sort"] = "-Duration" }), "sort needs page_size"},
+		{"sort on a datasource that cannot sort", "logs", with(func(b map[string]any) { b["sort"] = "-Duration" }), queryproxy.SortUnsupported},
 		{"page_size below 50", "logs", with(func(b map[string]any) { b["page_size"] = 49 }), "page_size must be from 50 to 500"},
 		{"page_size above 500", "logs", with(func(b map[string]any) { b["page_size"] = 501 }), "page_size must be from 50 to 500"},
 		{"page zero", "logs", with(func(b map[string]any) { b["page"] = 0 }), "page must be at least 1"},
@@ -575,5 +580,46 @@ func TestExplorePageMapsDatasourceErrors(t *testing.T) {
 	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
 	if !strings.Contains(rec.Body.String(), "more than page_size rows share one timestamp") {
 		t.Fatalf("body = %s", rec.Body.String())
+	}
+}
+
+func TestExploreAnswers422WhenTheSortColumnIsNotInTheResult(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	logs.onPage = func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "sort column Nope is not in the result; the columns are Timestamp, Body")
+	}
+	rec := hn.explore(auth.KindUser, "logs", pagedBody(100))
+	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
+}
+
+func TestExploreOffersPagingOnlyWhereItWorks(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	truncated := func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		frames := logFrames()
+		frames[0].Meta = &datasource.FrameMeta{Truncated: true}
+		return frames, nil
+	}
+	hn.ds.onInstant, logs.onInstant = truncated, truncated
+	logs.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		frames, _ := truncated(context.Background(), datasource.TimeRange{})
+		return frames, nil
+	}
+	rangeBody := instantBody(pagedQuery)
+	rangeBody["kind"] = "range"
+	cases := []struct {
+		name, uid string
+		body      map[string]any
+		want      string
+	}{
+		{"instant on a datasource that pages", "logs", instantBody(pagedQuery), queryproxy.MoreRowsNote},
+		{"instant on a datasource that does not page", "prom", instantBody("up"), queryproxy.NarrowNote},
+		{"range on a datasource that pages", "logs", rangeBody, queryproxy.NarrowNote},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := decodeData(t, hn.explore(auth.KindUser, tc.uid, tc.body)).Meta.Note; got != tc.want {
+				t.Fatalf("note = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

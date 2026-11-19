@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -161,7 +162,18 @@ func checkTraceFilters(f Filters) error {
 			return invalid("%s must be a duration such as 250ms or 2s", v.name)
 		}
 	}
+	if f.Min != "" && f.Max != "" && durationNanos(f.Min) > durationNanos(f.Max) {
+		return invalid("min must not be greater than max")
+	}
 	return nil
+}
+
+var nanosecondsPer = map[string]float64{"ns": 1, "us": 1e3, "µs": 1e3, "ms": 1e6, "s": 1e9, "m": 60e9, "h": 3600e9}
+
+func durationNanos(text string) float64 {
+	match := durationPattern.FindStringSubmatch(text)
+	n, _ := strconv.ParseFloat(match[1], 64)
+	return n * nanosecondsPer[match[2]]
 }
 
 func fitDatasource(kind Kind, dsType spec.DatasourceType, query *string) error {

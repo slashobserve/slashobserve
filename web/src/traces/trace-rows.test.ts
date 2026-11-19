@@ -4,12 +4,15 @@ import type { WireFrame } from "@/dashboards/queries"
 
 import {
   countText,
+  decodeSort,
   defaultTraceSort,
+  encodeSort,
   durationText,
   hasErrorCounts,
   hasSpanCounts,
   nextSort,
   openTraceLabel,
+  pageSortParam,
   percentile,
   sortHint,
   sortTraceRows,
@@ -43,6 +46,7 @@ describe("traceRows", () => {
         durationMs: 12.5,
         spans: null,
         errors: null,
+        matching: null,
       },
     ])
   })
@@ -81,6 +85,7 @@ describe("traceRows", () => {
         durationMs: null,
         spans: null,
         errors: null,
+        matching: null,
       },
     ])
   })
@@ -310,5 +315,34 @@ describe("percentile", () => {
 
   it("is null for no values", () => {
     expect(percentile([], 95)).toBeNull()
+  })
+})
+
+describe("the sort in the address", () => {
+  it("leaves the default sort out", () => {
+    expect(encodeSort(defaultTraceSort)).toBeUndefined()
+    expect(decodeSort(undefined)).toEqual(defaultTraceSort)
+  })
+
+  it("round-trips a column in either direction and a cleared sort", () => {
+    for (const sort of [
+      { key: "spans", direction: "ascending" },
+      { key: "start", direction: "descending" },
+      null,
+    ] as const) {
+      expect(decodeSort(encodeSort(sort))).toEqual(sort)
+    }
+    expect(encodeSort({ key: "spans", direction: "ascending" })).toBe("spans")
+    expect(encodeSort({ key: "start", direction: "descending" })).toBe("-start")
+  })
+
+  it("asks the server for the result column and leaves a cleared sort to the newest first order", () => {
+    expect(pageSortParam({ key: "duration", direction: "descending" })).toBe(
+      "-Duration"
+    )
+    expect(pageSortParam({ key: "service", direction: "ascending" })).toBe(
+      "ServiceName"
+    )
+    expect(pageSortParam(null)).toBeUndefined()
   })
 })

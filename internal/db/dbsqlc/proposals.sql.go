@@ -12,13 +12,18 @@ import (
 )
 
 const advanceProposalRevision = `-- name: AdvanceProposalRevision :one
-UPDATE proposals SET revision = revision + 1, updated_at = clock_timestamp()
-WHERE id = $1 AND state = 'open'
+UPDATE proposals SET revision = revision + 1, title = $1, updated_at = clock_timestamp()
+WHERE id = $2 AND state = 'open'
 RETURNING revision
 `
 
-func (q *Queries) AdvanceProposalRevision(ctx context.Context, id pgtype.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, advanceProposalRevision, id)
+type AdvanceProposalRevisionParams struct {
+	Title string
+	ID    pgtype.UUID
+}
+
+func (q *Queries) AdvanceProposalRevision(ctx context.Context, arg AdvanceProposalRevisionParams) (int32, error) {
+	row := q.db.QueryRow(ctx, advanceProposalRevision, arg.Title, arg.ID)
 	var revision int32
 	err := row.Scan(&revision)
 	return revision, err
@@ -28,8 +33,9 @@ const closeProposal = `-- name: CloseProposal :execrows
 UPDATE proposals
 SET state = $1, closed_at = clock_timestamp(),
   closed_by_kind = $2, closed_by_id = $3, closed_by_name = $4,
+  close_reason = $5,
   updated_at = clock_timestamp()
-WHERE id = $5 AND state = 'open' AND revision = $6
+WHERE id = $6 AND state = 'open' AND revision = $7
 `
 
 type CloseProposalParams struct {
@@ -37,6 +43,7 @@ type CloseProposalParams struct {
 	ClosedByKind pgtype.Text
 	ClosedByID   pgtype.UUID
 	ClosedByName pgtype.Text
+	CloseReason  pgtype.Text
 	ID           pgtype.UUID
 	Revision     int32
 }
@@ -47,6 +54,7 @@ func (q *Queries) CloseProposal(ctx context.Context, arg CloseProposalParams) (i
 		arg.ClosedByKind,
 		arg.ClosedByID,
 		arg.ClosedByName,
+		arg.CloseReason,
 		arg.ID,
 		arg.Revision,
 	)
@@ -57,7 +65,7 @@ func (q *Queries) CloseProposal(ctx context.Context, arg CloseProposalParams) (i
 }
 
 const getProposal = `-- name: GetProposal :one
-SELECT p.id, p.dashboard_id, p.state, p.title, p.revision, p.author_kind, p.author_id, p.author_name, p.origin, p.origin_client, p.run_id, p.closed_at, p.closed_by_kind, p.closed_by_id, p.closed_by_name, p.created_at, p.updated_at, r.base_version, r.summary, r.spec, v.version AS merged_version
+SELECT p.id, p.dashboard_id, p.state, p.title, p.revision, p.author_kind, p.author_id, p.author_name, p.origin, p.origin_client, p.run_id, p.closed_at, p.closed_by_kind, p.closed_by_id, p.closed_by_name, p.created_at, p.updated_at, p.close_reason, r.base_version, r.summary, r.spec, v.version AS merged_version
 FROM proposals p
 JOIN proposal_revisions r ON r.proposal_id = p.id AND r.revision = p.revision
 LEFT JOIN dashboard_versions v ON v.merged_proposal_id = p.id
@@ -93,6 +101,7 @@ func (q *Queries) GetProposal(ctx context.Context, id pgtype.UUID) (GetProposalR
 		&i.Proposal.ClosedByName,
 		&i.Proposal.CreatedAt,
 		&i.Proposal.UpdatedAt,
+		&i.Proposal.CloseReason,
 		&i.BaseVersion,
 		&i.Summary,
 		&i.Spec,
@@ -105,7 +114,7 @@ const insertProposal = `-- name: InsertProposal :one
 INSERT INTO proposals (dashboard_id, title, author_kind, author_id, author_name, origin, origin_client, run_id)
 VALUES ($1, $2, $3, $4, $5,
   $6::text, $7::text, $8::uuid)
-RETURNING id, dashboard_id, state, title, revision, author_kind, author_id, author_name, origin, origin_client, run_id, closed_at, closed_by_kind, closed_by_id, closed_by_name, created_at, updated_at
+RETURNING id, dashboard_id, state, title, revision, author_kind, author_id, author_name, origin, origin_client, run_id, closed_at, closed_by_kind, closed_by_id, closed_by_name, created_at, updated_at, close_reason
 `
 
 type InsertProposalParams struct {
@@ -149,6 +158,7 @@ func (q *Queries) InsertProposal(ctx context.Context, arg InsertProposalParams) 
 		&i.ClosedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CloseReason,
 	)
 	return i, err
 }
@@ -178,21 +188,23 @@ func (q *Queries) InsertProposalRevision(ctx context.Context, arg InsertProposal
 }
 
 const listDashboardProposals = `-- name: ListDashboardProposals :many
-SELECT p.id, p.dashboard_id, p.state, p.title, p.revision, p.author_kind, p.author_id, p.author_name, p.origin, p.origin_client, p.run_id, p.closed_at, p.closed_by_kind, p.closed_by_id, p.closed_by_name, p.created_at, p.updated_at, r.base_version, r.summary, v.version AS merged_version
+SELECT p.id, p.dashboard_id, p.state, p.title, p.revision, p.author_kind, p.author_id, p.author_name, p.origin, p.origin_client, p.run_id, p.closed_at, p.closed_by_kind, p.closed_by_id, p.closed_by_name, p.created_at, p.updated_at, p.close_reason, r.base_version, r.summary, v.version AS merged_version
 FROM proposals p
 JOIN proposal_revisions r ON r.proposal_id = p.id AND r.revision = p.revision
 LEFT JOIN dashboard_versions v ON v.merged_proposal_id = p.id
 WHERE p.dashboard_id = $1
   AND ($2::text IS NULL OR p.state = $2::text)
-  AND ($3::timestamptz IS NULL
-    OR (p.created_at, p.id) < ($3::timestamptz, $4::uuid))
+  AND ($3::uuid IS NULL OR p.run_id = $3::uuid)
+  AND ($4::timestamptz IS NULL
+    OR (p.created_at, p.id) < ($4::timestamptz, $5::uuid))
 ORDER BY p.created_at DESC, p.id DESC
-LIMIT $5
+LIMIT $6
 `
 
 type ListDashboardProposalsParams struct {
 	DashboardID pgtype.UUID
 	State       pgtype.Text
+	RunID       pgtype.UUID
 	BeforeAt    pgtype.Timestamptz
 	BeforeID    pgtype.UUID
 	RowLimit    int32
@@ -209,6 +221,7 @@ func (q *Queries) ListDashboardProposals(ctx context.Context, arg ListDashboardP
 	rows, err := q.db.Query(ctx, listDashboardProposals,
 		arg.DashboardID,
 		arg.State,
+		arg.RunID,
 		arg.BeforeAt,
 		arg.BeforeID,
 		arg.RowLimit,
@@ -238,6 +251,7 @@ func (q *Queries) ListDashboardProposals(ctx context.Context, arg ListDashboardP
 			&i.Proposal.ClosedByName,
 			&i.Proposal.CreatedAt,
 			&i.Proposal.UpdatedAt,
+			&i.Proposal.CloseReason,
 			&i.BaseVersion,
 			&i.Summary,
 			&i.MergedVersion,

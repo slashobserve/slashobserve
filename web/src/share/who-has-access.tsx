@@ -9,7 +9,12 @@ import { folderPermissionsQuery, folderQuery } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { accessRows, canManageAccess, type AccessRow } from "./access-rows"
+import {
+  accessRows,
+  canManageAccess,
+  manageNote,
+  type AccessRow,
+} from "./access-rows"
 
 type Props = {
   folder: {
@@ -90,7 +95,9 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
         >
           Manage folder access
         </Link>
-      ) : null}
+      ) : (
+        <p className="text-xs text-muted-foreground">{manageNote(folder)}</p>
+      )}
     </section>
   )
 }

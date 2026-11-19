@@ -3,6 +3,7 @@ package queryproxy
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -18,7 +19,30 @@ const (
 	PageBelowOne     = "page must be at least 1"
 	CursorTooLong    = "cursor must be at most 2 KiB"
 	PageWalkSentence = "pass next as cursor for more"
+	SortNeedsSize    = "sort needs page_size"
+	SortUnsupported  = "sort applies to ClickHouse datasources; this datasource pages in its own order"
+
+	MoreRowsNote = "more rows exist than were returned; repeat with page_size to read them in pages, or narrow from and to"
+	NarrowNote   = "more rows exist than were returned; narrow from and to"
+	FullPageNote = "the page is full and more rows exist; " + PageWalkSentence
+	PartialNote  = "the datasource stopped before it searched everything, so some matches may be missing; narrow from and to or add a filter, then repeat"
 )
+
+func LimitNote(truncated, partial, hasNext, canPage bool) string {
+	var notes []string
+	switch {
+	case hasNext:
+		notes = append(notes, FullPageNote)
+	case truncated && canPage:
+		notes = append(notes, MoreRowsNote)
+	case truncated:
+		notes = append(notes, NarrowNote)
+	}
+	if partial {
+		notes = append(notes, PartialNote)
+	}
+	return strings.Join(notes, ". ")
+}
 
 type PageParams struct {
 	UID      string
@@ -27,6 +51,7 @@ type PageParams struct {
 	Page     int
 	PageSize int
 	Cursor   string
+	Sort     string
 }
 
 type PageResult struct {
@@ -52,10 +77,18 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	}
 	scope := datasource.CursorScope(p.UID, p.Query.Text)
 	req := datasource.PageRequest{Query: p.Query, Range: p.Range, Page: max(p.Page, 1), PageSize: p.PageSize}
+	sort, err := pageSort(source, p.Sort)
+	if err != nil {
+		return PageResult{}, err
+	}
+	req.Sort = sort
 	if p.Cursor != "" {
 		cursor, err := datasource.DecodeCursor(p.Cursor, scope)
 		if err != nil {
 			return PageResult{}, invalidPage(cursorMessage(err))
+		}
+		if cursor.Sort != p.Sort {
+			return PageResult{}, invalidPage(cursorSortMessage(cursor.Sort))
 		}
 		req.Cursor, req.Page = cursor, cursor.Page
 		req.Range = datasource.TimeRange{From: time.Unix(0, cursor.FromNs).UTC(), To: time.Unix(0, cursor.ToNs).UTC()}
@@ -77,6 +110,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	res := PageResult{Frames: frames, Range: req.Range, Info: info, HasPrev: info.Page > 1}
 	if info.Next != nil {
 		next := *info.Next
+		next.Sort = p.Sort
 		next.Scope, next.FromNs, next.ToNs = scope, req.Range.From.UnixNano(), req.Range.To.UnixNano()
 		res.Next = datasource.EncodeCursor(next)
 	}
@@ -84,6 +118,27 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 		res.Prev = p.Cursor
 	}
 	return res, nil
+}
+
+func pageSort(source datasource.PageSource, text string) (*datasource.PageSort, error) {
+	if text == "" {
+		return nil, nil
+	}
+	sort, err := datasource.ParsePageSort(text)
+	if err != nil {
+		return nil, invalidPage(cursorMessage(err))
+	}
+	if sortable, ok := source.(datasource.SortablePages); !ok || !sortable.SortsPages() {
+		return nil, invalidPage(SortUnsupported)
+	}
+	return sort, nil
+}
+
+func cursorSortMessage(made string) string {
+	if made == "" {
+		return "this cursor was made without a sort; leave sort out"
+	}
+	return "this cursor was made with sort " + made + "; send sort " + made + " with it"
 }
 
 func cursorMessage(err error) string {

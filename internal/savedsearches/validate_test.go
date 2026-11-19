@@ -61,6 +61,8 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 		{"a long service filter", traces(func(in *CreateInput) { in.Filters = []byte(`{"service":"` + strings.Repeat("s", 201) + `"}`) }), "service must be"},
 		{"a span filter with a control character", traces(func(in *CreateInput) { in.Filters = []byte(`{"span":"a\u0007b"}`) }), "span must be"},
 		{"a duration that is not one", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"fast"}`) }), "min must be a duration"},
+		{"a minimum above the maximum", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"2s","max":"500ms"}`) }), "min must not be greater than max"},
+		{"a minimum above the maximum in another unit", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"1m","max":"59s"}`) }), "min must not be greater than max"},
 		{"a maximum duration that is not one", traces(func(in *CreateInput) { in.Filters = []byte(`{"max":"5"}`) }), "max must be a duration"},
 		{"a time that does not parse", logs(func(in *CreateInput) { in.From = "yesterday" }), "from:"},
 		{"an end that does not parse", logs(func(in *CreateInput) { in.To = "now-" }), "to:"},
