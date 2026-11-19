@@ -435,7 +435,7 @@ describe("model failures", () => {
     })
   })
 
-  test("a replay mismatch fails provider_error", async () => {
+  test("a replay mismatch fails internal, not provider_error", async () => {
     const claim = new FakeClaim()
     claim.tools.handler = async () =>
       reply({
@@ -445,7 +445,7 @@ describe("model failures", () => {
     await drive(claim, claimed("create happy path"))
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",
-      failure_code: "provider_error",
+      failure_code: "internal",
     })
   })
 })

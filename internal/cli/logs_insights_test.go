@@ -164,3 +164,20 @@ func TestLogsInsightUsageErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestPatternsCoverageNamesWhoCountedTheLines(t *testing.T) {
+	cases := []struct {
+		name string
+		body logPatternsBody
+		want string
+	}{
+		{"server sample", logPatternsBody{Source: "server", LinesMatched: 54, LinesSampled: 54}, "54 lines matched, 54 lines sampled"},
+		{"loki native", logPatternsBody{Source: "loki", LinesMatched: 54}, "54 lines matched, counted by loki"},
+		{"no source", logPatternsBody{LinesMatched: 2, LinesSampled: 2}, "2 lines matched, 2 lines sampled"},
+	}
+	for _, tc := range cases {
+		if got := patternsCoverage(tc.body); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

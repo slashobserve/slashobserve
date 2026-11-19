@@ -2,7 +2,6 @@ import { Fragment, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { SlidersHorizontalIcon } from "lucide-react"
 
-import { AnnotationFilter } from "@/annotations/annotation-filter"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -62,7 +61,6 @@ export function DashboardTopRow({
   const narrow = useNarrow()
   const tools = (
     <>
-      <AnnotationFilter />
       <Items nodes={controls} />
       <Items nodes={actions} />
     </>
