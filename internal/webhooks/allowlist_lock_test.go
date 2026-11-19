@@ -14,7 +14,7 @@ func holdingTheAllowlistLock(t *testing.T, r *rig) (release func()) {
 	free := make(chan struct{})
 	finished := make(chan error, 1)
 	go func() {
-		finished <- r.db.DB.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		finished <- r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
 			if err := q.LockOutboundDomains(t.Context()); err != nil {
 				return err
 			}
