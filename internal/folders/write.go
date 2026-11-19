@@ -19,14 +19,19 @@ var (
 	ErrGeneralFolder = errors.New("the General folder cannot be renamed")
 )
 
-type InvalidTitleError struct{ Message string }
+type InvalidTitleError struct {
+	Message string
+	Cause   error
+}
 
 func (e *InvalidTitleError) Error() string { return e.Message }
+
+func (e *InvalidTitleError) Unwrap() error { return e.Cause }
 
 func titleOf(raw string) (string, error) {
 	title, err := cleanTitle(raw)
 	if err != nil {
-		return "", &InvalidTitleError{Message: err.Error()}
+		return "", &InvalidTitleError{Message: err.Error(), Cause: err}
 	}
 	if reservedTitle(title) {
 		return "", ErrFolderExists

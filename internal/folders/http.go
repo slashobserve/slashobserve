@@ -118,7 +118,7 @@ func (h *Handler) list(c *gin.Context) {
 		h.fail(c, "list folders", err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"folders": bodies})
+	httpapi.RevalidatedJSON(c, gin.H{"folders": bodies})
 }
 
 func (h *Handler) get(c *gin.Context) {
@@ -149,7 +149,7 @@ func (h *Handler) abortTitleWrite(c *gin.Context, err error, action string) bool
 	case err == nil:
 		return false
 	case errors.As(err, &invalidTitle):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 	case errors.Is(err, ErrFolderExists):
 		httpapi.AbortError(c, http.StatusConflict, "folder_exists", "a folder with that name already exists")
 	case errors.Is(err, ErrGeneralFolder):

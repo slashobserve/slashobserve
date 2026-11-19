@@ -9,9 +9,15 @@ folders:
       A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone.
       Folders are sorted by title without regard to case, with General last.
       Each folder carries the caller's own `permissions` on it.
+      The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
     responses:
       "200":
         description: The visible folders.
+        headers:
+          ETag:
+            required: true
+            schema:
+              type: string
         content:
           application/json:
             schema:
@@ -23,6 +29,8 @@ folders:
                   type: array
                   items:
                     $ref: "../openapi.yaml#/components/schemas/Folder"
+      "304":
+        $ref: "../openapi.yaml#/components/responses/NotModified"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
@@ -37,7 +45,7 @@ folders:
     summary: Create a folder.
     description: >-
       Needs the Editor role.
-      The title is trimmed, 1 to 100 characters with no control characters, and unique without regard to case.
+      The title is trimmed (spaces and zero-width characters at the ends), 1 to 100 characters on one line with no control, bidirectional override or zero-width characters and at least one visible character, and unique without regard to case; the 400 `invalid_request` carries a `reason` from `docs/reference/text-rules.md`.
       The caller becomes the folder's creator and manages it, whatever its permissions list.
     requestBody:
       required: true

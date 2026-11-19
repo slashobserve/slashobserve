@@ -931,7 +931,7 @@ dashboards_suite() {
     fail "a NUL character should be rejected as an invalid Spec ($out: $(cat "$TMP/api.body"))"
   fi
   for path in /summary /title /panels/0/title; do
-    grep -q "\"path\":\"$path\",\"code\":\"schema\"" "$TMP/api.body" || fail "NUL rejection should point at $path in one response ($(cat "$TMP/api.body"))"
+    grep -Eq "\"path\":\"$path\",\"code\":\"(schema|text_control_characters)\"" "$TMP/api.body" || fail "NUL rejection should point at $path in one response ($(cat "$TMP/api.body"))"
   done
   pass "NUL characters in the summary and the Spec are rejected together with their paths"
 

@@ -288,6 +288,15 @@
   html {
     @apply font-sans;
   }
+  h1,
+  h2,
+  h3,
+  a,
+  th,
+  td,
+  button {
+    unicode-bidi: isolate;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -308,6 +317,11 @@
   ::view-transition-new(*) {
     animation: none;
   }
+}
+
+h1[tabindex="-1"]:focus,
+main[tabindex="-1"]:focus {
+  outline: none;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {

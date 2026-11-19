@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -35,5 +36,13 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 				t.Fatalf("err = %v, want a StartError containing %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestStartKeepsTheReasonATextRuleGave(t *testing.T) {
+	_, err := (&Service{}).Start(t.Context(), auth.Principal{}, StartRequest{Prompt: ptr("\u200b \u200b")})
+	reason, ok := usertext.ReasonOf(err)
+	if !ok || reason != usertext.ReasonInvisibleOnly {
+		t.Fatalf("reason = %q, %v for %v", reason, ok, err)
 	}
 }

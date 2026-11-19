@@ -26,9 +26,12 @@ type StartRequest struct {
 
 type StartError struct {
 	Message string
+	Cause   error
 }
 
 func (e *StartError) Error() string { return e.Message }
+
+func (e *StartError) Unwrap() error { return e.Cause }
 
 func refused(format string, args ...any) error {
 	return &StartError{Message: fmt.Sprintf(format, args...)}
@@ -38,9 +41,9 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 	if req.Prompt == nil {
 		return dbsqlc.AgentRequest{}, refused("prompt is required")
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		return dbsqlc.AgentRequest{}, refused("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes)
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, &StartError{Message: err.Error(), Cause: err}
 	}
 	switch {
 	case req.Kind == nil || *req.Kind == KindBuild:

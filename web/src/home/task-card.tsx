@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 import {
   LoaderCircleIcon,
   NotebookTextIcon,
@@ -8,7 +9,8 @@ import {
 } from "lucide-react"
 
 import { ChatComposer, useOpenSent, useSendExample } from "@/chat/chat-composer"
-import { examplePrompts } from "@/chat/examples"
+import { roleAtLeast } from "@/lib/roles"
+import { examplePrompts, noDashboards } from "@/chat/examples"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDatasources } from "@/datasources/queries"
@@ -25,8 +27,6 @@ type Props = {
   onTabChange: (tab: HomeTab) => void
   autoFocusTab: HomeTab | null
 }
-
-const noDashboards: readonly { id: string; title: string }[] = []
 
 const triggerClass =
   "h-7 flex-none gap-1.5 rounded-control px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground data-active:bg-muted data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-muted narrow:h-11"
@@ -124,10 +124,12 @@ export function ExampleChips() {
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
   const { send, pending } = useSendExample()
+  const { principal } = useRouteContext({ from: "/_authed" })
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
+    canBuild: roleAtLeast(principal.role, "editor"),
   })
   const agentReady = !agent.isPending && agent.data?.available !== false
   if (!agentReady || examples.length === 0) return null

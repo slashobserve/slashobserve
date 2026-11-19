@@ -25,6 +25,21 @@ describe("EmptyState", () => {
     expect(screen.queryByRole("heading")).toBeNull()
   })
 
+  it("links to a docs page in a new tab when given one", () => {
+    render(<EmptyState title="No observations yet" docs="use/observations" />)
+    const link = screen.getByRole("link", { name: /Read about this/ })
+    expect(link).toHaveAttribute(
+      "href",
+      "https://slashobserve.com/docs/use/observations"
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+  })
+
+  it("has no docs link without a page", () => {
+    render(<EmptyState title="No observations yet" />)
+    expect(screen.queryByRole("link")).toBeNull()
+  })
+
   it("shows a status-ok check for the ok tone", () => {
     const { container } = render(
       <EmptyState tone="ok" title="All datasources are healthy" />

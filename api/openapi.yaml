@@ -343,6 +343,11 @@ components:
           type: string
         code:
           type: string
+        reason:
+          type: string
+          description: >-
+            Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
+            The `error` message names the field and says what to change.
         needed_role:
           type: string
           enum: [viewer, commenter, editor, admin]
@@ -369,6 +374,7 @@ components:
             `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`)
             and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`).
             A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`).
+            A dashboard or panel title that fails the text rule (`docs/reference/text-rules.md`) is reported at `/title` or `/panels/{i}/title` with the code `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`; a title is trimmed before it is stored.
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
             `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal`
@@ -389,6 +395,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          type: string
+          description: >-
+            Present when an observation title, summary or text block failed the shared text rule (`docs/reference/text-rules.md`); the same values as `reason` on `Error`.
     Role:
       type: string
       enum: [admin, editor, commenter, viewer]
@@ -4161,7 +4171,7 @@ components:
           type: string
           nullable: true
           maxLength: 4000
-          description: An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt.
+          description: An instruction for the continued run, trimmed; 1 to 4000 visible characters without control or bidirectional override characters, the same rule as a prompt.
     InvalidTransition:
       type: object
       additionalProperties: false
@@ -6598,6 +6608,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    NotModified:
+      description: The `If-None-Match` header names the current `ETag`, so the body is not sent again.
+      headers:
+        ETag:
+          required: true
+          schema:
+            type: string
     Unauthorized:
       description: Authentication is missing or invalid.
       headers:

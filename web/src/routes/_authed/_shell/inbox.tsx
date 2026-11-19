@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 
 import type { InboxView } from "@/api/keys"
-import { InboxPage, isInboxView } from "@/inbox/inbox-page"
+import { InboxPage } from "@/inbox/inbox-page"
+import { isInboxView } from "@/inbox/inbox-views"
 import { useDocumentTitle } from "@/lib/document-title"
 
 type InboxSearch = { view?: InboxView; item?: string }

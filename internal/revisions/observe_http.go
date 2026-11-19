@@ -214,7 +214,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	row, err := h.service.Start(c.Request.Context(), httpapi.Caller(c), req)
 	var invalid *StartError
 	if errors.As(err, &invalid) {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", invalid)
 		return
 	}
 	if err != nil {
@@ -478,12 +478,13 @@ func (h *ObserveHandler) patchObserve(c *gin.Context) {
 	clearTitle := bytes.Equal(req.Title, []byte("null"))
 	if req.Title != nil && !clearTitle {
 		var raw string
-		cleaned, valid := "", json.Unmarshal(req.Title, &raw) == nil
-		if valid {
-			cleaned, valid = CleanTitle(raw)
+		if json.Unmarshal(req.Title, &raw) != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "title must be a string or null")
+			return
 		}
-		if !valid {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("title must be 1 to %d characters on one line", MaxTitleRunes))
+		cleaned, err := CheckTitle(raw)
+		if err != nil {
+			httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 			return
 		}
 		title = &cleaned

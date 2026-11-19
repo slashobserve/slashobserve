@@ -917,6 +917,26 @@ func TestAddingBlocksOfTheKindsAPersonMayNotAdd(t *testing.T) {
 	}
 }
 
+func TestATextBlockStoredBeforeTheTextRuleCanStillBeResentUnchanged(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	b := r.addText(t, editor, o, "ok")
+	id := mustUUID(t, b.ID)
+	legacy := "\x1b[31mred\x0c"
+	r.db.Exec(t, `UPDATE observation_blocks SET body = jsonb_build_object('markdown', $2::text) WHERE id = $1`, id, legacy)
+
+	full := observations.WidthHalf
+	same, err := r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: 1, Body: textBody(legacy), Width: &full})
+	if err != nil {
+		t.Fatalf("resending the stored body: %v", err)
+	}
+	var invalid *observations.InvalidInputError
+	_, err = r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: same.Version, Body: textBody(legacy + "\x07")})
+	if !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
+		t.Fatalf("a changed body with a bell: %v", err)
+	}
+}
+
 func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)

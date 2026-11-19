@@ -30,7 +30,7 @@ func duplicateDraft(source Version, title string) (string, *spec.Dashboard, []by
 		return "", nil, nil, fmt.Errorf("marshal spec: %w", err)
 	}
 	summary := "Duplicated from \"" + source.Spec.Title + "\" version " + strconv.Itoa(source.Number)
-	return validateSave(raw, summary, "")
+	return validateSave(raw, summary, "", source.Spec)
 }
 
 func (s *Service) Duplicate(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID, title string) (Dashboard, Version, error) {
