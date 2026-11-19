@@ -43,6 +43,7 @@ export function SavedSearchesMenu({ kind }: { kind: SavedSearch["kind"] }) {
       <ComboboxInput
         aria-label="Saved searches"
         placeholder="Saved searches"
+        triggerLabel="Show saved searches"
         className="w-44"
       />
       <ComboboxContent className="w-80">

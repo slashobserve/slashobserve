@@ -1,5 +1,6 @@
-import { kqlFromLucene, looksLikeLucene } from "./query-form"
+import { kqlFromLucene, looksLikeLucene, splitForm } from "./query-form"
 import { parseKql, type KqlError } from "./kql"
+import { isSearchFamily } from "./search"
 
 export type QueryProblem = {
   message: string
@@ -210,4 +211,13 @@ export function problemOf(
     luceneSwitch: looksLikeLucene(body),
     nothingRan: true,
   }
+}
+
+export function unreadableKql(
+  query: string,
+  type: string
+): QueryProblem | null {
+  if (!isSearchFamily(type)) return null
+  const { form, body, offset } = splitForm(query)
+  return form === "kql" ? problemOf(query, parseKql(body), offset) : null
 }

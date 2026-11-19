@@ -68,7 +68,7 @@ func TestLogPatternsReadsLokisIndexWhenItAnswers(t *testing.T) {
 	ds.patternsFn = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
 		var out []datasource.NativePattern
 		for i := range 12 {
-			out = append(out, datasource.NativePattern{Pattern: "pattern " + strconv.Itoa(i) + " <*>", Samples: []datasource.PatternSample{{At: anchorTime, Count: int64(100 - i)}}})
+			out = append(out, datasource.NativePattern{Pattern: "pattern " + strconv.Itoa(i) + " <*>", Samples: []datasource.PatternSample{{At: anchorTime, Count: int64((100 - i) * 30)}}})
 		}
 		return out, nil
 	}
@@ -87,7 +87,7 @@ func TestLogPatternsReadsLokisIndexWhenItAnswers(t *testing.T) {
 	if !ok {
 		t.Fatalf("content is %T", res.Content)
 	}
-	if out.Source != "loki" || len(out.Patterns) != 10 || !out.Truncated || out.LinesMatched != 1134 || out.Patterns[0].Pattern != "pattern 0 <*>" || out.Patterns[0].Count != 100 {
+	if out.Source != "loki" || len(out.Patterns) != 10 || !out.Truncated || out.LinesMatched != 34020 || out.Patterns[0].Pattern != "pattern 0 <*>" || out.Patterns[0].Count != 3000 {
 		t.Fatalf("patterns = %+v", out)
 	}
 	if out.TrendStepMs != 12*60*1000 {
@@ -178,7 +178,7 @@ func TestLogPatternsFitsTheAnswerInTheBudget(t *testing.T) {
 	ds.patternsFn = func(datasource.PatternRequest) ([]datasource.NativePattern, error) {
 		var out []datasource.NativePattern
 		for i := range 30 {
-			out = append(out, datasource.NativePattern{Pattern: strings.Repeat("w", 1000) + strconv.Itoa(i), Samples: []datasource.PatternSample{{At: anchorTime, Count: 1}}})
+			out = append(out, datasource.NativePattern{Pattern: strings.Repeat("w", 1000) + strconv.Itoa(i), Samples: []datasource.PatternSample{{At: anchorTime, Count: 100}}})
 		}
 		return out, nil
 	}
