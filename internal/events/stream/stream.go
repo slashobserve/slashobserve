@@ -152,12 +152,7 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID,
 				return
 			}
 		case <-roleCheck.C:
-			now, ok := h.currentRole(c)
-			if !ok || now == role {
-				continue
-			}
-			role = now
-			if !writeEvent(c, events.TypeRoleChanged, roleChangedData{DashboardID: id.String(), Role: now}) {
+			if !h.reportRoleChange(c, id, &role) {
 				return
 			}
 		case <-ping.C:
@@ -178,6 +173,15 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID,
 			return
 		}
 	}
+}
+
+func (h *Handler) reportRoleChange(c *gin.Context, id pgtype.UUID, known *auth.Role) bool {
+	now, ok := h.currentRole(c)
+	if !ok || now == *known {
+		return true
+	}
+	*known = now
+	return writeEvent(c, events.TypeRoleChanged, roleChangedData{DashboardID: id.String(), Role: now})
 }
 
 func (h *Handler) currentRole(c *gin.Context) (auth.Role, bool) {
