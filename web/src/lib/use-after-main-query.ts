@@ -9,7 +9,7 @@ export interface MainQueryState {
   error: unknown
 }
 
-export function timedOut(main: Pick<MainQueryState, "isError" | "error">) {
+function timedOut(main: Pick<MainQueryState, "isError" | "error">) {
   return (
     main.isError &&
     main.error instanceof ApiError &&
