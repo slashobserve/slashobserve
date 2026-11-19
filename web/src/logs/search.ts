@@ -18,6 +18,7 @@ export type LogsSearch = {
   view?: "patterns"
   tail?: "1"
   observation?: string
+  saved?: string
   page?: number
   size?: PageSize
 }
@@ -138,6 +139,10 @@ function validObservation(value: unknown): string | undefined {
   return id !== undefined && uuidPattern.test(id) ? id : undefined
 }
 
+function validSaved(value: unknown): string | undefined {
+  return validObservation(value)
+}
+
 function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
   return value === standard ? undefined : value
 }
@@ -167,6 +172,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     view: firstString(raw.view) === "patterns" ? "patterns" : undefined,
     tail: firstString(raw.tail) === "1" ? "1" : undefined,
     observation: validObservation(raw.observation),
+    saved: validSaved(raw.saved),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }

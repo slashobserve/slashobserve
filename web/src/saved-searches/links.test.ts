@@ -6,6 +6,7 @@ describe("savedSearchLocation", () => {
   it("reopens a logs search on the logs page with its columns", () => {
     expect(
       savedSearchLocation({
+        id: "5f0c1e0e-0000-4000-8000-000000000001",
         kind: "logs",
         datasource_uid: "es",
         query: "level:error",
@@ -21,12 +22,14 @@ describe("savedSearchLocation", () => {
         cols: "host,message",
         from: "now-6h",
         to: "now",
+        saved: "5f0c1e0e-0000-4000-8000-000000000001",
       },
     })
   })
 
   it("leaves cols out when a logs search has no columns", () => {
     const location = savedSearchLocation({
+      id: "s1",
       kind: "logs",
       datasource_uid: "es",
       query: "x",
@@ -40,6 +43,7 @@ describe("savedSearchLocation", () => {
   it("reopens a trace search on the traces page with its filters", () => {
     expect(
       savedSearchLocation({
+        id: "s1",
         kind: "traces",
         datasource_uid: "tempo",
         query: null,
@@ -70,6 +74,7 @@ describe("savedSearchLocation", () => {
 
   it("keeps a Tempo query and drops errors when it is false", () => {
     const location = savedSearchLocation({
+      id: "s1",
       kind: "traces",
       datasource_uid: "tempo",
       query: "{ status = error }",

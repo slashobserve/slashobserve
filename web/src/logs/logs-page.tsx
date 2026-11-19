@@ -26,6 +26,7 @@ import { logsDraft } from "@/saved-searches/draft"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { OpenSavedSearch } from "./open-saved-search"
 import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
 import { openingQuery } from "./context-query"
@@ -368,6 +369,7 @@ function LogsWorkspaceView({
       <div className="flex h-full min-h-0 flex-col gap-3">
         <h1 className="sr-only">Logs in {datasource.name}</h1>
         <SourceTitle kind="logs" source={datasource} />
+        <OpenSavedSearch savable={savable} />
         {q === undefined ? (
           <span id={notRunId} className="sr-only">
             Run a query first.

@@ -90,6 +90,7 @@ describe("SavedSearchesMenu", () => {
           cols: "host",
           from: "now-6h",
           to: "now",
+          saved: "s1",
         },
       })
     )
