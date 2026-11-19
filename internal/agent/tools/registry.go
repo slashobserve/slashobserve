@@ -107,8 +107,7 @@ type Tool struct {
 	Claim       bool
 	MinRole     auth.Role
 
-	InvestigateOnly bool
-	Answers         bool
+	Answers bool
 
 	AgentDescription string
 	AgentInputSchema json.RawMessage
@@ -186,9 +185,9 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	case t.Answers:
 		return mode != ModeSuggest
 	case mode == ModeInvestigate:
-		return t.ReadOnly || t.InvestigateOnly
+		return t.ReadOnly
 	default:
-		return !t.InvestigateOnly
+		return true
 	}
 }
 
@@ -550,8 +549,6 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
-	case inRun && !t.OfferedIn(run.Mode):
-		message = t.Name + " is only for investigate runs"
 	case !inRun && t.AgentOnly:
 		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
 	default:

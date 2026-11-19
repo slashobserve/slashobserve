@@ -115,7 +115,7 @@ func TestHealthAndAnnotationToolsAreOfferedOnlyWhereTheyBelong(t *testing.T) {
 		{nameListDashboardHealth, false, false},
 		{nameCreateAnnotation, false, false},
 		{nameUpdateAnnotation, false, false},
-		{nameListAnnotations, false, true},
+		{nameListAnnotations, true, true},
 	}
 	for _, c := range cases {
 		tool := byName[c.tool]
@@ -133,17 +133,25 @@ func TestHealthAndAnnotationToolsAreOfferedOnlyWhereTheyBelong(t *testing.T) {
 	}
 }
 
-func TestListAnnotationsIsRefusedOutsideInvestigateRuns(t *testing.T) {
-	r := New(Deps{})
-	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
-	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
-		res, err := r.Call(WithRun(editor, Run{Mode: mode}), nameListAnnotations, []byte(`{}`))
-		if err != nil {
-			t.Fatal(err)
+func TestEveryRunReadsAnnotationsAsItsPerson(t *testing.T) {
+	r := newAccessRig(t)
+	b := r.seedHidden(t)
+	if res := r.call(t, adminCaller, nameCreateAnnotation, `{"text":"Deploy checkout v2","tags":["deploy"]}`); res.IsError {
+		t.Fatal(textOf(t, res))
+	}
+	if res := r.call(t, adminCaller, nameCreateAnnotation, `{"text":"Deploy payroll v9","dashboard_id":"`+b.hidden.String()+`"}`); res.IsError {
+		t.Fatal(textOf(t, res))
+	}
+	vera := r.person(t, "vera", auth.RoleViewer)
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
+		ctx := WithRun(auth.WithPrincipal(t.Context(), vera), Run{Mode: mode})
+		res, err := r.registry.Call(ctx, nameListAnnotations, []byte(`{"tags":["deploy"]}`))
+		if err != nil || res.IsError || !strings.Contains(textOf(t, res), "Deploy checkout v2") {
+			t.Fatalf("%s run: %s, %v", mode, textOf(t, res), err)
 		}
-		body, _ := res.Content.(errorBody)
-		if !res.IsError || body.Code != codeNotInThisRun || body.Message != "list_annotations is only for investigate runs" {
-			t.Errorf("%s run: %#v", mode, res.Content)
+		res, err = r.registry.Call(ctx, nameListAnnotations, []byte(`{"dashboard_id":"`+b.hidden.String()+`"}`))
+		if err != nil || !res.IsError || strings.Contains(textOf(t, res), "payroll") {
+			t.Fatalf("%s run read a dashboard its person cannot open: %s, %v", mode, textOf(t, res), err)
 		}
 	}
 }

@@ -714,7 +714,8 @@ func TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt(t *testing.T
 		{"no metrics after a scoped list", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`}}, "Prometheus has no checkout metrics.", ""},
 		{"no deploy without annotations in an investigation", tools.ModeInvestigate, nil, "There was no deploy of checkout today.", "read it with tag deploy"},
 		{"no deploy after reading annotations", tools.ModeInvestigate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "There was no deploy of checkout today.", ""},
-		{"no deploy on Home, where annotations cannot be read", tools.ModeCreate, nil, "No checkout deploy exists.", "say deploys were not checked here"},
+		{"no deploy on Home without annotations", tools.ModeCreate, nil, "No checkout deploy exists.", "read it with tag deploy"},
+		{"no deploy on Home after reading annotations", tools.ModeCreate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "No checkout deploy exists.", ""},
 		{"a finding that claims no absence", tools.ModeInvestigate, nil, "Checkout errors rose at 14:22 UTC on checkout-0.", ""},
 	}
 	for _, tt := range tests {
