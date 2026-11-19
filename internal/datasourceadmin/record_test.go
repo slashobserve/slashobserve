@@ -188,8 +188,8 @@ func TestADomainAnAdminAllowedByHandSurvivesItsDatasource(t *testing.T) {
 
 func TestAClickHouseDatasourceKeepsItsHostAllowedWhileItExists(t *testing.T) {
 	r, svc := newRig(t, testKey)
-	def := Definition{UID: "warehouse", Type: TypeClickHouse, Name: "Warehouse", Address: "ch.example.com:9000"}
-	if _, err := svc.Create(t.Context(), r.admin, def, Secrets{}); err != nil {
+	def := Definition{UID: "warehouse", Type: TypeClickHouse, Name: "Warehouse", Address: "ch.example.com:9000", Username: "reader"}
+	if _, err := svc.Create(t.Context(), r.admin, def, Secrets{Password: "pw-1"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.Create(t.Context(), r.admin, prometheus("metrics", "https://ch.example.com"), Secrets{}); err != nil {
