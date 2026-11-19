@@ -22,6 +22,7 @@ const (
 	maxRequestPage     = 100
 	maxThreadPage      = 500
 	maxAnnotationPage  = 500
+	maxPeoplePage      = 500
 )
 
 type pageOptions struct {

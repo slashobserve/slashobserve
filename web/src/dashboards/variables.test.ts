@@ -15,6 +15,7 @@ import {
   intervalOptions,
   optionTexts,
   valuesRange,
+  unknownValues,
   valuesRequests,
 } from "./variables"
 import type { IntervalVariable, Variable } from "@/spec"
@@ -833,5 +834,51 @@ describe("valuesRange", () => {
       datasourceType: "prometheus",
     }
     expect(valuesRange(datasource, current, atLoad)).toEqual(current)
+  })
+})
+
+describe("unknownValues", () => {
+  const host: Variable = {
+    name: "host",
+    type: "query",
+    datasource: "prom",
+    query: "up",
+    label: "Host",
+  } as Variable
+  const ready = (
+    variable: Variable,
+    options: string[],
+    selected: string[]
+  ) => ({
+    variable,
+    options,
+    truncated: false,
+    status: "ready",
+    selected,
+  })
+
+  it("names a selected value that is not in the loaded list", () => {
+    expect(unknownValues([ready(host, ["a", "b"], ["zzz"])])).toEqual([
+      { name: "host", label: "Host", values: ["zzz"] },
+    ])
+  })
+
+  it("accepts values in the list, All and the empty value", () => {
+    expect(unknownValues([ready(host, ["a"], ["a"])])).toEqual([])
+    expect(unknownValues([ready(host, ["a"], [ALL])])).toEqual([])
+    expect(unknownValues([ready(host, ["a"], [""])])).toEqual([])
+  })
+
+  it("says nothing while the list is loading, cut short or failed", () => {
+    const state = ready(host, ["a"], ["zzz"])
+    expect(unknownValues([{ ...state, status: "loading" }])).toEqual([])
+    expect(unknownValues([{ ...state, status: "error" }])).toEqual([])
+    expect(unknownValues([{ ...state, truncated: true }])).toEqual([])
+    expect(unknownValues([{ ...state, options: undefined }])).toEqual([])
+  })
+
+  it("skips variable types that take free text", () => {
+    const text: Variable = { name: "q", type: "textbox" } as Variable
+    expect(unknownValues([ready(text, [], ["anything"])])).toEqual([])
   })
 })
