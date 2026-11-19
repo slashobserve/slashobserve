@@ -33,6 +33,7 @@ Times on the page are in the time zone of your browser, and a range between two 
 
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
+On Elasticsearch and OpenSearch it runs `*`, which matches every document, and shows the newest lines of the time range, so you can see which services the source holds in the Fields column before you narrow the query.
 On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
 The label browser lists the labels of the datasource and their values, and a click on a value puts that matcher into the stream selector the query already holds, replacing the value of the same label, so the rest of the query stays as it is.
 On ClickHouse, or when the query has no selector yet, the click inserts the matcher at the cursor.

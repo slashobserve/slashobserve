@@ -27,7 +27,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import { logsPanelFor } from "./add-panel"
 import { AddToDashboardPanel } from "./add-to-dashboard-panel"
-import { clickhouseLogsTemplate } from "./context-query"
+import { openingQuery } from "./context-query"
 import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
@@ -174,9 +174,8 @@ function LogsWorkspaceView({
         : (applyPills(q, type, decodePills(filters)) ?? q),
     [q, type, filters]
   )
-  const [draft, setDraft] = useState(
-    () => q ?? (type === "clickhouse" ? clickhouseLogsTemplate : "")
-  )
+  const opening = openingQuery(type)
+  const [draft, setDraft] = useState(() => q ?? opening ?? "")
   const [seenQuery, setSeenQuery] = useState(q)
   if (seenQuery !== q) {
     setSeenQuery(q)
@@ -239,10 +238,10 @@ function LogsWorkspaceView({
   })
 
   useEffect(() => {
-    if (type === "clickhouse" && q === undefined) {
-      update({ q: clickhouseLogsTemplate }, { replace: true })
+    if (opening !== undefined && q === undefined) {
+      update({ q: opening }, { replace: true })
     }
-  }, [type, q, update])
+  }, [opening, q, update])
 
   useEffect(() => {
     if (focusTick > 0) queryFocus.current()
