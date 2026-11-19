@@ -1,3 +1,5 @@
+import type { ApiError } from "@/api/errors"
+
 const minBackoffMs = 1_000
 const maxBackoffMs = 30_000
 const checkEveryFailures = 3
@@ -14,4 +16,18 @@ export function backoffDelay(
 
 export function shouldCheckDashboard(failures: number): boolean {
   return failures > 0 && failures % checkEveryFailures === 0
+}
+
+export type GoneOutcome = "deleted" | "reload" | "keep"
+
+export function isGone(error: ApiError): boolean {
+  return error.status === 404 || error.status === 403
+}
+
+export function goneOutcome(
+  error: ApiError,
+  announcedDeleted: boolean
+): GoneOutcome {
+  if (!isGone(error)) return "keep"
+  return error.status === 404 && announcedDeleted ? "deleted" : "reload"
 }
