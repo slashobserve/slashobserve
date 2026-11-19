@@ -34,12 +34,18 @@ type FindingAuthorJSON struct {
 	Name string `json:"name"`
 }
 
+type FindingAskOnJSON struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+}
+
 type FindingJSON struct {
 	ID             string            `json:"id"`
 	ObservationID  string            `json:"observation_id"`
 	AgentRequestID *string           `json:"agent_request_id"`
 	DashboardID    *string           `json:"dashboard_id"`
 	FolderID       *string           `json:"folder_id"`
+	AskOn          *FindingAskOnJSON `json:"ask_on"`
 	Title          string            `json:"title"`
 	Markdown       string            `json:"markdown"`
 	Evidence       []spec.Panel      `json:"evidence"`
@@ -83,12 +89,17 @@ func JSONOf(f Finding, url string) FindingJSON {
 	if evidence == nil {
 		evidence = []spec.Panel{}
 	}
+	var askOn *FindingAskOnJSON
+	if f.AskOnID != "" {
+		askOn = &FindingAskOnJSON{DashboardID: f.AskOnID, Title: f.AskOnTitle}
+	}
 	return FindingJSON{
 		ID:             f.ID,
 		ObservationID:  f.ObservationID,
 		AgentRequestID: httpapi.OptionalString(f.AgentRequestID),
 		DashboardID:    httpapi.OptionalString(f.DashboardID),
 		FolderID:       httpapi.OptionalString(f.FolderID),
+		AskOn:          askOn,
 		Title:          f.Title,
 		Markdown:       f.Markdown,
 		Evidence:       evidence,

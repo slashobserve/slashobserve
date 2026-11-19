@@ -5,7 +5,10 @@ description: Ask the agent a question about your data and get an answer in an ob
 
 An investigation asks the agent a question instead of asking it for a dashboard, such as "why did checkout errors rise after 10:00?".
 The agent reads your datasources the way it does for a build, then ends by saving its answer, a finding, into an [observation](observations.md).
-It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike.
+It also reads the [annotations](annotations.md) of the dashboard and the global ones, so it can see a deploy or a change beside a spike, and cites the ones that fit with their times.
+It can also read earlier [observations](observations.md) in the folders you can open, as you, and when one bears on the question it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
+The agent writes every time in a finding as UTC with the word UTC, because it does not know your browser's time zone, while the page shows times in your own.
+A finding starts with one plain sentence, names the window it used, and says what it did not check; when two pods or services tie it leads with the one with the most errors.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
 A plain question sent without the command, such as "how many pods are up?", is answered in an observation too, without building a dashboard.
@@ -98,4 +101,4 @@ Viewers can read the observations in the folders they can view.
 ## From an MCP client
 
 An agent in your own editor can do the same over [MCP](mcp.md).
-It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves the answer into an observation with `create_observation` and `add_block`, and reads earlier ones with `list_observations`.
+It investigates with its own model and the discovery and query tools, reads deploy markers with `list_annotations`, saves the answer into an observation with `create_observation` and `add_block`, and reads earlier ones with `list_observations` and `get_observation`.
