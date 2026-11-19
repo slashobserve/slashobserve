@@ -151,7 +151,10 @@ describe("Composer", () => {
     const { user, submit, field } = setup()
     await user.type(field, "@obs{Enter}")
     await waitFor(() => expect(field).toHaveValue("@observe "))
+    expect(screen.queryByRole("option")).toBeNull()
     expect(submit).not.toHaveBeenCalled()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(submit).toHaveBeenCalledWith("@observe"))
   })
 
   it("does not open the picker for an @ inside a word", async () => {

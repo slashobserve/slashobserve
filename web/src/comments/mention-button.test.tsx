@@ -283,6 +283,14 @@ describe("MentionButton", () => {
     expect(screen.queryByRole("option")).toBeNull()
   })
 
+  it("closes the list once Enter has picked a mention", async () => {
+    const { user, body } = await typing()
+    await user.keyboard("@ob{Enter}")
+    await waitFor(() => expect(body).toHaveValue("@observe "))
+    await waitFor(() => expect(screen.queryByRole("option")).toBeNull())
+    expect(body).toHaveFocus()
+  })
+
   it("moves the highlight with the arrow keys before Enter", async () => {
     const { user, body } = await typing()
     await user.keyboard("@")

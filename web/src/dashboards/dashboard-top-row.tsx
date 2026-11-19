@@ -1,4 +1,4 @@
-import { Fragment, useSyncExternalStore, type ReactNode } from "react"
+import { Fragment, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { SlidersHorizontalIcon } from "lucide-react"
 
@@ -12,6 +12,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+
+import { CloseControlsProvider } from "./controls-sheet"
+import { controlsButtonId } from "./pane-openers"
 
 type Props = {
   title: string
@@ -63,6 +66,7 @@ export function DashboardTopRow({
   actions,
 }: Props) {
   const narrow = useNarrow()
+  const [controlsOpen, setControlsOpen] = useState(false)
   const tools = (
     <>
       <Items nodes={controls} />
@@ -136,8 +140,11 @@ export function DashboardTopRow({
         {presence}
       </nav>
       {narrow ? (
-        <Sheet>
-          <SheetTrigger render={<Button variant="outline" size="sm" />}>
+        <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
+          <SheetTrigger
+            id={controlsButtonId}
+            render={<Button variant="outline" size="sm" />}
+          >
             <SlidersHorizontalIcon aria-hidden="true" />
             Controls
           </SheetTrigger>
@@ -148,9 +155,11 @@ export function DashboardTopRow({
                 Time range, refresh, annotations and dashboard actions.
               </SheetDescription>
             </SheetHeader>
-            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
-              {tools}
-            </div>
+            <CloseControlsProvider value={() => setControlsOpen(false)}>
+              <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
+                {tools}
+              </div>
+            </CloseControlsProvider>
           </SheetContent>
         </Sheet>
       ) : (
