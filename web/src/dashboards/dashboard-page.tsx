@@ -159,6 +159,11 @@ import { ExportView } from "./print/export-view"
 import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
+import { paneOpener } from "./pane-openers"
+
+function activityOpener() {
+  return paneOpener("activity")
+}
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -563,12 +568,8 @@ function DashboardView({
   }, [layoutEditingWithPanel, setSearch])
 
   const closeSpec = useCallback(() => {
+    findMoreMenuButton()?.focus()
     setSpecOpen(false)
-    requestAnimationFrame(() => {
-      if (document.activeElement === document.body) {
-        findMoreMenuButton()?.focus()
-      }
-    })
   }, [])
 
   const closeInspect = useCallback(
@@ -1081,7 +1082,11 @@ function DashboardView({
                 />
               ) : null}
               {chatRequestId !== undefined ? (
-                <ChatPane requestId={chatRequestId} onClose={closeCard} />
+                <ChatPane
+                  requestId={chatRequestId}
+                  onClose={closeCard}
+                  opener={activityOpener}
+                />
               ) : null}
               {inspecting ? (
                 <InspectPane

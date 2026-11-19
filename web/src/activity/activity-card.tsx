@@ -12,6 +12,7 @@ import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useOpenerFocus } from "@/components/dock/opener-focus"
+import { paneOpener } from "@/dashboards/pane-openers"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
@@ -82,16 +83,23 @@ export function ActivityCard({
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
-  const { remember, restore } = useOpenerFocus(card)
+  const openerOfPane = useCallback(
+    () => paneOpener(sharing ? "share" : "activity"),
+    [sharing]
+  )
+  const { remember, restore } = useOpenerFocus(card, openerOfPane)
+  const close = useCallback(() => {
+    restore()
+    onClose()
+  }, [onClose, restore])
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
       if (event.key !== "Escape" || event.defaultPrevented || editing) return
       if (!card.current?.contains(event.target as Node)) return
-      onClose()
-      restore()
+      close()
     },
-    [editing, onClose, restore]
+    [editing, close]
   )
 
   const shown = useRef<{
@@ -196,7 +204,7 @@ export function ActivityCard({
             headingRef={heading}
             title="Share"
             description="Copy a link for people on this server."
-            onClose={onClose}
+            onClose={close}
             closeLabel="Close panel"
           />
           <SharePane
@@ -214,7 +222,7 @@ export function ActivityCard({
             headingRef={heading}
             title="Activity"
             description={description}
-            onClose={onClose}
+            onClose={close}
             closeLabel="Close panel"
           />
           <ActivityFeed

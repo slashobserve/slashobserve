@@ -1,5 +1,7 @@
 import { DockToggle } from "@/components/dock/dock-toggle"
 
+import { activityButtonId } from "./pane-openers"
+
 type Props = {
   pressed: boolean
   openCount: number
@@ -20,6 +22,7 @@ export function ActivityToggle({
   }`
   return (
     <DockToggle
+      id={activityButtonId}
       label={label}
       count={openCount}
       pressed={pressed}

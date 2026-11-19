@@ -2,6 +2,7 @@ import type { Ref } from "react"
 import { MessageSquareIcon } from "lucide-react"
 
 type Props = {
+  id?: string
   label: string
   count: number
   pressed: boolean
@@ -11,6 +12,7 @@ type Props = {
 }
 
 export function DockToggle({
+  id,
   label,
   count,
   pressed,
@@ -21,6 +23,7 @@ export function DockToggle({
   return (
     <button
       ref={ref}
+      id={id}
       type="button"
       aria-pressed={pressed}
       aria-label={label}

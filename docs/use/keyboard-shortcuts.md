@@ -25,7 +25,8 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
 
 Escape also closes the Share, Activity, Chat and Dashboard JSON panes of a dashboard.
-The focus returns to the button that opened the pane.
+The focus returns to the button that opened the pane, and so does the pane's Close button.
+A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
 
 ## Moving around the app
 

@@ -1,11 +1,17 @@
 import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useEffect, useRef, useState } from "react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useOpenerFocus } from "./opener-focus"
 
-function Harness({ startOpen }: { startOpen: boolean }) {
+function Harness({
+  startOpen,
+  fallback,
+}: {
+  startOpen: boolean
+  fallback?: () => HTMLElement | null
+}) {
   const [open, setOpen] = useState(startOpen)
   const [sharing, setSharing] = useState(false)
   return (
@@ -18,15 +24,29 @@ function Harness({ startOpen }: { startOpen: boolean }) {
       >
         Share
       </button>
-      {open ? <Pane sharing={sharing} onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <Pane
+          sharing={sharing}
+          fallback={fallback}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
     </>
   )
 }
 
-function Pane({ sharing, onClose }: { sharing: boolean; onClose: () => void }) {
+function Pane({
+  sharing,
+  fallback,
+  onClose,
+}: {
+  sharing: boolean
+  fallback?: () => HTMLElement | null
+  onClose: () => void
+}) {
   const card = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
-  const { remember, restore } = useOpenerFocus(card)
+  const { remember, restore } = useOpenerFocus(card, fallback)
   useEffect(() => {
     remember()
     heading.current?.focus()
@@ -36,8 +56,8 @@ function Pane({ sharing, onClose }: { sharing: boolean; onClose: () => void }) {
       ref={card}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return
-        onClose()
         restore()
+        onClose()
       }}
     >
       <h2 tabIndex={-1} ref={heading}>
@@ -48,14 +68,14 @@ function Pane({ sharing, onClose }: { sharing: boolean; onClose: () => void }) {
   )
 }
 
+beforeEach(() => {
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 0)
+})
+
 afterEach(() => vi.restoreAllMocks())
 
 describe("useOpenerFocus", () => {
   it("returns focus to the button that opened the pane", async () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) => {
-      run(0)
-      return 0
-    })
     const user = userEvent.setup()
     render(<Harness startOpen={false} />)
     await user.click(screen.getByRole("button", { name: "Share" }))
@@ -65,10 +85,6 @@ describe("useOpenerFocus", () => {
   })
 
   it("returns focus to the button that switched an open pane to another mode", async () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) => {
-      run(0)
-      return 0
-    })
     const user = userEvent.setup()
     render(<Harness startOpen />)
     await user.click(screen.getByRole("button", { name: "Share" }))
@@ -77,15 +93,24 @@ describe("useOpenerFocus", () => {
   })
 
   it("does not take an element inside the pane as the opener", async () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) => {
-      run(0)
-      return 0
-    })
     const user = userEvent.setup()
     render(<Harness startOpen={false} />)
     await user.click(screen.getByRole("button", { name: "Share" }))
     await user.click(screen.getByRole("button", { name: "Inside" }))
     await act(() => user.keyboard("{Escape}"))
     expect(screen.getByRole("button", { name: "Share" })).toHaveFocus()
+  })
+
+  it("focuses the fallback when the pane was open before anything opened it", async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <button id="toggle">Toggle</button>
+        <Harness startOpen fallback={() => document.getElementById("toggle")} />
+      </>
+    )
+    await user.click(screen.getByRole("button", { name: "Inside" }))
+    await act(() => user.keyboard("{Escape}"))
+    expect(screen.getByRole("button", { name: "Toggle" })).toHaveFocus()
   })
 })
