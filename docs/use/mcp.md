@@ -293,6 +293,7 @@ Pass its `dashboard_id` as the tool's `update_dashboard` argument, which is not 
 An update with a file that has another Grafana uid than the dashboard was imported from fails with `grafana_uid_mismatch` and changes nothing.
 A retried call of the same agent request still answers with the dashboard it made.
 The built-in agent in a run that creates a dashboard imports as before and is not refused, because the person asked it to import that JSON; it may not use `update_dashboard` on this tool, because that run may not save a version of an existing dashboard.
+
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).
 
