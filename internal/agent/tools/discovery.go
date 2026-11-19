@@ -160,7 +160,7 @@ func (r *Registry) discover(ctx context.Context, uid string, req datasource.Disc
 
 const uncheckedNote = "Could not check: this read did not finish, so it says nothing about whether the data exists. Retry it with a narrower range or filter, or say in the answer that this datasource could not be checked; never report it as empty or missing."
 
-func couldNotCheck(code string) bool {
+func CouldNotCheck(code string) bool {
 	switch spec.IssueCode(code) {
 	case queryproxy.CodeQueryTimeout, queryproxy.CodeDatasourceDown, queryproxy.CodeTooManyRequests:
 		return true
@@ -174,7 +174,7 @@ func datasourceFailure(step string, err error) (Result, error) {
 	case string(queryproxy.CodeCanceled), string(queryproxy.CodeInternal):
 		return Result{}, err
 	}
-	if !couldNotCheck(code) {
+	if !CouldNotCheck(code) {
 		return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
 	}
 	res := failure(step+": could not check, "+code, errorBody{Code: code, Message: message, Note: uncheckedNote})
