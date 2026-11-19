@@ -68,7 +68,8 @@ In a terminal, the progress goes to standard output with the last line: the agen
 When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 latency")` or a pipe, standard output holds only the address, and the steps, the panel lines and `Saved version N` go to standard error, one per line.
 `-q` hides the steps, the panel lines and `Saved version N`, and prints only the address.
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
-A prompt that only asks a question ends with an answer saved into an [observation](observations.md), which the CLI prints as `observe investigate` does.
+A prompt that only asks a question ends with an answer that stays in the chat, which the CLI prints as `observe investigate` does, followed by the hint `observe save-answer <request-id>`.
+`bin/observe save-answer <request-id>` files that answer as an [observation](observations.md) and prints its address; only the person who asked can, and saving twice prints the same address.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 `--open` opens the dashboard address in the browser once it is saved, with `open` on macOS, `xdg-open` on Linux and the URL handler on Windows; when the opener is missing or fails, the CLI prints a warning and still exits 0.
@@ -81,6 +82,7 @@ A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
+`--follows <request-id>` sends it as a follow-up in the chat of that earlier request, and cannot be combined with `--dashboard`.
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 An Admin can show anyone's request with `observe status`, read only.
@@ -145,8 +147,8 @@ A stopped request with a build prints `Save it in the browser, or continue it: o
 
 `bin/observe retry <request-id>` starts a finished request again as a new request with the same prompt, waits the way a prompt does and prints the result.
 It accepts `--no-wait` and `--timeout` like a prompt.
-Anyone who can see the request and may start that kind of request can retry it, and the new request is theirs and counts against their limits; a request that has not finished fails with `request <request-id> is <state> and cannot be retried`.
-`observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`.
+Anyone who can see the request and may start that kind of request can retry it, and the new request is theirs and counts against their limits; a failed or canceled request can be retried once by the person or key that asked, while anyone else's retry is a request of their own that leaves it retryable, and a request that has not finished or was already retried fails with `request <request-id> is <state> and cannot be retried`.
+`observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`, or `Retried by <request-id>` once it was retried.
 
 Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
@@ -375,7 +377,7 @@ When it starts, the command prints `Started run <id>, taken by <builtin|grant|se
 
 When the run ends, it posts one reply in the same thread and never resolves the thread or reopens a resolved one.
 The reply reads "Observe Agent for <your name>" when the built-in agent took the run, "<your name> (via <client>)" when one of your connected agents did, and the service account's own name when a service account did.
-The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was canceled.`
+The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered in the chat of the person who asked.` for an answer kept in its asker's chat, which only they and an Admin can read, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was canceled.`
 The run's own page has the detail.
 A retry or a continuation of the run answers in the same thread and goes to the same agent; when that connected agent was revoked, has expired or is not yours, or the service account no longer takes runs, the command fails with `assignee_unavailable` and starts nothing.
 

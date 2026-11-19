@@ -58,6 +58,7 @@ export function runStateText({
         ? "Saved"
         : `Saved version ${result_version}`
     case "failed":
+      if (result_version !== null) return `Saved version ${result_version}`
       return failure_code === "canceled" ? "Stopped" : "Failed"
   }
 }

@@ -1,10 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
-import { useState } from "react"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
-import { buildStatusText, type BuildProgress } from "@/observe/build"
+import {
+  buildStatusText,
+  planChangeText,
+  type BuildProgress,
+} from "@/observe/build"
 import { costText, shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
@@ -59,6 +63,7 @@ export type TurnSummary = {
   build_saved_at: string | null
   continues_id: string | null
   continued_by: string | null
+  retried_by: string | null
   continue_note: string | null
   from?: string | null
   to?: string | null
@@ -75,6 +80,36 @@ type Props = {
 
 function isActive(status: TurnSummary["status"]): boolean {
   return status === "queued" || status === "running"
+}
+
+export function opensBuildPage({
+  request,
+  own,
+  onChatPage,
+}: {
+  request: Pick<TurnSummary, "source" | "status" | "dashboard_id" | "build">
+  own: boolean
+  onChatPage: boolean
+}): boolean {
+  return (
+    onChatPage &&
+    own &&
+    request.source === "observe" &&
+    isActive(request.status) &&
+    request.dashboard_id === null &&
+    request.build !== null
+  )
+}
+
+export function workingText(
+  request: Pick<TurnSummary, "dashboard_id" | "build">,
+  dashboardTitle: string | undefined
+): string {
+  if (dashboardTitle !== undefined) return `Revising ${dashboardTitle}`
+  if (request.dashboard_id !== null) return "Revising the dashboard"
+  return request.build === null
+    ? "Working on your request"
+    : "Building the dashboard"
 }
 
 function Sender({ summary }: { summary: TurnSummary }) {
@@ -142,9 +177,24 @@ export function RequestTurn({
   const pollFailures = usePollFailures(summary.id)
   const reconnecting =
     active && !stalled && pollFailures >= reconnectingAfterFailures
-  const steps = live?.steps ?? []
+  const steps = detail?.steps ?? []
+  const planChange = planChangeText(steps)
   const savedBuild = request.result_kind === "partial_version"
   const inPane = opensRunsIn === "build"
+  const navigate = useNavigate()
+  const opensBuild = opensBuildPage({
+    request,
+    own: request.requested_by.id === principal.id,
+    onChatPage: opensRunsIn === "chat",
+  })
+  useEffect(() => {
+    if (!opensBuild) return
+    void navigate({
+      to: "/b/$requestId",
+      params: { requestId: summary.id },
+      replace: true,
+    })
+  }, [opensBuild, navigate, summary.id])
 
   useSettledRefresh({
     active,
@@ -194,11 +244,7 @@ export function RequestTurn({
                       })
                     : investigates
                       ? "Investigating"
-                      : dashboardTitle !== undefined
-                        ? `Revising ${dashboardTitle}`
-                        : request.dashboard_id !== null
-                          ? "Revising the dashboard"
-                          : "Building the dashboard"}
+                      : workingText(request, dashboardTitle)}
                 </span>
               )}
               {detail?.can_cancel ? (
@@ -230,16 +276,16 @@ export function RequestTurn({
               onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer text-[13px] text-muted-foreground">
-                {live === undefined
+                {detail === undefined
                   ? "Show steps"
                   : stepSummary(
-                      live.steps,
+                      detail.steps,
                       tookText(request.started_at, request.finished_at),
-                      costText(live.usage?.cost_usd)
+                      costText(detail.usage?.cost_usd)
                     )}
               </summary>
               <div className="flex flex-col gap-2.5 pt-2.5 pl-0.5">
-                {live !== undefined ? (
+                {detail !== undefined ? (
                   <StepTimeline
                     steps={steps}
                     working={false}
@@ -265,6 +311,9 @@ export function RequestTurn({
               </div>
             </details>
           )}
+          {!active && planChange !== null ? (
+            <p className="text-[13px] text-muted-foreground">{planChange}</p>
+          ) : null}
           {savedBuild ? (
             <p className="text-[13px]">
               {request.requested_by.id === principal.id
@@ -274,9 +323,18 @@ export function RequestTurn({
             </p>
           ) : null}
           {answers && request.status === "succeeded" ? (
-            live?.finding != null ? (
-              <FindingCard finding={live.finding} showOpenLink />
-            ) : live !== undefined ? (
+            detail?.finding != null ? (
+              <FindingCard
+                finding={detail.finding}
+                showOpenLink
+                saveAnswerOf={
+                  request.requested_by.id === principal.id
+                    ? request.id
+                    : undefined
+                }
+              />
+            ) : detail !== undefined &&
+              (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
                 {investigates
                   ? "The run finished without a finding."
@@ -293,6 +351,7 @@ export function RequestTurn({
               version={request.result_version}
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
+              partial={savedBuild ? { prompt: request.prompt } : undefined}
             />
           ) : null}
           {request.status === "failed" && !savedBuild ? (

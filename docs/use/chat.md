@@ -8,11 +8,15 @@ The server runs the agent against your configured datasources, checks every quer
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
 
-A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
+A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer in the chat.
 A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
+A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
+The answer stays in the chat, and no observation is created, until you choose **Save as observation** under it; an `/investigate` request always opens an observation.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
+
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+A chat is titled the same way, from your message.
 
 ## Start a chat
 
@@ -99,11 +103,14 @@ When the agent answers a question after its reads were refused at its limit of m
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
+
 **Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
 The new run is yours, whoever started the one you retry.
+You can try your own failed or stopped run again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
+Someone else who retries your run starts a request of their own, which leaves your turn and your retry as they were.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
-Only the server's step messages and errors are shown, and for an investigation the answer the agent saved into its observation.
+Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.
 
 A dashboard has 2 to 8 panels unless you ask for another number, and the agent adds variables only when the request asks for a breakdown people will filter on.
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.
@@ -111,7 +118,14 @@ It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and othe
 ## Watch the build
 
 A large dashboard is not written in one model call.
-The agent builds it panel by panel, and sending a new dashboard opens its build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved.
+The agent builds it panel by panel.
+Every message opens its chat page at `/c/<request id>` first, because the agent decides only while it works whether the message is a question or a dashboard.
+The moment it saves the first panel of a new dashboard, the page moves to the build page at `/b/<request id>`, where each accepted panel appears as soon as it is saved; a question never shows it.
+Until then the status line reads "Working on your request" and the steps list what the agent is doing.
+
+Opening `/b/<request id>` of a request that has not saved a panel yet, from a bookmark or a reload, takes you to its chat page instead of an empty canvas.
+While the agent keeps the message box disabled, the note under it says to wait for the answer or cancel the run.
+Between two messages of the agent's live text there is a blank line.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 
@@ -127,6 +141,7 @@ Choose **Save what was built** to keep it: for a new dashboard it becomes versio
 When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
 You need Edit access to the target to save it, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
+The chat keeps the result card with "5 of 8 panels, saved before the run finished" when the plan is known, the status line says "Saved part of the dashboard" instead of "Stopped", and **Add the missing panels** asks the agent for the rest as a follow-up on that dashboard.
 
 On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
@@ -147,7 +162,8 @@ Only the person who asked sees it; an Editor or Admin cannot cancel someone else
 A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
 If its worker is gone, the request ends canceled at once instead.
-The request ends as failed with "the run was canceled" and keeps what was built, so you can save or continue it.
+The request ends as failed with the code `canceled` and keeps what was built, so you can save or continue it.
+The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and History shows "You stopped this run" instead of a red error.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
 Other people's follow-ups on the same dashboard wait behind a run until it ends, so a run that goes nowhere holds them back until its owner cancels it or one of its limits stops it.
@@ -168,6 +184,7 @@ Only the person who asked can continue a build, and it needs the same access as 
 A build can be continued once, and not after you saved it; **Save what was built** and **Continue** exclude each other, so whichever you choose first wins and the other says it can no longer be done.
 A follow-up whose dashboard got a newer version since the build started cannot be continued: the page says "Someone saved a newer version after this build started, so it can't be continued. Open the dashboard and ask again."
 A continued run counts toward the same limits as a new request.
+When the agent lowers the number of panels it planned after you continue, the finished turn says so, for example "Planned 6 panels, built 3."
 
 ## Read a turn
 
@@ -185,7 +202,9 @@ The result card shows the title, "N panels from `<datasources>`" and the footer 
 Choose **Open dashboard** to go to it.
 The dashboard lands in the folder you named, or in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
 
-A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next:
+A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next.
+The advice to save or continue a build shows only while a build is left to save or continue; otherwise the table's last column reads "Try again." or "Try again with a narrower prompt.".
+A run you stopped shows "You stopped this run" instead.
 
 | Code                                     | What it means                                              | What to do                                                             |
 | ---------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -213,19 +232,24 @@ A retried investigation writes into the same observation when the person retryin
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
-The page keeps polling the server.
+The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
 The run itself goes on server-side either way.
 
 ## Follow-ups
 
 Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
-Until then it is disabled with "Wait for the dashboard, then ask for changes."
+Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
+While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
 
-A follow-up is not a continuation of the chat.
-The agent starts a fresh run that sees the datasources, your new message and the current Spec of the dashboard, not the earlier messages.
-Say what to change in the message itself, for example "only show 5xx" or "add a panel with memory by pod".
+A follow-up is a continuation of the chat.
+The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation: each earlier question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
+It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
+For a chat about a dashboard these are the earlier requests you sent on that dashboard; for a chat with no dashboard they are the earlier turns of that chat.
+Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
+
+Over the API, `POST /observe` takes `follows_id`, an earlier request of yours without a dashboard, to continue its chat, and every request carries a `chat_id`, the id of the chat's first request, which `GET /observe?chat_id=` lists.
 
 The agent revises the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.
@@ -255,18 +279,23 @@ The dashboard reloads the new version, and panels the version added fade in once
 ## Your chats
 
 Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
+A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
 Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
-A chat that saved its finding names the observation it was saved to, as long as you can open that observation's folder.
+
+A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
+An investigation names the observation it was saved to, as long as you can open that observation's folder.
+An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
+**Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
 In History, the search box finds chats whose title or prompt contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
 Each chat has a menu with these actions:
 
-- **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the start of the prompt.
+- **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
 - **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists. The dashboard it made stays, and the chat page still opens from its link.
 

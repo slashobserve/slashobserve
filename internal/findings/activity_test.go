@@ -56,7 +56,7 @@ func dataOf(t *testing.T, e activity.Event) map[string]string {
 
 func TestAFindingOnADashboardLandsInItsFolderWithItsTitleAndRun(t *testing.T) {
 	r := newRig(t)
-	request := r.request(t, editor, r.open)
+	request := r.investigation(t, editor, r.open)
 	f := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: "Why checkout is slow", Markdown: "a distinctive finding body"})
 
 	got := findingEvents(r.activityFor(t, viewer))
@@ -166,7 +166,7 @@ func TestAFindingInMyDashboardsFollowsItsFolderAndIsSeenByItsCreatorOnly(t *test
 
 func TestAReplayedFindingAppendsOnce(t *testing.T) {
 	r := newRig(t)
-	request := r.request(t, editor, r.open)
+	request := r.investigation(t, editor, r.open)
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
 	_, replayed, err := r.service.Save(t.Context(), editor, findings.SaveInput{
 		AgentRequestID: request, DashboardID: r.open, Title: "again", Markdown: "second", From: windowTo.Add(-time.Hour), To: windowTo,

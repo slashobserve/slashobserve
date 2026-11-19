@@ -66,7 +66,8 @@ findings-id:
       A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not.
       `folder` is that folder and `permissions` what the caller may do with the finding.
       A finding the caller cannot read gives 404, never 403.
-      The `Link` header names the observation as the `successor-version`.
+      The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only.
+      The `Link` header names the observation as the `successor-version`, and is absent while there is none.
       Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:
       "200":
@@ -75,8 +76,8 @@ findings-id:
           Deprecation:
             $ref: "../openapi.yaml#/components/headers/Deprecation"
           Link:
-            required: true
-            description: '`</api/v1/observations/{observation_id}>; rel="successor-version"`'
+            required: false
+            description: '`</api/v1/observations/{observation_id}>; rel="successor-version"`, absent while the finding has no observation'
             schema:
               type: string
         content:
@@ -139,7 +140,7 @@ findings-id-pin:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The finding has no dashboard to pin to (`finding_has_no_dashboard`).
+        description: The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`).
         content:
           application/json:
             schema:

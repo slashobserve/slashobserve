@@ -1,10 +1,13 @@
+import { useQuery } from "@tanstack/react-query"
 import { useId, useRef } from "react"
 
 import { useActivityStore, useChatPaneLayout } from "@/activity/activity-store"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { runStateText } from "@/observe/build-page-model"
+import { latestTurn } from "@/observe/conversation"
 import { useObserveRequest } from "@/observe/queries"
+import { revisionsQuery } from "@/revisions/queries"
 
 import { Conversation } from "./conversation"
 
@@ -20,6 +23,13 @@ export function ChatPane({
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const request = useObserveRequest(requestId).data
+  const dashboardId = request?.dashboard_id ?? null
+  const revisions = useQuery({
+    ...revisionsQuery(dashboardId ?? ""),
+    enabled: dashboardId !== null && request?.read_only !== true,
+  })
+  const latest =
+    request === undefined ? undefined : latestTurn(request, revisions.data)
   return (
     <DockPanel
       labelledBy={headingId}
@@ -32,7 +42,7 @@ export function ChatPane({
         headingId={headingId}
         headingRef={heading}
         title="Chat"
-        description={request === undefined ? undefined : runStateText(request)}
+        description={latest === undefined ? undefined : runStateText(latest)}
         onClose={onClose}
         closeLabel="Close panel"
       />
