@@ -159,7 +159,7 @@ The chips filter the lines already loaded, not the query, so another page can ho
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
-On Loki a range longer than a day is counted one day at a time, newest first, so a week does not have to fit in one request.
+On Loki a range of a day or less is counted in one request, and a longer range one day at a time, newest first and one request after another, so a week does not have to fit in one request.
 When the next day would not finish in time, the strip shows the days it counted, shades the older bars as not counted, says "N lines since <time>" and explains that the datasource ran out of time; hovering a shaded bar says "Not counted".
 The log volume request then returns `partial: true` with `counted_from`, and `observe datasources log-volume` prints the same note, so an agent knows the older buckets read zero because they were not counted.
 When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
@@ -208,8 +208,9 @@ Facets count the top values of each label, field or column the query matches ove
 Each field says whether its counts are exact or come from a sample of the newest lines.
 
 - On Loki the index labels of the matched streams are counted exactly from the index volume API, in bytes rather than lines, so those fields carry `unit: bytes`; parsed fields (`kind: field`) and structured-metadata fields (`kind: metadata`, the detected fields that no parser produced) are counted from the newest 1,000 lines by default, up to 5,000.
-  Those lines are read from the newest hour first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, so a week does not have to be read whole.
+  Those lines are read from the newest five minutes first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, so a week does not have to be read whole.
   When time runs short, the fields are counted over the lines read so far, and `lines_sampled` and the note under each field say how many.
+  The sample starts at once, beside the index label counts rather than after them, and an index label whose count does not finish in time is counted over the sample instead, with `exact: false` and no unit, and its note says "Counted over the newest N lines", so a slow index still leaves every field with counts.
 - On ClickHouse every field is counted exactly with one `GROUP BY` per field: each result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the 20 most frequent `LogAttributes` keys as `LogAttributes.<key>`.
 - On Elasticsearch and OpenSearch one aggregation request counts every field exactly over the whole range, with `sampled: false` and `lines_sampled: 0`, and `sample` is ignored.
 

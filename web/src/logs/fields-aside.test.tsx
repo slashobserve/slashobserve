@@ -185,25 +185,10 @@ describe("FieldsAside", () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
-  it("counts a wide range only after the volume strip has answered", async () => {
+  it("counts a wide range as soon as the lines are in, without waiting for the volume", async () => {
     const fetcher = vi.fn(async () => Response.json(esFacets))
     vi.stubGlobal("fetch", fetcher)
-    const window = { from: "now-24h", to: "now" }
-    const { queryClient } = setup({ window, seedFacets: false })
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(fetcher).not.toHaveBeenCalled()
-    expect(
-      screen.getByText("The fields load when the volume answers")
-    ).toBeVisible()
-    queryClient.setQueryData(
-      [
-        "explore",
-        "ds",
-        "volume",
-        { query: "service.name:checkout", ...window },
-      ],
-      { step_ms: 60000, total: 0, buckets: [] }
-    )
+    setup({ window: { from: "now-7d", to: "now" }, seedFacets: false })
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
   })
 

@@ -5,7 +5,7 @@ import { isRetryable, unwrap } from "@/api/errors"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
-import { describeRange, resolveTime, zonedDateTime } from "@/lib/time"
+import { describeRange, zonedDateTime } from "@/lib/time"
 import { lowerFirst } from "@/lib/text"
 
 export type LogVolume = components["schemas"]["LogVolume"]
@@ -28,7 +28,6 @@ export const volumeKindNames: Record<LogLevelKind, string> = {
 }
 
 const volumeBuckets = 60
-const wideRangeMs = 6 * 3_600_000
 
 const kindNouns: Record<LogLevelKind, readonly [string, string]> = {
   error: ["error", "errors"],
@@ -160,12 +159,6 @@ export function volumeCaption(
     ? `in the ${lowerFirst(range)}`
     : "in this range"
   return `${count(total)} lines ${words}`
-}
-
-export function isWideRange(from: string, to: string, now = Date.now()) {
-  const start = resolveTime(from, now, false)
-  const end = resolveTime(to, now, true)
-  return end - start > wideRangeMs
 }
 
 export function uncountedBuckets(
