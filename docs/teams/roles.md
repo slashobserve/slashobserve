@@ -34,6 +34,7 @@ A person's role is decided in this order, and the first rule that applies wins:
    An email address in this list (compared without regard to case) is an Admin.
 2. **The first user.**
    When `SLASHOBSERVE_ADMIN_EMAILS` is not set, the earliest person to have signed in is an Admin.
+   This stays with that person: if they are removed, nobody else becomes the first user.
 3. **`SLASHOBSERVE_OIDC_GROUP_ROLES`.**
    The highest role mapped to a group the person belongs to.
    When two mapped groups give the same role, the one listed first wins.

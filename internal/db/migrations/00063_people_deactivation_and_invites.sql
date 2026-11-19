@@ -2,7 +2,10 @@
 ALTER TABLE users
   ADD COLUMN deactivated_at TIMESTAMPTZ,
   ADD COLUMN deactivated_by_id UUID REFERENCES users (id) ON DELETE SET NULL,
-  ADD COLUMN deactivated_by_name TEXT;
+  ADD COLUMN deactivated_by_name TEXT,
+  ADD COLUMN first_user BOOLEAN NOT NULL DEFAULT false;
+UPDATE users SET first_user = true WHERE id = (SELECT id FROM users ORDER BY created_at, id LIMIT 1);
+CREATE UNIQUE INDEX users_first_user_idx ON users (first_user) WHERE first_user;
 
 CREATE TABLE user_invites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,4 +22,5 @@ CREATE INDEX user_invites_created_idx ON user_invites (created_at DESC, id DESC)
 
 -- +goose Down
 DROP TABLE user_invites;
-ALTER TABLE users DROP COLUMN deactivated_by_name, DROP COLUMN deactivated_by_id, DROP COLUMN deactivated_at;
+DROP INDEX users_first_user_idx;
+ALTER TABLE users DROP COLUMN first_user, DROP COLUMN deactivated_by_name, DROP COLUMN deactivated_by_id, DROP COLUMN deactivated_at;

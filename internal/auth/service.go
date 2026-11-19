@@ -120,11 +120,7 @@ func setUserRoleParams(id pgtype.UUID, d RoleDecision) dbsqlc.SetUserRoleParams 
 }
 
 func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, groups []string) error {
-	first, err := s.queries.IsFirstUser(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
+	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: user.FirstUser, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
 	return s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision))
 }
 
@@ -134,8 +130,8 @@ func (s *Service) ReconcileRoles(ctx context.Context) error {
 		return fmt.Errorf("list users for roles: %w", err)
 	}
 	changed := 0
-	for i, u := range users {
-		decision := ResolveRole(RoleInputs{Email: u.Email, Groups: u.Groups, FirstUser: i == 0, Manual: manualRole(u.ManualRole)}, s.cfg.RolePolicy)
+	for _, u := range users {
+		decision := ResolveRole(RoleInputs{Email: u.Email, Groups: u.Groups, FirstUser: u.FirstUser, Manual: manualRole(u.ManualRole)}, s.cfg.RolePolicy)
 		want := setUserRoleParams(u.ID, decision)
 		if u.Role == want.Role && u.RoleSource == want.RoleSource && u.RoleGroup == want.RoleGroup {
 			continue

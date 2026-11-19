@@ -147,13 +147,13 @@ func (q *Queries) TouchUserSeen(ctx context.Context, arg TouchUserSeenParams) er
 }
 
 const upsertUser = `-- name: UpsertUser :one
-INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups)
-VALUES ($1, $2, $3, $4, coalesce($5::text[], '{}'))
+INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups, first_user)
+VALUES ($1, $2, $3, $4, coalesce($5::text[], '{}'), NOT EXISTS (SELECT 1 FROM users))
 ON CONFLICT (oidc_issuer, oidc_subject)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, groups = EXCLUDED.groups,
   last_login_at = CASE WHEN users.deactivated_at IS NULL THEN now() ELSE users.last_login_at END,
   last_seen_at = CASE WHEN users.deactivated_at IS NULL THEN now() ELSE users.last_seen_at END
-RETURNING id, email, name, created_at, manual_role, deactivated_at, (xmax = 0)::boolean AS inserted
+RETURNING id, email, name, created_at, manual_role, deactivated_at, first_user, (xmax = 0)::boolean AS inserted
 `
 
 type UpsertUserParams struct {
@@ -171,6 +171,7 @@ type UpsertUserRow struct {
 	CreatedAt     pgtype.Timestamptz
 	ManualRole    pgtype.Text
 	DeactivatedAt pgtype.Timestamptz
+	FirstUser     bool
 	Inserted      bool
 }
 
@@ -190,6 +191,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (UpsertU
 		&i.CreatedAt,
 		&i.ManualRole,
 		&i.DeactivatedAt,
+		&i.FirstUser,
 		&i.Inserted,
 	)
 	return i, err

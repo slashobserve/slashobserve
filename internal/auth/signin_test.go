@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -124,5 +125,72 @@ func TestAnInviteIsNotAppliedToSomeoneWhoHasSignedInBefore(t *testing.T) {
 	}
 	if n := countInvites(t, database); n != 1 {
 		t.Errorf("%d invites, want the invite still pending for the new hire", n)
+	}
+}
+
+func TestRemovingTheFirstPersonMakesNobodyElseTheFirstUser(t *testing.T) {
+	s, database := newSignInService(t)
+	for _, name := range []string{"first", "cy"} {
+		if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: name, Email: name + "@example.com"}); failure != nil {
+			t.Fatal(failure)
+		}
+	}
+	database.Exec(t, "UPDATE users SET manual_role = 'viewer', role = 'viewer', role_source = 'manual' WHERE email = 'cy@example.com'")
+	database.Exec(t, "DELETE FROM users WHERE email = 'first@example.com'")
+
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "cy", Email: "cy@example.com"}); failure != nil {
+		t.Fatal(failure)
+	}
+	if role, source, _ := roleOf(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
+		t.Fatalf("after sign-in role = %s from %s, want Cy to stay the manual Viewer", role, source)
+	}
+	if err := s.ReconcileRoles(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if role, source, _ := roleOf(t, database, "cy@example.com"); role != "viewer" || source != "manual" {
+		t.Fatalf("after reconcile role = %s from %s, want Cy to stay the manual Viewer", role, source)
+	}
+}
+
+func TestTwoFirstSignInsAtOnceMakeOneFirstUser(t *testing.T) {
+	s, database := newSignInService(t)
+	sqlDB := database.SQLDB(t)
+	tx, err := sqlDB.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(t.Context(), "INSERT INTO users (oidc_issuer, oidc_subject, email, name, first_user) VALUES ('i', 'ada', 'ada@example.com', 'Ada', true)"); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan *loginFailure, 1)
+	go func() {
+		_, failure := s.signIn(context.Background(), identity{Issuer: "i", Subject: "bob", Email: "bob@example.com"})
+		done <- failure
+	}()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var waiting int
+		if err := sqlDB.QueryRowContext(t.Context(), "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%INSERT INTO users%'").Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the second sign-in never waited on the first")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	if failure := <-done; failure != nil {
+		t.Fatalf("the second first sign-in failed: %+v", failure)
+	}
+	if role, source, _ := roleOf(t, database, "bob@example.com"); role != "editor" || source != "default" {
+		t.Errorf("Bob's role = %s from %s, want the default Editor", role, source)
 	}
 }

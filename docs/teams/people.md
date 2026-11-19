@@ -63,6 +63,7 @@ Their saved prompts, stars, views, inbox state and folder grants are deleted too
 What they made in shared folders stays, under the name it was saved with: dashboards and their versions, observations, comments, proposals and activity.
 Service accounts and API keys they created stay and keep working.
 Removal cannot be undone; if the same identity-provider account signs in later, it joins as a new person with an empty My Dashboards.
+Removing the first user hands the first-user Admin rule to nobody, so keep another Admin or set `SLASHOBSERVE_ADMIN_EMAILS` first.
 
 ## Teams
 

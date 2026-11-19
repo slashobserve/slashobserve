@@ -173,15 +173,14 @@ func (q *Queries) GetUserPrincipal(ctx context.Context, id pgtype.UUID) (GetUser
 }
 
 const isFirstUser = `-- name: IsFirstUser :one
-SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
-FROM users u WHERE u.id = $1
+SELECT first_user FROM users WHERE id = $1
 `
 
 func (q *Queries) IsFirstUser(ctx context.Context, id pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, isFirstUser, id)
-	var not_exists bool
-	err := row.Scan(&not_exists)
-	return not_exists, err
+	var first_user bool
+	err := row.Scan(&first_user)
+	return first_user, err
 }
 
 const listUsers = `-- name: ListUsers :many
@@ -286,7 +285,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 }
 
 const listUsersForRoles = `-- name: ListUsersForRoles :many
-SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group, first_user
 FROM users ORDER BY created_at, id
 `
 
@@ -299,6 +298,7 @@ type ListUsersForRolesRow struct {
 	Role       string
 	RoleSource string
 	RoleGroup  pgtype.Text
+	FirstUser  bool
 }
 
 func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow, error) {
@@ -319,6 +319,7 @@ func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow
 			&i.Role,
 			&i.RoleSource,
 			&i.RoleGroup,
+			&i.FirstUser,
 		); err != nil {
 			return nil, err
 		}

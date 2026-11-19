@@ -722,6 +722,7 @@ type User struct {
 	DeactivatedAt     pgtype.Timestamptz
 	DeactivatedByID   pgtype.UUID
 	DeactivatedByName pgtype.Text
+	FirstUser         bool
 }
 
 type UserInvite struct {

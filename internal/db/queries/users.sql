@@ -58,11 +58,10 @@ SELECT EXISTS (SELECT 1 FROM users WHERE id = @id);
 DELETE FROM sessions WHERE user_id = @user_id;
 
 -- name: IsFirstUser :one
-SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
-FROM users u WHERE u.id = @id;
+SELECT first_user FROM users WHERE id = @id;
 
 -- name: ListUsersForRoles :many
-SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group, first_user
 FROM users ORDER BY created_at, id;
 
 -- name: SetUserRole :exec

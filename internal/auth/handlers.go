@@ -18,6 +18,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 
@@ -196,7 +197,7 @@ type identity struct {
 }
 
 func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailure) {
-	user, err := s.queries.UpsertUser(ctx, dbsqlc.UpsertUserParams{
+	user, err := s.upsertUser(ctx, dbsqlc.UpsertUserParams{
 		OidcIssuer:  id.Issuer,
 		OidcSubject: id.Subject,
 		Email:       id.Email,
@@ -238,6 +239,17 @@ func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailur
 		s.logger.WarnContext(ctx, "delete expired sessions", logattrs.Failure("session_cleanup_failed", err)...)
 	}
 	return token, nil
+}
+
+const firstUserIndex = "users_first_user_idx"
+
+func (s *Service) upsertUser(ctx context.Context, params dbsqlc.UpsertUserParams) (dbsqlc.UpsertUserRow, error) {
+	user, err := s.queries.UpsertUser(ctx, params)
+	var pgErr *pgconn.PgError
+	if isUniqueViolation(err) && errors.As(err, &pgErr) && pgErr.ConstraintName == firstUserIndex {
+		return s.queries.UpsertUser(ctx, params)
+	}
+	return user, err
 }
 
 func (s *Service) emailRefusal(email string, verified bool) *loginFailure {
