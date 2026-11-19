@@ -69,6 +69,7 @@ func TestDecidedNeedsEveryEntryAndNoOmittedPathToBeADecision(t *testing.T) {
 }
 
 func TestImportedLinesCarryOnlyDecisions(t *testing.T) {
+	t.Parallel()
 	root, err := os.OpenRoot("testdata")
 	if err != nil {
 		t.Fatal(err)

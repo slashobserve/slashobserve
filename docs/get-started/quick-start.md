@@ -36,7 +36,7 @@ Type a prompt such as `checkout health by pod, last 6h` into the chat composer o
 
 The demo provisions three dashboards from `deploy/compose/dashboards`, so the Dashboards page has live data before you send a prompt, with or without a key:
 
-- Demo shop overview, in the Demo folder: is the shop's traffic healthy, are orders flowing, is the database keeping up, and what checkout's logs and traces say.
+- Demo shop overview, in the Demo folder: is the shop's traffic healthy, are orders flowing, is the database keeping up, what checkout's logs and traces say, and one panel of every type the product draws.
 - Node health, in the Demo folder: CPU, memory, disks and network of the machine running the stack, and what each of its containers uses.
 - SlashObserve internals, in the SlashObserve folder: the server's own API, agent, model calls, query proxy, database pool and scheduler, read from its `/metrics`.
 

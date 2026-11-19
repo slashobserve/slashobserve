@@ -7,10 +7,13 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -553,25 +556,79 @@ func TestWorkTargetsAreVerifiedAtImport(t *testing.T) {
 
 func TestPickRetimeRangeStaysWithinTheStacksHistory(t *testing.T) {
 	cases := []struct {
-		name   string
-		from   string
-		factor int
-		want   string
+		name          string
+		from          string
+		factor        int
+		maxDataPoints int
+		interval      string
+		want          string
 	}{
-		{"one step per point on a day default", "now-24h", 1, "now-6h"},
-		{"the dashboard already defaults to six hours", "now-6h", 1, "now-3h"},
-		{"a factor of 2 on a three hour default", "now-3h", 2, "now-1h"},
-		{"a factor of 10 on a half hour default", "now-30m", 10, "now-15m"},
-		{"a factor of 10 on a quarter hour default", "now-15m", 10, ""},
+		{"one step per point on a day default", "now-24h", 1, 0, "", "now-6h"},
+		{"the dashboard already defaults to six hours", "now-6h", 1, 0, "", "now-3h"},
+		{"a factor of 2 on a three hour default", "now-3h", 2, 0, "", "now-6h"},
+		{"a factor of 3 on a day default", "now-24h", 3, 0, "", "now-3h"},
+		{"a factor of 10 on a half hour default", "now-30m", 10, 0, "", "now-1h"},
+		{"a factor of 20 on a half hour default", "now-30m", 20, 0, "", "now-15m"},
+		{"a factor of 70 on a quarter hour default", "now-15m", 70, 0, "", ""},
+		{"a panel capped at 50 points", "now-24h", 1, 50, "", "now-3h"},
+		{"a panel capped above the 200 points of a check", "now-24h", 1, 1000, "", "now-6h"},
+		{"a minimum step of 240 seconds", "now-24h", 1, 0, "240s", "now-6h"},
+		{"a minimum step of 5 minutes", "now-24h", 1, 0, "5m", "now-6h"},
+		{"a minimum step of 10 minutes", "now-24h", 1, 0, "10m", ""},
+		{"a minimum step that is a variable", "now-24h", 1, 0, "${step}", "now-6h"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			dash := &spec.Dashboard{Time: spec.TimeRange{From: c.from, To: "now"}, Panels: []spec.Panel{{ID: "p1", Type: spec.Timeseries, Title: "A", Queries: []spec.Query{{Query: "up", IntervalFactor: c.factor}}}}}
+			dash := &spec.Dashboard{Time: spec.TimeRange{From: c.from, To: "now"}, Panels: []spec.Panel{{ID: "p1", Type: spec.Timeseries, Title: "A", MaxDataPoints: c.maxDataPoints, Interval: c.interval, Queries: []spec.Query{{Query: "up", IntervalFactor: c.factor}}}}}
 			got, ok := pickRetimeRange(dash)
 			if got.from != c.want || ok != (c.want != "") {
 				t.Errorf("pickRetimeRange = %q, %v; want %q", got.from, ok, c.want)
 			}
 		})
+	}
+}
+
+func TestSynthHistoryOutlastsTheWidestRetimeStepByTwoScrapes(t *testing.T) {
+	useCorpus(t)
+	dir := t.TempDir()
+	if err := generateSynth(dir); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, synthHistoryFile)) //nolint:gosec // a path inside the temporary directory made above
+	if err != nil {
+		t.Fatal(err)
+	}
+	minutes, err := strconv.Atoi(strings.TrimSpace(string(body)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, need := time.Duration(minutes)*time.Minute, retimeMaxStep+2*synthScrape
+	if history < need {
+		t.Errorf("the stack waits for %s of history but a retime step of %s needs %s", history, retimeMaxStep, need)
+	}
+}
+
+func TestSynthScrapeIntervalIsTheOneTheStackUses(t *testing.T) {
+	want := fmt.Sprintf("%ds", int(synthScrape.Seconds()))
+	for path, pattern := range map[string]string{
+		filepath.Join("..", "..", "deploy", "compose", "evals", "scrape.d", "synth.yml"): `scrape_interval: (\S+)`,
+		filepath.Join("..", "..", "scripts", "evals-stack.sh"):                           `(?m)^SYNTH_SCRAPE_SECONDS=(\d+)$`,
+	} {
+		body, err := os.ReadFile(path) //nolint:gosec // a fixed path inside the repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := regexp.MustCompile(pattern).FindSubmatch(body)
+		if m == nil {
+			t.Fatalf("%s has no match for %s", path, pattern)
+		}
+		got := string(m[1])
+		if !strings.HasSuffix(got, "s") {
+			got += "s"
+		}
+		if got != want {
+			t.Errorf("%s says %s, the runner assumes %s", path, got, want)
+		}
 	}
 }
 

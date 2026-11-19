@@ -173,10 +173,10 @@ func (a *app) commentsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list [<dashboard-id>] [--on <kind>:<id>]",
 		Short: "List the comments of a dashboard, observation, annotation or proposal, oldest first",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  rangeArgs(0, 1, "a dashboard id, or none with --on"),
 		RunE:  a.runCommentsList,
 	}
-	addPageFlags(cmd, &a.commentList.pageOptions)
+	addPageFlags(cmd, &a.commentList.pageOptions, maxThreadPage)
 	cmd.Flags().StringVar(&a.commentList.status, "status", "open", "open, resolved or all")
 	cmd.Flags().StringVar(&a.commentList.panel, "panel", "", "only comments on this panel id")
 	cmd.Flags().StringVar(&a.commentList.on, "on", "", "the target to list, as <kind>:<id>, instead of a dashboard id")
@@ -184,6 +184,12 @@ func (a *app) commentsListCommand() *cobra.Command {
 }
 
 func (a *app) commentListRequest(args []string) (string, url.Values, error) {
+	if err := a.commentList.check(); err != nil {
+		return "", nil, err
+	}
+	if len(args) == 1 && a.commentList.on == "" && strings.Contains(args[0], ":") {
+		a.commentList.on, args = args[0], nil
+	}
 	if (len(args) == 1) == (a.commentList.on != "") {
 		return "", nil, usagef("comments list takes a dashboard id or --on <kind>:<id>, one of them")
 	}
@@ -221,7 +227,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), path, query)
+	data, err := c.getPages(cmd.Context(), path, query, a.commentList.all)
 	if err != nil {
 		return err
 	}
@@ -239,7 +245,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 		cells = append(cells, row.cells())
 	}
 	out.table([]string{"ID", "THREAD", "PANEL", "STATUS", "AUTHOR", "CREATED", "COMMENT"}, cells)
-	nextPageHint(out, next)
+	pageFooter(out, len(cells), nil, next)
 	return nil
 }
 
@@ -315,7 +321,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe observations get, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when the run cannot start, and the reason is printed.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and the reason is printed: a text that mentions no agent says so, and a refused run names its code.\nAn observation has one discussion, so a second add on it is refused with the thread to reply to; use comments reply.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -370,7 +376,7 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
-	reportRun(out, created.Message)
+	reportRun(out, created.Message, a.commentAdd.startRuns)
 	return nil
 }
 
@@ -386,12 +392,14 @@ func setID(payload map[string]any, key, value string) error {
 	return nil
 }
 
-func reportRun(out *output, message threadMessage) {
-	if message.Run != nil {
+func reportRun(out *output, message threadMessage, startRuns bool) {
+	switch {
+	case message.Run != nil:
 		out.confirm("Started run %s, taken by %s", text(message.Run.ID), text(message.Run.AssignedKind))
-	}
-	if message.RunRefusal != nil {
+	case message.RunRefusal != nil:
 		out.warn("No run started (%s): %s", text(message.RunRefusal.Code), text(message.RunRefusal.Message))
+	case startRuns:
+		out.warn("No run started: the text mentions no agent. Mention @observe, @[Name](grant:<id>) or @[Name](service_account:<id>) to ask one.")
 	}
 }
 
@@ -466,7 +474,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Replied to thread %s as %s", text(thread), text(message.ID))
-	reportRun(out, message)
+	reportRun(out, message, a.commentReply.startRuns)
 	return nil
 }
 

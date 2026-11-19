@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -206,6 +207,8 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"dashboard.deleted", `{}`, `deleted a dashboard`},
 		{"annotation.created", `{"tags":["deploy","checkout"]}`, `added an annotation (deploy, checkout)`},
 		{"annotation.created", `{"tags":[]}`, `added an annotation`},
+		{"annotation.updated", `{"tags":["deploy"]}`, `edited an annotation (deploy)`},
+		{"annotation.updated", `{"tags":[]}`, `edited an annotation`},
 		{"annotation.deleted", `{}`, `deleted an annotation`},
 		{"finding.created", `{"title":"Slow pod"}`, `saved the finding "Slow pod"`},
 		{"finding.pinned", `{"annotation_id":"a"}`, `pinned a finding`},
@@ -461,5 +464,29 @@ func TestStreamRefusesAnUnauthorizedKey(t *testing.T) {
 	}
 	if _, err := c.stream(t.Context(), "activity/stream", nil, ""); !errors.Is(err, errUnauthorized) {
 		t.Fatalf("stream: %v", err)
+	}
+}
+
+func TestActivityDescribesObservationEvents(t *testing.T) {
+	cases := []struct {
+		eventType string
+		data      string
+		want      string
+	}{
+		{"observation.created", `{"title":"Slow checkout"}`, `started the observation "Slow checkout"`},
+		{"observation.moved", `{"title":"Slow checkout"}`, `moved the observation "Slow checkout"`},
+		{"observation.published", `{"title":"Slow checkout","revision":2}`, `published revision 2 of the observation "Slow checkout"`},
+		{"observation.block_added", `{"title":"Slow checkout","block_kind":"panel","state":"requested"}`, `requested a panel block on the observation "Slow checkout"`},
+		{"observation.block_removed", `{"title":"Slow checkout","block_kind":"text"}`, `removed a text block from the observation "Slow checkout"`},
+		{"thread.opened", `{"object":{"kind":"observation"}}`, "commented on an observation"},
+	}
+	for _, tc := range cases {
+		var e activityEvent
+		if err := json.Unmarshal([]byte(`{"type":"`+tc.eventType+`","data":`+tc.data+`}`), &e); err != nil {
+			t.Fatal(err)
+		}
+		if got := describe(e); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.eventType, got, tc.want)
+		}
 	}
 }

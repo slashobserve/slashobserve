@@ -9,6 +9,17 @@ SELECT *
 FROM annotations
 WHERE id = @id;
 
+-- name: UpdateAnnotation :execrows
+UPDATE annotations SET text = @text, tags = @tags::text[] WHERE id = @id;
+
+-- name: GetAnnotationNamed :one
+SELECT a.id, a.dashboard_id, a.panel_id, a.time_from, a.time_to, a.text, a.tags, a.created_by, a.created_at, a.created_by_kind, a.origin, a.origin_client,
+  COALESCE(NULLIF(u.name, ''), u.email, sa.name, '')::text AS created_by_name
+FROM annotations a
+LEFT JOIN users u ON u.id = a.created_by
+LEFT JOIN service_accounts sa ON sa.id = a.created_by
+WHERE a.id = @id;
+
 -- name: DeleteAnnotation :execrows
 DELETE FROM annotations WHERE id = @id;
 
