@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query"
 import { screen, within } from "@testing-library/react"
 import { toast } from "sonner"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -116,7 +116,15 @@ function lastFilters(update: ReturnType<typeof vi.fn>): Pill[] {
 describe("FilterPills", () => {
   beforeEach(() => {
     vi.mocked(toast).mockClear()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ labels: [], values: [], truncated: false })
+      )
+    )
   })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   it("shows a pill for each filter with the caption", () => {
     setup()
