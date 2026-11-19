@@ -147,6 +147,8 @@ datasources-uid-log-volume:
         type: string
   post:
     operationId: logVolume
+    x-surfaces:
+      cli: [observe datasources log-volume]
     summary: Count the log lines a logs query matches over a range, by level.
     description: >-
       The counts cover every line the query matches over the whole range, not only the lines the logs page shows.

@@ -21,7 +21,6 @@ const (
 	traceIDStepChars      = 8
 	traceSourcesMessage   = "get_trace reads Tempo and ClickHouse datasources"
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
-	upstreamWait          = 5 * time.Second
 	nanosPerMilli         = 1e6
 
 	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
@@ -127,7 +126,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 }
 
 func (r *Registry) acquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
-	waitCtx, cancel := context.WithTimeout(ctx, upstreamWait)
+	waitCtx, cancel := context.WithTimeout(ctx, r.deps.Runner.UpstreamWait())
 	defer cancel()
 	release, err = r.deps.Runner.AcquireUpstream(waitCtx, datasourceUID)
 	switch {

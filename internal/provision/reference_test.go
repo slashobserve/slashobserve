@@ -76,6 +76,71 @@ func TestReferenceDashboardsFollowTheLayoutRules(t *testing.T) {
 	}
 }
 
+var candleColumns = []string{"open", "high", "low", "close"}
+
+func candlestickProblems(d *spec.Dashboard) []string {
+	var problems []string
+	for _, entry := range d.AllPanels() {
+		p := entry.Panel
+		if p.Type != spec.Candlestick {
+			continue
+		}
+		if len(p.Queries) != 1 {
+			problems = append(problems, fmt.Sprintf("%s: a candlestick reads one frame, so it needs one query, not %d", p.ID, len(p.Queries)))
+			continue
+		}
+		query := strings.ToLower(p.Queries[0].Query)
+		for _, column := range candleColumns {
+			if !strings.Contains(query, " as "+column) {
+				problems = append(problems, fmt.Sprintf("%s: the query has no column named %s", p.ID, column))
+			}
+		}
+	}
+	return problems
+}
+
+func TestReferenceCandlesticksReadOneFrameWithOpenHighLowAndClose(t *testing.T) {
+	files, err := specfiles.Scan(referenceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := os.DirFS(referenceDir)
+	candles := 0
+	for _, f := range files {
+		data, err := fs.ReadFile(dir, f.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, err := spec.Parse(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range d.AllPanels() {
+			if entry.Panel.Type == spec.Candlestick {
+				candles++
+			}
+		}
+		for _, problem := range candlestickProblems(d) {
+			t.Errorf("%s: %s", f.Path, problem)
+		}
+	}
+	if candles == 0 {
+		t.Fatal("no reference dashboard has a candlestick panel")
+	}
+}
+
+func TestCandlestickProblemsNamesFourSeparateQueries(t *testing.T) {
+	d, err := spec.Parse([]byte(`{ "specVersion": "0", "title": "Base", "time": { "from": "now-1h", "to": "now" }, "panels": [
+  { "id": "p_c", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "type": "candlestick", "title": "C", "datasource": "prom", "queries": [{ "ref": "open", "query": "up" }, { "ref": "close", "query": "up" }] }
+] }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := candlestickProblems(d); !slices.Equal(got, []string{"p_c: a candlestick reads one frame, so it needs one query, not 2"}) {
+		t.Fatalf("problems = %q", got)
+	}
+}
+
 func datasourceProblems(d *spec.Dashboard) []string {
 	var problems []string
 	for _, entry := range d.AllPanels() {

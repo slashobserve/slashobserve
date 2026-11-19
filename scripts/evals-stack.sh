@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_DIR="$ROOT/deploy/compose"
 PROJECT="slashobserve-evals"
+WARM_MAX_AGE=1800
+WARM_WAIT=600
 
 export SLASHOBSERVE_HOST_PORT="${SLASHOBSERVE_EVALS_PORT:-28080}"
 export SLASHOBSERVE_DEX_HOST_PORT="${SLASHOBSERVE_EVALS_DEX_PORT:-25556}"
@@ -21,10 +23,20 @@ usage() {
   cat <<EOF
 Usage: scripts/evals-stack.sh <command>
 
-  up [--k8s] replay   prepare fixtures and series, then boot the isolated ${PROJECT}
+  warm [--k8s] replay|<env-file>
+                      prepare fixtures and series and start every service except the server, without
+                      waiting for health, then return; 'up' of the same mode (replay or env file, with or
+                      without --k8s) adopts it within ${WARM_MAX_AGE}s and skips prepare, and resets
+                      the stack of any other warm start, so the synthetic history accumulates while the server image is built;
+                      it needs the shop image, not the server image
+  up [--k8s] [--no-history] replay
+                      prepare fixtures and series, then boot the isolated ${PROJECT}
                       stack on the replay provider; deploy/compose/.env is not read
-  up [--k8s] <env-file>
+  up [--k8s] [--no-history] <env-file>
                       the same, with the provider settings of the named env file
+  wait-history [--k8s]
+                      wait until the synthetic series hold the history a retime step needs;
+                      what 'up' without --no-history already waited for
   server [--k8s] <env-file>
                       recreate only the server with another env file, for matrix runs
   down                drop the volumes of ${PROJECT} only, and remove its containers
@@ -32,8 +44,11 @@ Usage: scripts/evals-stack.sh <command>
 
 up returns once Prometheus serves what the stack itself guarantees: node_uname_info for the node
 and node-exporter (synthetic) jobs, rates of node_cpu_seconds_total (node job) and the shop's
-http_requests_total, and the synth exporter.
+http_requests_total, the synth exporter, and the synth samples of the history a retime step needs.
 It waits for rates because they need two scrapes, about 30 seconds after the containers are healthy.
+That history counts from Prometheus starting to scrape, so it is the last thing up waits for.
+--no-history returns without them; wait-history then blocks until they are there, so work that
+does not read them can run while they accumulate.
 Series that depend on the host kernel, such as node_pressure_*, are never waited for.
 With --k8s only the node job and the shop are required, because the synthetic series are empty.
 
@@ -113,11 +128,27 @@ join_cluster() {
   "$ROOT/scripts/demo-k8s.sh" connect "${PROJECT}-server-1"
 }
 
-SERIES_TIMEOUT=300
-# A retime step is bounded to 2 minutes (retimeMaxStep in evals/runner/tasks.go); a shorter history leaves no point with data.
+SERIES_TIMEOUT_SLACK=120
 SYNTH_SCRAPE_SECONDS=15
-RETIME_HISTORY_MINUTES=3
-SYNTH_HISTORY_SAMPLES=$((RETIME_HISTORY_MINUTES * 60 / SYNTH_SCRAPE_SECONDS))
+NODE_SERIES_QUERIES=(
+  'count(node_uname_info{job="node"})'
+  'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
+  'count(rate(http_requests_total[1m]))'
+)
+SYNTH_SERIES_QUERIES=(
+  'count(node_uname_info{job="node-exporter"})'
+  'count(up{job="synth"} == 1)'
+)
+
+synth_history_minutes() {
+  cat "$SLASHOBSERVE_EVALS_RUNTIME_DIR/synth/history-minutes"
+}
+
+synth_history_query() {
+  local minutes
+  minutes="$(synth_history_minutes)"
+  printf 'count_over_time(up{job="synth"}[%sm]) >= %s' "$minutes" $((minutes * 60 / SYNTH_SCRAPE_SECONDS))
+}
 
 series_served() {
   curl -fsS --max-time 5 --get "http://127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}/api/v1/query" --data-urlencode "query=$1" 2>/dev/null |
@@ -125,19 +156,9 @@ series_served() {
 }
 
 wait_for_series() {
-  local queries=(
-    'count(node_uname_info{job="node"})'
-    'count(rate(node_cpu_seconds_total{job="node"}[1m]))'
-    'count(rate(http_requests_total[1m]))'
-  )
-  if [[ "$K8S" == 0 ]]; then
-    queries+=(
-      'count(node_uname_info{job="node-exporter"})'
-      'count(up{job="synth"} == 1)'
-      "count_over_time(up{job=\"synth\"}[${RETIME_HISTORY_MINUTES}m]) >= ${SYNTH_HISTORY_SAMPLES}"
-    )
-  fi
-  local deadline=$((SECONDS + SERIES_TIMEOUT)) missing query
+  local queries=("$@")
+  local timeout=$((SERIES_TIMEOUT_SLACK + $(synth_history_minutes) * 60))
+  local deadline=$((SECONDS + timeout)) missing query
   while true; do
     missing=()
     for query in "${queries[@]}"; do
@@ -145,7 +166,7 @@ wait_for_series() {
     done
     [[ ${#missing[@]} -eq 0 ]] && return 0
     if ((SECONDS >= deadline)); then
-      printf 'evals-stack: Prometheus on port %s did not serve these within %ss:\n' "$SLASHOBSERVE_PROMETHEUS_HOST_PORT" "$SERIES_TIMEOUT" >&2
+      printf 'evals-stack: Prometheus on port %s did not serve these within %ss:\n' "$SLASHOBSERVE_PROMETHEUS_HOST_PORT" "$timeout" >&2
       printf '  %s\n' "${missing[@]}" >&2
       return 1
     fi
@@ -153,27 +174,118 @@ wait_for_series() {
   done
 }
 
-cmd_up() {
-  if [[ "${1:-}" == "--k8s" ]]; then
-    use_k8s
-    shift
+warm_marker() {
+  printf '%s/warm' "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
+}
+
+stack_mode() {
+  printf 'k8s=%s %s' "$K8S" "$1"
+}
+
+warm_adoptable() {
+  local running server
+  running="$(compose "$ENV_FILE" ps --status running -q prometheus </dev/null)" || return 1
+  server="$(compose "$ENV_FILE" ps --all -q server </dev/null)" || return 1
+  [[ -n "$running" && -z "$server" ]]
+}
+
+take_warm() {
+  local marker mode="$1" waited=0 state="" stamp="" warmed=""
+  marker="$(warm_marker)"
+  while [[ -f "$marker" ]]; do
+    read -r state stamp warmed <"$marker" || true
+    [[ "$state" == pending && "$stamp" =~ ^[0-9]+$ ]] && kill -0 "$stamp" 2>/dev/null && ((waited++ < WARM_WAIT)) || break
+    sleep 1
+  done
+  [[ -f "$marker" ]] || return 1
+  rm -f "$marker"
+  if [[ "$state" == ready && "$stamp" =~ ^[0-9]+$ && "$warmed" == "$mode" ]] &&
+    (($(date +%s) - stamp <= WARM_MAX_AGE)) && warm_adoptable; then
+    return 0
   fi
-  [[ $# -eq 1 ]] || die "up needs 'replay' or an env file"
-  select_provider "$1"
-  cd "$ROOT"
+  compose /dev/null down -v --remove-orphans
+  return 1
+}
+
+warm_services() {
+  local names
+  if [[ "$BUILD" == 1 ]]; then
+    names="$(compose_build "$ENV_FILE" config --services)"
+  else
+    names="$(compose "$ENV_FILE" config --services)"
+  fi
+  grep -vx server <<<"$names"
+}
+
+prepare_runtime() {
   go run ./evals/runner prepare --out "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
   if [[ "$K8S" == 1 ]]; then
     printf '[]\n' >"$SLASHOBSERVE_EVALS_RUNTIME_DIR/synth/series.json"
   fi
+}
+
+cmd_warm() {
+  local services=() marker
+  while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+      --k8s) use_k8s ;;
+      *) die "unknown option $1" ;;
+    esac
+    shift
+  done
+  [[ $# -eq 1 ]] || die "warm needs 'replay' or an env file"
+  select_provider "$1"
+  cd "$ROOT"
+  marker="$(warm_marker)"
+  mkdir -p "$SLASHOBSERVE_EVALS_RUNTIME_DIR"
+  printf 'pending %s %s\n' "$$" "$(stack_mode "$1")" >"$marker"
+  prepare_runtime || { rm -f "$marker"; die "the fixtures and series were not prepared"; }
+  mapfile -t services < <(warm_services)
+  [[ ${#services[@]} -gt 0 ]] || { rm -f "$marker"; die "docker compose config listed no services"; }
+  if [[ "$BUILD" == 1 ]]; then
+    compose_build "$ENV_FILE" up -d --build "${services[@]}" || { rm -f "$marker"; die "the warm services did not start"; }
+  else
+    compose "$ENV_FILE" up -d --no-build --pull missing "${services[@]}" || { rm -f "$marker"; die "the warm services did not start"; }
+  fi
+  printf 'ready %s %s\n' "$(date +%s)" "$(stack_mode "$1")" >"$marker"
+}
+
+cmd_up() {
+  local wait_history=1 queries
+  while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+      --k8s) use_k8s ;;
+      --no-history) wait_history=0 ;;
+      *) die "unknown option $1" ;;
+    esac
+    shift
+  done
+  [[ $# -eq 1 ]] || die "up needs 'replay' or an env file"
+  select_provider "$1"
+  cd "$ROOT"
+  take_warm "$(stack_mode "$1")" || prepare_runtime
   if [[ "$BUILD" == 1 ]]; then
     compose_build "$ENV_FILE" up -d --build --wait --wait-timeout 300
   else
     compose "$ENV_FILE" up -d --no-build --pull missing --wait --wait-timeout 300
   fi
-  wait_for_series || die "the stack is up but its metrics are not ready"
+  queries=("${NODE_SERIES_QUERIES[@]}")
+  if [[ "$K8S" == 0 ]]; then
+    queries+=("${SYNTH_SERIES_QUERIES[@]}")
+    if [[ "$wait_history" == 1 ]]; then queries+=("$(synth_history_query)"); fi
+  fi
+  wait_for_series "${queries[@]}" || die "the stack is up but its metrics are not ready"
   if [[ "$K8S" == 1 ]]; then
     join_cluster
   fi
+}
+
+cmd_wait_history() {
+  if [[ "${1:-}" == "--k8s" ]]; then
+    return 0
+  fi
+  [[ $# -eq 0 ]] || die "wait-history takes no argument but --k8s"
+  wait_for_series "$(synth_history_query)" || die "the synthetic series did not reach $(synth_history_minutes) minutes of history"
 }
 
 cmd_server() {
@@ -191,6 +303,7 @@ cmd_server() {
 
 cmd_down() {
   printf 'evals-stack: dropping the volumes of compose project %s only\n' "$PROJECT"
+  rm -f "$(warm_marker)"
   compose /dev/null down -v --remove-orphans
 }
 
@@ -201,8 +314,10 @@ cmd_status() {
 command="${1:-}"
 [[ $# -gt 0 ]] && shift
 case "$command" in
+  warm) cmd_warm "$@" ;;
   up) cmd_up "$@" ;;
   server) cmd_server "$@" ;;
+  wait-history) cmd_wait_history "$@" ;;
   down) cmd_down ;;
   status) cmd_status ;;
   -h | --help | help) usage ;;
