@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,7 +48,6 @@ const (
 	partialSeenWindow   = time.Minute
 	idFieldName         = "ID"
 	indexFieldName      = "Index"
-	bodyFieldName       = "Body"
 )
 
 type Sessions interface {
@@ -564,28 +564,28 @@ func (s *seenRows) prune() {
 }
 
 func rowKey(f datasource.Frame, row int) string {
-	var id, index, body, ns string
-	labels := fmt.Sprint(f.Labels)
+	var id, index string
+	var rest strings.Builder
+	rest.WriteString(fmt.Sprint(f.Labels))
 	for _, field := range f.Fields {
 		if row >= len(field.Values) {
 			continue
 		}
-		text, _ := field.Values[row].(string)
 		switch field.Name {
 		case idFieldName:
-			id = text
+			id, _ = field.Values[row].(string)
 		case indexFieldName:
-			index = text
-		case bodyFieldName:
-			body = text
-		case datasource.TimeNsFieldName:
-			ns = text
+			index, _ = field.Values[row].(string)
 		}
+		rest.WriteString("\x00")
+		rest.WriteString(field.Name)
+		rest.WriteString("=")
+		rest.WriteString(fmt.Sprint(field.Values[row]))
 	}
 	if id != "" {
 		return index + "\x00" + id
 	}
-	return labels + "\x00" + ns + "\x00" + body
+	return rest.String()
 }
 
 func keepRows(f datasource.Frame, keep []bool) datasource.Frame {

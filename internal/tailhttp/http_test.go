@@ -698,3 +698,26 @@ func TestTailOnADatasourceWithLagKeepsTwoStreamsThatShareATimeAndALine(t *testin
 		t.Fatalf("lines = %v, want one from each stream", got)
 	}
 }
+
+func TestTailOnADatasourceWithLagKeepsARepeatedLineWhenTheFrameHasNoNanosecondField(t *testing.T) {
+	repeated := func(offsets ...int64) datasource.Frame {
+		f := linesFrame(false, offsets...)
+		f.Fields = f.Fields[:2]
+		for i := range f.Fields[1].Values {
+			f.Fields[1].Values[i] = "connection refused"
+		}
+		return f
+	}
+	f := laggedFixture(t,
+		response{frames: []datasource.Frame{repeated(atSeconds(10)...)}},
+		response{frames: []datasource.Frame{repeated(atSeconds(10, 12)...)}},
+	)
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	if got := bodiesOf(t, s.next(t)); len(got) != 1 {
+		t.Fatalf("first poll lines = %v, want one", got)
+	}
+	if got := bodiesOf(t, s.next(t)); len(got) != 1 {
+		t.Fatalf("second poll lines = %v, want only the repeat at the later time", got)
+	}
+}
