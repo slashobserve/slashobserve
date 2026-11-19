@@ -26,6 +26,7 @@ import {
   usePatchPanels,
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
+import { useDeletedBy } from "@/dashboards/live/deleted-store"
 import { useLatestPermissions } from "@/dashboards/permissions"
 import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
@@ -72,6 +73,7 @@ import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
 import { withNewPanel } from "./new-panel"
 import { parsePanelJson } from "./panel-json"
 import { PreviewSection } from "./preview-section"
+import { saveBlockedText } from "./save-blocked"
 import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
@@ -291,6 +293,8 @@ export default function PanelEditor({
   const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
+  const deleted = useDeletedBy(dashboardId) !== undefined
+  const blockedText = saveBlockedText({ deleted, jsonBlocked, runBlocked })
   const titleOk = current.title === undefined || current.title.trim() !== ""
   const queriesOk = isDataPanel(current)
     ? current.queries.every(
@@ -305,8 +309,7 @@ export default function PanelEditor({
     validate !== undefined &&
     dirty &&
     !locked &&
-    !jsonBlocked &&
-    !runBlocked &&
+    blockedText === null &&
     queriesOk &&
     titleOk
 
@@ -510,13 +513,11 @@ export default function PanelEditor({
     jsonGuard.current = guard
   }, [])
 
-  const footerSummary = jsonBlocked
-    ? "Fix the JSON to save."
-    : runBlocked
-      ? "Fix the query to save."
-      : propose
-        ? `${changeSummary(changes)}. An editor merges your change`
-        : changeSummary(changes)
+  const footerSummary =
+    blockedText ??
+    (propose
+      ? `${changeSummary(changes)}. An editor merges your change`
+      : changeSummary(changes))
   let saveLabel = `Save as version ${latestVersion + 1}`
   if (propose) saveLabel = "Propose change"
   else if (newer > 0) saveLabel = `Save my changes as version ${newer + 1}`

@@ -219,6 +219,7 @@ When nothing overlaps, it says so.
 The button saves at once: it applies your change to that version's copy of the panel, and if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
 If someone deletes the dashboard while you have unsaved changes, the editor stays open with your draft and says "<name> deleted this dashboard. Your draft stays here until you close the editor, but it cannot be saved. Copy what you need from the JSON view."
+The save button is disabled and the footer says "This dashboard was deleted, so this draft cannot be saved."
 When you close the editor, or when you had no unsaved changes, the page reads "Dashboard deleted" instead of "Dashboard not found".
 
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.
