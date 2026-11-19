@@ -30,7 +30,7 @@ const (
 
 	defaultWindow = time.Hour
 
-	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times as UTC with the word UTC, and never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list metrics with scope set to the service's selector; a failed read is not empty. Reads are refused once the run's limit of model calls passes without a save, so run every read together, and put a read you were refused in the finding as not read. Cite an earlier observation you read by its title and /o/<id> link. A request on Home to change a dashboard that already exists cannot be done there: find the dashboard with list_dashboards, and when exactly one matches, say so in the finding and pass its id as ask_on_dashboard_id; when none or several match, list the candidates by title and pass none."
+	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it once, after checking each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times in the zone the context names, with its label, else with the word UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list metrics with scope set to the service's selector; a failed read is not empty. Reads are refused once the run's limit of model calls passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by its title and /o/<id> link. A request on Home to change a dashboard that already exists cannot be done there: find the dashboard with list_dashboards, and when exactly one matches, say so in the finding and pass its id as ask_on_dashboard_id; when none or several match, list the candidates by title and pass none."
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
 	propFindingFrom     = `"from":{"type":"string","description":"Start of the window the evidence shows, such as now-1h or an RFC 3339 time."}`
@@ -97,6 +97,9 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.Title(run.Prompt))
 	if err != nil || !ok {
 		return res, err
+	}
+	if res, wrong := zoneMismatch(save.Markdown, run.TimeZone, save.From, save.To); wrong {
+		return res, nil
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)

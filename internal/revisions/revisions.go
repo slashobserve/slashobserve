@@ -230,6 +230,8 @@ type Request struct {
 	ThreadContext string
 
 	From, To *time.Time
+
+	TimeZone string
 }
 
 func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {

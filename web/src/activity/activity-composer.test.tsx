@@ -98,6 +98,7 @@ async function renderComposer({
       canInvestigate={canInvestigate}
       placeholder="Write a comment"
       range={{ from: "now-1h", to: "now" }}
+      timeZone="Asia/Kolkata"
     />,
     { route: { path: "/", url: "/" } }
   )
@@ -297,6 +298,7 @@ describe("ActivityComposer", () => {
               canInvestigate={canInvestigate}
               placeholder="Write a comment"
               range={{ from: "now-1h", to: "now" }}
+              timeZone="Asia/Kolkata"
             />
           </QueryClientProvider>
         )
@@ -314,6 +316,45 @@ describe("ActivityComposer", () => {
       )
     }
   )
+
+  it("sends an investigation with the time zone the dashboard shows", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    function Harness() {
+      const [draft, setDraft] = useState("")
+      return (
+        <QueryClientProvider client={testQueryClient()}>
+          <ActivityComposer
+            dashboardId="dashboard"
+            latestVersion={3}
+            panels={panels}
+            target={{ kind: "dashboard" }}
+            onTargetChange={vi.fn()}
+            draft={draft}
+            onDraftChange={setDraft}
+            gate={{ kind: "allowed" }}
+            canInvestigate
+            placeholder="Write a comment"
+            range={{ from: "now-1h", to: "now" }}
+            timeZone="Asia/Kolkata"
+          />
+        </QueryClientProvider>
+      )
+    }
+    render(<Harness />)
+    await user.type(
+      screen.getByRole("textbox", { name: "Comment or request" }),
+      "/investigate why is latency up"
+    )
+    await user.click(screen.getByRole("button", { name: "Investigate" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/observe")
+    expect(posts[0].body).toMatchObject({
+      kind: "investigate",
+      prompt: "why is latency up",
+      time_zone: "Asia/Kolkata",
+    })
+  })
 
   it("disables sending while the draft is empty", async () => {
     const { form } = await renderComposer({ draft: "  " })

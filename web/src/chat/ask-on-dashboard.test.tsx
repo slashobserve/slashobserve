@@ -61,6 +61,7 @@ describe("AskOnDashboard", () => {
     expect(await sent.json()).toEqual({
       prompt,
       dashboard_id: askOn.dashboard_id,
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
     await waitFor(() => expect(router?.state.location.pathname).toBe("/c/r2"))
   })

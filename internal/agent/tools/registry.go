@@ -201,6 +201,7 @@ type Run struct {
 	Build         bool
 	Attempt       int
 	From, To      time.Time
+	TimeZone      string
 }
 
 type runKey struct{}

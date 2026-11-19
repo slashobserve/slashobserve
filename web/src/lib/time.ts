@@ -263,6 +263,13 @@ function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
+export function agentZone(timezone: string | undefined): string {
+  if (timezone === "utc") return "UTC"
+  return timezone === "browser"
+    ? browserZone()
+    : (knownZone(timezone) ?? browserZone())
+}
+
 export function requestZone(timezone: string | undefined): string | undefined {
   return timezone === "browser" ? browserZone() : undefined
 }

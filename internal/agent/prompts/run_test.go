@@ -122,7 +122,7 @@ func TestBuildAnswersATermAndNamesWhatTheServerCannotDo(t *testing.T) {
 func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
-		"write every time as UTC with the word UTC",
+		"write every time in the time zone the context names, with its label, or with the word UTC when it names none",
 		"When several pods or services tie, lead with the one with the most errors, then the first by name",
 		"Call `list_annotations`",
 		"read it with `get_observation`, and cite it by its title and `/o/<id>`",

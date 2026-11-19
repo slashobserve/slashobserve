@@ -17,6 +17,7 @@ import {
   refreshToMs,
   relativeTickMs,
   requestZone,
+  agentZone,
   resolveTime,
   timeOptionsFor,
   zonedDateTime,
@@ -426,6 +427,19 @@ describe("requestZone", () => {
     for (const timezone of [undefined, "utc", "Asia/Kolkata"]) {
       expect(requestZone(timezone)).toBeUndefined()
     }
+  })
+})
+
+describe("agentZone", () => {
+  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+  it.each([
+    ["no dashboard zone", undefined, browser],
+    ["a browser dashboard", "browser", browser],
+    ["a UTC dashboard", "utc", "UTC"],
+    ["a named zone", "Asia/Kolkata", "Asia/Kolkata"],
+    ["an unknown zone", "Mars/Olympus", browser],
+  ])("gives the agent the zone the page shows for %s", (_, timezone, want) => {
+    expect(agentZone(timezone)).toBe(want)
   })
 })
 

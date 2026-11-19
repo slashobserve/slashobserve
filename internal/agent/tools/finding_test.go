@@ -447,6 +447,21 @@ func TestSaveFindingAddsTheCouldNotCheckNoteFromTheRun(t *testing.T) {
 	}
 }
 
+func TestSaveFindingWantsTimesInThePersonsZone(t *testing.T) {
+	r := newFindingRig(t)
+	run, _ := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
+	run.TimeZone = "Asia/Kolkata"
+	ctx := WithRun(auth.WithPrincipal(t.Context(), editorCaller), run)
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(findingBody("Checkout errors rose at 14:22 UTC.")))
+	if err != nil || !res.IsError || errorCode(t, res) != codeWrongZone {
+		t.Fatalf("a UTC finding for a person in Kolkata: %#v, %v", res.Content, err)
+	}
+	res, err = r.registry.Call(ctx, nameSaveFinding, []byte(findingBody("Checkout errors rose at 19:52 IST.")))
+	if err != nil || res.IsError {
+		t.Fatalf("a finding in IST: %#v, %v", res.Content, err)
+	}
+}
+
 func TestATooLongFindingStepSaysWhatToDoInWords(t *testing.T) {
 	_, res, ok := findingMarkdown(strings.Repeat("word ", 401), 0, nil)
 	if ok || res.Step != "Finding was 401 words, over the 400 word limit; the agent must shorten it" {
