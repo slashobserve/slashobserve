@@ -8,6 +8,12 @@
       "label": "Environment",
       "type": "custom",
       "options": ["prod", "staging"]
+    },
+    {
+      "name": "target",
+      "type": "custom",
+      "options": ["javascript:alert(1)"],
+      "hide": "variable"
     }
   ],
   "links": [
@@ -37,7 +43,7 @@
           "url": "/dashboards?q=${env}",
           "newTab": true
         },
-        { "title": "Bad", "url": "javascript:alert(1)" }
+        { "title": "Bad", "url": "${target}" }
       ]
     },
     {

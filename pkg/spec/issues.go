@@ -38,6 +38,7 @@ const (
 	CodeZoomOrder              IssueCode = "zoom_order"
 	CodeActionHeaderNotAllowed IssueCode = "action_header_not_allowed"
 	CodeUnknownTimezone        IssueCode = "unknown_timezone"
+	CodeUnsafeLink             IssueCode = "unsafe_link"
 )
 
 const maxIssues = 50

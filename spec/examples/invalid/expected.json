@@ -43,6 +43,7 @@
     { "file": "semantic/min-not-below-max.json", "layer": "semantic", "code": "min_max_order", "path": "/panels/0/max" },
     { "file": "semantic/time-range-order.json", "layer": "semantic", "code": "time_range_order", "path": "/time" },
     { "file": "semantic/unknown-timezone.json", "layer": "semantic", "code": "unknown_timezone", "path": "/timezone" },
+    { "file": "semantic/unsafe-link-scheme.json", "layer": "semantic", "code": "unsafe_link", "path": "/panels/0/links/0/url" },
     { "file": "semantic/duplicate-key.json", "layer": "semantic", "code": "duplicate_key", "path": "/panels/0/title" },
     { "file": "semantic/duplicate-query-ref.json", "layer": "semantic", "code": "duplicate_query_ref", "path": "/panels/0/queries/1/ref" },
     { "file": "semantic/expression-unknown-ref.json", "layer": "semantic", "code": "unknown_query_ref", "path": "/panels/0/queries/1/expression/math" },
