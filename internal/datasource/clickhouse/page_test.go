@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"errors"
 	"math"
 	"reflect"
 	"strings"
@@ -110,9 +111,16 @@ func TestPageInfoFromCounts(t *testing.T) {
 	}
 }
 
+func plainPage(t *testing.T, text string, page int) (*pageConn, error) {
+	t.Helper()
+	conn := &pageConn{fakeConn: &fakeConn{columns: stringColumns("Body"), rows: [][]any{{"line"}}}, total: 41}
+	_, _, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest(text, page, 20))
+	return conn, err
+}
+
 func TestPageReadsAQueryWithoutTimestampAsAPlainTable(t *testing.T) {
 	conn := &pageConn{fakeConn: &fakeConn{columns: stringColumns("Body"), rows: [][]any{{"line"}}}, total: 41}
-	frames, info, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest("SELECT Body FROM otel_logs", 2, 20))
+	frames, info, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest("SELECT Body FROM otel_logs WHERE $__timeFilter(EventTime)", 2, 20))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +133,46 @@ func TestPageReadsAQueryWithoutTimestampAsAPlainTable(t *testing.T) {
 	if len(conn.statements) != 3 {
 		t.Fatalf("statements = %q, want the probe, the page and the count", conn.statements)
 	}
-	if strings.Contains(conn.statements[1], "ORDER BY") || strings.Contains(conn.statements[1], "Timestamp") || strings.Contains(conn.statements[2], "Timestamp") {
+	if strings.Contains(conn.statements[1], "`Timestamp`") || strings.Contains(conn.statements[2], "`Timestamp`") {
 		t.Fatalf("a plain page filters or orders by Timestamp: %q", conn.statements[1:])
+	}
+}
+
+func TestPageRefusesAPlainQueryThatDoesNotReadTheRange(t *testing.T) {
+	for _, text := range []string{
+		"SELECT ServiceName, count() AS n FROM otel_logs GROUP BY ServiceName",
+		"SELECT Body FROM otel_logs",
+		"SELECT Body FROM otel_logs WHERE EventTime > now() - INTERVAL 1 DAY",
+	} {
+		conn, err := plainPage(t, text, 1)
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter") {
+			t.Fatalf("%q: err = %v, want an invalid query error naming the macro", text, err)
+		}
+		if len(conn.statements) != 1 {
+			t.Fatalf("%q: statements = %q, want only the column probe", text, conn.statements)
+		}
+	}
+}
+
+func TestPageKeepsTheOrderAndLimitOfAPlainQuery(t *testing.T) {
+	text := "SELECT ServiceName, count() AS n FROM otel_logs WHERE $__timeFilter(EventTime) GROUP BY ServiceName ORDER BY n DESC LIMIT 5;"
+	conn, err := plainPage(t, text, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range conn.statements[1:] {
+		if !strings.Contains(sql, "ORDER BY n DESC LIMIT 5") || strings.Contains(sql, ";") {
+			t.Fatalf("statement lost the person's ORDER BY and LIMIT: %q", sql)
+		}
+	}
+}
+
+func TestPageOrdersAPlainQueryWithoutOrderByAcrossPages(t *testing.T) {
+	conn, err := plainPage(t, "SELECT ServiceName, count() AS n FROM otel_logs WHERE $__timeFilter(EventTime) GROUP BY ServiceName", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(conn.statements[1], "ORDER BY ALL") {
+		t.Fatalf("page query = %q, want a total order so pages do not overlap", conn.statements[1])
 	}
 }

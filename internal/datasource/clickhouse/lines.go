@@ -2,17 +2,21 @@ package clickhouse
 
 import (
 	"context"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	linesNeedTimestamp  = "the query must select Timestamp"
+	plainNeedsRange     = "a query without Timestamp must read the time range, for example WHERE $__timeFilter(EventTime)"
 	parameterTimeFormat = "2006-01-02 15:04:05.000000000"
 )
 
@@ -50,7 +54,7 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	if err != nil {
 		return err
 	}
-	inner, err := volumeInner(text)
+	inner, ordered, err := splitOrdering(text)
 	if err != nil {
 		return err
 	}
@@ -68,6 +72,12 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	}
 	if !timed && needTimestamp {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
+	}
+	if !timed {
+		if !readsRange(q.Text) {
+			return datasource.Errorf(datasource.ErrInvalidQuery, "%s", plainNeedsRange)
+		}
+		inner = plainSource(text, ordered)
 	}
 	if err := read(ctx, inner, lim, extra, timed); err != nil {
 		return mapError(ctx, err, timeout)
@@ -95,6 +105,29 @@ func (d *Datasource) selectsTimestamp(ctx context.Context, inner string, lim dat
 		}
 	}
 	return false, nil
+}
+
+func plainSource(text string, ordered bool) string {
+	text = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text), ";"))
+	if ordered {
+		return text
+	}
+	return "SELECT * FROM (\n" + text + "\n)\nORDER BY ALL"
+}
+
+var rangeMacros = map[string]bool{
+	"__timeFilter": true, "__timeFilter_ms": true, "__dateFilter": true, "__dateTimeFilter": true, "__dt": true,
+	"__fromTime": true, "__toTime": true, "__fromTime_ms": true, "__toTime_ms": true, "__from": true, "__to": true,
+}
+
+func readsRange(text string) bool {
+	refs, err := spec.ScanQuery(text)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(spec.FlattenReferences(refs), func(r spec.Reference) bool {
+		return r.Kind == spec.MacroRef && rangeMacros[r.Name]
+	})
 }
 
 func plainQuery(inner string) string {
