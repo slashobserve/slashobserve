@@ -18,7 +18,7 @@ func TestTraceQLProblemSaysWhereAndWhat(t *testing.T) {
 		},
 		{
 			"an unclosed second line", "parse error at line 2, col 12: syntax error: unexpected with", "{ a = 1 &&\n  b = \"x\"", "{ a = 1 &&\n  b = \"x\" with (most_recent=true)",
-			"Invalid TraceQL at line 2, column 10 after \"{ a = 1 &&\n  b = \"x\"\": unexpected end of the query.",
+			`Invalid TraceQL at line 2, column 10 after "{ a = 1 &&\n  b = \"x\"": unexpected end of the query.`,
 		},
 		{
 			"end of query", "invalid TraceQL query: parse error at line 1, col 9: syntax error: unexpected $end", "{ name =", "",
@@ -30,11 +30,11 @@ func TestTraceQLProblemSaysWhereAndWhat(t *testing.T) {
 		},
 		{
 			"second line", "parse error at line 2, col 5: syntax error: unexpected }", "{ name = \"a\"\n  && }", "",
-			"Invalid TraceQL at line 2, column 5 after \"{ name = \"a\"\n  &&\": unexpected }.",
+			`Invalid TraceQL at line 2, column 5 after "{ name = \"a\"\n  &&": unexpected }.`,
 		},
 		{
 			"long query keeps the tail", "parse error at line 1, col 65: syntax error: unexpected }", `{ resource.service.name = "checkout" && span.http.status_code = }`, "",
-			`Invalid TraceQL at line 1, column 65 after "...ut" && span.http.status_code =": unexpected }.`,
+			`Invalid TraceQL at line 1, column 65 after "...ut\" && span.http.status_code =": unexpected }.`,
 		},
 	}
 	for _, tc := range cases {

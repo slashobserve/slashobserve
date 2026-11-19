@@ -31,7 +31,7 @@ func traceQLProblem(err error, query, sent string) error {
 	}
 	after := ""
 	if text := excerptBefore(query, line, column); text != "" {
-		after = ` after "` + text + `"`
+		after = " after " + strconv.Quote(text)
 	}
 	return datasource.Errorf(ue.Kind, "Invalid TraceQL at line %d, column %d%s: %s.", line, column, after, detail)
 }
