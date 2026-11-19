@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"maps"
+	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
@@ -69,7 +70,44 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	if err != nil {
 		return nil, err
 	}
+	if len(values) == 0 {
+		if values, err = d.structuredValues(ctx, req.Label, params); err != nil {
+			return nil, err
+		}
+	}
 	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+}
+
+func (d *Datasource) structuredValues(ctx context.Context, label string, params url.Values) ([]string, error) {
+	params = maps.Clone(params)
+	if params.Get("query") == "" {
+		names, err := d.getStrings(ctx, "/loki/api/v1/labels", params)
+		if err != nil {
+			return nil, err
+		}
+		name, ok := sampleLabel(names)
+		if !ok {
+			return nil, nil
+		}
+		params.Set("query", "{"+name+`=~".+"}`)
+	}
+	status, raw, err := d.fetch(ctx, "/loki/api/v1/detected_field/"+url.PathEscape(label)+"/values", params)
+	if err != nil {
+		return nil, err
+	}
+	if status == http.StatusNotFound {
+		return nil, nil
+	}
+	if err := statusError(status, raw); err != nil {
+		return nil, err
+	}
+	var body struct {
+		Values []string `json:"values"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, unreadable()
+	}
+	return body.Values, nil
 }
 
 func (d *Datasource) discoverSample(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
