@@ -4,7 +4,11 @@ description: The unit, component, API and browser suites, coverage and the docs 
 ---
 
 SlashObserve has four test suites and one docs check.
-CI runs all of them on every pull request: the `check` job runs the unit and component tests, the lint and the docs lint, and the `e2e-api` and `e2e-browser` jobs run the two end-to-end suites once `check` passes.
+CI runs on every pull request only the jobs its changed files need, and every job on `main`.
+`scripts/ci-changes.sh` makes that decision from the list of changed files: a web-only change skips the Go jobs, a Go-only change skips the web jobs, a change to unit tests or docs skips the two end-to-end suites, and the replay evals run when the agent, its prompts, the Spec or the stack change.
+A draft pull request runs neither end-to-end suite nor the replay evals; marking it ready for review runs them.
+The `check` job passes when every lint, test and build job that ran has passed.
+The dependency audit runs daily and on a pull request that changes a lockfile or `go.mod`.
 
 ## Unit tests
 
@@ -38,8 +42,15 @@ The suite runs the replay model provider, so it never calls a live model.
 ## Browser suite
 
 `make e2e-browser` reuses the running e2e stack, or boots one, and runs the Playwright specs in `web/e2e` against it.
+`make e2e-up` does only the boot, so a job can start the stack while it installs the browsers.
+The browser suite needs no API suite first and no more history than the boot waits for.
 Reuse does not rebuild the images, so run `make e2e` again after a code change.
 `make e2e-all` runs the API suite and then the browser suite.
+
+`make e2e-warm` starts every service except the server and returns, so the Prometheus history and the shop run while the server image builds.
+The next `make e2e`, `make e2e-up` or `make e2e-browser` within 30 minutes adopts that stack, starts the server and waits for health as usual.
+With no warm stack they reset and boot as before.
+The warm step needs the shop image, never the server image.
 
 Set `PW_SHARD` to run one part of the suite, for example `PW_SHARD=2/4 make e2e-browser` for the second of four.
 List what a shard holds without a stack with `PW_SHARD=2/4 bunx playwright test --list` from `web/`.
@@ -92,7 +103,7 @@ It writes the Go profile to `coverage.out` and prints its `total:` line, and it 
 Read the Go profile per function with `go tool cover -func=coverage.out`.
 Generated web files (`*.gen.ts`) are left out of the web numbers.
 
-The CI `check` job runs with `COVER=1` and adds the Go and web statement coverage to its job summary.
+CI does not measure coverage.
 
 ## Docs lint
 

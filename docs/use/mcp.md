@@ -85,6 +85,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `search_workspace` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
+| `update_annotation` | Viewer |
 | `update_block` | Viewer |
 | `update_dashboard` | Viewer |
 | `update_observation` | Viewer |
@@ -284,6 +285,7 @@ It is the one annotation tool the built-in agent also has, and only in investiga
 `create_annotation` is available over MCP only and adds one, with the fields of `POST /api/v1/annotations`: `text`, `tags`, `time_from` and `time_to`, and `dashboard_id` and `panel_id` to place it on one dashboard or panel.
 Without `dashboard_id` the annotation shows on every dashboard.
 It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id` needs the Editor role.
+`update_annotation` changes the `text`, the `tags` or both of an annotation by `id`; only the caller who added it, or an Admin, may, and its time and dashboard never change.
 No tool deletes an annotation; people do that in the web app or through the HTTP API.
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.

@@ -50,7 +50,7 @@ func TestSavedSearchesCommands(t *testing.T) {
 				testSavedSearch + " logs Checkout errors Payments loki 2026-01-02T03:04Z",
 				"traces Slow checkout My Dashboards tempo",
 			},
-			wantErr: "more results: --cursor more",
+			wantErr: "More: --cursor more",
 		},
 		{
 			name:       "list by kind and folder",
@@ -89,6 +89,7 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantPath:   "/api/v1/saved-searches",
 			wantBody:   `{"datasource_uid":"loki","filters":{"columns":["timestamp","line"]},"folder_id":"` + testFolderTarget + `","from":"now-1h","kind":"logs","query":"{app=\"checkout\"}","title":"Checkout errors","to":"now"}`,
 			wantExact:  new(savedURL + "\n"),
+			wantErr:    "Saved search ",
 		},
 		{
 			name:       "save a trace search sends its filters",
@@ -98,6 +99,7 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantPath:   "/api/v1/saved-searches",
 			wantBody:   `{"datasource_uid":"tempo","filters":{"errors":true,"max":"2s","min":"250ms","service":"checkout","span":"POST /pay"},"from":"now-6h","kind":"traces","title":"Slow","to":"now-1h"}`,
 			wantExact:  new(savedURL + "\n"),
+			wantErr:    "Saved search ",
 		},
 		{
 			name:       "save with --quiet still prints the address",
@@ -125,6 +127,7 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantPath:   "/api/v1/saved-searches",
 			wantBody:   `{"datasource_uid":"prom","filters":{"mode":"table"},"from":"now-1h","kind":"metrics","query":"up","title":"Rate","to":"now"}`,
 			wantExact:  new(savedURL + "\n"),
+			wantErr:    "Saved search ",
 		},
 		{
 			name:     "save refuses a mode on a logs search",
@@ -333,5 +336,18 @@ func TestSavedSearchesCommands(t *testing.T) {
 				t.Fatalf("stderr %q lacks %q", stderr.String(), tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestSavingASearchPrintsTheIDBesideTheAddress(t *testing.T) {
+	reply := `{"id":"` + testDashboard + `","kind":"logs","title":"t","datasource_uid":"loki","folder":{"title":"General"},"url":"https://observe.example.com/logs/loki?q=x"}`
+	args := []string{"saved-searches", "save", "--kind", "logs", "--title", "t", "--datasource", "loki", "--query", "x"}
+	_, stdout, stderr, code := runAgainst(t, 201, reply, args...)
+	if code != 0 || stdout != "https://observe.example.com/logs/loki?q=x\n" || !strings.Contains(stderr, "Saved search "+testDashboard) {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	_, _, stderr, _ = runAgainst(t, 201, reply, append([]string{"-q"}, args...)...)
+	if strings.Contains(stderr, "Saved search") {
+		t.Fatalf("-q still printed the id: %q", stderr)
 	}
 }

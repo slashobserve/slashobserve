@@ -16,17 +16,14 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/gin-gonic/gin"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/provision"
 )
 
 func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
 	if err != nil {
 		t.Fatal(err)

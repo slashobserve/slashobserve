@@ -243,7 +243,7 @@ func (a *app) metricsLabelsCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.printNames(out, list.Labels, "No labels found", list.Truncated)
+				return a.printNameList(out, list.Labels, "No labels found", list.Truncated)
 			})
 		},
 	}
@@ -264,7 +264,7 @@ func (a *app) metricsValuesCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return a.printNames(out, list.Values, "No values found", list.Truncated)
+				return a.printNameList(out, list.Values, "No values found", list.Truncated)
 			})
 		},
 	}
@@ -307,7 +307,7 @@ func getNames(ctx context.Context, c *client, uid, path string, query url.Values
 	return c.get(ctx, "datasources/"+url.PathEscape(uid)+"/"+path, query)
 }
 
-func (a *app) printNames(out *output, names []string, empty string, truncated bool) error {
+func (a *app) printNameList(out *output, names []string, empty string, truncated bool) error {
 	if len(names) == 0 {
 		out.notice("%s", empty)
 		return nil

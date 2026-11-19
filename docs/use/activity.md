@@ -14,7 +14,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | --- | --- | --- |
 | Dashboard | `dashboard.created`, `dashboard.version_created`, `dashboard.restored` | A version is saved: the first one, a later one, or a restore of an older one. |
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
-| Annotation | `annotation.created`, `annotation.deleted` | An [annotation](annotations.md) is added or removed. |
+| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
