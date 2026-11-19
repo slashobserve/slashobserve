@@ -213,7 +213,7 @@ test("rejects a query the server cannot run", async ({
   expectLoggedOnce(consoleErrors, 422)
 })
 
-test("rejects a query that returns no data as a problem of the panel", async ({
+test("offers to save a query that returns no data anyway", async ({
   page,
   request,
   consoleErrors,
@@ -225,12 +225,15 @@ test("rejects a query that returns no data as a problem of the panel", async ({
   await replaceQuery(page, 'up{job="does-not-exist"}')
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  const rejected = sheet(page)
+  const notice = sheet(page)
     .getByRole("alert")
-    .filter({ hasText: "This panel was rejected:" })
-  await expect(rejected).toContainText(
+    .filter({ hasText: "query returned no data" })
+  await expect(notice).toContainText(
     "query returned no data for the dashboard's default time range and variable values"
   )
+  await expect(
+    notice.getByRole("button", { name: "Save anyway" })
+  ).toBeVisible()
   await expect(
     sheet(page).getByRole("group", { name: "Query A" }).getByRole("alert")
   ).toHaveCount(0)
@@ -607,7 +610,7 @@ function mockSaveResponse(
   issues: Array<{ path: string; code: string; message: string }>,
   held?: Promise<void>
 ) {
-  return page.route(/\/versions$/, async (route) => {
+  return page.route(/\/dashboards\/[^/]+\/panels$/, async (route) => {
     if (route.request().method() !== "POST") return route.fallback()
     await held
     return route.fulfill({
@@ -656,7 +659,7 @@ test("offers Try again when the server cannot check the query right now", async 
   await expect(sheet(page).getByText("prometheus returned 502")).toHaveCount(0)
   expectLoggedOnce(consoleErrors, 422)
 
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
   await sheet(page).getByRole("button", { name: "Try again" }).click()
   await expect(page.getByText("Saved version 2")).toBeVisible()
   const rps = (await getDashboard(request, id)).spec.panels.find(
@@ -687,7 +690,7 @@ test("retries a transient failure with the edits made after it", async ({
     sheet(page).getByText("The panel could not be checked right now.")
   ).toBeVisible()
   expectLoggedOnce(consoleErrors, 422)
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
 
   await sheet(page)
     .getByRole("textbox", { name: "Title" })
@@ -817,7 +820,7 @@ test("applies to the newer version when Try again follows a transient error", as
     sheet(page).getByText("The panel could not be checked right now.")
   ).toBeVisible()
   expectLoggedOnce(consoleErrors, 422)
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
 
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
