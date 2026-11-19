@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
+import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDatasources } from "@/datasources/queries"
 import { DashboardsSection } from "@/home/dashboards-section"
 import { askLink } from "@/lib/links"
@@ -27,6 +28,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
+  const queryClient = useQueryClient()
   const { choose, pending } = useChooseExample()
   const navigate = useNavigate()
   const openSent = useOpenSent()
@@ -35,9 +37,31 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
   })
-  const revising = dashboards.data?.find(
-    (dashboard) => dashboard.id === dashboardId && dashboard.canEdit
+  const listed = dashboards.data?.find(
+    (dashboard) => dashboard.id === dashboardId
   )
+  const lookup = useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId ?? ""),
+    enabled:
+      dashboardId !== undefined &&
+      !dashboards.isPending &&
+      listed === undefined,
+    retry: false,
+  })
+  const found =
+    listed ??
+    (lookup.data === undefined
+      ? undefined
+      : {
+          id: lookup.data.dashboard.id,
+          title: lookup.data.dashboard.title,
+          canEdit: lookup.data.dashboard.permissions.edit,
+        })
+  const revising = found?.canEdit === true ? found : undefined
+  const resolving =
+    dashboardId !== undefined &&
+    found === undefined &&
+    (dashboards.isPending || lookup.isLoading)
   const agentReady = !agent.isPending && agent.data?.available !== false
   const agentOff = agent.data?.available === false
 
@@ -51,6 +75,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
         <ChatComposer
           key={initialPrompt ?? ""}
           rows={3}
+          disabled={resolving}
           dashboardId={revising?.id}
           dashboardTitle={revising?.title}
           onRemoveDashboard={

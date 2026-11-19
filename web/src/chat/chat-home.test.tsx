@@ -24,7 +24,10 @@ function dashboard(id: string, title: string, edit: boolean) {
   return { id, title, permissions: { comment: true, edit } }
 }
 
-function render(props: { initialPrompt?: string; dashboardId?: string } = {}) {
+function render(
+  props: { initialPrompt?: string; dashboardId?: string } = {},
+  withTitles = true
+) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
     available: true,
@@ -35,12 +38,14 @@ function render(props: { initialPrompt?: string; dashboardId?: string } = {}) {
   queryClient.setQueryData(datasourceKeys.list(), {
     datasources: [{ uid: "prom", type: "prometheus", healthy: true }],
   })
-  queryClient.setQueryData(dashboardKeys.titles(), {
-    dashboards: [
-      dashboard(theirs, "Someone else's board", false),
-      dashboard(mine, "Payments", true),
-    ],
-  })
+  if (withTitles) {
+    queryClient.setQueryData(dashboardKeys.titles(), {
+      dashboards: [
+        dashboard(theirs, "Someone else's board", false),
+        dashboard(mine, "Payments", true),
+      ],
+    })
+  }
   return renderWithProviders(<ChatHome {...props} />, {
     queryClient,
     route: { path: "/", url: "/" },
@@ -115,5 +120,33 @@ describe("ChatHome", () => {
     expect(
       screen.queryByRole("list", { name: "Context" })
     ).not.toBeInTheDocument()
+  })
+
+  it("looks up a dashboard to revise that the title list does not hold", async () => {
+    const far = "5c1d9a40-7a3b-4e2f-8c55-0d9e6b2a1f33"
+    fetch.mockImplementation(async (request) => {
+      const path = new URL(request.url).pathname
+      const body = path.endsWith(`/dashboards/${far}`)
+        ? {
+            dashboard: dashboard(far, "Archive", true),
+            version: { version: 1 },
+          }
+        : { dashboards: [dashboard(mine, "Payments", true)] }
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    })
+    render({ initialPrompt: "Add a row", dashboardId: far })
+    const chips = await screen.findByRole("list", { name: "Context" })
+    expect(chips).toHaveTextContent("Archive")
+  })
+
+  it("keeps the box closed while the dashboard to revise is being found", async () => {
+    fetch.mockImplementation(() => new Promise<Response>(() => undefined))
+    render({ initialPrompt: "Add a row", dashboardId: mine }, false)
+    expect(
+      await screen.findByRole("textbox", { name: "Message the agent" })
+    ).toBeDisabled()
   })
 })
