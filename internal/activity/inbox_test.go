@@ -622,3 +622,24 @@ func TestInboxShowsRunTextOnlyOnTheRequestersFailedRun(t *testing.T) {
 		t.Fatalf("run excerpts = %v, want only Mia's own run quoted", excerpts)
 	}
 }
+
+func TestInboxDropsMentionsAndRepliesWhoseCommentWasDeleted(t *testing.T) {
+	r := newRig(t)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	r.mention(t, o, thread, ola, mia.ID)
+	r.reply(t, o, thread, ola)
+	before := r.inbox(t, mia, ViewForYou)
+	if len(before.Items) == 0 || before.UnreadCount == 0 {
+		t.Fatalf("before the delete: %d items, unread %d, want some", len(before.Items), before.UnreadCount)
+	}
+
+	r.db.Exec(t, `DELETE FROM thread_messages WHERE thread_id = $1::uuid`, thread.String())
+
+	for _, view := range []View{ViewForYou, ViewEverything} {
+		page := r.inbox(t, mia, view)
+		if len(page.Items) != 0 || page.UnreadCount != 0 {
+			t.Fatalf("%s after the delete: %d items, unread %d, want none", view, len(page.Items), page.UnreadCount)
+		}
+	}
+}

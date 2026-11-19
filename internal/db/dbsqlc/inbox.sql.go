@@ -119,6 +119,8 @@ FROM (
   LEFT JOIN inbox_cursors ic ON ic.user_id = $1::uuid
   LEFT JOIN inbox_item_states st ON st.user_id = $1::uuid AND st.seq = a.seq
   WHERE NOT inbox_superseded(a, $1::uuid)
+    AND (a.type NOT IN ('thread.mentioned', 'thread.replied') OR a.data->>'message_id' IS NULL
+      OR EXISTS (SELECT 1 FROM thread_messages m WHERE m.id = (a.data->>'message_id')::uuid))
     AND a.xid < pg_snapshot_xmin(pg_current_snapshot())
     AND a.created_at >= now() - interval '30 days'
     AND (a.folder_id = ANY($4::uuid[])
@@ -163,6 +165,8 @@ CROSS JOIN LATERAL (SELECT inbox_reason(a, $1::uuid, $2::uuid[], $3::text) AS re
 LEFT JOIN inbox_cursors ic ON ic.user_id = $1::uuid
 LEFT JOIN inbox_item_states st ON st.user_id = $1::uuid AND st.seq = a.seq
 WHERE NOT inbox_superseded(a, $1::uuid)
+  AND (a.type NOT IN ('thread.mentioned', 'thread.replied') OR a.data->>'message_id' IS NULL
+    OR EXISTS (SELECT 1 FROM thread_messages m WHERE m.id = (a.data->>'message_id')::uuid))
   AND a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND a.created_at >= now() - interval '30 days'
   AND (a.folder_id = ANY($4::uuid[])

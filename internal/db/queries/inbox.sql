@@ -8,6 +8,8 @@ CROSS JOIN LATERAL (SELECT inbox_reason(a, @reader_id::uuid, @editable::uuid[], 
 LEFT JOIN inbox_cursors ic ON ic.user_id = @reader_id::uuid
 LEFT JOIN inbox_item_states st ON st.user_id = @reader_id::uuid AND st.seq = a.seq
 WHERE NOT inbox_superseded(a, @reader_id::uuid)
+  AND (a.type NOT IN ('thread.mentioned', 'thread.replied') OR a.data->>'message_id' IS NULL
+    OR EXISTS (SELECT 1 FROM thread_messages m WHERE m.id = (a.data->>'message_id')::uuid))
   AND a.xid < pg_snapshot_xmin(pg_current_snapshot())
   AND a.created_at >= now() - interval '30 days'
   AND (a.folder_id = ANY(@folders::uuid[])
@@ -31,6 +33,8 @@ FROM (
   LEFT JOIN inbox_cursors ic ON ic.user_id = @reader_id::uuid
   LEFT JOIN inbox_item_states st ON st.user_id = @reader_id::uuid AND st.seq = a.seq
   WHERE NOT inbox_superseded(a, @reader_id::uuid)
+    AND (a.type NOT IN ('thread.mentioned', 'thread.replied') OR a.data->>'message_id' IS NULL
+      OR EXISTS (SELECT 1 FROM thread_messages m WHERE m.id = (a.data->>'message_id')::uuid))
     AND a.xid < pg_snapshot_xmin(pg_current_snapshot())
     AND a.created_at >= now() - interval '30 days'
     AND (a.folder_id = ANY(@folders::uuid[])
