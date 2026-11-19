@@ -2,12 +2,16 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
 )
 
@@ -137,5 +141,63 @@ func TestAListRouteServesDocumentedParametersAndSelections(t *testing.T) {
 		if rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil)); rec.Code != http.StatusOK {
 			t.Errorf("%s: %d %s", target, rec.Code, rec.Body.String())
 		}
+	}
+}
+
+func sampleQueryValue(t *testing.T, ref *openapi3.SchemaRef) string {
+	t.Helper()
+	s := ref.Value
+	switch {
+	case s.Default != nil:
+		return fmt.Sprint(s.Default)
+	case len(s.Enum) > 0:
+		return fmt.Sprint(s.Enum[0])
+	case s.Type.Is("integer"), s.Type.Is("number"):
+		if s.Min != nil {
+			return strconv.FormatFloat(*s.Min, 'f', -1, 64)
+		}
+		return "1"
+	case s.Type.Is("boolean"):
+		return "true"
+	case s.Type.Is("array"):
+		return sampleQueryValue(t, s.Items)
+	case s.Format == "uuid":
+		return "3f2b8a52-6f2e-4a54-9a3e-0d4d3a6a9b11"
+	case s.Format == "date-time":
+		return "2026-01-02T03:04:05Z"
+	}
+	return strings.Repeat("a", max(int(s.MinLength), 1))
+}
+
+func TestEveryDocumentedParameterOfEveryListRouteIsAccepted(t *testing.T) {
+	params, err := documentedQueryParams()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for key, route := range params {
+		if !route.list {
+			continue
+		}
+		method, template, _ := strings.Cut(key, " ")
+		for _, p := range route.parameters {
+			query := url.Values{p.Name: {sampleQueryValue(t, p.Schema)}}
+			for _, required := range route.parameters {
+				if required.Required {
+					query.Set(required.Name, sampleQueryValue(t, required.Schema))
+				}
+			}
+			req := httptest.NewRequest(method, template+"?"+query.Encode(), nil)
+			if unknown := params.unknown(method, template, query); len(unknown) > 0 {
+				t.Errorf("%s: documented parameter %s is unknown", key, p.Name)
+			}
+			if message := route.refusal(req, nil); message != "" {
+				t.Errorf("%s ?%s: %s", key, query.Encode(), message)
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no list route parameters were walked")
 	}
 }
