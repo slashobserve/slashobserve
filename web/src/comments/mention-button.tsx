@@ -161,7 +161,10 @@ export function MentionButton({
       if (result.kind === "close") now.close()
       else if (result.kind === "move")
         setMoved({ query: now.typed, index: result.index })
-      else now.insert(now.options[result.index])
+      else {
+        now.insert(now.options[result.index])
+        now.close()
+      }
     }
     element.addEventListener("keydown", onFieldKey)
     return () => element.removeEventListener("keydown", onFieldKey)
