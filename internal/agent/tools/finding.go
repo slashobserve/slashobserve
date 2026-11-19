@@ -34,7 +34,7 @@ const (
 	propFindingFrom     = `"from":{"type":"string","description":"Start of the window the evidence shows, such as now-1h or an RFC 3339 time."}`
 	propFindingTo       = `"to":{"type":"string","description":"End of the window the evidence shows, such as now or an RFC 3339 time."}`
 
-	propFindingAskOn    = `"ask_on_dashboard_id":{"type":"string","description":"On a request on Home that names no dashboard: the id of the one existing dashboard the request is about, so the change can be asked for on that dashboard."}`
+	propFindingAskOn = `"ask_on_dashboard_id":{"type":"string","description":"On a request on Home that names no dashboard: the id of the one existing dashboard the request is about, so the change can be asked for on that dashboard."}`
 
 	schemaSaveFinding = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `},"required":["markdown"],"additionalProperties":false}`
 )
