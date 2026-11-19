@@ -136,11 +136,15 @@ func referencesVariable(d *spec.Dashboard, name string) bool {
 	if err != nil {
 		return true
 	}
+	quoted, err := json.Marshal(name)
+	if err != nil {
+		return true
+	}
 	text := string(body)
 	return mentionsVariable(text, "${"+name, "}", ":") ||
 		mentionsVariable(text, "[["+name, "]]", ":") ||
 		mentionsVariable(text, "$"+name, "") ||
-		strings.Contains(text, `"repeat":"`+name+`"`)
+		strings.Contains(text, `"repeat":`+string(quoted))
 }
 
 func mentionsVariable(text, prefix string, closers ...string) bool {

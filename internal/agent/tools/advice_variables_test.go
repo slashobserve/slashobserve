@@ -76,3 +76,12 @@ func TestADatasourceVariableIsNeverReportedUnused(t *testing.T) {
 		t.Fatalf("notes = %q", a.Notes)
 	}
 }
+
+func TestARepeatOnAVariableNameWithAQuoteStillCountsAsAUse(t *testing.T) {
+	after := variableDashboard(`up`)
+	after.Variables = append(after.Variables, spec.Variable{Name: `a"b`, Type: spec.QueryVariable})
+	after.Panels[0].Repeat = `a"b`
+	if !referencesVariable(after, `a"b`) {
+		t.Fatal("repeat on a quoted name does not count as a use")
+	}
+}
