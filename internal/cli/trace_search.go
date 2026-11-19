@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"cmp"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -71,46 +73,133 @@ func tempoTraceQL(f traceFilters) string {
 	return "{" + strings.Join(conditions, " && ") + "}"
 }
 
-func clickhouseTraceSearch(f traceFilters) string {
-	var conditions strings.Builder
-	if f.Service != "" {
-		conditions.WriteString(" AND otel_traces.ServiceName = " + sqlQuoted(f.Service))
-	}
-	if f.Span != "" {
-		conditions.WriteString(" AND otel_traces.SpanName = " + sqlQuoted(f.Span))
-	}
-	if ns, ok := parseDuration(f.Min); ok {
-		conditions.WriteString(" AND otel_traces.Duration >= " + strconv.FormatInt(ns, 10))
-	}
-	if ns, ok := parseDuration(f.Max); ok {
-		conditions.WriteString(" AND otel_traces.Duration <= " + strconv.FormatInt(ns, 10))
-	}
-	if f.Errors {
-		conditions.WriteString(" AND lower(StatusCode) IN ('error', 'status_code_error')")
-	}
-	return "SELECT TraceId, min(Timestamp) AS StartTime, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors\n" +
-		"FROM otel_traces\n" +
-		"WHERE $__timeFilter(Timestamp)" + conditions.String() + "\n" +
-		"GROUP BY TraceId\n" +
-		"ORDER BY StartTime DESC\n" +
-		"LIMIT " + strconv.Itoa(traceSearchLimit)
+const clickhouseErrorStatus = "lower(StatusCode) IN ('error', 'status_code_error')"
+
+const clickhouseTraceTime = "otel_traces.Timestamp"
+
+func clickhouseTraceRoot(column string) string {
+	root := "otel_traces.ParentSpanId = ''"
+	return "if(countIf(" + root + ") > 0, argMinIf(otel_traces." + column + ", " + clickhouseTraceTime + ", " + root + "), argMin(otel_traces." + column + ", " + clickhouseTraceTime + "))"
 }
 
-func traceSearchRows(frames []frame) [][]string {
-	var rows [][]string
+func clickhouseTraceConditions(f traceFilters) []string {
+	var conditions []string
+	if f.Service != "" {
+		conditions = append(conditions, "otel_traces.ServiceName = "+sqlQuoted(f.Service))
+	}
+	if f.Span != "" {
+		conditions = append(conditions, "otel_traces.SpanName = "+sqlQuoted(f.Span))
+	}
+	if ns, ok := parseDuration(f.Min); ok {
+		conditions = append(conditions, "otel_traces.Duration >= "+strconv.FormatInt(ns, 10))
+	}
+	if ns, ok := parseDuration(f.Max); ok {
+		conditions = append(conditions, "otel_traces.Duration <= "+strconv.FormatInt(ns, 10))
+	}
+	if f.Errors {
+		conditions = append(conditions, clickhouseErrorStatus)
+	}
+	return conditions
+}
+
+func clickhouseTraceSearch(f traceFilters) string {
+	joined := strings.Join(clickhouseTraceConditions(f), " AND ")
+	matching, scope := "", ""
+	if joined != "" {
+		matching = ", countIf(" + joined + ") AS Matching"
+		scope = " AND TraceId IN (SELECT TraceId FROM otel_traces WHERE $__timeFilter(otel_traces.Timestamp) AND " + joined + ")"
+	}
+	return "SELECT TraceId, min(" + clickhouseTraceTime + ") AS StartTime, min(" + clickhouseTraceTime + ") AS Timestamp, " + clickhouseTraceRoot("ServiceName") + " AS ServiceName, " + clickhouseTraceRoot("SpanName") + " AS SpanName, toUInt64(max(toUnixTimestamp64Nano(" + clickhouseTraceTime + ") + toInt64(otel_traces.Duration)) - min(toUnixTimestamp64Nano(" + clickhouseTraceTime + "))) AS Duration, count() AS Spans, countIf(" + clickhouseErrorStatus + ") AS Errors" + matching + "\n" +
+		"FROM otel_traces\n" +
+		"WHERE $__timeFilter(otel_traces.Timestamp)" + scope + "\n" +
+		"GROUP BY TraceId"
+}
+
+type traceSort struct {
+	column     string
+	descending bool
+}
+
+var traceSortColumns = map[string]string{
+	"start":    "StartTime",
+	"service":  "ServiceName",
+	"span":     "SpanName",
+	"duration": "Duration",
+	"spans":    "Spans",
+	"errors":   "Errors",
+}
+
+func parseTraceSort(text string) (*traceSort, error) {
+	if text == "" {
+		return nil, nil
+	}
+	key, descending := strings.CutPrefix(text, "-")
+	column, ok := traceSortColumns[key]
+	if !ok {
+		return nil, usagef("--sort takes start, service, span, duration, spans or errors, with a minus in front for descending, such as -duration; got %q", text)
+	}
+	return &traceSort{column: column, descending: descending}, nil
+}
+
+func (s traceSort) param() string {
+	if s.descending {
+		return "-" + s.column
+	}
+	return s.column
+}
+
+type traceRecord struct {
+	cells   []string
+	numbers map[string]float64
+	words   map[string]string
+}
+
+func (r traceRecord) compare(other traceRecord, column string) int {
+	if column == "ServiceName" || column == "SpanName" {
+		return strings.Compare(r.words[column], other.words[column])
+	}
+	return cmp.Compare(r.numbers[column], other.numbers[column])
+}
+
+func traceSearchRecords(frames []frame) []traceRecord {
+	var records []traceRecord
 	for _, f := range frames {
 		started, service, span := fieldIndex(f, "StartTime"), fieldIndex(f, "ServiceName"), fieldIndex(f, "SpanName")
 		duration, spans, errs := fieldIndex(f, "Duration"), fieldIndex(f, "Spans"), fieldIndex(f, "Errors")
 		for row := range f.rows() {
-			rows = append(rows, []string{
-				startedText(f, started, row),
-				text(f.stringAt(service, row)),
-				text(f.stringAt(span, row)),
-				durationText(f, duration, row),
-				text(f.stringAt(spans, row)),
-				text(f.stringAt(errs, row)),
+			startMs, _ := f.numberAt(started, row)
+			spanCount, _ := f.numberAt(spans, row)
+			errorCount, _ := f.numberAt(errs, row)
+			records = append(records, traceRecord{
+				cells: []string{
+					startedText(f, started, row),
+					text(f.stringAt(service, row)),
+					text(f.stringAt(span, row)),
+					durationText(f, duration, row),
+					text(f.stringAt(spans, row)),
+					text(f.stringAt(errs, row)),
+				},
+				numbers: map[string]float64{"StartTime": startMs, "Duration": nanosAt(f, duration, row), "Spans": spanCount, "Errors": errorCount},
+				words:   map[string]string{"ServiceName": f.stringAt(service, row), "SpanName": f.stringAt(span, row)},
 			})
 		}
+	}
+	return records
+}
+
+func traceSearchRows(frames []frame, clientSort *traceSort) [][]string {
+	records := traceSearchRecords(frames)
+	if clientSort != nil {
+		slices.SortStableFunc(records, func(a, b traceRecord) int {
+			if clientSort.descending {
+				return b.compare(a, clientSort.column)
+			}
+			return a.compare(b, clientSort.column)
+		})
+	}
+	rows := make([][]string, len(records))
+	for i, record := range records {
+		rows[i] = record.cells
 	}
 	return rows
 }

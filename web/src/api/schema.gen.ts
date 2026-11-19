@@ -1169,7 +1169,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -1257,7 +1257,7 @@ export interface paths {
         };
         /**
          * Read one trace whole from a Tempo or ClickHouse datasource.
-         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
         put?: never;
@@ -4634,6 +4634,8 @@ export interface components {
             truncated: boolean;
             /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
             partial: boolean;
+            /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
+            note?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
@@ -5354,6 +5356,12 @@ export interface components {
             id: string;
             name: string;
         };
+        FindingAskOn: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The dashboard's title, for a button such as "Ask this on Checkout". */
+            title: string;
+        };
         Finding: {
             /** Format: uuid */
             id: string;
@@ -5377,6 +5385,8 @@ export interface components {
              * @description The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
              */
             folder_id: string | null;
+            /** @description The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do. Start an ordinary revision with the same prompt and this `dashboard_id` to make the change. Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null. */
+            ask_on: components["schemas"]["FindingAskOn"] | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;
@@ -5416,9 +5426,9 @@ export interface components {
             columns?: string[];
             service?: string;
             span?: string;
-            /** @description The shortest duration, such as `250ms` or `2s`. */
+            /** @description The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long. */
             min?: string;
-            /** @description The longest duration, such as `250ms` or `2s`. */
+            /** @description The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer. */
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
@@ -9545,8 +9555,10 @@ export interface operations {
                      * @default 1
                      */
                     page?: number;
-                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused. */
+                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused, and so is one whose `sort` differs from the one sent with it. */
                     cursor?: string;
+                    /** @description A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first. */
+                    sort?: string;
                 };
             };
         };
@@ -9580,7 +9592,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;

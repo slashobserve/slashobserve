@@ -234,6 +234,7 @@ export type ExploreParams = {
   pageSize?: number
   page?: number
   cursor?: string
+  sort?: string
 }
 
 export type ContextParams = {

@@ -5,6 +5,7 @@ import {
   durationScale,
   durationTicks,
   durationTickText,
+  fittedWindow,
   nudgeSelection,
   scatterPoints,
   selectedRows,
@@ -137,6 +138,43 @@ describe("windowTicks", () => {
 
   it("is empty for an empty range", () => {
     expect(windowTicks({ start: 5, end: 5 }, 6)).toEqual([])
+  })
+
+  it("steps by seconds in a window of a few seconds", () => {
+    const start = Date.UTC(2026, 10, 7, 13, 17, 1)
+    const end = Date.UTC(2026, 10, 7, 13, 17, 7)
+    expect(windowTicks({ start, end }, 6)).toEqual([
+      Date.UTC(2026, 10, 7, 13, 17, 1),
+      Date.UTC(2026, 10, 7, 13, 17, 2),
+      Date.UTC(2026, 10, 7, 13, 17, 3),
+      Date.UTC(2026, 10, 7, 13, 17, 4),
+      Date.UTC(2026, 10, 7, 13, 17, 5),
+      Date.UTC(2026, 10, 7, 13, 17, 6),
+      Date.UTC(2026, 10, 7, 13, 17, 7),
+    ])
+  })
+})
+
+describe("fittedWindow", () => {
+  it("spans the rows' start times with a margin", () => {
+    const rows = [
+      row({ traceId: "a", start: 10_000 }),
+      row({ traceId: "b", start: 30_000 }),
+      row({ traceId: "c", start: null }),
+    ]
+    expect(fittedWindow(rows)).toEqual({ start: 9000, end: 31_000 })
+  })
+
+  it("keeps a minimum width when every trace starts together", () => {
+    expect(fittedWindow([row({ traceId: "a", start: 5000 })])).toEqual({
+      start: 4500,
+      end: 5500,
+    })
+  })
+
+  it("is null without a start time", () => {
+    expect(fittedWindow([row({ traceId: "a" })])).toBeNull()
+    expect(fittedWindow([])).toBeNull()
   })
 })
 
