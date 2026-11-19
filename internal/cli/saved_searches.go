@@ -175,8 +175,8 @@ func (a *app) savedSearchesSaveCommand() *cobra.Command {
 	flags.StringSliceVar(&opts.columns, "columns", nil, "logs only: the visible columns, comma separated")
 	flags.StringVar(&opts.service, "service", "", "traces only: the service name")
 	flags.StringVar(&opts.span, "span", "", "traces only: the span name")
-	flags.StringVar(&opts.min, "min", "", "traces only: the shortest duration, such as 250ms")
-	flags.StringVar(&opts.max, "max", "", "traces only: the longest duration, such as 2s")
+	flags.StringVar(&opts.min, "min", "", "traces only: the shortest span duration, such as 250ms")
+	flags.StringVar(&opts.max, "max", "", "traces only: the longest span duration, such as 2s")
 	flags.BoolVar(&opts.errors, "errors", false, "traces only: only traces with an error")
 	return cmd
 }

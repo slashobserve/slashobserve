@@ -385,3 +385,11 @@ func TestServiceAccountListShowsPresence(t *testing.T) {
 		t.Errorf("listener after five quiet minutes = %+v, want offline with its last_seen_at kept", got)
 	}
 }
+
+func TestServiceAccountNameRefusalSaysTheRuleInWords(t *testing.T) {
+	r := newProvisionRig(t)
+	rec := r.request(http.MethodPost, "/api/v1/service-accounts", `{"name":"QA-R2"}`, nil)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "lowercase letters, digits and hyphens") || strings.Contains(rec.Body.String(), "^[a-z0-9]") {
+		t.Fatalf("create = %d %s, want a 400 that names the rule in words", rec.Code, rec.Body)
+	}
+}

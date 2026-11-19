@@ -51,6 +51,9 @@ func TestRoutesAllowEveryRoleAtOrAboveTheFloor(t *testing.T) {
 				if body["code"] != forbidden.Code || body["error"] != forbidden.RoleMessage {
 					t.Errorf("%s on a %s route: body %v", have, floor, body)
 				}
+				if body["needed_role"] != string(floor) {
+					t.Errorf("%s on a %s route: needed_role %q", have, floor, body["needed_role"])
+				}
 			}
 		}
 	}

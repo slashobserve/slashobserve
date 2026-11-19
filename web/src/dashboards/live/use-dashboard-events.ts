@@ -4,7 +4,7 @@ import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
@@ -35,6 +35,7 @@ const eventNames = [
   "comment.created",
   "comment.updated",
   "revision.updated",
+  "proposal.updated",
 ] as const
 
 const hiddenGraceMs = 5 * 60_000
@@ -110,7 +111,8 @@ export function useDashboardEvents(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
         dashboardKeys.comments(dashboardId),
-        dashboardKeys.revisions(dashboardId)
+        dashboardKeys.revisions(dashboardId),
+        proposalKeys.all
       )
 
     function onVersionCreated(
@@ -187,7 +189,8 @@ export function useDashboardEvents(
           if (readyCount > 1) {
             invalidate(
               dashboardKeys.comments(dashboardId),
-              dashboardKeys.revisions(dashboardId)
+              dashboardKeys.revisions(dashboardId),
+              proposalKeys.all
             )
           }
           return
@@ -220,6 +223,9 @@ export function useDashboardEvents(
           return
         case "revision.updated":
           invalidate(dashboardKeys.revisions(dashboardId))
+          return
+        case "proposal.updated":
+          invalidate(proposalKeys.all)
           return
       }
     }

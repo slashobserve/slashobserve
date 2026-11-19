@@ -86,7 +86,7 @@ It draws the panel in the type you chose, and reports its state:
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
 A preview is limited like the agent's draft queries: 15 seconds, 200 series, 100,000 points and 1,000 rows, and it is never cached.
-It runs for the signed-in person only, not for service-account keys.
+It runs for a signed-in person who can comment on the dashboard, so a Commenter sees it too while suggesting an edit, and not for service-account keys.
 If the datasource is slow or busy, the preview says so ("The datasource is not answering.", "Too many requests right now. The preview runs again in a moment.", or "Query A failed: it took too long to run.") and the draft stays as it is.
 When the draft itself is at fault, such as a query that does not parse, the footer reads "Fix the query to save." and the save button is disabled until the preview runs again; a slow or unreachable datasource does not disable it.
 
@@ -195,7 +195,7 @@ Some edits are refused whatever the JSON says:
 
 The footer states what you changed: "No changes", "2 changes: query, title", "Fix the JSON to save." or "Fix the query to save.".
 While you type a title, the editor heading and the panel on the dashboard show it; the dashboard goes back to the saved title when you close the editor without saving.
-**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`.
+**Add a note** opens "Note for the timeline", up to 500 characters, which becomes the version's summary; without one the summary is `Changed <what> in "<title>"`, where `<title>` is the panel's saved title before your change.
 **Discard** drops the draft.
 
 The save button reads "Save as version 4" when you are on the latest version, 3.
@@ -209,8 +209,11 @@ A panel that was already unverified and still fails is kept, marked "Unverified"
 On success the toast reads "Saved version 4" and you return to the timeline.
 When the check cannot finish, the editor says "The panel could not be checked right now." and names each query and datasource that did not answer, for example "Query B on tempo: query timed out after 15s", with **Try again**.
 
-If someone saves a version while you edit, the editor says "Version 4 was saved while you were editing." and "Your changes stay here until you apply them to that version.", and the button becomes "Apply my changes to version 4".
-It applies your change to that version's copy of the panel; if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
+If someone saves a version while you edit, the editor says who saved it ("Ada saved version 4 while you were editing.") and the button becomes "Save my changes as version 5".
+The header keeps the title the panel had when you started, so it agrees with your draft.
+When you and that version changed the same things, the notice lists them, with both values for a title, datasource, panel type or unit ("title: version 4 has "A", yours is "B""); saving keeps your values for those and version 4's for everything else.
+When nothing overlaps, it says so.
+The button saves at once: it applies your change to that version's copy of the panel, and if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
 If someone deletes the dashboard while you have unsaved changes, the editor stays open with your draft and says "<name> deleted this dashboard. Your draft stays here until you close the editor, but it cannot be saved. Copy what you need from the JSON view."
 When you close the editor, or when you had no unsaved changes, the page reads "Dashboard deleted" instead of "Dashboard not found".

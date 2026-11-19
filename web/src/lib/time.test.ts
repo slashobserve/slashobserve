@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
+  browserZoneName,
   describeRange,
   displayZone,
   formatDateTime,
@@ -144,8 +145,16 @@ describe("formatting", () => {
     }
   })
 
+  it("words a window that ends before now by how long ago it was", () => {
+    expect(describeRange("now-3d", "now-2d")).toBe("3 days ago to 2 days ago")
+    expect(describeRange("now-20m", "now-5m")).toBe(
+      "20 minutes ago to 5 minutes ago"
+    )
+    expect(describeRange("now-1h", "now-1m")).toBe("1 hour ago to 1 minute ago")
+    expect(describeRange("now-3d", "now-0m")).toBe("now-3d to now-0m")
+  })
+
   it("falls back to the raw text for everything else", () => {
-    expect(describeRange("now-20m", "now-5m")).toBe("now-20m to now-5m")
     expect(describeRange("now-20m/m", "now")).toBe("now-20m/m to now")
     expect(describeRange("now-1d/d", "now")).toBe("now-1d/d to now")
     expect(describeRange("now/w", "now")).toBe("now/w to now")
@@ -176,6 +185,8 @@ describe("formatting", () => {
     const local = (...parts: [number, number, number, number, number]) =>
       new Date(...parts).toISOString()
 
+    const zone = (at: Date) => browserZoneName(at)
+
     afterEach(() => {
       vi.useRealTimers()
     })
@@ -184,21 +195,25 @@ describe("formatting", () => {
       vi.useFakeTimers({ now: new Date(2026, 10, 6, 18, 0) })
       expect(
         describeRange(local(2026, 10, 6, 13, 30), local(2026, 10, 6, 15, 0))
-      ).toBe("Nov 6, 13:30 to 15:00")
+      ).toBe(`Nov 6, 13:30 to 15:00 ${zone(new Date(2026, 10, 6, 15, 0))}`)
     })
 
     it("names both days for a range across midnight", () => {
       vi.useFakeTimers({ now: new Date(2026, 10, 7, 9, 0) })
       expect(
         describeRange(local(2026, 10, 6, 23, 15), local(2026, 10, 7, 1, 5))
-      ).toBe("Nov 6, 23:15 to Nov 7, 01:05")
+      ).toBe(
+        `Nov 6, 23:15 to Nov 7, 01:05 ${zone(new Date(2026, 10, 7, 1, 5))}`
+      )
     })
 
     it("adds the year when the range is not in the current year", () => {
       vi.useFakeTimers({ now: new Date(2026, 0, 2, 9, 0) })
       expect(
         describeRange(local(2025, 11, 31, 23, 0), local(2026, 0, 1, 1, 0))
-      ).toBe("Dec 31, 2025, 23:00 to Jan 1, 2026, 01:00")
+      ).toBe(
+        `Dec 31, 2025, 23:00 to Jan 1, 2026, 01:00 ${zone(new Date(2026, 0, 1, 1, 0))}`
+      )
     })
 
     it("reads times with and without a fraction", () => {
@@ -210,7 +225,7 @@ describe("formatting", () => {
           from.toISOString().replace(".000Z", "Z"),
           to.toISOString()
         )
-      ).toBe("Nov 6, 13:30 to 15:00")
+      ).toBe(`Nov 6, 13:30 to 15:00 ${zone(to)}`)
     })
   })
 

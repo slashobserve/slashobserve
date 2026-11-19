@@ -20,7 +20,17 @@ const (
 	maxWebhooks  = 20
 	maxNameRunes = 100
 	maxURLBytes  = 2048
+
+	maxWaitingCount = 100
 )
+
+const (
+	FormatGeneric = "generic"
+	FormatSlack   = "slack"
+	FormatTeams   = "teams"
+)
+
+const ownerMe = "me"
 
 const (
 	ReasonManual           = "manual"
@@ -36,6 +46,8 @@ var (
 	ErrNoSecretKey      = errors.New("SLASHOBSERVE_SECRET_KEY must be set to use webhooks")
 	ErrSecretUnreadable = errors.New("the signing secret cannot be read with the current SLASHOBSERVE_SECRET_KEY; rotate the webhook's secret")
 	ErrInvalidCursor    = errors.New("invalid cursor")
+	ErrNothingToSkip    = errors.New("the webhook is not holding back an event")
+	ErrBusy             = errors.New("the webhook is sending right now; try again in a few seconds")
 )
 
 type InvalidError struct {
@@ -48,6 +60,7 @@ type Webhook struct {
 	ID                  string
 	Name                string
 	URL                 string
+	Format              string
 	EventTypes          []string
 	Owner               actor.Actor
 	Enabled             bool
@@ -57,6 +70,13 @@ type Webhook struct {
 	NextAttemptAt       time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	Waiting             *Waiting
+	at                  cursor
+}
+
+type Waiting struct {
+	Count int
+	More  bool
 }
 
 func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
@@ -64,6 +84,7 @@ func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
 		ID:         row.ID.String(),
 		Name:       row.Name,
 		URL:        row.Url,
+		Format:     row.Format,
 		EventTypes: row.EventTypes,
 		Owner: actor.FromColumns(actor.Columns{
 			Kind: row.OwnerKind,
@@ -75,6 +96,7 @@ func webhookOf(row dbsqlc.GetWebhookRow) Webhook {
 		NextAttemptAt:       row.NextAttemptAt.Time.UTC(),
 		CreatedAt:           row.CreatedAt.Time.UTC(),
 		UpdatedAt:           row.UpdatedAt.Time.UTC(),
+		at:                  cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq},
 	}
 	if row.DisabledAt.Valid {
 		at := row.DisabledAt.Time.UTC()
@@ -93,21 +115,46 @@ func cleanName(raw string) (string, error) {
 }
 
 func cleanURL(raw string) (address, host string, err error) {
-	invalid := &InvalidError{Message: "url must be an https address on port 443 with a domain name, no user info and no fragment"}
 	text := strings.TrimSpace(raw)
-	if text == "" || len(text) > maxURLBytes {
-		return "", "", invalid
+	switch {
+	case text == "":
+		return "", "", urlProblem("url is required")
+	case len(text) > maxURLBytes:
+		return "", "", urlProblem("url can be at most %d characters", maxURLBytes)
 	}
 	u, err := url.Parse(text)
-	if err != nil || u.Scheme != "https" || u.User != nil || u.Fragment != "" || u.Opaque != "" || (u.Port() != "" && u.Port() != "443") {
-		return "", "", invalid
+	switch {
+	case err != nil:
+		return "", "", urlProblem("url is not a valid address; write it like https://hooks.example.com/slashobserve")
+	case u.Scheme != "https":
+		return "", "", urlProblem("url must start with https://, got %q", u.Scheme)
+	case u.Opaque != "" || u.Host == "":
+		return "", "", urlProblem("url must be a full address with a domain after https://")
+	case u.User != nil:
+		return "", "", urlProblem("url must not contain a user name or password")
+	case u.Fragment != "" || strings.Contains(text, "#"):
+		return "", "", urlProblem("url must not contain a # fragment")
+	case u.Port() != "" && u.Port() != "443":
+		return "", "", urlProblem("url must use port 443, got %s", u.Port())
 	}
 	host, err = domains.NormalizeHost(u.Hostname())
 	if err != nil {
-		return "", "", invalid
+		return "", "", urlProblem("url host: %s", err.Error())
 	}
 	u.Host = host
 	return u.String(), host, nil
+}
+
+func urlProblem(format string, args ...any) error {
+	return &InvalidError{Message: fmt.Sprintf(format, args...)}
+}
+
+func cleanFormat(raw string) (string, error) {
+	switch raw {
+	case FormatGeneric, FormatSlack, FormatTeams:
+		return raw, nil
+	}
+	return "", &InvalidError{Message: fmt.Sprintf("format must be %s, %s or %s", FormatGeneric, FormatSlack, FormatTeams)}
 }
 
 func cleanEventTypes(types []string) ([]string, error) {

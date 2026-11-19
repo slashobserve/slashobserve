@@ -145,6 +145,19 @@ describe("threadState", () => {
     ).toEqual({ kind: "note", text: "Finished, nothing changed" })
   })
 
+  it("reports a proposal instead of saying nothing changed", () => {
+    expect(
+      state({
+        request: request({
+          id: "r1",
+          status: "succeeded",
+          result_kind: "proposal",
+          result_version: null,
+        }),
+      })
+    ).toEqual({ kind: "proposal", requestId: "r1" })
+  })
+
   it("keeps the resolved copy over the no-change copy", () => {
     expect(
       state({

@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-import { freePanelId, gridBottom } from "@/logs/add-panel"
+import { freePanelId, gridBottom } from "@/dashboards/append-panel"
 import { allPanels, isDataPanel, type Dashboard, type DataPanel } from "@/spec"
 
 const newPanelSize = { w: 12, h: 8 }

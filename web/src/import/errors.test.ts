@@ -6,6 +6,7 @@ import {
   DatasourcesUnresolvedError,
   importFailure,
   previewFailure,
+  specFailure,
   toImportError,
 } from "./errors"
 
@@ -136,5 +137,29 @@ describe("toImportError", () => {
     })
     expect(error).not.toBeInstanceOf(DatasourcesUnresolvedError)
     expect(error.code).toBe("too_many_imports")
+  })
+})
+
+describe("specFailure", () => {
+  it("names the first problem of a Spec the server refuses", () => {
+    const error = new ApiError(422, "invalid_spec", "invalid", [
+      { path: "/panels/0", code: "required", message: "panel needs a title." },
+    ])
+    expect(specFailure(error)).toEqual({
+      message: "This Spec could not be saved: panel needs a title.",
+      retry: false,
+    })
+  })
+
+  it("explains a folder the person cannot create in", () => {
+    expect(specFailure(api(403, "forbidden")).message).toBe(
+      "You cannot create dashboards in this folder."
+    )
+  })
+
+  it("falls back to a plain message", () => {
+    expect(specFailure(new Error("x")).message).toBe(
+      "Could not create the dashboard. Try again."
+    )
   })
 })

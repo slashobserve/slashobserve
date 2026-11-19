@@ -151,7 +151,7 @@ func TestSearchReturnsOneRowPerTrace(t *testing.T) {
 		t.Fatal(err)
 	}
 	params := fake.last(t).params
-	if params.Get("q") != q.Text || params.Get("limit") != "20" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
+	if params.Get("q") != q.Text+newestHint || params.Get("limit") != "20" || params.Get("start") != "1793962800" || params.Get("end") != "1793966401" {
 		t.Fatalf("params = %v", params)
 	}
 	if len(frames) != 1 {
@@ -264,8 +264,13 @@ func TestUpstreamErrorsKeepTheirKind(t *testing.T) {
 		kind    error
 		message string
 	}{
-		{"parse error", 400, "invalid TraceQL query: parse error at line 1, col 26: syntax error: unexpected $end", datasource.ErrInvalidQuery, "invalid TraceQL query"},
-		{"range too long", 400, "range specified by start and end exceeds 168h0m0s. received start=1 end=2", datasource.ErrLimitExceeded, "exceeds 168h"},
+		{"parse error", 400, "invalid TraceQL query: parse error at line 1, col 26: syntax error: unexpected $end", datasource.ErrInvalidQuery, "unexpected"},
+		{"range too long", 400, "range specified by start and end exceeds 168h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 7 days at a time; pick a shorter time range"},
+		{"range too long in hours", 400, "range specified by start and end exceeds 36h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 36 hours at a time"},
+		{"range too long in minutes", 400, "range specified by start and end exceeds 30m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 30 minutes at a time"},
+		{"range too long in minutes past an hour", 400, "range specified by start and end exceeds 1h30m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 90 minutes at a time"},
+		{"range too long in one hour", 400, "range specified by start and end exceeds 1h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 1 hour at a time"},
+		{"range too long in one day", 400, "range specified by start and end exceeds 24h0m0s. received start=1 end=2", datasource.ErrRangeTooLong, "Tempo searches at most 1 day at a time"},
 		{"unauthorized", 401, "", datasource.ErrAuthFailed, "authentication failed (HTTP 401)"},
 		{"rate limited", 429, "", datasource.ErrUnavailable, "rate limited by upstream"},
 		{"gateway timeout", 504, "", datasource.ErrTimeout, "query timed out"},
@@ -376,13 +381,13 @@ func TestVariablesExpandIntoTraceQL(t *testing.T) {
 	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{ resource.service.name = "$svc" }`, Variables: vars}, lastHour); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.last(t).params.Get("q"); got != `{ resource.service.name = "a\"b" }` {
+	if got := fake.last(t).params.Get("q"); got != `{ resource.service.name = "a\"b" }`+newestHint {
 		t.Fatalf("q = %s", got)
 	}
 	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{ duration > $__interval && span.window = "$__range" }`}, lastHour); err != nil {
 		t.Fatal(err)
 	}
-	if got := fake.last(t).params.Get("q"); got != `{ duration > 3s && span.window = "3600s" }` {
+	if got := fake.last(t).params.Get("q"); got != `{ duration > 3s && span.window = "3600s" }`+newestHint {
 		t.Fatalf("q with macros = %s", got)
 	}
 	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `"${trace}"`, Variables: vars}, lastHour)
@@ -504,5 +509,28 @@ func TestSearchReportsJobsAndInspectedBytes(t *testing.T) {
 	want = datasource.FrameMeta{JobsDone: 6, JobsTotal: 6, InspectedBytes: 324888}
 	if got := *frames[0].Meta; got != want {
 		t.Fatalf("meta = %+v, want every job done and not partial", got)
+	}
+}
+
+const newestHint = " with (most_recent=true)"
+
+func TestSearchAsksTempoForTheNewestTracesUnlessTheQueryHasHints(t *testing.T) {
+	cases := map[string]string{
+		`{ status = error }`:                           `{ status = error }` + newestHint,
+		`{ status = error } | count() > 2`:             `{ status = error } | count() > 2` + newestHint,
+		`{ status = error } with (most_recent=false)`:  `{ status = error } with (most_recent=false)`,
+		`{ status = error } WITH ( sample=true )`:      `{ status = error } WITH ( sample=true )`,
+		`{ span.db.statement =~ ".*with (nolock).*" }`: `{ span.db.statement =~ ".*with (nolock).*" }` + newestHint,
+		"{ name = \"a \\\" with (b\" }":                `{ name = "a \" with (b" }` + newestHint,
+		"{ name = `with (x)` }":                        "{ name = `with (x)` }" + newestHint,
+	}
+	for text, want := range cases {
+		ds, fake := serve(t, map[string]reply{"/api/search": {0, `{"traces":[]}`}})
+		if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, lastHour); err != nil {
+			t.Fatal(err)
+		}
+		if got := fake.last(t).params.Get("q"); got != want {
+			t.Errorf("%s sent %s, want %s", text, got, want)
+		}
 	}
 }

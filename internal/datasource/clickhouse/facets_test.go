@@ -26,6 +26,8 @@ func facetReq(query string, fields []string, limit int) datasource.FacetRequest 
 
 const facetInner = "SELECT Timestamp, SeverityText, Body, ServiceName, TraceId, SpanId, LogAttributes FROM otel_logs WHERE (Timestamp >= fromUnixTimestamp64Milli(toInt64(1793962800000), 'UTC') AND Timestamp <= fromUnixTimestamp64Milli(toInt64(1793966400000), 'UTC')) "
 
+const facetBounded = "SELECT * FROM (\n" + facetInner + "\n)\nWHERE (Timestamp >= fromUnixTimestamp64Milli(toInt64(1793962800000), 'UTC') AND Timestamp <= fromUnixTimestamp64Milli(toInt64(1793966400000), 'UTC'))"
+
 func TestLogFacetsGroupsEachDefaultColumnAndAttributeKey(t *testing.T) {
 	conn := &fakeConn{
 		columns: stringColumns("Timestamp", "SeverityText", "Body", "ServiceName", "TraceId", "SpanId", "LogAttributes"),
@@ -64,11 +66,11 @@ func TestLogFacetsGroupsEachDefaultColumnAndAttributeKey(t *testing.T) {
 	sent := conn.sent()
 	wantStatements := []string{
 		"SELECT * FROM (\n" + facetInner + "\n) LIMIT 0",
-		"SELECT arrayJoin(mapKeys(`LogAttributes`)) AS K, count() FROM (\n" + facetInner + "\n) GROUP BY K ORDER BY count() DESC LIMIT 20",
-		"SELECT toString(`SeverityText`) AS Value, count() AS Count FROM (\n" + facetInner + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
-		"SELECT toString(`ServiceName`) AS Value, count() AS Count FROM (\n" + facetInner + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
-		"SELECT toString(`LogAttributes`[{key:String}]) AS Value, count() AS Count FROM (\n" + facetInner + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
-		"SELECT toString(`LogAttributes`[{key:String}]) AS Value, count() AS Count FROM (\n" + facetInner + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
+		"SELECT arrayJoin(mapKeys(`LogAttributes`)) AS K, count() FROM (\n" + facetBounded + "\n) GROUP BY K ORDER BY count() DESC LIMIT 20",
+		"SELECT toString(`SeverityText`) AS Value, count() AS Count FROM (\n" + facetBounded + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
+		"SELECT toString(`ServiceName`) AS Value, count() AS Count FROM (\n" + facetBounded + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
+		"SELECT toString(`LogAttributes`[{key:String}]) AS Value, count() AS Count FROM (\n" + facetBounded + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
+		"SELECT toString(`LogAttributes`[{key:String}]) AS Value, count() AS Count FROM (\n" + facetBounded + "\n) GROUP BY Value ORDER BY Count DESC, Value LIMIT 3",
 	}
 	if len(sent) != len(wantStatements) || !reflect.DeepEqual(sent[:2], wantStatements[:2]) {
 		t.Fatalf("statements =\n%s\nwant\n%s", strings.Join(sent, "\n"), strings.Join(wantStatements, "\n"))
@@ -100,7 +102,7 @@ func TestLogFacetsCountsOnlyTheRequestedFields(t *testing.T) {
 	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), `field "Missing" is not a column of the query`) {
 		t.Fatalf("err = %v", err)
 	}
-	_, err = facetsDS(&fakeConn{columns: stringColumns("Body")}).LogFacets(context.Background(), facetReq("SELECT Body FROM otel_logs", []string{"LogAttributes.http.route"}, 10))
+	_, err = facetsDS(&fakeConn{columns: stringColumns("Body")}).LogFacets(context.Background(), facetReq("SELECT Body FROM otel_logs WHERE $__timeFilter(EventTime)", []string{"LogAttributes.http.route"}, 10))
 	if !errors.Is(err, datasource.ErrInvalidQuery) {
 		t.Fatalf("an attribute key of a query without LogAttributes: err = %v", err)
 	}
@@ -114,5 +116,38 @@ func TestLogFacetsRefusesWhatVolumeInnerRefuses(t *testing.T) {
 	}
 	if len(conn.sent()) != 0 {
 		t.Fatalf("statements ran for a refused query: %v", conn.sent())
+	}
+}
+
+func TestLogFacetsRefuseAQueryThatReadsNoTimeRange(t *testing.T) {
+	conn := &fakeConn{columns: stringColumns("ServiceName")}
+	_, err := facetsDS(conn).LogFacets(context.Background(), facetReq("SELECT ServiceName FROM otel_logs", nil, 10))
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter") {
+		t.Fatalf("err = %v, want an invalid query error naming the macro", err)
+	}
+	if len(conn.sent()) != 1 {
+		t.Fatalf("statements = %v, want only the column probe", conn.sent())
+	}
+}
+
+func TestLogFacetsBoundTheRangeThroughTimestampWhenTheTextHasNoMacro(t *testing.T) {
+	conn := &fakeConn{
+		columns: stringColumns("Timestamp", "ServiceName"),
+		values:  map[string][][]any{"`ServiceName`": {{"checkout", uint64(3)}}},
+	}
+	if _, err := facetsDS(conn).LogFacets(context.Background(), facetReq("SELECT Timestamp, ServiceName FROM otel_logs", nil, 10)); err != nil {
+		t.Fatal(err)
+	}
+	counts := 0
+	for _, sql := range conn.sent() {
+		if strings.Contains(sql, "count()") {
+			counts++
+			if !strings.Contains(sql, "WHERE (Timestamp >= fromUnixTimestamp64Milli(toInt64(1793962800000), 'UTC')") {
+				t.Fatalf("count query reads no range: %s", sql)
+			}
+		}
+	}
+	if counts == 0 {
+		t.Fatalf("no count query ran: %v", conn.sent())
 	}
 }

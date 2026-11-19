@@ -102,8 +102,8 @@ So `pod=~"$pod"` in PromQL, `{app=~"$app"}` in LogQL and `{ resource.service.nam
 In SQL, `ServiceName IN ($service)` works for several values.
 In a search query string, `service.name:$service` matches any of the selected values.
 
-All becomes the full list of values, formatted the same way, except in the `regex` format, where it becomes `.*`.
-Set `allValue` to send your own text for All instead, such as `.*`, and the server uses it without a format.
+All becomes the full list of values, formatted the same way, except in the `regex` format, where it becomes `.*`, or `.+` inside the stream selector of a Loki query because Loki refuses a selector whose every matcher can match an empty value; after the selector, in a label or line filter, it stays `.*` so lines without the label are kept.
+Set `allValue` to send your own text for All instead, such as `.*`, and the server uses it without a format; on Loki, use `.+` there too, because `.*` is refused when it is the only matcher in the selector.
 The full list is used only when it has at most 1000 values and 64 KiB of text and every value can be substituted safely.
 Otherwise a query that uses it fails, and the fix is to use the `regex` format, set `allValue` or narrow the variable query.
 

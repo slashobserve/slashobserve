@@ -205,7 +205,7 @@ func TestUnresolvedFrom(t *testing.T) {
 		`{"key":"zzz","type":"prometheus","panels":3,"match":null,"matched_by":null,"candidates":["prom","prom_tight"]},` +
 		`{"key":"ok","type":"prometheus","panels":1,"match":"prom","matched_by":"only","candidates":["prom"]},` +
 		`{"key":"lonely","type":null,"panels":1,"match":null,"matched_by":null,"candidates":[]}]}`)
-	err := unresolvedFrom(decodeAPIError(422, body))
+	err := importFailureFrom(decodeAPIError(422, body))
 	var unresolved *unresolvedError
 	if !errors.As(err, &unresolved) {
 		t.Fatalf("want an unresolvedError, got %T %v", err, err)
@@ -239,13 +239,13 @@ func TestUnresolvedFromLeavesOtherErrors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := unresolvedFrom(tc.err); !errors.Is(got, tc.err) {
+			if got := importFailureFrom(tc.err); !errors.Is(got, tc.err) {
 				t.Fatalf("got %v, want the error unchanged", got)
 			}
 		})
 	}
 	unreadable := decodeAPIError(422, []byte(`{"error":"x","code":"datasources_unresolved","datasources":"nope"}`))
-	if got := unresolvedFrom(unreadable); !errors.Is(got, unreadable) {
+	if got := importFailureFrom(unreadable); !errors.Is(got, unreadable) {
 		t.Fatalf("an unreadable body keeps the plain error, got %v", got)
 	}
 }
@@ -305,7 +305,7 @@ func TestImportSendsTheFolderAndShowsWhereTheDashboardWent(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	if s.path != "/api/v1/imports" || s.posted != `{"json":"{\"title\":\"Shop\"}","folder":"Payments"}` {
+	if s.path != "/api/v1/imports" || s.posted != `{"json":"{\"title\":\"Shop\"}","folder":"Payments","refuse_existing":true}` {
 		t.Fatalf("posted %s to %s", s.posted, s.path)
 	}
 	if !strings.HasSuffix(strings.TrimSpace(stdout), "/d/d1") {
@@ -356,7 +356,7 @@ func TestQuietImportHidesTheFolderLineButKeepsTheFolderNote(t *testing.T) {
 
 func TestImportWithoutAFolderFlagSendsNoFolder(t *testing.T) {
 	s := &importServer{reply: importedReply}
-	if code, _, stderr := runImportCommand(t, s); code != 0 || strings.Contains(s.posted, "folder") {
+	if code, _, stderr := runImportCommand(t, s); code != 0 || strings.Contains(s.posted, "\"folder\"") {
 		t.Fatalf("exit %d, posted %s, stderr %s", code, s.posted, stderr)
 	}
 }
@@ -365,5 +365,72 @@ func TestPreviewDoesNotSendTheFolder(t *testing.T) {
 	s := &importServer{reply: `{"summary":{},"datasources":[],"ready":true,"report":{"counts":{},"panels":[]}}`}
 	if code, _, stderr := runImportCommand(t, s, "--preview", "--folder", "Payments"); code != 0 || s.path != "/api/v1/imports/preview" || strings.Contains(s.posted, "folder") {
 		t.Fatalf("exit %d, posted %s to %s, stderr %s", code, s.posted, s.path, stderr)
+	}
+}
+
+const alreadyImportedReply = `{"error":"this Grafana dashboard was already imported as \"Shop\" (dashboard d1, version 2)","code":"already_imported",` +
+	`"existing":{"dashboard_id":"d1","title":"Shop","version":2,"can_update":%t}}`
+
+type conflictServer struct{ reply string }
+
+func (s conflictServer) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusConflict)
+	_, _ = fmt.Fprint(w, s.reply)
+}
+
+func TestImportOfAnImportedDashboardNamesItAndTheFlagsToPass(t *testing.T) {
+	tests := []struct {
+		name      string
+		canUpdate bool
+		want      string
+	}{
+		{"editable", true, "Run it again with --update d1 to save it as version 3, or with --as-new to make another dashboard."},
+		{"read only", false, "You cannot edit it; run it again with --as-new to make your own copy."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(conflictServer{reply: fmt.Sprintf(alreadyImportedReply, tt.canUpdate)})
+			t.Cleanup(server.Close)
+			file := filepath.Join(t.TempDir(), "dashboard.json")
+			if err := os.WriteFile(file, []byte(`{"title":"Shop"}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var stdout, stderr bytes.Buffer
+			code := Main([]string{"--server", server.URL, "--token", "k", "import", file}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+			if code != 1 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "already imported as \"Shop\"") || !strings.Contains(stderr.String(), tt.want) {
+				t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
+func TestImportUpdateSendsTheDashboardAndNotTheRefusal(t *testing.T) {
+	s := &importServer{reply: importedReply}
+	code, _, stderr := runImportCommand(t, s, "--update", "d1")
+	if code != 0 || s.posted != `{"json":"{\"title\":\"Shop\"}","update_dashboard":"d1","refuse_existing":true}` || !strings.Contains(stderr, `Updated "Shop"`) {
+		t.Fatalf("exit %d, posted %s, stderr %s", code, s.posted, stderr)
+	}
+}
+
+func TestImportAsNewDoesNotAskTheServerToRefuse(t *testing.T) {
+	s := &importServer{reply: importedReply}
+	if code, _, stderr := runImportCommand(t, s, "--as-new"); code != 0 || strings.Contains(s.posted, "refuse_existing") {
+		t.Fatalf("exit %d, posted %s, stderr %s", code, s.posted, stderr)
+	}
+}
+
+func TestImportRefusesUpdateWithAsNew(t *testing.T) {
+	s := &importServer{reply: importedReply}
+	if code, _, stderr := runImportCommand(t, s, "--update", "d1", "--as-new"); code != 2 || !strings.Contains(stderr, "cannot be used together") || s.path != "" {
+		t.Fatalf("exit %d, stderr %s, path %q", code, stderr, s.path)
+	}
+}
+
+func TestPreviewShowsTheDashboardThatAlreadyHoldsTheFile(t *testing.T) {
+	s := &importServer{reply: `{"summary":{},"datasources":[],"ready":true,"report":{"counts":{},"panels":[]},"existing":{"dashboard_id":"d1","title":"Shop","version":2,"can_update":true}}`}
+	code, stdout, stderr := runImportCommand(t, s, "--preview")
+	if code != 0 || !strings.Contains(stdout, `Already imported as "Shop" (dashboard d1, version 2). Run it again with --update d1`) {
+		t.Fatalf("exit %d, stdout %q, stderr %s", code, stdout, stderr)
 	}
 }

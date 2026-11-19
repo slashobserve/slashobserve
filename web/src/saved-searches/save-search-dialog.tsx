@@ -113,6 +113,9 @@ export function SaveSearchDialog({
               maxLength={maxTitleLength}
               value={title}
               readOnly={save.isPending}
+              onFocus={(event) => {
+                if (titleEdit === undefined) event.currentTarget.select()
+              }}
               onChange={(event) => setTitleEdit(event.target.value)}
             />
           </div>

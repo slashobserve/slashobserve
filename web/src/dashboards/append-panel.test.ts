@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest"
 
 import type { Dashboard, DataPanel, Panel } from "@/spec"
 
-import { appendLogsPanel, freePanelId } from "./add-panel"
+import { logsPanelFor } from "@/logs/add-panel"
+
+import { appendPanel, freePanelId } from "./append-panel"
 
 const input = {
   title: "Checkout logs",
   datasource: "loki",
   query: '{service_name="checkout"}',
+}
+
+function appendLogsPanel(spec: Dashboard, panel: typeof input): Dashboard {
+  return appendPanel(spec, "logs", (slot) =>
+    logsPanelFor({ ...panel, ...slot })
+  )
 }
 
 function dashboard(panels: Panel[]): Dashboard {
@@ -30,7 +38,7 @@ function stat(id: string, y: number, h = 4): DataPanel {
   }
 }
 
-describe("appendLogsPanel", () => {
+describe("appendPanel", () => {
   it("places the panel at the top of an empty dashboard", () => {
     const next = appendLogsPanel(dashboard([]), input)
     expect(next.panels).toEqual([
@@ -145,11 +153,11 @@ describe("freePanelId", () => {
         panels: [stat("logs-2", 5)],
       },
     ])
-    expect(freePanelId(spec)).toBe("logs-3")
+    expect(freePanelId(spec, "logs")).toBe("logs-3")
     expect(appendLogsPanel(spec, input).panels[2].id).toBe("logs-3")
   })
 
   it("uses the base when it is free", () => {
-    expect(freePanelId(dashboard([stat("a", 0)]))).toBe("logs")
+    expect(freePanelId(dashboard([stat("a", 0)]), "logs")).toBe("logs")
   })
 })

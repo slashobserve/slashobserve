@@ -10,12 +10,32 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler
 }
 
+let onRoleRefused: () => void = () => {}
+
+export function setRoleRefusedHandler(handler: () => void) {
+  onRoleRefused = handler
+}
+
+async function isRoleRefusal(response: Response): Promise<boolean> {
+  if (response.status !== 403) return false
+  const body: unknown = await response
+    .clone()
+    .json()
+    .catch(() => null)
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { code?: unknown }).code === "forbidden_role"
+  )
+}
+
 const unauthorized: Middleware = {
-  onResponse({ response }) {
+  async onResponse({ response }) {
     if (response.status === 401) {
       invalidateSession()
       onUnauthorized()
     }
+    if (await isRoleRefusal(response)) onRoleRefused()
     return response
   },
 }

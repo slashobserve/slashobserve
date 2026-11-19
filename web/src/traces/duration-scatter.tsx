@@ -306,7 +306,7 @@ export function DurationScatter({
   return (
     <section
       aria-label="Duration over time"
-      className="flex min-w-0 flex-col gap-2 rounded-card border bg-card px-4 py-3 narrow:hidden"
+      className="flex min-w-0 flex-col gap-2 rounded-card border bg-card px-4 py-3 select-none narrow:hidden"
     >
       <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
         <h2 className="text-[13px] font-semibold">Duration over time</h2>
@@ -391,6 +391,7 @@ export function DurationScatter({
                   key={point.traceId}
                   href={traceUrl(row.traceId, datasourceUid, range)}
                   aria-label={openTraceLabel(row)}
+                  tabIndex={-1}
                   onClick={(event) => {
                     if (!plainLeftClick(event)) return
                     event.preventDefault()

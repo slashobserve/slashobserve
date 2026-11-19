@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strconv"
@@ -33,6 +34,7 @@ var queryIssueCodes = []spec.IssueCode{
 	queryproxy.CodeQueryInvalid, queryproxy.CodeQueryEmpty, queryproxy.CodeQueryTimeout, queryproxy.CodeQueryForbidden,
 	queryproxy.CodeLimitExceeded, queryproxy.CodeExpressionFailed, queryproxy.CodeVariableFailed, queryproxy.CodeVariableEmpty,
 	queryproxy.CodeVariableUnresolved, queryproxy.CodeDatasourceDown, queryproxy.CodeUnknownDatasource,
+	queryproxy.CodeTimeRangeFuture, queryproxy.CodeTimeRangeTooLong,
 }
 
 func init() { registerEntries((*Registry).panelEntries) }
@@ -249,6 +251,10 @@ func (r *Registry) updatePanels(ctx context.Context, input json.RawMessage) (Res
 }
 
 func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, target saveTarget, requestID pgtype.UUID, in updatePanelsInput) (Result, error) {
+	_, parent, err := r.deps.Dashboards.GetVersion(ctx, target.id, target.parent)
+	if err != nil {
+		return saveFailure(err)
+	}
 	res, err := r.deps.Dashboards.SavePatch(ctx, principal, dashboards.PatchInput{
 		DashboardID:     target.id,
 		Parent:          target.parent,
@@ -265,7 +271,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 	if err != nil {
 		return saveFailure(err)
 	}
-	return r.saveSucceeded(ctx, res), nil
+	return r.saveSucceeded(ctx, res, parent.Spec), nil
 }
 
 func patchSizeWithinLimits(p spec.PanelPatch) (Result, bool) {
@@ -364,4 +370,30 @@ func owningPanelID(path string, panelIDs map[string]string) (string, bool) {
 		}
 	}
 	return best, bestLen >= 0
+}
+
+func rawPanelIDs(raw json.RawMessage) map[string]string {
+	ids := map[string]string{}
+	var collect func(pointer string, panels []json.RawMessage)
+	collect = func(pointer string, panels []json.RawMessage) {
+		for i, p := range panels {
+			var panel struct {
+				ID     string            `json:"id"`
+				Panels []json.RawMessage `json:"panels"`
+			}
+			if json.Unmarshal(p, &panel) != nil {
+				continue
+			}
+			at := fmt.Sprintf("%s/panels/%d", pointer, i)
+			ids[at] = panel.ID
+			collect(at, panel.Panels)
+		}
+	}
+	var doc struct {
+		Panels []json.RawMessage `json:"panels"`
+	}
+	if json.Unmarshal(raw, &doc) == nil {
+		collect("", doc.Panels)
+	}
+	return ids
 }

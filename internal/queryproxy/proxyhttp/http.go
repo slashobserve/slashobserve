@@ -117,6 +117,7 @@ type dataMeta struct {
 	SourcePanel    string          `json:"source_panel,omitempty"`
 	Truncated      bool            `json:"truncated"`
 	Partial        bool            `json:"partial"`
+	Note           string          `json:"note,omitempty"`
 	Rows           int             `json:"rows"`
 	RowsTotal      int             `json:"rows_total,omitempty"`
 	Oldest         string          `json:"oldest,omitempty"`
@@ -139,6 +140,7 @@ type pageMeta struct {
 	Next          string `json:"next,omitempty"`
 	Prev          string `json:"prev,omitempty"`
 	Window        int    `json:"window,omitempty"`
+	Plain         bool   `json:"plain,omitempty"`
 }
 
 type resultMeta struct {
@@ -463,6 +465,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			SourcePanel:    sourcePanel,
 			Truncated:      e.meta.truncated,
 			Partial:        e.meta.partial,
+			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext, e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,
 			Oldest:         formatEdge(e.meta.oldest),

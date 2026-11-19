@@ -139,7 +139,7 @@ func buildReplyFor(err error) (buildReply, bool) {
 	case errors.Is(err, ErrNotRequester):
 		return buildReply{status: http.StatusForbidden, code: "forbidden", message: ErrNotRequester.Error()}, true
 	case errors.Is(err, folders.ErrNoAccess):
-		return buildReply{status: http.StatusForbidden, code: forbidden.Code, message: forbidden.AccessMessage}, true
+		return buildReply{status: http.StatusNotFound, code: "not_found", message: ErrDashboardNotFound.Error()}, true
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, ErrForbidden):
 		return buildReply{status: http.StatusForbidden, code: forbidden.Code, message: forbidden.RoleMessage}, true
 	}

@@ -7,7 +7,6 @@ import {
   type RefObject,
 } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { CopyButton } from "@/components/copy-button"
@@ -59,11 +58,6 @@ const copyButtonClass = "px-2 [&_svg:not([class*='size-'])]:size-[13px]"
 
 const expiryItems = expiryOptions.map(({ value, label }) => ({ value, label }))
 
-function defaultChoice(accounts: ServiceAccount[], principalId: string) {
-  const own = accounts.find((account) => account.created_by === principalId)
-  return (own ?? accounts[0])?.id ?? newAccountChoice
-}
-
 function FieldError({ id, text }: { id: string; text: string | null }) {
   if (text === null) return null
   return (
@@ -74,7 +68,6 @@ function FieldError({ id, text }: { id: string; text: string | null }) {
 }
 
 export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const accountsQuery = useQuery(serviceAccountsQuery())
   const createAccount = useCreateServiceAccount()
   const updateAccount = useUpdateServiceAccount()
@@ -109,8 +102,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
       : loaded
   ).toSorted((a, b) => a.name.localeCompare(b.name))
   const choice =
-    accountChoice ??
-    (accountsQuery.isPending ? null : defaultChoice(accounts, principal.id))
+    accountChoice ?? (accountsQuery.isPending ? null : newAccountChoice)
   const accountItems = [
     ...accounts.map((account) => ({ value: account.id, label: account.name })),
     { value: newAccountChoice, label: "New service account" },

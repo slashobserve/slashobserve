@@ -23,8 +23,8 @@ var variants = []variant{
 	{name: "guide", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameGetSpecGuide},
 		mcp:   map[string]string{"{guide_first}": mcpGuideFirst, "{spec_guide_desc}": mcpSpecGuideDesc},
 		agent: map[string]string{"{spec_guide_desc}": agentSpecGuideDesc}},
-	{name: "folder", tools: []string{nameCreateDashboard, nameListObservations},
-		mcp: map[string]string{"{folder_prop}": "," + propFolderID, "{observations_folder_prop}": propObservationsFolderID + ","}},
+	{name: "folder", tools: []string{nameListObservations},
+		mcp: map[string]string{"{observations_folder_prop}": propObservationsFolderID + ","}},
 	{name: "run target", tools: []string{nameUpdateDashboard, nameUpdatePanels, nameGetPanels},
 		mcp: map[string]string{
 			"{target_props}":     propDashID + "," + propParentVersion + ",",

@@ -1,0 +1,43 @@
+import { useRef, useState } from "react"
+import { NotebookTextIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
+import type { DataPanel } from "@/spec"
+
+export function AddToObservationAction({
+  panel,
+  range,
+  size = "sm",
+}: {
+  panel: DataPanel
+  range: { from: string; to: string }
+  size?: "sm" | "default"
+}) {
+  const trigger = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button
+        ref={trigger}
+        type="button"
+        variant="outline"
+        size={size}
+        className="narrow:h-11"
+        onClick={() => setOpen(true)}
+      >
+        <NotebookTextIcon aria-hidden="true" />
+        Add to observation
+      </Button>
+      {open ? (
+        <AddToObservationPanel
+          panel={panel}
+          from={range.from}
+          to={range.to}
+          onClose={() => setOpen(false)}
+          trigger={trigger}
+        />
+      ) : null}
+    </>
+  )
+}

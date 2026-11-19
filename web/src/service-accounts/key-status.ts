@@ -1,8 +1,12 @@
 import { formatShortRelative } from "@/lib/time"
 
-import type { ServiceAccountKey } from "./queries"
+import type { ServiceAccount, ServiceAccountKey } from "./queries"
 
-export function canRevokeKey(key: Pick<ServiceAccountKey, "state">): boolean {
+export function canRevokeKey(
+  key: Pick<ServiceAccountKey, "state">,
+  account: Pick<ServiceAccount, "provisioned">
+): boolean {
+  if (account.provisioned) return false
   return key.state === "active" || key.state === "expiring"
 }
 

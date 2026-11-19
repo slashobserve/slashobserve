@@ -599,7 +599,14 @@
         "queries": []
       }
     ],
-    "notes": []
+    "notes": [
+      {
+        "subject": "alert rules",
+        "status": "partial",
+        "reason": "Alert rules, contact points and silences are not imported, so the Grafana alerts behind \"Alert groups\" are lost. Keep alerting on Prometheus rules and Alertmanager.",
+        "paths": []
+      }
+    ]
   },
   "blocks": [
     "dashboard mapped=6 bookkeeping=5",

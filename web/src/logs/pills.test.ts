@@ -8,9 +8,12 @@ import {
   encodePills,
   lineFilter,
   maxPills,
+  mergePills,
   pillLabel,
   pillOptions,
   pillSupported,
+  pillsBlocked,
+  refusedPillIds,
   removePill,
   replacePill,
   unpinnedCleared,
@@ -165,7 +168,7 @@ describe("addPill", () => {
 
 describe("replacePill and removePill", () => {
   it("replaces one pill by several and renumbers", () => {
-    const next = replacePill(everyKind.slice(0, 3), "1", [
+    const change = replacePill(everyKind.slice(0, 3), "1", [
       {
         kind: "range",
         field: "n",
@@ -185,6 +188,8 @@ describe("replacePill and removePill", () => {
         paused: false,
       },
     ])
+    if (!("pills" in change)) throw new Error("expected pills")
+    const next = change.pills
     expect(next.map((item) => item.field)).toEqual([
       "service.name",
       "log.level",
@@ -198,6 +203,102 @@ describe("replacePill and removePill", () => {
     const next = removePill(everyKind.slice(0, 3), "0")
     expect(next.map((item) => item.id)).toEqual(["0", "1"])
     expect(next[0].field).toBe("host.name")
+  })
+})
+
+describe("mergePills", () => {
+  const fresh: NewPill = {
+    kind: "is",
+    field: "message",
+    value: "x",
+    negate: false,
+    pinned: false,
+    paused: false,
+  }
+
+  it("says so when the filter count is at the cap", () => {
+    const full = Array.from({ length: maxPills }, (_, index) =>
+      pill({ id: String(index), kind: "is", field: `f${index}`, value: "v" })
+    )
+    expect(mergePills(full, [fresh])).toEqual({
+      blocked: "Too many filters (50 at most)",
+    })
+  })
+
+  it("accepts a repeat of a filter at the cap", () => {
+    const full = Array.from({ length: maxPills }, (_, index) =>
+      pill({ id: String(index), kind: "is", field: `f${index}`, value: "v" })
+    )
+    expect(mergePills(full, [{ ...full[0] }])).toEqual({ pills: full })
+  })
+
+  it("refuses a value too long to keep in the link", () => {
+    const change = mergePills([], [{ ...fresh, value: "x".repeat(3000) }])
+    expect(change).toEqual({
+      blocked:
+        "These filters are too long to keep in the link: shorten a value or remove a filter",
+    })
+  })
+
+  it("accepts a value that still fits the link", () => {
+    const change = mergePills([], [{ ...fresh, value: "x".repeat(1000) }])
+    expect("pills" in change).toBe(true)
+    if ("pills" in change) {
+      expect(decodePills(encodePills(change.pills))).toHaveLength(1)
+    }
+  })
+})
+
+describe("pillsBlocked", () => {
+  it("passes a short set", () => {
+    expect(
+      pillsBlocked([pill({ kind: "is", field: "a", value: "b" })])
+    ).toBeNull()
+  })
+})
+
+describe("refusedPillIds", () => {
+  it("lists the pills a Loki query cannot take", () => {
+    const pills = [
+      pill({ id: "0", kind: "is", field: "service_name", value: "frontend" }),
+    ]
+    expect([...refusedPillIds("error", "loki", pills)]).toEqual(["0"])
+  })
+
+  it("does not list an exclusion on an index label of a regex selector", () => {
+    const pills = [
+      pill({
+        id: "0",
+        kind: "is",
+        field: "service_name",
+        value: "frontend",
+        negate: true,
+      }),
+    ]
+    expect(refusedPillIds('{service_name=~".+"}', "loki", pills).size).toBe(0)
+    expect(applyPills('{service_name=~".+"}', "loki", pills)).toBe(
+      '{service_name=~".+", service_name!="frontend"}'
+    )
+  })
+
+  it("does not list a pill the query already holds", () => {
+    const pills = [
+      pill({ id: "0", kind: "is", field: "env", value: "prod", line: true }),
+    ]
+    expect(refusedPillIds('{a="b"} | env="prod"', "loki", pills).size).toBe(0)
+  })
+
+  it("skips paused pills", () => {
+    const pills = [
+      pill({
+        id: "0",
+        kind: "is",
+        field: "a",
+        value: "b",
+        paused: true,
+      }),
+    ]
+    expect(refusedPillIds("error", "loki", pills).size).toBe(0)
   })
 })
 
@@ -401,7 +502,7 @@ describe("lineFilter", () => {
       ),
       "in",
       "500",
-      "Too many filters",
+      "Too many filters (50 at most)",
     ],
   ] as const)("blocks %s", (_label, context, pills, action, value, blocked) => {
     expect(lineFilter(context, [...pills], action, "status", value)).toEqual({

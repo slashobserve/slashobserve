@@ -11,6 +11,7 @@ import { dashboardKeys, folderKeys, importKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 import { toImportError } from "./errors"
+import { rememberImportFolder } from "./folder-choice"
 
 export type Source = { id: number; name: string; text: string; pasted: boolean }
 export type Mapping = Record<string, string>
@@ -24,11 +25,17 @@ export function newSource(name: string, text: string, pasted: boolean): Source {
   return { id: lastSourceId, name, text, pasted }
 }
 
-function requestBody(source: Source, mapping: Mapping, folder?: string) {
+function requestBody(
+  source: Source,
+  mapping: Mapping,
+  folder?: string,
+  update?: string
+) {
   return {
     json: source.text,
     ...(Object.keys(mapping).length === 0 ? {} : { mapping }),
     ...(folder === undefined ? {} : { folder }),
+    ...(update === undefined ? {} : { update_dashboard: update }),
   }
 }
 
@@ -66,13 +73,15 @@ export function useImportDashboard() {
       source,
       mapping,
       folder,
+      update,
     }: {
       source: Source
       mapping: Mapping
       folder?: string
+      update?: string
     }): Promise<ImportedDashboard> => {
       const result = await api.POST("/imports", {
-        body: requestBody(source, mapping, folder),
+        body: requestBody(source, mapping, folder, update),
       })
       if (!result.response.ok) {
         throw toImportError(result.response, result.error)
@@ -87,11 +96,45 @@ export function useImportDashboard() {
       }
       return data
     },
-    onSuccess: () =>
-      Promise.all([
+    onSuccess: (data) => {
+      rememberImportFolder(data.dashboard.folder)
+      return Promise.all([
         queryClient.invalidateQueries({ queryKey: dashboardKeys.list() }),
         queryClient.invalidateQueries({ queryKey: folderKeys.all }),
         queryClient.invalidateQueries({ queryKey: importKeys.list("mine") }),
-      ]),
+      ])
+    },
+  })
+}
+
+export type CreatedDashboard = components["schemas"]["DashboardWithVersion"]
+
+export function useCreateDashboardFromSpec() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    gcTime: 0,
+    networkMode: "always",
+    mutationFn: async ({
+      spec,
+      folderId,
+    }: {
+      spec: Record<string, unknown>
+      folderId?: string
+    }): Promise<CreatedDashboard> =>
+      unwrap(
+        await api.POST("/dashboards", {
+          body: {
+            spec,
+            ...(folderId === undefined ? {} : { folder_id: folderId }),
+          },
+        })
+      ),
+    onSuccess: (data) => {
+      rememberImportFolder(data.dashboard.folder)
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.list() }),
+        queryClient.invalidateQueries({ queryKey: folderKeys.all }),
+      ])
+    },
   })
 }

@@ -87,7 +87,7 @@ func (a *app) observationsCommand() *cobra.Command {
 		Args:    groupArgs,
 		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationRCAsCommand(), a.observationEditBlockCommand(), a.observationRemoveBlockCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationPinCommand(), a.observationDashboardCommand(), a.observationDeleteCommand(), a.observationRCAsCommand(), a.observationWithdrawCommand(), a.observationEditBlockCommand(), a.observationRemoveBlockCommand())
 	return cmd
 }
 
@@ -174,11 +174,14 @@ func (a *app) observationShowCommand() *cobra.Command {
 }
 
 func printObservation(out *output, o observationRow) {
-	summary := "-"
+	summary, summaryLabel := "-", "Summary"
 	if o.Summary != nil {
 		summary = text(*o.Summary)
+		if o.State == "open" {
+			summaryLabel = "Last summary"
+		}
 	}
-	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {"Summary", summary}, {"URL", text(o.URL)}})
+	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {summaryLabel, summary}, {"URL", text(o.URL)}})
 	rows := make([][]string, 0, len(o.Blocks))
 	for _, b := range o.Blocks {
 		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), blockContent(b)})
@@ -222,15 +225,12 @@ type addBlockOptions struct {
 	panelFile  string
 	snapshotOf string
 	from, to   string
+	vars       []string
 	half       bool
 	position   int
 }
 
-func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error) {
-	markdown, hasText, err := o.source.markdown()
-	if err != nil {
-		return nil, "", err
-	}
+func (o addBlockOptions) checkSources(hasText bool) error {
 	given := 0
 	for _, present := range []bool{hasText, o.panelFile != "", o.snapshotOf != ""} {
 		if present {
@@ -238,10 +238,24 @@ func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error
 		}
 	}
 	if given != 1 {
-		return nil, "", usagef("give exactly one of --text, --text-file, --panel-file and --snapshot-of")
+		return usagef("give exactly one of --text, --text-file, --panel-file and --snapshot-of")
 	}
 	if (o.from != "" || o.to != "") && o.panelFile == "" {
-		return nil, "", usagef("--from and --to go with --panel-file")
+		return usagef("--from and --to go with --panel-file")
+	}
+	if len(o.vars) > 0 && o.panelFile == "" {
+		return usagef("--var goes with --panel-file")
+	}
+	return nil
+}
+
+func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error) {
+	markdown, hasText, err := o.source.markdown()
+	if err != nil {
+		return nil, "", err
+	}
+	if err := o.checkSources(hasText); err != nil {
+		return nil, "", err
 	}
 	body := map[string]any{}
 	var kind string
@@ -288,15 +302,34 @@ func (o addBlockOptions) panel() (map[string]any, error) {
 	if o.from != "" {
 		body["from"], body["to"] = o.from, o.to
 	}
+	if len(o.vars) > 0 {
+		values, err := variableValues(o.vars)
+		if err != nil {
+			return nil, err
+		}
+		body["variable_values"] = values
+	}
 	return body, nil
+}
+
+func variableValues(pairs []string) (map[string][]string, error) {
+	values := map[string][]string{}
+	for _, pair := range pairs {
+		name, value, ok := strings.Cut(pair, "=")
+		if !ok || name == "" || value == "" {
+			return nil, usagef("--var takes name=value, such as --var service=checkout; repeat it for more values")
+		}
+		values[name] = append(values[name], value)
+	}
+	return values, nil
 }
 
 func (a *app) observationAddCommand() *cobra.Command {
 	var opts addBlockOptions
 	cmd := &cobra.Command{
-		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--from <time> --to <time>] | --snapshot-of <block-id>) [--half] [--position <n>]",
+		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--var <name=value>]... [--from <time> --to <time>] | --snapshot-of <block-id>) [--half] [--position <n>]",
 		Short: "Add a block to an observation",
-		Long:  "add adds one block: Markdown text, a panel from a JSON file, whose query must return data, or a snapshot that freezes the data of a panel block.\nThe block is live when you can edit the observation and requested when you can only comment.\n--from and --to, RFC 3339 times given together, give a panel its own range.",
+		Long:  "add adds one block: Markdown text, a panel from a JSON file, whose query must return data, or a snapshot that freezes the data of a panel block.\nThe block is live when you can edit the observation and requested when you can only comment.\n--from and --to, RFC 3339 times given together, give a panel its own range.\nA panel that uses variables needs one --var name=value for each, repeated for several values, or it is refused as variable_missing.",
 		Args:  exactArgs(1, "one observation id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -323,6 +356,7 @@ func (a *app) observationAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.snapshotOf, "snapshot-of", "", "the id of the panel block to freeze into a snapshot block")
 	cmd.Flags().StringVar(&opts.from, "from", "", "start of the panel's own range, an RFC 3339 time")
 	cmd.Flags().StringVar(&opts.to, "to", "", "end of the panel's own range, an RFC 3339 time")
+	cmd.Flags().StringArrayVar(&opts.vars, "var", nil, "a value for a variable the panel uses, name=value; repeat for more")
 	cmd.Flags().BoolVar(&opts.half, "half", false, "make the block half width")
 	cmd.Flags().IntVar(&opts.position, "position", 0, "place the block at this position, by default the end")
 	return cmd
@@ -363,11 +397,36 @@ func (a *app) observationResolveCommand() *cobra.Command {
 	return cmd
 }
 
+func (a *app) observationDeleteCommand() *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "delete <observation-id> --yes",
+		Short: "Delete an observation with its blocks, RCA revisions and discussion",
+		Long:  "delete removes an observation for everyone, with its blocks, snapshots, RCA revisions, the public links of those revisions and its discussion.\nYou need Manage on its folder, or Edit on it when you started the observation.\nIt cannot be undone, so --yes is required.",
+		Args:  exactArgs(1, "one observation id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			if !yes {
+				return usagef("deleting %s removes it with its blocks, RCA revisions and discussion for everyone and cannot be undone; rerun with --yes", id)
+			}
+			return a.observationCall(cmd, http.MethodDelete, "observations/"+id, nil, func(out *output, _ []byte) error {
+				out.confirm("Deleted observation %s", text(id))
+				return nil
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm that the observation is deleted for everyone")
+	return cmd
+}
+
 func (a *app) observationListCommand() *cobra.Command {
-	var folder, state string
+	var folder, state, title string
 	var page pageOptions
 	cmd := &cobra.Command{
-		Use:   "list [--folder <id>] [--state open|resolved]",
+		Use:   "list [--folder <id>] [--state open|resolved] [--title <text>]",
 		Short: "List observations, most recently changed first",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -388,12 +447,16 @@ func (a *app) observationListCommand() *cobra.Command {
 				}
 				query.Set("state", state)
 			}
+			if title != "" {
+				query.Set("q", title)
+			}
 			return a.observationList(cmd, query, page.all)
 		},
 	}
 	addPageFlags(cmd, &page, maxObservationPage)
 	cmd.Flags().StringVar(&folder, "folder", "", "only observations in this folder id")
 	cmd.Flags().StringVar(&state, "state", "", "only open or resolved observations")
+	cmd.Flags().StringVar(&title, "title", "", "only observations whose title contains this text, ignoring case")
 	return cmd
 }
 

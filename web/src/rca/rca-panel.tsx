@@ -5,30 +5,42 @@ import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Observation } from "@/observations/queries"
+import type { Block, Observation } from "@/observations/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
-import { publishProblem } from "./publish-problem"
+import { publishProblem, type PublishProblem } from "./publish-problem"
 import { RcaLinks } from "./rca-links"
+import { RevisionActions } from "./revision-actions"
 import { rcasQuery, usePublishRca, type RcaSummary } from "./queries"
 
 type Props = {
   observation: Observation
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  privateFolder?: () => void
+  blocks?: readonly Block[]
+  onShowBlock?: (blockId: string) => void
 }
 
-export function RcaPanel({ observation, onClose, trigger }: Props) {
+export function RcaPanel({
+  observation,
+  onClose,
+  trigger,
+  privateFolder,
+  blocks = [],
+  onShowBlock,
+}: Props) {
   const headingId = useId()
   const revisions = useQuery(rcasQuery(observation.id))
   const publish = usePublishRca(observation.id)
   const [selected, setSelected] = useState<number | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  const [problem, setProblem] = useState<PublishProblem | null>(null)
+  const failedBlockId = problem?.blockId
   const canPublish = observation.allowed_actions.includes("publish")
   const list = revisions.data
   const next = (list?.[0]?.revision ?? 0) + 1
@@ -41,14 +53,18 @@ export function RcaPanel({ observation, onClose, trigger }: Props) {
         toast.success(`Published revision ${rca.revision}`)
         setSelected(rca.revision)
       },
-      onError: (error) => setProblem(publishProblem(error)),
+      onError: (error) => setProblem(publishProblem(error, blocks)),
     })
   }
 
   return (
     <SidePanel
-      title="Publish as RCA"
-      description="Freezes every live panel and saves a numbered revision. Earlier revisions do not change."
+      title={canPublish ? "Publish as RCA" : "RCA revisions"}
+      description={
+        canPublish
+          ? "Freezes every live panel and saves a numbered revision. Earlier revisions do not change."
+          : "Frozen copies of this observation. A revision never changes once it is published."
+      }
       trigger={trigger}
       closeDisabled={publish.isPending}
       onClose={onClose}
@@ -74,11 +90,36 @@ export function RcaPanel({ observation, onClose, trigger }: Props) {
             </div>
             {problem === null ? null : (
               <Alert variant="destructive">
-                <AlertDescription>{problem}</AlertDescription>
+                <AlertDescription>{problem.text}</AlertDescription>
+                {failedBlockId === undefined ||
+                onShowBlock === undefined ? null : (
+                  <AlertAction>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onShowBlock(failedBlockId)
+                        onClose()
+                      }}
+                    >
+                      Show block
+                    </Button>
+                  </AlertAction>
+                )}
               </Alert>
             )}
           </div>
         )
+      ) : privateFolder !== undefined ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-[13px] text-muted-foreground">
+            This observation is private to you in My Dashboards. Move it to a
+            shared folder to publish it.
+          </p>
+          <Button variant="outline" onClick={privateFolder}>
+            Move to folder
+          </Button>
+        </div>
       ) : (
         <p className="text-[13px] text-muted-foreground">
           You can view revisions. Editors publish them.
@@ -118,6 +159,15 @@ export function RcaPanel({ observation, onClose, trigger }: Props) {
           <Skeleton className="h-16 w-full animate-none motion-safe:animate-pulse" />
         )}
       </section>
+      {selected === null ? null : (
+        <RevisionActions
+          key={`actions-${selected}`}
+          observationId={observation.id}
+          revision={selected}
+          canWithdraw={canPublish}
+          onWithdrawn={() => setSelected(null)}
+        />
+      )}
       {selected === null ? null : (
         <section
           aria-label={`Public links of revision ${selected}`}

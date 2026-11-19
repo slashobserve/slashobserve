@@ -36,7 +36,8 @@ const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const maxQueryLength = 8000
 const maxAskLength = 2000
 const controlCharacter = /\p{Cc}/u
-const pillsPattern = /^[A-Za-z0-9_-]{1,4000}$/
+export const maxEncodedPillsLength = 4000
+const pillsPattern = new RegExp(`^[A-Za-z0-9_-]{1,${maxEncodedPillsLength}}$`)
 const linePattern = /^\d{1,20}:[A-Za-z0-9_-]{1,64}$/
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

@@ -1943,7 +1943,7 @@ func TestPanelDataAndVariableValuesNeedViewOnTheDashboard(t *testing.T) {
 	}
 }
 
-func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
+func TestPreviewNeedsCommentOnTheDashboard(t *testing.T) {
 	cases := []struct {
 		name       string
 		abilities  folders.Abilities
@@ -1951,8 +1951,9 @@ func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
 		wantStatus int
 		wantCode   string
 	}{
-		{"viewer may not preview", folders.Abilities{View: true, Comment: true}, nil, http.StatusForbidden, "forbidden_role"},
-		{"viewer with an edit grant may preview", folders.Abilities{View: true, Edit: true}, nil, http.StatusOK, ""},
+		{"viewer may not preview", folders.Abilities{View: true}, nil, http.StatusForbidden, "forbidden_role"},
+		{"commenter may preview to suggest an edit", folders.Abilities{View: true, Comment: true}, nil, http.StatusOK, ""},
+		{"editor may preview", folders.Abilities{View: true, Comment: true, Edit: true}, nil, http.StatusOK, ""},
 		{"hidden dashboard is not found", folders.Abilities{}, folders.ErrNoAccess, http.StatusNotFound, "not_found"},
 		{"missing dashboard is not found", folders.Abilities{}, folders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"role without access is forbidden", folders.Abilities{}, folders.ErrForbidden, http.StatusForbidden, "forbidden_role"},

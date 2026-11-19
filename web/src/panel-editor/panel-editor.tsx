@@ -9,7 +9,7 @@ import {
   useState,
   type Ref,
 } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import type { Selections } from "@/api/keys"
 import { ApiError } from "@/api/errors"
 import { isTransient } from "@/api/issues"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -51,6 +51,7 @@ import {
   changeSummary,
   defaultSaveSummary,
   normalisePanel,
+  overlappingChanges,
   panelChanges,
   rebasePanel,
 } from "./changes"
@@ -66,6 +67,7 @@ import { useDraftTitles } from "./draft-title"
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
+import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
 import { withNewPanel } from "./new-panel"
 import { parsePanelJson } from "./panel-json"
 import { PreviewSection } from "./preview-section"
@@ -225,6 +227,23 @@ export default function PanelEditor({
         problem?.kind === "conflict" ? problem.latest : 0
       )
   const conflicted = problem?.kind === "conflict"
+  const newestBody = useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId),
+    enabled: newer > 0 && !readOnly,
+  }).data
+  const newestPanel =
+    newestBody && newestBody.version.version >= newer
+      ? findPanel(asDashboardSpec(newestBody.version.spec), draft.panel.id)
+          ?.panel
+      : undefined
+  const newerAuthor = newerVersionAuthor(newestBody, newer)
+  const overlaps = useMemo(
+    () =>
+      newestPanel && isEditablePanel(newestPanel)
+        ? overlappingChanges(draft.base, draft.panel, newestPanel)
+        : [],
+    [newestPanel, draft.base, draft.panel]
+  )
   const hadNewer = useRef(false)
   useEffect(() => {
     if (conflicted) noticeRef.current?.focus()
@@ -312,7 +331,9 @@ export default function PanelEditor({
         patch: { upsert: [{ ...parsed.panel }] },
         summary:
           note.trim() ||
-          (adding ? `Add "${title}"` : defaultSaveSummary(changes, title)),
+          (adding
+            ? `Add "${title}"`
+            : defaultSaveSummary(changes, entry.panel.title || entry.panel.id)),
         parent_version: parent,
         propose,
         acceptEmpty,
@@ -484,7 +505,7 @@ export default function PanelEditor({
         : changeSummary(changes)
   let saveLabel = `Save as version ${latestVersion + 1}`
   if (propose) saveLabel = "Propose change"
-  else if (newer > 0) saveLabel = `Apply my changes to version ${newer}`
+  else if (newer > 0) saveLabel = `Save my changes as version ${newer + 1}`
 
   const data = isDataPanel(current) ? current : null
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
@@ -622,14 +643,11 @@ export default function PanelEditor({
                   onReload={() => void reload()}
                 />
               ) : (
-                <>
-                  <AlertTitle>
-                    Version {newer} was saved while you were editing.
-                  </AlertTitle>
-                  <AlertDescription>
-                    Your changes stay here until you apply them to that version.
-                  </AlertDescription>
-                </>
+                <NewerVersionNotice
+                  version={newestBody?.version.version ?? newer}
+                  author={newerAuthor}
+                  overlaps={overlaps}
+                />
               )}
             </Alert>
           ) : null}

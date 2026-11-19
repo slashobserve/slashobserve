@@ -66,6 +66,7 @@ type dashboardItemOut struct {
 	Tags          []string `json:"tags"`
 	LatestVersion int      `json:"latest_version"`
 	UpdatedAt     string   `json:"updated_at"`
+	ViewCount     int      `json:"view_count"`
 	URL           string   `json:"url"`
 	Folder        string   `json:"folder"`
 }
@@ -79,9 +80,13 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 	var in struct {
 		Limit  *int   `json:"limit"`
 		Cursor string `json:"cursor"`
+		Order  string `json:"order"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	if in.Order != "" && in.Order != "updated" && in.Order != "views" {
+		return invalid("order must be updated or views"), nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListDashboards, 1, maxListDashboards, "limit")
 	if !ok {
@@ -96,7 +101,7 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views"})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}
@@ -126,6 +131,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			Tags:          nonNilStrings(d.Tags),
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
+			ViewCount:     d.ViewCount,
 			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
 		}
@@ -154,6 +160,12 @@ type dashboardOut struct {
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
+	ViewCount                *int            `json:"view_count,omitempty"`
+	WindowDays               int             `json:"window_days,omitempty"`
+	SavedBy                  string          `json:"saved_by"`
+	Origin                   string          `json:"origin"`
+	SavedAt                  string          `json:"saved_at"`
+	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -237,9 +249,16 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
+	}
+	if r.deps.Health != nil {
+		views, err := r.deps.Health.Views(ctx, id)
+		if err != nil {
+			return Result{}, err
+		}
+		out.ViewCount, out.WindowDays = &views.Count, views.WindowDays
 	}
 	body, err := json.Marshal(out)
 	if err != nil {
@@ -410,7 +429,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		}
 	}
 	if inBuildRun(run, scoped) {
-		return r.buildCreate(ctx, principal, run, in)
+		return r.buildCreate(ctx, principal, run, in, folderID)
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {
@@ -471,16 +490,18 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return r.saveSucceeded(ctx, saved), nil
+	return r.saveSucceeded(ctx, saved, nil), nil
 }
 
-func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult) Result {
+func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult, before *spec.Dashboard) Result {
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
-	return success(savedStep(saved), withAdvice(ctx, out, saved.Version.Spec))
+	out = withAdvice(ctx, out, saved.Version.Spec)
+	out.noteDroppedVariables(before, saved.Version.Spec)
+	return success(savedStep(saved), out)
 }
 
 func savedStep(saved dashboards.SaveResult) string {

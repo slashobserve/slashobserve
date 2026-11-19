@@ -5,6 +5,7 @@ import { isDataPanel, isPanelQuery, queryRef, type Panel } from "@/spec"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { MergeConflict } from "@/proposals/queries"
+import { sentence } from "@/observe/queries"
 
 import type { JsonIssue } from "./panel-json"
 
@@ -353,7 +354,7 @@ export function SaveProblem({
   if (problem.kind === "failed") {
     return (
       <Alert variant="destructive">
-        <AlertDescription>{problem.message}</AlertDescription>
+        <AlertDescription>{sentence(problem.message)}</AlertDescription>
       </Alert>
     )
   }

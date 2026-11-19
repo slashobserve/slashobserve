@@ -234,6 +234,55 @@ func TestListActivityHidesWhatTheKeyMayNotSee(t *testing.T) {
 	}
 }
 
+func (r activityRig) appendAdminChange(t *testing.T, eventType string) int64 {
+	t.Helper()
+	var seq int64
+	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		var err error
+		seq, err = activity.Append(t.Context(), q, activity.Entry{
+			Type:     eventType,
+			TargetID: pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true},
+			Actor:    actor.Of(editorCaller, origin.Origin{Kind: origin.MCP, Client: "claude-code"}, ""),
+			Data:     map[string]any{"name": "SIEM"},
+		}, nil)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("append %s: %v", eventType, err)
+	}
+	return seq
+}
+
+func TestListActivityShowsAdminChangesToAdminsOnly(t *testing.T) {
+	r := newActivityRig(t)
+	changed := r.appendAdminChange(t, activity.TypeWebhookCreated)
+	d := r.dashboard(t, pgtype.UUID{})
+	workspace := r.append(t, activity.TypeDashboardCreated, d)
+
+	asAdmin, _ := r.list(t, adminCaller, `{}`)
+	adminOnly, _ := r.list(t, adminCaller, `{"scope":"admin"}`)
+	byActor, _ := r.list(t, adminCaller, `{"scope":"admin","actor_id":"`+editorCaller.ID+`","until":"2999-01-01T00:00:00Z"}`)
+	asEditor, _ := r.list(t, editorCaller, `{}`)
+	_, refused := r.list(t, editorCaller, `{"scope":"admin"}`)
+
+	if got := seqsOfActivity(asAdmin); !slices.Equal(got, []int64{workspace, changed}) {
+		t.Errorf("admin sees %v, want [%d %d]", got, workspace, changed)
+	}
+	if got := seqsOfActivity(adminOnly); !slices.Equal(got, []int64{changed}) {
+		t.Errorf("scope admin lists %v, want [%d]", got, changed)
+	}
+	if got := seqsOfActivity(byActor); !slices.Equal(got, []int64{changed}) {
+		t.Errorf("actor filter lists %v, want [%d]", got, changed)
+	}
+	if got := seqsOfActivity(asEditor); !slices.Equal(got, []int64{workspace}) {
+		t.Errorf("editor sees %v, want only [%d]", got, workspace)
+	}
+	body, _ := refused.Content.(errorBody)
+	if !refused.IsError || body.Code != codeForbiddenRole || body.Message != activity.AdminScopeMessage {
+		t.Errorf("scope admin as editor: error %v, %+v", refused.IsError, body)
+	}
+}
+
 func TestListActivityRefusesBadInput(t *testing.T) {
 	r := newActivityRig(t)
 	cases := []struct {
@@ -248,6 +297,8 @@ func TestListActivityRefusesBadInput(t *testing.T) {
 		{"observation not a uuid", `{"observation_id":"shop"}`, "observation_id must be a UUID"},
 		{"unknown type", `{"types":["dashboard.exploded"]}`, `type "dashboard.exploded" is not an activity type`},
 		{"since not RFC 3339", `{"since":"yesterday"}`, "since must be an RFC 3339 time"},
+		{"actor not a uuid", `{"actor_id":"ada"}`, "actor_id must be a UUID"},
+		{"until not RFC 3339", `{"until":"tomorrow"}`, "until must be an RFC 3339 time"},
 		{"cursor not a cursor", `{"cursor":"nope"}`, "cursor is not valid"},
 		{"cursor too long", `{"cursor":"` + strings.Repeat("c", maxNameBytes+1) + `"}`, "cursor must be at most 256 bytes"},
 	}

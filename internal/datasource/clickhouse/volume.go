@@ -25,13 +25,18 @@ func VolumeQuery(query string, step time.Duration) (string, error) {
 	}
 	seconds := max(int64(step/time.Second), 1)
 	return "SELECT toStartOfInterval(" + quoteIdent(volumeTimeColumn) + ", INTERVAL " + strconv.FormatInt(seconds, 10) + " SECOND) AS Time, " +
-		volumeLevelFold() + " AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nGROUP BY Time, Level\nORDER BY Time", nil
+		volumeLevelFold() + " AS Level, count() AS Count\nFROM (\n" + inner + "\n)\nWHERE " + timestampInRange + "\nGROUP BY Time, Level\nORDER BY Time", nil
 }
 
 func volumeInner(query string) (string, error) {
+	inner, _, err := splitOrdering(query)
+	return inner, err
+}
+
+func splitOrdering(query string) (string, bool, error) {
 	tokens, err := macros.TokenizeClickHouse(query)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	sig := significant(tokens)
 	end := len(query)
@@ -47,19 +52,20 @@ func volumeInner(query string) (string, error) {
 			depth--
 		case depth == 0 && isClauseWord(query, sig, i):
 			if err := cut.observe(query, sig, i); err != nil {
-				return "", err
+				return "", false, err
 			}
 		}
 	}
 	if cut.at >= 0 {
 		end = cut.at
 	}
-	return query[:end], nil
+	return query[:end], cut.ordered, nil
 }
 
 type volumeCut struct {
 	at      int
 	limited bool
+	ordered bool
 }
 
 func (c *volumeCut) observe(query string, sig []macros.Token, i int) error {
@@ -71,6 +77,7 @@ func (c *volumeCut) observe(query string, sig []macros.Token, i int) error {
 		c.limited = true
 		c.mark(sig[i].Start)
 	case word == "ORDER" && i+1 < len(sig) && strings.EqualFold(query[sig[i+1].Start:sig[i+1].End], "BY"):
+		c.ordered = true
 		c.mark(sig[i].Start)
 	}
 	return nil

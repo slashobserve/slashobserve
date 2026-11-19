@@ -1,4 +1,4 @@
-import { freePanelId } from "@/logs/add-panel"
+import { freePanelId } from "@/dashboards/append-panel"
 import {
   allPanels,
   findPanel,

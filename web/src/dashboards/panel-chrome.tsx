@@ -49,6 +49,8 @@ const errorTitles: Record<string, string> = {
   datasource_unavailable: "Datasource unavailable",
   limit_exceeded: "Too much data",
   query_invalid: "Query error",
+  time_range_in_future: "Time range starts in the future",
+  time_range_too_long: "Time range too long",
   query_forbidden: "Query not allowed",
   variable_empty: "Variable has no values",
 }
