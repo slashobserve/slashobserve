@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -26,14 +27,18 @@ const (
 
 const (
 	MessageInvalidTags  = "tags must be at most 10 lowercase tags of 1 to 40 letters, digits, _, . or -, starting with a letter or digit"
-	messageInvalidTime  = "time_to must not be before time_from, and both must be after 1970-01-01"
+	messageInvalidTime  = "time_to must not be before time_from, and both must be RFC 3339 times from 1970-01-01 to 2099-12-31"
 	messageInvalidPanel = "panel_id must be 1 to 64 characters without NUL and needs a dashboard_id"
+	messageUnknownPanel = "panel_id is not a panel of the dashboard's latest version; list the dashboard's panels and use one of their ids"
+	messageEmptyUpdate  = "give text, tags or both to change"
 )
+
+var latestTime = time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 var (
 	ErrNotFound   = errors.New("annotation not found")
 	ErrForbidden  = errors.New("the caller's level does not allow this")
-	ErrNotCreator = errors.New("only the creator or an admin can delete this annotation")
+	ErrNotCreator = errors.New("only the creator or an admin can change or delete this annotation")
 
 	ErrInvalidDashboardID = errors.New("dashboard_id must be a UUID")
 )
@@ -101,19 +106,24 @@ func ParseCreate(req CreateRequest) (CreateInput, error) {
 	}
 	if req.TimeFrom != nil {
 		from, err := time.Parse(time.RFC3339, *req.TimeFrom)
-		if err != nil {
+		if err != nil || !validTime(from) {
 			return in, &InvalidError{Code: "invalid_time", Message: messageInvalidTime}
 		}
 		in.From = from
 	}
 	if req.TimeTo != nil {
 		to, err := time.Parse(time.RFC3339, *req.TimeTo)
-		if err != nil {
+		if err != nil || !validTime(to) {
 			return in, &InvalidError{Code: "invalid_time", Message: messageInvalidTime}
 		}
 		in.To = &to
 	}
 	return in, nil
+}
+
+type UpdateInput struct {
+	Text *string   `json:"text"`
+	Tags *[]string `json:"tags"`
 }
 
 type ListQuery struct {
@@ -130,13 +140,29 @@ type Page struct {
 	Next        *httpapi.TimeCursor
 }
 
+type Panels interface {
+	LatestVersion(ctx context.Context, id pgtype.UUID) (int, error)
+	HasPanel(ctx context.Context, id pgtype.UUID, version int, panelID string) (bool, error)
+}
+
+type Option func(*Service)
+
+func WithPanels(p Panels) Option {
+	return func(s *Service) { s.panels = p }
+}
+
 type Service struct {
 	store  *store
 	access *folders.Access
+	panels Panels
 }
 
-func New(database *db.DB, access *folders.Access) *Service {
-	return &Service{store: &store{db: database}, access: access}
+func New(database *db.DB, access *folders.Access, opts ...Option) *Service {
+	s := &Service{store: &store{db: database}, access: access}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput) (Annotation, error) {
@@ -148,6 +174,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 		return Annotation{}, err
 	}
 	if err := s.mayCreate(ctx, by, clean.DashboardID); err != nil {
+		return Annotation{}, err
+	}
+	if err := s.checkPanel(ctx, clean); err != nil {
 		return Annotation{}, err
 	}
 	creator := actor.Of(by, origin.From(ctx), "")
@@ -164,24 +193,57 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	return a, nil
 }
 
+func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID, in UpdateInput) (Annotation, error) {
+	if in.Text == nil && in.Tags == nil {
+		return Annotation{}, &InvalidError{Code: "invalid_request", Message: messageEmptyUpdate}
+	}
+	a, err := s.mayChange(ctx, by, id)
+	if err != nil {
+		return Annotation{}, err
+	}
+	text, tags := a.Text, a.Tags
+	if in.Text != nil {
+		if text, err = cleanText(*in.Text); err != nil {
+			return Annotation{}, err
+		}
+	}
+	if in.Tags != nil {
+		var ok bool
+		if tags, ok = CleanTags(*in.Tags); !ok {
+			return Annotation{}, &InvalidError{Code: "invalid_tags", Message: MessageInvalidTags}
+		}
+	}
+	if text == a.Text && slices.Equal(tags, a.Tags) {
+		return s.store.named(ctx, id)
+	}
+	return s.store.update(ctx, id, text, tags, actor.Of(by, origin.From(ctx), ""))
+}
+
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	if _, err := s.mayChange(ctx, by, id); err != nil {
+		return err
+	}
+	return s.store.remove(ctx, id, actor.Of(by, origin.From(ctx), ""))
+}
+
+func (s *Service) mayChange(ctx context.Context, by auth.Principal, id pgtype.UUID) (Annotation, error) {
 	a, err := s.store.get(ctx, id)
 	if err != nil {
-		return err
+		return Annotation{}, err
 	}
 	if a.DashboardID != "" {
 		dashboardID, err := db.ParseUUID(a.DashboardID)
 		if err != nil {
-			return err
+			return Annotation{}, err
 		}
 		if _, err := s.dashboard(ctx, by, dashboardID); err != nil {
-			return err
+			return Annotation{}, err
 		}
 	}
 	if by.Role != auth.RoleAdmin && (a.CreatedBy == "" || a.CreatedBy != by.ID) {
-		return ErrNotCreator
+		return Annotation{}, ErrNotCreator
 	}
-	return s.store.remove(ctx, id, actor.Of(by, origin.From(ctx), ""))
+	return a, nil
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, q ListQuery) (Page, error) {
@@ -261,10 +323,39 @@ func (s *Service) dashboard(ctx context.Context, by auth.Principal, id pgtype.UU
 	return access.Abilities, nil
 }
 
-func validate(in CreateInput) (CreateInput, error) {
-	text, err := usertext.Clean("text", in.Text, usertext.Text(MaxTextRunes))
+func (s *Service) checkPanel(ctx context.Context, in CreateInput) error {
+	if in.PanelID == "" || s.panels == nil {
+		return nil
+	}
+	latest, err := s.panels.LatestVersion(ctx, in.DashboardID)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
-		return in, &InvalidError{Code: "invalid_text", Message: err.Error(), Cause: err}
+		return err
+	}
+	known, err := s.panels.HasPanel(ctx, in.DashboardID, latest, in.PanelID)
+	if err != nil {
+		return err
+	}
+	if !known {
+		return &InvalidError{Code: "unknown_panel", Message: messageUnknownPanel}
+	}
+	return nil
+}
+
+func cleanText(raw string) (string, error) {
+	text, err := usertext.Clean("text", raw, usertext.Text(MaxTextRunes))
+	if err != nil {
+		return "", &InvalidError{Code: "invalid_text", Message: err.Error(), Cause: err}
+	}
+	return text, nil
+}
+
+func validate(in CreateInput) (CreateInput, error) {
+	text, err := cleanText(in.Text)
+	if err != nil {
+		return in, err
 	}
 	in.Text = text
 	if in.PanelID != "" && (!in.DashboardID.Valid || revisions.ValidPanelID(in.PanelID) != nil) {
@@ -282,7 +373,7 @@ func validate(in CreateInput) (CreateInput, error) {
 }
 
 func validTime(t time.Time) bool {
-	return !t.Before(time.Unix(0, 0))
+	return !t.Before(time.Unix(0, 0)) && t.Before(latestTime)
 }
 
 func CleanTags(raw []string) ([]string, bool) {

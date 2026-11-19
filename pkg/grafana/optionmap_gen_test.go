@@ -214,6 +214,7 @@ func updateRequested() bool {
 }
 
 func TestOptionMapIsCurrent(t *testing.T) {
+	t.Parallel()
 	areas := loadConformanceAreas(t, conformanceRoot(t))
 	generated, err := json.MarshalIndent(generateOptionMap(t, areas), "", " ")
 	if err != nil {

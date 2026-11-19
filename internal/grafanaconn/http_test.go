@@ -15,7 +15,7 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/gin-gonic/gin"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -33,10 +33,7 @@ var serviceAccount = auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52
 func newHTTPRig(t *testing.T, base *rig) *httpRig {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
 	if err != nil {
 		t.Fatal(err)

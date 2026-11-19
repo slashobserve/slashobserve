@@ -44,11 +44,7 @@ VALUES ($1::uuid, 'hello', 'user', gen_random_uuid(), 'Ada') RETURNING id::text`
 }
 
 func TestRunContextMentionsNameExactlyOneTarget(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runContextVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runContextVersion)
 	f := runContextSeed(t, d)
 
 	_, err := f.sqlDB.Exec(`INSERT INTO thread_mentions (message_id, user_id, agent_grant_id, name) VALUES ($1::uuid, $2::uuid, $3::uuid, 'x')`, f.message, f.user, f.grant)
@@ -88,11 +84,7 @@ func TestRunContextMentionsNameExactlyOneTarget(t *testing.T) {
 }
 
 func TestRunContextDeletesFollowTheirOwners(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runContextVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runContextVersion)
 	f := runContextSeed(t, d)
 
 	d.Exec(t, `INSERT INTO thread_mentions (message_id, agent_grant_id, name) VALUES ($1::uuid, $2::uuid, 'Claude Code')`, f.message, f.grant)
@@ -121,11 +113,7 @@ func TestRunContextDeletesFollowTheirOwners(t *testing.T) {
 }
 
 func TestRunContextBoundsThreadContext(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runContextVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runContextVersion)
 	f := runContextSeed(t, d)
 
 	cases := []struct {
@@ -151,10 +139,7 @@ func TestRunContextBoundsThreadContext(t *testing.T) {
 
 func TestRunContextRollsBackAndReapplies(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runContextVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runContextVersion)
 	f := runContextSeed(t, d)
 	d.Exec(t, `INSERT INTO thread_mentions (message_id, user_id, name) VALUES ($1::uuid, $2::uuid, 'Ada')`, f.message, f.user)
 	d.Exec(t, `INSERT INTO thread_mentions (message_id, agent_grant_id, name) VALUES ($1::uuid, $2::uuid, 'Claude Code')`, f.message, f.grant)

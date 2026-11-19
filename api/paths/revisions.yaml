@@ -99,6 +99,8 @@ dashboards-id-revisions:
               $ref: "../openapi.yaml#/components/schemas/Error"
   get:
     operationId: listDashboardRevisions
+    x-surfaces:
+      cli: [observe dashboards revisions]
     summary: List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
     parameters:
       - name: limit
@@ -155,6 +157,8 @@ dashboards-id-revisions-revisionid:
         format: uuid
   get:
     operationId: getDashboardRevision
+    x-surfaces:
+      cli: [observe dashboards revisions]
     summary: Read one revision request.
     responses:
       "200":

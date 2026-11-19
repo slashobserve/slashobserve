@@ -27,6 +27,8 @@ const (
 
 type fakeAnnotations struct {
 	created CreateInput
+	updated UpdateInput
+	changed pgtype.UUID
 	listed  ListQuery
 	deleted pgtype.UUID
 	page    Page
@@ -39,6 +41,14 @@ func (f *fakeAnnotations) Create(_ context.Context, _ auth.Principal, in CreateI
 		return Annotation{}, f.err
 	}
 	return Annotation{ID: annotationText, DashboardID: in.DashboardID.String(), PanelID: in.PanelID, From: in.From, To: in.To, Text: in.Text, Tags: append([]string{}, in.Tags...), CreatedBy: editor.ID, CreatedByKind: string(editor.Kind), CreatedByName: editor.Name, Origin: origin.Origin{Kind: origin.MCP, Client: "claude-code"}, CreatedAt: base}, nil
+}
+
+func (f *fakeAnnotations) Update(_ context.Context, _ auth.Principal, id pgtype.UUID, in UpdateInput) (Annotation, error) {
+	f.changed, f.updated = id, in
+	if f.err != nil {
+		return Annotation{}, f.err
+	}
+	return Annotation{ID: id.String(), From: base, Text: *in.Text, Tags: []string{}, CreatedBy: editor.ID, CreatedByKind: string(editor.Kind), CreatedByName: editor.Name, CreatedAt: base}, nil
 }
 
 func (f *fakeAnnotations) Delete(_ context.Context, _ auth.Principal, id pgtype.UUID) error {
@@ -151,6 +161,10 @@ func TestCreateRefusesBadRequests(t *testing.T) {
 		{"dashboard id not a UUID", `{"text":"x","dashboard_id":"checkout"}`, nil, http.StatusBadRequest, "invalid_request"},
 		{"time not RFC 3339", `{"text":"x","time_from":"yesterday"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
 		{"end not RFC 3339", `{"text":"x","time_to":"1700000000"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
+		{"start at year 1", `{"text":"x","time_from":"0001-01-01T00:00:00Z"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
+		{"start before 1970", `{"text":"x","time_from":"1969-12-31T23:59:59Z"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
+		{"end in year 9999", `{"text":"x","time_to":"9999-12-31T23:59:59Z"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
+		{"unknown panel", `{"text":"x","dashboard_id":"` + dashboardText + `","panel_id":"nope"}`, &InvalidError{Code: "unknown_panel", Message: messageUnknownPanel}, http.StatusUnprocessableEntity, "unknown_panel"},
 		{"too large", `{"text":"` + strings.Repeat("x", maxBodyBytes) + `"}`, nil, http.StatusRequestEntityTooLarge, "too_large"},
 		{"invalid input", `{"text":""}`, &InvalidError{Code: "invalid_text", Message: "text must not be empty; enter 1 to 2000 characters"}, http.StatusUnprocessableEntity, "invalid_text"},
 		{"dashboard not found", `{"text":"x","dashboard_id":"` + dashboardText + `"}`, ErrNotFound, http.StatusNotFound, "not_found"},
@@ -312,6 +326,56 @@ func TestDeleteAnswersNoContentOrTheRefusal(t *testing.T) {
 			}
 			if got := decode[errorBody](t, rec); got.Code != tc.code {
 				t.Errorf("code %q, want %q", got.Code, tc.code)
+			}
+		})
+	}
+}
+
+func TestUpdateParsesTheBodyAndAnswersTheAnnotation(t *testing.T) {
+	fake := &fakeAnnotations{}
+	rec := serve(t, fake, http.MethodPatch, "/api/v1/annotations/"+annotationText, `{"text":"deploy v3","tags":["deploy"]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if fake.changed.String() != annotationText || fake.updated.Text == nil || *fake.updated.Text != "deploy v3" || fake.updated.Tags == nil || !slices.Equal(*fake.updated.Tags, []string{"deploy"}) {
+		t.Errorf("service got %v %+v", fake.changed, fake.updated)
+	}
+	if got := decode[JSON](t, rec); got.ID != annotationText || got.Text != "deploy v3" {
+		t.Errorf("answered %+v", got)
+	}
+}
+
+func TestUpdateLeavesAbsentFieldsNil(t *testing.T) {
+	fake := &fakeAnnotations{}
+	serve(t, fake, http.MethodPatch, "/api/v1/annotations/"+annotationText, `{"text":"only text"}`)
+	if fake.updated.Tags != nil {
+		t.Errorf("tags %v, want nil", fake.updated.Tags)
+	}
+}
+
+func TestUpdateRefusesBadRequests(t *testing.T) {
+	cases := []struct {
+		name   string
+		id     string
+		body   string
+		err    error
+		status int
+		code   string
+	}{
+		{"id not a UUID", "deploy", `{"text":"x"}`, nil, http.StatusBadRequest, "invalid_request"},
+		{"not JSON", annotationText, `{`, nil, http.StatusBadRequest, "invalid_request"},
+		{"unknown field", annotationText, `{"text":"x","panel_id":"latency"}`, nil, http.StatusBadRequest, "invalid_request"},
+		{"nothing to change", annotationText, `{}`, &InvalidError{Code: "invalid_request", Message: messageEmptyUpdate}, http.StatusUnprocessableEntity, "invalid_request"},
+		{"invalid text", annotationText, `{"text":""}`, &InvalidError{Code: "invalid_text", Message: "text must not be empty; enter 1 to 2000 characters"}, http.StatusUnprocessableEntity, "invalid_text"},
+		{"not found", annotationText, `{"text":"x"}`, ErrNotFound, http.StatusNotFound, "not_found"},
+		{"not the creator", annotationText, `{"text":"x"}`, ErrNotCreator, http.StatusForbidden, "not_creator"},
+		{"database down", annotationText, `{"text":"x"}`, errors.New("connection refused"), http.StatusInternalServerError, "internal"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := serve(t, &fakeAnnotations{err: tc.err}, http.MethodPatch, "/api/v1/annotations/"+tc.id, tc.body)
+			if got := decode[errorBody](t, rec); rec.Code != tc.status || got.Code != tc.code {
+				t.Errorf("status %d code %q, want %d %q", rec.Code, got.Code, tc.status, tc.code)
 			}
 		})
 	}
