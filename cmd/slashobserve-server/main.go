@@ -342,6 +342,7 @@ func run() error {
 	viewersService := viewers.New(database)
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
+	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },

@@ -91,26 +91,41 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 	return nil
 }
 
-func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTexts, error) {
-	q := s.db.Queries()
-	byKind := map[string]map[string]bool{"dashboard": {}, "observation": {}, "proposal": {}}
-	messages := map[string]bool{}
-	runs := map[string]bool{}
-	closed := map[string]bool{}
+type inboxRefs struct {
+	byKind   map[string]map[string]bool
+	messages map[string]bool
+	runs     map[string]bool
+	closed   map[string]bool
+}
+
+func inboxRefsOf(items []InboxItem) inboxRefs {
+	refs := inboxRefs{
+		byKind:   map[string]map[string]bool{"dashboard": {}, "observation": {}, "proposal": {}},
+		messages: map[string]bool{},
+		runs:     map[string]bool{},
+		closed:   map[string]bool{},
+	}
 	for _, item := range items {
-		if ref := subjectOf(item.Event); byKind[ref.kind] != nil {
-			byKind[ref.kind][ref.id] = true
+		if ref := subjectOf(item.Event); refs.byKind[ref.kind] != nil {
+			refs.byKind[ref.kind][ref.id] = true
 		}
 		if id := dataOf(item.Event).MessageID; id != "" && (item.Type == TypeThreadMentioned || item.Type == TypeThreadReplied) {
-			messages[id] = true
+			refs.messages[id] = true
 		}
 		if quotesRun(item) {
-			runs[item.TargetID] = true
+			refs.runs[item.TargetID] = true
 		}
 		if item.Reason == ReasonProposalClosed {
-			closed[item.TargetID] = true
+			refs.closed[item.TargetID] = true
 		}
 	}
+	return refs
+}
+
+func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTexts, error) {
+	q := s.db.Queries()
+	refs := inboxRefsOf(items)
+	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
 	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}}
 	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
