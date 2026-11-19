@@ -2382,7 +2382,7 @@ mcp_suite() {
   mcp_expect "query_range with format table on ClickHouse" '"name":"minute"'
   pass "MCP query_range with format table keeps ClickHouse rows as a table"
 
-  mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-valid.json")"
+  mcp_tool create_dashboard "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["spec"]["title"]="E2E dashboard over MCP"; print(json.dumps(d))' "$FIXTURES/dashboard-valid.json")"
   mcp_expect "create_dashboard" '"dashboard_id":"[0-9a-f-]\{36\}"'
   id="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/mcp.body" | head -1 | cut -d'"' -f4)"
   out="$(api GET "/dashboards/$id")"
