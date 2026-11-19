@@ -44,9 +44,11 @@ type contract struct {
 	doc     *openapi3.T
 }
 
+var loadAPIDocument = api.Load
+
 func newContract(ctx context.Context, logger *slog.Logger) (*contract, error) {
 	defineFormats()
-	doc, err := api.Load(ctx)
+	doc, err := loadAPIDocument(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load api document: %w", err)
 	}

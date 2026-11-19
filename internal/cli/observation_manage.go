@@ -44,7 +44,7 @@ func (a *app) observationEditCommand() *cobra.Command {
 		Use:   "edit <observation-id> [--title <title>] [--from <time> --to <time> | --clear-range]",
 		Short: "Rename an observation or change the range its panels show",
 		Long:  "edit changes the title, the range or both.\n--from and --to, RFC 3339 times given together, set the range its panels show, and --clear-range removes it.",
-		Args:  exactArgs(1, "one observation id"),
+		Args:  exactArgs(1, "one observation id; a title of several words goes in quotes after --title"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {

@@ -36,10 +36,7 @@ var agentClaimsTables = []string{"run_tokens", "agent_workers"}
 
 func TestAgentClaimsDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, agentClaimsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, agentClaimsVersion)
 	if missing := missingAgentClaimsObjects(t, d); len(missing) > 0 {
 		t.Fatalf("objects missing after the up migration: %v", missing)
 	}
@@ -60,11 +57,7 @@ func TestAgentClaimsDown(t *testing.T) {
 }
 
 func TestAgentClaimsConstraints(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, agentClaimsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, agentClaimsVersion)
 	seedDashboard(t, d, agentClaimsDashboard, 1)
 	sqlDB := d.SQLDB(t)
 	insert := func(r assignedRequest) (string, error) {

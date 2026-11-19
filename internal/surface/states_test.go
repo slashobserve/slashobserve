@@ -8,7 +8,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
@@ -84,10 +84,7 @@ func enumOf(t *testing.T, doc *openapi3.T, schema, property string) []string {
 }
 
 func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	cases := []struct {
 		schema, property string
 		want             []string
@@ -115,10 +112,7 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 }
 
 func TestRunStateEnumsMatchTheMachine(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	var states, kinds, offered []string
 	for _, s := range revisions.RunMachine.States {
 		states = append(states, string(s))
@@ -148,10 +142,7 @@ func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 }
 
 func TestProposalEnumsMatchTheMachine(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	var states, offered []string
 	for _, s := range proposals.ProposalMachine.States {
 		states = append(states, string(s))
@@ -170,10 +161,7 @@ func TestProposalEnumsMatchTheMachine(t *testing.T) {
 }
 
 func TestGrafanaImportEnumsMatchTheMachine(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	var states, offered []string
 	for _, s := range grafanaconn.SyncMachine.States {
 		states = append(states, string(s))
@@ -194,10 +182,7 @@ func TestGrafanaImportEnumsMatchTheMachine(t *testing.T) {
 }
 
 func TestObservationEnumsMatchTheMachines(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	var states, offered, blockStates, blockOffered []string
 	for _, s := range observations.Machine.States {
 		states = append(states, string(s))

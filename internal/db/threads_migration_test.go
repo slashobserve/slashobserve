@@ -58,10 +58,7 @@ func commentFKTarget(t *testing.T, d *dbtest.Database) string {
 
 func TestThreadsUpCopiesTheCommentsAndKeepsTheirIDs(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, threadsVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, threadsVersion-1)
 	if target := commentFKTarget(t, d); target != "dashboard_comments" {
 		t.Fatalf("%s points at %s before the migration, want dashboard_comments", runFKName, target)
 	}
@@ -154,10 +151,7 @@ func TestThreadsUpCopiesTheCommentsAndKeepsTheirIDs(t *testing.T) {
 
 func TestThreadsDownRestoresTheDashboardCommentsAndDropsTheRest(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, threadsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, threadsVersion)
 	seedDashboard(t, d, dashboardA, 2)
 	seedVersion(t, d, dashboardA, 1, "{}")
 	seedVersion(t, d, dashboardA, 2, "{}")

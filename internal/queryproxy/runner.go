@@ -139,6 +139,8 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	return r
 }
 
+func (r *Runner) UpstreamWait() time.Duration { return r.upstreamWait }
+
 func (r *Runner) AcquireUpstream(ctx context.Context, datasourceUID string) (release func(), err error) {
 	return r.slots.Acquire(ctx, datasourceUID)
 }
