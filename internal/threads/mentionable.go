@@ -18,6 +18,7 @@ import (
 const (
 	maxMentionablePeople = 20
 	mentionableScanRows  = 100
+	mentionableScanPages = 20
 	maxMentionTermRunes  = 100
 )
 
@@ -45,23 +46,32 @@ func (s *Service) MentionablePeople(ctx context.Context, by auth.Principal, t Ta
 	if err != nil {
 		self = pgtype.UUID{}
 	}
-	rows, err := s.db.Queries().MentionCandidates(ctx, dbsqlc.MentionCandidatesParams{Self: self, Pattern: likePattern(term), RowLimit: mentionableScanRows})
-	if err != nil {
-		return nil, false, fmt.Errorf("list mention candidates: %w", err)
-	}
 	people := []Person{}
 	want := min(limit, maxMentionablePeople)
-	for _, row := range rows {
-		if len(people) > want {
+	var afterKey string
+	var afterID pgtype.UUID
+	for page := 0; page < mentionableScanPages && len(people) <= want; page++ {
+		rows, err := s.db.Queries().MentionCandidates(ctx, dbsqlc.MentionCandidatesParams{Self: self, Pattern: likePattern(term), AfterKey: afterKey, AfterID: afterID, RowLimit: mentionableScanRows})
+		if err != nil {
+			return nil, false, fmt.Errorf("list mention candidates: %w", err)
+		}
+		for _, row := range rows {
+			if len(people) > want {
+				break
+			}
+			visible, err := s.canView(ctx, userPrincipal(row.ID, row.Name, row.Email, row.Role, row.Groups), sc.target)
+			if err != nil {
+				return nil, false, err
+			}
+			if visible {
+				people = append(people, Person{ID: row.ID.String(), Name: cmp.Or(row.Name, row.Email), Email: row.Email})
+			}
+		}
+		if len(rows) < mentionableScanRows {
 			break
 		}
-		visible, err := s.canView(ctx, userPrincipal(row.ID, row.Name, row.Email, row.Role, row.Groups), sc.target)
-		if err != nil {
-			return nil, false, err
-		}
-		if visible {
-			people = append(people, Person{ID: row.ID.String(), Name: cmp.Or(row.Name, row.Email), Email: row.Email})
-		}
+		last := rows[len(rows)-1]
+		afterKey, afterID = last.SortKey, last.ID
 	}
 	if len(people) > want {
 		return people[:want], true, nil

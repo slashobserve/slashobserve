@@ -778,29 +778,39 @@ func (q *Queries) MarkThreadRead(ctx context.Context, arg MarkThreadReadParams) 
 }
 
 const mentionCandidates = `-- name: MentionCandidates :many
-SELECT id, name, email, role, groups FROM users
+SELECT id, name, email, role, groups, lower(coalesce(nullif(name, ''), email))::text AS sort_key FROM users
 WHERE id <> $1::uuid
   AND (name ILIKE $2::text ESCAPE '\' OR email ILIKE $2::text ESCAPE '\')
+  AND (lower(coalesce(nullif(name, ''), email)), id) > ($3::text, $4::uuid)
 ORDER BY lower(coalesce(nullif(name, ''), email)), id
-LIMIT $3
+LIMIT $5
 `
 
 type MentionCandidatesParams struct {
 	Self     pgtype.UUID
 	Pattern  string
+	AfterKey string
+	AfterID  pgtype.UUID
 	RowLimit int32
 }
 
 type MentionCandidatesRow struct {
-	ID     pgtype.UUID
-	Name   string
-	Email  string
-	Role   string
-	Groups []string
+	ID      pgtype.UUID
+	Name    string
+	Email   string
+	Role    string
+	Groups  []string
+	SortKey string
 }
 
 func (q *Queries) MentionCandidates(ctx context.Context, arg MentionCandidatesParams) ([]MentionCandidatesRow, error) {
-	rows, err := q.db.Query(ctx, mentionCandidates, arg.Self, arg.Pattern, arg.RowLimit)
+	rows, err := q.db.Query(ctx, mentionCandidates,
+		arg.Self,
+		arg.Pattern,
+		arg.AfterKey,
+		arg.AfterID,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -814,6 +824,7 @@ func (q *Queries) MentionCandidates(ctx context.Context, arg MentionCandidatesPa
 			&i.Email,
 			&i.Role,
 			&i.Groups,
+			&i.SortKey,
 		); err != nil {
 			return nil, err
 		}

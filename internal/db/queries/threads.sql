@@ -143,9 +143,10 @@ SELECT * FROM thread_mentions WHERE message_id = ANY(@message_ids::uuid[]) ORDER
 SELECT id, name, email, role, groups FROM users WHERE id = ANY(@ids::uuid[]);
 
 -- name: MentionCandidates :many
-SELECT id, name, email, role, groups FROM users
+SELECT id, name, email, role, groups, lower(coalesce(nullif(name, ''), email))::text AS sort_key FROM users
 WHERE id <> @self::uuid
   AND (name ILIKE @pattern::text ESCAPE '\' OR email ILIKE @pattern::text ESCAPE '\')
+  AND (lower(coalesce(nullif(name, ''), email)), id) > (@after_key::text, @after_id::uuid)
 ORDER BY lower(coalesce(nullif(name, ''), email)), id
 LIMIT @row_limit;
 

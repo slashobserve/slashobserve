@@ -108,3 +108,19 @@ func TestMentionablePeopleThroughTheRoute(t *testing.T) {
 	r.call(t, commenter, http.MethodGet, "/threads/mentionable?target=nope", nil).expect(t, http.StatusUnprocessableEntity, "invalid_target")
 	r.call(t, commenter, http.MethodGet, path+"&q="+url.QueryEscape(strings.Repeat("a", 101)), nil).expect(t, http.StatusBadRequest, "")
 }
+
+func TestMentionablePeopleOfARestrictedTargetAreFoundBeyondTheFirstScannedPage(t *testing.T) {
+	r := newRig(t)
+	dash := r.createDashboard(t, "rps")
+	restricted := foldertest.Restricted(t, r.db, "Payroll", payrollGroup)
+	foldertest.Move(t, r.db, dash, restricted)
+	r.db.Exec(t, `INSERT INTO users (oidc_issuer, oidc_subject, email, name)
+		SELECT 'https://idp', 'bulk-' || n, 'bulk-' || n || '@example.com', 'Aaa ' || lpad(n::text, 4, '0') FROM generate_series(1, $1::int) n`, mentionableScanRows+20)
+	late := r.createUser(t, "Zed Late", "zed@example.com")
+	r.db.Exec(t, `UPDATE users SET groups = ARRAY[$2] WHERE id = $1`, late, payrollGroup)
+
+	people, more, err := r.service.MentionablePeople(t.Context(), admin, target(KindDashboard, dash), "", 20)
+	if err != nil || names(people) != "Zed Late" || more {
+		t.Fatalf("people = %s, more = %v, err %v, want the group member past the first page and no more", names(people), more, err)
+	}
+}
