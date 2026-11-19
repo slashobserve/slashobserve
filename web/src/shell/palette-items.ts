@@ -261,18 +261,6 @@ export function paletteGroups(
       items: found.filter((entry) => entry.kind === kind),
     })),
     {
-      value: "Search",
-      items: searching
-        ? [
-            {
-              kind: "action",
-              id: "action:search-all",
-              label: `See all results for "${query.trim()}"`,
-            },
-          ]
-        : [],
-    },
-    {
       value: "Actions",
       items: newActionEntries.filter((e) => matches(e.label)),
     },
@@ -283,6 +271,18 @@ export function paletteGroups(
     {
       value: "Account",
       items: [themeEntry, signOutEntry].filter((e) => matches(e.label)),
+    },
+    {
+      value: "Search",
+      items: searching
+        ? [
+            {
+              kind: "action",
+              id: "action:search-all",
+              label: `See all results for "${query.trim()}"`,
+            },
+          ]
+        : [],
     },
   ]
   return groups.filter((group) => group.items.length > 0)

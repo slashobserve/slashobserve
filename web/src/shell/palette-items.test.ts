@@ -440,7 +440,12 @@ describe("search all and recent observations", () => {
     { id: "o2", title: "Queue backlog" },
   ]
 
-  test("from two characters the last group before the actions offers all results", () => {
+  test("the search entry is the last group, so Enter runs a matching action first", () => {
+    const groups = allGroups("sign out", [], [], "viewer", [])
+    expect(groups.map((group) => group.value)).toEqual(["Account", "Search"])
+  })
+
+  test("from two characters a group offers all results", () => {
     const groups = allGroups("checkout", [], [], "viewer", [])
     const search = groups.find((group) => group.value === "Search")
     expect(search?.items).toEqual([
