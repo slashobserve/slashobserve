@@ -86,7 +86,7 @@ func (r *observationRig) written(t *testing.T, by auth.Principal, tool, input st
 	t.Helper()
 	res := r.call(t, by, tool, input)
 	out, ok := res.Content.(observationWrittenOut)
-	if res.IsError || !ok || out.Code != "ok" {
+	if res.IsError || !ok {
 		t.Fatalf("%s %s: %#v", tool, input, res.Content)
 	}
 	return out

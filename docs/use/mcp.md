@@ -276,9 +276,9 @@ A panel that uses a variable with no value in `variables` is refused with `varia
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
-Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
+Every write answers with the ids, the `state` of what it changed, the block `version` and the `url`.
 
-`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
 No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.

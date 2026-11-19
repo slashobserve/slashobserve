@@ -173,7 +173,6 @@ func parseWindow(from, to string) (window, Result, bool) {
 }
 
 type observationWrittenOut struct {
-	Code          string `json:"code"`
 	ObservationID string `json:"observation_id,omitempty"`
 	BlockID       string `json:"block_id,omitempty"`
 	State         string `json:"state"`
@@ -402,7 +401,7 @@ func (r *Registry) blockInput(ctx context.Context, principal auth.Principal, b b
 }
 
 func (r *Registry) addedBlock(b observations.Block) Result {
-	out := observationWrittenOut{Code: "ok", ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
+	out := observationWrittenOut{ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
 	if b.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -471,7 +470,7 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 			return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
 		}
 	}
-	return success("Created observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: url}), nil
+	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: url}), nil
 }
 
 func (r *Registry) addBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -537,7 +536,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return r.observationFailure("Updated a block", err)
 	}
-	out := observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
+	out := observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
 	if block.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -628,7 +627,7 @@ func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage
 	if err != nil {
 		return r.observationFailure("Resolved an observation", err)
 	}
-	return success("Resolved observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
+	return success("Resolved observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
 }
 
 func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -658,7 +657,7 @@ func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result
 	if err != nil {
 		return r.observationFailure("Kept a block", err)
 	}
-	return success("Kept block "+block.ID, observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
+	return success("Kept block "+block.ID, observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
 }
 
 func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -683,7 +682,7 @@ func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Res
 	if err := r.deps.Observations.DiscardBlock(ctx, principal, id, runID); err != nil {
 		return r.observationFailure("Discarded a block", err)
 	}
-	return success("Discarded block "+id.String(), observationWrittenOut{Code: "ok", BlockID: id.String(), State: "discarded"}), nil
+	return success("Discarded block "+id.String(), observationWrittenOut{BlockID: id.String(), State: "discarded"}), nil
 }
 
 func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (Result, error) {
