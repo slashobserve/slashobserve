@@ -11,6 +11,7 @@ type Item = {
   title: string
   state: string
   openable: boolean
+  cost_usd?: number | null
   requested_by: { kind: string; name: string }
   dashboard: { id: string; title: string } | null
   observation: { id: string; title: string } | null
@@ -92,6 +93,21 @@ describe("RecentWork", () => {
     expect(screen.getByText("Failed")).toBeTruthy()
     expect(screen.getByText("Stopping")).toBeTruthy()
     expect(screen.getAllByText("3 min ago")).toHaveLength(2)
+  })
+
+  it("shows what a run cost when the run has a recorded cost", async () => {
+    serve(() =>
+      json(
+        page([
+          item({ id: "priced", title: "Priced run", cost_usd: 0.42 }),
+          item({ id: "free", title: "Unpriced run" }),
+        ])
+      )
+    )
+    renderWork({ kind: "observe" })
+
+    expect(await screen.findByText("$0.42")).toBeTruthy()
+    expect(screen.queryByText("Not priced")).toBeNull()
   })
 
   it("links only the runs the person asked for", async () => {

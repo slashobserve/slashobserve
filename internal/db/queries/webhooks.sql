@@ -5,8 +5,8 @@ SELECT pg_advisory_xact_lock(hashtextextended('webhooks', 0));
 SELECT count(*) FROM webhooks;
 
 -- name: InsertWebhook :one
-INSERT INTO webhooks (id, name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq)
-VALUES (@id, @name, @url, @secret_ciphertext, @event_types, @owner_kind, @owner_id, @cursor_xid, @cursor_seq)
+INSERT INTO webhooks (id, name, url, format, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq)
+VALUES (@id, @name, @url, @format, @secret_ciphertext, @event_types, @owner_kind, @owner_id, @cursor_xid, @cursor_seq)
 RETURNING *;
 
 -- name: ListWebhooks :many
@@ -30,6 +30,7 @@ SELECT * FROM webhooks WHERE id = @id FOR UPDATE;
 UPDATE webhooks
 SET name = @name,
   url = @url,
+  format = @format,
   event_types = @event_types,
   owner_kind = @owner_kind,
   owner_id = @owner_id,
@@ -44,8 +45,6 @@ RETURNING *;
 -- name: SetWebhookSecret :one
 UPDATE webhooks
 SET secret_ciphertext = @secret_ciphertext,
-  owner_kind = @owner_kind,
-  owner_id = @owner_id,
   updated_at = now()
 WHERE id = @id
 RETURNING *;
@@ -74,7 +73,7 @@ RETURNING *;
 UPDATE webhooks
 SET lease_until = clock_timestamp() + make_interval(secs => @lease_seconds::double precision)
 WHERE id = @id AND lease_id = @lease_id AND disabled_at IS NULL
-RETURNING url, event_types, secret_ciphertext, owner_kind, owner_id;
+RETURNING url, format, event_types, secret_ciphertext, owner_kind, owner_id;
 
 -- name: AdvanceWebhook :execrows
 UPDATE webhooks
@@ -91,6 +90,15 @@ SET consecutive_failures = @consecutive_failures,
   disabled_at = sqlc.narg('disabled_at'),
   disabled_reason = sqlc.narg('disabled_reason')
 WHERE id = @id AND lease_id = @lease_id;
+
+-- name: SkipWebhookEvent :execrows
+UPDATE webhooks
+SET cursor_xid = @cursor_xid,
+  cursor_seq = @cursor_seq,
+  consecutive_failures = 0,
+  next_attempt_at = clock_timestamp(),
+  updated_at = now()
+WHERE id = @id;
 
 -- name: DisableLeasedWebhook :execrows
 UPDATE webhooks

@@ -153,9 +153,26 @@ func TestOnlyAdminsCanChangeTheAllowlist(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOnlyEditorsAndAdminsCanReadTheAllowlist(t *testing.T) {
 	locked := Lock{Locked: true, Domains: parseList(t, "example.com")}
-	if rec := serveAs(t, locked, auth.KindUser, auth.RoleViewer, http.MethodGet, "", ""); rec.Code != http.StatusOK {
-		t.Fatalf("a Viewer's GET = %d %s, want 200", rec.Code, rec.Body)
+	for _, tt := range []struct {
+		role auth.Role
+		want int
+	}{
+		{auth.RoleViewer, http.StatusForbidden},
+		{auth.RoleCommenter, http.StatusForbidden},
+		{auth.RoleEditor, http.StatusOK},
+		{auth.RoleAdmin, http.StatusOK},
+	} {
+		rec := serveAs(t, locked, auth.KindUser, tt.role, http.MethodGet, "", "")
+		if rec.Code != tt.want {
+			t.Fatalf("GET as %s = %d %s, want %d", tt.role, rec.Code, rec.Body, tt.want)
+		}
+		if tt.want == http.StatusForbidden && code(t, rec) != "forbidden_role" {
+			t.Fatalf("GET as %s: code = %s, want forbidden_role", tt.role, code(t, rec))
+		}
 	}
 }
 

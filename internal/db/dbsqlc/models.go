@@ -480,6 +480,7 @@ type OutboundDomain struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+	ForConnection bool
 }
 
 type Proposal struct {
@@ -731,6 +732,7 @@ type Webhook struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 }
 
 type WebhookDelivery struct {

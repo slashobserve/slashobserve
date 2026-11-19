@@ -258,13 +258,13 @@ export interface paths {
         };
         /**
          * List the domains the server may fetch content from.
-         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. Service accounts cannot call this endpoint.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry, for Admins only and empty for Editors; dashboard feeds, actions and assets are fetched on demand and not listed. Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`. Service accounts cannot call this endpoint.
          */
         get: operations["listOutboundDomains"];
         put?: never;
         /**
          * Allow a domain.
-         * @description Any signed-in person may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
+         * @description Only an Admin may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
          */
         post: operations["allowOutboundDomain"];
         delete?: never;
@@ -2758,8 +2758,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a webhook's name, address, event types or state.
-         * @description Only Admins can call this endpoint. The caller becomes the webhook's owner, so it delivers only what the caller can read from now on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * Change a webhook's name, address, format, event types or state.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
          */
         patch: operations["updateWebhook"];
         trace?: never;
@@ -2777,7 +2777,7 @@ export interface paths {
         put?: never;
         /**
          * Replace a webhook's signing secret.
-         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The caller becomes the webhook's owner. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
+         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The owner stays as it is. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
          */
         post: operations["rotateWebhookSecret"];
         delete?: never;
@@ -2802,6 +2802,28 @@ export interface paths {
          * @description Only Admins can call this endpoint. The server sends a signed `webhook.test` event with no `event` and waits for the answer, up to 10 seconds. It works on a disabled webhook, records the attempt in the delivery history and changes nothing else. A receiver that cannot be reached or answers with an error still gives 200, with `outcome` `failed` and its `error_code`.
          */
         post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pass over the oldest event a failing webhook is stuck on.
+         * @description Only Admins can call this endpoint. A webhook delivers in order, so one event the receiver keeps refusing holds back every event behind it. This moves the webhook's position past the oldest event it still has to send, records that event as a `skipped` attempt with the error `skipped_by_admin`, clears the failure count and makes the webhook send the next event at once. The skipped event is never sent to this receiver. It answers 409 `nothing_to_skip` when the webhook is not retrying or has no event left to send, and 409 `webhook_busy` while a server is delivering for it; try again after a few seconds.
+         */
+        post: operations["skipWebhookEvent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3760,6 +3782,14 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
+            /** @description True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host. */
+            from_connection: boolean;
+            /** @description The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
+            used_by: {
+                /** @enum {string} */
+                kind: "webhook" | "grafana_connection";
+                name: string;
+            }[];
             /**
              * Format: date-time
              * @description Null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS`.
@@ -5825,6 +5855,7 @@ export interface components {
             name: string;
             /** @description The https address events are posted to. */
             url: string;
+            format: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
             owner: components["schemas"]["Actor"];
             enabled: boolean;
@@ -5846,11 +5877,23 @@ export interface components {
              * @description The earliest time of the next attempt; in the past while the webhook has nothing to send.
              */
             next_attempt_at: string;
+            /** @description How many events the webhook still has to send, while `consecutive_failures` is above 0 and the owner can be read; null otherwise. */
+            waiting_events: {
+                /** @description The events waiting, counted up to 100, the failing one included. */
+                count: number;
+                /** @description True when more than 100 events are waiting. */
+                more: boolean;
+            } | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description `generic` is the signed JSON envelope of the webhooks guide; `slack` posts `{"text": ...}` and `teams` an Adaptive Card message, each with one line that names the actor, the event type and its title.
+         * @enum {string}
+         */
+        WebhookFormat: "generic" | "slack" | "teams";
         WebhookList: {
             webhooks: components["schemas"]["Webhook"][];
         };
@@ -5863,13 +5906,20 @@ export interface components {
             name: string;
             /** @description An https address on port 443 with a domain name, no user info and no fragment. */
             url: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
         };
         UpdateWebhookRequest: {
             name?: string;
             url?: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types?: components["schemas"]["ActivityType"][];
             enabled?: boolean;
+            /**
+             * @description `me` makes the caller the webhook's owner; any other value is refused.
+             * @enum {string}
+             */
+            owner?: "me";
         };
         WebhookDelivery: {
             /** @description The attempt's id, ordered by time. */
@@ -5891,10 +5941,14 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+        };
+        WebhookSkipResult: {
+            webhook: components["schemas"]["Webhook"];
+            skipped: components["schemas"]["WebhookDelivery"];
         };
         WebhookTestResult: {
             delivery: components["schemas"]["WebhookDelivery"];
@@ -7188,6 +7242,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description A Grafana connection had already added the domain, so it is now kept as an entry of its own and no longer leaves with the connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundDomain"];
+                };
+            };
             /** @description The domain is allowed. */
             201: {
                 headers: {
@@ -7200,7 +7263,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`). */
+            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain was already allowed by hand (`domain_exists`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13922,6 +13985,42 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`), or the stored secret cannot be read with it (`secret_unreadable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    skipWebhookEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook after the skip and the attempt that records it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSkipResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The webhook has no failing event to skip (`nothing_to_skip`), or is delivering right now (`webhook_busy`). */
             409: {
                 headers: {
                     [name: string]: unknown;

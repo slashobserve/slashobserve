@@ -202,7 +202,7 @@ func (w *Worker) send(ctx context.Context, c *claim, e activity.Event) bool {
 		w.disable(ctx, c.row, ReasonSecretUnreadable)
 		return false
 	}
-	body, deliveryID, err := eventPayload(c.row.ID.String(), e)
+	body, deliveryID, err := eventPayload(c.row.ID.String(), current.Format, e)
 	if err != nil {
 		w.logFailure(ctx, "encode webhook payload", "webhook_payload_failed", err, c.row)
 		return false

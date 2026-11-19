@@ -59,12 +59,12 @@ func storedOf(row dbsqlc.GrafanaConnection) (stored, error) {
 	return stored{Connection: c, id: row.ID, sealed: row.TokenCiphertext}, nil
 }
 
-func (s store) insert(ctx context.Context, params dbsqlc.InsertGrafanaConnectionParams) (stored, error) {
-	row, err := s.db.Queries().InsertGrafanaConnection(ctx, params)
+func (s store) insert(ctx context.Context, q *dbsqlc.Queries, params dbsqlc.InsertGrafanaConnectionParams) (dbsqlc.GrafanaConnection, error) {
+	row, err := q.InsertGrafanaConnection(ctx, params)
 	if err != nil {
-		return stored{}, fmt.Errorf("insert grafana connection: %w", err)
+		return dbsqlc.GrafanaConnection{}, fmt.Errorf("insert grafana connection: %w", err)
 	}
-	return storedOf(row)
+	return row, nil
 }
 
 func (s store) withLastSyncs(ctx context.Context, list []stored) error {
@@ -134,15 +134,15 @@ func (s store) list(ctx context.Context) ([]Connection, error) {
 	return out, nil
 }
 
-func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnectionParams) (stored, error) {
-	row, err := s.db.Queries().UpdateGrafanaConnection(ctx, params)
+func (s store) update(ctx context.Context, q *dbsqlc.Queries, params dbsqlc.UpdateGrafanaConnectionParams) (dbsqlc.GrafanaConnection, error) {
+	row, err := q.UpdateGrafanaConnection(ctx, params)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return stored{}, ErrNotFound
+		return dbsqlc.GrafanaConnection{}, ErrNotFound
 	}
 	if err != nil {
-		return stored{}, fmt.Errorf("update grafana connection: %w", err)
+		return dbsqlc.GrafanaConnection{}, fmt.Errorf("update grafana connection: %w", err)
 	}
-	return s.one(ctx, row)
+	return row, nil
 }
 
 func (s store) delete(ctx context.Context, id pgtype.UUID) error {
