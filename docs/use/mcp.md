@@ -120,7 +120,7 @@ If both changed the same panel, variable or setting, it returns the tool error `
 `update_dashboard` and `update_panels` save a [proposal](../concepts/proposals.md) instead when the caller can comment but not edit, or when its connection is in propose mode.
 The answer is a success, not a tool error: its code is `proposed` and it carries `proposal_id`, `revision`, `opened` (false when the save added a revision to the caller's open proposal) and the dashboard's `url`.
 A Viewer still gets `forbidden_role`.
-`get_dashboard` returns the Spec at the latest version or at `version`, and returns `too_large` for a Spec over 128 KiB.
+`get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -183,7 +183,7 @@ Runtime families left out of the inventory are never in `uncovered`.
 A histogram, summary or counter counts as covered when a query names any of its series, such as `<name>_bucket` or `<name>_total`.
 Save results also carry `notes`, up to 20 hints that never reject a save: a time series or bar chart query with no `legend`, a stat, gauge, bar gauge or time series with no `unit`, and a stat with no `description`.
 
-`list_folders` is available over MCP only.
+`list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 `create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
 
@@ -255,6 +255,9 @@ It never creates a public link: a person does that, and no tool lists or revokes
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
 
 A block written by someone who can only comment arrives as `requested` and says so in `note`; a person who can edit keeps it with `keep_block` or discards it with `discard_block`, and the one who asked for it may discard it too.
+
+`get_observation` and `list_observations` are also offered to the built-in agent, which only reads with them.
+
 A block's `version` is checked by `update_block` and `keep_block`: a stale one answers `version_conflict`, so read the block with `get_observation` and apply the change to the version it names.
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
@@ -297,6 +300,8 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
+To make that change, use `update_panels` on that dashboard yourself, or ask the built-in agent there with `start_run`, sending the finding's `ask_on.dashboard_id` as `dashboard_id` and the run's prompt, or with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.

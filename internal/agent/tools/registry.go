@@ -203,6 +203,17 @@ type Run struct {
 
 type runKey struct{}
 
+type readsRefusedKey struct{}
+
+func WithReadsRefused(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, readsRefusedKey{}, n)
+}
+
+func ReadsRefused(ctx context.Context) int {
+	n, _ := ctx.Value(readsRefusedKey{}).(int)
+	return n
+}
+
 func WithRun(ctx context.Context, run Run) context.Context {
 	return context.WithValue(ctx, runKey{}, run)
 }
@@ -513,7 +524,7 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case t.MCPOnly:
 		return Result{}, true
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
-		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
+		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
 	case inRun && !t.OfferedIn(run.Mode):

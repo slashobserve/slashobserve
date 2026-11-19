@@ -40,6 +40,7 @@ While your connection is in propose mode, a save that removes panels or variable
 In direct mode update_panels with delete, or a spec without a panel, removes it as a new version, so delete only what the person asked you to, and restore_dashboard_version brings the old version back.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending ask_on.dashboard_id as dashboard_id and the run's prompt.
 
 ## Review proposals
 
@@ -51,6 +52,7 @@ Merge or discard only what your person asked you to.
 ## Investigate a question
 
 Find the signal with the discovery tools and query_range, and look for causes beside it: list_annotations for deploys and other markers, list_activity for dashboard changes and agent runs.
+Read earlier observations with list_observations and get_observation first, and cite the one you used by its title and /o/<id> link.
 Save the answer in an observation: create_observation files one in a folder (list_folders gives a folder_id), and add_block adds a text block (Markdown, no HTML), a panel block whose query returns data in its range, or a snapshot that freezes a panel block.
 Put a one-sentence answer first, then the evidence.
 No tool queues an investigation on the server; you do the work with your own model.
