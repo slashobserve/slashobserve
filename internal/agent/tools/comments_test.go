@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -262,6 +263,10 @@ func TestCommentItemAuthorFallsBackToEmail(t *testing.T) {
 
 func TestCommentFailure(t *testing.T) {
 	internal := errors.New("database down")
+	threadID, err := db.ParseUUID("5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21")
+	if err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name     string
 		err      error
@@ -280,6 +285,7 @@ func TestCommentFailure(t *testing.T) {
 		{name: "not the starter", err: threads.ErrNotStarter, wantCode: codeNotStarter, wantMsg: threads.ErrNotStarter.Error()},
 		{name: "unknown panel", err: threads.ErrUnknownPanel, wantCode: codeUnknownPanel, wantMsg: threads.ErrUnknownPanel.Error()},
 		{name: "unknown version", err: threads.ErrUnknownVersion, wantCode: codeUnknownVersion, wantMsg: threads.ErrUnknownVersion.Error()},
+		{name: "observation already has a discussion", err: &threads.ObservationThreadExistsError{ThreadID: threadID}, wantCode: codeThreadExists, wantMsg: "this observation already has a discussion; add to it with reply_to_comment and comment_id 5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21"},
 		{name: "internal", err: internal, wantErr: internal},
 	}
 	for _, tt := range tests {
