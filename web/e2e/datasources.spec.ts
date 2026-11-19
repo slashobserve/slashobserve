@@ -56,7 +56,7 @@ test("never shows connection details", async ({ page }) => {
   const body = await (await listed).text()
   await page.evaluate(() => {
     document
-      .querySelector('a[href$="/datasources-file.md"]')
+      .querySelector('a[href$="/datasources-in-the-app.md"]')
       ?.removeAttribute("href")
     for (const element of document.querySelectorAll("[xmlns]")) {
       element.removeAttribute("xmlns")
