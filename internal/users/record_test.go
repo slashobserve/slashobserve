@@ -21,7 +21,7 @@ func (r *rig) peopleActivity() []recorded {
 	if err != nil {
 		r.t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []recorded
 	for rows.Next() {
 		var e recorded
