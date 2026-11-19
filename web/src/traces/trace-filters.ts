@@ -3,8 +3,8 @@ import type { TraceSearch } from "./search"
 export const traceFilterLabels = {
   service: "Service",
   span: "Span name",
-  min: "Min duration",
-  max: "Max duration",
+  min: "Min span duration",
+  max: "Max span duration",
   errors: "Errors only",
   q: "TraceQL",
 } as const

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest"
 
 import {
@@ -74,6 +75,28 @@ describe("traceQLFor", () => {
   })
 })
 
+const unfilteredSql = (
+  await (
+    await fetch(
+      new URL(
+        "../../../internal/datasource/clickhouse/testdata/trace_list_unfiltered.sql",
+        import.meta.url
+      )
+    )
+  ).text()
+).trimEnd()
+
+const filteredSql = (
+  await (
+    await fetch(
+      new URL(
+        "../../../internal/datasource/clickhouse/testdata/trace_list_filtered.sql",
+        import.meta.url
+      )
+    )
+  ).text()
+).trimEnd()
+
 describe("clickhouseTraceSearch", () => {
   it("selects the per-trace start as Timestamp and leaves ordering and limits to the pager", () => {
     const query = clickhouseTraceSearch(empty)
@@ -81,28 +104,37 @@ describe("clickhouseTraceSearch", () => {
     expect(query).not.toMatch(/ORDER BY|LIMIT/)
   })
 
-  it("lists the traces without conditions", () => {
-    expect(clickhouseTraceSearch(empty))
-      .toBe(`SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
-FROM otel_traces
-WHERE $__timeFilter(otel_traces.Timestamp)
-GROUP BY TraceId`)
+  it("lists the traces without conditions, the same SQL the datasource tests run", () => {
+    expect(clickhouseTraceSearch(empty)).toBe(unfilteredSql)
+  })
+
+  it("reads every span of the traces that match, the same SQL the datasource tests run", () => {
+    expect(
+      clickhouseTraceSearch({ ...empty, service: "tl-front", min: "50ms" })
+    ).toBe(filteredSql)
+  })
+
+  it("counts the matching spans next to all of them only when a condition is set", () => {
+    expect(clickhouseTraceSearch(empty)).not.toContain("AS Matching")
+    expect(clickhouseTraceSearch({ ...empty, service: "a" })).toContain(
+      "countIf(otel_traces.ServiceName = 'a') AS Matching"
+    )
   })
 
   it("adds every condition with durations in nanoseconds and escaped quotes", () => {
-    expect(
-      clickhouseTraceSearch({
-        service: "o'neil",
-        span: "pay",
-        min: "250ms",
-        max: "1.5s",
-        errors: true,
-      })
+    const query = clickhouseTraceSearch({
+      service: "o'neil",
+      span: "pay",
+      min: "250ms",
+      max: "1.5s",
+      errors: true,
+    })
+    const conditions =
+      "otel_traces.ServiceName = 'o\\'neil' AND otel_traces.SpanName = 'pay' AND otel_traces.Duration >= 250000000 AND otel_traces.Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')"
+    expect(query).toContain(
+      `AND TraceId IN (SELECT TraceId FROM otel_traces WHERE $__timeFilter(otel_traces.Timestamp) AND ${conditions})`
     )
-      .toBe(`SELECT TraceId, min(otel_traces.Timestamp) AS StartTime, min(otel_traces.Timestamp) AS Timestamp, argMax(otel_traces.ServiceName, otel_traces.Duration) AS ServiceName, argMax(otel_traces.SpanName, otel_traces.Duration) AS SpanName, max(otel_traces.Duration) AS Duration, count() AS Spans, countIf(lower(StatusCode) IN ('error', 'status_code_error')) AS Errors
-FROM otel_traces
-WHERE $__timeFilter(otel_traces.Timestamp) AND otel_traces.ServiceName = 'o\\'neil' AND otel_traces.SpanName = 'pay' AND otel_traces.Duration >= 250000000 AND otel_traces.Duration <= 1500000000 AND lower(StatusCode) IN ('error', 'status_code_error')
-GROUP BY TraceId`)
+    expect(query).toContain(`countIf(${conditions}) AS Matching`)
   })
 })
 
@@ -125,6 +157,11 @@ describe("traceSearchParams", () => {
 
   it("asks for the page and size in the address and never a limit", () => {
     const params = traceSearchParams("clickhouse", { page: 3, size: 250 })
+    expect(params.sort).toBe("-Duration")
+    expect(traceSearchParams("clickhouse", { sort: "spans" }).sort).toBe(
+      "Spans"
+    )
+    expect(traceSearchParams("tempo", { sort: "spans" }).sort).toBeUndefined()
     expect(params).toMatchObject({ pageSize: 250, page: 3 })
     expect(params).not.toHaveProperty("limit")
   })
@@ -182,18 +219,28 @@ describe("traceQLAttribute", () => {
   })
 
   it.each([
-    ["503", "503"],
-    ["-1.5", "-1.5"],
-    ["true", "true"],
-    ["false", "false"],
-    ["1e3", '"1e3"'],
-    ["12abc", '"12abc"'],
-    ["", '""'],
-  ])("writes %j as the typed value %s", (value, written) => {
+    ["true", "span.http.response.status_code = true"],
+    ["false", "span.http.response.status_code = false"],
+    ["1e3", 'span.http.response.status_code = "1e3"'],
+    ["12abc", 'span.http.response.status_code = "12abc"'],
+    ["", 'span.http.response.status_code = ""'],
+  ])("writes %j as one typed comparison", (value, written) => {
     expect(
       traceQLAttribute("span", "http.response.status_code", value, false)
-    ).toBe(`{ span.http.response.status_code = ${written} }`)
+    ).toBe(`{ ${written} }`)
   })
+
+  it.each(["503", "-1.5"])(
+    "matches %s as a number and as text, because the attribute may hold either",
+    (value) => {
+      expect(traceQLAttribute("span", "order.id", value, false)).toBe(
+        `{ (span.order.id = ${value} || span.order.id = "${value}") }`
+      )
+      expect(traceQLAttribute("span", "order.id", value, true)).toBe(
+        `{ (span.order.id != ${value} && span.order.id != "${value}") }`
+      )
+    }
+  )
 
   it("excludes a resource attribute", () => {
     expect(traceQLAttribute("resource", "service.name", "payments", true)).toBe(
@@ -327,7 +374,7 @@ describe("attributeFilter", () => {
     [
       "span.http.response.status_code",
       "503",
-      "span.http.response.status_code = 503",
+      '(span.http.response.status_code = 503 || span.http.response.status_code = "503")',
     ],
     ["name", "POST /checkout", 'name = "POST /checkout"'],
     ["kind", "Server", "kind = server"],

@@ -33,7 +33,8 @@ const (
 var (
 	forbiddenParams = []string{"query", "expr", "sql", "q"}
 
-	errQueryNotInSpec = errors.New("query text is not accepted")
+	errQueryNotInSpec  = errors.New("query text is not accepted")
+	errTooManyInFlight = errors.New("too many in-flight query requests")
 )
 
 type params struct {

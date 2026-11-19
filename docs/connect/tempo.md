@@ -33,7 +33,7 @@ The server does not follow redirects, so give the final address, and it refuses 
 ## Queries
 
 A query that is a trace id, 32 or 16 hexadecimal characters, reads that trace and returns one row per span.
-The row has the fields `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration` (nanoseconds), `StatusCode` (`Ok`, `Error` or `Unset`), `SpanAttributes` and `ResourceAttributes` (both JSON objects), which the traces panel draws as a span tree.
+The row has the fields `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration` (nanoseconds), `StatusCode` (`Ok`, `Error` or `Unset`), `StatusMessage` (the text the span set with its status, such as "card declined", or empty), `SpanAttributes` and `ResourceAttributes` (both JSON objects), which the traces panel draws as a span tree.
 A trace with more spans than the datasource's row limit is refused, and a trace Tempo does not know returns no data.
 
 Any other query is a TraceQL search, such as `{ resource.service.name = "checkout" && status = error }`, over the dashboard's time range.

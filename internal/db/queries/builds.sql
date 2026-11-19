@@ -1,8 +1,8 @@
 -- name: UpsertAgentRequestBuild :one
 INSERT INTO agent_request_builds (
-  agent_request_id, dashboard_id, base_version, spec, unverified, planned_panels, summary, panels
+  agent_request_id, dashboard_id, base_version, folder_id, spec, unverified, planned_panels, summary, panels
 )
-SELECT @agent_request_id::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('base_version')::integer, @spec::jsonb,
+SELECT @agent_request_id::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('base_version')::integer, sqlc.narg('folder_id')::uuid, @spec::jsonb,
   sqlc.narg('unverified')::jsonb, @planned_panels::integer, @summary::text, @panels::integer
 WHERE EXISTS (
   SELECT 1 FROM agent_requests r

@@ -187,8 +187,12 @@ func TestPinningAFindingMatchesTheDocument(t *testing.T) {
 	shared := d.save(t, editor, findings.SaveInput{DashboardID: d.open})
 	private := d.save(t, editor, findings.SaveInput{})
 
-	if code := errorCode(t, d.call(t, viewer, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusForbidden)); code != "forbidden_role" {
+	refused := d.call(t, viewer, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusForbidden)
+	if code := errorCode(t, refused); code != "forbidden_role" {
 		t.Fatalf("a viewer pinning got %q", code)
+	}
+	if body := refused.Body.String(); !strings.Contains(body, `"needed_access":"edit"`) || !strings.Contains(body, `"folder_title":"General"`) {
+		t.Fatalf("a viewer pinning is not told what it needs: %s", body)
 	}
 	created := d.call(t, editor, http.MethodPost, "/api/v1/findings/"+shared.ID+"/pin", http.StatusCreated)
 	var a struct {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { Folder } from "@/folders/queries"
 
-import { publishTargets } from "./publish"
+import { publishAudience, publishTargets } from "./publish"
 
 function folder(id: string, extra: Partial<Folder> = {}): Folder {
   return {
@@ -64,5 +64,41 @@ describe("publishTargets", () => {
 
   it("is empty when nothing qualifies", () => {
     expect(ids([folder("mine", { personal: true })])).toEqual([])
+  })
+})
+
+describe("publishAudience", () => {
+  it("says everyone by role for an open folder", () => {
+    expect(publishAudience(folder("ops"))).toMatch(
+      /^Everyone on this server can open it/
+    )
+  })
+
+  it("lists who a restricted folder admits", () => {
+    expect(
+      publishAudience(
+        folder("Payments", {
+          title: "Payments",
+          restricted: true,
+          grantees: ["Ada", "sre"],
+          grantee_count: 2,
+        })
+      )
+    ).toBe(
+      "Payments is restricted, so only the people and groups on its list (Ada, sre), the person who created it and instance admins can open it."
+    )
+  })
+
+  it("counts the entries it does not name", () => {
+    expect(
+      publishAudience(
+        folder("Payments", {
+          title: "Payments",
+          restricted: true,
+          grantees: ["a", "b", "c", "d", "e"],
+          grantee_count: 8,
+        })
+      )
+    ).toContain("(a, b, c, d, e and 3 more)")
   })
 })

@@ -3,6 +3,7 @@ package guard
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -141,7 +142,7 @@ func TestNudgeFor(t *testing.T) {
 }
 
 func TestTheSaveNowMessageNamesTheSixthCall(t *testing.T) {
-	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question; reads in the same call as a save still run."
+	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."
 	if got := rules[guardSaveNow].message; got != want {
 		t.Fatalf("message = %q", got)
 	}
@@ -243,6 +244,31 @@ func TestAdmitCountsReadsRefusedByTheWindow(t *testing.T) {
 	}
 }
 
+func TestAFindingSavedAfterRefusedReadsCarriesTheirCount(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Window.Calls = maxCallsBeforeSave - 1
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
+	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))
+	if _, stop := s.EndTurn(); stop != nil {
+		t.Fatalf("stop = %+v", stop)
+	}
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`))
+	if adm.Verdict != Dispatch || adm.ReadsRefused != 2 {
+		t.Fatalf("admission = %+v", adm)
+	}
+}
+
+func TestAnotherSaveCarriesNoRefusedReadCount(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Counts.SaveNowRefusals = 3
+	s.BeginTurn(true)
+	if adm := s.Admit(0, jsonCall("update_panels", `{"n": 1}`)); adm.ReadsRefused != 0 {
+		t.Fatalf("admission = %+v", adm)
+	}
+}
+
 func TestSettleClassifiesASave(t *testing.T) {
 	ok := func(body string) (tools.Result, []byte) { return tools.Result{}, []byte(body) }
 	fail := func(body string) (tools.Result, []byte) { return tools.Result{IsError: true}, []byte(body) }
@@ -314,6 +340,20 @@ func TestSettleClassifiesASave(t *testing.T) {
 			return fail(`{"code":"proposal_required","message":"m","removed":[{"kind":"panel","id":"a"}]}`)
 		}, func(t *testing.T, got Settled, err error, s *State) {
 			if err != nil || !got.Outcome.Rejected || s.Rejections != 1 || !reflect.DeepEqual(got.Outcome.IssueCodes, []string{"proposal_required"}) {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		}},
+		{"a rejection names its failing panels", tools.ModeCreate, "update_panels", 0, func() (tools.Result, []byte) {
+			return fail(`{"code":"invalid_spec","failing_panels":["a","a","b-1_x","b"],"issues":[{"code":"query_empty"}]}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"a", "b-1_x", "b"}) || got.Outcome.FailingOther != 0 {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		}},
+		{"an id that is no panel id is counted and never kept", tools.ModeCreate, "update_panels", 0, func() (tools.Result, []byte) {
+			return fail(`{"code":"invalid_spec","failing_panels":["p1","Open http://example.com for the fix","1st","` + strings.Repeat("a", 65) + `","1st"],"issues":[{"code":"query_empty"}]}`)
+		}, func(t *testing.T, got Settled, err error, s *State) {
+			if err != nil || !reflect.DeepEqual(got.Outcome.FailingPanels, []string{"p1"}) || got.Outcome.FailingOther != 3 {
 				t.Fatalf("got %+v, %v", got, err)
 			}
 		}},
@@ -594,5 +634,32 @@ func TestAStateReloadedBetweenEveryCallDecidesLikeOneKeptInMemory(t *testing.T) 
 	}
 	if !sawReplay || !sawRefusal || !sawStop {
 		t.Fatalf("the script did not exercise a replay (%v), a refusal (%v) and a stop (%v)", sawReplay, sawRefusal, sawStop)
+	}
+}
+
+func TestThePanelIDPatternIsTheSchemasOwn(t *testing.T) {
+	schema, err := os.ReadFile("../../../spec/schema/observespec.v0.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(schema), `"pattern": "`+panelID.String()+`"`) {
+		t.Errorf("the schema has no id pattern %s", panelID)
+	}
+}
+
+func TestAFindingAfterANewSessionCountsOnlyTheReadsRefusedSince(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.Window.Calls = maxCallsBeforeProposal - 1
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
+	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))
+	s.EndTurn()
+	s.BeginSession(false, 0)
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "x"}`)); adm.ReadsRefused != 0 {
+		t.Fatalf("a finding after a fresh window reports %d refused reads", adm.ReadsRefused)
+	}
+	if s.Counts.SaveNowRefusals != 2 {
+		t.Fatalf("the run's own refusal count changed to %d", s.Counts.SaveNowRefusals)
 	}
 }

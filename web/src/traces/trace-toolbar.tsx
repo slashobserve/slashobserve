@@ -210,7 +210,7 @@ export function TraceToolbar({ searchRef, ...props }: TraceToolbarProps) {
 
 export function ServiceLegend(props: ServiceLegendProps) {
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto px-4">
+    <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto px-4 narrow:h-auto narrow:flex-wrap narrow:py-2">
       <span className="shrink-0 text-xs text-muted-foreground">Services</span>
       {props.services.map((service) => {
         const shown = !props.hiddenServices.has(service.name)
@@ -237,7 +237,7 @@ export function ServiceLegend(props: ServiceLegendProps) {
           </Button>
         )
       })}
-      <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground">
+      <span className="ml-auto shrink-0 pl-2 text-xs text-muted-foreground narrow:ml-0 narrow:basis-full narrow:pl-0">
         {props.hint}
       </span>
     </div>

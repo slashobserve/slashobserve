@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useLatestPermissions } from "@/dashboards/permissions"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -33,18 +34,30 @@ function toastError(error: Error) {
 }
 
 function PinAction({ finding }: { finding: Finding }) {
-  const pin = usePinFinding(finding)
   if (finding.dashboard_id === null) return null
+  return <PinOnDashboard finding={finding} dashboardId={finding.dashboard_id} />
+}
+
+function PinOnDashboard({
+  finding,
+  dashboardId,
+}: {
+  finding: Finding
+  dashboardId: string
+}) {
+  const pin = usePinFinding(finding)
+  const mayPin = useLatestPermissions(dashboardId).edit
   if (pin.isSuccess || finding.annotation_id !== null) {
     return (
       <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
         <span>Pinned to the dashboard</span>
-        <Link {...dashboardLink(finding.dashboard_id)} className={linkClass}>
+        <Link {...dashboardLink(dashboardId)} className={linkClass}>
           Open dashboard
         </Link>
       </p>
     )
   }
+  if (!mayPin) return null
   return (
     <Button
       variant="outline"

@@ -6,6 +6,8 @@ import { addPill, encodePills } from "@/logs/pills"
 import {
   defaultTitle,
   logsDraft,
+  noSaveFolderText,
+  saveBlockedText,
   saveTargets,
   tracesDraft,
   type SearchDraft,
@@ -86,6 +88,18 @@ describe("saveTargets", () => {
     expect(saveTargets([other, general]).initial).toBe("general")
     expect(saveTargets([other]).initial).toBe("other")
     expect(saveTargets([]).initial).toBeNull()
+  })
+})
+
+describe("saveBlockedText", () => {
+  it("says why when no folder takes a new search", () => {
+    expect(saveBlockedText([folder("a", {}, false)])).toBe(noSaveFolderText)
+    expect(saveBlockedText([])).toBe(noSaveFolderText)
+  })
+
+  it("stays quiet while folders load and when one takes a search", () => {
+    expect(saveBlockedText(undefined)).toBeUndefined()
+    expect(saveBlockedText([folder("a")])).toBeUndefined()
   })
 })
 

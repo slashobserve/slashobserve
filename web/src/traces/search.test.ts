@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  askAfterSubmit,
+  changesQuery,
+  linkWithoutPage,
   normaliseTraceId,
+  rangeInFuture,
+  traceViewDatasource,
   tracesTimeRange,
   traceViewRange,
   validateTraceEntrySearch,
@@ -116,5 +121,109 @@ describe("normaliseTraceId", () => {
     ["a3ce929d0e0e47", null],
   ])("reads %s as %s", (param, id) => {
     expect(normaliseTraceId(param)).toBe(id)
+  })
+})
+
+describe("askAfterSubmit", () => {
+  const search = {
+    service: "payments",
+    min: "500ms",
+    ask: "payments requests slower than 500ms",
+  }
+
+  it("keeps the question while the form still holds the answer", () => {
+    expect(askAfterSubmit(search, { service: "payments", min: "500ms" })).toBe(
+      search.ask
+    )
+  })
+
+  it("drops the question once a field was changed or cleared", () => {
+    expect(askAfterSubmit(search, { min: "500ms" })).toBeUndefined()
+    expect(
+      askAfterSubmit(search, { service: "payments", min: "1s" })
+    ).toBeUndefined()
+    expect(
+      askAfterSubmit(search, { service: "payments", min: "500ms", errors: "1" })
+    ).toBeUndefined()
+  })
+})
+
+describe("rangeInFuture", () => {
+  const now = Date.parse("2026-11-18T19:59:00Z")
+
+  it("is true when the range starts after now", () => {
+    expect(
+      rangeInFuture(
+        { from: "2026-11-18T20:10:00Z", to: "2026-11-18T20:20:00Z" },
+        now
+      )
+    ).toBe(true)
+  })
+
+  it("is false for a past or relative range, or one that reaches now", () => {
+    expect(rangeInFuture({ from: "now-1h", to: "now" }, now)).toBe(false)
+    expect(
+      rangeInFuture(
+        { from: "2026-11-18T19:00:00Z", to: "2026-11-18T20:00:00Z" },
+        now
+      )
+    ).toBe(false)
+    expect(rangeInFuture({ from: "now", to: "now+1h" }, now)).toBe(false)
+  })
+})
+
+describe("linkWithoutPage", () => {
+  it("drops the page and keeps the rest of the address", () => {
+    expect(
+      linkWithoutPage("http://x.test/traces/tempo?service=a&page=3&size=100")
+    ).toBe("http://x.test/traces/tempo?service=a&size=100")
+  })
+
+  it("leaves an address without a page as it is", () => {
+    expect(linkWithoutPage("http://x.test/traces/tempo")).toBe(
+      "http://x.test/traces/tempo"
+    )
+  })
+})
+
+describe("traceViewDatasource", () => {
+  const tempo = { uid: "tempo" }
+  const ch = { uid: "ch" }
+
+  it("opens the datasource the address names", () => {
+    expect(traceViewDatasource([tempo, ch], "ch")).toBe(ch)
+    expect(traceViewDatasource([tempo], "gone")).toBeUndefined()
+  })
+
+  it("opens the only trace datasource when the address names none", () => {
+    expect(traceViewDatasource([tempo], undefined)).toBe(tempo)
+  })
+
+  it("asks when several could hold the trace", () => {
+    expect(traceViewDatasource([tempo, ch], undefined)).toBeUndefined()
+    expect(traceViewDatasource([], undefined)).toBeUndefined()
+  })
+})
+
+describe("changesQuery", () => {
+  it("is true when a filter key is written, even to clear it", () => {
+    expect(changesQuery({ q: "{}" })).toBe(true)
+    expect(changesQuery({ service: undefined })).toBe(true)
+    expect(changesQuery({ min: "1s", from: "now-1h" })).toBe(true)
+  })
+
+  it("is false for paging and range changes", () => {
+    expect(changesQuery({ page: 2 })).toBe(false)
+    expect(changesQuery({ size: 100 })).toBe(false)
+    expect(changesQuery({ from: "now-6h", to: "now" })).toBe(false)
+  })
+})
+
+describe("the trace sort", () => {
+  it("keeps a sort other than the default and drops the rest", () => {
+    expect(validateTraceSearch({ sort: "-spans" }).sort).toBe("-spans")
+    expect(validateTraceSearch({ sort: "none" }).sort).toBe("none")
+    expect(validateTraceSearch({ sort: "-duration" }).sort).toBeUndefined()
+    expect(validateTraceSearch({ sort: "Duration; drop" }).sort).toBeUndefined()
   })
 })

@@ -118,6 +118,7 @@ type dataMeta struct {
 	Truncated      bool            `json:"truncated"`
 	Partial        bool            `json:"partial"`
 	Warning        string          `json:"warning,omitempty"`
+	Note           string          `json:"note,omitempty"`
 	Rows           int             `json:"rows"`
 	RowsTotal      int             `json:"rows_total,omitempty"`
 	Oldest         string          `json:"oldest,omitempty"`
@@ -467,6 +468,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 			Truncated:      e.meta.truncated,
 			Partial:        e.meta.partial,
 			Warning:        e.meta.warning,
+			Note:           queryproxy.LimitNote(e.meta.truncated, e.meta.partial, e.meta.page != nil && e.meta.page.HasNext, e.canPage),
 			Rows:           e.meta.rows,
 			RowsTotal:      e.meta.rowsTotal,
 			Oldest:         formatEdge(e.meta.oldest),

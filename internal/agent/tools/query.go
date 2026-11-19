@@ -43,11 +43,12 @@ const (
 )
 
 const (
-	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows when you need to walk results."}`
+	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows."}`
 	propPage     = `"page":{"type":"integer","minimum":1,"description":"Page to read, from 1; on Loki and Tempo pass cursor instead of a page above 1."}`
-	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page of the same query."}`
+	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page."}`
+	propSort     = `"sort":{"type":"string","maxLength":65,"description":"ClickHouse: order all rows by this result column, - for descending, e.g. -Duration; resend it with each cursor."}`
 
-	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `},"required":["datasource","query"],"additionalProperties":false}`
+	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `,` + propSort + `},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
@@ -147,6 +148,7 @@ type instantInput struct {
 	PageSize *int   `json:"page_size"`
 	Page     *int   `json:"page"`
 	Cursor   string `json:"cursor"`
+	Sort     string `json:"sort"`
 }
 
 type rangeInput struct {
@@ -180,6 +182,9 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 	}
 	if in.Page != nil || in.Cursor != "" {
 		return invalid("%s", queryproxy.PageNeedsSize), nil
+	}
+	if in.Sort != "" {
+		return invalid("%s", queryproxy.SortNeedsSize), nil
 	}
 	return r.runAdhoc(ctx, spec.Table, in, "", 0)
 }
@@ -217,6 +222,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		Page:     page,
 		PageSize: size,
 		Cursor:   in.Cursor,
+		Sort:     in.Sort,
 	})
 	if err != nil {
 		return datasourceFailure("Ran a query on "+inst.UID, err)
@@ -227,6 +233,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		Range:   out.Range,
 	})
 	summary.Page = pageOutOf(out)
+	summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, summary.Page != nil && summary.Page.HasNext, false)
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -271,6 +278,10 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		return datasourceFailure("Ran a query on "+inst.UID, err)
 	}
 	summary := summarize(out)
+	if _, pages := inst.Datasource.(datasource.PageSource); pages && panelType == spec.Table {
+		summary.canPage = true
+		summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, false, true)
+	}
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -406,9 +417,11 @@ type querySummary struct {
 	MoreRows  bool            `json:"more_rows,omitempty"`
 	Partial   bool            `json:"partial,omitempty"`
 	Warning   string          `json:"warning,omitempty"`
+	Note      string          `json:"note,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 	Page      *pageOut        `json:"page,omitempty"`
+	canPage   bool
 }
 
 func (s querySummary) describe() string {
@@ -429,13 +442,20 @@ func (s querySummary) describeData() string {
 	return "no data"
 }
 
+func (s querySummary) moreRowsNote() string {
+	if s.canPage {
+		return queryproxy.MoreRowsNote
+	}
+	return queryproxy.NarrowNote
+}
+
 func (s querySummary) describeLimits() string {
 	var out string
 	if s.MoreRows {
-		out += " (more rows exist; narrow from and to)"
+		out += " (" + s.moreRowsNote() + ")"
 	}
 	if s.Partial {
-		out += " (partial: " + partialReason(s.Warning) + ")"
+		out += " (" + queryproxy.PartialNote + warnedSuffix(s.Warning) + ")"
 	}
 	if s.Page != nil {
 		out += s.Page.describe()
@@ -443,11 +463,11 @@ func (s querySummary) describeLimits() string {
 	return out
 }
 
-func partialReason(warning string) string {
+func warnedSuffix(warning string) string {
 	if warning == "" {
-		return "the datasource did not search every block"
+		return ""
 	}
-	return "the datasource warned: " + warning
+	return "; the datasource warned: " + warning
 }
 
 func summarize(res queryproxy.Result) querySummary {
@@ -463,6 +483,7 @@ func summarize(res queryproxy.Result) querySummary {
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
 		Warning:  meta.Warning,
+		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
 	}
 	if s.Empty {
 		return s

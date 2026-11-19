@@ -210,8 +210,12 @@ func TestRestrictedFolderDashboardsNeverLeakThroughTheRoutes(t *testing.T) {
 			}
 			for _, path := range []string{"", "/versions", "/versions/1", "/diff"} {
 				rec := b.serve(by, http.MethodGet, "/dashboards/"+hiddenID+path, "")
-				if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) {
-					t.Errorf("GET %s = %d %s, want 403 %s", path, rec.Code, rec.Body, roleErrorCode)
+				if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), `"code":"not_found"`) {
+					t.Errorf("GET %s = %d %s, want 404 not_found", path, rec.Code, rec.Body)
+				}
+				unknown := b.serve(by, http.MethodGet, "/dashboards/00000000-0000-0000-0000-000000000000"+path, "")
+				if unknown.Code != rec.Code || unknown.Body.String() != rec.Body.String() {
+					t.Errorf("GET %s differs from an unknown id: %d %s against %d %s", path, rec.Code, rec.Body, unknown.Code, unknown.Body)
 				}
 				for _, leak := range leaks[:3] {
 					if strings.Contains(rec.Body.String(), leak) {
@@ -251,8 +255,8 @@ func TestHiddenDashboardsRefuseWritesFromCallersWithoutAccess(t *testing.T) {
 			{http.MethodPost, "/duplicate", `{"title":"Copy"}`},
 		} {
 			rec := b.serve(by, tc.method, "/dashboards/"+hiddenID+tc.path, tc.body)
-			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) {
-				t.Errorf("%s %s as %s = %d %s, want 403 %s", tc.method, tc.path, by.Kind, rec.Code, rec.Body, roleErrorCode)
+			if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), `"code":"not_found"`) {
+				t.Errorf("%s %s as %s = %d %s, want 404 not_found", tc.method, tc.path, by.Kind, rec.Code, rec.Body)
 			}
 		}
 	}
