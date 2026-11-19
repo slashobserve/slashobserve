@@ -7,5 +7,12 @@ import (
 )
 
 func (r *Registry) Handler() http.Handler {
-	return promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{})
+	scrape := promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{})
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.RawPath != "" {
+			http.NotFound(w, req)
+			return
+		}
+		scrape.ServeHTTP(w, req)
+	})
 }

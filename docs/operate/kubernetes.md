@@ -139,6 +139,7 @@ The server serves `/metrics` without sign-in; see [Metrics](metrics.md).
 The pod carries `prometheus.io/scrape`, `prometheus.io/port` and `prometheus.io/path` annotations for a Prometheus that discovers pods by annotation; `metrics.podAnnotations: false` removes them.
 With the Prometheus Operator, set `metrics.serviceMonitor.enabled: true` and add the label your Prometheus selects ServiceMonitors by under `metrics.serviceMonitor.labels`.
 The Ingress below does not route `/metrics`: that path goes to a Service with no endpoints, so the controller answers with an error and Prometheus reaches the pod or Service inside the cluster.
+The server answers `404` to a percent-encoded spelling of the path such as `/%6Detrics`, so a controller that matches the raw path cannot route around that rule.
 Set `ingress.exposeMetrics: true` to route `/metrics` through the Ingress as well, and then block it at the controller or load balancer when the Ingress is public.
 
 ## Ingress
