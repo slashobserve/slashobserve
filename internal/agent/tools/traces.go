@@ -23,12 +23,12 @@ const (
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
 
-	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
-	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse. Use it to see whether latency or errors moved before reading single traces."
+	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
+	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND Duration > 1000000. Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
 	schemaGetTrace   = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id as 16 or 32 hex characters."},` + propTraceFrom + `,` + propTo + `},"required":["datasource","trace_id"],"additionalProperties":false}`
-	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL boolean expression over otel_traces on ClickHouse, empty for every span."}`
+	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL boolean condition over otel_traces on ClickHouse such as ServiceName = 'checkout' AND Duration > 1000000, not a SELECT; empty for every span."}`
 	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."}},"required":["datasource","query"],"additionalProperties":false}`
 )
 
@@ -78,6 +78,7 @@ type slowSpanOut struct {
 
 type traceSpan struct {
 	id, parent, name, service, status string
+	statusMessage                     string
 	start                             time.Time
 	duration                          float64
 	links                             []datasource.SpanLink
@@ -164,7 +165,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 		if datasource.IsErrorStatus(s.status) {
 			svc.Errors++
 			if len(out.Errors) < traceListLimit {
-				out.Errors = append(out.Errors, spanRefOut{SpanID: s.id, Name: s.name, Service: s.service})
+				out.Errors = append(out.Errors, spanRefOut{SpanID: s.id, Name: s.name, Service: s.service, StatusMessage: s.statusMessage})
 			}
 		}
 		if s.parent == "" && (root == nil || s.start.Before(root.start)) {
@@ -203,9 +204,10 @@ func spansOf(f datasource.Frame) []traceSpan {
 	}
 	ids, parents, names, services := column("SpanId"), column("ParentSpanId"), column("SpanName"), column("ServiceName")
 	starts, durations, statuses, links := column("StartTime"), column("Duration"), column("StatusCode"), column("SpanLinks")
+	messages := column("StatusMessage")
 	spans := make([]traceSpan, 0, len(ids))
 	for i := range ids {
-		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), duration: numberAt(durations, i)}
+		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), statusMessage: stringAt(messages, i), duration: numberAt(durations, i)}
 		if at, ok := valueAt(starts, i).(time.Time); ok {
 			s.start = at
 		}

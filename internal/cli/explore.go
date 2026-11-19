@@ -13,6 +13,10 @@ type exploreRequest struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
 	Limit int    `json:"limit,omitempty"`
+
+	PageSize int    `json:"page_size,omitempty"`
+	Page     int    `json:"page,omitempty"`
+	Sort     string `json:"sort,omitempty"`
 }
 
 type frameField struct {
@@ -30,6 +34,9 @@ type frame struct {
 
 type exploreResponse struct {
 	Frames []frame `json:"frames"`
+	Meta   struct {
+		Note string `json:"note"`
+	} `json:"meta"`
 }
 
 func explore(ctx context.Context, c *client, uid string, req exploreRequest) ([]byte, exploreResponse, error) {

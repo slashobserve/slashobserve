@@ -22,6 +22,8 @@ func TestClassify(t *testing.T) {
 		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), http.StatusUnprocessableEntity, "query_invalid", "invalid query: bad promql"},
 		{"forbidden query", datasource.Errorf(datasource.ErrForbiddenQuery, "INSERT"), http.StatusUnprocessableEntity, "query_forbidden", "query not allowed: INSERT"},
 		{"limit exceeded", datasource.Errorf(datasource.ErrLimitExceeded, "too many series"), http.StatusUnprocessableEntity, "limit_exceeded", "query limit exceeded: too many series"},
+		{"range in the future", datasource.Errorf(datasource.ErrRangeInFuture, "starts in the future"), http.StatusUnprocessableEntity, "time_range_in_future", "invalid query: starts in the future"},
+		{"range too long", datasource.Errorf(datasource.ErrRangeTooLong, "at most 7 days"), http.StatusUnprocessableEntity, "time_range_too_long", "query limit exceeded: at most 7 days"},
 		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 30s"), http.StatusGatewayTimeout, "query_timeout", "query timed out: after 30s"},
 		{"deadline exceeded", context.DeadlineExceeded, http.StatusGatewayTimeout, "query_timeout", "query timed out"},
 		{"wrapped deadline exceeded", fmt.Errorf("get: %w", context.DeadlineExceeded), http.StatusGatewayTimeout, "query_timeout", "query timed out"},

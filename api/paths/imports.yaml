@@ -187,7 +187,7 @@ dashboards-id-import:
     summary: Get how a dashboard was imported from Grafana.
     description: >-
       Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import.
-      Answers 403 `forbidden_role` when the caller cannot see the dashboard's folder.
+      A dashboard in a folder the caller cannot see answers 404 `not_found` too.
     responses:
       "200":
         description: The import record, with the report as verified when the dashboard was saved.
