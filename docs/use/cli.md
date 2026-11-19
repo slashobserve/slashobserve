@@ -297,6 +297,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
+`--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of the other kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
@@ -546,16 +547,19 @@ A trace with no spans in the range exits 1, and `--json` prints the response bod
 
 ### Ask for traces in plain language
 
-`--ask` takes a question instead of the trace id and prints the newest 100 matching traces:
+`--ask` takes a question instead of the trace id and prints 100 matching traces, the newest unless `--sort` says otherwise:
 
 ```sh
 bin/observe traces --ask "checkout requests slower than 2s with errors" --datasource tempo
 bin/observe traces --ask "slow checkout requests" --datasource clickhouse --dry-run
+bin/observe traces --ask "checkout requests with errors" --datasource clickhouse --sort -duration
 ```
 
 It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
-Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace.
+Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
+`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
+When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
 ### Compare traces

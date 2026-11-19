@@ -6,9 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 const traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -215,7 +218,7 @@ func TestTracesAskRunsTheFiltersAsClickHouseSQL(t *testing.T) {
 	}
 	query := f.queries[0]
 	want := clickhouseTraceSearch(traceFilters{Service: "checkout", Min: "500ms"})
-	if len(f.queries) != 1 || query["query"] != want || query["kind"] != "instant" || query["limit"] != float64(100) || query["from"] != "now-6h" {
+	if len(f.queries) != 1 || query["query"] != want || query["kind"] != "instant" || query["limit"] != nil || query["page_size"] != float64(100) || query["page"] != float64(1) || query["sort"] != nil || query["from"] != "now-6h" {
 		t.Fatalf("queries %v", f.queries)
 	}
 	if stderr != "Filters: service=checkout min=500ms\nSlow checkout traces.\n" {
@@ -227,6 +230,31 @@ func TestTracesAskRunsTheFiltersAsClickHouseSQL(t *testing.T) {
 	}
 	if got := strings.Join(strings.Fields(lines[2]), " "); got != "2025-11-01T12:27:40Z checkout charge 612.0ms 3" {
 		t.Fatalf("row %q", lines[2])
+	}
+}
+
+func TestTracesAskSortsAllClickHouseTracesOnTheServer(t *testing.T) {
+	f := newAskFake(t, "clickhouse", `{"query":"","language":"filters","trace_filters":{"errors":true},"explanation":"E.","warnings":[]}`, traceSearchFrames)
+	if _, stderr, code := f.run("traces", "--ask", "failed requests", "--sort", "-duration"); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if query := f.queries[0]; query["sort"] != "-Duration" || query["page_size"] != float64(100) {
+		t.Fatalf("query %v", query)
+	}
+}
+
+func TestTracesAskSortsTempoRowsOnTheClient(t *testing.T) {
+	f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, traceSearchFrames)
+	stdout, stderr, code := f.run("traces", "--ask", "all", "--sort", "-duration")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if query := f.queries[0]; query["sort"] != nil || query["limit"] != float64(100) {
+		t.Fatalf("query %v", query)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if !strings.Contains(lines[1], "POST /checkout") {
+		t.Fatalf("stdout %q", stdout)
 	}
 }
 
@@ -267,6 +295,8 @@ func TestTracesAskUsageErrors(t *testing.T) {
 		{"tempo", nil, "traces needs a trace id or --ask"},
 		{"tempo", []string{traceID, "--dry-run"}, "--dry-run needs --ask"},
 		{"tempo", []string{traceID, traceID}, "takes one trace id"},
+		{"tempo", []string{traceID, "--sort", "duration"}, "--sort needs --ask"},
+		{"tempo", []string{"--ask", "slow", "--sort", "Duration"}, "--sort takes start"},
 		{"prometheus", []string{"--ask", "slow"}, "traces reads Tempo or ClickHouse datasources; ds is prometheus"},
 	}
 	for _, c := range cases {
@@ -275,5 +305,27 @@ func TestTracesAskUsageErrors(t *testing.T) {
 		if code != 2 || !strings.Contains(stderr, c.want) || len(f.drafts)+len(f.queries) != 0 {
 			t.Errorf("%v: exit %d, stderr %q", c.args, code, stderr)
 		}
+	}
+}
+
+func TestTracesAskPrintsWhyTheListIsIncompleteAndHowToGetMore(t *testing.T) {
+	cases := map[string]string{
+		queryproxy.FullPageNote:                                 "the page is full and more rows exist; narrow --from and --to or the question to see the rest",
+		queryproxy.FullPageNote + ". " + queryproxy.PartialNote: "the page is full and more rows exist; narrow --from and --to or the question to see the rest. " + queryproxy.PartialNote,
+		queryproxy.PartialNote:                                  queryproxy.PartialNote,
+	}
+	for note, want := range cases {
+		body := strings.Replace(traceSearchFrames, `{"frames"`, `{"meta":{"note":`+strconv.Quote(note)+`},"frames"`, 1)
+		f := newAskFake(t, "tempo", `{"query":"{ }","language":"traceql","trace_filters":null,"explanation":"E.","warnings":[]}`, body)
+		stdout, stderr, code := f.run("traces", "--ask", "all")
+		if code != 0 || !strings.Contains(stderr, "Note: "+want) || strings.Contains(stderr, "cursor") || strings.Contains(stdout, "Note:") {
+			t.Fatalf("%q: exit %d, stdout %q, stderr %q", note, code, stdout, stderr)
+		}
+	}
+}
+
+func TestTheCLIRewritesTheWalkSentenceItAlsoReadsFromTheServer(t *testing.T) {
+	if !strings.Contains(queryproxy.FullPageNote, serverWalkSentence) {
+		t.Fatalf("%q no longer holds %q", queryproxy.FullPageNote, serverWalkSentence)
 	}
 }

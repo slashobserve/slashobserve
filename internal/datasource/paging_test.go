@@ -103,3 +103,33 @@ func TestPageTotalCountsTheWalkedPages(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePageSort(t *testing.T) {
+	cases := []struct {
+		text string
+		want PageSort
+		bad  bool
+	}{
+		{"Duration", PageSort{Column: "Duration"}, false},
+		{"-Duration", PageSort{Column: "Duration", Descending: true}, false},
+		{"", PageSort{}, true},
+		{"-", PageSort{}, true},
+		{"Duration DESC", PageSort{}, true},
+		{"1st", PageSort{}, true},
+		{"a;DROP", PageSort{}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.text, func(t *testing.T) {
+			got, err := ParsePageSort(tc.text)
+			if tc.bad {
+				if !errors.Is(err, ErrInvalidQuery) || !strings.Contains(err.Error(), SortRule) {
+					t.Fatalf("err = %v, want an invalid query naming the rule", err)
+				}
+				return
+			}
+			if err != nil || *got != tc.want {
+				t.Fatalf("got %+v, %v; want %+v", got, err, tc.want)
+			}
+		})
+	}
+}
