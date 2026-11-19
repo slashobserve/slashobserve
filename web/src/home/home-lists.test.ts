@@ -66,7 +66,7 @@ describe("newestChats", () => {
   })
 
   test("shows a dashboard's build, edit and question as one row", () => {
-    const dashboard = { dashboard_id: "a", chat_id: null }
+    const dashboard = { dashboard_id: "a" }
     const rows = newestChats(
       [
         request("build", "2026-11-01T10:00:00Z", "succeeded", null, {
