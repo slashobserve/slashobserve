@@ -25,7 +25,7 @@ const bodyNames = new Set(["body", "message", "msg", "line", "log"])
 const lokiSelector = '{service_name=~".+"}'
 const clickhouseTimeFilter = "WHERE $__timeFilter(Timestamp)"
 
-export const traceLogsDeadlineMs = 15_000
+const traceLogsDeadlineMs = 15_000
 const deadlineMessage =
   "The logs datasource did not answer in time. Try again, or open the logs page and narrow the time range."
 
