@@ -34,3 +34,31 @@ func TestDatasourceVariableTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRefusesTheNULCharacterInAValueAndPropertyName(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	title := strings.Replace(minimal, `"title": "`, `"title": "a\u0000b`, 1)
+	if title == minimal {
+		t.Fatal("the example has no title to put the character in")
+	}
+
+	issues := parseIssues(t, []byte(title))
+
+	if len(issues) != 1 || issues[0].Path != "/title" || !strings.Contains(issues[0].Message, "NUL") {
+		t.Fatalf("issues = %+v, want one NUL issue at /title", issues)
+	}
+}
+
+func TestParseAnswersANumberTooLargeForAFilterAsAValidationIssue(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	doc := strings.Replace(minimal, `"datasource": "ch",`, `"datasource": "ch", "transform": [{"type": "filterByValue", "filters": [{"field": "n", "op": "gt", "value": 1e999}]}],`, 1)
+	if doc == minimal {
+		t.Fatal("the example has no datasource to put the transform after")
+	}
+
+	issues := parseIssues(t, []byte(doc))
+
+	if len(issues) != 1 || !strings.HasPrefix(issues[0].Path, "/panels/0/transform/0/filters/0") {
+		t.Fatalf("issues = %+v, want one at the filter", issues)
+	}
+}

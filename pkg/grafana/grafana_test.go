@@ -89,3 +89,26 @@ func hasPath(notes []Note, path string) bool {
 func hasLine(res *Result, id string) bool {
 	return slices.ContainsFunc(res.Report.Panels, func(l PanelLine) bool { return l.PanelID == id })
 }
+
+func TestEntriesThatAreNotPanelsAreReportedAsNotKept(t *testing.T) {
+	doc := `{"title":"Test","panels":[` +
+		panelJSON(1, 0, 0, 12, 4, "") + `,"stray",` +
+		rowJSON(2, 4, true, `"panels":[`+panelJSON(3, 0, 5, 12, 4, "")+`,7,`+rowJSON(4, 9, true, "")+`]`) + `]}`
+
+	res := convertDoc(t, doc)
+
+	notes := notesFor(res, "panels")
+	for _, path := range []string{"panels[1]", "panels[2].panels[1]", "panels[2].panels[2]"} {
+		if !hasPath(notes, path) {
+			t.Errorf("%s is not reported: %+v", path, res.Report.Notes)
+		}
+	}
+
+	legacy := convertDoc(t, `{"title":"Test","rows":[{"title":"r","panels":[{"id":1,"type":"text","span":12},false]},"stray"]}`)
+	notes = notesFor(legacy, "panels")
+	for _, path := range []string{"rows[0].panels[1]", "rows[1]"} {
+		if !hasPath(notes, path) {
+			t.Errorf("%s is not reported: %+v", path, legacy.Report.Notes)
+		}
+	}
+}

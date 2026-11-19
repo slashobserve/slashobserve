@@ -82,7 +82,17 @@ function typeIssue(
     }
   }
   const next = kindOf(value.type)
-  if (next !== null && next !== kindOf(current.type)) {
+  if (next === null) {
+    return {
+      path: "/type",
+      message:
+        typeof value.type === "string"
+          ? `"${value.type}" is not a panel type.`
+          : "The panel needs a type.",
+      scope: "panel",
+    }
+  }
+  if (next !== kindOf(current.type)) {
     return {
       path: "/type",
       message:

@@ -10,6 +10,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -172,6 +174,34 @@ func TestCreateRefusals(t *testing.T) {
 	}
 	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); !errors.Is(err, ErrTooManyLinks) {
 		t.Fatalf("link %d: %v, want ErrTooManyLinks", maxLinksPerDashboard+1, err)
+	}
+}
+
+func TestRacingCreatesCannotPassTheLinkLimit(t *testing.T) {
+	r := newRig(t)
+	for range maxLinksPerDashboard - 1 {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	const racers = 8
+	var wg sync.WaitGroup
+	var created, refused atomic.Int32
+	for range racers {
+		wg.Go(func() {
+			_, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen})
+			switch {
+			case err == nil:
+				created.Add(1)
+			case errors.Is(err, ErrTooManyLinks):
+				refused.Add(1)
+			default:
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if created.Load() != 1 || refused.Load() != racers-1 {
+		t.Fatalf("%d racing creates succeeded and %d were refused, want 1 and %d", created.Load(), refused.Load(), racers-1)
 	}
 }
 

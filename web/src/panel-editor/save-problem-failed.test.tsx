@@ -13,6 +13,7 @@ describe("SaveProblem", () => {
         }}
         panelId="p1"
         onRetry={() => {}}
+        onSaveAnyway={() => {}}
       />
     )
     expect(

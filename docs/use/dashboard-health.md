@@ -57,6 +57,7 @@ A check that cannot run at all is recorded as a `query_failed` problem with the 
 ## Repair
 
 An Editor can ask the agent to repair a dashboard, with **Repair** from the dashboards list or the dashboard, or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
+A dashboard saved since its last check has nothing to repair until the next check, because the problems on record belong to an older version; the repair answers `nothing_to_repair`.
 The repair is an ordinary revision with a prompt that names each failing panel and variable, so it shows in the dashboard's history and can be reviewed and reverted like any other.
 It needs a configured LLM provider and edit access to the dashboard, and a dashboard with a revision already queued or running is skipped.
 Each person can have 20 health repairs queued or running at once.

@@ -2882,8 +2882,8 @@ sys.exit(0 if ok else 1)' "$TMP/api.body"
 
   preview_body "$id" preview-edited.json no_such_panel
   out="$(preview_as_user prom)"
-  if [[ "$out" != 404 ]] || ! grep -q '"code":"panel_not_found"' "$TMP/preview.body"; then
-    fail "a draft for an unknown panel ($out: $(cat "$TMP/preview.body"))"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/preview.body" || ! grep -q "the panel's id must be no_such_panel" "$TMP/preview.body"; then
+    fail "a draft whose panel id differs from the requested one ($out: $(cat "$TMP/preview.body"))"
   fi
   preview_body "$id" preview-edited.json
   out="$(preview_as_user ch)"

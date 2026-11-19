@@ -624,3 +624,100 @@ func TestSeenRowsForgetByCountAndByTime(t *testing.T) {
 		t.Fatalf("a key inside the window should be remembered: fresh rows = %d", got)
 	}
 }
+
+func partialLines(offsets ...int64) response {
+	f := linesFrame(false, offsets...)
+	f.Meta = &datasource.FrameMeta{Partial: true, Warning: "a shard failed"}
+	return response{frames: []datasource.Frame{f}}
+}
+
+func TestTailFlagsAPartialPollAndFetchesTheMissingLinesOnTheNext(t *testing.T) {
+	f := newFixture(t, partialLines(1, 2), lines(1, 2, 3), lines(4))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+
+	firstEvent := s.next(t)
+	first := decode[linesData](t, firstEvent, "lines")
+	if !first.Partial || first.Warning != "a shard failed" || len(bodiesOf(t, firstEvent)) != 2 {
+		t.Fatalf("first lines = %+v, want two lines flagged partial with the warning", first)
+	}
+	secondEvent := s.next(t)
+	if second := decode[linesData](t, secondEvent, "lines"); second.Partial {
+		t.Fatalf("second lines = %+v, want complete", second)
+	}
+	if got := bodiesOf(t, secondEvent); !slices.Equal(got, []string{"line 3"}) {
+		t.Fatalf("second poll sent %v, want only the line the partial poll missed", got)
+	}
+	decode[linesData](t, s.next(t), "lines")
+	seen := waitForRequests(t, f.logs, 3)
+	if got := seen[1].Range.From; !got.Equal(fromTime) {
+		t.Fatalf("poll after a partial one from = %v, want the cursor held at %v", got, fromTime)
+	}
+	if got := seen[2].Range.From; !got.Equal(time.Unix(0, baseNs+4)) {
+		t.Fatalf("poll after a complete one from = %v, want %v", got, time.Unix(0, baseNs+4).UTC())
+	}
+}
+
+func TestTailAdvancesAfterThreeHeldPartialPolls(t *testing.T) {
+	f := newFixture(t, partialLines(1), partialLines(1), partialLines(1), partialLines(1))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	for range 4 {
+		decode[linesData](t, s.next(t), "lines")
+	}
+	seen := waitForRequests(t, f.logs, 4)
+	for i := 1; i <= 3; i++ {
+		if got := seen[i].Range.From; !got.Equal(fromTime) {
+			t.Fatalf("poll %d from = %v, want the held cursor %v", i, got, fromTime)
+		}
+	}
+}
+
+func TestTailCapsTheCursorAtTheTimeOfThePollWhenALineIsStampedInTheFuture(t *testing.T) {
+	future := time.Now().Add(time.Hour).UnixNano() - baseNs
+	f := newFixture(t, lines(future), lines(1))
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	s.next(t)
+	seen := waitForRequests(t, f.logs, 2)
+	if got := seen[1].Range.From; got.After(time.Now()) {
+		t.Fatalf("second poll from = %v, want a cursor no later than now", got)
+	}
+}
+
+func TestTailOnADatasourceWithLagKeepsTwoStreamsThatShareATimeAndALine(t *testing.T) {
+	stream := func(name string) datasource.Frame {
+		f := linesFrame(false, atSeconds(10)...)
+		f.Labels = map[string]string{"pod": name}
+		return f
+	}
+	f := laggedFixture(t, response{frames: []datasource.Frame{stream("a"), stream("b")}}, response{frames: []datasource.Frame{stream("a"), stream("b")}})
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	if got := bodiesOf(t, s.next(t)); len(got) != 2 {
+		t.Fatalf("lines = %v, want one from each stream", got)
+	}
+}
+
+func TestTailOnADatasourceWithLagKeepsARepeatedLineWhenTheFrameHasNoNanosecondField(t *testing.T) {
+	repeated := func(offsets ...int64) datasource.Frame {
+		f := linesFrame(false, offsets...)
+		f.Fields = f.Fields[:2]
+		for i := range f.Fields[1].Values {
+			f.Fields[1].Values[i] = "connection refused"
+		}
+		return f
+	}
+	f := laggedFixture(t,
+		response{frames: []datasource.Frame{repeated(atSeconds(10)...)}},
+		response{frames: []datasource.Frame{repeated(atSeconds(10, 12)...)}},
+	)
+	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
+	decode[readyData](t, s.next(t), "ready")
+	if got := bodiesOf(t, s.next(t)); len(got) != 1 {
+		t.Fatalf("first poll lines = %v, want one", got)
+	}
+	if got := bodiesOf(t, s.next(t)); len(got) != 1 {
+		t.Fatalf("second poll lines = %v, want only the repeat at the later time", got)
+	}
+}

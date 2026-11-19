@@ -18,11 +18,13 @@ import (
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	codeDatasourcesUnresolved = "datasources_unresolved"
 	codeTooManyImports        = "too_many_imports"
+	codeImportContent         = "import_content_not_allowed"
 	codeAlreadyImported       = "already_imported"
 	codeNotImported           = "not_imported"
 	codeGrafanaUIDMismatch    = "grafana_uid_mismatch"
@@ -30,6 +32,8 @@ const (
 	statusImported   grafana.Status = "imported"
 	statusUnverified grafana.Status = "unverified"
 )
+
+const maxImportIssuesShown = 5
 
 var errImportsNotConfigured = errors.New("imports are not configured")
 
@@ -207,11 +211,38 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	if r.deps.Imports == nil {
 		return Result{}, errImportsNotConfigured
 	}
+	converted, err := r.deps.Imports.Preview(ctx, principal, req)
+	if err != nil {
+		return r.importFailed(err)
+	}
+	if res, refused := importContentRefusal(converted.Spec); refused {
+		return res, nil
+	}
 	imported, err := r.deps.Imports.Import(ctx, principal, req)
 	if err != nil {
 		return r.importFailed(err)
 	}
 	return success(importStep(imported), newImportedOut(r.deps.PublicURL, imported)), nil
+}
+
+func importContentRefusal(converted *spec.Dashboard) (Result, bool) {
+	if converted == nil {
+		return Result{}, false
+	}
+	issues := importOnlyIssues(converted, nil)
+	if len(issues) == 0 {
+		return Result{}, false
+	}
+	shown := issues[:min(len(issues), maxImportIssuesShown)]
+	lines := make([]string, len(shown))
+	for i, issue := range shown {
+		lines[i] = issue.Path + ": " + string(issue.Code)
+	}
+	if more := len(issues) - len(shown); more > 0 {
+		lines = append(lines, fmt.Sprintf("%d more", more))
+	}
+	message := fmt.Sprintf("this Grafana JSON converts to content the agent cannot save (%s); remove those panels from the JSON, or ask a person to import it in the web app", strings.Join(lines, "; "))
+	return importFailure(codeImportContent, message), true
 }
 
 func (r *Registry) importRunAllowed(ctx context.Context, run Run, jsonText string) (Result, bool, error) {

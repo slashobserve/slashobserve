@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -74,12 +75,14 @@ func (s *Scheduler) Run(ctx context.Context) {
 	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
 	synced := false
+	var running sync.WaitGroup
+	defer running.Wait()
 	for {
 		if !synced {
 			synced = s.sync(ctx)
 		}
 		if synced {
-			s.runDue(ctx)
+			s.runDue(ctx, &running)
 		}
 		select {
 		case <-ctx.Done():
@@ -129,7 +132,7 @@ func (s *Scheduler) sync(ctx context.Context) bool {
 	return true
 }
 
-func (s *Scheduler) runDue(ctx context.Context) {
+func (s *Scheduler) runDue(ctx context.Context, running *sync.WaitGroup) {
 	names := s.names()
 	for ctx.Err() == nil {
 		c, err := s.store.claim(ctx, names, false)
@@ -142,7 +145,7 @@ func (s *Scheduler) runDue(ctx context.Context) {
 			}
 			return
 		}
-		s.run(ctx, s.jobs[c.name], c)
+		running.Go(func() { s.run(ctx, s.jobs[c.name], c) })
 	}
 }
 

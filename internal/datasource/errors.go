@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -54,7 +55,7 @@ type UpstreamError struct {
 }
 
 func (e *UpstreamError) Error() string {
-	if e.Kind == nil {
+	if e.Kind == nil || strings.HasPrefix(e.Message, e.Kind.Error()) {
 		return e.Message
 	}
 	return e.Kind.Error() + ": " + e.Message

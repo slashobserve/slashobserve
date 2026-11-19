@@ -131,13 +131,6 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
 		return CreatedRCA{}, ErrInvalidExpiry
 	}
-	count, err := q.CountObservationPublicLinks(ctx, observationID)
-	if err != nil {
-		return CreatedRCA{}, err
-	}
-	if count >= maxLinksPerObservation {
-		return CreatedRCA{}, ErrTooManyRCALinks
-	}
 	creatorID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return CreatedRCA{}, folders.ErrForbidden
@@ -146,22 +139,14 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if err != nil {
 		return CreatedRCA{}, err
 	}
-	var row dbsqlc.CreateRCAPublicLinkRow
-	err = s.db.InTx(ctx, func(tx *dbsqlc.Queries) error {
-		var err error
-		row, err = tx.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
-			RcaID:         rcaID,
-			TokenHash:     hash,
-			DisplayPrefix: displayPrefix(token),
-			ExpiresAt:     timestamp(in.ExpiresAt),
-			CreatedByKind: string(by.Kind),
-			CreatedByID:   creatorID,
-			CreatedByName: creatorName(by),
-		})
-		if err != nil {
-			return err
-		}
-		return recordLink(ctx, tx, activity.TypePublicLinkCreated, by, row.ID)
+	row, err := s.insertRCALink(ctx, by, observationID, dbsqlc.CreateRCAPublicLinkParams{
+		RcaID:         rcaID,
+		TokenHash:     hash,
+		DisplayPrefix: displayPrefix(token),
+		ExpiresAt:     timestamp(in.ExpiresAt),
+		CreatedByKind: string(by.Kind),
+		CreatedByID:   creatorID,
+		CreatedByName: creatorName(by),
 	})
 	if db.IsForeignKeyViolation(err) {
 		return CreatedRCA{}, observations.ErrRevisionNotFound
@@ -171,6 +156,27 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	}
 	link := rcaLinkOf(dbsqlc.ListRCAPublicLinksRow(row), revision, s.now())
 	return CreatedRCA{Link: link, Token: token, URL: links.RCA(s.publicURL, token)}, nil
+}
+
+func (s *Service) insertRCALink(ctx context.Context, by auth.Principal, observationID pgtype.UUID, params dbsqlc.CreateRCAPublicLinkParams) (dbsqlc.CreateRCAPublicLinkRow, error) {
+	var row dbsqlc.CreateRCAPublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockObservationForLinks(ctx, observationID); err != nil {
+			return err
+		}
+		count, err := q.CountObservationPublicLinks(ctx, observationID)
+		if err != nil {
+			return err
+		}
+		if count >= maxLinksPerObservation {
+			return ErrTooManyRCALinks
+		}
+		if row, err = q.CreateRCAPublicLink(ctx, params); err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	})
+	return row, err
 }
 
 func (s *Service) ListRCALinks(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) ([]RCALink, error) {

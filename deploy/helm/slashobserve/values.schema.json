@@ -234,7 +234,8 @@
           "additionalProperties": { "type": "string" },
           "description": "Controller annotations; turn off response buffering for the dashboard event stream."
         },
-        "tlsSecretName": { "type": "string", "description": "TLS Secret for the host; empty sets no tls block." }
+        "tlsSecretName": { "type": "string", "description": "TLS Secret for the host; empty sets no tls block." },
+        "exposeMetrics": { "type": "boolean", "description": "Route /metrics, which needs no sign-in, through the Ingress too. Off by default: /metrics answers from a Service with no endpoints." }
       }
     },
     "serviceAccount": {

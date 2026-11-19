@@ -34,6 +34,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/draftbudget"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
@@ -230,7 +231,7 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		IssuerURL:           cfg.OIDCIssuerURL,
 		InternalURL:         cfg.OIDCInternalURL,
 		ClientID:            cfg.OIDCClientID,
-		ClientSecret:        cfg.OIDCClientSecret,
+		ClientSecret:        cfg.OIDCClientSecret.Reveal(),
 		SessionTTL:          cfg.SessionTTL,
 		AllowedEmailDomains: cfg.AllowedEmailDomains,
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
@@ -402,6 +403,7 @@ func run() error {
 		Stars:         stars.New(database, folderAccess),
 		Home:          homedash.New(database, folderAccess),
 		Provider:      llmProvider,
+		DraftBudget:   draftbudget.New(database),
 		PublicURL:     cfg.PublicURL,
 		Logger:        logger,
 	})
@@ -455,7 +457,7 @@ func run() error {
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
 	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
-		DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey),
+		DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey.Reveal()),
 		Domains: outbound, OutboundLocked: cfg.OutboundDomainsLocked, Access: folderAccess, Logger: logger,
 	})
 	if err := datasourceAdmin.Load(ctx); err != nil {
@@ -467,17 +469,17 @@ func run() error {
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
 		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
-		Principals: authService, InstanceID: serverID, SecretKey: cfg.SecretKey, Logger: logger,
+		Principals: authService, InstanceID: serverID, SecretKey: []byte(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
-		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
+		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	stopWebhooks := startBackground(ctx, "webhook worker", webhooks.NewWorker(webhooks.WorkerDeps{
-		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
+		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()),
 		Followers: broker, InstanceID: serverID, Logger: logger,
 	}).Run, logger)
 	defer stopWebhooks()

@@ -10,7 +10,7 @@ Both are fields of the [ObserveSpec](observespec.md) document.
 
 The `uid` of an entry in the [datasources file](../reference/datasources-file.md), or of a datasource an Admin [added in the app](../connect/datasources-in-the-app.md), is the name a dashboard uses.
 A uid is up to 40 letters, digits, `_` or `-`, starting with a letter or digit.
-The entry's `type`, `prometheus`, `clickhouse`, `loki` or `tempo`, decides the query language and which macros a query may use.
+The entry's `type`, `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`, decides the query language and which macros a query may use.
 
 A data panel sets `datasource`, and any of its queries can set its own `datasource` to use a different one.
 A `query` variable and an `adhoc` variable set `datasource` too.
@@ -89,10 +89,20 @@ How a selection reaches the query depends on its format:
 | `sqlstring`   | `'a','b'`, with SQL escaping.                              |
 | `raw`         | The value itself. It allows one value and refuses several. |
 
-When a reference gives no format, the server picks one from where the variable sits.
-In a PromQL `=~` or `!~` matcher it is `regex`, so `pod=~"$pod"` works for one value, several values and All.
-Elsewhere in PromQL, and inside a quoted string in SQL, it is `raw`.
-In SQL outside quotes it is `sqlstring`, so `ServiceName IN ($service)` works for several values.
+When a reference gives no format, the server picks one from where the variable sits and which datasource runs the query:
+
+| Datasource                | Where the variable sits   | Default format                                                                  |
+| ------------------------- | ------------------------- | ------------------------------------------------------------------------------- |
+| Prometheus, Loki, Tempo   | In a `=~` or `!~` matcher | `regex`                                                                         |
+| Prometheus, Loki, Tempo   | Anywhere else             | `raw`                                                                           |
+| ClickHouse                | Inside a quoted string    | `raw`                                                                           |
+| ClickHouse                | Outside quotes            | `sqlstring`                                                                     |
+| Elasticsearch, OpenSearch | Inside a quoted string    | The one value, JSON-escaped; several values need a format such as `${var:pipe}` |
+| Elasticsearch, OpenSearch | Outside quotes            | `"a"` for one value, `("a" or "b")` for several                                 |
+
+So `pod=~"$pod"` in PromQL, `{app=~"$app"}` in LogQL and `{ resource.service.name =~ "$service" }` in TraceQL work for one value, several values and All.
+In SQL, `ServiceName IN ($service)` works for several values.
+In a search query string, `service.name:$service` matches any of the selected values.
 
 All becomes the full list of values, formatted the same way, except in the `regex` format, where it becomes `.*`, or `.+` inside the stream selector of a Loki query because Loki refuses a selector whose every matcher can match an empty value; after the selector, in a label or line filter, it stays `.*` so lines without the label are kept.
 Set `allValue` to send your own text for All instead, such as `.*`, and the server uses it without a format; on Loki, use `.+` there too, because `.*` is refused when it is the only matcher in the selector.
@@ -102,7 +112,7 @@ Otherwise a query that uses it fails, and the fix is to use the `regex` format, 
 ## Datasource variables
 
 A `datasource` variable lets a viewer switch a whole dashboard between datasources of one type, such as a production and a staging Prometheus.
-`datasourceType` is `prometheus`, `clickhouse`, `loki` or `tempo`, the optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
+`datasourceType` is `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`, the optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
 A viewer picks exactly one datasource, so it has no `multi` or `includeAll`.
 
 To use it, write `${name}` as the `datasource` of a panel, of a query, of a `query` variable or of an `adhoc` variable.
@@ -178,6 +188,7 @@ The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
 
 A `groupby` variable (Prometheus only) lets a viewer pick labels, up to 20, and adds them to the grouping of every aggregation in every query on its datasource, as Grafana does, so the queries need no change.
 Its `default` lists the labels selected from the start, and a query that writes `$name` gets the labels there and no automatic grouping.
+An aggregation written with `without` keeps a picked label by dropping it from its `without` list.
 
 An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~`, `!~`, `<` or `>`), a `value` (up to 500 characters, possibly empty), an optional `condition` (`and` or `or`) and optional chip texts `keyLabel` (up to 200 characters) and `valueLabel` (up to 500), which change only what the chip shows.
 Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.

@@ -97,6 +97,10 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		return finish(append(issues, *timeIssue)), nil
 	}
 
+	if rng.To.Sub(rng.From) > MaxRange {
+		rng.From = rng.To.Add(-MaxRange)
+	}
+
 	budget, cancel := context.WithTimeout(ctx, checkSpecBudget)
 	defer cancel()
 

@@ -97,22 +97,28 @@ func (q *Queries) DashboardsDueForHealth(ctx context.Context, arg DashboardsDueF
 }
 
 const healthRepairTarget = `-- name: HealthRepairTarget :one
-SELECT d.folder_id, d.latest_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
+SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = $1
 `
 
 type HealthRepairTargetRow struct {
-	FolderID      pgtype.UUID
-	LatestVersion int32
-	Issues        []byte
+	FolderID       pgtype.UUID
+	LatestVersion  int32
+	CheckedVersion int32
+	Issues         []byte
 }
 
 func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUID) (HealthRepairTargetRow, error) {
 	row := q.db.QueryRow(ctx, healthRepairTarget, dashboardID)
 	var i HealthRepairTargetRow
-	err := row.Scan(&i.FolderID, &i.LatestVersion, &i.Issues)
+	err := row.Scan(
+		&i.FolderID,
+		&i.LatestVersion,
+		&i.CheckedVersion,
+		&i.Issues,
+	)
 	return i, err
 }
 

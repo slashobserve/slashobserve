@@ -201,3 +201,21 @@ func TestAuthenticateRefusesTheTokenOfAReleasedClaimOnceTheRunIsClaimedAgain(t *
 		t.Fatal("the token of the new claim was refused")
 	}
 }
+
+func TestAuthenticateRefusesTheTokenOfARunWhoseGrantWasRevoked(t *testing.T) {
+	f := newFixture(t)
+	f.d.Exec(t, "INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'issuer', 'subject', 'ada@example.com', 'Ada')", mustUUID(t, userID))
+	f.d.Exec(t, "INSERT INTO oauth_clients (id, redirect_uris) VALUES ('client', ARRAY['http://localhost/cb'])")
+	f.d.Exec(t, "INSERT INTO oauth_grants (id, client_id, user_id, resource, expires_at) VALUES ($1, 'client', $2, 'r', now() + interval '1 day')", mustUUID(t, grantID), mustUUID(t, userID))
+	f.queue(t, revisions.AssignGrant, grantID)
+	offer := f.claim(t, grantClaimer)
+	if _, ok := f.authenticate(t, "Bearer "+offer.Session.Token); !ok {
+		t.Fatal("the token was refused before the grant was revoked")
+	}
+
+	f.d.Exec(t, "UPDATE oauth_grants SET revoked_at = now(), revoked_reason = 'person' WHERE id = $1", mustUUID(t, grantID))
+
+	if _, ok := f.authenticate(t, "Bearer "+offer.Session.Token); ok {
+		t.Fatal("the run token still worked after its grant was revoked")
+	}
+}

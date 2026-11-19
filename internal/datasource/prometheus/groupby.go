@@ -19,6 +19,10 @@ func applyGroupBy(expr string, keys []string) (string, error) {
 		if !ok {
 			return nil
 		}
+		if aggregation.Without {
+			aggregation.Grouping = slices.DeleteFunc(aggregation.Grouping, func(label string) bool { return slices.Contains(keys, label) })
+			return nil
+		}
 		for _, key := range keys {
 			if !slices.Contains(aggregation.Grouping, key) {
 				aggregation.Grouping = append(aggregation.Grouping, key)

@@ -10,6 +10,7 @@ import {
   ArrowLeftIcon,
   ChartLineIcon,
   CompassIcon,
+  CopyPlusIcon,
   DownloadIcon,
   EllipsisIcon,
   ExpandIcon,
@@ -22,6 +23,7 @@ import {
   PinIcon,
   SearchIcon,
   TableIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -49,6 +51,10 @@ import {
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
 import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
+import {
+  RemovePanelDialog,
+  type PanelLayoutActions,
+} from "./panel-layout-actions"
 import { useSetDashboardSearch, validateDashboardSearch } from "./search"
 
 type Props = {
@@ -63,6 +69,7 @@ type Props = {
   canEdit: boolean
   canInvestigate: boolean
   onToggleResponsive?: () => void
+  layoutActions?: PanelLayoutActions
   composerRef: RefObject<HTMLTextAreaElement | null>
   inToolbar?: boolean
   observationVariables?: readonly Variable[]
@@ -90,6 +97,7 @@ type MenuItem = {
   icon: ReactNode
   onSelect: () => void
   disabled?: boolean
+  destructive?: boolean
   shortcut?: string
 }
 
@@ -105,6 +113,7 @@ export function PanelMenu({
   canEdit,
   canInvestigate,
   onToggleResponsive,
+  layoutActions,
   composerRef,
   inToolbar = false,
   observationVariables,
@@ -120,6 +129,7 @@ export function PanelMenu({
   const agentAvailable = useAgentInfo().data?.available === true
   const menuButton = useRef<HTMLButtonElement>(null)
   const [addingToObservation, setAddingToObservation] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const items: MenuItem[] = []
   if (canComment) {
     items.push({
@@ -283,6 +293,28 @@ export function PanelMenu({
       onSelect: onToggleResponsive,
     })
   }
+  if (layoutActions) {
+    items.push(
+      {
+        id: "duplicate",
+        label: "Duplicate",
+        icon: <CopyPlusIcon aria-hidden="true" />,
+        disabled: layoutActions.pending,
+        onSelect: () => layoutActions.duplicate(panel),
+      },
+      {
+        id: "remove",
+        label: "Remove",
+        icon: <Trash2Icon aria-hidden="true" />,
+        disabled: layoutActions.pending,
+        destructive: true,
+        onSelect: () => {
+          focusAfterClose = "none"
+          setRemoving(true)
+        },
+      }
+    )
+  }
   return (
     <>
       <DropdownMenu>
@@ -326,12 +358,16 @@ export function PanelMenu({
             <DropdownMenuItem
               key={item.id}
               disabled={item.disabled}
+              variant={item.destructive ? "destructive" : undefined}
               onClick={item.onSelect}
             >
               {item.icon}
               {item.label}
               {item.shortcut ? (
-                <DropdownMenuShortcut aria-hidden="true">
+                <DropdownMenuShortcut
+                  aria-hidden="true"
+                  className="max-sm:hidden pointer-coarse:hidden"
+                >
                   {item.shortcut}
                 </DropdownMenuShortcut>
               ) : null}
@@ -347,6 +383,13 @@ export function PanelMenu({
           to={dashboardSearch.to}
           trigger={menuButton}
           onClose={() => setAddingToObservation(false)}
+        />
+      ) : null}
+      {removing && layoutActions ? (
+        <RemovePanelDialog
+          panel={panel}
+          actions={layoutActions}
+          onClose={() => setRemoving(false)}
         />
       ) : null}
     </>

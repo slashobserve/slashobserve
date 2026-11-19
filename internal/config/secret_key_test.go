@@ -2,6 +2,8 @@ package config
 
 import (
 	"bytes"
+	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -27,8 +29,8 @@ func TestSecretKeySetting(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Load: %v", err)
 			}
-			if !bytes.Equal(cfg.SecretKey, tt.want) {
-				t.Fatalf("SecretKey = %x, want %x", cfg.SecretKey, tt.want)
+			if !bytes.Equal([]byte(cfg.SecretKey.Reveal()), tt.want) {
+				t.Fatalf("SecretKey = %x, want %x", cfg.SecretKey.Reveal(), tt.want)
 			}
 		})
 	}
@@ -49,5 +51,27 @@ func TestSecretKeyRefusesShortOrUnreadableValuesWithoutEchoingThem(t *testing.T)
 				t.Fatalf("the error echoes the value: %v", err)
 			}
 		})
+	}
+}
+
+func TestTheOIDCSecretModelKeyAndSealingKeyNeverPrint(t *testing.T) {
+	const oidc, model, sealing = "oidc-client-secret-value", "sk-model-key-value", "abababababababababababababababababababababababababababababababab"
+	cfg, err := Load(envOf(llmEnv(map[string]string{
+		envOIDCClientSecret: oidc,
+		envLLMProvider:      LLMProviderAnthropic,
+		envLLMAPIKey:        model,
+		envSecretKey:        sealing,
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logged strings.Builder
+	slog.New(slog.NewTextHandler(&logged, nil)).Info("config", slog.Any("config", cfg))
+	for name, shown := range map[string]string{"%v": fmt.Sprintf("%v", cfg), "%+v": fmt.Sprintf("%+v", cfg), "%#v": fmt.Sprintf("%#v", cfg), "slog": logged.String()} {
+		for _, secret := range []string{oidc, model, sealing, strings.Repeat("\xab", 32)} {
+			if strings.Contains(shown, secret) {
+				t.Errorf("%s of the config contains a secret value", name)
+			}
+		}
 	}
 }

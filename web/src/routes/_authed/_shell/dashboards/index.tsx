@@ -1,17 +1,17 @@
 import { useCallback, useId, useState } from "react"
-import { Link, createFileRoute, useRouteContext } from "@tanstack/react-router"
-import { FolderPlusIcon, PlusIcon } from "lucide-react"
+import { createFileRoute, useRouteContext } from "@tanstack/react-router"
+import { FolderPlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/page-header"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
+import { CreateDashboardMenu } from "@/dashboards/create-dashboard-menu"
 import { DashboardList } from "@/dashboards/dashboard-list"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
 import { NewFolderDialog } from "@/folders/new-folder-dialog"
 import { ListHealthHeader } from "@/health/list-health-header"
 import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
-import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/_authed/_shell/dashboards/")({
   staticData: { crumbs: [{ label: "Dashboards" }] },
@@ -43,10 +43,7 @@ function DashboardsPage() {
                 New folder
               </Button>
             ) : null}
-            <Link to="/ask" className={cn(buttonVariants())}>
-              <PlusIcon aria-hidden="true" />
-              Create dashboard
-            </Link>
+            <CreateDashboardMenu />
           </>
         }
       />

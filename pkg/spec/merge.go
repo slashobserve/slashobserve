@@ -113,14 +113,18 @@ func (p placement) container() string {
 	return c
 }
 
-func mergePlacement(base, ours, theirs placement) placement {
+func mergePlacement(base, ours, theirs placement) (placement, bool) {
 	out := ours
 	for i := range out {
-		if theirs.differsAt(base, i) {
-			out[i] = theirs[i]
+		if !theirs.differsAt(base, i) {
+			continue
 		}
+		if ours.differsAt(base, i) && ours.differsAt(theirs, i) {
+			return placement{}, false
+		}
+		out[i] = theirs[i]
 	}
-	return out
+	return out, true
 }
 
 type panelUnit struct {
@@ -342,16 +346,16 @@ func (m *merger) mergeUnits(kind UnitKind, ids []string) map[string]unitContent 
 	return out
 }
 
-func (m *merger) placementOf(id string) placement {
+func (m *merger) placementOf(id string) (placement, bool) {
 	if s, ok := m.choices[unitRef{UnitPanel, id}]; ok {
-		return m.side(s).panels[id].place
+		return m.side(s).panels[id].place, true
 	}
 	base, ours, theirs := m.base.panels[id], m.ours.panels[id], m.theirs.panels[id]
 	switch {
 	case !theirs.content.present:
-		return ours.place
+		return ours.place, true
 	case !ours.content.present, !base.content.present:
-		return theirs.place
+		return theirs.place, true
 	}
 	return mergePlacement(base.place, ours.place, theirs.place)
 }
@@ -359,8 +363,17 @@ func (m *merger) placementOf(id string) placement {
 func (m *merger) mergePanels() map[string]panelUnit {
 	contents := m.mergeUnits(UnitPanel, m.panelIDs)
 	panels := make(map[string]panelUnit, len(contents))
-	for id, content := range contents {
-		panels[id] = panelUnit{content: content, place: m.placementOf(id)}
+	for _, id := range m.panelIDs {
+		content, ok := contents[id]
+		if !ok {
+			continue
+		}
+		place, merged := m.placementOf(id)
+		if !merged {
+			m.conflict(UnitPanel, id, ReasonBothChanged, fmt.Sprintf("panel %q was moved to different places on both sides", id))
+			continue
+		}
+		panels[id] = panelUnit{content: content, place: place}
 	}
 	var orphans []string
 	for _, id := range m.panelIDs {
@@ -485,7 +498,7 @@ func (m *merger) validate(root map[string]any, touched map[string]bool) (Merge, 
 	case err != nil:
 		return Merge{}, err
 	}
-	return Merge{Dashboard: merged, Conflicts: m.conflicts}, nil
+	return Merge{Dashboard: merged, Conflicts: m.sortedConflicts()}, nil
 }
 
 func conflictForIssue(issue Issue, root map[string]any) Conflict {
