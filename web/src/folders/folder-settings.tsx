@@ -7,6 +7,7 @@ import { RoleNote } from "@/components/role-note"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cleanText, lineRule, textError } from "@/lib/user-text"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { DeleteFolderCard } from "./delete-folder-card"
@@ -62,9 +63,15 @@ function NameCard({ folder }: { folder: Folder }) {
   const headingId = useId()
   const inputId = useId()
   const rename = useRenameFolder(folder.id)
-  const trimmed = draft.trim()
+  const trimmed = cleanText(draft)
+  const inline =
+    draft === "" ? null : textError("name", draft, lineRule(maxTitleLength))
+  const shown = problem ?? inline
   const canRename =
-    trimmed !== "" && trimmed !== folder.title && !rename.isPending
+    trimmed !== "" &&
+    inline === null &&
+    trimmed !== folder.title &&
+    !rename.isPending
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -97,7 +104,6 @@ function NameCard({ folder }: { folder: Folder }) {
           <Input
             id={inputId}
             className="min-w-[240px] flex-1"
-            maxLength={maxTitleLength}
             autoComplete="off"
             value={draft}
             onChange={(event) => {
@@ -119,9 +125,9 @@ function NameCard({ folder }: { folder: Folder }) {
             Rename
           </Button>
         </div>
-        {problem === null ? null : (
+        {shown === null ? null : (
           <Alert variant="destructive">
-            <AlertDescription>{problem}</AlertDescription>
+            <AlertDescription>{shown}</AlertDescription>
           </Alert>
         )}
       </form>

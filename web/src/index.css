@@ -288,6 +288,15 @@
   html {
     @apply font-sans;
   }
+  h1,
+  h2,
+  h3,
+  a,
+  th,
+  td,
+  button {
+    unicode-bidi: isolate;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

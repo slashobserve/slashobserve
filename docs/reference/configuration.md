@@ -97,3 +97,4 @@ See [LLM providers](../connect/llm-providers.md) for how they combine.
 
 `SLASHOBSERVE_API_CONTRACT_CHECK` (`true` or `false`, default `false`) makes the server validate every `/api/v1` request and response against the OpenAPI document.
 It is for the end-to-end test stack only; never set it in production.
+It also turns a request with a query parameter the document does not list into a 500, as [API behavior](api-behavior.md#query-parameters) describes.

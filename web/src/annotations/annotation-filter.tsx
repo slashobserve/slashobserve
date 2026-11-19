@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query"
 import { useMatch } from "@tanstack/react-router"
 import { ChevronDownIcon } from "lucide-react"
 
@@ -16,7 +15,7 @@ import {
   useSetDashboardSearch,
 } from "@/dashboards/search"
 
-import { annotationTagsQuery } from "./queries"
+import { useKnownAnnotationTags } from "./queries"
 
 export function AnnotationFilter() {
   const match = useMatch({ from: dashboardRouteId, shouldThrow: false })
@@ -25,7 +24,7 @@ export function AnnotationFilter() {
 }
 
 function TagMenu({ dashboardId }: { dashboardId: string }) {
-  const known = useQuery(annotationTagsQuery(dashboardId)).data ?? []
+  const known = useKnownAnnotationTags(dashboardId)
   const selected = useDashboardSearch().ann ?? []
   const setSearch = useSetDashboardSearch()
   if (known.length === 0 && selected.length === 0) return null

@@ -1201,7 +1201,7 @@
         "panel_id": "p34",
         "grafana_id": 34,
         "grafana_path": "panels[20].panels[3]",
-        "title": "Pending datapoints ",
+        "title": "Pending datapoints",
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",

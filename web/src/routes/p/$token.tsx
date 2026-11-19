@@ -13,9 +13,9 @@ import {
   PublicLinkUnavailable,
   PublicLoadError,
   PublicPage,
-  PublicPageSkeleton,
   type SetPublicSearch,
 } from "@/public/public-page"
+import { PublicPageSkeleton } from "@/public/public-page-skeleton"
 import { publicDashboardQuery } from "@/public/queries"
 
 function publicSearch(state: DashboardSearch): DashboardSearch {
