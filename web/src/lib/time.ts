@@ -113,7 +113,10 @@ export function isZoneChoice(zone: string): boolean {
 }
 
 export function zoneChoices(): string[] {
-  return ["browser", "utc", ...Intl.supportedValuesOf("timeZone")]
+  const named = Intl.supportedValuesOf("timeZone").filter(
+    (zone) => zone !== "UTC"
+  )
+  return ["browser", "utc", ...named]
 }
 
 export function zoneChoiceLabel(zone: string): string {
