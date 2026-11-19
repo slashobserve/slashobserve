@@ -138,7 +138,7 @@ func (h *Handler) test(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
-	result, err := h.svc.Test(c.Request.Context(), httpapi.Caller(c), baseUID, body.Definition, body.change())
+	result, err := h.svc.Test(c.Request.Context(), baseUID, body.Definition, body.change())
 	if err != nil {
 		h.fail(c, "test datasource", err)
 		return

@@ -254,11 +254,11 @@ func TestTestReportsAWorkingAndABrokenDraftWithoutSavingEither(t *testing.T) {
 	down.Close()
 	r, svc := newRig(t, testKey)
 
-	good, err := svc.Test(t.Context(), r.admin, "", prometheus("draft", server.URL), SecretsChange{})
+	good, err := svc.Test(t.Context(), "", prometheus("draft", server.URL), SecretsChange{})
 	if err != nil || !good.Healthy {
 		t.Fatalf("working draft = %+v, %v", good, err)
 	}
-	bad, err := svc.Test(t.Context(), r.admin, "", prometheus("draft", downURL), SecretsChange{})
+	bad, err := svc.Test(t.Context(), "", prometheus("draft", downURL), SecretsChange{})
 	if err != nil || bad.Healthy || bad.Message == "" || strings.Contains(bad.Message+bad.Detail, downURL) {
 		t.Fatalf("broken draft = %+v, %v", bad, err)
 	}
@@ -275,7 +275,7 @@ func TestTestFromASavedDatasourceUsesItsStoredCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := svc.Test(t.Context(), r.admin, "added", prometheus("added", server.URL), SecretsChange{})
+	result, err := svc.Test(t.Context(), "added", prometheus("added", server.URL), SecretsChange{})
 	if err != nil || !result.Healthy || auth != "Bearer token-1" {
 		t.Fatalf("result = %+v, %v, Authorization = %q", result, err, auth)
 	}
@@ -318,5 +318,31 @@ func TestCredentialsThatTogetherOutgrowTheStoredColumnAreRefusedByName(t *testin
 	var invalidErr *InvalidError
 	if !errors.As(err, &invalidErr) || invalidErr.Fields[0].Field != "secrets.headers" {
 		t.Fatalf("error = %v, want invalid_datasource naming secrets.headers", err)
+	}
+}
+
+func TestTestingAnAddressNeverAddsItsDomainToTheAllowlist(t *testing.T) {
+	r, svc := newRig(t, testKey)
+
+	result, err := svc.Test(t.Context(), "", prometheus("draft", "http://typo-host.example.invalid:9090"), SecretsChange{})
+	if err != nil || result.Healthy {
+		t.Fatalf("result = %+v, error = %v", result, err)
+	}
+
+	list, err := r.domains.Allowed(t.Context())
+	if err != nil || len(list) != 0 {
+		t.Fatalf("allowlist after a test = %v, error = %v", list, err)
+	}
+}
+
+func TestTestingARefusedDomainStillAnswersTheLockedAllowlist(t *testing.T) {
+	listed, _ := domains.ParsePattern("prom.example.com")
+	_, svc := newRigWith(t, rigOptions{key: testKey, lock: allowlist.Lock{Locked: true, Domains: domains.List{listed}}})
+
+	if _, err := svc.Test(t.Context(), "", prometheus("draft", "http://other.example.com:9090"), SecretsChange{}); err == nil {
+		t.Fatal("a domain outside the locked list was tested")
+	}
+	if _, err := svc.Test(t.Context(), "", prometheus("draft", "http://10.1.2.3:9090"), SecretsChange{}); !errors.Is(err, ErrAddressRefused) {
+		t.Fatalf("an IP address on a locked list = %v, want ErrAddressRefused", err)
 	}
 }

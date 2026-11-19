@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 )
 
 const (
@@ -260,20 +261,27 @@ func (s *Service) aliasConflicts(def Definition) []config.FieldError {
 	return problems
 }
 
-func (s *Service) allow(ctx context.Context, by auth.Principal, host endpoint) error {
-	pattern, isDomain := host.domain()
-	if !isDomain {
+func (s *Service) refusal(list domains.List, host endpoint, mayAdd bool) error {
+	if _, isDomain := host.domain(); !isDomain {
 		if s.outboundLocked {
 			return ErrAddressRefused
 		}
 		return nil
 	}
+	if mayAdd || list.Allows(host.host) {
+		return nil
+	}
+	return &egress.HostError{Host: host.host, Err: egress.ErrNotAllowed}
+}
+
+func (s *Service) allow(ctx context.Context, by auth.Principal, host endpoint) error {
 	list, err := s.domains.Allowed(ctx)
 	if err != nil {
 		return err
 	}
-	if list.Allows(host.host) {
-		return nil
+	pattern, isDomain := host.domain()
+	if refused := s.refusal(list, host, false); refused == nil || !isDomain {
+		return refused
 	}
 	_, err = s.domains.Add(ctx, by, pattern)
 	switch {
@@ -288,6 +296,14 @@ func (s *Service) allow(ctx context.Context, by auth.Principal, host endpoint) e
 		return ErrAllowlistFull
 	}
 	return err
+}
+
+func (s *Service) mayConnect(ctx context.Context, host endpoint) error {
+	list, err := s.domains.Allowed(ctx)
+	if err != nil {
+		return err
+	}
+	return s.refusal(list, host, !s.outboundLocked)
 }
 
 func newID() pgtype.UUID {
@@ -485,7 +501,7 @@ type TestResult struct {
 	Detail  string
 }
 
-func (s *Service) Test(ctx context.Context, by auth.Principal, baseUID string, def Definition, change SecretsChange) (TestResult, error) {
+func (s *Service) Test(ctx context.Context, baseUID string, def Definition, change SecretsChange) (TestResult, error) {
 	var secrets Secrets
 	var err error
 	if baseUID == "" {
@@ -503,7 +519,7 @@ func (s *Service) Test(ctx context.Context, by auth.Principal, baseUID string, d
 	if err != nil {
 		return TestResult{}, err
 	}
-	if err := s.allow(ctx, by, cand.host); err != nil {
+	if err := s.mayConnect(ctx, cand.host); err != nil {
 		return TestResult{}, err
 	}
 	ds, err := provision.Open(cand.cfg)

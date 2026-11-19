@@ -111,7 +111,7 @@ datasources-test:
       Only Admins can call this endpoint.
       The body is a draft like the one for adding a datasource.
       With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again.
-      The address passes the same outbound allowlist check as saving, and a domain name is added to an unlocked list.
+      The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it.
       A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
     parameters:
       - name: base

@@ -35,6 +35,7 @@ The server holds at most 100 datasources added in the app.
 Test connection runs a health check against the values in the form, before anything is saved.
 When editing, a credential you leave empty is taken from the saved datasource, so the test reflects what saving would do.
 A failed test shows the same fixed message and cause as the Datasources page.
+A test never changes the outbound allowlist: a domain that is not listed can be tested only while the allowlist is unlocked, and it is added when you save.
 
 ## Remove a datasource
 
