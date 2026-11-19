@@ -77,16 +77,11 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	}
 	scope := datasource.CursorScope(p.UID, p.Query.Text)
 	req := datasource.PageRequest{Query: p.Query, Range: p.Range, Page: max(p.Page, 1), PageSize: p.PageSize}
-	if p.Sort != "" {
-		sort, err := datasource.ParsePageSort(p.Sort)
-		if err != nil {
-			return PageResult{}, invalidPage(cursorMessage(err))
-		}
-		if sortable, ok := source.(datasource.SortablePages); !ok || !sortable.SortsPages() {
-			return PageResult{}, invalidPage(SortUnsupported)
-		}
-		req.Sort = sort
+	sort, err := pageSort(source, p.Sort)
+	if err != nil {
+		return PageResult{}, err
 	}
+	req.Sort = sort
 	if p.Cursor != "" {
 		cursor, err := datasource.DecodeCursor(p.Cursor, scope)
 		if err != nil {
@@ -123,6 +118,20 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 		res.Prev = p.Cursor
 	}
 	return res, nil
+}
+
+func pageSort(source datasource.PageSource, text string) (*datasource.PageSort, error) {
+	if text == "" {
+		return nil, nil
+	}
+	sort, err := datasource.ParsePageSort(text)
+	if err != nil {
+		return nil, invalidPage(cursorMessage(err))
+	}
+	if sortable, ok := source.(datasource.SortablePages); !ok || !sortable.SortsPages() {
+		return nil, invalidPage(SortUnsupported)
+	}
+	return sort, nil
 }
 
 func cursorSortMessage(made string) string {
