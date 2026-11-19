@@ -97,7 +97,11 @@ func TestRetryRunMatchesWhatTheRunMachineAllows(t *testing.T) {
 	if code := errorCode(t, r.call(t, nameRetryRun, target)); code != codeInvalidTransition {
 		t.Fatalf("retry of a running run: code %q", code)
 	}
-	for _, state := range []string{"succeeded", "failed", "canceled"} {
+	for i, state := range []string{"succeeded", "failed", "canceled"} {
+		if i > 0 {
+			id = r.start(t)
+			target = `{"id":"` + id + `"}`
+		}
 		r.finish(t, id, state)
 		res := r.call(t, nameRetryRun, target)
 		if res.IsError || stateOf(t, res) != "queued" {
