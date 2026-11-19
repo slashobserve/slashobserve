@@ -107,6 +107,7 @@ type Tool struct {
 	Claim       bool
 	MinRole     auth.Role
 	PersonOnly  bool
+	Destructive bool
 
 	Answers bool
 
@@ -314,6 +315,7 @@ func New(d Deps) *Registry {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
+		e.tool.Destructive = destructiveTools[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
 		}

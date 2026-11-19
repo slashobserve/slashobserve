@@ -698,8 +698,8 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 		if g.Annotations.ReadOnlyHint == nil || *g.Annotations.ReadOnlyHint != want.ReadOnly {
 			t.Errorf("%s: readOnlyHint %v, want %v", want.Name, g.Annotations.ReadOnlyHint, want.ReadOnly)
 		}
-		if !want.ReadOnly && (g.Annotations.DestructiveHint == nil || *g.Annotations.DestructiveHint) {
-			t.Errorf("%s: destructiveHint %v, want false", want.Name, g.Annotations.DestructiveHint)
+		if !want.ReadOnly && (g.Annotations.DestructiveHint == nil || *g.Annotations.DestructiveHint != want.Destructive) {
+			t.Errorf("%s: destructiveHint %v, want %v", want.Name, g.Annotations.DestructiveHint, want.Destructive)
 		}
 		var gotSchema, wantSchema any
 		if err := json.Unmarshal(g.InputSchema, &gotSchema); err != nil {
