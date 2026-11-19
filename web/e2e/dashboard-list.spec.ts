@@ -152,6 +152,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
     "Datasources",
     "Open comments",
     "Version",
+    "Views",
     "Updated",
     "Actions",
   ])

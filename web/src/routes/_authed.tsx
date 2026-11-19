@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 
+import { markHomeChecked } from "@/home/home-dashboard"
 import { getSession } from "@/lib/auth"
 import { SkipLink } from "@/shell/skip-link"
 
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authed")({
     if (!session.authenticated) {
       throw redirect({ to: "/login", search: { return_to: location.href } })
     }
+    if (location.pathname !== "/") markHomeChecked()
     return { principal: session.principal }
   },
   component: AuthedLayout,

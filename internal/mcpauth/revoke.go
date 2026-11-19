@@ -51,7 +51,9 @@ func (s *Server) revokeToken(r *http.Request, token, clientID string) error {
 	if row.ClientID != clientID {
 		return nil
 	}
-	revoked, err := s.db.Queries().RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: row.GrantID, Reason: "client"})
+	revoked, err := s.revokeRecorded(ctx, row.GrantID, "client", nil, func(q *dbsqlc.Queries) (int64, error) {
+		return q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: row.GrantID, Reason: "client"})
+	})
 	if err == nil && revoked > 0 {
 		s.logger.InfoContext(ctx, "oauth grant revoked", slog.String("grant_id", row.GrantID.String()), slog.String("reason", "client"))
 	}

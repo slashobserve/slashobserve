@@ -33,7 +33,24 @@ function urlProblem(url: string): string | undefined {
   return undefined
 }
 
-export function connectionProblems(raw: ConnectionInput): ConnectionProblems {
+export type StoredConnection = { name: string; url: string }
+
+export function connectionPatch(
+  raw: ConnectionInput,
+  stored: StoredConnection
+): Partial<ConnectionInput> {
+  const input = trimConnection(raw)
+  const patch: Partial<ConnectionInput> = {}
+  if (input.name !== stored.name) patch.name = input.name
+  if (input.url !== stored.url) patch.url = input.url
+  if (input.token !== "") patch.token = input.token
+  return patch
+}
+
+export function connectionProblems(
+  raw: ConnectionInput,
+  stored?: StoredConnection
+): ConnectionProblems {
   const input = trimConnection(raw)
   const problems: ConnectionProblems = {}
   if (input.name === "") problems.name = "Enter a name."
@@ -42,8 +59,14 @@ export function connectionProblems(raw: ConnectionInput): ConnectionProblems {
   }
   const url = urlProblem(input.url)
   if (url !== undefined) problems.url = url
-  if (input.token === "") problems.token = "Enter a service account token."
-  else if (input.token.length > maxTokenCharacters) {
+  const tokenKept = stored !== undefined && input.url === stored.url
+  if (input.token === "") {
+    if (stored === undefined) problems.token = "Enter a service account token."
+    else if (!tokenKept) {
+      problems.token =
+        "Enter the token again: a new URL never reuses the stored one."
+    }
+  } else if (input.token.length > maxTokenCharacters) {
     problems.token = `The token can be at most ${maxTokenCharacters} characters.`
   }
   return problems

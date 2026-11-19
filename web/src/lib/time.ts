@@ -152,6 +152,22 @@ function describeRelativeRange(from: string, to: string): string | null {
   return `Last ${durationText(count, match[3])}`
 }
 
+function agoText(value: string): string | null {
+  if (value === "now") return "now"
+  const match = /^now-([1-9][0-9]*)([smhdwMy])$/.exec(value)
+  if (!match) return null
+  const count = Number(match[1])
+  if (!Number.isSafeInteger(count) || count > maxRelativeCount) return null
+  if (!isTimeUnit(match[2])) return null
+  return `${durationText(count, match[2])} ago`
+}
+
+function describeAgoRange(from: string, to: string): string | null {
+  const start = agoText(from)
+  const end = agoText(to)
+  return start === null || end === null ? null : `${start} to ${end}`
+}
+
 function durationText(count: number, unit: TimeUnit): string {
   return `${count} ${unitNames[unit]}${count === 1 ? "" : "s"}`
 }
@@ -175,6 +191,7 @@ export function describeRange(
   return (
     quick?.label ??
     describeRelativeRange(from, to) ??
+    describeAgoRange(from, to) ??
     describeInstantRange(from, to) ??
     `${formatTimeValue(from)} to ${formatTimeValue(to)}`
   )
@@ -208,7 +225,16 @@ function describeInstantRange(from: string, to: string): string | null {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`
   const endText =
     day(start) === day(end) ? clock(end) : `${day(end)}, ${clock(end)}`
-  return `${day(start)}, ${clock(start)} to ${endText}`
+  return `${day(start)}, ${clock(start)} to ${endText} ${browserZoneName(end)}`
+}
+
+export function browserZoneName(at: Date): string {
+  const part = new Intl.DateTimeFormat(undefined, {
+    timeZoneName: "short",
+  })
+    .formatToParts(at)
+    .find((item) => item.type === "timeZoneName")
+  return part?.value ?? "local time"
 }
 
 const absoluteUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }

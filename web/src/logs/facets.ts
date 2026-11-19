@@ -130,6 +130,20 @@ export function fieldsNote(
   return `From the table columns, ${fields}`
 }
 
+const keywordSuffix = ".keyword"
+
+function isShadowSubfield(
+  name: string,
+  all: ReadonlySet<string>,
+  counted: ReadonlyMap<string, FacetField>
+): boolean {
+  return (
+    name.endsWith(keywordSuffix) &&
+    !counted.has(name) &&
+    all.has(name.slice(0, -keywordSuffix.length))
+  )
+}
+
 export function fieldRows(
   names: readonly string[],
   facets: readonly FacetField[]
@@ -137,6 +151,7 @@ export function fieldRows(
   const byName = new Map(facets.map((facet) => [facet.name, facet]))
   const all = new Set([...names, ...byName.keys()])
   return [...all]
+    .filter((name) => !isShadowSubfield(name, all, byName))
     .sort((a, b) => a.localeCompare(b))
     .map((name) => ({ name, facet: byName.get(name) ?? null }))
 }

@@ -15,13 +15,15 @@ const findingComponents: Components = {
 
 export function FindingMarkdown({ markdown }: { markdown: string }) {
   return (
-    <Markdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={markdownRehypePlugins}
-      urlTransform={(url) => safeUrl(url)}
-      components={findingComponents}
-    >
-      {markdown}
-    </Markdown>
+    <div className="min-w-0 wrap-anywhere">
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={markdownRehypePlugins}
+        urlTransform={(url) => safeUrl(url)}
+        components={findingComponents}
+      >
+        {markdown}
+      </Markdown>
+    </div>
   )
 }

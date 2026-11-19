@@ -12,7 +12,7 @@ const usd = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
-function costText(cost: number | null): string {
+export function costText(cost: number | null): string {
   if (cost === null) return "Not priced"
   if (cost > 0 && cost < 0.01) return "<$0.01"
   return usd.format(cost)

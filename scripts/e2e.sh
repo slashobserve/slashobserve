@@ -3093,9 +3093,13 @@ cli_suite() {
   cli_run dashboards show "$did" --json
   [[ "$CLI_CODE" == 0 ]] || fail "observe dashboards show --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"
   command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did" >"$TMP/cli.api"
-  diff <(strip_final_newline "$TMP/cli.out") <(strip_final_newline "$TMP/cli.api") >/dev/null \
-    || fail "observe dashboards show --json differs from the API response"
-  pass "observe dashboards show --json matches the API response byte for byte"
+  command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did/views" >"$TMP/cli.views"
+  python3 - "$TMP/cli.out" "$TMP/cli.api" "$TMP/cli.views" <<'PY' || fail "observe dashboards show --json differs from the API response plus the view count"
+import json, sys
+shown, api, views = (json.load(open(p)) for p in sys.argv[1:4])
+sys.exit(0 if shown == {**api, "view_count": views["view_count"], "window_days": views["window_days"]} else 1)
+PY
+  pass "observe dashboards show --json is the API response plus the view count and its window"
 
   title="$(grep -o '"title":"[^"]*"' "$TMP/cli.api" | head -1 | cut -d'"' -f4)"
   [[ -n "$title" ]] || fail "the dashboard has no title"

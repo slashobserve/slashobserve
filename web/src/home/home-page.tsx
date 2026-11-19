@@ -4,6 +4,7 @@ import { TopRowActions } from "@/shell/top-row-actions"
 
 import { NeedsYouList, PickUpList, WorkingNowList } from "./activity-lists"
 import { homeDate } from "./home-date"
+import { HomeDashboardNotice } from "./home-dashboard-notice"
 import type { HomeTab } from "./home-tab"
 import {
   OpenObservationsList,
@@ -33,6 +34,7 @@ export function HomePage({ tab, onTabChange }: Props) {
         </span>
       </TopRowActions>
       <div className="flex flex-col gap-4">
+        <HomeDashboardNotice />
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.01em]">
             What are you working on?

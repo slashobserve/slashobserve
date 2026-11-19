@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
@@ -117,4 +118,33 @@ func (tb *targetBuild) lokiStep() string {
 	}
 	tb.partial("step", lokiStepReason)
 	return value
+}
+
+const lokiEmptyAllValueReason = "Loki refuses a stream selector whose matchers all match an empty value, so a Loki query that uses this variable fails while All is selected; set the custom All value to .+ instead."
+
+func (c *converter) noteLokiAllValues() {
+	for _, v := range c.vars {
+		if v.v.AllValue == "" || !matchesEmpty(v.v.AllValue) {
+			continue
+		}
+		if c.lokiQueryUses(v.v.Name) {
+			c.note("variable "+v.v.Name, lokiEmptyAllValueReason)
+		}
+	}
+}
+
+func matchesEmpty(pattern string) bool {
+	re, err := regexp.Compile("^(?:" + pattern + ")$")
+	return err == nil && re.MatchString("")
+}
+
+func (c *converter) lokiQueryUses(variable string) bool {
+	uses := func(bp *builtPanel) bool {
+		return slices.ContainsFunc(bp.queries, func(bq *builtQuery) bool {
+			return bq.src != nil && bq.src.kind == kindLoki && usesVariable(bq.q.Query, variable)
+		})
+	}
+	return slices.ContainsFunc(c.built, func(bp *builtPanel) bool {
+		return uses(bp) || slices.ContainsFunc(bp.children, uses)
+	})
 }

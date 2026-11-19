@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -78,7 +79,20 @@ func safeMessage(ex *ch.Exception, fallback string) string {
 	if datasource.NamesAddress(ex.Message) {
 		return fallback
 	}
-	return truncate(ex.Message)
+	return truncate(withoutScope(ex.Message))
+}
+
+func withoutScope(message string) string {
+	head, scope, found := strings.Cut(message, " in scope ")
+	if !found {
+		return message
+	}
+	for _, column := range []string{volumeTimeColumn, volumeLevelColumn} {
+		if strings.HasPrefix(scope, "SELECT toStartOfInterval(") && strings.Contains(head, "`"+column+"`") {
+			return "the volume needs the query to select " + column
+		}
+	}
+	return head
 }
 
 func isTransportError(err error) bool {

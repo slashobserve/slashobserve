@@ -54,6 +54,7 @@ import { Route as AuthedDDashboardIdChar123SlugChar125RouteImport } from './rout
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
 import { Route as AuthedShellChatCRequestIdRouteImport } from './routes/_authed/_shell/_chat/c/$requestId'
+import { Route as AuthedShellOObservationIdRcaRevisionRouteImport } from './routes/_authed/_shell/o/$observationId_.rca.$revision'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -292,6 +293,12 @@ const AuthedShellChatCRequestIdRoute =
     path: '/c/$requestId',
     getParentRoute: () => AuthedShellChatRoute,
   } as any)
+const AuthedShellOObservationIdRcaRevisionRoute =
+  AuthedShellOObservationIdRcaRevisionRouteImport.update({
+    id: '/o/$observationId_/rca/$revision',
+    path: '/o/$observationId/rca/$revision',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedShellChatIndexRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/traces/': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedShellChatIndexRoute
@@ -380,6 +388,7 @@ export interface FileRoutesByTo {
   '/traces': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -428,6 +437,7 @@ export interface FileRoutesById {
   '/_authed/_shell/traces/': typeof AuthedShellTracesIndexRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/_authed/_shell/_chat/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/_authed/_shell/o/$observationId_/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/traces/'
     | '/dashboards/$dashboardId/'
     | '/c/$requestId'
+    | '/o/$observationId/rca/$revision'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/traces'
     | '/dashboards/$dashboardId'
     | '/c/$requestId'
+    | '/o/$observationId/rca/$revision'
   id:
     | '__root__'
     | '/_authed'
@@ -565,6 +577,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/traces/'
     | '/_authed/dashboards/$dashboardId/'
     | '/_authed/_shell/_chat/c/$requestId'
+    | '/_authed/_shell/o/$observationId_/rca/$revision'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -891,6 +904,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellChatCRequestIdRouteImport
       parentRoute: typeof AuthedShellChatRoute
     }
+    '/_authed/_shell/o/$observationId_/rca/$revision': {
+      id: '/_authed/_shell/o/$observationId_/rca/$revision'
+      path: '/o/$observationId/rca/$revision'
+      fullPath: '/o/$observationId/rca/$revision'
+      preLoaderRoute: typeof AuthedShellOObservationIdRcaRevisionRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
   }
 }
 
@@ -938,6 +958,7 @@ interface AuthedShellRouteChildren {
   AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
   AuthedShellTracesIndexRoute: typeof AuthedShellTracesIndexRoute
+  AuthedShellOObservationIdRcaRevisionRoute: typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
@@ -968,6 +989,8 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
   AuthedShellTracesIndexRoute: AuthedShellTracesIndexRoute,
+  AuthedShellOObservationIdRcaRevisionRoute:
+    AuthedShellOObservationIdRcaRevisionRoute,
 }
 
 const AuthedShellRouteWithChildren = AuthedShellRoute._addFileChildren(

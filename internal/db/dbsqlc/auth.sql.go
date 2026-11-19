@@ -151,7 +151,7 @@ INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups)
 VALUES ($1, $2, $3, $4, coalesce($5::text[], '{}'))
 ON CONFLICT (oidc_issuer, oidc_subject)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, groups = EXCLUDED.groups, last_login_at = now(), last_seen_at = now()
-RETURNING id, email, name, created_at, manual_role
+RETURNING id, email, name, created_at, manual_role, (xmax = 0)::boolean AS inserted
 `
 
 type UpsertUserParams struct {
@@ -168,6 +168,7 @@ type UpsertUserRow struct {
 	Name       string
 	CreatedAt  pgtype.Timestamptz
 	ManualRole pgtype.Text
+	Inserted   bool
 }
 
 func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (UpsertUserRow, error) {
@@ -185,6 +186,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (UpsertU
 		&i.Name,
 		&i.CreatedAt,
 		&i.ManualRole,
+		&i.Inserted,
 	)
 	return i, err
 }

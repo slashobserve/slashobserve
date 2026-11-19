@@ -93,3 +93,24 @@ export function importFailure(error: unknown): Failure {
   }
   return { message: "Could not import. Try again.", retry: false }
 }
+
+export function specFailure(error: unknown): Failure {
+  if (error instanceof ApiError) {
+    if (error.status === 422 && error.code === "invalid_spec") {
+      const issue = error.issues[0]?.message.replace(/\.+$/, "")
+      return {
+        message: issue
+          ? `This Spec could not be saved: ${issue}.`
+          : "This Spec could not be saved.",
+        retry: false,
+      }
+    }
+    if (error.status === 403) {
+      return {
+        message: "You cannot create dashboards in this folder.",
+        retry: false,
+      }
+    }
+  }
+  return { message: "Could not create the dashboard. Try again.", retry: false }
+}

@@ -113,6 +113,10 @@ func cutRunes(s string, n int) string {
 }
 
 func EvidenceSpec(title string, from, to time.Time, panels []json.RawMessage) (*spec.Dashboard, error) {
+	return EvidenceSpecWith(title, from, to, panels, nil)
+}
+
+func EvidenceSpecWith(title string, from, to time.Time, panels []json.RawMessage, variables []spec.Variable) (*spec.Dashboard, error) {
 	placed := make([]map[string]json.RawMessage, len(panels))
 	for i, raw := range panels {
 		var panel map[string]json.RawMessage
@@ -130,12 +134,16 @@ func EvidenceSpec(title string, from, to time.Time, panels []json.RawMessage) (*
 		panel["id"], panel["gridPos"] = id, grid
 		placed[i] = panel
 	}
-	doc, err := json.Marshal(map[string]any{
+	document := map[string]any{
 		"specVersion": spec.Version,
 		"title":       title,
 		"time":        evidenceTime(from, to),
 		"panels":      placed,
-	})
+	}
+	if len(variables) > 0 {
+		document["variables"] = variables
+	}
+	doc, err := json.Marshal(document)
 	if err != nil {
 		return nil, err
 	}

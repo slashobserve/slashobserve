@@ -14,8 +14,9 @@ describe("webhookStatus", () => {
         state: "sending",
         disabled_reason: null,
         consecutive_failures: 0,
+        waiting_events: null,
       })
-    ).toEqual({ tone: "ok", label: "Sending", detail: null })
+    ).toEqual({ tone: "ok", label: "Sending", detail: null, waiting: null })
   })
 
   test("a webhook the server marks retrying says how many attempts failed", () => {
@@ -24,19 +25,39 @@ describe("webhookStatus", () => {
         state: "retrying",
         disabled_reason: null,
         consecutive_failures: 1,
+        waiting_events: null,
       })
     ).toEqual({
       tone: "warning",
       label: "Retrying",
       detail: "1 attempt in a row failed",
+      waiting: null,
     })
     expect(
       webhookStatus({
         state: "retrying",
         disabled_reason: null,
         consecutive_failures: 4,
+        waiting_events: null,
       }).detail
     ).toBe("4 attempts in a row failed")
+  })
+
+  test("a retrying webhook counts the events stuck behind the failing one", () => {
+    const status = (waiting_events: { count: number; more: boolean } | null) =>
+      webhookStatus({
+        state: "retrying",
+        disabled_reason: null,
+        consecutive_failures: 21,
+        waiting_events,
+      }).waiting
+    expect(status({ count: 1, more: false })).toBe("1 event waiting")
+    expect(status({ count: 3, more: false })).toBe("3 events waiting")
+    expect(status({ count: 100, more: true })).toBe(
+      "100 or more events waiting"
+    )
+    expect(status({ count: 0, more: false })).toBeNull()
+    expect(status(null)).toBeNull()
   })
 
   test("a disabled webhook says why", () => {
@@ -45,12 +66,25 @@ describe("webhookStatus", () => {
         state: "disabled",
         disabled_reason: "gone",
         consecutive_failures: 3,
+        waiting_events: null,
       })
     ).toEqual({
       tone: "critical",
       label: "Disabled",
       detail: "The receiver answered 410 Gone",
+      waiting: null,
     })
+  })
+
+  test("a webhook an Admin turned off is neutral, not an alert", () => {
+    expect(
+      webhookStatus({
+        state: "disabled",
+        disabled_reason: "manual",
+        consecutive_failures: 0,
+        waiting_events: null,
+      }).tone
+    ).toBe("none")
   })
 })
 
