@@ -197,6 +197,18 @@ func storedSelections(selections map[string][]string) ([]byte, error) {
 	return json.Marshal(selections)
 }
 
+func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
+	var row dbsqlc.CreatePublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if row, err = q.CreatePublicLink(ctx, params); err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	})
+	return row, err
+}
+
 func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in CreateInput) (Created, error) {
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
@@ -237,25 +249,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	var row dbsqlc.CreatePublicLinkRow
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		var err error
-		row, err = q.CreatePublicLink(ctx, dbsqlc.CreatePublicLinkParams{
-			DashboardID:   dashboardID,
-			TokenHash:     hash,
-			DisplayPrefix: displayPrefix(token),
-			Label:         label,
-			Variables:     string(in.Mode),
-			Selections:    stored,
-			ExpiresAt:     timestamp(in.ExpiresAt),
-			CreatedByKind: string(by.Kind),
-			CreatedByID:   creatorID,
-			CreatedByName: creatorName(by),
-		})
-		if err != nil {
-			return err
-		}
-		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	row, err := s.insertLink(ctx, by, dbsqlc.CreatePublicLinkParams{
+		DashboardID:   dashboardID,
+		TokenHash:     hash,
+		DisplayPrefix: displayPrefix(token),
+		Label:         label,
+		Variables:     string(in.Mode),
+		Selections:    stored,
+		ExpiresAt:     timestamp(in.ExpiresAt),
+		CreatedByKind: string(by.Kind),
+		CreatedByID:   creatorID,
+		CreatedByName: creatorName(by),
 	})
 	if db.IsForeignKeyViolation(err) {
 		return Created{}, folders.ErrNotFound
