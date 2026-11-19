@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/sealed"
@@ -361,5 +362,63 @@ func TestAPollThatReadTheRowsBeforeACreateDoesNotUndoIt(t *testing.T) {
 
 	if _, ok := r.registry.Get("added"); !ok {
 		t.Fatal("the poll's older snapshot removed the datasource that was just added")
+	}
+}
+
+func outboundBlockedMessage() string {
+	message, _ := datasource.Reason(datasource.ErrOutboundBlocked)
+	return message
+}
+
+func TestLoadRefusesAnIPAddressOnceTheAllowlistIsLocked(t *testing.T) {
+	server := upstream(t, nil)
+	unlocked, unlockedSvc := newRig(t, testKey)
+	unlocked.insert(t, testKey, prometheus("added", server.URL), Secrets{})
+	if err := unlockedSvc.Load(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if status := health(t, unlocked, "added"); !status.Healthy {
+		t.Fatalf("an IP address on an unlocked list: %+v", status)
+	}
+
+	locked, lockedSvc := newRigWith(t, rigOptions{key: testKey, lock: allowlist.Lock{Locked: true}})
+	locked.insert(t, testKey, prometheus("added", server.URL), Secrets{})
+	if err := lockedSvc.Load(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if status := health(t, locked, "added"); status.Healthy || status.Message != outboundBlockedMessage() {
+		t.Fatalf("an IP address on a locked list: %+v", status)
+	}
+}
+
+func TestReconcileFollowsTheAllowlistForStoredDomains(t *testing.T) {
+	r, svc := newRig(t, testKey)
+	r.insert(t, testKey, prometheus("added", "http://prom.example.invalid:9090"), Secrets{})
+	if err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if status := health(t, r, "added"); status.Message != outboundBlockedMessage() {
+		t.Fatalf("a domain that is not listed: %+v", status)
+	}
+
+	pattern, _ := domains.ParsePattern("prom.example.invalid")
+	if _, err := r.domains.Add(t.Context(), r.admin, pattern); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if status := health(t, r, "added"); status.Message == outboundBlockedMessage() {
+		t.Fatalf("the datasource stayed blocked after its domain was allowed: %+v", status)
+	}
+
+	if _, err := r.db.Queries().DeleteOutboundDomain(t.Context(), pattern.String()); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if status := health(t, r, "added"); status.Message != outboundBlockedMessage() {
+		t.Fatalf("the datasource kept connecting after its domain was removed: %+v", status)
 	}
 }

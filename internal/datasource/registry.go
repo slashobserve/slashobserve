@@ -331,6 +331,7 @@ var healthTexts = []struct {
 	{ErrNoSecretKey, "This datasource's credentials need SLASHOBSERVE_SECRET_KEY on the server"},
 	{ErrUnreadable, "The saved credentials cannot be read with the server's secret key; set them again"},
 	{ErrNotLoadable, "The saved definition cannot be used; open the datasource and save it again"},
+	{ErrOutboundBlocked, "The address is not allowed by the outbound allowlist"},
 	{ErrUnavailable, "The datasource is not answering"},
 	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
 	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},

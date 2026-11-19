@@ -49,6 +49,7 @@ type Deps struct {
 type version struct {
 	id        pgtype.UUID
 	updatedAt time.Time
+	blocked   bool
 }
 
 type Service struct {
@@ -101,10 +102,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	allowed, err := s.domains.Allowed(ctx)
+	if err != nil {
+		return err
+	}
 	present := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		present[row.Uid] = true
-		s.applyLocked(row)
+		s.applyLocked(row, allowed)
 	}
 	for uid := range s.applied {
 		if !present[uid] {
@@ -114,13 +119,13 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) applyLocked(row dbsqlc.Datasource) {
-	v := version{id: row.ID, updatedAt: row.UpdatedAt.Time}
+func (s *Service) applyLocked(row dbsqlc.Datasource, allowed domains.List) {
+	v := version{id: row.ID, updatedAt: row.UpdatedAt.Time, blocked: s.blocked(row, allowed)}
 	if known, ok := s.applied[row.Uid]; ok && known == v {
 		return
 	}
 	s.applied[row.Uid] = v
-	instance, total := s.instanceOf(row)
+	instance, total := s.instanceOf(row, v.blocked)
 	if err := s.registry.Put(instance); err != nil {
 		_ = instance.Datasource.Close()
 		s.logger.Warn("stored datasource not loaded", slog.String("uid", row.Uid), slog.String("reason", err.Error()))
@@ -136,8 +141,22 @@ func (s *Service) forgetLocked(uid string) {
 	}
 }
 
-func (s *Service) instanceOf(row dbsqlc.Datasource) (datasource.Instance, int) {
+func (s *Service) blocked(row dbsqlc.Datasource, allowed domains.List) bool {
+	var def Definition
+	if err := json.Unmarshal(row.Config, &def); err != nil {
+		return false
+	}
+	def.Type = row.Type
+	host, problem := endpointOf(def)
+	return problem == nil && s.refusal(allowed, host, false) != nil
+}
+
+func (s *Service) instanceOf(row dbsqlc.Datasource, blocked bool) (datasource.Instance, int) {
 	instance := datasource.Instance{UID: row.Uid, Name: row.Name, Source: datasource.SourceApp}
+	if blocked {
+		instance.Datasource = datasource.NewUnavailable(row.Type, datasource.Errorf(datasource.ErrOutboundBlocked, "the address is not on the outbound allowlist"))
+		return instance, 0
+	}
 	var def Definition
 	ds, total, err := s.open(row, &def)
 	if err != nil {

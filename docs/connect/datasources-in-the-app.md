@@ -24,10 +24,13 @@ Every header value counts as a credential, so the app has no plain custom header
 
 ## Addresses
 
-The address passes the same checks as a Grafana connection.
+The address is checked against the outbound allowlist like a Grafana connection's.
 It must be `http` or `https` with a host and no user info, or `host:port` for ClickHouse.
 A domain is added to the outbound allowlist when the allowlist is not locked, and refused with `403 outbound_domain_not_allowed` when `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it.
 A bare IP address or a single-label host cannot be listed, so it is accepted only while the allowlist is unlocked; link-local, unspecified and multicast addresses are always refused.
+The server checks the allowlist again every 10 seconds and when it starts.
+A datasource whose domain was removed, or whose IP address or single-label host is no longer allowed because `SLASHOBSERVE_OUTBOUND_DOMAINS` now locks the list, shows Unavailable with "The address is not allowed by the outbound allowlist" until the domain is allowed again or the address is changed.
+The server never connects to a link-local, cloud metadata or unspecified address, even when a name resolves to one.
 The server holds at most 100 datasources added in the app.
 
 ## Test the connection

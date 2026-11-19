@@ -27,6 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -368,16 +369,21 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	if err != nil {
 		return Record{}, err
 	}
-	s.applyRow(row)
+	s.applyRow(ctx, row)
 	s.logger.InfoContext(ctx, "datasource added", slog.String("actor_id", by.ID), slog.String("uid", row.Uid), slog.String("type", row.Type))
 	return recordOf(row)
 }
 
-func (s *Service) applyRow(row dbsqlc.Datasource) {
+func (s *Service) applyRow(ctx context.Context, row dbsqlc.Datasource) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	allowed, err := s.domains.Allowed(ctx)
+	if err != nil {
+		s.logger.WarnContext(ctx, "stored datasource waits for the next sync", logattrs.Failure("datasource_apply_failed", err, slog.String("uid", row.Uid))...)
+		return
+	}
 	delete(s.applied, row.Uid)
-	s.applyLocked(row)
+	s.applyLocked(row, allowed)
 }
 
 func (s *Service) compose(row dbsqlc.Datasource, def Definition, change SecretsChange) (Secrets, error) {
@@ -432,7 +438,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
-	s.applyRow(updated)
+	s.applyRow(ctx, updated)
 	s.logger.InfoContext(ctx, "datasource updated", slog.String("actor_id", by.ID), slog.String("uid", uid), slog.Bool("credentials_changed", !change.empty()))
 	return recordOf(updated)
 }

@@ -6,7 +6,8 @@ description: Control which domains the server may fetch from or call, including 
 SlashObserve can show content that dashboards fetch from other sites, such as the feeds in news panels.
 The server fetches it only from domains that are on the allowlist.
 The list starts empty, so a new deployment makes no such request until someone allows a domain.
-Datasource queries, the identity provider and the model provider are not part of this list.
+Datasources defined in the datasources file, the identity provider and the model provider are not part of this list.
+A datasource an Admin adds in the app is held to it in a narrower way, described in [Add datasources in the app](../connect/datasources-in-the-app.md#addresses).
 
 An entry is `example.com`, which matches that host only, or `*.example.com`, which matches its subdomains but not `example.com` itself.
 Write the domain without a scheme, port or path; an IP address is refused, and a name with non-ASCII letters is stored in its ASCII form.

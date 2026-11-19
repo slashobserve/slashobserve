@@ -81,6 +81,9 @@ ClickHouse is queried only as a read-only user.
 - **Outbound requests are allowlisted.**
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
   A Grafana connection an Admin configures is the exception: it may use `http` and a private address, because the Grafana being migrated usually runs inside the same network.
+  A datasource an Admin adds in the app is the second exception: it may use `http` and a private address, and an IP address or a single-label host while the allowlist is unlocked, because the stores it queries usually run inside the same network.
+  The server checks the allowlist for these datasources every 10 seconds and at start, so a datasource whose domain is removed, or whose IP address is no longer allowed once `SLASHOBSERVE_OUTBOUND_DOMAINS` locks the list, turns Unavailable.
+  It never connects to a link-local, cloud metadata or unspecified address, even when a name resolves to one.
   This covers news feeds, images, map tiles, GeoJSON files and actions.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
   A canvas or field action also needs Edit on the dashboard and a confirmation in the browser, and the server never follows a redirect for it.
