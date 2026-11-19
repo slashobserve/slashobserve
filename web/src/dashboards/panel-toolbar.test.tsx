@@ -34,12 +34,13 @@ function serveAgent(available: boolean) {
 
 function renderToolbar(
   permissions: { comment: boolean; edit: boolean },
-  over: { idle?: boolean; panel?: LayoutPanel } = {}
+  over: { idle?: boolean; panel?: LayoutPanel; canInvestigate?: boolean } = {}
 ) {
   return renderWithProviders(
     <PanelToolbar
       panel={over.panel ?? panel}
       permissions={permissions}
+      canInvestigate={over.canInvestigate ?? true}
       composerRef={createRef<HTMLTextAreaElement>()}
       from={undefined}
       to={undefined}
@@ -115,6 +116,16 @@ describe("PanelToolbar", () => {
       "Add to observation",
       "More actions for Checkout latency",
     ])
+  })
+
+  it("names the missing role on Ask for someone with Edit who is not an Editor", async () => {
+    serveAgent(true)
+    renderToolbar(editor, { canInvestigate: false })
+    const ask = await screen.findByRole("button", {
+      name: "Ask @observe (needs the Editor role)",
+    })
+    expect(ask).toHaveAttribute("aria-disabled", "true")
+    expect(screen.queryByRole("button", { name: "Ask @observe" })).toBeNull()
   })
 
   it("leaves out Ask while the agent is unavailable", async () => {
