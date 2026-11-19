@@ -7,6 +7,7 @@ import {
   observationPath,
   proposalPath,
 } from "@/lib/links"
+import { plainTitle } from "@/comments/plain-title"
 
 export type InboxItem = components["schemas"]["InboxItem"]
 export type InboxReason = NonNullable<InboxItem["reason"]>
@@ -78,7 +79,7 @@ function objectRef(item: InboxItem): ObjectRef | null {
 function titleOf(item: InboxItem): string | null {
   return item.target_title === null || item.target_title === ""
     ? null
-    : item.target_title
+    : plainTitle(item.target_title)
 }
 
 const commentable = new Set<TargetKind>([

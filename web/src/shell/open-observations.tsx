@@ -15,6 +15,7 @@ import {
   subNavMoreClass,
   useReservedRows,
 } from "./sub-nav"
+import { plainTitle } from "@/comments/plain-title"
 
 const shown = 5
 const staleTime = 30_000
@@ -86,7 +87,7 @@ export function OpenObservations({
             <Link
               {...observationLink(observation.id)}
               onClick={onNavigate}
-              title={observation.title}
+              title={plainTitle(observation.title)}
               aria-current={observation.id === currentId ? "page" : undefined}
               className={subNavLinkClass}
             >
@@ -95,7 +96,7 @@ export function OpenObservations({
                 className="size-1.5 flex-none rounded-full bg-status-ok"
               />
               <span className={cn("truncate", isUnread && "font-semibold")}>
-                {observation.title}
+                {plainTitle(observation.title)}
               </span>
               {isUnread ? <span className="sr-only">Unread</span> : null}
             </Link>

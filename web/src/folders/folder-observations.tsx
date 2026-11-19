@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { observationLink } from "@/lib/links"
 import { observationsInfiniteQuery } from "@/observations/queries"
 import { loadProblemText } from "@/service-accounts/queries"
+import { plainTitle } from "@/comments/plain-title"
 
 export function FolderObservations({ folderId }: { folderId: string }) {
   const headingId = useId()
@@ -54,7 +55,7 @@ export function FolderObservations({ folderId }: { folderId: string }) {
                     {...observationLink(observation.id)}
                     className="rounded-sm font-medium underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    {observation.title}
+                    {plainTitle(observation.title)}
                   </Link>
                 </Cell>
                 <Cell>

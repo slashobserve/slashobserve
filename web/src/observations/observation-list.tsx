@@ -54,6 +54,7 @@ import {
   type Observation,
 } from "./queries"
 import { ResolveManyDialog } from "./resolve-many-dialog"
+import { plainTitle } from "@/comments/plain-title"
 
 export type { ObservationStateFilter } from "./list-view"
 
@@ -499,7 +500,7 @@ function ObservationRow({
       <Cell className="max-w-[48ch] font-medium wrap-anywhere">
         <span className="inline-flex items-center gap-2.5">
           <Checkbox
-            aria-label={`Select ${observation.title}`}
+            aria-label={`Select ${plainTitle(observation.title)}`}
             checked={selected}
             onCheckedChange={onSelect}
           />
@@ -507,7 +508,7 @@ function ObservationRow({
             {...observationLink(observation.id)}
             className="underline-offset-4 hover:underline"
           >
-            {observation.title}
+            {plainTitle(observation.title)}
           </Link>
         </span>
       </Cell>
@@ -546,7 +547,7 @@ function ObservationRow({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Actions for ${observation.title}`}
+                  aria-label={`Actions for ${plainTitle(observation.title)}`}
                 />
               }
             >
