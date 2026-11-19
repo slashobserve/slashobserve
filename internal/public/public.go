@@ -236,31 +236,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if err != nil {
 		return Created{}, err
 	}
-	var row dbsqlc.CreatePublicLinkRow
-	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := q.LockDashboardForLinks(ctx, dashboardID); err != nil {
-			return err
-		}
-		count, err := q.CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: dashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
-		if err != nil {
-			return err
-		}
-		if count >= maxLinksPerDashboard {
-			return ErrTooManyLinks
-		}
-		row, err = q.CreatePublicLink(ctx, dbsqlc.CreatePublicLinkParams{
-			DashboardID:   dashboardID,
-			TokenHash:     hash,
-			DisplayPrefix: displayPrefix(token),
-			Label:         label,
-			Variables:     string(in.Mode),
-			Selections:    stored,
-			ExpiresAt:     timestamp(in.ExpiresAt),
-			CreatedByKind: string(by.Kind),
-			CreatedByID:   creatorID,
-			CreatedByName: creatorName(by),
-		})
-		return err
+	row, err := s.insertLink(ctx, dbsqlc.CreatePublicLinkParams{
+		DashboardID:   dashboardID,
+		TokenHash:     hash,
+		DisplayPrefix: displayPrefix(token),
+		Label:         label,
+		Variables:     string(in.Mode),
+		Selections:    stored,
+		ExpiresAt:     timestamp(in.ExpiresAt),
+		CreatedByKind: string(by.Kind),
+		CreatedByID:   creatorID,
+		CreatedByName: creatorName(by),
 	})
 	if db.IsForeignKeyViolation(err) {
 		return Created{}, folders.ErrNotFound
@@ -274,6 +260,25 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	}
 	link.Usable = true
 	return Created{Link: link, Token: token, URL: links.Public(s.publicURL, token)}, nil
+}
+
+func (s *Service) insertLink(ctx context.Context, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
+	var row dbsqlc.CreatePublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockDashboardForLinks(ctx, params.DashboardID); err != nil {
+			return err
+		}
+		count, err := q.CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: params.DashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
+		if err != nil {
+			return err
+		}
+		if count >= maxLinksPerDashboard {
+			return ErrTooManyLinks
+		}
+		row, err = q.CreatePublicLink(ctx, params)
+		return err
+	})
+	return row, err
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) ([]Link, error) {
