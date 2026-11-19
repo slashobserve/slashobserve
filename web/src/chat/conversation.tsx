@@ -274,8 +274,8 @@ function ConversationView({
     isActiveStatus(latestTurn.summary.status)
   const loadFrom = Math.max(0, turns.length - stepsLoadedTurns)
 
-  return (
-    <div className="flex min-h-full flex-col items-center">
+  const transcript = (
+    <>
       {pane ? (
         <PaneHeading requestId={requestId} />
       ) : (
@@ -323,12 +323,29 @@ function ConversationView({
           ))
         )}
       </div>
+    </>
+  )
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center",
+        pane ? "min-h-0 flex-1" : "min-h-full"
+      )}
+    >
+      {pane ? (
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+          {transcript}
+        </div>
+      ) : (
+        transcript
+      )}
       {readOnly ? null : (
         <div
           style={{ viewTransitionName: "chat-composer" }}
           className={cn(
-            "sticky w-full bg-background pt-2 pb-1",
-            pane ? "bottom-0" : "-bottom-7 max-w-[760px]"
+            "w-full bg-background pt-2 pb-1",
+            pane ? "flex-none" : "sticky -bottom-7 max-w-[760px]"
           )}
         >
           <ChatComposer
