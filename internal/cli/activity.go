@@ -57,6 +57,7 @@ type activityData struct {
 	BlockKind     string   `json:"block_kind"`
 	State         string   `json:"state"`
 	Tags          []string `json:"tags"`
+	Changed       []string `json:"changed"`
 	ResultVersion int      `json:"result_version"`
 	Revision      int      `json:"revision"`
 	FailureCode   string   `json:"failure_code"`
@@ -403,6 +404,9 @@ func describeSavedSearch(e activityEvent) (string, bool) {
 		}
 		return "saved the logs search " + title, true
 	case "saved_search.updated":
+		if what := searchParts(d.Changed); what != "" {
+			return "changed the " + what + " of the saved search " + title, true
+		}
 		return "renamed the saved search to " + title, true
 	case "saved_search.moved":
 		return "moved the saved search " + title, true
@@ -410,6 +414,16 @@ func describeSavedSearch(e activityEvent) (string, bool) {
 		return "deleted the saved search " + title, true
 	}
 	return "", false
+}
+
+func searchParts(changed []string) string {
+	var parts []string
+	for _, part := range changed {
+		if part != "title" {
+			parts = append(parts, text(part))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 func describeDashboard(e activityEvent) (string, bool) {

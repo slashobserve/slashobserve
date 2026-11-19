@@ -337,6 +337,125 @@ func TestRenameAndMoveAppendOneRowEachAndMoveTakesEarlierRowsAlong(t *testing.T)
 	}
 }
 
+func TestAContentUpdateReplacesTheQueryFiltersAndRangeAndAppendsOneEvent(t *testing.T) {
+	r := newRig(t)
+	saved := r.save(t, editor, logsSearch("Errors"))
+	id := mustUUID(t, saved.ID)
+	query := `{app="payments"} |= "timeout"`
+	from, to := "now-6h", "now-1h"
+
+	got, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{
+		Query: &query, Filters: []byte(`{"columns":["timestamp","line"]}`), From: &from, To: &to,
+	})
+	if err != nil || got.Query == nil || *got.Query != query || got.From != from || got.To != to || strings.Join(got.Filters.Columns, ",") != "timestamp,line" {
+		t.Fatalf("content update = %+v, %v", got, err)
+	}
+	if got.Title != "Errors" || got.Folder.ID != saved.Folder.ID || !got.UpdatedAt.After(saved.UpdatedAt) {
+		t.Fatalf("title, folder or time after a content update: %+v", got)
+	}
+	events := r.events(t, saved.ID)
+	if strings.Join(types(events), ",") != "saved_search.created,saved_search.updated" {
+		t.Fatalf("events %v", types(events))
+	}
+	var data struct {
+		Changed []string `json:"changed"`
+		Title   string   `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(events[1].Data), &data); err != nil || strings.Join(data.Changed, ",") != "query,filters,range" || data.Title != "Errors" {
+		t.Fatalf("event data %s: %v", events[1].Data, err)
+	}
+	if strings.Contains(events[1].Data, "timeout") {
+		t.Fatalf("event carries query text: %s", events[1].Data)
+	}
+
+	if _, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Query: &query, From: &from}); err != nil {
+		t.Fatalf("a content update to what it already has: %v", err)
+	}
+	if got := types(r.events(t, saved.ID)); len(got) != 2 {
+		t.Fatalf("an unchanged content update appended an event: %v", got)
+	}
+
+	cleared, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Filters: []byte(`null`)})
+	if err != nil || len(cleared.Filters.Columns) != 0 || *cleared.Query != query {
+		t.Fatalf("clearing filters = %+v, %v", cleared, err)
+	}
+
+	title, newQuery := "Payments timeouts", `{app="payments"}`
+	both, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Title: &title, Query: &newQuery})
+	if err != nil || both.Title != title || *both.Query != newQuery {
+		t.Fatalf("title and query together = %+v, %v", both, err)
+	}
+	events = r.events(t, saved.ID)
+	if last := events[len(events)-1]; !strings.Contains(last.Data, `"changed":["title","query"]`) {
+		t.Fatalf("last event %s", last.Data)
+	}
+}
+
+func TestAContentUpdateKeepsTheKindAndDatasourceAndChecksThemAgainstTheNewContent(t *testing.T) {
+	r := newRig(t)
+	logs := r.save(t, editor, logsSearch("Errors"))
+	traces := r.save(t, editor, traceSearch("Slow"))
+	blank, huge, badRange, empty := " ", strings.Repeat("x", 8001), "yesterday-ish", ""
+	tempoQuery := `{ status = error }`
+
+	cases := []struct {
+		name string
+		id   string
+		in   savedsearches.UpdateInput
+	}{
+		{"a blank query", logs.ID, savedsearches.UpdateInput{Query: &blank}},
+		{"a query over the limit", logs.ID, savedsearches.UpdateInput{Query: &huge}},
+		{"clearing the query of a logs search", logs.ID, savedsearches.UpdateInput{Query: &empty}},
+		{"a trace filter on a logs search", logs.ID, savedsearches.UpdateInput{Filters: []byte(`{"service":"checkout"}`)}},
+		{"columns on a traces search", traces.ID, savedsearches.UpdateInput{Filters: []byte(`{"columns":["a"]}`)}},
+		{"an unknown filter key", logs.ID, savedsearches.UpdateInput{Filters: []byte(`{"colums":[]}`)}},
+		{"a range that does not parse", logs.ID, savedsearches.UpdateInput{From: &badRange}},
+		{"an empty range end", logs.ID, savedsearches.UpdateInput{To: &empty}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := r.service.Update(t.Context(), editor, mustUUID(t, c.id), c.in)
+			var invalid *savedsearches.InvalidInputError
+			if !errors.As(err, &invalid) || invalid.Code != savedsearches.CodeInvalid {
+				t.Fatalf("Update = %v, want %s", err, savedsearches.CodeInvalid)
+			}
+		})
+	}
+	got, err := r.service.Update(t.Context(), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &tempoQuery})
+	if err != nil || got.Query == nil || *got.Query != tempoQuery || got.Kind != savedsearches.KindTraces || got.DatasourceUID != "tempo" {
+		t.Fatalf("a Tempo query = %+v, %v", got, err)
+	}
+	cleared, err := r.service.Update(t.Context(), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &empty})
+	if err != nil || cleared.Query != nil {
+		t.Fatalf("clearing a Tempo query = %+v, %v", cleared, err)
+	}
+	for _, id := range []string{logs.ID, traces.ID} {
+		if got := types(r.events(t, id)); len(got) > 3 {
+			t.Fatalf("refusals appended events: %v", got)
+		}
+	}
+}
+
+func TestAContentUpdateNeedsEditOnTheSearchLikeARename(t *testing.T) {
+	r := newRig(t)
+	shared := r.folder(t, "Shared")
+	in := logsSearch("In shared")
+	in.FolderID = shared
+	inShared := r.save(t, editor, in)
+	private := r.save(t, editor, logsSearch("Private"))
+	query := `{app="other"}`
+
+	if _, err := r.service.Update(t.Context(), viewer, mustUUID(t, inShared.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("a viewer's content update = %v, want %v", err, folders.ErrForbidden)
+	}
+	if _, err := r.service.Update(t.Context(), otherEditor, mustUUID(t, private.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, savedsearches.ErrNotFound) {
+		t.Fatalf("another person's private search = %v, want %v", err, savedsearches.ErrNotFound)
+	}
+	if got := types(r.events(t, inShared.ID)); len(got) != 1 {
+		t.Fatalf("refusals appended events: %v", got)
+	}
+}
+
 func TestUpdateRefusals(t *testing.T) {
 	r := newRig(t)
 	saved := r.save(t, editor, logsSearch("Errors"))
