@@ -118,6 +118,7 @@ func (d *Datasource) prepare(ctx context.Context, q datasource.Query, r datasour
 	if err != nil {
 		return prepared{}, err
 	}
+	q.Expanded(text)
 	form, body := Classify(text, d.opts.QueryLanguage)
 	m, err := d.Mapping(ctx)
 	if err != nil {

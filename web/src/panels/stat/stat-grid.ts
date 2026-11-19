@@ -2,6 +2,10 @@ export const tileGap = 8
 const tileMinWidth = 120
 const tileSqueezedWidth = 96
 const tileMinHeight = 72
+const tileCompactHeight = 56
+const valueBaseSize = 28
+const valueFloorSize = 12
+const valueCharWidth = 0.6
 
 function tracksFor(size: number, minimum: number): number {
   return Math.max(1, Math.floor((size + tileGap) / (minimum + tileGap)))
@@ -48,4 +52,16 @@ export function isWideTile(
     size.width >= wideTileMinWidth &&
     size.width >= size.height * 2
   )
+}
+
+export function fittedValueSize(text: string, available: number): number {
+  if (text.length === 0) return valueBaseSize
+  const fitting = Math.floor(available / (text.length * valueCharWidth))
+  return Math.max(valueFloorSize, Math.min(valueBaseSize, fitting))
+}
+
+export function rowMinHeight(height: number, rows: number): number {
+  const needs = (row: number) => rows * row + tileGap * (rows - 1)
+  if (needs(tileMinHeight) <= height) return tileMinHeight
+  return needs(tileCompactHeight) <= height ? tileCompactHeight : tileMinHeight
 }

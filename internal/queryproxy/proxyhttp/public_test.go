@@ -204,3 +204,16 @@ func TestVariableOptionsShareTheValuesCacheAndTheSlots(t *testing.T) {
 		release()
 	}
 }
+
+func TestWithoutExecutedKeepsTheCachedEntryIntact(t *testing.T) {
+	entry := dataEntry{queries: []queryMeta{{Ref: "A", Executed: "up{job=\"api\"}"}, {Ref: "B", Executed: "sum(up)"}}}
+	hidden := withoutExecuted(entry)
+	for _, q := range hidden.queries {
+		if q.Executed != "" {
+			t.Fatalf("query %s still carries its text", q.Ref)
+		}
+	}
+	if entry.queries[0].Executed == "" || entry.queries[1].Executed == "" {
+		t.Fatal("the shared cache entry was changed")
+	}
+}

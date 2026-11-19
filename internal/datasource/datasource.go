@@ -80,6 +80,14 @@ type Query struct {
 	TimeZone  string
 
 	MinInterval time.Duration
+
+	OnExpanded func(text string)
+}
+
+func (q Query) Expanded(text string) {
+	if q.OnExpanded != nil {
+		q.OnExpanded(text)
+	}
 }
 
 type DiscoverKind string

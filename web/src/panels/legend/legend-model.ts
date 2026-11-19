@@ -20,6 +20,18 @@ export type LegendSource = {
   hidden?: boolean
 }
 
+export const maxStateLegendEntries = 12
+
+export function capLegend<T>(
+  items: readonly T[],
+  max: number
+): { shown: T[]; more: number } {
+  return {
+    shown: items.slice(0, max),
+    more: Math.max(0, items.length - max),
+  }
+}
+
 export function effectiveLegendMode(
   legendMode: LegendMode | undefined,
   legendValues: readonly AnyReducer[]

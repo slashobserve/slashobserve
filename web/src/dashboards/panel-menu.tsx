@@ -65,6 +65,7 @@ type Props = {
   viewing: boolean
   onDownloadCsv?: () => void
   onSavePng?: () => void
+  downloadsReady?: boolean
   canComment: boolean
   canEdit: boolean
   canInvestigate: boolean
@@ -109,6 +110,7 @@ export function PanelMenu({
   viewing,
   onDownloadCsv,
   onSavePng,
+  downloadsReady = true,
   canComment,
   canEdit,
   canInvestigate,
@@ -269,6 +271,7 @@ export function PanelMenu({
       id: "csv",
       label: "Download CSV",
       icon: <DownloadIcon aria-hidden="true" />,
+      disabled: !downloadsReady,
       onSelect: onDownloadCsv,
     })
   }
@@ -277,6 +280,7 @@ export function PanelMenu({
       id: "png",
       label: "Save as PNG",
       icon: <ImageIcon aria-hidden="true" />,
+      disabled: !downloadsReady,
       onSelect: onSavePng,
     })
   }

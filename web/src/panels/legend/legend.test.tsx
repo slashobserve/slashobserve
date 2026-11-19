@@ -5,6 +5,7 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel } from "@/spec"
 
 import { createFieldResolver } from "../field-config"
+import { Legend } from "./legend"
 import {
   useSeriesLegend,
   type SeriesLegendEntry,
@@ -77,5 +78,30 @@ describe("series legend", () => {
       screen.queryByRole("group", { name: "Series" })
     ).not.toBeInTheDocument()
     expect(screen.queryByRole("button")).not.toBeInTheDocument()
+  })
+})
+
+describe("Legend overflow", () => {
+  it("says how many entries are not listed", () => {
+    render(
+      <Legend
+        items={[
+          {
+            key: "up",
+            label: "up",
+            color: "var(--series-1)",
+            line: "solid",
+            style: "bars",
+          },
+        ]}
+        hidden={new Set()}
+        placement="bottom"
+        available={100}
+        width={0}
+        onToggle={() => undefined}
+        more={19}
+      />
+    )
+    expect(screen.getByText("+19 more")).toBeTruthy()
   })
 })

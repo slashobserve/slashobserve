@@ -50,6 +50,7 @@ type queryMeta struct {
 	Kind      queryproxy.Kind `json:"kind"`
 	StepMS    int64           `json:"step_ms"`
 	Exemplars string          `json:"exemplars,omitempty"`
+	Executed  string          `json:"executed,omitempty"`
 }
 
 type dataEntry struct {

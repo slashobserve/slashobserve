@@ -202,6 +202,23 @@ func TestRunPanelDispatch(t *testing.T) {
 	}
 }
 
+func TestRunPanelReportsTheTextTheDatasourceRan(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		q.Expanded("up{job=\"checkout\"}")
+		return dataFrames(), nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{panelOf("p1", spec.Timeseries, "prom", "up{job=\"$job\"}")})
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), MaxDataPoints: 200})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if len(res.Queries) != 1 || res.Queries[0].Executed != "up{job=\"checkout\"}" {
+		t.Fatalf("executed = %+v", res.Queries)
+	}
+}
+
 func TestRunPanelProxyPassesZeroLimits(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})

@@ -118,6 +118,7 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	if err != nil {
 		return nil, lim, err
 	}
+	q.Expanded(text)
 	lim.Timeout = d.clampTimeout(lim.Timeout)
 	timeout := effectiveTimeout(ctx, lim.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, lim.Timeout)

@@ -22,7 +22,9 @@ import type { PanelRenderer } from "../types"
 import { useActionRunner } from "../actions/action-runner"
 import { actionRequest, type RunnableAction } from "../actions/actions"
 import {
+  canvasIsEmpty,
   canvasModel,
+  emptyCanvasReason,
   type CanvasElement,
   type CanvasLine,
 } from "./canvas-model"
@@ -201,6 +203,13 @@ const CanvasPanel: PanelRenderer = ({
     )
   }
 
+  if (canvasIsEmpty(model)) {
+    return (
+      <p className="m-0 p-3 text-xs text-muted-foreground">
+        {emptyCanvasReason}
+      </p>
+    )
+  }
   const shaped = model.elements.filter(hasShape)
   const drawn = interactive.filter(({ element, interaction }) =>
     drawsContent(element, root.tooltip, interaction)

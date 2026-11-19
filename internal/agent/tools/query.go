@@ -419,10 +419,26 @@ type querySummary struct {
 	Warning   string          `json:"warning,omitempty"`
 	Hint      string          `json:"hint,omitempty"`
 	Note      string          `json:"note,omitempty"`
+	Executed  []executedQuery `json:"executed,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 	Page      *pageOut        `json:"page,omitempty"`
 	canPage   bool
+}
+
+type executedQuery struct {
+	Ref  string `json:"ref"`
+	Text string `json:"text"`
+}
+
+func executedOf(queries []queryproxy.QueryResult) []executedQuery {
+	var out []executedQuery
+	for _, q := range queries {
+		if q.Executed != "" {
+			out = append(out, executedQuery{Ref: q.Ref, Text: q.Executed})
+		}
+	}
+	return out
 }
 
 func (s querySummary) describe() string {
@@ -488,6 +504,7 @@ func summarize(res queryproxy.Result) querySummary {
 		Warning:  meta.Warning,
 		Hint:     meta.Hint,
 		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
+		Executed: executedOf(res.Queries),
 	}
 	if s.Empty {
 		return s

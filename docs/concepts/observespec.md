@@ -540,6 +540,8 @@ A name that is not known is left as written.
 ### Data links
 
 A link with `oneClick: true` is a data link on stat, gauge, bar gauge and table panels: when it is the only data link, the whole tile, bar, gauge or cell is the link.
+A link `url` is a relative address or starts with `http:`, `https:` or `mailto:`; any other scheme, `javascript:` and `data:` included, is refused with `unsafe_link` at `/links/N/url` (dashboard links) or at the `url` of the panel, override or canvas element link.
+A `url` that starts with a variable is checked when it is drawn, and a link whose address is unsafe then is not shown.
 A link `url` may use `${__url_time_range}`, which becomes `from=...&to=...` for the time range of the page, and `${__all_variables}`, which becomes `var-<name>=<value>` for every dashboard variable's selection (an All selection is written as `$__all`), next to `${name:queryparam}` for one variable.
 A link to `/dashboards/by-title?title=<title>` opens the one dashboard you can see with that title (an exact match first, else a match that differs only in case) and carries `from`, `to` and the `var-` parameters over; when several dashboards or none match, it opens the dashboards list filtered by the title.
 On those panels a field's actions show in the same menu after its links (a bar gauge shows its actions in a menu of their own), and a `oneClick` action that is the field's only link or action runs from the whole tile, gauge, bar or cell, after the same confirm dialog a menu item opens.

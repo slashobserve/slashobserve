@@ -37,6 +37,7 @@ func checkSemantics(d *Dashboard, touched map[string]bool) []Issue {
 	issues = append(issues, checkPanelQueries(d, entries)...)
 	issues = append(issues, checkCanvas(entries)...)
 	issues = append(issues, checkActions(d, entries)...)
+	issues = append(issues, checkLinks(d, entries)...)
 	issues = append(issues, checkGeomap(entries)...)
 	return issues
 }
