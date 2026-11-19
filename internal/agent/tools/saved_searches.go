@@ -24,7 +24,7 @@ const (
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title."},` +
-		`"datasource_uid":{"type":"string","description":"The datasource, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
+		`"datasource_uid":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
@@ -33,11 +33,11 @@ const (
 		`"min":{"type":"string","description":"Traces: shortest duration, such as 250ms."},` +
 		`"max":{"type":"string","description":"Traces: longest duration, such as 2s."},` +
 		`"errors":{"type":"boolean","description":"Traces: only traces with errors."},` +
-		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table of an instant query."}},` +
+		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
 		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
 		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the range, such as now or RFC 3339. Default now."},` +
-		`"folder_id":{"type":"string","format":"uuid","description":"The folder to save it in, from list_folders. Default your My Dashboards, else General."}},` +
+		`"folder_id":{"type":"string","format":"uuid","description":"The folder, from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource_uid"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
