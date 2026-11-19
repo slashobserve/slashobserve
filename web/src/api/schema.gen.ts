@@ -4929,7 +4929,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5179,7 +5179,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5314,7 +5314,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
