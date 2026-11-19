@@ -149,7 +149,8 @@ The volume strip above the lines counts every line the query matches over the wh
 Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
 It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
-The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
+The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**; the count of the other chips and the query do not change, and **All** shows every level again.
+The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level; to search for a level, add a filter.
 
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.

@@ -13,6 +13,7 @@ import {
   type PageSize,
 } from "@/lib/paging"
 import { usePageCursors } from "@/lib/use-page-cursors"
+import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { exploreQuery } from "./explore"
@@ -160,6 +161,10 @@ export type LogsWorkspace = {
   focusQuery: () => void
   registerQueryFocus: (focus: () => void) => void
   labels: { open: boolean; setOpen: (open: boolean) => void }
+  levels: {
+    hidden: ReadonlySet<LogLevelKind>
+    setHidden: (next: ReadonlySet<LogLevelKind>) => void
+  }
   detail: LogDetailState
 }
 

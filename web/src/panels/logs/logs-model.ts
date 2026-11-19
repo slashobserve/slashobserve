@@ -192,6 +192,14 @@ function lineText(
   return parts.join(" ")
 }
 
+export function withoutLevels(
+  entries: readonly LogEntry[],
+  hidden: ReadonlySet<LogLevelKind> | undefined
+): readonly LogEntry[] {
+  if (hidden === undefined || hidden.size === 0) return entries
+  return entries.filter((entry) => !hidden.has(entry.level?.kind ?? "other"))
+}
+
 export function showsAttributes(
   display: Pick<LogsDisplay, "showLabels" | "showAttributes">
 ): boolean {

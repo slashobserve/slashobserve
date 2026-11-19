@@ -19,6 +19,7 @@ import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
+import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
@@ -181,6 +182,9 @@ function LogsWorkspaceView({
     setSeenQuery(q)
     if (q !== undefined) setDraft(q)
   }
+  const [hiddenLevels, setHiddenLevels] = useState<ReadonlySet<LogLevelKind>>(
+    () => new Set()
+  )
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
@@ -335,6 +339,7 @@ function LogsWorkspaceView({
     focusQuery,
     registerQueryFocus,
     labels: { open: labelsOpen, setOpen: setLabelsOpen },
+    levels: { hidden: hiddenLevels, setHidden: setHiddenLevels },
     detail: {
       selection,
       tab: detailTab,

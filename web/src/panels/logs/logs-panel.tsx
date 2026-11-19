@@ -32,6 +32,7 @@ import {
   maxEntries,
   messageTokens,
   showsAttributes,
+  withoutLevels,
   type DedupStrategy,
   type Labels,
   type LogDetail,
@@ -536,6 +537,7 @@ export type LogsViewProps = {
   detailsId?: string
   columns?: readonly string[]
   columnSort?: ColumnSort | null
+  hiddenLevels?: ReadonlySet<LogLevelKind>
   onModel?: (model: LogsViewModel) => void
 }
 
@@ -664,6 +666,7 @@ export function LogsView({
   detailsId,
   columns,
   columnSort = null,
+  hiddenLevels,
   onModel,
 }: LogsViewProps) {
   const [view, setView] = useState<ViewState>({
@@ -718,13 +721,12 @@ export function LogsView({
       display.lineFields,
     ]
   )
-  const entries = useMemo(
-    () =>
-      columnSort === null
-        ? modelEntries
-        : sortedByColumn(modelEntries, columnSort, fields, zone),
-    [modelEntries, columnSort, fields, zone]
-  )
+  const entries = useMemo(() => {
+    const visible = withoutLevels(modelEntries, hiddenLevels)
+    return columnSort === null
+      ? visible
+      : sortedByColumn(visible, columnSort, fields, zone)
+  }, [modelEntries, hiddenLevels, columnSort, fields, zone])
   const levelColumn = useMemo(
     () => entries.some((entry) => entry.level !== null),
     [entries]

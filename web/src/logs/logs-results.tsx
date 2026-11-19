@@ -24,7 +24,11 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { traceLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import type { LogEntry, LogsDisplay } from "@/panels/logs/logs-model"
+import type {
+  LogEntry,
+  LogLevelKind,
+  LogsDisplay,
+} from "@/panels/logs/logs-model"
 import {
   LogsView,
   type ColumnSort,
@@ -38,6 +42,7 @@ import { anchorNs, serviceNameOf } from "./context-query"
 import { ColumnsHeader, FieldsMenu } from "./fields-menu"
 import { defaultColumns, fieldNames, lineId } from "./line-fields"
 import { usePrepared } from "./prepared"
+import { volumeKindNames, volumeKinds } from "./volume"
 import { traceIdOf, traceRangeAround } from "./trace-link"
 import { useFirstRowShortcut } from "./row-shortcut"
 import { useElementSize } from "./use-element-size"
@@ -57,6 +62,7 @@ type ExploreLogsProps = {
   detailsId?: string
   columns?: readonly string[]
   columnSort?: ColumnSort | null
+  hiddenLevels?: ReadonlySet<LogLevelKind>
   onModel?: (model: LogsViewModel) => void
 }
 
@@ -75,6 +81,7 @@ export function ExploreLogs({
   detailsId,
   columns,
   columnSort,
+  hiddenLevels,
   onModel,
 }: ExploreLogsProps) {
   const panel = useMemo<DataPanel>(
@@ -111,6 +118,7 @@ export function ExploreLogs({
           detailsId={detailsId}
           columns={columns}
           columnSort={columnSort}
+          hiddenLevels={hiddenLevels}
           onModel={onModel}
         />
       ) : null}
@@ -233,6 +241,13 @@ export function OpenTraceLink({
   )
 }
 
+export function hiddenLevelsText(hidden: ReadonlySet<LogLevelKind>): string {
+  const names = volumeKinds
+    .filter((kind) => hidden.has(kind))
+    .map((kind) => volumeKindNames[kind])
+  return `Hiding ${names.join(", ")} lines`
+}
+
 export function LogsResults({
   frames,
   datasource,
@@ -248,6 +263,7 @@ export function LogsResults({
   onColumnsChange,
   linkedId,
   onLinkedChange,
+  hiddenLevels,
   listTitle = "Query results",
   orderLocked = false,
   onRendered,
@@ -269,6 +285,7 @@ export function LogsResults({
   onColumnsChange: (names: string[]) => void
   linkedId: string | undefined
   onLinkedChange: (id: string | undefined) => void
+  hiddenLevels?: ReadonlySet<LogLevelKind>
   listTitle?: string
   orderLocked?: boolean
   onRendered?: () => void
@@ -464,6 +481,11 @@ export function LogsResults({
             onChange={onColumnsChange}
           />
         )}
+        {hiddenLevels === undefined || hiddenLevels.size === 0 ? null : (
+          <span className="text-xs whitespace-nowrap text-muted-foreground">
+            {hiddenLevelsText(hiddenLevels)}
+          </span>
+        )}
         <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground @max-[620px]/toolbar:hidden">
           j and k move, Enter expands
         </span>
@@ -523,6 +545,7 @@ export function LogsResults({
             detailsId={detailsId}
             columns={phone ? undefined : shownColumns}
             columnSort={view.columnSort}
+            hiddenLevels={hiddenLevels}
             onModel={handleModel}
           />
         ) : null}
