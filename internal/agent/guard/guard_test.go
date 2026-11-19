@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -714,7 +715,8 @@ func TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt(t *testing.T
 		{"no metrics after a scoped list", tools.ModeInvestigate, [][2]string{{"list_metrics", `{"datasource":"prom","scope":"{service=\"checkout\"}"}`}}, "Prometheus has no checkout metrics.", ""},
 		{"no deploy without annotations in an investigation", tools.ModeInvestigate, nil, "There was no deploy of checkout today.", "read it with tag deploy"},
 		{"no deploy after reading annotations", tools.ModeInvestigate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "There was no deploy of checkout today.", ""},
-		{"no deploy on Home, where annotations cannot be read", tools.ModeCreate, nil, "No checkout deploy exists.", "say deploys were not checked here"},
+		{"no deploy on Home without annotations", tools.ModeCreate, nil, "No checkout deploy exists.", "read it with tag deploy"},
+		{"no deploy on Home after reading annotations", tools.ModeCreate, [][2]string{{"list_annotations", `{"tags":["deploy"]}`}}, "No checkout deploy exists.", ""},
 		{"a finding that claims no absence", tools.ModeInvestigate, nil, "Checkout errors rose at 14:22 UTC on checkout-0.", ""},
 	}
 	for _, tt := range tests {
@@ -743,5 +745,36 @@ func TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt(t *testing.T
 				t.Fatalf("second save = %+v, want it let through after one refusal", again)
 			}
 		})
+	}
+}
+
+func TestARejectedFindingNamesItsEvidenceAndWhetherADatasourceWasUnreachable(t *testing.T) {
+	cases := []struct {
+		name      string
+		mode      tools.Mode
+		tool      string
+		body      string
+		finding   bool
+		transient bool
+		failing   []string
+	}{
+		{"timed out evidence", tools.ModeInvestigate, "save_finding", `{"code":"invalid_spec","failing_panels":["evidence-2"],"issues":[{"code":"query_timeout"},{"code":"datasource_unavailable"}]}`, true, true, []string{"evidence-2"}},
+		{"evidence that is empty", tools.ModeInvestigate, "save_finding", `{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_timeout"},{"code":"query_empty"}]}`, true, false, []string{"evidence-1"}},
+		{"a finding in a question run", tools.ModeCreate, "save_finding", `{"code":"finding_too_long"}`, true, false, nil},
+		{"a dashboard save", tools.ModeCreate, "update_panels", `{"code":"invalid_spec","failing_panels":["p1"],"issues":[{"code":"query_timeout"}]}`, false, true, []string{"p1"}},
+	}
+	for _, tc := range cases {
+		s := New(tc.mode)
+		s.BeginTurn(true)
+		c := jsonCall(tc.tool, `{"n":1}`)
+		s.Admit(0, c)
+		settled, err := s.Settle(c, tools.Result{IsError: true}, []byte(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := settled.Outcome
+		if !out.Rejected || out.RejectedFinding != tc.finding || out.Transient != tc.transient || !slices.Equal(out.FailingPanels, tc.failing) {
+			t.Errorf("%s: outcome = %+v", tc.name, out)
+		}
 	}
 }

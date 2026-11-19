@@ -299,19 +299,21 @@ func parseMappings(values []string) (map[string]string, error) {
 func readImportSource(stdin io.Reader, name string) (string, error) {
 	label := text(name)
 	reader := stdin
+	unreadable := func(err error) error { return fmt.Errorf("read %s: %w", label, err) }
 	if name == standardInput {
 		label = "standard input"
 	} else {
+		unreadable = func(err error) error { return usagef("read %s: %v", label, err) }
 		file, err := os.Open(name) //nolint:gosec // reading the file the user named is the command's purpose
 		if err != nil {
-			return "", fmt.Errorf("read %s: %w", label, err)
+			return "", unreadable(err)
 		}
 		defer func() { _ = file.Close() }()
 		reader = file
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, maxImportBytes+1))
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", label, err)
+		return "", unreadable(err)
 	}
 	if len(data) > maxImportBytes {
 		return "", fmt.Errorf("%s is larger than 8 MiB, the import limit", label)

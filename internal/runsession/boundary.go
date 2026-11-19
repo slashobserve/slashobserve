@@ -228,8 +228,10 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 	}
 	out := settled.Outcome
 	state.IssueCodes, state.Failing, state.FailingOther = nil, nil, 0
+	state.RejectedFinding, state.RejectedTransient = false, false
 	if out.Rejected {
 		state.IssueCodes, state.Failing, state.FailingOther = out.IssueCodes, out.FailingPanels, out.FailingOther
+		state.RejectedFinding, state.RejectedTransient = out.RejectedFinding, out.Transient
 	}
 	if settled.Stop != nil {
 		return false, sess.end(ctx, endSpec{failure: settled.Stop.Failure, step: settled.Stop.Step})
