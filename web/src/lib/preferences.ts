@@ -13,8 +13,8 @@ export const weekStartChoices: readonly { value: WeekStart; label: string }[] =
     { value: "saturday", label: "Saturday" },
   ]
 
-export const defaultTimeZone = "browser"
-export const defaultWeekStart: WeekStart = "monday"
+const defaultTimeZone = "browser"
+const defaultWeekStart: WeekStart = "monday"
 
 export const timeZoneKey = "slashobserve-time-zone"
 export const weekStartKey = "slashobserve-week-start"
