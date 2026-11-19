@@ -491,7 +491,7 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
-			observations.NewHandler(observationsService, logger),
+			observations.NewHandler(observationsService, logger, observations.WithPanelChecker(toolRegistry)),
 			observations.NewRCAHandler(observationsService, logger),
 			savedsearches.NewHandler(savedSearchesService, logger),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),

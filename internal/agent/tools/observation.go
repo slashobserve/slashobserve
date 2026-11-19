@@ -329,6 +329,24 @@ func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, pan
 	return res, ok, err
 }
 
+func (r *Registry) CheckPanel(ctx context.Context, by auth.Principal, body observations.PanelBody, fallbackFrom, fallbackTo *time.Time) error {
+	res, ok, err := r.checkPanel(ctx, by, body.Panel, body.VariableValues, window{body.From, body.To}, window{fallbackFrom, fallbackTo})
+	if err != nil || ok {
+		return err
+	}
+	return refusalOf(res)
+}
+
+func refusalOf(res Result) error {
+	switch content := res.Content.(type) {
+	case invalidSpecOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case errorBody:
+		return &observations.InvalidInputError{Code: content.Code, Message: content.Message}
+	}
+	return errors.New("a panel check failed in a way a caller cannot read")
+}
+
 func checkKind(kind observations.Kind) (Result, bool) {
 	if kind == "" {
 		return invalid("kind is required: text, panel or snapshot"), false
