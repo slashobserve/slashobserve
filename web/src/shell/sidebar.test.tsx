@@ -77,6 +77,32 @@ function precedes(first: Element, second: Element): boolean {
 }
 
 describe("SidebarContent", () => {
+  it("keeps the Workspace group outside the scrolling list so it never leaves the screen", async () => {
+    renderWithProviders(<SidebarContent />, { route })
+    const group = await screen.findByRole("group", { name: "Workspace" })
+    expect(group.closest(".overflow-y-auto")).toBeNull()
+    expect(
+      screen
+        .getByRole("link", { name: "Dashboards" })
+        .closest(".overflow-y-auto")
+    ).not.toBeNull()
+  })
+
+  it("lists API keys in the Workspace group for an Admin", async () => {
+    renderWithProviders(<SidebarContent />, { route })
+    const group = await screen.findByRole("group", { name: "Workspace" })
+    expect(
+      within(group)
+        .getAllByRole("link")
+        .map((link) => [link.textContent, link.getAttribute("href")])
+    ).toEqual([
+      ["Datasources", "/datasources"],
+      ["API keys", "/keys"],
+      ["People", "/people"],
+      ["Settings", "/settings"],
+    ])
+  })
+
   it("lists pins right after the Dashboards item, before Logs", async () => {
     renderWithProviders(<SidebarContent />, { route })
 

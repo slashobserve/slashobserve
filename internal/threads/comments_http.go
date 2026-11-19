@@ -194,7 +194,7 @@ func (cm *Comments) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, revisions.ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", invalid)
 	default:
 		cm.service.dashboards.Fail(c, action, err)
 	}

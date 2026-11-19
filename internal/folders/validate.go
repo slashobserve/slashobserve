@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const (
@@ -33,17 +34,7 @@ type entry struct {
 }
 
 func cleanTitle(raw string) (string, error) {
-	if !utf8.ValidString(raw) {
-		return "", errors.New("title must be valid UTF-8")
-	}
-	title := strings.TrimSpace(raw)
-	if n := utf8.RuneCountInString(title); n < 1 || n > maxTitleRunes {
-		return "", errors.New("title must be 1 to 100 characters")
-	}
-	if hasControl(title) {
-		return "", errors.New("title must not contain control characters")
-	}
-	return title, nil
+	return usertext.Clean("title", raw, usertext.Line(maxTitleRunes))
 }
 
 func hasControl(s string) bool {

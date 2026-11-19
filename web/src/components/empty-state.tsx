@@ -1,12 +1,15 @@
 import type { ReactNode } from "react"
 import { CircleCheckIcon } from "lucide-react"
 
+import { docsPageUrl } from "@/lib/docs"
+
 type EmptyStateProps = {
   title: string
   children?: ReactNode
   action?: ReactNode
   icon?: ReactNode
   tone?: "default" | "ok"
+  docs?: string
 }
 
 export function EmptyState({
@@ -15,6 +18,7 @@ export function EmptyState({
   action,
   icon,
   tone = "default",
+  docs,
 }: EmptyStateProps) {
   const shownIcon =
     icon ??
@@ -35,6 +39,17 @@ export function EmptyState({
         </div>
       ) : null}
       {action ? <div className="mt-2">{action}</div> : null}
+      {docs ? (
+        <a
+          href={docsPageUrl(docs)}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Read about this in the docs
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      ) : null}
     </div>
   )
 }
