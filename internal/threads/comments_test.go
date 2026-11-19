@@ -258,8 +258,10 @@ func TestCommentRejectsAnEmptyPanelIDAndAMissingVersion(t *testing.T) {
 		t.Errorf("unknown panel: err = %v, want ErrUnknownPanel", err)
 	}
 	for name, panel := range map[string]*string{"whole dashboard": nil, "panel": new("rps")} {
-		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"}); !errors.Is(err, dashboards.ErrNotFound) {
-			t.Errorf("%s on a missing version: err = %v, want dashboards.ErrNotFound", name, err)
+		_, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 2, PanelID: panel, Body: "x"})
+		var missing *VersionNotFoundError
+		if !errors.As(err, &missing) || missing.Version != 2 || missing.Latest != 1 {
+			t.Errorf("%s on a missing version: err = %v, want a VersionNotFoundError naming version 2 and latest 1", name, err)
 		}
 	}
 }
@@ -479,6 +481,7 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 		{"no access to the dashboard", folders.ErrNoAccess, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"dashboard is gone", dashboards.ErrNotFound, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"comment is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+		{"version is missing", &VersionNotFoundError{Version: 99, Latest: 3}, http.StatusNotFound, "version_not_found", "version 99 does not exist on this dashboard; its latest version is 3"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -487,9 +490,15 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/x/comments", nil)
 			(&Comments{service: &Service{dashboards: &dashboards.Service{}}}).fail(c, "create comment", tt.err)
-			var body struct{ Error, Code string }
+			var body struct {
+				Error, Code   string
+				LatestVersion int `json:"latest_version"`
+			}
 			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 				t.Fatal(err)
+			}
+			if tt.code == CodeVersionNotFound && body.LatestVersion != 3 {
+				t.Errorf("latest_version = %d, want 3", body.LatestVersion)
 			}
 			if rec.Code != tt.status || body.Code != tt.code || body.Error != tt.message {
 				t.Errorf("answered %d %+v, want %d %s %q", rec.Code, body, tt.status, tt.code, tt.message)

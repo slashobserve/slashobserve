@@ -393,6 +393,9 @@ components:
         folder_title:
           type: string
           description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
+        latest_version:
+          type: integer
+          description: On a `version_not_found` refusal, the dashboard's latest version.
     Issue:
       type: object
       additionalProperties: false

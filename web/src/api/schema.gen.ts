@@ -3935,6 +3935,8 @@ export interface components {
             needed_access?: "view" | "comment" | "edit" | "manage";
             /** @description The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder. */
             folder_title?: string;
+            /** @description On a `version_not_found` refusal, the dashboard's latest version. */
+            latest_version?: number;
         };
         Issue: {
             path: string;
@@ -10481,7 +10483,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The dashboard, the version or the comment named by `parent_id` does not exist. */
+            /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -80,7 +80,7 @@ dashboards-id-comments:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
-        description: The dashboard, the version or the comment named by `parent_id` does not exist.
+        description: The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`).
         content:
           application/json:
             schema:
