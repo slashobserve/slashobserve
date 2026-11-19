@@ -1,9 +1,13 @@
 -- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -12,6 +16,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE sqlc.narg('cursor_created_at')::timestamptz IS NULL
   OR (u.created_at, u.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
 ORDER BY u.created_at DESC, u.id DESC
@@ -20,9 +29,13 @@ LIMIT @row_limit;
 -- name: GetPerson :one
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -31,6 +44,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE u.id = @id;
 
 -- name: UserExists :one
@@ -40,11 +58,10 @@ SELECT EXISTS (SELECT 1 FROM users WHERE id = @id);
 DELETE FROM sessions WHERE user_id = @user_id;
 
 -- name: IsFirstUser :one
-SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
-FROM users u WHERE u.id = @id;
+SELECT first_user FROM users WHERE id = @id;
 
 -- name: ListUsersForRoles :many
-SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group, first_user
 FROM users ORDER BY created_at, id;
 
 -- name: SetUserRole :exec
@@ -52,14 +69,26 @@ UPDATE users SET role = @role, role_source = @role_source, role_group = sqlc.nar
 WHERE id = @id;
 
 -- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = @id;
+SELECT u.id, u.email, u.name, u.role, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
+FROM users u WHERE u.id = @id AND u.deactivated_at IS NULL;
 
 -- name: SetManualRole :exec
 UPDATE users SET manual_role = sqlc.narg('manual_role'), manual_role_by_id = sqlc.narg('by_id'), manual_role_by_name = sqlc.narg('by_name')
 WHERE id = @id;
 
 -- name: LockAdmins :many
-SELECT id FROM users WHERE role = 'admin' FOR UPDATE;
+SELECT id FROM users WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE;
 
 -- name: GetUserForRole :one
-SELECT id, email, name, groups, manual_role, role, role_source FROM users WHERE id = @id FOR UPDATE;
+SELECT id, email, name, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = @id FOR UPDATE;
+
+-- name: DeactivateUser :exec
+UPDATE users SET deactivated_at = now(), deactivated_by_id = sqlc.narg('by_id'), deactivated_by_name = sqlc.narg('by_name')
+WHERE id = @id AND deactivated_at IS NULL;
+
+-- name: ReactivateUser :exec
+UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
+WHERE id = @id;
+
+-- name: RemoveDeactivatedUser :one
+DELETE FROM users WHERE id = @id AND deactivated_at IS NOT NULL RETURNING name;

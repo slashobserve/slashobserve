@@ -22,6 +22,7 @@ type ChangeLog interface {
 	RoleChanged(ctx context.Context, q *dbsqlc.Queries, by Principal, change RoleChange) error
 	ServiceAccountCreated(ctx context.Context, q *dbsqlc.Queries, by Principal, account dbsqlc.ServiceAccount) error
 	ServiceAccountUpdated(ctx context.Context, q *dbsqlc.Queries, by Principal, before, after dbsqlc.ServiceAccount) error
+	ServiceAccountDeleted(ctx context.Context, q *dbsqlc.Queries, by Principal, account dbsqlc.ServiceAccount) error
 	KeyCreated(ctx context.Context, q *dbsqlc.Queries, by Principal, account dbsqlc.ServiceAccount, key dbsqlc.CreateServiceAccountKeyRow) error
 	KeyRevoked(ctx context.Context, q *dbsqlc.Queries, by Principal, account dbsqlc.ServiceAccount, keyID pgtype.UUID, keyName string) error
 }
@@ -37,6 +38,10 @@ func (unrecorded) ServiceAccountCreated(context.Context, *dbsqlc.Queries, Princi
 }
 
 func (unrecorded) ServiceAccountUpdated(context.Context, *dbsqlc.Queries, Principal, dbsqlc.ServiceAccount, dbsqlc.ServiceAccount) error {
+	return nil
+}
+
+func (unrecorded) ServiceAccountDeleted(context.Context, *dbsqlc.Queries, Principal, dbsqlc.ServiceAccount) error {
 	return nil
 }
 

@@ -50,7 +50,7 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authService, err := auth.New(auth.Config{PublicURL: publicURL, IssuerURL: "http://issuer.example/dex"}, database.Queries(), logger)
+	authService, err := auth.New(auth.Config{PublicURL: publicURL, IssuerURL: "http://issuer.example/dex", AllowedEmailDomains: []string{"example.com"}}, database.Queries(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 			if given := c.GetHeader("X-Test-Role"); given != "" {
 				role = auth.Role(given)
 			}
-			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Role: role}
+			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Name: c.GetHeader("X-Test-Name"), Role: role}
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
@@ -96,6 +96,7 @@ func (r *rig) do(method, path string, caller auth.Principal) *httptest.ResponseR
 		req.Header.Set("X-Test-Kind", string(caller.Kind))
 		req.Header.Set("X-Test-Id", caller.ID)
 		req.Header.Set("X-Test-Role", string(caller.Role))
+		req.Header.Set("X-Test-Name", caller.Name)
 	}
 	rec := httptest.NewRecorder()
 	r.engine.ServeHTTP(rec, req)
@@ -169,8 +170,10 @@ func TestServiceAccountsCannotUseThePeopleRoutes(t *testing.T) {
 	r.addSession(user, "ada-1")
 	sa := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID}
 	for _, tc := range []struct{ method, path string }{
-		{http.MethodGet, "/api/v1/users"},
 		{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
+		{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
+		{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
+		{http.MethodDelete, "/api/v1/users/" + user.String()},
 	} {
 		rec := r.do(tc.method, tc.path, sa)
 		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden"`) {
@@ -192,6 +195,9 @@ func TestOnlyAdminsCanUseThePeopleRoutes(t *testing.T) {
 			{http.MethodGet, "/api/v1/users"},
 			{http.MethodPatch, "/api/v1/users/" + user.String()},
 			{http.MethodDelete, "/api/v1/users/" + user.String() + "/sessions"},
+			{http.MethodPost, "/api/v1/users/" + user.String() + "/deactivate"},
+			{http.MethodPost, "/api/v1/users/" + user.String() + "/reactivate"},
+			{http.MethodDelete, "/api/v1/users/" + user.String()},
 		} {
 			rec := r.do(tc.method, tc.path, caller)
 			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {
@@ -348,6 +354,29 @@ func (r *rig) grantState(user pgtype.UUID, clientID string) grantState {
 	return state
 }
 
+func TestSignOutDropsTheCodesThePersonsAgentsHaveNotExchanged(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	bob := r.addUser("bob", time.Now())
+	cy := r.addUser("cy", time.Now())
+	r.addGrant(bob, "client-a")
+	r.addGrant(cy, "client-a")
+	r.addCode(bob, "client-a", "bob-code")
+	r.addCode(cy, "client-a", "cy-code")
+
+	rec := r.do(http.MethodDelete, "/api/v1/users/"+bob.String()+"/sessions", userCaller(admin))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body)
+	}
+
+	if r.codeExchangeable("bob-code") {
+		t.Error("an agent Bob approved just before the sign-out can still exchange its code")
+	}
+	if !r.codeExchangeable("cy-code") {
+		t.Error("cy's code was dropped")
+	}
+}
+
 func TestSignOutDisconnectsThePersonsAgentsAndNoOnesElse(t *testing.T) {
 	r := newRig(t)
 	admin := r.addUser("ada", time.Now())
@@ -450,5 +479,18 @@ func TestLockedMessageNamesWhereTheRoleComesFrom(t *testing.T) {
 		if got := lockedMessage(tt.source); got != tt.want {
 			t.Errorf("lockedMessage(%q) = %q, want %q", tt.source, got, tt.want)
 		}
+	}
+}
+
+func TestAnAdminKeyCanListPeopleAndAnEditorKeyCannot(t *testing.T) {
+	r := newRig(t)
+	r.addUser("ada", time.Now())
+	admin := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID, Role: auth.RoleAdmin}
+	if got := names(decodeList(t, r.do(http.MethodGet, "/api/v1/users", admin))); len(got) != 1 || got[0] != "ada" {
+		t.Fatalf("an Admin key lists %v, want ada", got)
+	}
+	editor := auth.Principal{Kind: auth.KindServiceAccount, ID: nilID, Role: auth.RoleEditor}
+	if rec := r.do(http.MethodGet, "/api/v1/users", editor); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"forbidden_role"`) {
+		t.Fatalf("an Editor key's GET /users = %d %s, want 403 forbidden_role", rec.Code, rec.Body)
 	}
 }

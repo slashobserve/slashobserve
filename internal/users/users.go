@@ -28,20 +28,29 @@ const (
 )
 
 type personJSON struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Email          string  `json:"email"`
-	CreatedAt      string  `json:"created_at"`
-	LastLoginAt    string  `json:"last_login_at"`
-	LastSeenAt     string  `json:"last_seen_at"`
-	DashboardCount int     `json:"dashboard_count"`
-	KeyCount       int     `json:"key_count"`
-	SessionCount   int     `json:"session_count"`
-	Role           string  `json:"role"`
-	RoleSource     string  `json:"role_source"`
-	RoleGroup      *string `json:"role_group"`
-	RoleSetBy      *string `json:"role_set_by"`
-	RoleLocked     bool    `json:"role_locked"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	Email          string             `json:"email"`
+	CreatedAt      string             `json:"created_at"`
+	LastLoginAt    string             `json:"last_login_at"`
+	LastSeenAt     string             `json:"last_seen_at"`
+	DashboardCount int                `json:"dashboard_count"`
+	KeyCount       int                `json:"key_count"`
+	SessionCount   int                `json:"session_count"`
+	Role           string             `json:"role"`
+	RoleSource     string             `json:"role_source"`
+	RoleGroup      *string            `json:"role_group"`
+	RoleSetBy      *string            `json:"role_set_by"`
+	RoleLocked     bool               `json:"role_locked"`
+	DeactivatedAt  *string            `json:"deactivated_at"`
+	DeactivatedBy  *string            `json:"deactivated_by"`
+	PersonalItems  *personalItemsJSON `json:"personal_items"`
+}
+
+type personalItemsJSON struct {
+	Dashboards    int `json:"dashboards"`
+	Observations  int `json:"observations"`
+	SavedSearches int `json:"saved_searches"`
 }
 
 type listJSON struct {
@@ -62,9 +71,14 @@ func NewHandler(database *db.DB, authService *auth.Service, access *folders.Acce
 
 func (h *Handler) Register(api auth.Routes) {
 	g := api.Group("/users")
-	g.GET("", auth.RoleAdmin, auth.RequireUser, h.list)
+	g.GET("", auth.RoleAdmin, h.list)
 	g.PATCH("/:id", auth.RoleAdmin, auth.RequireUser, h.update)
 	g.DELETE("/:id/sessions", auth.RoleAdmin, auth.RequireUser, h.signOut)
+	g.POST("/:id/deactivate", auth.RoleAdmin, auth.RequireUser, h.deactivate)
+	g.POST("/:id/reactivate", auth.RoleAdmin, auth.RequireUser, h.reactivate)
+	g.DELETE("/:id", auth.RoleAdmin, auth.RequireUser, h.remove)
+	h.registerInvites(api)
+	h.registerTeams(api)
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -131,6 +145,18 @@ func newPersonJSON(r dbsqlc.ListUsersRow) personJSON {
 	}
 	if source == auth.SourceManual && r.ManualRoleByName.Valid {
 		p.RoleSetBy = &r.ManualRoleByName.String
+	}
+	if r.DeactivatedAt.Valid {
+		at := httpapi.FormatTime(r.DeactivatedAt.Time)
+		p.DeactivatedAt = &at
+		if r.DeactivatedByName.Valid {
+			p.DeactivatedBy = &r.DeactivatedByName.String
+		}
+		p.PersonalItems = &personalItemsJSON{
+			Dashboards:    int(r.PersonalDashboardCount),
+			Observations:  int(r.PersonalObservationCount),
+			SavedSearches: int(r.PersonalSavedSearchCount),
+		}
 	}
 	return p
 }
@@ -200,22 +226,31 @@ func (h *Handler) update(c *gin.Context) {
 		h.fail(c, "set manual role", err, slog.String("user_id", id.String()))
 		return
 	}
-	levels, err := h.access.Levels(ctx, caller)
+	person, ok := h.person(c, id)
+	if !ok {
+		return
+	}
+	h.logger.InfoContext(ctx, "role changed", slog.String("actor_id", caller.ID), slog.String("target_kind", "user"), slog.String("target_id", id.String()), slog.String("role", person.Role))
+	c.JSON(http.StatusOK, person)
+}
+
+func (h *Handler) person(c *gin.Context, id pgtype.UUID) (personJSON, bool) {
+	ctx := c.Request.Context()
+	levels, err := h.access.Levels(ctx, httpapi.Caller(c))
 	if err != nil {
 		h.fail(c, "list folder levels", err)
-		return
+		return personJSON{}, false
 	}
 	row, err := h.db.Queries().GetPerson(ctx, dbsqlc.GetPersonParams{ID: id, Folders: levels.Visible()})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "user not found")
-		return
+		return personJSON{}, false
 	}
 	if err != nil {
 		h.fail(c, "get person", err, slog.String("user_id", id.String()))
-		return
+		return personJSON{}, false
 	}
-	h.logger.InfoContext(ctx, "role changed", slog.String("actor_id", caller.ID), slog.String("target_kind", "user"), slog.String("target_id", id.String()), slog.String("role", row.Role))
-	c.JSON(http.StatusOK, newPersonJSON(dbsqlc.ListUsersRow(row)))
+	return newPersonJSON(dbsqlc.ListUsersRow(row)), true
 }
 
 func (h *Handler) fail(c *gin.Context, action string, err error, ids ...any) {
@@ -268,6 +303,9 @@ func (h *Handler) signOut(c *gin.Context) {
 			return err
 		}
 		if grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: by, UserID: id}); err != nil {
+			return err
+		}
+		if _, err = q.DeleteUnusedUserOAuthCodes(ctx, id); err != nil {
 			return err
 		}
 		return activity.AppendAdmin(ctx, q, activity.By(ctx, caller), activity.TypeUserSignedOutEverywhere, id, signedOutData{Name: person.Name, Sessions: sessions, Grants: grants})

@@ -19,6 +19,9 @@ const (
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
 	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one"
+	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
+	removesPeople       = "an Admin removes a deactivated person in the web app; keys never manage people's accounts (auth.RequireUser), and the CLI signs in with a key"
+	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
 	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
 	notBuilt            = "no tool or command yet"
 )
@@ -159,6 +162,7 @@ var exceptions = map[string]exception{
 	"createServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
 	"listServiceAccountKeys":   {MCP: accountKeys, CLI: accountKeys},
 	"revokeServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
+	"deleteServiceAccount":     {MCP: accountKeys, CLI: accountKeys},
 
 	"starDashboard":   {CLI: personOnly},
 	"unstarDashboard": {CLI: personOnly},
@@ -173,9 +177,20 @@ var exceptions = map[string]exception{
 
 	"tailLogs": {MCP: liveWebPage},
 
-	"listUsers":             {MCP: personOnly, CLI: personOnly},
+	"listUsers":             {MCP: peopleAdmin},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},
 	"signOutUserEverywhere": {MCP: personOnly, CLI: personOnly},
+	"deactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"reactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"removePerson":          {MCP: noMCPDeletes, CLI: removesPeople},
+	"listInvites":           {MCP: peopleAdmin},
+	"createInvite":          {MCP: peopleAdmin},
+	"deleteInvite":          {MCP: noMCPDeletes},
+	"listTeams":             {MCP: peopleAdmin},
+	"createTeam":            {MCP: peopleAdmin},
+	"deleteTeam":            {MCP: noMCPDeletes},
+	"addTeamMember":         {MCP: peopleAdmin},
+	"removeTeamMember":      {MCP: noMCPDeletes},
 
 	"listWebhooks":          {MCP: webhookAdmin},
 	"createWebhook":         {MCP: webhookAdmin},

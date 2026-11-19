@@ -18,6 +18,9 @@ type Person = {
   dashboard_count: number
   key_count: number
   session_count: number
+  deactivated_at: string | null
+  deactivated_by: string | null
+  personal_items: null
 }
 
 const priyaId = "7b1c3f2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b"
@@ -38,6 +41,9 @@ function priya(): Person {
     dashboard_count: 0,
     key_count: 0,
     session_count: 1,
+    deactivated_at: null,
+    deactivated_by: null,
+    personal_items: null,
   }
 }
 
