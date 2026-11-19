@@ -142,6 +142,13 @@ func (s *Service) checkHost(ctx context.Context, host string) error {
 	return nil
 }
 
+func (s *Service) lockAllowedHost(ctx context.Context, q *dbsqlc.Queries, host string) error {
+	if err := q.LockOutboundDomains(ctx); err != nil {
+		return err
+	}
+	return s.checkHost(ctx, host)
+}
+
 type cleanedInput struct {
 	name, address, host, format string
 	types                       []string
@@ -175,9 +182,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	if !s.key.Set() {
 		return Created{}, ErrNoSecretKey
 	}
-	if err := s.checkHost(ctx, clean.host); err != nil {
-		return Created{}, err
-	}
 	ownerKind, ownerID, err := owner(by)
 	if err != nil {
 		return Created{}, err
@@ -197,6 +201,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	}
 	var created Webhook
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := s.lockAllowedHost(ctx, q, clean.host); err != nil {
+			return err
+		}
 		if err := q.LockWebhooks(ctx); err != nil {
 			return err
 		}
@@ -324,10 +331,10 @@ func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UU
 }
 
 type cleanedPatch struct {
-	name, address, format string
-	types                 []string
-	enabled               *bool
-	takeOwnership         bool
+	name, address, host, format string
+	types                       []string
+	enabled                     *bool
+	takeOwnership               bool
 }
 
 func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
@@ -345,11 +352,7 @@ func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 		}
 	}
 	if p.URL != nil {
-		var host string
-		if c.address, host, err = cleanURL(*p.URL); err != nil {
-			return cleanedPatch{}, err
-		}
-		if err := s.checkHost(ctx, host); err != nil {
+		if c.address, c.host, err = cleanURL(*p.URL); err != nil {
 			return cleanedPatch{}, err
 		}
 	}
@@ -410,6 +413,11 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	}
 	var updated Webhook
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if cleaned.host != "" {
+			if err := s.lockAllowedHost(ctx, q, cleaned.host); err != nil {
+				return err
+			}
+		}
 		current, err := q.GetWebhookForUpdate(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
