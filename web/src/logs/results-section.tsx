@@ -578,7 +578,8 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </div>
       )
     }
-    if (data !== undefined && isPlainResult(data)) return <PlainTable frame={frames[0]} />
+    if (data !== undefined && isPlainResult(data))
+      return <PlainTable frame={frames[0]} />
     return height > 0 ? (
       <LogsResults frames={frames} height={height} {...resultsProps()} />
     ) : null

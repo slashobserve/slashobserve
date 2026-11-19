@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 
-export function firstLogRow(root: ParentNode): HTMLElement | null {
+function firstLogRow(root: ParentNode): HTMLElement | null {
   return root.querySelector<HTMLElement>("ul[data-logs-count] > li > button")
 }
 

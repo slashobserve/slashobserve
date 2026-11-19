@@ -13,7 +13,10 @@ const untimed: WireFrame = {
   ],
 }
 
-function response(frames: WireFrame[], page?: { plain?: boolean }): PanelDataResponse {
+function response(
+  frames: WireFrame[],
+  page?: { plain?: boolean }
+): PanelDataResponse {
   return { frames, meta: { page } } as unknown as PanelDataResponse
 }
 
