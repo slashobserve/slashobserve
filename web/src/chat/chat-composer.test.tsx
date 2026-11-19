@@ -13,6 +13,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useRouteContext: () => ({ principal: { id: "u1", role: session.role } }),
 }))
 
+const toasts = vi.hoisted(() => ({ message: vi.fn(), error: vi.fn() }))
+vi.mock("sonner", () => ({ toast: toasts }))
+
 const dashboardId = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const runningId = "7a1d2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
 
@@ -55,15 +58,18 @@ function renderComposer(
     dashboardId?: string
     runningRequestId?: string
     initialPrompt?: string
-  } = {}
+  } = {},
+  agentLoaded = true
 ) {
   const queryClient = testQueryClient()
-  queryClient.setQueryData(observeKeys.agent(), {
-    available: true,
-    provider: "anthropic",
-    model: "claude-haiku-5-5",
-    effort: "medium",
-  })
+  if (agentLoaded) {
+    queryClient.setQueryData(observeKeys.agent(), {
+      available: true,
+      provider: "anthropic",
+      model: "claude-haiku-5-5",
+      effort: "medium",
+    })
+  }
   queryClient.setQueryData(datasourceKeys.list(), { datasources: [] })
   if (props.runningRequestId !== undefined) {
     queryClient.setQueryData(
@@ -91,6 +97,7 @@ async function box() {
 beforeEach(() => {
   localStorage.clear()
   session.role = "editor"
+  toasts.message.mockReset()
 })
 
 afterEach(() => {
@@ -215,5 +222,19 @@ describe("ChatComposer", () => {
     expect(
       await screen.findByRole("button", { name: "Stop the run" })
     ).toBeInTheDocument()
+  })
+
+  it("says so when Enter is pressed before the agent is known", async () => {
+    const fetch = vi.fn(() => new Promise<Response>(() => undefined))
+    vi.stubGlobal("fetch", fetch)
+    const { user, onSent } = renderComposer(
+      { initialPrompt: "Why is it slow?" },
+      false
+    )
+    await user.type(await box(), "{Enter}")
+    expect(toasts.message).toHaveBeenCalledWith(
+      "Still connecting to the agent. Send again in a moment."
+    )
+    expect(onSent).not.toHaveBeenCalled()
   })
 })

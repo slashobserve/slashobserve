@@ -260,6 +260,10 @@ export function ChatComposer({
   }
 
   async function submit() {
+    if (agentPending && !submitting && !creating) {
+      toast.message("Still connecting to the agent. Send again in a moment.")
+      return
+    }
     if (busy || disabled) return
     const trimmed = prompt.trim()
     if (trimmed === "") {
