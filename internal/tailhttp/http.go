@@ -566,7 +566,7 @@ func (s *seenRows) prune() {
 func rowKey(f datasource.Frame, row int) string {
 	var id, index string
 	var rest strings.Builder
-	rest.WriteString(fmt.Sprint(f.Labels))
+	fmt.Fprint(&rest, f.Labels)
 	for _, field := range f.Fields {
 		if row >= len(field.Values) {
 			continue
@@ -580,7 +580,7 @@ func rowKey(f datasource.Frame, row int) string {
 		rest.WriteString("\x00")
 		rest.WriteString(field.Name)
 		rest.WriteString("=")
-		rest.WriteString(fmt.Sprint(field.Values[row]))
+		fmt.Fprint(&rest, field.Values[row])
 	}
 	if id != "" {
 		return index + "\x00" + id
