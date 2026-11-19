@@ -72,6 +72,7 @@ export const dashboardColumns = column.columns([
           {...dashboardLink(row.original.id, row.original.title)}
           target="_blank"
           rel="noopener"
+          tabIndex={-1}
           aria-label={`Open ${row.original.title} in a new tab`}
           title={`Open ${row.original.title} in a new tab`}
           className={cn(

@@ -78,6 +78,7 @@ func (s *Service) mountServiceAccounts(authenticated Routes) {
 	accounts.POST("", RoleAdmin, RequireUser, s.createServiceAccount)
 	accounts.GET("", RoleAdmin, RequireUser, s.listServiceAccounts)
 	accounts.PATCH("/:id", RoleAdmin, RequireUser, s.updateServiceAccount)
+	accounts.DELETE("/:id", RoleAdmin, RequireUser, s.deleteServiceAccount)
 	accounts.POST("/:id/keys", RoleAdmin, RequireUser, s.createKey)
 	accounts.GET("/:id/keys", RoleAdmin, RequireUser, s.listKeys)
 	accounts.DELETE("/:id/keys/:keyId", RoleAdmin, RequireUser, s.revokeKey)

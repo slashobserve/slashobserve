@@ -1,0 +1,160 @@
+teams:
+  get:
+    operationId: listTeams
+    x-surfaces:
+      cli: [observe teams list]
+    summary: List the teams with their members.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      Teams are sorted by name; at most 200 exist.
+    responses:
+      "200":
+        description: Every team.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/TeamList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createTeam
+    x-surfaces:
+      cli: [observe teams create]
+    summary: Create a team that folders can be shared with by its name.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      A team's name works as a group name in a folder's access list: each member matches a group entry with exactly that name, as if their identity provider sent it.
+      A team never changes a role; roles still come from identity-provider groups only.
+      Names are unique without regard to case, and a name equal to an identity-provider group makes the team's members match that group's entries too.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateTeamRequest"
+    responses:
+      "201":
+        description: The team is created with no members.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Team"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: A team with this name exists (`team_exists`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: 200 teams already exist (`too_many_teams`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+teams-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deleteTeam
+    x-surfaces:
+      cli: [observe teams delete]
+    summary: Delete a team.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      Its members lose what the team's name gave them at their next request; folder entries naming it stay and match no one unless a team or an identity-provider group of that name exists.
+    responses:
+      "204":
+        description: The team is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+teams-id-members-userid:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  put:
+    operationId: addTeamMember
+    x-surfaces:
+      cli: [observe teams add]
+    summary: Add a person to a team.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      Adding a member twice changes nothing. The person's access follows at their next request.
+    responses:
+      "200":
+        description: The team with its members.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Team"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: removeTeamMember
+    x-surfaces:
+      cli: [observe teams remove]
+    summary: Remove a person from a team.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      Removing someone who is not a member changes nothing. The person loses what the team gave them at their next request.
+    responses:
+      "200":
+        description: The team with its members.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Team"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

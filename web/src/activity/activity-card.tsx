@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useRef,
+  type KeyboardEvent,
   type Ref,
   type RefObject,
 } from "react"
@@ -79,6 +80,26 @@ export function ActivityCard({
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
+  const opener = useRef<Element | null>(null)
+  useEffect(() => {
+    opener.current = document.activeElement
+  }, [])
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key !== "Escape" || event.defaultPrevented || editing) return
+      if (!card.current?.contains(event.target as Node)) return
+      onClose()
+      const from = opener.current
+      if (from instanceof HTMLElement && from !== document.body) {
+        requestAnimationFrame(() => {
+          if (from.isConnected) from.focus()
+        })
+      }
+    },
+    [editing, onClose]
+  )
+
   const shown = useRef<{
     panelId: string | undefined
     editing: boolean
@@ -113,7 +134,7 @@ export function ActivityCard({
 
   const onBack = useCallback(() => {
     setOpen(true)
-    setSearch((state) => ({ ...state, edit: undefined }))
+    setSearch((state) => ({ ...state, edit: undefined, panel: undefined }))
   }, [setOpen, setSearch])
 
   const onViewChange = useCallback(
@@ -137,9 +158,9 @@ export function ActivityCard({
 
   const noModel = agent.data?.available === false
   const description = !noModel
-    ? "Comments, agent requests and saved versions."
+    ? "Comments, agent requests, proposals, annotations and saved versions."
     : madeBy === null
-      ? "Comments and saved versions."
+      ? "Comments, proposals, annotations and saved versions."
       : `Comments and versions. ${clientNameFrom(madeBy)} made this dashboard.`
 
   return (
@@ -151,6 +172,7 @@ export function ActivityCard({
       bounds={layout.bounds}
       onWidthChange={editing ? setEditWidth : setWidth}
       stacked={editing && layout.stacked ? "sheet" : layout.stacked}
+      onKeyDown={onKeyDown}
     >
       {editingId !== undefined ? (
         <EditPane
