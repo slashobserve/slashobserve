@@ -47,3 +47,25 @@ func TestInstantQueryIntervalFollowsTheMinimumInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestMinStepIsTheScrapeInterval(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		scrape time.Duration
+		want   time.Duration
+	}{
+		{"the default scrape interval", 0, 15 * time.Second},
+		{"a configured scrape interval", time.Minute, time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds, err := prometheus.New(prometheus.Options{URL: "http://prometheus.invalid", ScrapeInterval: tc.scrape})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = ds.Close() })
+			if got := ds.MinStep(); got != tc.want {
+				t.Fatalf("MinStep = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

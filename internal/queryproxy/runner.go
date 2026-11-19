@@ -37,6 +37,8 @@ const (
 	upstreamWait         = 5 * time.Second
 )
 
+const AgentMaxDataPoints = 200
+
 type Selection struct {
 	Values []string
 	All    bool
@@ -168,6 +170,13 @@ func PanelKind(p *spec.Panel) Kind {
 
 func QueryStep(base, minimum time.Duration, factor int) time.Duration {
 	return max(base, minimum) * time.Duration(max(1, factor))
+}
+
+func minStepOf(ds datasource.Datasource) time.Duration {
+	if src, ok := ds.(datasource.MinStepSource); ok {
+		return src.MinStep()
+	}
+	return 0
 }
 
 func (r *Runner) minInterval(ctx context.Context, req Request, st *varState, panel *spec.Panel, q spec.Query) (time.Duration, error) {
@@ -561,7 +570,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q), asksExemplars: req.Exemplars && q.Exemplar}
 	dq.OnExpanded = pq.noteExpanded
 	if pq.kind == KindRange {
-		pq.step = QueryStep(baseStep, minimum, q.IntervalFactor)
+		pq.step = QueryStep(baseStep, cmp.Or(minimum, minStepOf(inst.Datasource)), q.IntervalFactor)
 		rng := req.Range
 		if pq.step > baseStep {
 			rng = alignToStep(rng, pq.step)

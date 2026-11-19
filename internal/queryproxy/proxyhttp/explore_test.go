@@ -147,6 +147,17 @@ func TestExploreRunsARangeQueryWithAStepOverAnAlignedRange(t *testing.T) {
 	}
 }
 
+func TestExploreRangeQueryDefaultsToTheAgentPointBudget(t *testing.T) {
+	hn, _ := newExploreHarness(t)
+	body := decodeData(t, hn.explore(auth.KindUser, "prom", map[string]any{
+		"query": "up", "kind": "range", "from": "1760000000000", "to": "1760021600000",
+	}))
+	want := 21600 * time.Second / queryproxy.AgentMaxDataPoints
+	if got := time.Duration(body.Meta.StepMS) * time.Millisecond; got != want {
+		t.Fatalf("step = %v, want %v for %d points over 6h", got, want, queryproxy.AgentMaxDataPoints)
+	}
+}
+
 func TestExploreIsNeverCachedOrCoalesced(t *testing.T) {
 	hn, recorder := newExploreHarness(t)
 	for i := range 2 {

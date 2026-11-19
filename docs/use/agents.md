@@ -61,6 +61,7 @@ A connected agent also has `writes_7d`, the changes you made through MCP under i
 A comment that mentions an agent hands it work.
 A connected agent's `grant_id` and a service account's `id` are the ids a comment names: `@[Name](grant:<grant_id>)` and `@[Name](service_account:<id>)`, and `@observe` names the Observe Agent.
 The `@` picker of every web composer lists the Observe Agent while a model is connected, then your connected agents, then the service accounts that take runs, all from this one answer.
+Everything you type after the `@` stays in the comment box and filters the list; the list closes at the first space or when nobody matches, so `@observe add a stat panel` typed straight through is a comment that asks the Observe Agent.
 A message that mentions exactly one agent starts a run for it when you send it from a composer that asks the agent, or with `start_runs` over the API, MCP or the CLI.
 [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment) describes the composer, and the run answers in the same thread when it ends.
 

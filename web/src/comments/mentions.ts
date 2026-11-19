@@ -158,7 +158,7 @@ export function mentionTriggerAt(value: string, caret: number): number | null {
   return before === undefined || /\s/.test(before) ? caret - 1 : null
 }
 
-const typedQuery = new RegExp(`^${handleRune}*$`, "u")
+const typedQuery = /^\S*$/
 
 export function typedMentionEnd(
   value: string,
@@ -169,6 +169,49 @@ export function typedMentionEnd(
   return caret > afterAt && typedQuery.test(value.slice(afterAt, caret))
     ? caret
     : afterAt
+}
+
+export type InlineMentionStep = { open: true; query: string } | { open: false }
+
+export function inlineMentionStep(input: {
+  value: string
+  trigger: number
+  caret: number
+  matching: number
+  searching: boolean
+}): InlineMentionStep {
+  const { value, trigger, caret } = input
+  if (value[trigger] !== "@" || caret <= trigger) return { open: false }
+  const query = value.slice(trigger + 1, caret)
+  if (/\s/.test(query)) return { open: false }
+  if (query !== "" && input.matching === 0 && !input.searching) {
+    return { open: false }
+  }
+  return { open: true, query }
+}
+
+export type InlineKeyStep =
+  | { kind: "pass" }
+  | { kind: "close" }
+  | { kind: "move"; index: number }
+  | { kind: "pick"; index: number }
+
+export function inlineKeyStep(input: {
+  key: string
+  active: number
+  count: number
+}): InlineKeyStep {
+  const { key, active, count } = input
+  if (key === "Escape") return { kind: "close" }
+  if (count === 0) return { kind: "pass" }
+  if (key === "ArrowDown") return { kind: "move", index: (active + 1) % count }
+  if (key === "ArrowUp") {
+    return { kind: "move", index: active <= 0 ? count - 1 : active - 1 }
+  }
+  if (key === "Enter" && active >= 0 && active < count) {
+    return { kind: "pick", index: active }
+  }
+  return { kind: "pass" }
 }
 
 export function insertMention(

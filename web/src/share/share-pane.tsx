@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useCloseControls } from "@/dashboards/controls-sheet"
+import { shareButtonId } from "@/dashboards/pane-openers"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
 import { PublicLinksSection } from "@/public/public-links-section"
@@ -220,12 +222,17 @@ export function ShareToggle({
   disabled?: boolean
   onToggle: () => void
 }) {
+  const closeControls = useCloseControls()
   return (
     <button
+      id={shareButtonId}
       type="button"
       aria-pressed={pressed}
       disabled={disabled}
-      onClick={onToggle}
+      onClick={() => {
+        closeControls()
+        onToggle()
+      }}
       className="flex h-[30px] items-center gap-1.5 rounded-control px-2 text-[13px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-pressed:bg-muted"
     >
       <Share2Icon aria-hidden="true" className="size-4" />

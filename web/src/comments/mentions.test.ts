@@ -4,6 +4,8 @@ import {
   addPick,
   agentMentionsIn,
   agentToken,
+  inlineKeyStep,
+  inlineMentionStep,
   insertMention,
   mentionedAgents,
   mentionName,
@@ -324,5 +326,151 @@ describe("mention picks", () => {
     expect(toWire("hi @A.(b)+ there", picks)).toBe(
       `hi @[A.(b)+](user:${adaId}) there`
     )
+  })
+})
+
+function typeThrough(text: string, matching: (query: string) => number) {
+  let value = ""
+  let step: ReturnType<typeof inlineMentionStep> = { open: false }
+  let trigger: number | null = null
+  for (const character of text) {
+    value += character
+    if (trigger === null) trigger = mentionTriggerAt(value, value.length)
+    if (trigger === null) continue
+    const query = value.slice(trigger + 1)
+    step = inlineMentionStep({
+      value,
+      trigger,
+      caret: value.length,
+      matching: matching(query.split(/\s/)[0]),
+      searching: false,
+    })
+    if (!step.open) return { value, step, closedAt: value.length }
+  }
+  return { value, step, closedAt: null }
+}
+
+const knownHandles = (query: string) =>
+  "observe agent".includes(query.toLowerCase()) ? 1 : 0
+
+describe("inlineMentionStep", () => {
+  it("stays open while the handle is typed and closes at the space after @observe", () => {
+    const typed = typeThrough("@observe add a panel", knownHandles)
+    expect(typed.closedAt).toBe("@observe ".length)
+    expect(typed.value).toBe("@observe ")
+  })
+
+  it("closes at the space after an unknown handle even while it still matched", () => {
+    expect(
+      inlineMentionStep({
+        value: "@nobody ",
+        trigger: 0,
+        caret: 8,
+        matching: 1,
+        searching: false,
+      })
+    ).toEqual({ open: false })
+  })
+
+  it("closes at once when nobody matches the typed word", () => {
+    const typed = typeThrough("@zzz", knownHandles)
+    expect(typed.closedAt).toBe("@z".length)
+  })
+
+  it("waits for the people search before giving up on an empty match", () => {
+    expect(
+      inlineMentionStep({
+        value: "@ada.l",
+        trigger: 0,
+        caret: 6,
+        matching: 0,
+        searching: true,
+      })
+    ).toEqual({ open: true, query: "ada.l" })
+  })
+
+  it("keeps an email address typed after the @ as one query", () => {
+    expect(
+      inlineMentionStep({
+        value: "hi @ada.lab@example.com",
+        trigger: 3,
+        caret: 23,
+        matching: 1,
+        searching: false,
+      })
+    ).toEqual({ open: true, query: "ada.lab@example.com" })
+  })
+
+  it("never opens for an email address typed mid-sentence", () => {
+    const typed = typeThrough("write to a@b.com now", knownHandles)
+    expect(typed.step).toEqual({ open: false })
+    expect(typed.closedAt).toBeNull()
+  })
+
+  it("closes when the @ is deleted or the caret moves before it", () => {
+    const base = { trigger: 3, matching: 1, searching: false }
+    expect(inlineMentionStep({ ...base, value: "hi ", caret: 3 })).toEqual({
+      open: false,
+    })
+    expect(inlineMentionStep({ ...base, value: "hi @a", caret: 2 })).toEqual({
+      open: false,
+    })
+  })
+
+  it("is open with an empty query right after the @", () => {
+    expect(
+      inlineMentionStep({
+        value: "hi @",
+        trigger: 3,
+        caret: 4,
+        matching: 3,
+        searching: false,
+      })
+    ).toEqual({ open: true, query: "" })
+  })
+})
+
+describe("inlineKeyStep", () => {
+  it("picks the highlighted match on Enter", () => {
+    expect(inlineKeyStep({ key: "Enter", active: 1, count: 3 })).toEqual({
+      kind: "pick",
+      index: 1,
+    })
+  })
+
+  it("lets Enter through when nothing is highlighted or nothing is offered", () => {
+    expect(inlineKeyStep({ key: "Enter", active: -1, count: 3 })).toEqual({
+      kind: "pass",
+    })
+    expect(inlineKeyStep({ key: "Enter", active: 0, count: 0 })).toEqual({
+      kind: "pass",
+    })
+  })
+
+  it("moves through the matches and wraps", () => {
+    expect(inlineKeyStep({ key: "ArrowDown", active: -1, count: 3 })).toEqual({
+      kind: "move",
+      index: 0,
+    })
+    expect(inlineKeyStep({ key: "ArrowDown", active: 2, count: 3 })).toEqual({
+      kind: "move",
+      index: 0,
+    })
+    expect(inlineKeyStep({ key: "ArrowUp", active: 0, count: 3 })).toEqual({
+      kind: "move",
+      index: 2,
+    })
+  })
+
+  it("closes on Escape even with no matches", () => {
+    expect(inlineKeyStep({ key: "Escape", active: -1, count: 0 })).toEqual({
+      kind: "close",
+    })
+  })
+
+  it("ignores other keys", () => {
+    expect(inlineKeyStep({ key: "a", active: 0, count: 3 })).toEqual({
+      kind: "pass",
+    })
   })
 })

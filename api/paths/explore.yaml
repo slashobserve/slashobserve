@@ -62,8 +62,10 @@ datasources-uid-query:
                 type: integer
                 minimum: 10
                 maximum: 11000
-                default: 1000
-                description: Range queries only.
+                default: 200
+                description: >-
+                  Range queries only: the most points per series, 200 by default as for the `query_range` MCP tool.
+                  The step never falls below a Prometheus datasource's `scrapeInterval`.
               limit:
                 type: integer
                 minimum: 1

@@ -18,6 +18,10 @@ type Datasource interface {
 	Close() error
 }
 
+type MinStepSource interface {
+	MinStep() time.Duration
+}
+
 type ExemplarSource interface {
 	QueryExemplars(ctx context.Context, q Query, r TimeRange, step time.Duration) ([]Frame, error)
 }

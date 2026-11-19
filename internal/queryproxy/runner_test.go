@@ -844,6 +844,36 @@ func TestRunPanelAppliesTheResolutionFactorToTheBaseStep(t *testing.T) {
 	}
 }
 
+func TestRunPanelRaisesARangeStepToTheDatasourceMinimumStep(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.minStep = 15 * time.Second
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Timeseries,
+		spec.Query{Query: "plain"},
+		spec.Query{Query: "doubled", IntervalFactor: 2},
+		spec.Query{Query: "literal", Interval: "5s"},
+	)
+	rng := datasource.TimeRange{From: testNow.Add(-time.Hour + 7*time.Second), To: testNow.Add(7 * time.Second)}
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}), PanelID: "p1", Range: rng, MaxDataPoints: 1100})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	want := map[string]time.Duration{"plain": 15 * time.Second, "doubled": 30 * time.Second, "literal": 5 * time.Second}
+	if got := stepsByQuery(fake); !maps.Equal(got, want) {
+		t.Fatalf("steps = %v, want %v", got, want)
+	}
+	for i, text := range []string{"plain", "doubled", "literal"} {
+		if got := res.Queries[i].Step; got != want[text] {
+			t.Fatalf("result step of %s = %v, want %v", text, got, want[text])
+		}
+	}
+	for _, c := range fake.callsTo("range") {
+		if c.query.Text == "plain" && (c.rng.From.UnixMilli()%15000 != 0 || c.rng.To.UnixMilli()%15000 != 0) {
+			t.Fatalf("plain range = %v, want it aligned to the 15s step", c.rng)
+		}
+	}
+}
+
 func TestRunPanelFailsAQueryWhoseMinStepVariableHasNoUsableSelection(t *testing.T) {
 	tests := []struct {
 		name       string

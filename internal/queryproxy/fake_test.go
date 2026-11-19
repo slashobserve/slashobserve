@@ -27,7 +27,8 @@ type call struct {
 }
 
 type fakeDatasource struct {
-	typ string
+	typ     string
+	minStep time.Duration
 
 	onRange    func(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onInstant  func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error)
@@ -43,6 +44,8 @@ type fakeDatasource struct {
 }
 
 func newFake(typ string) *fakeDatasource { return &fakeDatasource{typ: typ} }
+
+func (f *fakeDatasource) MinStep() time.Duration { return f.minStep }
 
 func (f *fakeDatasource) enter(ctx context.Context, c call) func() {
 	c.deadline, c.hasDeadline = ctx.Deadline()
