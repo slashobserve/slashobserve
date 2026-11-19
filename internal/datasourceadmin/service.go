@@ -64,6 +64,7 @@ type Service struct {
 
 	mu      sync.Mutex
 	applied map[string]version
+	list    func(context.Context) ([]dbsqlc.Datasource, error)
 }
 
 func New(d Deps) *Service {
@@ -71,7 +72,9 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Service{db: d.DB, registry: d.Registry, slots: d.Slots, key: d.Key, domains: d.Domains, access: d.Access, outboundLocked: d.OutboundLocked, logger: logger, applied: map[string]version{}}
+	s := &Service{db: d.DB, registry: d.Registry, slots: d.Slots, key: d.Key, domains: d.Domains, access: d.Access, outboundLocked: d.OutboundLocked, logger: logger, applied: map[string]version{}}
+	s.list = func(ctx context.Context) ([]dbsqlc.Datasource, error) { return s.db.Queries().ListDatasources(ctx) }
+	return s
 }
 
 func (s *Service) Load(ctx context.Context) error { return s.Reconcile(ctx) }
@@ -92,12 +95,12 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) Reconcile(ctx context.Context) error {
-	rows, err := s.db.Queries().ListDatasources(ctx)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	rows, err := s.list(ctx)
 	if err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	present := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		present[row.Uid] = true

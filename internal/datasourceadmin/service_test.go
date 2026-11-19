@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -318,5 +319,47 @@ func TestRemovingAShadowedRowKeepsTheFileDatasourcesConcurrencyLimit(t *testing.
 
 	if got := r.slots.total("prom"); got != 2 {
 		t.Fatalf("slot total of the file datasource = %d, want 2", got)
+	}
+}
+
+func TestAPollThatReadTheRowsBeforeACreateDoesNotUndoIt(t *testing.T) {
+	server := upstream(t, nil)
+	r, svc := newRig(t, testKey)
+	read := svc.list
+	listed := make(chan struct{})
+	proceed := make(chan struct{})
+	svc.list = func(ctx context.Context) ([]dbsqlc.Datasource, error) {
+		rows, err := read(ctx)
+		close(listed)
+		<-proceed
+		return rows, err
+	}
+
+	polled := make(chan error, 1)
+	go func() { polled <- svc.Reconcile(t.Context()) }()
+	<-listed
+
+	created := make(chan error, 1)
+	go func() {
+		_, err := svc.Create(t.Context(), r.admin, prometheus("added", server.URL), Secrets{})
+		created <- err
+	}()
+	select {
+	case err := <-created:
+		if err != nil {
+			t.Fatal(err)
+		}
+		close(proceed)
+		<-polled
+	case <-time.After(300 * time.Millisecond):
+		close(proceed)
+		<-polled
+		if err := <-created; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, ok := r.registry.Get("added"); !ok {
+		t.Fatal("the poll's older snapshot removed the datasource that was just added")
 	}
 }
