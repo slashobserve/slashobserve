@@ -33,7 +33,6 @@ describe("examplePrompts", () => {
       [
         "Service health by pod, last 6h",
         "Error logs by service, last hour",
-        "p95 latency by route",
         errorsQuestion,
         slowestQuestion,
       ],
@@ -53,7 +52,6 @@ describe("examplePrompts", () => {
       [
         "Service health by pod, last 6h",
         "Error logs by service, last hour",
-        "p95 latency by route",
         errorsQuestion,
         slowestQuestion,
       ],
@@ -113,7 +111,7 @@ describe("examplePrompts", () => {
     )
   })
 
-  test("keeps at most 3 builds and 2 questions", () => {
+  test("keeps at most 4 prompts and reserves 2 of them for questions", () => {
     expect(
       labels(
         ["prometheus", "loki", "tempo"],
@@ -122,7 +120,6 @@ describe("examplePrompts", () => {
     ).toEqual([
       "Add a latency row to Checkout",
       "Service health by pod, last 6h",
-      "Error logs by service, last hour",
       errorsQuestion,
       slowestQuestion,
     ])

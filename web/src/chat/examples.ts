@@ -8,7 +8,7 @@ export type ExampleDashboard = {
 
 export const noDashboards: readonly ExampleDashboard[] = []
 
-const maxBuildExamples = 3
+const maxExamples = 4
 const maxQuestionExamples = 2
 const maxTitleLength = 40
 
@@ -56,8 +56,9 @@ export function examplePrompts(input: {
   if (prom || traces) {
     questions.push(example("Which routes are slowest right now?"))
   }
+  const asked = questions.slice(0, maxQuestionExamples)
   return [
-    ...(input.canBuild ? builds.slice(0, maxBuildExamples) : []),
-    ...questions.slice(0, maxQuestionExamples),
+    ...(input.canBuild ? builds.slice(0, maxExamples - asked.length) : []),
+    ...asked,
   ]
 }
