@@ -107,17 +107,19 @@ export function DashboardTopRow({
         <h1
           aria-current="page"
           title={title}
-          className="max-w-[40ch] min-w-0 truncate text-[13px] font-medium"
+          className="max-w-[40ch] min-w-[8ch] truncate text-[13px] font-medium"
         >
           {title}
         </h1>
         {madeBy && !narrow ? (
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
             {madeBy}
           </span>
         ) : null}
         {views ? (
-          <span className="text-xs text-muted-foreground">{views}</span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {views}
+          </span>
         ) : null}
         {versionControl}
       </nav>
