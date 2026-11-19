@@ -104,3 +104,16 @@ func TestBodyOfRejectsFilesWithoutFrontMatter(t *testing.T) {
 		})
 	}
 }
+
+func TestInvestigateSectionPointsAtEarlierObservations(t *testing.T) {
+	_, section, ok := strings.Cut(Body(), "## Investigate a question")
+	if !ok {
+		t.Fatal("no investigate section")
+	}
+	section, _, _ = strings.Cut(section, "\n## ")
+	for _, want := range []string{"list_observations", "get_observation", "/o/<id>"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("the investigate section lacks %q: %s", want, section)
+		}
+	}
+}

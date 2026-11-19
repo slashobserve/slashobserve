@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { dashboardKeys } from "@/api/keys"
 import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator } from "@/spec"
+import { sentence } from "@/observe/queries"
 
 import { useAddVersion } from "../queries"
 import { saveToast } from "../save-outcome"
@@ -219,7 +220,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
             ) : null}
             {problem?.kind === "failed" ? (
               <Alert variant="destructive">
-                <AlertDescription>{problem.message}</AlertDescription>
+                <AlertDescription>{sentence(problem.message)}</AlertDescription>
               </Alert>
             ) : null}
             {pending ? (

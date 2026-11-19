@@ -9,8 +9,8 @@ Every person and every service account has one of four instance roles, from the 
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out and disconnect their agents), service accounts and keys, the outbound allowlist, and every chat with Observe Agent, read only. |
 | Editor    | Create, edit, import, duplicate, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, keep their own saved prompts, and read the outbound allowlist.                          |
-| Commenter | View dashboards and versions, add comments, and send requests to the agent, whose changes arrive as proposals. The role alone creates and edits dashboards only in their own My Dashboards.             |
-| Viewer    | View dashboards and versions only. The role alone creates and edits dashboards and sends requests to the agent only in their own My Dashboards.                                                              |
+| Commenter | View dashboards and versions, add comments, and send requests to the agent, whose changes arrive as proposals. The role alone creates, imports and edits dashboards, and chats with the agent to build them, only in their own My Dashboards.             |
+| Viewer    | View dashboards and versions only. The role alone creates, imports and edits dashboards, and chats with the agent to build them, only in their own My Dashboards.                                                              |
 
 
 ## Folders, keys and actions
@@ -23,6 +23,8 @@ An MCP client a person connects has the same reach: it may do over MCP what the 
 A key is never on a list, so a key has what its role gives.
 Creating folders, managing saved prompts and the Admin pages follow the role only.
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
+On dashboards, folders, runs, pins, annotations and a dashboard's public links the body says what would let it through: `needed_access` (`view`, `comment`, `edit` or `manage`) with the `folder_title` it applies to, or `needed_role` for a route that needs a role, and the web app shows it as "it needs Edit on Payments".
+A refusal anywhere else, such as the public links of an observation's RCA, carries only the code and the message.
 A service-account key can never create or revoke keys, whatever its role.
 A canvas action sends a request to another site on a person's behalf (see [Actions](../operate/outbound-access.md#actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
 
@@ -62,3 +64,7 @@ Without a `groups` claim a person has no groups.
 A role is recomputed every time the person signs in, and for everyone when the server starts.
 Changing `SLASHOBSERVE_ADMIN_EMAILS` or `SLASHOBSERVE_OIDC_GROUP_ROLES` therefore applies at the next restart, and a group change reaches a person at their next sign-in.
 Existing people become Editors when you upgrade, and the rules above are applied at the first start.
+
+A change an Admin makes on the People page applies to the person's next request, not at their next sign-in.
+An open web app learns of it when its tab becomes visible again, or when an action it tried is refused with `forbidden_role`, and then reloads what the person may see and do.
+A client that uses a key sees it on the next call, and `GET /api/v1/auth/session` returns the current role.

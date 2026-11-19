@@ -154,6 +154,10 @@ type dashboardOut struct {
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
+	SavedBy                  string          `json:"saved_by"`
+	Origin                   string          `json:"origin"`
+	SavedAt                  string          `json:"saved_at"`
+	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -237,7 +241,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
@@ -410,7 +414,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		}
 	}
 	if inBuildRun(run, scoped) {
-		return r.buildCreate(ctx, principal, run, in)
+		return r.buildCreate(ctx, principal, run, in, folderID)
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {
@@ -471,16 +475,18 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return saveFailure(err)
 	}
-	return r.saveSucceeded(ctx, saved), nil
+	return r.saveSucceeded(ctx, saved, nil), nil
 }
 
-func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult) Result {
+func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult, before *spec.Dashboard) Result {
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
-	return success(savedStep(saved), withAdvice(ctx, out, saved.Version.Spec))
+	out = withAdvice(ctx, out, saved.Version.Spec)
+	out.noteDroppedVariables(before, saved.Version.Spec)
+	return success(savedStep(saved), out)
 }
 
 func savedStep(saved dashboards.SaveResult) string {

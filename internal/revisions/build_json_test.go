@@ -118,7 +118,7 @@ func TestBuildErrorsMapToStatusesAndCodes(t *testing.T) {
 		{"not the requester", ErrNotRequester, http.StatusForbidden, "forbidden", 0},
 		{"newer version", fmt.Errorf("save: %w", &BuildConflictError{Latest: 6}), http.StatusConflict, "version_conflict", 6},
 		{"role too low", folders.ErrForbidden, http.StatusForbidden, forbidden.Code, 0},
-		{"no folder access", folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, 0},
+		{"no folder access", folders.ErrNoAccess, http.StatusNotFound, "not_found", 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -133,11 +133,11 @@ func TestBuildErrorsMapToStatusesAndCodes(t *testing.T) {
 	}
 }
 
-func TestNoAccessAndRoleAreToldApart(t *testing.T) {
+func TestNoAccessAnswersLikeAnUnknownDashboard(t *testing.T) {
 	access, _ := buildReplyFor(folders.ErrNoAccess)
-	role, _ := buildReplyFor(folders.ErrForbidden)
-	if access.message != forbidden.AccessMessage || role.message != forbidden.RoleMessage {
-		t.Fatalf("messages = %q and %q", access.message, role.message)
+	gone, _ := buildReplyFor(ErrDashboardNotFound)
+	if access != gone {
+		t.Fatalf("no access answers %+v, an unknown dashboard %+v", access, gone)
 	}
 }
 

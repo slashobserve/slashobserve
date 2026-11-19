@@ -35,6 +35,7 @@ import {
   expiryChoices,
   expiryFor,
   frozenSelections,
+  frozenValuesText,
   linkStatus,
   modeChoices,
   modeLabel,
@@ -103,6 +104,7 @@ function CreatePublicLink({ dashboardId, variables, vars }: Props) {
   const [mode, setMode] = useState<PublicMode>("frozen")
   const [expiry, setExpiry] = useState<ExpiryChoice>("none")
   const [date, setDate] = useState("")
+  const [label, setLabel] = useState("")
   const [problem, setProblem] = useState<string | null>(null)
   const [createdUrl, setCreatedUrl] = useState<string | null>(null)
 
@@ -118,6 +120,7 @@ function CreatePublicLink({ dashboardId, variables, vars }: Props) {
     setCreatedUrl(null)
     create.mutate(
       {
+        ...(label.trim() === "" ? {} : { label: label.trim() }),
         variables: mode,
         selections: mode === "frozen" ? frozenSelections(variables, vars) : {},
         expires_at: chosen.expiresAt,
@@ -125,6 +128,7 @@ function CreatePublicLink({ dashboardId, variables, vars }: Props) {
       {
         onSuccess: (created) => {
           setCreatedUrl(created.url)
+          setLabel("")
           create.reset()
         },
         onError: (error) => setProblem(loadProblemText(error)),
@@ -185,6 +189,14 @@ function CreatePublicLink({ dashboardId, variables, vars }: Props) {
           </SelectContent>
         </Select>
       </div>
+      <Input
+        aria-label="Label"
+        placeholder="Label, such as For the board (optional)"
+        maxLength={80}
+        autoComplete="off"
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+      />
       {expiry === "date" ? (
         <div className="flex flex-col gap-1">
           <label htmlFor={`${ids}-date`} className="text-xs">
@@ -262,10 +274,14 @@ function PublicLinkRow({
   link: PublicLink
 }) {
   const status = linkStatus(link)
+  const frozen = frozenValuesText(link)
   return (
     <li className="flex items-start justify-between gap-3 border-b px-3 py-2 text-[13px] last:border-b-0">
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="flex flex-wrap items-baseline gap-x-2">
+          {link.label === "" ? null : (
+            <span className="font-medium wrap-anywhere">{link.label}</span>
+          )}
           <span className="font-mono text-xs">{link.prefix}</span>
           <span>{modeLabel(link.variables)}</span>
           <span className="text-muted-foreground">
@@ -276,6 +292,11 @@ function PublicLinkRow({
             )}
           </span>
         </span>
+        {frozen !== null ? (
+          <span className="text-xs wrap-anywhere text-muted-foreground">
+            {frozen}
+          </span>
+        ) : null}
         {status !== null ? (
           <span className="text-xs text-destructive">{status}</span>
         ) : null}

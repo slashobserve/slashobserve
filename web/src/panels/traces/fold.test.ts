@@ -43,6 +43,7 @@ function span(seed: SpanSeed): Span {
     depth: seed.depth ?? 0,
     slot: 0,
     error: seed.error ?? false,
+    statusMessage: "",
     hasChildren: seed.hasChildren ?? false,
     attributes: [],
     kind: null,

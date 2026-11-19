@@ -404,7 +404,7 @@ func buildSaved(r *rig, panel string, planned int) func(context.Context) (tools.
 
 func rejectedSave(context.Context) (tools.Result, error) {
 	return tools.Result{
-		Content: map[string]any{"code": "invalid_spec", "issues": []map[string]string{{"code": "unknown_field"}}},
+		Content: map[string]any{"code": "invalid_spec", "failing_panels": []string{"p1", "p2"}, "issues": []map[string]string{{"code": "unknown_field"}}},
 		IsError: true,
 	}, nil
 }
