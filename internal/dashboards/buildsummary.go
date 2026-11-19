@@ -49,7 +49,7 @@ func (s *Service) describeBuild(ctx context.Context, build Build) (versionNote, 
 	}
 	if reverted != nil {
 		note.restoredFrom = reverted
-		note.summary = fmt.Sprintf("Restored version %d (%s).", *reverted, strings.Join(changes, "; "))
+		note.summary = restoreSentence(*reverted, changes)
 	}
 	return note, nil
 }
@@ -98,6 +98,10 @@ func changeSentence(parts []string) string {
 	joined := strings.Join(parts, "; ")
 	_, size := utf8.DecodeRuneInString(joined)
 	return clipSummary(strings.ToUpper(joined[:size]) + joined[size:] + ".")
+}
+
+func restoreSentence(version int, parts []string) string {
+	return clipSummary(fmt.Sprintf("Restored version %d (%s).", version, strings.Join(parts, "; ")))
 }
 
 func changeParts(before, after *spec.Dashboard) []string {

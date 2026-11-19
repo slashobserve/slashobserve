@@ -81,6 +81,20 @@ func TestSummaryStaysWithinTheLimit(t *testing.T) {
 	}
 }
 
+func TestRestoreSentenceStaysWithinTheLimit(t *testing.T) {
+	parts := []string{
+		"removed " + strings.Repeat("a long title ", 20),
+		"added " + strings.Repeat("another long title ", 20),
+	}
+	got := restoreSentence(3, parts)
+	if n := utf8.RuneCountInString(got); n > maxSummaryLength {
+		t.Fatalf("summary is %d characters", n)
+	}
+	if !strings.HasPrefix(got, "Restored version 3 (") {
+		t.Fatalf("summary = %q", got)
+	}
+}
+
 func TestACommittedCreateBuildSummarisesAllItsPanelsNotTheLastSave(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
