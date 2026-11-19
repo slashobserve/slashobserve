@@ -86,8 +86,8 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if in.Order != "" && in.Order != "updated" && in.Order != "views" {
-		return invalid("order must be updated or views"), nil
+	if in.Order != "" && in.Order != "updated" && in.Order != "views" && in.Order != "name" {
+		return invalid("order must be updated, views or name"), nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListDashboards, 1, maxListDashboards, "limit")
 	if !ok {
@@ -102,7 +102,7 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views"})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views", ByName: in.Order == "name"})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}

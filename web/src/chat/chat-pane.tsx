@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
-import { useId, useRef } from "react"
+import { useId, useRef, type KeyboardEvent } from "react"
 
 import { useActivityStore, useChatPaneLayout } from "@/activity/activity-store"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
+import { useOpenerFocus } from "@/components/dock/opener-focus"
 import { runStateText } from "@/observe/build-page-model"
 import { latestTurn } from "@/observe/conversation"
 import { useObserveRequest } from "@/observe/queries"
@@ -22,6 +23,8 @@ export function ChatPane({
   const setChatWidth = useActivityStore((state) => state.setChatWidth)
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
+  const pane = useRef<HTMLElement>(null)
+  const { restore } = useOpenerFocus(pane)
   const request = useObserveRequest(requestId).data
   const dashboardId = request?.dashboard_id ?? null
   const revisions = useQuery({
@@ -30,8 +33,17 @@ export function ChatPane({
   })
   const latest =
     request === undefined ? undefined : latestTurn(request, revisions.data)
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== "Escape" || event.defaultPrevented) return
+    if (onClose === undefined) return
+    onClose()
+    restore()
+  }
+
   return (
     <DockPanel
+      ref={pane}
+      onKeyDown={onKeyDown}
       labelledBy={headingId}
       width={width}
       bounds={bounds}

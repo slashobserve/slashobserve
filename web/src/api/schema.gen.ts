@@ -9428,8 +9428,8 @@ export interface operations {
                 q?: string;
                 /** @description Only dashboards in this folder; a folder that does not exist or that the caller cannot see gives an empty page, not an error. */
                 folder?: string;
-                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. `views` sorts by `view_count`, most viewed first, then by most recent update. */
-                order?: "updated" | "folder" | "views";
+                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. `views` sorts by `view_count`, most viewed first, then by most recent update. `name` sorts by lower-case title, then by id. */
+                order?: "updated" | "folder" | "views" | "name";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
                 /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them. The same rules as `GET /health`. */

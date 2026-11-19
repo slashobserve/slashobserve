@@ -620,7 +620,8 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
     WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
   (SELECT count(*) FROM dashboard_view_days w
     WHERE w.dashboard_id = d.id AND w.day >= $1::date)::integer AS view_count,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -680,6 +681,7 @@ type ListDashboardsRow struct {
 	FolderGeneral    bool
 	FolderPersonal   bool
 	FolderSortTitle  string
+	TitleSort        string
 }
 
 func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) ([]ListDashboardsRow, error) {
@@ -737,6 +739,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 			&i.FolderGeneral,
 			&i.FolderPersonal,
 			&i.FolderSortTitle,
+			&i.TitleSort,
 		); err != nil {
 			return nil, err
 		}
@@ -758,7 +761,8 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
     WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
   (SELECT count(*) FROM dashboard_view_days w
     WHERE w.dashboard_id = d.id AND w.day >= $1::date)::integer AS view_count,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -824,6 +828,7 @@ type ListDashboardsByFolderRow struct {
 	FolderGeneral    bool
 	FolderPersonal   bool
 	FolderSortTitle  string
+	TitleSort        string
 }
 
 func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboardsByFolderParams) ([]ListDashboardsByFolderRow, error) {
@@ -885,6 +890,148 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 			&i.FolderGeneral,
 			&i.FolderPersonal,
 			&i.FolderSortTitle,
+			&i.TitleSort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDashboardsByName = `-- name: ListDashboardsByName :many
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, d.created_run_id,
+  v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM threads t
+    WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
+  (SELECT count(*) FROM dashboard_view_days w
+    WHERE w.dashboard_id = d.id AND w.day >= $1::date)::integer AS view_count,
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
+WHERE ($2::text IS NULL
+    OR (lower(d.title), d.id) > ($2::text, $3::uuid))
+  AND d.folder_id = ANY($4::uuid[])
+  AND ($5::uuid IS NULL OR d.folder_id = $5::uuid)
+  AND ($6::text IS NULL
+    OR (d.created_by_kind = $6::text AND d.created_by_id = $7::uuid))
+  AND (NOT $8::boolean OR d.created_via = 'agent')
+  AND (NOT $9::boolean OR d.created_origin = 'mcp')
+  AND ($10::text IS NULL OR d.created_origin_client = $10::text)
+  AND ($11::text IS NULL OR v.datasource_uids @> ARRAY[$11::text])
+  AND ($12::text[] IS NULL OR d.tags @> $12::text[])
+  AND ($13::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches($13::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $14::timestamptz)))
+  AND ($15::text IS NULL
+    OR strpos(lower(d.title), lower($15::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
+ORDER BY lower(d.title), d.id
+LIMIT $17 OFFSET $16
+`
+
+type ListDashboardsByNameParams struct {
+	ViewsSince     pgtype.Date
+	CursorTitle    pgtype.Text
+	CursorID       pgtype.UUID
+	Folders        []pgtype.UUID
+	Folder         pgtype.UUID
+	CreatorKind    pgtype.Text
+	CreatorID      pgtype.UUID
+	OnlyAgent      bool
+	OnlyMcp        bool
+	McpClient      pgtype.Text
+	Datasource     pgtype.Text
+	Tags           []string
+	Problem        pgtype.Text
+	UnopenedBefore pgtype.Timestamptz
+	Q              pgtype.Text
+	RowOffset      int32
+	RowLimit       int32
+}
+
+type ListDashboardsByNameRow struct {
+	Dashboard        Dashboard
+	UpdatedByKind    string
+	UpdatedByID      pgtype.UUID
+	UpdatedByName    string
+	UpdatedByEmail   pgtype.Text
+	DatasourceUids   []string
+	Description      string
+	OpenCommentCount int64
+	ViewCount        int32
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderPersonal   bool
+	FolderSortTitle  string
+	TitleSort        string
+}
+
+func (q *Queries) ListDashboardsByName(ctx context.Context, arg ListDashboardsByNameParams) ([]ListDashboardsByNameRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardsByName,
+		arg.ViewsSince,
+		arg.CursorTitle,
+		arg.CursorID,
+		arg.Folders,
+		arg.Folder,
+		arg.CreatorKind,
+		arg.CreatorID,
+		arg.OnlyAgent,
+		arg.OnlyMcp,
+		arg.McpClient,
+		arg.Datasource,
+		arg.Tags,
+		arg.Problem,
+		arg.UnopenedBefore,
+		arg.Q,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDashboardsByNameRow
+	for rows.Next() {
+		var i ListDashboardsByNameRow
+		if err := rows.Scan(
+			&i.Dashboard.ID,
+			&i.Dashboard.Title,
+			&i.Dashboard.Tags,
+			&i.Dashboard.LatestVersion,
+			&i.Dashboard.CreatedAt,
+			&i.Dashboard.UpdatedAt,
+			&i.Dashboard.CreatedByKind,
+			&i.Dashboard.CreatedByID,
+			&i.Dashboard.CreatedByName,
+			&i.Dashboard.CreatedByEmail,
+			&i.Dashboard.CreatedOrigin,
+			&i.Dashboard.CreatedOriginClient,
+			&i.Dashboard.CreatedVia,
+			&i.Dashboard.FolderID,
+			&i.Dashboard.CreatedRunID,
+			&i.UpdatedByKind,
+			&i.UpdatedByID,
+			&i.UpdatedByName,
+			&i.UpdatedByEmail,
+			&i.DatasourceUids,
+			&i.Description,
+			&i.OpenCommentCount,
+			&i.ViewCount,
+			&i.FolderTitle,
+			&i.FolderGeneral,
+			&i.FolderPersonal,
+			&i.FolderSortTitle,
+			&i.TitleSort,
 		); err != nil {
 			return nil, err
 		}
@@ -905,7 +1052,8 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
   (SELECT count(*) FROM threads t
     WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
   vc.n AS view_count,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -970,6 +1118,7 @@ type ListDashboardsByViewsRow struct {
 	FolderGeneral    bool
 	FolderPersonal   bool
 	FolderSortTitle  string
+	TitleSort        string
 }
 
 func (q *Queries) ListDashboardsByViews(ctx context.Context, arg ListDashboardsByViewsParams) ([]ListDashboardsByViewsRow, error) {
@@ -1028,6 +1177,7 @@ func (q *Queries) ListDashboardsByViews(ctx context.Context, arg ListDashboardsB
 			&i.FolderGeneral,
 			&i.FolderPersonal,
 			&i.FolderSortTitle,
+			&i.TitleSort,
 		); err != nil {
 			return nil, err
 		}

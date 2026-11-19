@@ -24,7 +24,7 @@ export type DashboardListFilters = {
   problem?: NonNullable<
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
-  order?: "views"
+  order?: "updated" | "name" | "views"
 }
 
 export const dashboardKeys = {

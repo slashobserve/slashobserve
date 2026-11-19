@@ -168,7 +168,7 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list [--order updated\|views]` | Lists dashboards, newest update first or, with `--order views`, most viewed in the last 30 days first, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page. |
+| `bin/observe dashboards list [--order updated\|views\|name]` | Lists dashboards, newest update first, with `--order views` most viewed in the last 30 days first, or with `--order name` by title, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`, and how many views the dashboard had in the last 30 days; the folder is in the details, and a version that does not exist says what the latest one is; `--json` adds `view_count` and `window_days`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards viewers <dashboard-id>` | Lists, by name, the other people who have the dashboard open now; it needs View and prints nothing when nobody is looking. |

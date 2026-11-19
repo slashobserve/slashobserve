@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { usePreferences } from "@/lib/preferences"
 import { quickRanges } from "@/lib/time"
+import type { Dashboard } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
 import { TimeRangeControl, TimeRangePicker } from "./time-range-picker"
@@ -60,6 +61,60 @@ describe("TimeRangePicker", () => {
     const { router } = await applyRange(from, to)
     expect(screen.getByRole("alert")).toHaveTextContent(message)
     expect(router?.state.location.search).not.toHaveProperty("from")
+  })
+})
+
+describe("TimeRangePicker default range", () => {
+  const spec = {
+    title: "Shop",
+    time: { from: "now-6h", to: "now" },
+    panels: [],
+  } as unknown as Dashboard
+
+  async function openPicker(
+    defaultRange: Parameters<typeof TimeRangePicker>[0]["defaultRange"]
+  ) {
+    const result = renderWithProviders(
+      <TimeRangePicker
+        dashboardId="d1"
+        version={1}
+        from="now-1h"
+        to="now"
+        quickRanges={quickRanges}
+        hidden={false}
+        timezone={undefined}
+        defaultRange={defaultRange}
+      />,
+      { route: { path: "/dashboards/$dashboardId", url: "/dashboards/d1" } }
+    )
+    await result.user.click(
+      await screen.findByRole("button", { name: "Time range: Last 1 hour" })
+    )
+    return result
+  }
+
+  it("offers Save as default to someone who can edit the latest version", async () => {
+    await openPicker({ spec, version: 3 })
+    expect(
+      await screen.findByRole("button", { name: "Save as default" })
+    ).toBeEnabled()
+  })
+
+  it("offers nothing when the dashboard cannot be saved from here", async () => {
+    await openPicker(null)
+    await screen.findByLabelText("From")
+    expect(
+      screen.queryByRole("button", { name: "Save as default" })
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe("a range that is too long", () => {
+  it("says why next to the From field", async () => {
+    await applyRange("1700000000", "now")
+    expect(screen.getByLabelText("From")).toHaveAccessibleDescription(
+      "The range is longer than 400 days. Choose a From closer to To."
+    )
   })
 })
 
@@ -131,6 +186,79 @@ describe("TimeRangeControl", () => {
       "Times before the year 2000 are not accepted."
     )
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("picks days in the calendar and fills From and To", async () => {
+    const { user, onChange } = renderControl("UTC")
+    await open(user)
+    const fromInput = await screen.findByLabelText("From")
+    await user.clear(fromInput)
+    await user.type(fromInput, "2026-10-01 00:00")
+    await user.click(screen.getByRole("button", { name: "Pick dates" }))
+    await user.click(screen.getByRole("button", { name: "17 October 2026" }))
+    await user.click(screen.getByRole("button", { name: "20 October 2026" }))
+    expect(fromInput).toHaveValue("2026-10-17 00:00")
+    expect(screen.getByLabelText("To")).toHaveValue("2026-10-20 23:59:59")
+    await user.click(screen.getByRole("button", { name: "Apply" }))
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: String(Date.UTC(2026, 9, 17)),
+      to: String(Date.UTC(2026, 9, 20, 23, 59, 59)),
+    })
+  })
+
+  it("offers Save as default only when given a saver, and sends the range to it", async () => {
+    const onSave = vi.fn()
+    const onChange = vi.fn()
+    const { user } = renderWithProviders(
+      <TimeRangeControl
+        value={{ from: "now-1h", to: "now" }}
+        onChange={onChange}
+        saveDefault={{
+          saved: { from: "now-6h", to: "now" },
+          pending: false,
+          onSave,
+        }}
+      />
+    )
+    await open(user)
+    const fromInput = await screen.findByLabelText("From")
+    await user.clear(fromInput)
+    await user.type(fromInput, "now-2d")
+    await user.click(screen.getByRole("button", { name: "Save as default" }))
+    expect(onSave).toHaveBeenCalledExactlyOnceWith({
+      from: "now-2d",
+      to: "now",
+    })
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: "now-2d",
+      to: "now",
+    })
+  })
+
+  it("disables Save as default for the range that already is the default", async () => {
+    const { user } = renderWithProviders(
+      <TimeRangeControl
+        value={{ from: "now-1h", to: "now" }}
+        onChange={vi.fn()}
+        saveDefault={{
+          saved: { from: "now-1h", to: "now" },
+          pending: false,
+          onSave: vi.fn(),
+        }}
+      />
+    )
+    await open(user)
+    expect(
+      await screen.findByRole("button", { name: "Save as default" })
+    ).toBeDisabled()
+  })
+
+  it("has no Save as default without a saver", async () => {
+    const { user } = renderControl()
+    await open(user)
+    expect(
+      screen.queryByRole("button", { name: "Save as default" })
+    ).not.toBeInTheDocument()
   })
 
   it("reads typed text in the dashboard's zone", async () => {

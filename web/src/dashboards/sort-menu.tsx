@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import type { ListSearch } from "./list-filters"
+import { listSorts, type ListSearch } from "./list-filters"
 
 type Props = {
   value: ListSearch["sort"]
@@ -18,8 +18,14 @@ type Props = {
 
 const grouped = "folders"
 
-function sortText(value: ListSearch["sort"]): string {
-  return value === "views" ? "most viewed" : "by folder"
+const sortLabels = {
+  updated: "Last updated",
+  name: "Name",
+  views: "Most viewed",
+}
+
+export function sortText(value: ListSearch["sort"]): string {
+  return value === undefined ? "by folder" : sortLabels[value].toLowerCase()
 }
 
 export function SortMenu({ value, onChange }: Props) {
@@ -40,15 +46,17 @@ export function SortMenu({ value, onChange }: Props) {
         <DropdownMenuRadioGroup
           value={value ?? grouped}
           onValueChange={(next) =>
-            onChange(next === "views" ? "views" : undefined)
+            onChange(listSorts.find((known) => known === next))
           }
         >
           <DropdownMenuRadioItem closeOnClick value={grouped}>
             By folder
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem closeOnClick value="views">
-            Most viewed
-          </DropdownMenuRadioItem>
+          {listSorts.map((sort) => (
+            <DropdownMenuRadioItem key={sort} closeOnClick value={sort}>
+              {sortLabels[sort]}
+            </DropdownMenuRadioItem>
+          ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

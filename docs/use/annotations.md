@@ -27,6 +27,7 @@ Who may do what:
 Time series, candlestick and state timeline panels draw every annotation in their time range.
 A moment is a vertical line in the info colour, and a range is a light band between two lines.
 A small flag at the bottom of each line opens a card when you hover, focus or tap it.
+A key at the top right of the chart names the flag, as Annotation or Annotations, while the chart shows any.
 The card shows the text, the tags, who added it and when, and says `Every dashboard` for a global one.
 Times carry the zone they are shown in, such as `2026-11-18 14:22:00 UTC`.
 The card opens above the flag and is never cut off by the panel's edge; it closes when you scroll or resize.

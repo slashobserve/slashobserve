@@ -551,6 +551,39 @@ func (st store) listByViews(ctx context.Context, after *viewsCursor, limit, offs
 	return listItemsOf(same), nil
 }
 
+func (st store) listByName(ctx context.Context, after *nameCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	params := dbsqlc.ListDashboardsByNameParams{
+		Folders:        f.Folders,
+		Folder:         f.Folder,
+		CreatorKind:    f.CreatorKind,
+		CreatorID:      f.CreatorID,
+		OnlyAgent:      f.OnlyAgent,
+		OnlyMcp:        f.OnlyMcp,
+		McpClient:      f.McpClient,
+		Datasource:     f.Datasource,
+		Q:              f.Q,
+		Tags:           f.Tags,
+		Problem:        f.Problem,
+		UnopenedBefore: f.UnopenedBefore,
+		ViewsSince:     viewsSince(),
+		RowLimit:       httpapi.Int32(limit),
+		RowOffset:      httpapi.Int32(offset),
+	}
+	if after != nil {
+		params.CursorTitle = pgtype.Text{String: after.Title, Valid: true}
+		params.CursorID = after.ID
+	}
+	rows, err := st.db.Queries().ListDashboardsByName(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboards by name: %w", err)
+	}
+	same := make([]dbsqlc.ListDashboardsRow, len(rows))
+	for i, r := range rows {
+		same[i] = dbsqlc.ListDashboardsRow(r)
+	}
+	return listItemsOf(same), nil
+}
+
 func viewsSince() pgtype.Date {
 	return pgtype.Date{Time: healthrule.ViewsSince(time.Now()), Valid: true}
 }
@@ -571,6 +604,7 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 			OpenComments:   int(r.OpenCommentCount),
 			ViewCount:      int(r.ViewCount),
 			sortTitle:      r.FolderSortTitle,
+			titleSort:      r.TitleSort,
 		})
 	}
 	return items

@@ -36,7 +36,7 @@ type dashboardViews struct {
 	WindowDays int `json:"window_days"`
 }
 
-var dashboardOrders = []string{"updated", "views"}
+var dashboardOrders = []string{"updated", "views", "name"}
 
 type actorLabel struct {
 	Label string `json:"label"`
@@ -109,7 +109,7 @@ func (a *app) listCommand() *cobra.Command {
 		RunE:  a.runList,
 	}
 	addPageFlags(cmd, &a.list, maxDashboardPage)
-	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default) or views, most opened in the last 30 days first")
+	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default), views (most opened in the last 30 days first) or name (by title)")
 	return cmd
 }
 

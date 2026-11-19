@@ -86,11 +86,17 @@ It resolves only for a signed-in caller who can see the dashboard: a signed-out 
 Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
 The box above the list filters by title, and the folder and tag menus narrow it further.
 
+Where you may edit dashboards and there is a shared folder you can move into, every row you may move has a checkbox, and the checkbox in the header selects all of them on the page.
+A bar above the list then shows how many are selected, a **Move to folder** menu of the shared folders you can edit, **Move** and **Clear selection**.
+**Move** moves each selected dashboard with one request, as a row's **Move to folder** does, skips the ones already in that folder and says how many moved and which failed and why; the ones that failed stay selected.
+The selection is kept for the page and filters you are on and cleared when you change either.
+An agent does the same with one `move_dashboard` call for each dashboard.
+
 ## The More menu of a dashboard
 
 The **More** button at the right of a dashboard's header opens:
 
-- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
+- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version, and has a **Folder** menu of the shared folders you can edit: choosing another one moves the dashboard, after the new version when you changed both, and a move alone saves no version.
 - **Add panel**, when a datasource is configured, adds a panel, see [Edit a panel](edit-panel.md).
 - **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
 - **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
@@ -127,9 +133,12 @@ A view is one person opening the dashboard on one UTC day, so three people who e
 Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
 `GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
-The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
+`order=name` sorts every visible dashboard by lower-case title and then by id, across folders, and pages the same way.
+
+The **Sort** menu on the list switches between **By folder**, **Last updated**, **Name** and **Most viewed**; every order except by folder drops the folder headers and shows the folder as a column, because the order crosses folders.
+The choice is kept in the address as `sort=updated`, `sort=name` or `sort=views`, and the list asks the server for the same `order`.
 The daily records are kept for 90 days.
-`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+`list_dashboards` takes `order` (`updated`, `views` or `name`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
 
 ## Home dashboard
 
@@ -292,6 +301,7 @@ Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the
 The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
+**Keyboard shortcuts** in the palette opens the list of keys on any page.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out of the palette, because it has no page.
 
 Snippets show plain text, with Markdown links and emphasis flattened.
@@ -324,6 +334,7 @@ The panel editor opens as a sheet at the bottom of the screen, and the panel men
 
 On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
 The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+On a dashboard, the title and the controls share one row while they fit, and the controls drop to a second row under the title when they do not, for example with the Activity pane open on a 1440 pixel screen.
 Browser zoom scales the whole app if the text is small on a large display.
 
 ## Connected agents
@@ -355,4 +366,13 @@ The choice stays in this browser's local storage and never reaches the server, s
 It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
 It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
 It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+
+## The time range picker
+
+The time range button opens the quick ranges and the **From** and **To** boxes.
+**Pick dates** shows a calendar: click a day for that whole day, then click a second day for the days between them.
+The calendar fills **From** with the start of the first day and **To** with the end of the last, in the zone the boxes read, and **Apply** uses them.
+A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
+On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
+The button is missing on an older version and while a layout or panel is being edited, and it is disabled for a range that already is the default.
 The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

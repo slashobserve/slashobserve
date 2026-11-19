@@ -11,6 +11,7 @@ import {
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
+import { useOpenerFocus } from "@/components/dock/opener-focus"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
@@ -81,24 +82,16 @@ export function ActivityCard({
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
-  const opener = useRef<Element | null>(null)
-  useEffect(() => {
-    opener.current = document.activeElement
-  }, [])
+  const { remember, restore } = useOpenerFocus(card)
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
       if (event.key !== "Escape" || event.defaultPrevented || editing) return
       if (!card.current?.contains(event.target as Node)) return
       onClose()
-      const from = opener.current
-      if (from instanceof HTMLElement && from !== document.body) {
-        requestAnimationFrame(() => {
-          if (from.isConnected) from.focus()
-        })
-      }
+      restore()
     },
-    [editing, onClose]
+    [editing, onClose, restore]
   )
 
   const shown = useRef<{
@@ -117,8 +110,9 @@ export function ActivityCard({
       return
     }
     if (card.current?.contains(document.activeElement)) return
+    remember()
     heading.current?.focus()
-  }, [panelId, editing, sharing])
+  }, [panelId, editing, sharing, remember])
 
   const onScopeChange = useCallback(
     (next: string | null) =>

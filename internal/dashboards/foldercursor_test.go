@@ -105,6 +105,7 @@ func TestListFiltersParseFolderAndOrder(t *testing.T) {
 		{"order updated", "order=updated", http.StatusOK, pgtype.UUID{}, false},
 		{"order folder", "order=folder", http.StatusOK, pgtype.UUID{}, true},
 		{"order views is not by folder", "order=views", http.StatusOK, pgtype.UUID{}, false},
+		{"order name is not by folder", "order=name", http.StatusOK, pgtype.UUID{}, false},
 		{"a folder", "folder=" + cursorFolderID, http.StatusOK, mustUUID(t, cursorFolderID), false},
 		{"a folder with the folder order", "folder=" + cursorFolderID + "&order=folder", http.StatusOK, mustUUID(t, cursorFolderID), true},
 		{"an unknown order", "order=title", http.StatusBadRequest, pgtype.UUID{}, false},
@@ -174,5 +175,25 @@ func TestListFiltersParseOrderViews(t *testing.T) {
 	_, params := listFilterStatus(t, "order=views")
 	if !params.ByViews || params.ByFolder {
 		t.Fatalf("by views %t, by folder %t, want true and false", params.ByViews, params.ByFolder)
+	}
+}
+
+func TestListFiltersParseOrderName(t *testing.T) {
+	_, params := listFilterStatus(t, "order=name")
+	if !params.ByName || params.ByViews || params.ByFolder {
+		t.Fatalf("by name %t, by views %t, by folder %t, want true, false and false", params.ByName, params.ByViews, params.ByFolder)
+	}
+}
+
+func TestNameCursorIsRejectedAsATimeViewsAndFolderCursor(t *testing.T) {
+	cursor := encodeNameCursor("checkout", cursorDashboardID)
+	if _, ok := httpapi.DecodeTimeCursor(cursor); ok {
+		t.Error("a name cursor was accepted as a time cursor")
+	}
+	if _, err := decodeViewsCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor was accepted as a views cursor: %v", err)
+	}
+	if _, err := decodeFolderCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor was accepted as a folder cursor: %v", err)
 	}
 }

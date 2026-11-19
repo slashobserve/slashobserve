@@ -75,12 +75,15 @@ export function DashboardTopRow({
         "relative flex pt-3 pr-2.5 pb-2.5 pl-4",
         narrow
           ? "items-center justify-between gap-x-4"
-          : "flex-col gap-y-2 @min-[900px]/dash:flex-row @min-[900px]/dash:items-center @min-[900px]/dash:justify-between @min-[900px]/dash:gap-x-4"
+          : "flex-wrap items-center justify-between gap-x-4 gap-y-2"
       )}
     >
       <nav
         aria-label="Breadcrumb"
-        className="flex min-w-0 flex-nowrap items-center gap-2 text-[13px]"
+        className={cn(
+          "flex min-w-0 flex-nowrap items-center gap-2 text-[13px]",
+          !narrow && "flex-[1_1_22rem]"
+        )}
       >
         {narrow ? null : (
           <>
@@ -145,7 +148,7 @@ export function DashboardTopRow({
           </SheetContent>
         </Sheet>
       ) : (
-        <div className="flex flex-wrap items-center gap-1.5 @min-[900px]/dash:flex-none">
+        <div className="flex max-w-full flex-none flex-wrap items-center gap-1.5">
           {tools}
         </div>
       )}

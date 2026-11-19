@@ -15,6 +15,7 @@ import { madeByChannel, madeByDetail } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
 
+import { RowSelectBox, TitleHeader } from "./list-selection"
 import { DashboardRowMenu } from "./row-menu"
 
 declare module "@tanstack/react-table" {
@@ -50,7 +51,7 @@ const columnWidth = {
   folder: "w-40",
 }
 
-const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
+const zeroWidthAfterLastWord = "-my-1 -mr-6"
 
 export const listFeatures = tableFeatures({})
 
@@ -59,9 +60,10 @@ const column = createColumnHelper<typeof listFeatures, DashboardSummary>()
 export const dashboardColumns = column.columns([
   column.display({
     id: "title",
-    header: "Title",
+    header: () => <TitleHeader />,
     cell: ({ row }) => (
       <>
+        <RowSelectBox dashboard={row.original} />
         <Link
           {...dashboardLink(row.original.id, row.original.title)}
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -77,7 +79,7 @@ export const dashboardColumns = column.columns([
           title={`Open ${row.original.title} in a new tab`}
           className={cn(
             zeroWidthAfterLastWord,
-            "inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+            "inline-flex size-6 items-center justify-center rounded-sm align-middle text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
           )}
         >
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
@@ -94,7 +96,7 @@ export const dashboardColumns = column.columns([
     ),
     meta: {
       headerClassName: titleMinWidth,
-      cellClassName: cn("pl-11", titleMinWidth),
+      cellClassName: cn("relative pl-11", titleMinWidth),
       skeletonClassName: "h-5 w-48 max-w-full",
     },
   }),

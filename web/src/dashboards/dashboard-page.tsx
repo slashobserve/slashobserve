@@ -56,7 +56,8 @@ import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 import { PanelHostContext } from "@/shell/side-panel"
-import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
   useDashboardShortcuts,
@@ -467,7 +468,7 @@ function DashboardView({
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const setShortcutsOpen = useShortcutsStore((state) => state.setOpen)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
@@ -560,6 +561,15 @@ function DashboardView({
       { replace: true }
     )
   }, [layoutEditingWithPanel, setSearch])
+
+  const closeSpec = useCallback(() => {
+    setSpecOpen(false)
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) {
+        findMoreMenuButton()?.focus()
+      }
+    })
+  }, [])
 
   const closeInspect = useCallback(
     () =>
@@ -742,6 +752,16 @@ function DashboardView({
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
         timezone={ownZone}
+        defaultRange={
+          permissions.edit &&
+          detailsBlockReason({
+            pinned,
+            editingLayout: editing,
+            editingPanel,
+          }) === null
+            ? { spec: envelopeSpec, version: envelopeVersion }
+            : null
+        }
       />
       {spec.timePicker?.hidden ? null : (
         <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
@@ -1084,19 +1104,18 @@ function DashboardView({
                   spec={envelopeSpec}
                   version={envelopeVersion}
                   hidden={!specShown}
-                  onClose={() => setSpecOpen(false)}
+                  onClose={closeSpec}
                 />
               ) : null}
+              {kiosk ? <ShortcutsHost /> : null}
               <UnsavedBar dashboardId={dashboardId} />
               {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
-              <ShortcutsDialog
-                open={shortcutsOpen}
-                onOpenChange={setShortcutsOpen}
-              />
               <DetailsDialog
                 dashboardId={dashboardId}
                 spec={envelopeSpec}
                 version={envelopeVersion}
+                folder={envelope.dashboard.folder}
+                folders={folders}
                 open={detailsOpen}
                 onOpenChange={setDetailsOpen}
                 finalFocus={() => findMoreMenuButton() ?? true}

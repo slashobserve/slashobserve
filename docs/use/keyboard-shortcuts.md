@@ -4,7 +4,7 @@ description: The keys that view, edit and inspect a panel, move the time range, 
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
-Press `?` on a dashboard to see them all in the app.
+Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortcuts** in the command palette on any page.
 
 | Keys | What they do |
 | --- | --- |
@@ -23,6 +23,9 @@ Press `?` on a dashboard to see them all in the app.
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
+
+Escape also closes the Share, Activity, Chat and Dashboard JSON panes of a dashboard.
+The focus returns to the button that opened the pane.
 
 ## Moving around the app
 
