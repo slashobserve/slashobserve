@@ -35,6 +35,7 @@ const (
 	CodeInvalidSpec     = "invalid_spec"
 	CodeVersionConflict = "version_conflict"
 	CodeNotFound        = "not_found"
+	CodeFolderExists    = "folder_exists"
 
 	applySummaryPrefix = "Applied from "
 	maxPathBytes       = 512
@@ -156,7 +157,8 @@ func (a *Applier) adoptionTarget(ctx context.Context, by auth.Principal, res Res
 	_, abilities, err := a.folders.Folder(ctx, by, folderID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound):
-		return target, pgtype.UUID{}, nil, nil
+		refusal := refused(res, CodeFolderExists, "a folder with that name already exists; apply the file under a folder you can edit")
+		return target, folderID, &refusal, nil
 	case err != nil:
 		return target, folderID, nil, err
 	case !abilities.Edit:

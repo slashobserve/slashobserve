@@ -58,7 +58,7 @@ The server finds the dashboard for each file in this order:
 3. Otherwise, a new dashboard, in a new folder if the folder does not exist yet.
 
 When the folder holds more than one dashboard with the title, apply refuses the file with the code `ambiguous`; rename one of them or apply the file under the path it was applied from.
-A folder you cannot see counts as absent, so apply never says whether it exists or what it holds, and a folder you can see but not edit refuses the file with `403`.
+A folder you cannot see refuses the file with `409 folder_exists`, the same answer as creating a folder with that name, so apply never says what it holds or files the dashboard anywhere else, and a folder you can see but not edit refuses the file with `403`.
 A file whose Spec matches the latest version saves nothing and shows `unchanged`, so applying the same directory twice adds no versions.
 Every save runs the same checks as a save in the web app, so a file whose queries fail or return no data fails with the panels named.
 A dashboard changed in the web app since the last apply is overwritten by the next apply of its file, with the old version kept in its history.

@@ -131,7 +131,7 @@ func TestApplyRefusesAmbiguousAndProvisionedDashboards(t *testing.T) {
 	}
 }
 
-func TestApplyTreatsAFolderTheCallerCannotSeeAsAbsent(t *testing.T) {
+func TestApplyRefusesAFolderTheCallerCannotSeeAsTakenWithoutFilingTheDashboardElsewhere(t *testing.T) {
 	r := newApplyRig(t)
 	admin := auth.Principal{Kind: auth.KindUser, ID: r.editor.ID, Name: "root", Role: auth.RoleAdmin}
 	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Secret"})
@@ -155,8 +155,15 @@ func TestApplyTreatsAFolderTheCallerCannotSeeAsAbsent(t *testing.T) {
 	if res.Code == provision.CodeAmbiguous {
 		t.Fatalf("apply told an Editor who cannot see the folder that it holds two dashboards with the title: %+v", res)
 	}
-	if res.Outcome != provision.OutcomeCreated {
-		t.Errorf("apply into a hidden folder = %+v, want a new dashboard as if the folder were absent", res)
+	if res.Outcome != provision.OutcomeFailed || res.Code != provision.CodeFolderExists || res.DashboardID != "" {
+		t.Errorf("apply into a hidden folder = %+v, want %q and no dashboard", res, provision.CodeFolderExists)
+	}
+	var filed int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards WHERE title = 'TWIN'`).Scan(&filed); err != nil {
+		t.Fatal(err)
+	}
+	if filed != 0 {
+		t.Errorf("apply into a hidden folder filed %d dashboards in another folder", filed)
 	}
 }
 
