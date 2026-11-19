@@ -310,7 +310,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 			return Connection{}, err
 		}
 	}
-	updated, err := s.store.update(ctx, params, recordUpdated(by, id, current.Connection, params, p.Token != nil))
+	updated, err := s.store.update(ctx, params, recordUpdated(by, id, params, p.Token != nil))
 	if err != nil {
 		return Connection{}, err
 	}

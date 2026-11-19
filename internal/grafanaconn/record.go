@@ -30,6 +30,8 @@ type recordedUpdate struct {
 
 type recorder func(ctx context.Context, q *dbsqlc.Queries) error
 
+type updateRecorder func(ctx context.Context, q *dbsqlc.Queries, before dbsqlc.GrafanaConnection) error
+
 func hostOf(address string) string {
 	u, err := url.Parse(address)
 	if err != nil {
@@ -50,15 +52,15 @@ func recordDeleted(by auth.Principal, id pgtype.UUID, name, address string) reco
 	}
 }
 
-func recordUpdated(by auth.Principal, id pgtype.UUID, before Connection, after dbsqlc.UpdateGrafanaConnectionParams, tokenChanged bool) recorder {
-	update := recordedUpdate{
-		Name: after.Name, Host: hostOf(after.Url), TokenChanged: tokenChanged,
-		Changes: recordedChanges{
-			Name: activity.Changed(before.Name, after.Name),
-			Host: activity.Changed(hostOf(before.URL), hostOf(after.Url)),
-		},
-	}
-	return func(ctx context.Context, q *dbsqlc.Queries) error {
+func recordUpdated(by auth.Principal, id pgtype.UUID, after dbsqlc.UpdateGrafanaConnectionParams, tokenChanged bool) updateRecorder {
+	return func(ctx context.Context, q *dbsqlc.Queries, before dbsqlc.GrafanaConnection) error {
+		update := recordedUpdate{
+			Name: after.Name, Host: hostOf(after.Url), TokenChanged: tokenChanged,
+			Changes: recordedChanges{
+				Name: activity.Changed(before.Name, after.Name),
+				Host: activity.Changed(hostOf(before.Url), hostOf(after.Url)),
+			},
+		}
 		if update.Changes == (recordedChanges{}) && !update.TokenChanged {
 			return nil
 		}

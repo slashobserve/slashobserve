@@ -141,14 +141,17 @@ func (s store) list(ctx context.Context) ([]Connection, error) {
 	return out, nil
 }
 
-func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnectionParams, record recorder) (stored, error) {
+func (s store) update(ctx context.Context, params dbsqlc.UpdateGrafanaConnectionParams, record updateRecorder) (stored, error) {
 	var row dbsqlc.GrafanaConnection
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		var err error
+		before, err := q.GetGrafanaConnectionForUpdate(ctx, params.ID)
+		if err != nil {
+			return err
+		}
 		if row, err = q.UpdateGrafanaConnection(ctx, params); err != nil {
 			return err
 		}
-		return record(ctx, q)
+		return record(ctx, q, before)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return stored{}, ErrNotFound
