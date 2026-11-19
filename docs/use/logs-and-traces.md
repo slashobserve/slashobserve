@@ -206,6 +206,7 @@ A field says `exact: false` when the server reports a count error bound for it, 
 ## Documents
 
 The documents are the lines the query and its filters match, listed under the volume strip, newest first, 50 to a page.
+A row shows the time, the level and the message only: a line's stream labels and structured metadata are not written in front of the message, and the open line lists them all.
 Each one is a row you can open, as [Reading a line](#reading-a-line) describes.
 Live tail swaps the list for the tail, as [Live tail](#live-tail) describes.
 

@@ -134,9 +134,9 @@ export function usePhone(): boolean {
   )
 }
 
-const resultsDisplay = {
+export const resultsDisplay = {
   showTime: true,
-  showLabels: true,
+  showLabels: false,
   details: true,
   detailsMode: "inline",
   controls: false,
