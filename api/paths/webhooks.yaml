@@ -14,6 +14,8 @@ webhooks-list:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/WebhookList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":

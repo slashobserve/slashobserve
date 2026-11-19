@@ -2421,7 +2421,7 @@ export interface paths {
         put?: never;
         /**
          * Add a block to an observation.
-         * @description With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403. A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's. Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data. An observation holds at most 100 blocks and 24 panel and snapshot blocks together.
+         * @description With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403. A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's. Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data. An observation holds at most 100 blocks and 24 panel and snapshot blocks together. A panel block added with a service-account key, as the CLI and scripts do, must run and return data in its range, the check the `add_block` tool runs; a panel that fails it answers 422 `invalid_spec` with `issues` and adds nothing. A person's session is not held to it, because the web app shows an empty result before the person saves.
          */
         post: operations["addObservationBlock"];
         delete?: never;
@@ -2451,7 +2451,7 @@ export interface paths {
         head?: never;
         /**
          * Change a block's body, width or position.
-         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A `position` moves the block and shifts the blocks between, which keep their versions.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
         trace?: never;
@@ -7807,6 +7807,7 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceAccountList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -8463,6 +8464,7 @@ export interface operations {
                     "application/json": components["schemas"]["OutboundDomainList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -9081,6 +9083,7 @@ export interface operations {
                     "application/json": components["schemas"]["DatasourceList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             500: components["responses"]["Internal"];
         };
@@ -9162,6 +9165,7 @@ export interface operations {
                 };
             };
             304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -9517,6 +9521,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -15333,6 +15338,7 @@ export interface operations {
                     "application/json": components["schemas"]["GrafanaConnectionList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -15870,6 +15876,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebhookList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -16298,6 +16305,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
@@ -17175,6 +17183,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentsOverview"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {

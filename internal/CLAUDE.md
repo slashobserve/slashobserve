@@ -96,6 +96,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - The strict `Content-Security-Policy` (`contentSecurityPolicy` in `internal/server/server.go`) allows images only from self, `data:` and `blob:`.
   Remote images, tiles and GeoJSON must load through `/api/v1/assets/image` and `/api/v1/assets/geojson`.
 - `server.New` wraps the engine in `compressReads` (`internal/server/compress.go`): gzip only for GET and HEAD responses of 1024 bytes or more and never for `text/event-stream`, because a response to another method can echo a secret it created next to user text, the shape a BREACH attack needs.
+  Files under `assets/` have a build-time `.br` twin (`web/scripts/precompress.mjs`, run by `bun run build`) that `serveFile` sends with `Content-Encoding: br` when the request accepts it, so the gzip wrapper leaves it alone; the twin is never served by its own name.
 - `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts `Authorization: Bearer` service-account keys and OAuth access tokens (a session cookie is ignored); OAuth tokens are accepted nowhere else, and for them the registered client name is the origin client and `clientInfo` is ignored.
   It refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`.
@@ -315,7 +316,7 @@ This lists only the packages whose purpose the name does not make obvious.
 
 - Every `/api/v1` route is documented in `api/`.
   Only the e2e stack runs with `SLASHOBSERVE_API_CONTRACT_CHECK=true`, which turns a request or response that breaks the document into a 500 `contract_violation` and makes `scripts/e2e.sh` fail; it never belongs in production.
-- A query parameter a route does not document is reported in `X-Unknown-Query-Parameters` (`internal/server/queryparams.go`) and fails the contract check; add a new parameter to the route's YAML or clients will see the header.
+- A query parameter a route does not document is reported in `X-Unknown-Query-Parameters` and fails the contract check; a list route (a `GET` whose `operationId` starts with `list`) answers 400 `invalid_request` for an unknown parameter, a value its schema refuses or a malformed query string (`internal/server/queryparams.go`, the one place); add a new parameter to the route's YAML or clients will be refused.
 - `/api/v1` answers `Cache-Control: no-store`; a safe, large read opts out through `httpapi.RevalidatedJSON` (private `ETag`, `Vary: Authorization, Cookie`, 304), and never for query proxy data.
 - Document every status a handler can return, and keep `additionalProperties: false` on response objects so new fields must be documented.
 - Wire conventions: JSON field names are `snake_case` (the Spec document inside a response keeps its camelCase), times are RFC 3339 UTC strings, errors are `{"error","code"}` plus optional named fields, 401s carry `WWW-Authenticate: Bearer`, and lists use opaque `cursor` and `next_cursor` (null at the end) with `limit`.

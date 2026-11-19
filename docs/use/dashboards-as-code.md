@@ -18,6 +18,11 @@ Each file holds the Spec as indented JSON with a final newline, so a change show
 It prints one row per file with the file, the dashboard id and the title, or a JSON array with `--json`.
 Running it again overwrites the files in place, and leaves alone a file whose dashboard was deleted.
 
+## Write a file by hand
+
+`observe dashboards sample` prints a complete example Spec, and `observe dashboards schema` prints the JSON Schema every file must satisfy, so an editor or a CI step can validate a file before it is applied.
+Both are part of the CLI, so they match the Spec your version of `observe` writes and need no server.
+
 ## The directory layout
 
 ```text

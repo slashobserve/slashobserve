@@ -75,8 +75,8 @@ var exceptions = map[string]exception{
 
 	"getFolder":            {MCP: notBuilt, CLI: notBuilt},
 	"deleteFolder":         {MCP: noMCPDeletes},
-	"getFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
-	"setFolderPermissions": {MCP: notBuilt, CLI: notBuilt},
+	"getFolderPermissions": {MCP: notBuilt},
+	"setFolderPermissions": {MCP: notBuilt},
 
 	"listGrafanaConnections":  {MCP: notBuilt, CLI: notBuilt},
 	"createGrafanaConnection": {MCP: grafanaConnecting},
