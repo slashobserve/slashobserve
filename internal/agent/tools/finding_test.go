@@ -212,7 +212,7 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	run := investigateRun(from, findingWindowTo)
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx since 09:12", evidencePanel("Errors", "sum(rate(errors[5m]))"), evidencePanel("Latency", "histogram_quantile(0.99, x)")))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" || saved.FindingID == "" || saved.Evidence != 2 || saved.URL == "" {
+	if res.IsError || !ok || saved.FindingID == "" || saved.Evidence != 2 || saved.URL == "" {
 		t.Fatalf("save: %#v", res.Content)
 	}
 	if res.Step != "Saved finding "+saved.FindingID {
@@ -396,7 +396,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 
 	res := r.callIn(t, &run, adminCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx", evidencePanel("Errors", "sum(rate(errors[5m]))")))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" {
+	if res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	if saved.URL != "/c/"+row.ID.String() {
@@ -412,7 +412,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 	}
 	res = r.callIn(t, nil, adminCaller, nameSaveRunAnswer, `{"run_id":"`+row.ID.String()+`"}`)
 	filed, ok := res.Content.(runAnswerSavedOut)
-	if res.IsError || !ok || filed.Code != "saved" || filed.Replayed {
+	if res.IsError || !ok || filed.Replayed {
 		t.Fatalf("save answer: %#v", res.Content)
 	}
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
@@ -455,7 +455,7 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	r.db.Exec(t, `DELETE FROM observations WHERE id = $1`, row.ObservationID)
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx"))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" {
+	if res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
@@ -603,7 +603,7 @@ func TestAHomeRunsFindingCarriesTheDashboardItResolved(t *testing.T) {
 	board := r.boardOf(t, "Checkout")
 	run, row := r.homeRun(t, adminCaller)
 	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Checkout is the dashboard you mean; changing it is asked for there.", board.String()))
-	if saved, ok := res.Content.(findingSavedOut); res.IsError || !ok || saved.Code != "saved" {
+	if _, ok := res.Content.(findingSavedOut); res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	f, found, err := r.findings.ForRequest(t.Context(), adminCaller, row.ID)

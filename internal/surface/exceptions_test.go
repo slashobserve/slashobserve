@@ -10,7 +10,7 @@ const (
 	webhookAdmin        = "An Admin decides where workspace activity is sent; an agent that could register a webhook could send it anywhere."
 	datasourceAdmin     = "An Admin decides where the server connects and with which credentials; an agent that could add or change a datasource, or read its address, could point the server anywhere. Agents list datasources and recheck them."
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
-	noMCPDeletes        = "no MCP tool deletes anything: every MCP write is advertised as non-destructive, so people delete in the web app, the HTTP API or the CLI"
+	noMCPDeletes        = "no MCP tool deletes a dashboard, folder, annotation or block, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
 	browserSignIn       = "the browser's sign-in and session flow; keys and MCP clients authenticate with a bearer token"
 	personOnly          = "a person's own action in the web app: keys are refused (auth.RequireUser or 403 user_session_required), and the CLI signs in with a key"

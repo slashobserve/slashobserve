@@ -97,11 +97,13 @@ func (r *Registry) claimEntries() []entry {
 	claim := func(name, desc, schema string, handle func(context.Context, json.RawMessage) (Result, error)) entry {
 		return entry{Tool{Name: name, Description: desc, InputSchema: json.RawMessage(schema), MCPOnly: true, Claim: true, MinRole: auth.RoleViewer}, handle}
 	}
+	brief := claim(nameGetRunBrief, descGetRunBrief, schemaGetRunBrief, r.getRunBrief)
+	brief.tool.ReadOnly = true
 	return []entry{
 		claim(nameClaimRun, descClaimRun, schemaClaimRun, r.claimRun),
 		claim(nameReportRun, descReportRun, schemaReportRun, r.reportRun),
 		claim(nameFinishRun, descFinishRun, schemaFinishRun, r.finishRun),
-		claim(nameGetRunBrief, descGetRunBrief, schemaGetRunBrief, r.getRunBrief),
+		brief,
 	}
 }
 

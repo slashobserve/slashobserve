@@ -115,6 +115,12 @@ A script or an agent with only a shell finds what to query with `bin/observe dat
 `--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
 On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
 
+`schema <uid>` lists the tables of a ClickHouse, Elasticsearch or OpenSearch datasource, and `--table` lists one table's columns with their types.
+A cut list names the `--offset` that reads the next page; a Tempo datasource has no tables, so `schema` lists its services, span names and attribute names.
+`sample <uid>` prints up to 20 recent rows or log lines (5 by default, `--limit` sets it), cut to 300 bytes a cell, so the real values show before a query is written.
+ClickHouse needs `--table`; on Loki `--table` is a stream selector and leaving it out reads every stream.
+They answer what the agent's `get_schema` and `sample_rows` tools answer.
+
 `lint <uid> <query>` checks a query without running it and prints each diagnostic with the byte range it covers; it exits 1 only when a diagnostic is an error.
 `log-volume <uid> <query>` counts every line a logs query matches per bucket, by level, and `trace-stats <uid> [<filter>]` counts spans, errors and the p50, p95 and p99 durations per bucket.
 `trace-logs <uid> <trace-id>` prints the log lines that carry a trace id, or one span with `--span`.
@@ -178,9 +184,9 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
 | `bin/observe dashboards panels <dashboard-id> --summary <text> [--file <patch.json>] [--remove <panel-id>]...` | Saves a new version that adds, replaces, removes or moves only the panels it names, runs only their queries, and prints `Saved version <n> of <title>`; the file holds `upsert`, `delete`, `layout`, `variables` and `dashboard`, the fields of the `update_panels` MCP tool. |
-| `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
+| `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it; a version that does not exist answers `version_not_found` with the latest version. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
-| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when the directory cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
+| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when `--dir` is missing, is a file or cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
 | `bin/observe dashboards schema` | Prints the JSON Schema every dashboard file must satisfy, the document the `get_spec_guide` MCP tool returns; it is part of the program and needs no server. |
 | `bin/observe dashboards sample` | Prints a complete example Spec with variables, several panel types and a layout, to save as a `.json` file and edit before `apply`; it needs no server. |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
@@ -334,6 +340,7 @@ A snapshot block's body cannot change, and a requested block is kept or discarde
 `bin/observe saved-searches save --kind logs|traces|metrics --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
 A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
+A query with a lint error is refused with `query_invalid` and nothing is saved, and a search you already saved with the same title, datasource, query, filters, range and folder prints `Search <id> was already saved` and its address instead of a second copy; `--json` shows `replayed: true`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.

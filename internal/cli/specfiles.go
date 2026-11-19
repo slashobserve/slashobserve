@@ -280,12 +280,20 @@ func (a *app) applyCommand() *cobra.Command {
 			"A file applied before saves into the same dashboard; otherwise the one dashboard in the folder with the same title is adopted, and when there is none a new one is created. A version is saved only when the file changed. Apply never deletes a dashboard.\n" +
 			"It exits 1 when any file failed.",
 		Example: "  observe dashboards apply --dir dashboards",
-		Args:    noArgs,
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return usagef("apply takes a directory, not a file: observe dashboards apply --dir <directory>")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if dir == "" {
+				return usagef("--dir is required: name the directory of ObserveSpec files to apply")
+			}
 			return a.runApply(cmd, dir)
 		},
 	}
-	cmd.Flags().StringVar(&dir, "dir", ".", "the directory to apply")
+	cmd.Flags().StringVar(&dir, "dir", "", "the directory to apply (required)")
 	return cmd
 }
 

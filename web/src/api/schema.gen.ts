@@ -1789,6 +1789,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the tables, or the columns of one table, of a ClickHouse, Elasticsearch or OpenSearch datasource, or the services and span names of Tempo.
+         * @description It runs the same code, validation and limits as the agent's `get_schema` tool. Without `table` it lists the tables; with `table` it lists that table's columns with their types, and `offset` pages on from a `next_offset`. A Tempo datasource has no tables: it answers the services, span names and attribute names it holds, and a request with `table` or `offset` is a 400. Prometheus and Loki datasources answer 400 `invalid_request`; their label names are read with the labels route. An unknown datasource is a 404 `not_found`. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a few rows of a ClickHouse table, or a few log lines or documents of a Loki, Elasticsearch or OpenSearch datasource.
+         * @description It runs the same code, validation and limits as the agent's `sample_rows` tool. `table` is required on ClickHouse; on Loki it is an optional stream selector, and Elasticsearch and OpenSearch read their index pattern without it. Cell values are cut to 300 bytes, and `truncated` is true when columns, cells or rows were dropped to fit. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSample"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/labels": {
         parameters: {
             query?: never;
@@ -2728,7 +2772,7 @@ export interface paths {
         put?: never;
         /**
          * Save a logs, trace or metrics search in a folder.
-         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -4678,6 +4722,40 @@ export interface components {
             unit?: string;
             table?: string;
         };
+        DatasourceTables: {
+            tables: {
+                name: string;
+                kind?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceColumns: {
+            table: string;
+            columns: {
+                name: string;
+                type?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceSpanSchema: {
+            datasource: string;
+            columns: string[];
+            rows: unknown[][];
+            attributes: string[];
+            truncated?: boolean;
+        };
+        DatasourceSample: {
+            table: string;
+            columns: string[];
+            rows: unknown[][];
+            truncated?: boolean;
+        };
         Author: {
             /** @enum {string} */
             kind: "user" | "service_account";
@@ -6309,6 +6387,28 @@ export interface components {
             updated_at: string;
             /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
+        };
+        SavedSearchReplayed: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "logs" | "traces" | "metrics";
+            title: string;
+            datasource_uid: string;
+            query: string | null;
+            filters: components["schemas"]["SavedSearchFilters"];
+            from: string;
+            to: string;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+            actor: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            url: string;
+            /** @description Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy. */
+            replayed: boolean;
         };
         SavedSearchList: {
             saved_searches: components["schemas"]["SavedSearch"][];
@@ -12527,6 +12627,75 @@ export interface operations {
             504: components["responses"]["QueryTimeout"];
         };
     };
+    getDatasourceSchema: {
+        parameters: {
+            query?: {
+                /** @description The table whose columns to list. */
+                table?: string;
+                /** @description How many items to skip, from a previous answer's `next_offset`. */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of tables, or of columns, or the Tempo services and span names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTables"] | components["schemas"]["DatasourceColumns"] | components["schemas"]["DatasourceSpanSchema"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    getDatasourceSample: {
+        parameters: {
+            query?: {
+                table?: string;
+                /** @description Maximum rows to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` rows with their column names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceSample"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
     listDatasourceLabels: {
         parameters: {
             query?: {
@@ -14789,6 +14958,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The search this key had already saved, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchReplayed"];
+                };
+            };
             /** @description The saved search. */
             201: {
                 headers: {
@@ -14803,7 +14981,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
-            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`). */
+            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`). */
             422: {
                 headers: {
                     [name: string]: unknown;

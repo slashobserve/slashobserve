@@ -107,6 +107,9 @@ type Tool struct {
 	Claim       bool
 	MinRole     auth.Role
 	PersonOnly  bool
+	Destructive bool
+
+	OutputSchema json.RawMessage
 
 	Answers bool
 
@@ -258,6 +261,7 @@ type Registry struct {
 	deps    Deps
 	entries map[string]entry
 	fields  map[string]surfaceFields
+	aliases map[string]map[string]string
 	tools   []Tool
 	drafts  draftLimiter
 }
@@ -308,18 +312,21 @@ func New(d Deps) *Registry {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}}
+	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}, aliases: map[string]map[string]string{}}
 	all := r.baseEntries()
 	for _, e := range all {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
+		e.tool.Destructive = destructiveTools[e.tool.Name]
+		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
 		}
 		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
 		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
 		r.fields[e.tool.Name] = surfaceFields{mcp: propertyNames(e.tool.InputSchema), agent: propertyNames(e.tool.AgentInputSchema)}
+		r.aliases[e.tool.Name] = aliasesOf(e.tool.Name, r.fields[e.tool.Name].mcp)
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -346,6 +353,7 @@ func (r *Registry) List() []Tool {
 	for i, t := range r.tools {
 		t.InputSchema = bytes.Clone(t.InputSchema)
 		t.AgentInputSchema = bytes.Clone(t.AgentInputSchema)
+		t.OutputSchema = bytes.Clone(t.OutputSchema)
 		out[i] = t
 	}
 	return out
@@ -386,6 +394,10 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
 	}
+	input, refused, ok := r.canonical(name, input, inRun)
+	if !ok {
+		return refused, nil
+	}
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
 		return Result{}, err
@@ -398,6 +410,13 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		res.Step = callErrorStep(name, eb)
 	}
 	return res, nil
+}
+
+func (r *Registry) canonical(name string, input json.RawMessage, inRun bool) (json.RawMessage, Result, bool) {
+	if inRun {
+		return input, Result{}, true
+	}
+	return r.canonicalInput(name, input)
 }
 
 func (r *Registry) namingFields(name string, inRun bool, res Result) Result {

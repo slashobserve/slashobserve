@@ -29,7 +29,7 @@ type documented struct {
 	who    auth.Principal
 }
 
-func newDocumented(t *testing.T) *documented {
+func newDocumented(t *testing.T, options ...savedsearches.HandlerOption) *documented {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
 	doc := apitest.Load(t)
@@ -39,7 +39,7 @@ func newDocumented(t *testing.T) *documented {
 	}
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: newRig(t), engine: gin.New(), router: router, who: editor}
-	savedsearches.NewHandler(d.service, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
+	savedsearches.NewHandler(d.service, slog.New(slog.DiscardHandler), options...).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
 	})))
 	return d

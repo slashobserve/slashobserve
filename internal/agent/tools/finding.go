@@ -63,7 +63,6 @@ type findingInput struct {
 }
 
 type findingSavedOut struct {
-	Code      string `json:"code"`
 	FindingID string `json:"finding_id"`
 	URL       string `json:"url"`
 	Replayed  bool   `json:"replayed"`
@@ -112,7 +111,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+	return success("Saved finding "+f.ID, findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}), nil
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {
