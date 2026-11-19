@@ -129,7 +129,7 @@ func TestProgressStreamsPanelsAsTheBuildGrows(t *testing.T) {
 	}
 	var stdout, stderr bytes.Buffer
 	progress, req := progressAgainst(t, stub, &output{out: &stdout, err: &stderr})
-	title, ok := progress.finish(context.Background(), *req.DashboardID)
+	title, ok := progress.finish(context.Background(), *req.DashboardID, req.ResultVer)
 	if !ok || title != "Checkout health" {
 		t.Fatalf("finish = %q, %v", title, ok)
 	}
@@ -294,4 +294,56 @@ func TestProgressColourIsOffWithoutATerminal(t *testing.T) {
 	if got := (palette{}).green("x"); got != "x" {
 		t.Fatalf("an off palette painted %q", got)
 	}
+}
+
+func TestProgressListsEveryPanelOfAFreshDashboardThatBuiltBeforeAnyPoll(t *testing.T) {
+	stub := &growingBuild{
+		polls: []pollReply{succeeded()},
+		final: spec(requestsPanel, rowWithChild),
+	}
+	var stderr bytes.Buffer
+	progress, req := progressAgainst(t, stub, &output{out: &bytes.Buffer{}, err: &stderr})
+	if _, ok := progress.finish(context.Background(), *req.DashboardID, req.ResultVer); !ok {
+		t.Fatal("finish failed")
+	}
+	want := []string{"Panel 1: Requests (timeseries)", "Panel 2: Pods up (stat)"}
+	if got := lines(stderr.String()); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("stderr lines %q, want %q", got, want)
+	}
+}
+
+func TestProgressListsOnlyNewPanelsOfARevisionThatBuiltBeforeAnyPoll(t *testing.T) {
+	stub := &growingBuild{
+		polls:       []pollReply{revisionDone(2)},
+		builds:      map[int]string{0: spec(requestsPanel, latencyPanel)},
+		baseVersion: "3",
+		baseSpec:    spec(requestsPanel),
+		final:       spec(requestsPanel, latencyPanel),
+	}
+	var stderr bytes.Buffer
+	progress, req := progressAgainst(t, stub, &output{out: &bytes.Buffer{}, err: &stderr})
+	if _, ok := progress.finish(context.Background(), *req.DashboardID, req.ResultVer); !ok {
+		t.Fatal("finish failed")
+	}
+	want := []string{"Panel 2 of 2: p99 (timeseries)"}
+	if got := lines(stderr.String()); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("stderr lines %q, want %q", got, want)
+	}
+}
+
+func TestProgressSaysNothingWhenTheBaseOfARevisionCannotBeRead(t *testing.T) {
+	stub := &growingBuild{
+		polls: []pollReply{revisionDone(2)},
+		final: spec(requestsPanel),
+	}
+	var stderr bytes.Buffer
+	progress, req := progressAgainst(t, stub, &output{out: &bytes.Buffer{}, err: &stderr})
+	progress.finish(context.Background(), *req.DashboardID, req.ResultVer)
+	if got := lines(stderr.String()); len(got) != 0 {
+		t.Fatalf("stderr lines %q, want none", got)
+	}
+}
+
+func revisionDone(version int) pollReply {
+	return pollReply{body: fmt.Sprintf(`{"request":{"id":"r","status":"succeeded","dashboard_id":"%s","result_version":%d,"url":"http://x/d/%s","steps":[],"build":null}}`, progressDashboardID, version, progressDashboardID)}
 }

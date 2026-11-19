@@ -36,6 +36,8 @@ type activityOptions struct {
 	types       []string
 	since       string
 	limit       int
+	cursor      string
+	all         bool
 	follow      bool
 }
 
@@ -48,6 +50,8 @@ type activityData struct {
 	RestoredFrom  int      `json:"restored_from"`
 	Title         string   `json:"title"`
 	Kind          string   `json:"kind"`
+	BlockKind     string   `json:"block_kind"`
+	State         string   `json:"state"`
 	Tags          []string `json:"tags"`
 	ResultVersion int      `json:"result_version"`
 	Revision      int      `json:"revision"`
@@ -104,13 +108,18 @@ func (a *app) activityCommand() *cobra.Command {
 	flags.StringSliceVar(&a.activity.types, "type", nil, "only events of this type, such as dashboard.moved; repeat for several")
 	flags.StringVar(&a.activity.since, "since", "", "only events since a duration ago such as 24h, or since an RFC 3339 time")
 	flags.IntVar(&a.activity.limit, "limit", defaultActivityLimit, "the newest events to print, 1 to 100")
+	flags.StringVar(&a.activity.cursor, "cursor", "", "continue from the next_cursor a page ended with")
+	flags.BoolVar(&a.activity.all, "all", false, "read every page and print them as one list")
 	flags.BoolVar(&a.activity.follow, "follow", false, "keep printing new events until Ctrl-C")
 	return cmd
 }
 
 func (o activityOptions) filters(now time.Time) (url.Values, error) {
-	if o.limit < 1 || o.limit > maxActivityLimit {
-		return nil, usagef("--limit must be 1 to %d", maxActivityLimit)
+	if err := (pageOptions{limit: o.limit, maxLimit: maxActivityLimit, cursor: o.cursor, all: o.all}).check(); err != nil {
+		return nil, err
+	}
+	if o.follow && (o.all || o.cursor != "") {
+		return nil, usagef("--follow prints the newest events and then new ones, so it cannot be combined with --all or --cursor")
 	}
 	query := url.Values{}
 	if o.dashboard != "" {
@@ -173,8 +182,10 @@ func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
 	}
 	ctx := cmd.Context()
 	page := maps.Clone(filters)
-	page.Set("limit", strconv.Itoa(opts.limit))
-	data, err := c.get(ctx, "activity", page)
+	for key, values := range (pageOptions{limit: opts.limit, cursor: opts.cursor}).query() {
+		page[key] = values
+	}
+	data, err := c.getPages(ctx, "activity", page, opts.all)
 	if err != nil {
 		return err
 	}
@@ -195,6 +206,11 @@ func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
 		printActivity(out, a.json, entry)
 	}
 	if !opts.follow {
+		next, err := nextCursor(data)
+		if err != nil {
+			return err
+		}
+		pageFooter(out, len(entries), nil, &next)
 		return nil
 	}
 	follower := &activityFollower{c: c, query: filters, out: out, json: a.json, retry: defaultStreamRetry, idle: streamIdleTimeout}
@@ -255,6 +271,11 @@ func describe(e activityEvent) string {
 			return "added an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
 		}
 		return "added an annotation"
+	case "annotation.updated":
+		if len(d.Tags) > 0 {
+			return "edited an annotation (" + text(strings.Join(d.Tags, ", ")) + ")"
+		}
+		return "edited an annotation"
 	case "annotation.deleted":
 		return "deleted an annotation"
 	case "finding.created":
@@ -270,6 +291,9 @@ func describe(e activityEvent) string {
 	if phrase, ok := describeDashboard(e); ok {
 		return phrase
 	}
+	if phrase, ok := describeObservation(e); ok {
+		return phrase
+	}
 	if phrase, ok := describeRun(e); ok {
 		return phrase
 	}
@@ -280,6 +304,47 @@ func describe(e activityEvent) string {
 		return phrase
 	}
 	return text(e.Type)
+}
+
+func quotedObservation(title string) string {
+	if title == "" {
+		return "an observation"
+	}
+	return "the observation " + `"` + text(title) + `"`
+}
+
+func describeObservation(e activityEvent) (string, bool) {
+	d := e.Data
+	target := quotedObservation(d.Title)
+	block := text(d.BlockKind) + " block"
+	switch e.Type {
+	case "observation.created":
+		return "started " + target, true
+	case "observation.updated":
+		return "edited " + target, true
+	case "observation.moved":
+		return "moved " + target, true
+	case "observation.resolved":
+		return "resolved " + target, true
+	case "observation.reopened":
+		return "reopened " + target, true
+	case "observation.published":
+		return fmt.Sprintf("published revision %d of %s", d.Revision, target), true
+	case "observation.block_added":
+		if d.State == "requested" {
+			return "requested a " + block + " on " + target, true
+		}
+		return "added a " + block + " to " + target, true
+	case "observation.block_updated":
+		return "changed a " + block + " on " + target, true
+	case "observation.block_kept":
+		return "kept a " + block + " on " + target, true
+	case "observation.block_discarded":
+		return "discarded a " + block + " on " + target, true
+	case "observation.block_removed":
+		return "removed a " + block + " from " + target, true
+	}
+	return "", false
 }
 
 func quotedProposal(title string) string {
@@ -403,6 +468,8 @@ func objectPhrase(kind string) string {
 		return "a " + kind
 	case "annotation":
 		return "an annotation"
+	case "observation":
+		return "an observation"
 	}
 	return "an object"
 }

@@ -20,6 +20,7 @@ type searchOptions struct {
 	kinds  []string
 	limit  int
 	cursor string
+	all    bool
 }
 
 type searchSegment struct {
@@ -48,19 +49,23 @@ func (a *app) searchCommand() *cobra.Command {
 		Long:  "search finds what you can read in the workspace by words, ranked by relevance.\nEvery word must match; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix.\nPut words that start with - after --.\n--kind narrows it to dashboard, annotation, observation, comment or saved_search and may be repeated; finding is a deprecated alias of observation.",
 		Example: "  observe search checkout latency\n" +
 			"  observe search \"connection reset\" --kind comment --kind observation -- -staging",
-		Args: cobra.MinimumNArgs(1),
+		Args: minimumArgs(1, "at least one word to search for"),
 		RunE: a.runSearch,
 	}
 	flags := cmd.Flags()
 	flags.StringArrayVar(&a.searching.kinds, "kind", nil, "only this kind: "+strings.Join(searchKinds, ", ")+"; repeat it for several")
 	flags.IntVar(&a.searching.limit, "limit", defaultSearchLimit, "results per page, 1 to 50")
-	flags.StringVar(&a.searching.cursor, "cursor", "", "continue from a next_cursor")
+	flags.StringVar(&a.searching.cursor, "cursor", "", "continue from the next_cursor a page ended with")
+	flags.BoolVar(&a.searching.all, "all", false, "read every page and print them as one list")
 	return cmd
 }
 
 func (o searchOptions) query(words []string) (url.Values, error) {
 	if o.limit < 1 || o.limit > maxSearchLimit {
 		return nil, usagef("--limit must be 1 to %d", maxSearchLimit)
+	}
+	if o.all && o.cursor != "" {
+		return nil, usagef("--all reads every page from the start, so it cannot be combined with --cursor")
 	}
 	for _, kind := range o.kinds {
 		if !slices.Contains(searchKinds, kind) {
@@ -86,7 +91,7 @@ func (a *app) runSearch(cmd *cobra.Command, words []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "search", query)
+	data, err := c.getPages(cmd.Context(), "search", query, a.searching.all)
 	if err != nil {
 		return err
 	}
@@ -116,7 +121,7 @@ func (a *app) runSearch(cmd *cobra.Command, words []string) error {
 			out.line("    %s", snippet)
 		}
 	}
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Results), nil, page.NextCursor)
 	return nil
 }
 

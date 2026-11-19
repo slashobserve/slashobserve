@@ -296,11 +296,11 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 73 tools: MCP clients get 72, every one except `save_finding`, which only a run offers.
+The server has 74 tools: MCP clients get 73, every one except `save_finding`, which only a run offers.
 The built-in agent gets 26 in a new-dashboard or revision request and 25 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 46 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `list_activity`, `list_dashboard_health`, `recheck_datasource`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 47 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin and claim tools, the dashboard version, move and duplicate tools, `list_folders`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `recheck_datasource`, `get_run`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` is offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into; MCP clients also read them in full with `get_observation`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
