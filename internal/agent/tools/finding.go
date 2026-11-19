@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,7 @@ const (
 
 	defaultWindow = time.Hour
 
-	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times as UTC with the word UTC, and never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics with a filter for the service. Reads are refused once the run's limit of model calls passes without a save, so run every read together, and put a read you were refused in the finding as not read. Cite an earlier observation you read by its title and /o/<id> link. A request on Home to change an existing dashboard cannot be done there: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
+	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it once, after checking each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's limit of model calls passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link. A request on Home to change an existing dashboard cannot be done there: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
@@ -99,6 +100,9 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil || !ok {
 		return res, err
 	}
+	if res, wrong := zoneMismatch(save.Markdown, run.TimeZone, save.From, save.To); wrong {
+		return res, nil
+	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
@@ -132,7 +136,7 @@ func askOnTarget(raw string, run Run) (pgtype.UUID, Result, bool) {
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {
-	markdown, res, ok := findingMarkdown(in.Markdown, ReadsRefused(ctx))
+	markdown, res, ok := findingMarkdown(in.Markdown, ReadsRefused(ctx), UncheckedReads(ctx))
 	if !ok {
 		return findings.SaveInput{}, res, false, nil
 	}
@@ -163,12 +167,29 @@ func readsCaveat(refused int) string {
 	return fmt.Sprintf("\n\n_Reading stopped early: %s refused after the run reached its limit of model calls, so the counts above may be partial. Ask again about the part that matters to read it fully._", plural(refused, "read was", "reads were"))
 }
 
-func findingMarkdown(raw string, refused int) (string, Result, bool) {
+var uncheckedReasons = map[string]string{
+	string(queryproxy.CodeQueryTimeout):    "a read timed out",
+	string(queryproxy.CodeDatasourceDown):  "the datasource did not answer",
+	string(queryproxy.CodeTooManyRequests): "the server was too busy to ask it",
+}
+
+func uncheckedCaveat(unchecked []Unchecked) string {
+	if len(unchecked) == 0 {
+		return ""
+	}
+	parts := make([]string, len(unchecked))
+	for i, u := range unchecked {
+		parts[i] = fmt.Sprintf("%s (%s)", clip(u.Datasource, maxStepNameBytes), cmp.Or(uncheckedReasons[u.Code], "a read failed"))
+	}
+	return "\n\n_Could not check " + strings.Join(parts, ", ") + ": those reads did not finish, so this answer does not show that their data is missing._"
+}
+
+func findingMarkdown(raw string, refused int, unchecked []Unchecked) (string, Result, bool) {
 	markdown := strings.TrimSpace(raw)
 	if markdown == "" {
 		return "", invalid("markdown is required"), false
 	}
-	caveat := readsCaveat(refused)
+	caveat := readsCaveat(refused) + uncheckedCaveat(unchecked)
 	maxWords := findings.MaxWords - findings.Words(caveat)
 	maxRunes := findings.MaxMarkdownRunes - utf8.RuneCountInString(caveat)
 	if n := findings.Words(markdown); n > maxWords {

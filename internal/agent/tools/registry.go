@@ -125,6 +125,7 @@ type Result struct {
 	Discovered *Discovery
 	Refusal    Refusal
 	Edits      Edits
+	Unchecked  string
 }
 
 type Edits struct {
@@ -202,6 +203,7 @@ type Run struct {
 	Build         bool
 	Attempt       int
 	From, To      time.Time
+	TimeZone      string
 }
 
 type runKey struct{}
@@ -215,6 +217,22 @@ func WithReadsRefused(ctx context.Context, n int) context.Context {
 func ReadsRefused(ctx context.Context) int {
 	n, _ := ctx.Value(readsRefusedKey{}).(int)
 	return n
+}
+
+type Unchecked struct {
+	Datasource string
+	Code       string
+}
+
+type uncheckedKey struct{}
+
+func WithUnchecked(ctx context.Context, unchecked []Unchecked) context.Context {
+	return context.WithValue(ctx, uncheckedKey{}, unchecked)
+}
+
+func UncheckedReads(ctx context.Context) []Unchecked {
+	unchecked, _ := ctx.Value(uncheckedKey{}).([]Unchecked)
+	return unchecked
 }
 
 func WithRun(ctx context.Context, run Run) context.Context {
@@ -565,6 +583,7 @@ func callErrorStep(tool string, eb errorBody) string {
 type errorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+	Note    string `json:"note,omitempty"`
 
 	unknownField bool
 }

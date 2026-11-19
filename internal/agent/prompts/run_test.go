@@ -109,7 +109,6 @@ func TestBuildAnswersATermAndNamesWhatTheServerCannotDo(t *testing.T) {
 	for _, want := range []string{
 		`"what does p99 mean": answer with ` + "`save_finding`" + ` in two or three lines`,
 		"alerts, notifications and schedules",
-		"that is a rule and offer plain text",
 		"keep panel ids, positions, filters, variables",
 		"naming each repaired query and what changed",
 		"keeping its metric and meaning",
@@ -123,16 +122,34 @@ func TestBuildAnswersATermAndNamesWhatTheServerCannotDo(t *testing.T) {
 func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
-		"write every time as UTC with the word UTC",
+		"write every time in the time zone the context names, with its label, or with the word UTC when it names none",
 		"When several pods or services tie, lead with the one with the most errors, then the first by name",
 		"Call `list_annotations`",
 		"read it with `get_observation`, and cite it by its title and `/o/<id>`",
-		"Before you say a signal does not exist, list its metrics with a filter for the service",
+		"Before you say a signal does not exist, list its metrics with scope set to a selector for the service",
+		"a read that failed or timed out could not check anything",
 		"say in the finding what you did not read",
 		"Write the first sentence in plain words",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("investigate text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildLetsTextPanelsHoldMarkdownButNotHTML(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"- Never write HTML or JavaScript; Markdown (bold, lists, tables) goes only in a text panel's `content`, so write an asked-for HTML table in Markdown.",
+		"- Add a `text` panel only when the request asks for notes, as Markdown in `content`.",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+	for _, refusal := range []string{"Markdown anywhere in a Spec", "plain sentences in `content`", "all text is plain"} {
+		if strings.Contains(system, refusal) {
+			t.Errorf("system text still forbids Markdown: %q", refusal)
 		}
 	}
 }

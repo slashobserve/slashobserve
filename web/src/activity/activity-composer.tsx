@@ -104,6 +104,7 @@ type Props = {
   notice?: ReactNode
   runningRequestId?: string
   range: { from: string; to: string }
+  timeZone: string
 }
 
 const noPeople: readonly MentionPerson[] = []
@@ -155,6 +156,7 @@ export function ActivityComposer({
   notice,
   runningRequestId,
   range,
+  timeZone,
 }: Props) {
   const commands = availableCommands({
     hasDashboard: true,
@@ -327,16 +329,19 @@ export function ActivityComposer({
       failed(plan.error)
       return
     }
-    createRequest.mutate(plan.input, {
-      onSuccess: () => {
-        history.record(withCommand("investigate", trimmed))
-        succeeded("Sent to the agent")
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(dashboardId),
-        })
-      },
-      onError: (error) => failed(investigateFailureText(error)),
-    })
+    createRequest.mutate(
+      { ...plan.input, timeZone },
+      {
+        onSuccess: () => {
+          history.record(withCommand("investigate", trimmed))
+          succeeded("Sent to the agent")
+          void queryClient.invalidateQueries({
+            queryKey: dashboardKeys.revisions(dashboardId),
+          })
+        },
+        onError: (error) => failed(investigateFailureText(error)),
+      }
+    )
   }
 
   function onSubmit(event: FormEvent) {

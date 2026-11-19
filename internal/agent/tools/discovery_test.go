@@ -136,7 +136,7 @@ func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	if got, want := res.Content.(errorBody).Message, "the server is making too many datasource calls right now; try again shortly"; got != want {
 		t.Fatalf("message = %q, want %q", got, want)
 	}
-	if want := "Listing metrics on fake: too_many_requests"; res.Step != want {
+	if want := "Listing metrics on fake: could not check, too_many_requests"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
@@ -215,6 +215,25 @@ func TestListMetricsPagesWithOffset(t *testing.T) {
 	out = res.Content.(metricsOut)
 	if !slices.Equal(metricNames(out), []string{"m016", "m017", "m018", "m019"}) || out.truncation != (truncation{}) {
 		t.Fatalf("last page = %v %+v", metricNames(out), out.truncation)
+	}
+}
+
+func TestAnEmptyMetricSearchSaysAServiceIsALabelValue(t *testing.T) {
+	r := newTestRegistry(t, metricsFake(0), nil)
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake","search":"checkout"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	out := res.Content.(metricsOut)
+	if len(out.Metrics) != 0 || !strings.Contains(out.Note, `no metric name contains "checkout", which does not mean no metric has it`) || !strings.Contains(out.Note, `{service="checkout"}`) {
+		t.Fatalf("out = %+v", out)
+	}
+	for _, input := range []string{`{"datasource":"fake"}`, `{"datasource":"fake","search":"m0"}`} {
+		r := newTestRegistry(t, metricsFake(3), nil)
+		res, err := call(t, r, nameListMetrics, input)
+		if err != nil || res.IsError || res.Content.(metricsOut).Note != "" {
+			t.Fatalf("%s: res = %#v err = %v", input, res.Content, err)
+		}
 	}
 }
 

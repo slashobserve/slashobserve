@@ -73,6 +73,7 @@ type observeRequest struct {
 
 	ObservationID *string `json:"observation_id"`
 	FollowsID     *string `json:"follows_id"`
+	TimeZone      *string `json:"time_zone"`
 }
 
 type patchObserveRequest struct {
@@ -239,6 +240,14 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	if err != nil {
 		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
+	}
+	if req.TimeZone != nil {
+		zone, err := CheckTimeZone(*req.TimeZone)
+		if err != nil {
+			httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
+			return
+		}
+		c.Request = c.Request.WithContext(WithTimeZone(c.Request.Context(), zone))
 	}
 	switch {
 	case req.Kind == nil || *req.Kind == KindBuild:

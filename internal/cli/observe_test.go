@@ -487,6 +487,31 @@ func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 	}
 }
 
+const askOnDashboardID = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
+
+func TestAFindingFromHomeSaysWhichDashboardToAskOn(t *testing.T) {
+	finding := `{"id":"f1","title":"Add a stat panel","markdown":"The change goes on Checkout.","url":"https://observe.example.com/o/f1","ask_on":{"dashboard_id":"` + askOnDashboardID + `","title":"Checkout"}}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"queued","steps":[]}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"succeeded","prompt":"on Checkout add Ada's stat panel","dashboard_id":null,"result_version":null,"steps":[],"finding":`+finding+`}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	stdout, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "on", "Checkout", "add", "Ada's", "stat", "panel")
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	want := "Add a stat panel\n\nThe change goes on Checkout.\n\nhttps://observe.example.com/o/f1\n\nThis change is made on the dashboard Checkout. Ask there:\n  observe --dashboard " + askOnDashboardID + ` 'on Checkout add Ada'\''s stat panel'` + "\n"
+	if stdout != want {
+		t.Errorf("stdout %q\nwant %q", stdout, want)
+	}
+}
+
 func TestPrintRequestShowsTheTitleAndPrompt(t *testing.T) {
 	var stdout bytes.Buffer
 	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "failed", Title: "Checkout latency", Prompt: "checkout p99\nlast 6h"})
