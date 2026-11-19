@@ -2633,7 +2633,7 @@ export interface paths {
         put?: never;
         /**
          * Save a logs or trace search in a folder.
-         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind and the datasource never change afterwards: save a new search instead. The query, filters and range can be changed with a PATCH.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -2662,8 +2662,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename a saved search or move it to another folder.
-         * @description Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead. A rename appends `saved_search.updated`, a move appends `saved_search.moved` and takes the earlier events of the search to the new folder, and a change to what the search already has appends nothing. A body with neither `title` nor `folder_id` answers 400.
+         * Rename a saved search, move it to another folder or change what it searches.
+         * @description Needs Edit on the saved search; a move also needs Edit on the target folder, and a move into a personal folder answers 409 `personal_folder`, because it would make the search private: save it there instead. `query`, `filters`, `from` and `to` replace what the search runs; the kind and the datasource never change, and the result is checked the way a save is, so a rule a save would break answers 422 `invalid_saved_search`. A rename or a change of what it searches appends one `saved_search.updated` that lists what changed, a move appends `saved_search.moved` and takes the earlier events of the search to the new folder, and a change to what the search already has appends nothing. A body with none of `title`, `folder_id`, `query`, `filters`, `from` and `to` answers 400.
          */
         patch: operations["updateSavedSearch"];
         trace?: never;
@@ -6149,6 +6149,13 @@ export interface components {
             title?: string;
             /** Format: uuid */
             folder_id?: string;
+            /** @description The new query, 1 to 8000 characters; an empty string clears the query of a Tempo trace search and is refused for a logs search. */
+            query?: string;
+            /** @description Replaces all the filters, so send every one the search should keep; null clears them. */
+            filters?: components["schemas"]["SavedSearchFilters"] | null;
+            /** @description A time expression the time range accepts. */
+            from?: string;
+            to?: string;
         };
         FindingList: {
             findings: components["schemas"]["Finding"][];

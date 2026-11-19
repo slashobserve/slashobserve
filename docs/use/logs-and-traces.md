@@ -571,11 +571,11 @@ On the trace search, **Save search** is disabled and says why when you cannot cr
 A search is saved in a folder, which needs the Create permission there.
 Without a folder it goes to your My Dashboards, and a service account saves it in General.
 Everyone who can view the folder can open the search, and the folder's permissions decide who may change it, as [Folders](../teams/folders.md) describes.
-Renaming, moving and deleting a saved search need Edit on it, and a move needs Edit on the target folder too.
+Renaming, moving, changing what it searches and deleting a saved search need Edit on it, and a move needs Edit on the target folder too.
 A search cannot move into a personal folder, because that would make it private without asking: save it there instead.
-The kind, datasource, query, filters and range never change, so save a new search to change one of them.
+The kind and the datasource never change, so save a new search to change either; the query, filters and range can be replaced, and the result must pass the same rules as a save.
 
-`POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one and `DELETE` removes it.
+`POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one, or replaces its `query`, `filters`, `from` and `to`, and `DELETE` removes it.
 Each saved search carries the `url` of the page that reopens it, and each change is recorded in [Activity](activity.md).
 Deleting a folder that still holds a saved search is refused, and deleting a user deletes the searches in their personal folder.
 

@@ -111,7 +111,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 }
 
 func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID, in UpdateInput) (SavedSearch, error) {
-	if in.Title == nil && !in.FolderID.Valid {
+	if in.Title == nil && !in.FolderID.Valid && !in.changesContent() {
 		return SavedSearch{}, ErrNothingToUpdate
 	}
 	var title *string
@@ -149,8 +149,13 @@ func (s *Service) updateOnce(ctx context.Context, by auth.Principal, id pgtype.U
 		}
 		changed.moveTo = in.FolderID
 	}
+	if in.changesContent() {
+		if changed.content, err = s.mergeContent(current, in, time.Now()); err != nil {
+			return SavedSearch{}, err
+		}
+	}
 	row := current
-	if changed.title != nil || changed.moveTo.Valid {
+	if changed.title != nil || changed.moveTo.Valid || changed.content != nil {
 		if row, err = s.store.update(ctx, actor.Of(by, origin.From(ctx), ""), id, current.FolderID, changed); err != nil {
 			return SavedSearch{}, err
 		}

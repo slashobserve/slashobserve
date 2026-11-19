@@ -18,7 +18,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
-| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
+| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, changed (its query, filters or range), moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
