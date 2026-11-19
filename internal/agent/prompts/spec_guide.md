@@ -21,8 +21,8 @@ The schema leaves out rare, import-only and purely visual options; when a Spec y
 - Panel ids are unique across the dashboard, row children included, lowercase snake case, prefixed `p_`; a dashboard holds at most 200 panels.
 - A `row` groups the panels after it under a title: put them in the row's `panels`, each with its own `gridPos` below the row.
 - Never create a `placeholder` panel; they come only from Grafana imports. You may move it (`gridPos`, or into or out of a row) or delete it, but leave its other fields unchanged; to implement one, replace it with a real panel that keeps its id.
-- Leave text panels with `mode: "html"` and canvas element `actions` exactly as they are; they come only from imports and people. You may move or delete them.
-- Add a `text` panel only when the request asks for notes, as plain sentences in `content`.
+- Leave text panels with `mode: "html"` and canvas element `actions` as they are; people and imports write them. You may move or delete them.
+- Add a `text` panel only when asked for notes, as plain sentences in `content`, `h` = 2 + ceil(characters / (6 * `w`)).
 
 ## Panel type by data shape
 Decide what the data is before choosing a type: one value, a value against a limit, a trend, a distribution, a ranking, a share, rows of attributes, states, logs or events.
