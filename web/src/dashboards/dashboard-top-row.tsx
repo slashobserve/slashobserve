@@ -78,26 +78,30 @@ export function DashboardTopRow({
         aria-label="Breadcrumb"
         className="flex min-w-0 flex-nowrap items-center gap-2 text-[13px]"
       >
-        <Link
-          to="/dashboards"
-          className="shrink-0 rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Dashboards
-        </Link>
-        <Separator />
-        {folder ? (
+        {narrow ? null : (
           <>
             <Link
               to="/dashboards"
-              search={{ folder: folder.id }}
-              title={folder.title}
-              className="max-w-[24ch] shrink-0 truncate rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {folder.title}
+              Dashboards
             </Link>
             <Separator />
+            {folder ? (
+              <>
+                <Link
+                  to="/dashboards"
+                  search={{ folder: folder.id }}
+                  title={folder.title}
+                  className="max-w-[24ch] shrink-0 truncate rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {folder.title}
+                </Link>
+                <Separator />
+              </>
+            ) : null}
           </>
-        ) : null}
+        )}
         <h1
           aria-current="page"
           title={title}
@@ -105,7 +109,7 @@ export function DashboardTopRow({
         >
           {title}
         </h1>
-        {madeBy ? (
+        {madeBy && !narrow ? (
           <span className="shrink-0 text-xs text-muted-foreground">
             {madeBy}
           </span>
