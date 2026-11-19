@@ -22,4 +22,23 @@ describe("SaveProblem", () => {
       )
     ).toBeVisible()
   })
+
+  it("ends the empty-result message with a full stop before the Save anyway advice", () => {
+    render(
+      <SaveProblem
+        problem={{
+          kind: "empty",
+          message: "query returned no data for the dashboard's time range",
+        }}
+        panelId="p1"
+        onRetry={() => {}}
+        onSaveAnyway={() => {}}
+      />
+    )
+    expect(
+      screen.getByText(
+        /^Query returned no data for the dashboard's time range\. If that is expected/
+      )
+    ).toBeVisible()
+  })
 })

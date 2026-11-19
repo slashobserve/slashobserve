@@ -26,6 +26,7 @@ import type { EditablePanel } from "./draft"
 import { withPanel } from "./panel-json"
 import {
   previewBlocksSave,
+  previewErrorShownInline,
   previewErrorText,
   previewStatusText,
   seriesCount,
@@ -44,6 +45,7 @@ export type PreviewSectionProps = {
   timeRange: { from?: string; to?: string }
   selections: Selections | null
   onSaveBlockedChange: (blocked: boolean) => void
+  inlineErrorRefs: ReadonlySet<string>
 }
 
 const debounceMs = 600
@@ -146,6 +148,7 @@ function DataPreview({
   selections,
   width,
   onSaveBlockedChange,
+  inlineErrorRefs,
 }: DataPreviewProps) {
   const draftJson = stableJson(draft)
   const debounced = useDebouncedValue(draft, draftJson, debounceMs)
@@ -249,6 +252,11 @@ function DataPreview({
         to={timeRange.to}
       />
     )
+  } else if (
+    status.kind === "error" &&
+    previewErrorShownInline(preview.error, inlineErrorRefs)
+  ) {
+    body = <div style={{ height: chartHeight }} />
   } else if (status.kind === "error") {
     body = (
       <div
@@ -300,6 +308,7 @@ export function PreviewSection({
   timeRange,
   selections,
   onSaveBlockedChange,
+  inlineErrorRefs,
 }: PreviewSectionProps) {
   const { ref, width } = useContentWidth()
   let content = null
@@ -322,6 +331,7 @@ export function PreviewSection({
           selections={selections}
           width={width}
           onSaveBlockedChange={onSaveBlockedChange}
+          inlineErrorRefs={inlineErrorRefs}
         />
       )
     ) : (

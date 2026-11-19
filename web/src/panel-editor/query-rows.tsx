@@ -46,6 +46,7 @@ type Props = {
   sourceTitle: (panelId: string) => string
   onActiveChange: (ref: string) => void
   onRemoved: (ref: string) => void
+  onInlineErrorChange: (ref: string, shown: boolean) => void
   focusFirst: boolean
   editorRefs: RefObject<(CodeEditorHandle | null)[]>
   beforeAdd?: ReactNode
@@ -99,6 +100,7 @@ export function QueryRows({
   sourceTitle,
   onActiveChange,
   onRemoved,
+  onInlineErrorChange,
   focusFirst,
   editorRefs,
   beforeAdd,
@@ -197,6 +199,7 @@ export function QueryRows({
             }
             onRemove={remove}
             onFocus={() => onActiveChange(ref)}
+            onInlineErrorChange={onInlineErrorChange}
             editorRef={(handle) => {
               editorRefs.current[index] = handle
             }}

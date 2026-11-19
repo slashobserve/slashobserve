@@ -254,6 +254,7 @@ The item is greyed, with the reason after it, when the panel has several queries
 
 An Editor's panel menu has **Duplicate** and **Remove** on the latest version, while no layout change is unsaved.
 **Duplicate** saves a new version with a copy titled "<title> copy" right under the panel, moving the panels below it down, and runs only the copy's queries.
+A copy of a panel whose query returns no data, such as one you saved with **Save anyway**, is kept as it is and marked "Unverified" like the original.
 **Remove** asks to confirm with the panel's title, then saves a new version without the panel and runs no query.
 Restoring the version before it from History brings a removed panel back.
 Agents and scripts make the same changes with the `update_panels` MCP tool or `observe dashboards panels`, both on `POST /api/v1/dashboards/{id}/panels`.
