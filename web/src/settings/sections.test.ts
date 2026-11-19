@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest"
 
-import { selectedSectionId, settingsGroups, settingsPanel } from "./sections"
+import {
+  sectionNotice,
+  selectedSectionId,
+  settingsGroups,
+  settingsPanel,
+} from "./sections"
 
 const layout = (role: Parameters<typeof settingsGroups>[0]) =>
   settingsGroups(role).map((group) => ({
@@ -104,6 +109,10 @@ describe("selectedSectionId", () => {
     expect(selectedSectionId(viewer, "agent")).toBe("server")
   })
 
+  test("selects the Grafana connection by the words of its label", () => {
+    expect(selectedSectionId(admin, "grafana-connection")).toBe("grafana")
+  })
+
   test("falls back to the server for an unknown or differently cased hash", () => {
     expect(selectedSectionId(admin, "keys")).toBe("server")
     expect(selectedSectionId(admin, "Server")).toBe("server")
@@ -117,6 +126,32 @@ describe("selectedSectionId", () => {
         expect(selectedSectionId(groups, hash)).toBe("server")
       }
     }
+  })
+})
+
+describe("sectionNotice", () => {
+  const admin = settingsGroups("admin")
+  const viewer = settingsGroups("viewer")
+
+  test("says nothing for a section the role can open, no hash or the old Agent hash", () => {
+    expect(sectionNotice(admin, "")).toBeNull()
+    expect(sectionNotice(admin, "webhooks")).toBeNull()
+    expect(sectionNotice(admin, "grafana-connection")).toBeNull()
+    expect(sectionNotice(viewer, "agent")).toBeNull()
+  })
+
+  test("reports a hash that names no section", () => {
+    expect(sectionNotice(admin, "keys")).toEqual({
+      hash: "keys",
+      adminOnly: false,
+    })
+  })
+
+  test("reports a section that only Admins can open", () => {
+    expect(sectionNotice(viewer, "webhooks")).toEqual({
+      hash: "webhooks",
+      adminOnly: true,
+    })
   })
 })
 

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { useRouteContext } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
@@ -8,10 +9,10 @@ import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
-import { examplePrompts } from "./examples"
-import { RecentChats } from "./recent-chats"
+import { roleAtLeast } from "@/lib/roles"
 
-const noDashboards: readonly { id: string; title: string }[] = []
+import { examplePrompts, noDashboards } from "./examples"
+import { RecentChats } from "./recent-chats"
 
 export function ChatHome() {
   const agent = useAgentInfo()
@@ -19,10 +20,12 @@ export function ChatHome() {
   const dashboards = useQuery(dashboardTitlesQuery())
   const { send, pending } = useSendExample()
   const openSent = useOpenSent()
+  const { principal } = useRouteContext({ from: "/_authed" })
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
+    canBuild: roleAtLeast(principal.role, "editor"),
   })
   const agentReady = !agent.isPending && agent.data?.available !== false
   const agentOff = agent.data?.available === false
@@ -33,7 +36,7 @@ export function ChatHome() {
         What do you want to see?
       </h1>
       {agentOff ? <DashboardsSection /> : null}
-      <div className="w-full max-w-[720px]">
+      <div className="w-full max-w-[720px] min-[1800px]:max-w-[960px]">
         <ChatComposer
           rows={3}
           placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
@@ -46,7 +49,7 @@ export function ChatHome() {
         <div
           role="group"
           aria-label="Example prompts"
-          className="flex max-w-[720px] flex-wrap justify-center gap-2"
+          className="flex max-w-[720px] flex-wrap justify-center gap-2 min-[1800px]:max-w-[960px]"
         >
           {examples.map((example) => (
             <Button

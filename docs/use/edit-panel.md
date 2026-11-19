@@ -26,6 +26,8 @@ Data panels, text panels, dashboard lists and news panels can be edited.
 Pressing Escape, the browser's Back or Forward, or leaving the page, with unsaved changes asks "Discard your changes?" with **Keep editing** and **Discard**.
 **Keep editing** keeps the draft and its address.
 An editor opened from a bookmark or a pasted link adds the dashboard without the editor behind it in the browser history, so Back asks the same question instead of leaving the app.
+If your session ends while you have unsaved changes, for example another tab signed you out, the editor keeps them in this tab's session storage.
+After you sign in and reopen the panel, "Your unsaved changes were kept." offers **Restore my changes**, which lays them over the panel as it is now, and **Discard them**; nothing is kept when you close the editor in any other way, and nothing reaches the server.
 
 The **Editor view** switch at the top changes between **Editor** and **JSON**.
 

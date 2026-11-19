@@ -14,6 +14,7 @@ import {
   ArrowUpRightIcon,
   BookmarkIcon,
   BotIcon,
+  BookOpenIcon,
   ChartGanttIcon,
   DatabaseIcon,
   FlagIcon,
@@ -38,6 +39,8 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { useExploreSources } from "@/datasources/use-sources"
+import { readRecent } from "@/home/recent"
+import { docsUrl } from "@/lib/docs"
 import { isModChord } from "@/lib/shortcuts"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -90,6 +93,8 @@ const actionIcons: Record<
   "action:ask": TerminalIcon,
   "action:import": UploadIcon,
   "action:theme": SunMoonIcon,
+  "action:docs": BookOpenIcon,
+  "action:search-all": SearchIcon,
   "action:sign-out": LogOutIcon,
 }
 
@@ -145,6 +150,7 @@ function PaletteBody({ close }: { close: () => void }) {
   const { signOut } = useSignOut()
   const toggleTheme = useToggleTheme()
   const titles = useQuery(dashboardTitlesQuery())
+  const [recentObservations] = useState(() => readRecent("observation"))
   const needle = query.trim()
   const settled = useDebouncedValue(needle, needle, searchDebounceMs)
   const searching = needle.length >= minSearchLength
@@ -178,7 +184,8 @@ function PaletteBody({ close }: { close: () => void }) {
     titles.data ?? [],
     search.data ?? [],
     principal.role,
-    sources
+    sources,
+    recentObservations
   )
 
   const highlighted = useRef<PaletteEntry | undefined>(undefined)
@@ -204,6 +211,10 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: "/", search: {} })
     } else if (entry.id === "action:import") {
       void navigate({ to: "/", search: { tab: "import" } })
+    } else if (entry.id === "action:search-all") {
+      void navigate({ to: "/search", search: { q: needle } })
+    } else if (entry.id === "action:docs") {
+      window.open(docsUrl, "_blank", "noopener")
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {

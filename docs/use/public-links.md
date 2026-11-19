@@ -6,6 +6,7 @@ description: Share one dashboard read-only with people who have no account throu
 A public link opens one dashboard read-only for anyone who has the link, with no sign-in.
 Use it for a status screen, a vendor, or a wall TV that has no account.
 The link always shows the dashboard's latest version, so an edit reaches every screen that has it open at its next refresh.
+There is no stored-data snapshot of a past moment, and a public link cannot be framed in another page, because every response carries `X-Frame-Options: DENY` and `frame-ancestors 'none'`; open it in its own window or screen.
 
 ## Who can create one
 

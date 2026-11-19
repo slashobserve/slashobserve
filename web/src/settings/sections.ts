@@ -81,16 +81,35 @@ export function settingsGroups(role: Role): readonly SettingsGroup[] {
   return roleAtLeast(role, "editor") ? editorGroups : memberGroups
 }
 
+const renamedSections: Record<string, SettingsSectionId> = {
+  agent: "server",
+  "grafana-connection": "grafana",
+}
+
 export function selectedSectionId(
   groups: readonly SettingsGroup[],
   hash: string
 ): SettingsSectionId {
-  const id = hash === "agent" ? "server" : hash
+  const id = renamedSections[hash] ?? hash
   return (
     groups
       .flatMap((group) => group.sections)
       .find((section) => section.id === id)?.id ?? "server"
   )
+}
+
+export type SectionNotice = { hash: string; adminOnly: boolean }
+
+export function sectionNotice(
+  groups: readonly SettingsGroup[],
+  hash: string
+): SectionNotice | null {
+  if (hash === "" || hash === "agent") return null
+  const id = renamedSections[hash] ?? hash
+  const known = (list: readonly SettingsGroup[]) =>
+    list.flatMap((group) => group.sections).some((section) => section.id === id)
+  if (known(groups)) return null
+  return { hash, adminOnly: known(adminGroups) }
 }
 
 export function settingsPanel(

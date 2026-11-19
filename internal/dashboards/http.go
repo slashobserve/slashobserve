@@ -359,7 +359,7 @@ func (s *Service) getVersion(c *gin.Context) {
 		return
 	}
 	dash.Abilities = folders.DashboardFrom(c).Abilities
-	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
+	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 
 func (s *Service) addVersion(c *gin.Context) {

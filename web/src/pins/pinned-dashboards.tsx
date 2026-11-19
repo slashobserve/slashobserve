@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -26,12 +27,15 @@ import { usePins } from "./queries"
 const shown = 10
 
 export function useVisiblePins() {
+  const [expanded, setExpanded] = useState(false)
   const query = usePins()
   const pins = query.data ?? []
   return {
-    pins: pins.slice(0, shown),
+    pins: expanded ? pins : pins.slice(0, shown),
     more: pins.length > shown,
     pending: query.isPending,
+    expanded,
+    onToggle: () => setExpanded((open) => !open),
   }
 }
 
@@ -58,12 +62,16 @@ export function pinRows(pins: readonly Pin[]): SubNavRow[] {
 export function PinnedDashboards({
   pins,
   more,
+  expanded,
+  onToggle,
   pending = false,
   currentId,
   onNavigate,
 }: {
   pins: readonly Pin[]
   more: boolean
+  expanded: boolean
+  onToggle: () => void
   pending?: boolean
   currentId: string | null
   onNavigate?: () => void
@@ -100,14 +108,14 @@ export function PinnedDashboards({
       })}
       {more ? (
         <li>
-          <Link
-            to="/dashboards"
-            onClick={onNavigate}
-            aria-label="More pinned dashboards"
-            className={subNavMoreClass}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={onToggle}
+            className={cn(subNavMoreClass, "w-full")}
           >
-            More
-          </Link>
+            {expanded ? "Show fewer pins" : "Show all pins"}
+          </button>
         </li>
       ) : null}
     </SubNavList>
