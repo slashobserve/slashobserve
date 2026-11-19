@@ -16,6 +16,8 @@ const (
 	TypeRevisionUpdated = "revision.updated"
 
 	TypeProposalUpdated = "proposal.updated"
+
+	TypeRoleChanged = "role.changed"
 )
 
 type Author struct {

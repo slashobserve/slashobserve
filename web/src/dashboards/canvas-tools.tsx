@@ -88,7 +88,11 @@ export function CanvasTools({
           className={toolClass}
           disabled={!idle || !canInvestigate}
           focusableWhenDisabled={!canInvestigate}
-          title={canInvestigate ? undefined : "Asking the agent needs the Editor role"}
+          title={
+            canInvestigate
+              ? undefined
+              : "Asking the agent needs the Editor role"
+          }
           onClick={() => {
             setTool("select")
             askAboutDashboard(setSearch)

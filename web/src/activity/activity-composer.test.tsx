@@ -318,7 +318,9 @@ describe("ActivityComposer", () => {
   it("sends rather than investigates when investigate mode is left over for someone who cannot investigate", async () => {
     useActivityStore.getState().setAgentKind("investigate")
     const { form } = await renderComposer({ canInvestigate: false })
-    expect(within(form).queryByRole("button", { name: "Investigate" })).toBeNull()
+    expect(
+      within(form).queryByRole("button", { name: "Investigate" })
+    ).toBeNull()
     expect(within(form).getByRole("button", { name: "Send" })).toBeEnabled()
     useActivityStore.getState().setAgentKind("revise")
   })

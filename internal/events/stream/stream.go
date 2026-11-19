@@ -22,6 +22,7 @@ import (
 
 const (
 	pingInterval        = 15 * time.Second
+	roleCheckInterval   = 5 * time.Second
 	maxStreamLifetime   = 30 * time.Minute
 	retryMilliseconds   = 3000
 	maxStreamsPerUser   = 20
@@ -49,11 +50,12 @@ type Handler struct {
 	view         gin.HandlerFunc
 	logger       *slog.Logger
 	pingInterval time.Duration
+	roleInterval time.Duration
 	slots        *slots
 }
 
 func NewHandler(b *events.Broker, d Dashboards, principals Principals, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
+	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, roleInterval: roleCheckInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -67,6 +69,11 @@ type readyData struct {
 
 type resyncData struct {
 	DashboardID string `json:"dashboard_id"`
+}
+
+type roleChangedData struct {
+	DashboardID string    `json:"dashboard_id"`
+	Role        auth.Role `json:"role"`
 }
 
 func (h *Handler) serve(c *gin.Context) {
@@ -107,7 +114,7 @@ func (h *Handler) serve(c *gin.Context) {
 		!writeEvent(c, "ready", readyData{DashboardID: dashboardID, LatestVersion: latest}) {
 		return
 	}
-	h.pump(c, sub, id)
+	h.pump(c, sub, id, principal.Role)
 }
 
 func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
@@ -126,9 +133,11 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	return 0, false
 }
 
-func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID) {
+func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID, role auth.Role) {
 	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
+	roleCheck := time.NewTicker(h.roleInterval)
+	defer roleCheck.Stop()
 	lifetime := time.NewTimer(maxStreamLifetime)
 	defer lifetime.Stop()
 	failedChecks := 0
@@ -140,6 +149,15 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID)
 				data = resyncData{DashboardID: ev.DashboardID}
 			}
 			if !writeEvent(c, ev.Type, data) {
+				return
+			}
+		case <-roleCheck.C:
+			now, ok := h.currentRole(c)
+			if !ok || now == role {
+				continue
+			}
+			role = now
+			if !writeEvent(c, events.TypeRoleChanged, roleChangedData{DashboardID: id.String(), Role: now}) {
 				return
 			}
 		case <-ping.C:
@@ -160,6 +178,16 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID)
 			return
 		}
 	}
+}
+
+func (h *Handler) currentRole(c *gin.Context) (auth.Role, bool) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
+	defer cancel()
+	principal, ok, err := h.principals.RequestPrincipal(c.Request.WithContext(ctx))
+	if err != nil || !ok {
+		return "", false
+	}
+	return principal.Role, true
 }
 
 func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bool) {

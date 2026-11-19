@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
 import {
@@ -30,6 +31,7 @@ function versionToastId(dashboardId: string, version: number): string {
 const eventNames = [
   "ready",
   "resync",
+  "role.changed",
   "version.created",
   "dashboard.deleted",
   "comment.created",
@@ -197,6 +199,9 @@ export function useDashboardEvents(
         }
         case "resync":
           refetchAll()
+          return
+        case "role.changed":
+          catchUpWithSession(latest.current.router, queryClient)
           return
         case "version.created":
           onVersionCreated(event)
