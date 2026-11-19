@@ -77,6 +77,42 @@ func TestAnnotationsList(t *testing.T) {
 	})
 }
 
+func TestAnnotationsUpdate(t *testing.T) {
+	path := "/api/v1/annotations/" + testAnnotation
+	reply := annotationJSON(testAnnotation, nil, "2026-01-02T03:04:05Z", "Deploy v2", "deploy")
+
+	t.Run("sends only the fields given", func(t *testing.T) {
+		f := newManageFake(t, manageReply{http.MethodPatch, path, 200, reply})
+		stdout, stderr, code := f.run("annotations", "update", testAnnotation, "--text", "Deploy v2")
+		if code != 0 || stderr != "" {
+			t.Fatalf("exit %d, stderr %q", code, stderr)
+		}
+		f.wantRequests(t, recordedRequest{http.MethodPatch, path, "", `{"text":"Deploy v2"}`})
+		if want := "Updated annotation " + testAnnotation + "\n"; stdout != want {
+			t.Fatalf("stdout %q, want %q", stdout, want)
+		}
+	})
+	t.Run("replaces the tags and clears them with an empty value", func(t *testing.T) {
+		f := newManageFake(t, manageReply{http.MethodPatch, path, 200, reply}, manageReply{http.MethodPatch, path, 200, reply})
+		if _, _, code := f.run("annotations", "update", testAnnotation, "--tags", "deploy, checkout"); code != 0 {
+			t.Fatalf("exit %d", code)
+		}
+		if _, _, code := f.run("annotations", "update", testAnnotation, "--tags", ""); code != 0 {
+			t.Fatalf("exit %d", code)
+		}
+		f.wantRequests(t, recordedRequest{http.MethodPatch, path, "", `{"tags":["deploy","checkout"]}`}, recordedRequest{http.MethodPatch, path, "", `{"tags":[]}`})
+	})
+	t.Run("needs something to change and a real id", func(t *testing.T) {
+		f := newManageFake(t)
+		if _, stderr, code := f.run("annotations", "update", testAnnotation); code != 2 || !strings.Contains(stderr, "give --text, --tags or both") || len(f.got) != 0 {
+			t.Fatalf("exit %d, stderr %q, requests %v", code, stderr, f.got)
+		}
+		if _, _, code := f.run("annotations", "update", "deploy", "--text", "x"); code != 2 || len(f.got) != 0 {
+			t.Fatalf("exit %d, requests %v", code, f.got)
+		}
+	})
+}
+
 func TestAnnotationsDelete(t *testing.T) {
 	path := "/api/v1/annotations/" + testAnnotation
 	f := newManageFake(t, manageReply{http.MethodDelete, path, 204, ""})
