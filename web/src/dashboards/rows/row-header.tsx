@@ -27,7 +27,7 @@ export function RowHeader({
         <button
           type="button"
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} row ${title}`}
+          aria-label={title}
           disabled={onToggle === undefined}
           onClick={onToggle}
           className="flex max-w-full items-center gap-1.5 rounded-control px-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"

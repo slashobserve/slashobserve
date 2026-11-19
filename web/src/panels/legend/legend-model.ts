@@ -28,6 +28,13 @@ export function effectiveLegendMode(
   return legendValues.length > 0 ? "table" : "list"
 }
 
+export function legendWorthShowing(
+  seriesCount: number,
+  legendValues: readonly AnyReducer[]
+): boolean {
+  return seriesCount > 1 || (seriesCount === 1 && legendValues.length > 0)
+}
+
 function isEmpty(source: LegendSource): boolean {
   return !source.values.some(isNumber)
 }

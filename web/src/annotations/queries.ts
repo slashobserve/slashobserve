@@ -96,6 +96,29 @@ function cachedTags(queryClient: QueryClient, dashboardId: string): string {
   return JSON.stringify([...new Set(tags)].sort())
 }
 
+const activityLimit = 50
+
+export function annotationActivityQuery(dashboardId: string) {
+  return queryOptions({
+    queryKey: annotationKeys.activity(dashboardId),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/annotations", {
+          params: {
+            query: { dashboard_id: dashboardId, limit: activityLimit },
+          },
+          signal,
+        })
+        .then(unwrap)
+        .then((body) =>
+          body.annotations.filter(
+            (annotation) => annotation.dashboard_id === dashboardId
+          )
+        ),
+    staleTime: 15_000,
+  })
+}
+
 export function useKnownAnnotationTags(dashboardId: string): string[] {
   const queryClient = useQueryClient()
   const tags = useSyncExternalStore(

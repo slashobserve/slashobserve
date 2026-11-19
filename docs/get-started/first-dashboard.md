@@ -84,7 +84,10 @@ You can compare the two versions or restore the older one; see [Comments, agent 
 
 The button at the top of the dashboard shows the current range, for example "Last 6 hours".
 Open it to pick a quick range such as "Last 1 hour" or "Yesterday", or type values into **From** and **To**.
-Both accept `now-6h`, `now/d` and `2026-10-17 09:00`, and **Apply** sets them.
+Both accept `now-6h`, `now/d`, `2026-10-17 09:00` and an epoch, and **Apply** sets them.
+A typed date and time is read in the dashboard's time zone (UTC or the zone it names), or in the browser's zone when the dashboard follows the browser, and the box shows times in that same zone.
+A number typed into the boxes is an epoch: 10 digits are read as seconds and 13 digits as milliseconds, and a time before the year 2000 is refused with a message.
+A `from` or `to` written in an address or a Spec is always milliseconds when it is all digits.
 On a time series panel you can also drag across the chart to zoom to that range.
 
 The time zone box next to it draws the dashboard's times in a zone you choose, such as UTC or `Asia/Tokyo`, for you and anyone who opens your link (`tz` in the address); a panel that sets its own zone keeps it, and the dashboard's own zone is restored by choosing it again.
