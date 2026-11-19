@@ -15,4 +15,5 @@ var destructiveTools = map[string]bool{
 	nameSetHomeDashboard:        true,
 	nameClearHomeDashboard:      true,
 	nameCancelRun:               true,
+	nameSetInboxItemDone:        true,
 }
