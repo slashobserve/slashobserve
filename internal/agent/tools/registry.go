@@ -394,11 +394,9 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
 	}
-	if !inRun {
-		var refused Result
-		if input, refused, ok = r.canonicalInput(name, input); !ok {
-			return refused, nil
-		}
+	input, refused, ok := r.canonical(name, input, inRun)
+	if !ok {
+		return refused, nil
 	}
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
@@ -412,6 +410,13 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		res.Step = callErrorStep(name, eb)
 	}
 	return res, nil
+}
+
+func (r *Registry) canonical(name string, input json.RawMessage, inRun bool) (json.RawMessage, Result, bool) {
+	if inRun {
+		return input, Result{}, true
+	}
+	return r.canonicalInput(name, input)
 }
 
 func (r *Registry) namingFields(name string, inRun bool, res Result) Result {

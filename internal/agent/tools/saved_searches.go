@@ -158,18 +158,22 @@ func (r *Registry) alreadySavedSearch(ctx context.Context, principal auth.Princi
 		return nil, nil
 	}
 	for _, item := range items {
-		same := item.Actor.Kind == principal.Kind && item.Actor.ID == principal.ID &&
-			item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == in.DatasourceUID &&
-			ptrEqual(item.Query, in.Query) && item.From == from && item.To == to
-		if !same {
-			continue
+		if sameSearch(item, principal, in, from, to) && hasFilters(item, wanted) {
+			return &item, nil
 		}
-		if have, err := searchFilters(mustJSON(item.Filters)); err != nil || have != wanted {
-			continue
-		}
-		return &item, nil
 	}
 	return nil, nil
+}
+
+func sameSearch(item savedsearches.SavedSearch, by auth.Principal, in savedsearches.CreateInput, from, to string) bool {
+	return item.Actor.Kind == by.Kind && item.Actor.ID == by.ID &&
+		item.Title == strings.TrimSpace(in.Title) && item.DatasourceUID == in.DatasourceUID &&
+		ptrEqual(item.Query, in.Query) && item.From == from && item.To == to
+}
+
+func hasFilters(item savedsearches.SavedSearch, wanted string) bool {
+	have, err := searchFilters(mustJSON(item.Filters))
+	return err == nil && have == wanted
 }
 
 func searchFilters(raw []byte) (string, error) {
