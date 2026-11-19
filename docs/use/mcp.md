@@ -101,6 +101,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
+| `set_inbox_item_done` | Viewer |
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
@@ -330,8 +331,11 @@ Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types
 It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
-Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
+Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter` (`open` by default, `unread` for the open items that are unread, `done` for the items marked done), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
 It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a service-account key gets `user_session_required`, and it is over MCP only, so the built-in agent does not have it.
+
+`set_inbox_item_done` marks one inbox item done by its `seq` from `list_inbox`, or brings it back with `done: false`.
+A done item leaves the default list, counts as read and stays done when the inbox is read, as the done button in the web app does; it answers like `PUT /api/v1/inbox/items/{seq}`, and a service-account key gets `user_session_required`.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.

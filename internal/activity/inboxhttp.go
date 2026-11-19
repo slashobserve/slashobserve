@@ -90,6 +90,15 @@ func (h *Handler) inbox(c *gin.Context) {
 		}
 		view = parsed
 	}
+	triage := TriageOpen
+	if raw, present := c.GetQuery("filter"); present {
+		parsed, ok := ParseTriage(raw)
+		if !ok {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_filter", "filter must be open, unread or done")
+			return
+		}
+		triage = parsed
+	}
 	limit, ok := inboxLimit(c)
 	if !ok {
 		return
@@ -101,7 +110,7 @@ func (h *Handler) inbox(c *gin.Context) {
 			return
 		}
 	}
-	page, err := h.store.Inbox(c.Request.Context(), httpapi.Caller(c), view, cursor, limit)
+	page, err := h.store.Inbox(c.Request.Context(), httpapi.Caller(c), view, triage, cursor, limit)
 	if err != nil {
 		h.fail(c, "list inbox", err)
 		return
@@ -133,6 +142,7 @@ func (h *Handler) markRead(c *gin.Context) {
 
 type itemStateRequest struct {
 	Unread *bool `json:"unread"`
+	Done   *bool `json:"done"`
 }
 
 func (h *Handler) setItemUnread(c *gin.Context) {
@@ -145,11 +155,15 @@ func (h *Handler) setItemUnread(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &body, maxReadBodyBytes) {
 		return
 	}
-	if body.Unread == nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "unread must be true or false")
+	if (body.Unread == nil) == (body.Done == nil) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "send exactly one of unread and done, each true or false")
 		return
 	}
-	err = h.store.SetItemUnread(c.Request.Context(), httpapi.Caller(c), seq, *body.Unread)
+	if body.Done != nil {
+		err = h.store.SetItemDone(c.Request.Context(), httpapi.Caller(c), seq, *body.Done)
+	} else {
+		err = h.store.SetItemUnread(c.Request.Context(), httpapi.Caller(c), seq, *body.Unread)
+	}
 	if errors.Is(err, ErrUnknownSeq) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_seq", "no activity has that seq")
 		return

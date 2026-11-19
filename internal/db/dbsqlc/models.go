@@ -386,6 +386,7 @@ type InboxItemState struct {
 	Seq       int64
 	Unread    bool
 	UpdatedAt pgtype.Timestamptz
+	Done      bool
 }
 
 type Instance struct {

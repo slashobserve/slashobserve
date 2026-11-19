@@ -145,7 +145,7 @@ func (r rig) endedPromptRun(t *testing.T, requester actor.Actor, prompt, state s
 
 func (r rig) inbox(t *testing.T, by auth.Principal, view View) InboxPage {
 	t.Helper()
-	page, err := r.store.Inbox(t.Context(), by, view, "", 100)
+	page, err := r.store.Inbox(t.Context(), by, view, TriageOpen, "", 100)
 	if err != nil {
 		t.Fatalf("inbox %s: %v", view, err)
 	}
@@ -375,7 +375,7 @@ func TestInboxPagesShowEachItemOnceWhileAnotherTransactionHoldsAnAppend(t *testi
 	var got []int64
 	cursor := ""
 	for range 10 {
-		page, err := r.store.Inbox(t.Context(), mia, ViewForYou, cursor, 2)
+		page, err := r.store.Inbox(t.Context(), mia, ViewForYou, TriageOpen, cursor, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -398,7 +398,7 @@ func TestInboxUnreadCountStopsAtOneHundred(t *testing.T) {
 		r.append(t, Entry{Type: TypeThreadMentioned, TargetID: thread, Owner: OnObservation(o), Actor: ola, Data: map[string]any{"mentioned": map[string]any{"kind": "user", "id": mia.ID, "name": "Mia"}}})
 	}
 
-	page, err := r.store.Inbox(t.Context(), mia, ViewForYou, "", 3)
+	page, err := r.store.Inbox(t.Context(), mia, ViewForYou, TriageOpen, "", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +458,7 @@ func TestInboxMarkReadMovesForwardOnlyAndRefusesUnknownSeqs(t *testing.T) {
 func TestInboxBelongsToPeopleOnly(t *testing.T) {
 	r := newRig(t)
 	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "99999999-9999-4999-8999-999999999999", Name: "ci", Role: auth.RoleAdmin}
-	if _, err := r.store.Inbox(t.Context(), key, ViewForYou, "", 10); !errors.Is(err, ErrPersonOnly) {
+	if _, err := r.store.Inbox(t.Context(), key, ViewForYou, TriageOpen, "", 10); !errors.Is(err, ErrPersonOnly) {
 		t.Fatalf("inbox of a key = %v, want ErrPersonOnly", err)
 	}
 	if err := r.store.MarkRead(t.Context(), key, 1); !errors.Is(err, ErrPersonOnly) {
@@ -602,6 +602,82 @@ func TestInboxItemsCanBeMarkedUnreadOrReadOneByOne(t *testing.T) {
 	}
 	if err := r.store.SetItemUnread(t.Context(), botKey, first, true); !errors.Is(err, ErrPersonOnly) {
 		t.Fatalf("set unread by a key = %v, want ErrPersonOnly", err)
+	}
+}
+
+func (r rig) inboxAs(t *testing.T, by auth.Principal, triage Triage) []int64 {
+	t.Helper()
+	page, err := r.store.Inbox(t.Context(), by, ViewForYou, triage, "", 100)
+	if err != nil {
+		t.Fatalf("inbox %s: %v", triage, err)
+	}
+	return inboxSeqs(page)
+}
+
+func TestAnInboxItemMarkedDoneLeavesTheListAndStaysDoneWhenTheInboxIsRead(t *testing.T) {
+	r := newRig(t)
+	r.inboxUser(t, mia)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	first := r.mention(t, o, thread, ola, mia.ID)
+	second := r.mention(t, o, thread, ola, mia.ID)
+	third := r.mention(t, o, thread, ola, mia.ID)
+
+	if err := r.store.SetItemDone(t.Context(), mia, second, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.inboxAs(t, mia, TriageOpen); !slices.Equal(got, []int64{third, first}) {
+		t.Fatalf("open = %v, want the done item gone", got)
+	}
+	if got := r.inboxAs(t, mia, TriageDone); !slices.Equal(got, []int64{second}) {
+		t.Fatalf("done = %v, want only the second", got)
+	}
+	if page := r.inbox(t, mia, ViewForYou); page.UnreadCount != 2 {
+		t.Fatalf("unread_count = %d, want 2: a done item is read", page.UnreadCount)
+	}
+
+	if err := r.store.SetItemUnread(t.Context(), mia, first, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.inboxAs(t, mia, TriageUnread); !slices.Equal(got, []int64{third}) {
+		t.Fatalf("unread = %v, want only the third", got)
+	}
+
+	if err := r.store.MarkRead(t.Context(), mia, third); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.inboxAs(t, mia, TriageDone); !slices.Equal(got, []int64{second}) {
+		t.Fatalf("done after reading the inbox = %v, want the second to stay done", got)
+	}
+	if got := r.inboxAs(t, mia, TriageUnread); len(got) != 0 {
+		t.Fatalf("unread after reading the inbox = %v, want none", got)
+	}
+
+	if err := r.store.SetItemUnread(t.Context(), mia, second, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.inboxAs(t, mia, TriageUnread); !slices.Equal(got, []int64{second}) {
+		t.Fatalf("unread after marking the done item unread = %v, want it back", got)
+	}
+	if got := r.inboxAs(t, mia, TriageDone); len(got) != 0 {
+		t.Fatalf("done after marking it unread = %v, want none", got)
+	}
+
+	if err := r.store.SetItemDone(t.Context(), mia, first, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.store.SetItemDone(t.Context(), mia, first, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.inboxAs(t, mia, TriageOpen); !slices.Contains(got, first) {
+		t.Fatalf("open after reopening = %v, want the first back", got)
+	}
+
+	if err := r.store.SetItemDone(t.Context(), mia, third+1000, true); !errors.Is(err, ErrUnknownSeq) {
+		t.Fatalf("done of an unknown seq = %v, want ErrUnknownSeq", err)
+	}
+	if err := r.store.SetItemDone(t.Context(), botKey, first, true); !errors.Is(err, ErrPersonOnly) {
+		t.Fatalf("done by a key = %v, want ErrPersonOnly", err)
 	}
 }
 

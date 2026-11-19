@@ -27,6 +27,25 @@ const (
 
 var Views = []View{ViewForYou, ViewEverything, ViewProposals, ViewMentions}
 
+type Triage string
+
+const (
+	TriageOpen   Triage = "open"
+	TriageUnread Triage = "unread"
+	TriageDone   Triage = "done"
+)
+
+var Triages = []Triage{TriageOpen, TriageUnread, TriageDone}
+
+func ParseTriage(s string) (Triage, bool) {
+	for _, f := range Triages {
+		if string(f) == s {
+			return f, true
+		}
+	}
+	return "", false
+}
+
 type Reason string
 
 const (
@@ -114,7 +133,7 @@ func (s *Store) inboxReader(ctx context.Context, by auth.Principal) (inboxReader
 	return inboxReader{audience: audience, editable: editable}, nil
 }
 
-func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, cursor string, limit int) (InboxPage, error) {
+func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, triage Triage, cursor string, limit int) (InboxPage, error) {
 	reader, err := s.inboxReader(ctx, by)
 	if err != nil {
 		return InboxPage{}, err
@@ -128,6 +147,8 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, cursor 
 		ReaderKind:   a.ReaderKind,
 		Everything:   view == ViewEverything,
 		Reasons:      reasonsOf(view),
+		Done:         triage == TriageDone,
+		UnreadOnly:   triage == TriageUnread,
 		RepairPrefix: repairprompt.Prefix,
 		RowLimit:     httpapi.Int32(limit + 1),
 	}
@@ -194,6 +215,31 @@ func (s *Store) MarkRead(ctx context.Context, by auth.Principal, seq int64) erro
 	}
 	if err := q.MarkInboxRead(ctx, dbsqlc.MarkInboxReadParams{UserID: userID, ReadXid: xid, ReadSeq: seq}); err != nil {
 		return fmt.Errorf("mark inbox read: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) SetItemDone(ctx context.Context, by auth.Principal, seq int64, done bool) error {
+	if by.Kind != auth.KindUser {
+		return ErrPersonOnly
+	}
+	userID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return folders.ErrForbidden
+	}
+	q := s.db.Queries()
+	if _, err := q.ActivityXid(ctx, seq); errors.Is(err, pgx.ErrNoRows) {
+		return ErrUnknownSeq
+	} else if err != nil {
+		return fmt.Errorf("get activity position: %w", err)
+	}
+	if done {
+		err = q.SetInboxItemDone(ctx, dbsqlc.SetInboxItemDoneParams{UserID: userID, Seq: seq})
+	} else {
+		err = q.ReopenInboxItem(ctx, dbsqlc.ReopenInboxItemParams{UserID: userID, Seq: seq})
+	}
+	if err != nil {
+		return fmt.Errorf("set inbox item done: %w", err)
 	}
 	return nil
 }
