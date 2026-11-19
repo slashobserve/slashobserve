@@ -147,3 +147,27 @@ func TestTraceStatsKeepsUpstreamErrorKinds(t *testing.T) {
 		t.Fatalf("err = %v, want Tempo's parse error", err)
 	}
 }
+
+func TestTraceStatsCountsIgnoreSamplesThatAreNotCounts(t *testing.T) {
+	filter := `{ resource.service.name = "checkout" }`
+	minute := statsFrom.Add(time.Minute)
+	ds, fake := serve(t, nil)
+	fake.byQuery = map[string]reply{
+		`{ resource.service.name = "checkout" && status = error } | count_over_time()`: {0, metricsBody()},
+		filter + " | quantile_over_time(duration, 0.5, 0.95, 0.99)":                    {0, metricsBody()},
+		filter + " | count_over_time()": {0, metricsBody(
+			`{"labels":[],"samples":[` + sample(statsFrom, "7") + `,` + sample(minute, `"NaN"`) + `,` + sample(minute.Add(time.Minute), "1e30") + `,` + sample(minute.Add(2*time.Minute), `"-Inf"`) + `]}`)},
+		filter + " | histogram_over_time(duration)": {0, metricsBody(
+			`{"labels":[{"key":"__bucket","value":{"doubleValue":0.000131072}}],"samples":[` + sample(statsFrom, "3") + `,` + sample(minute, `"NaN"`) + `]}`)},
+	}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Spans != 7 {
+		t.Fatalf("spans = %d, want 7", stats.Spans)
+	}
+	if want := []datasource.DurationBucket{{LeMS: 0.131072, Count: 3}}; !slices.Equal(stats.Histogram, want) {
+		t.Fatalf("histogram = %+v, want %+v", stats.Histogram, want)
+	}
+}

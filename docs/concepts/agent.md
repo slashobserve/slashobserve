@@ -160,6 +160,8 @@ A datasource read that ends in `query_timeout`, `datasource_unavailable` or `too
 An empty `list_metrics` search carries a `note` that a service, job or pod is usually a label value, to be listed with `scope` before the model says a service has no metrics.
 
 A run that is stopped after three rejected saves names the panels that kept failing in its reason.
+An investigation or a question answered with a finding says "the finding was rejected in 3 saves in a row" instead, names the evidence panels that failed (`evidence-1` is the first panel sent) and the last issue codes, and adds that a datasource did not answer in time when every issue was a timeout, an unavailable datasource or a busy server.
+A finding rejected for such evidence tells the model to send it again without those panels and to say that their data was not read.
 A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards (see [MCP](../use/mcp.md#the-run-session-enforces-the-guards)).
 

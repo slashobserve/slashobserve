@@ -200,8 +200,8 @@ func TestSaveFindingRefusesWhatAFindingCannotHold(t *testing.T) {
 		}
 	}
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout failed", evidencePanel("Errors", "up"), evidencePanel("Nothing", "empty")))
-	rejected, ok := res.Content.(invalidSpecOut)
-	if !res.IsError || !ok || rejected.Code != codeInvalidSpec || len(rejected.Issues) != 1 || !strings.HasPrefix(rejected.Issues[0].Path, "/panels/1") {
+	rejected, ok := res.Content.(patchRejectedOut)
+	if !res.IsError || !ok || rejected.Code != codeInvalidSpec || len(rejected.Issues) != 1 || !strings.HasPrefix(rejected.Issues[0].Path, "/panels/1") || !slices.Equal(rejected.FailingPanels, []string{"evidence-2"}) {
 		t.Fatalf("a panel without data: %#v", res.Content)
 	}
 }

@@ -21,6 +21,7 @@ const (
 	statsNeedsFilter = `trace stats need a TraceQL spanset filter such as { resource.service.name = "checkout" }`
 	quantileLabel    = "p"
 	histogramLabel   = "__bucket"
+	maxCount         = 1 << 53
 )
 
 type metricsResponse struct {
@@ -124,7 +125,7 @@ func (g *bucketGrid) addCounts(resp metricsResponse, into func(*datasource.Trace
 	for _, s := range resp.Series {
 		for _, sample := range s.Samples {
 			if b := g.at(sample.Timestamp); b != nil {
-				*into(b) += int64(math.Round(sampleValue(sample.Value)))
+				*into(b) += sampleCount(sample.Value)
 			}
 		}
 	}
@@ -186,7 +187,7 @@ func histogramOf(resp metricsResponse) []datasource.DurationBucket {
 			continue
 		}
 		for _, sample := range s.Samples {
-			counts[millis(le)] += int64(math.Round(sampleValue(sample.Value)))
+			counts[millis(le)] += sampleCount(sample.Value)
 		}
 	}
 	out := []datasource.DurationBucket{}
@@ -219,6 +220,14 @@ func sampleValue(raw json.RawMessage) float64 {
 		return math.NaN()
 	}
 	return v
+}
+
+func sampleCount(raw json.RawMessage) int64 {
+	v := math.Round(sampleValue(raw))
+	if math.IsNaN(v) || v < 0 || v >= maxCount {
+		return 0
+	}
+	return int64(v)
 }
 
 func labelFloat(labels []metricsLabel, key string) (float64, bool) {

@@ -57,6 +57,41 @@ describe("niceTicks in a zoomed window", () => {
   })
 })
 
+describe("niceTicks in a window no step fills", () => {
+  const origin = 6.05
+  const window = 7.58
+
+  it("still gives round ticks to read when no step makes four to six", () => {
+    const ticks = niceTicks(window, 6, origin)
+    const labels = ticks.map((tick) => origin + tick)
+    expect(labels).toEqual([7.5, 10, 12.5])
+  })
+
+  it("gives round ticks inside the window whatever its start", () => {
+    for (const start of [0.4, 6.05, 13.6, 21.9, 480.3]) {
+      for (const duration of [2.2, 7.58, 33.3, 120.7]) {
+        const ticks = niceTicks(duration, 6, start)
+        expect(ticks.length).toBeGreaterThanOrEqual(3)
+        for (const tick of ticks) {
+          const label = start + tick
+          const unit = 10 ** Math.floor(Math.log10(duration) - 1)
+          expect(label / unit).toBeCloseTo(
+            Math.round((label / unit) * 2) / 2,
+            6
+          )
+          expect(tick).toBeGreaterThanOrEqual(0)
+          expect(tick).toBeLessThanOrEqual(duration)
+        }
+      }
+    }
+  })
+
+  it("gives one round tick rather than the window's own edges on a very narrow ruler", () => {
+    const ticks = niceTicks(window, 2, origin)
+    expect(ticks.map((tick) => origin + tick)).toEqual([10])
+  })
+})
+
 describe("niceTicks on a narrow ruler", () => {
   it("keeps three round ticks when only three fit", () => {
     expect(niceTicks(1000, 3)).toEqual([0, 500, 1000])
