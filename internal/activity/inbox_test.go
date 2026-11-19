@@ -604,3 +604,21 @@ func TestInboxItemsCanBeMarkedUnreadOrReadOneByOne(t *testing.T) {
 		t.Fatalf("set unread by a key = %v, want ErrPersonOnly", err)
 	}
 }
+
+func TestInboxShowsRunTextOnlyOnTheRequestersFailedRun(t *testing.T) {
+	r := newRig(t)
+	own, _ := r.failedRun(t, miaActor)
+	foreign, _ := r.failedRun(t, ola)
+	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'my prompt' WHERE id = $1::uuid`, own.String())
+	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'private prompt' WHERE id = $1::uuid`, foreign.String())
+
+	excerpts := map[string]string{}
+	for _, item := range r.inbox(t, mia, ViewEverything).Items {
+		if item.Type == TypeRunFailed {
+			excerpts[item.TargetID] = item.Excerpt
+		}
+	}
+	if excerpts[own.String()] != "my prompt" || excerpts[foreign.String()] != "" {
+		t.Fatalf("run excerpts = %v, want only Mia's own run quoted", excerpts)
+	}
+}

@@ -70,7 +70,9 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 				messages[id] = true
 			}
 		case TypeRunFailed:
-			runs[item.TargetID] = true
+			if item.Reason == ReasonRunFailed {
+				runs[item.TargetID] = true
+			}
 		}
 	}
 	titles := map[objectRef]string{}
