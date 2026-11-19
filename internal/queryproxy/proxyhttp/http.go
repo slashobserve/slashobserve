@@ -285,6 +285,12 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 		hidden = found.Panel.Queries[0].Hide
 		found, panelID, sourcePanel = source, source.Panel.ID, source.Panel.ID
 	}
+	write := func(e dataEntry, cached bool, executedAt time.Time) {
+		if p.hideQueryText {
+			e = withoutExecuted(e)
+		}
+		writeData(c, e, cached, executedAt, sourcePanel)
+	}
 	now := time.Now()
 	rng, opts, err := p.timeRange(d, now)
 	if err == nil {
@@ -307,7 +313,7 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 		return
 	}
 	if hidden {
-		writeData(c, noQueriesEntry(kind, al, now), false, now, sourcePanel)
+		write(noQueriesEntry(kind, al, now), false, now)
 		return
 	}
 	if cached == nil {
@@ -318,14 +324,14 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 			h.fail(c, err)
 			return
 		}
-		writeData(c, entry, false, entry.executedAt, sourcePanel)
+		write(entry, false, entry.executedAt)
 		return
 	}
 	key := dataKey(cached.id, cached.version, panelID, kind, al, selections, scope)
 	entry, at, hit := h.caches.data.Get(key)
 	h.runner.RecordCacheLookup(hit)
 	if hit {
-		writeData(c, entry, true, at, sourcePanel)
+		write(entry, true, at)
 		return
 	}
 	entry, err = h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
@@ -335,7 +341,7 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 		h.fail(c, err)
 		return
 	}
-	writeData(c, entry, false, entry.executedAt, sourcePanel)
+	write(entry, false, entry.executedAt)
 }
 
 func dataRequest(d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) queryproxy.Request {
@@ -423,7 +429,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	queries := make([]queryMeta, len(res.Queries))
 	asked := false
 	for i, q := range res.Queries {
-		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds(), Exemplars: q.ExemplarStatus}
+		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds(), Exemplars: q.ExemplarStatus, Executed: q.Executed}
 		asked = asked || q.ExemplarStatus != ""
 	}
 	var exemplars json.RawMessage
@@ -447,6 +453,16 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 		scope = principalScope(principal.Kind, user)
 	}
 	return user, scope
+}
+
+func withoutExecuted(e dataEntry) dataEntry {
+	queries := make([]queryMeta, len(e.queries))
+	for i, q := range e.queries {
+		q.Executed = ""
+		queries[i] = q
+	}
+	e.queries = queries
+	return e
 }
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time, sourcePanel string) {

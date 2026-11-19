@@ -273,6 +273,22 @@ func TestMetricQueries(t *testing.T) {
 	}
 }
 
+func TestQueryReportsTheExpandedText(t *testing.T) {
+	ds, _ := serve(t, 0, success("matrix", `[]`))
+	var got string
+	query := datasource.Query{
+		Text:       `sum(count_over_time({service_name=~"$service"}[$__interval]))`,
+		Variables:  []datasource.Variable{{Name: "service", Values: []string{"checkout", "payments"}}},
+		OnExpanded: func(text string) { got = text },
+	}
+	if _, err := ds.QueryRange(context.Background(), query, lastHour, 30*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "$service") || strings.Contains(got, "$__interval") || !strings.Contains(got, "checkout") {
+		t.Fatalf("expanded text = %q", got)
+	}
+}
+
 func matrixSeries(id, samples int) string {
 	values := make([]string, samples)
 	for i := range values {

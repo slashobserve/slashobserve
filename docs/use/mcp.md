@@ -149,6 +149,8 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
+`query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.
+
 `list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
 `get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, the `allowed_actions` of the caller and the field-by-field `diff`, which is left out, with the step saying so, when it would take the result over 128 KiB; a result over 128 KiB without it answers `too_large`.
 `merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.

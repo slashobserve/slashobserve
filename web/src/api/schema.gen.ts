@@ -5395,6 +5395,8 @@ export interface components {
             kind: "range" | "instant";
             /** @description The query's resolution; 0 for an instant query. */
             step_ms: number;
+            /** @description The query text as it went to the datasource, after variables, macros and the dashboard's ad hoc filters and group by were applied; absent for an expression query and when the response was built before the server kept it. */
+            executed?: string;
             /**
              * @description Present only when the query asked for exemplars (`exemplar: true` on a Prometheus range query, on the panel data and preview routes). `ok` has all of them, `truncated` has the 2,000 newest after thinning to one per step, `unavailable` means the exemplar call failed or timed out and the panel still succeeded, and `unsupported` means the datasource or the query kind has no exemplars.
              * @enum {string}

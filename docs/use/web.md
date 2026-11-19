@@ -234,7 +234,7 @@ The address carries `inspect=<panel id>` and, for the second and third tab, `ins
 The pane has three tabs:
 
 - **Data** shows the panel's results after its transforms as a table of up to 500 rows, with **Download CSV** and **Save as PNG**.
-- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text and the variables it uses with their selected values.
+- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text, the text as run (the query after variables and macros are expanded, shown when it differs from the saved text and never on a public link), and the variables it uses with their selected values.
 - **Stats** shows how long the request took, whether the server answered from its cache, when it ran, and the number of frames, series, points and rows with the first and last time; **Run again** runs the panel's queries again.
 
 **Download CSV** and **Save as PNG** are always in each panel's menu and are greyed until its data has loaded.

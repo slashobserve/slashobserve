@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -76,6 +77,7 @@ type QueryResult struct {
 	Frames         []datasource.Frame
 	Exemplars      []datasource.Frame
 	ExemplarStatus string
+	Executed       string
 }
 
 type Result struct {
@@ -506,10 +508,20 @@ type preparedQuery struct {
 
 	asksExemplars bool
 	exemplars     func(context.Context) ([]datasource.Frame, error)
+
+	executed atomic.Pointer[string]
+}
+
+func (pq *preparedQuery) noteExpanded(text string) {
+	pq.executed.CompareAndSwap(nil, &text)
 }
 
 func (pq *preparedQuery) result(ref string, out fetched) QueryResult {
-	return QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
+	res := QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
+	if text := pq.executed.Load(); text != nil {
+		res.Executed = *text
+	}
+	return res
 }
 
 func namedTimeZone(d *spec.Dashboard) string {
@@ -547,6 +559,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 		return nil, err
 	}
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q), asksExemplars: req.Exemplars && q.Exemplar}
+	dq.OnExpanded = pq.noteExpanded
 	if pq.kind == KindRange {
 		pq.step = QueryStep(baseStep, minimum, q.IntervalFactor)
 		rng := req.Range

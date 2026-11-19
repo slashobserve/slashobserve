@@ -3218,6 +3218,10 @@ components:
           type: integer
           minimum: 0
           description: The query's resolution; 0 for an instant query.
+        executed:
+          type: string
+          description: >-
+            The query text as it went to the datasource, after variables, macros and the dashboard's ad hoc filters and group by were applied; absent for an expression query and when the response was built before the server kept it.
         exemplars:
           type: string
           enum: [ok, truncated, unavailable, unsupported]

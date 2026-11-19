@@ -745,3 +745,13 @@ func TestQueryOffersPagingOnlyOnAnInstantQueryOfADatasourceThatPages(t *testing.
 		}
 	}
 }
+
+func TestSummarizeReportsTheExpandedQueryText(t *testing.T) {
+	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{
+		{Ref: "A", Executed: `rate(up{job="api"}[5m])`},
+		{Ref: "B"},
+	}})
+	if len(got.Executed) != 1 || got.Executed[0].Ref != "A" || got.Executed[0].Text != `rate(up{job="api"}[5m])` {
+		t.Fatalf("executed = %+v", got.Executed)
+	}
+}

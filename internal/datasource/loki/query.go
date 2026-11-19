@@ -85,6 +85,7 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	return d.queryText(ctx, text, d.opts.Limits.Tighten(q.Limits), r, step, instant)
 }
 

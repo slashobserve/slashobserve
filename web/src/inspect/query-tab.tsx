@@ -111,6 +111,17 @@ export function QueryTab({
             <pre className="overflow-x-auto rounded-control border p-2 font-mono text-xs whitespace-pre-wrap">
               {text}
             </pre>
+            {ran?.executed && ran.executed !== text ? (
+              <div className="flex flex-col gap-1">
+                <h4 className="text-[13px] text-muted-foreground">As run</h4>
+                <pre
+                  aria-label={`Query ${ref} as run`}
+                  className="overflow-x-auto rounded-control border p-2 font-mono text-xs whitespace-pre-wrap"
+                >
+                  {ran.executed}
+                </pre>
+              </div>
+            ) : null}
             {used.length > 0 ? (
               <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[13px]">
                 {used.map((name) => (

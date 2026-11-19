@@ -66,6 +66,7 @@ func (d *PublicData) data(c *gin.Context) {
 		return
 	}
 	p.selections = selections
+	p.hideQueryText = true
 	d.h.serveData(c, p, v, c.Param("panel_id"), &cachedVersion{id: link.DashboardID, version: link.Version})
 }
 
