@@ -54,5 +54,6 @@ export function useSourceSwitchSearch(
 }
 
 export function useListedSources(kind: ExploreKind) {
-  return listedSources(useExploreSources(kind).sources)
+  const { sources, isPending } = useExploreSources(kind)
+  return { ...listedSources(sources), pending: isPending }
 }

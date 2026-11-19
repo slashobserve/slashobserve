@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/egress"
 )
 
@@ -144,7 +146,7 @@ func TestSignatureMatchesTheDocumentedVector(t *testing.T) {
 
 func TestEnvelopeKeysAreExactlyTheDocumentedOnes(t *testing.T) {
 	e := activity.Event{Seq: 7, Type: activity.TypeFindingCreated, TargetKind: "finding", TargetID: "t", Data: json.RawMessage(`{"title":"x"}`)}
-	body, deliveryID, err := eventPayload("wh-1", e)
+	body, deliveryID, err := eventPayload("wh-1", FormatGeneric, e)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +172,7 @@ func TestEnvelopeKeysAreExactlyTheDocumentedOnes(t *testing.T) {
 }
 
 func TestTestEnvelopeHasNoEvent(t *testing.T) {
-	body, deliveryID, err := testPayload("wh-1")
+	body, deliveryID, err := testPayload("wh-1", FormatGeneric)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,5 +252,87 @@ func TestCleanNameAndURLAndEventTypes(t *testing.T) {
 		if _, err := cleanEventTypes(types); err == nil {
 			t.Errorf("event types %s accepted", name)
 		}
+	}
+}
+
+func TestCleanURLNamesTheBrokenRule(t *testing.T) {
+	cases := map[string]string{
+		"":                                     "url is required",
+		"http://hooks.example.test/in":         "must start with https://",
+		"hooks.example.test/in":                "must start with https://",
+		"https://u:p@hooks.example.test/in":    "user name or password",
+		"https://hooks.example.test:8443/in":   "port 443, got 8443",
+		"https://hooks.example.test/in#frag":   "# fragment",
+		"https://10.0.0.1/in":                  "IP address",
+		"https://localhost/in":                 "at least two parts",
+		"https://" + strings.Repeat("a", 2050): "at most 2048 characters",
+	}
+	for raw, want := range cases {
+		_, _, err := cleanURL(raw)
+		var invalid *InvalidError
+		if !errors.As(err, &invalid) || !strings.Contains(invalid.Message, want) {
+			t.Errorf("url %q: %v, want a message containing %q", raw, err, want)
+		}
+	}
+}
+
+func TestSlackAndTeamsBodiesCarryOneEscapedLine(t *testing.T) {
+	e := activity.Event{
+		Seq: 9, Type: activity.TypeFindingCreated, TargetKind: "finding", TargetID: "t",
+		Actor: actor.Actor{Kind: auth.KindUser, ID: "u", Name: "Eve <!channel>"},
+		Data:  json.RawMessage(`{"title":"Latency & errors"}`),
+	}
+	slack, deliveryID, err := eventPayload("wh-1", FormatSlack, e)
+	if err != nil || deliveryID != "wh-1.9" {
+		t.Fatalf("slack: %v, %q", err, deliveryID)
+	}
+	var message struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(slack, &message); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Eve &lt;!channel&gt;: finding.created - Latency &amp; errors"; message.Text != want {
+		t.Fatalf("slack text %q, want %q", message.Text, want)
+	}
+
+	teams, _, err := eventPayload("wh-1", FormatTeams, e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var card struct {
+		Type        string `json:"type"`
+		Attachments []struct {
+			ContentType string `json:"contentType"`
+			Content     struct {
+				Type string `json:"type"`
+				Body []struct {
+					Text string `json:"text"`
+				} `json:"body"`
+			} `json:"content"`
+		} `json:"attachments"`
+	}
+	if err := json.Unmarshal(teams, &card); err != nil || card.Type != "message" || len(card.Attachments) != 1 {
+		t.Fatalf("teams %s, %v", teams, err)
+	}
+	a := card.Attachments[0]
+	if a.ContentType != adaptive || a.Content.Type != "AdaptiveCard" || len(a.Content.Body) != 1 || a.Content.Body[0].Text != "Eve <!channel>: finding.created - Latency & errors" {
+		t.Fatalf("teams card %s", teams)
+	}
+
+	test, _, err := testPayload("wh-1", FormatSlack)
+	if err != nil || !strings.Contains(string(test), "test event") {
+		t.Fatalf("slack test body %s, %v", test, err)
+	}
+}
+
+func TestCleanFormat(t *testing.T) {
+	for _, ok := range []string{FormatGeneric, FormatSlack, FormatTeams} {
+		if got, err := cleanFormat(ok); err != nil || got != ok {
+			t.Errorf("cleanFormat(%q) = %q, %v", ok, got, err)
+		}
+	}
+	if _, err := cleanFormat("discord"); err == nil || !strings.Contains(err.Error(), "generic, slack or teams") {
+		t.Errorf("cleanFormat(discord) = %v, want a message naming the formats", err)
 	}
 }

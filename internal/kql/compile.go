@@ -122,8 +122,32 @@ func (c *compiler) noteField(n *Node) {
 	}
 	c.seen[n.Field] = true
 	if !c.known(n.Field) {
-		c.warnings = append(c.warnings, Diagnostic{Severity: SeverityWarning, Message: "unknown field " + strconv.Quote(n.Field), Start: n.fieldStart, End: n.fieldEnd})
+		message := "unknown field " + strconv.Quote(n.Field)
+		if near := c.sameEnding(n.Field); near != "" {
+			message += "; did you mean " + strconv.Quote(near) + "?"
+		}
+		c.warnings = append(c.warnings, Diagnostic{Severity: SeverityWarning, Message: message, Start: n.fieldStart, End: n.fieldEnd})
 	}
+}
+
+func (c *compiler) sameEnding(field string) string {
+	if strings.Contains(field, "*") {
+		return ""
+	}
+	var found string
+	for name := range c.fields {
+		if strings.HasSuffix(name, ".keyword") {
+			continue
+		}
+		if !strings.HasSuffix(name, "."+field) && !strings.HasSuffix(field, "."+name) {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = name
+	}
+	return found
 }
 
 func (c *compiler) known(field string) bool {

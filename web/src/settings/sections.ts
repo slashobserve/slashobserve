@@ -35,12 +35,24 @@ const youGroup: SettingsGroup = {
 const memberWorkspaceSections: readonly SettingsSection[] = [
   { id: "server", label: "Server" },
   { id: "sign-in", label: "Sign-in" },
-  { id: "outbound-access", label: "Outbound access" },
 ]
+
+const outboundAccessSection: SettingsSection = {
+  id: "outbound-access",
+  label: "Outbound access",
+}
 
 const memberGroups: readonly SettingsGroup[] = [
   youGroup,
   { label: "Workspace", sections: memberWorkspaceSections },
+]
+
+const editorGroups: readonly SettingsGroup[] = [
+  youGroup,
+  {
+    label: "Workspace",
+    sections: [...memberWorkspaceSections, outboundAccessSection],
+  },
 ]
 
 const adminGroups: readonly SettingsGroup[] = [
@@ -49,6 +61,7 @@ const adminGroups: readonly SettingsGroup[] = [
     label: "Workspace",
     sections: [
       ...memberWorkspaceSections,
+      outboundAccessSection,
       { id: "agent-access", label: "Agent access" },
     ],
   },
@@ -62,7 +75,8 @@ const adminGroups: readonly SettingsGroup[] = [
 ]
 
 export function settingsGroups(role: Role): readonly SettingsGroup[] {
-  return roleAtLeast(role, "admin") ? adminGroups : memberGroups
+  if (roleAtLeast(role, "admin")) return adminGroups
+  return roleAtLeast(role, "editor") ? editorGroups : memberGroups
 }
 
 export function selectedSectionId(

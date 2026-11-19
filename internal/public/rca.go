@@ -62,14 +62,15 @@ type CreatedRCA struct {
 }
 
 type PublicRCA struct {
-	Revision    int
-	Title       string
-	Summary     string
-	State       string
-	From, To    *time.Time
-	Blocks      json.RawMessage
-	PublishedBy string
-	CreatedAt   time.Time
+	Revision     int
+	Title        string
+	Summary      string
+	State        string
+	From, To     *time.Time
+	Blocks       json.RawMessage
+	PublishedBy  string
+	CreatedAt    time.Time
+	SupersededBy *int
 }
 
 type ResolvedRCA struct {
@@ -234,16 +235,25 @@ func (s *Service) ViewRCA(ctx context.Context, token string) (PublicRCA, error) 
 	if err := s.db.Queries().TouchPublicLink(ctx, r.LinkID); err != nil {
 		s.logger.WarnContext(ctx, "record a public link view", logattrs.Failure("internal", err, slog.String("public_link_id", r.LinkID.String()))...)
 	}
+	next, err := s.db.Queries().NextRCARevision(ctx, r.ObservationID)
+	if err != nil {
+		return PublicRCA{}, fmt.Errorf("read the latest RCA revision: %w", err)
+	}
+	var supersededBy *int
+	if latest := int(next.Revision) - 1; latest > r.Revision {
+		supersededBy = &latest
+	}
 	return PublicRCA{
-		Revision:    r.Revision,
-		Title:       r.row.Title,
-		Summary:     r.row.Summary.String,
-		State:       r.row.ObservationState,
-		From:        timeOf(r.row.TimeFrom),
-		To:          timeOf(r.row.TimeTo),
-		Blocks:      content.Blocks,
-		PublishedBy: r.row.CreatedByName,
-		CreatedAt:   r.row.CreatedAt.Time,
+		SupersededBy: supersededBy,
+		Revision:     r.Revision,
+		Title:        r.row.Title,
+		Summary:      r.row.Summary.String,
+		State:        r.row.ObservationState,
+		From:         timeOf(r.row.TimeFrom),
+		To:           timeOf(r.row.TimeTo),
+		Blocks:       content.Blocks,
+		PublishedBy:  r.row.CreatedByName,
+		CreatedAt:    r.row.CreatedAt.Time,
 	}, nil
 }
 

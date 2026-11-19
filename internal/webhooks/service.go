@@ -24,38 +24,44 @@ import (
 )
 
 type Deps struct {
-	DB       *db.DB
-	Activity *activity.Store
-	Domains  egress.Allowlist
-	Sender   Sender
-	Key      sealed.Key
-	Logger   *slog.Logger
+	DB         *db.DB
+	Activity   *activity.Store
+	Principals Principals
+	Domains    egress.Allowlist
+	Sender     Sender
+	Key        sealed.Key
+	Logger     *slog.Logger
 }
 
 type Service struct {
-	db       *db.DB
-	activity *activity.Store
-	domains  egress.Allowlist
-	sender   Sender
-	key      sealed.Key
-	logger   *slog.Logger
+	db         *db.DB
+	activity   *activity.Store
+	source     source
+	principals Principals
+	domains    egress.Allowlist
+	sender     Sender
+	key        sealed.Key
+	logger     *slog.Logger
 }
 
 func NewService(d Deps) *Service {
-	return &Service{db: d.DB, activity: d.Activity, domains: d.Domains, sender: d.Sender, key: d.Key, logger: d.Logger}
+	return &Service{db: d.DB, activity: d.Activity, source: source{store: d.Activity}, principals: d.Principals, domains: d.Domains, sender: d.Sender, key: d.Key, logger: d.Logger}
 }
 
 type Input struct {
 	Name       string
 	URL        string
+	Format     string
 	EventTypes []string
 }
 
 type Patch struct {
 	Name       *string
 	URL        *string
+	Format     *string
 	EventTypes *[]string
 	Enabled    *bool
+	Owner      *string
 }
 
 type Created struct {
@@ -136,24 +142,45 @@ func (s *Service) checkHost(ctx context.Context, host string) error {
 	return nil
 }
 
-func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Created, error) {
+func (s *Service) lockAllowedHost(ctx context.Context, q *dbsqlc.Queries, host string) error {
+	if err := q.LockOutboundDomains(ctx); err != nil {
+		return err
+	}
+	return s.checkHost(ctx, host)
+}
+
+type cleanedInput struct {
+	name, address, host, format string
+	types                       []string
+}
+
+func cleanInput(in Input) (cleanedInput, error) {
 	name, err := cleanName(in.Name)
 	if err != nil {
-		return Created{}, err
+		return cleanedInput{}, err
 	}
 	address, host, err := cleanURL(in.URL)
 	if err != nil {
-		return Created{}, err
+		return cleanedInput{}, err
+	}
+	format, err := cleanFormat(cmp.Or(in.Format, FormatGeneric))
+	if err != nil {
+		return cleanedInput{}, err
 	}
 	types, err := cleanEventTypes(in.EventTypes)
+	if err != nil {
+		return cleanedInput{}, err
+	}
+	return cleanedInput{name: name, address: address, host: host, format: format, types: types}, nil
+}
+
+func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Created, error) {
+	clean, err := cleanInput(in)
 	if err != nil {
 		return Created{}, err
 	}
 	if !s.key.Set() {
 		return Created{}, ErrNoSecretKey
-	}
-	if err := s.checkHost(ctx, host); err != nil {
-		return Created{}, err
 	}
 	ownerKind, ownerID, err := owner(by)
 	if err != nil {
@@ -174,6 +201,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	}
 	var created Webhook
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := s.lockAllowedHost(ctx, q, clean.host); err != nil {
+			return err
+		}
 		if err := q.LockWebhooks(ctx); err != nil {
 			return err
 		}
@@ -185,7 +215,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 			return ErrTooMany
 		}
 		if _, err := q.InsertWebhook(ctx, dbsqlc.InsertWebhookParams{
-			ID: id, Name: name, Url: address, SecretCiphertext: ciphertext, EventTypes: types,
+			ID: id, Name: clean.name, Url: clean.address, Format: clean.format, SecretCiphertext: ciphertext, EventTypes: clean.types,
 			OwnerKind: ownerKind, OwnerID: ownerID,
 			CursorXid: pgtype.Uint64{Uint64: head.xid, Valid: true}, CursorSeq: head.seq,
 		}); err != nil {
@@ -214,7 +244,7 @@ func view(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (Webhook, erro
 
 func wrapStore(action string, err error) error {
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTooMany), errors.Is(err, context.Canceled):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTooMany), errors.Is(err, ErrNothingToSkip), errors.Is(err, ErrBusy), errors.Is(err, context.Canceled):
 		return err
 	}
 	return fmt.Errorf("%s: %w", action, err)
@@ -227,31 +257,107 @@ func (s *Service) List(ctx context.Context) ([]Webhook, error) {
 	}
 	out := make([]Webhook, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, webhookOf(dbsqlc.GetWebhookRow(r)))
+		w := webhookOf(dbsqlc.GetWebhookRow(r))
+		if w.ConsecutiveFailures > 0 {
+			w.Waiting = s.waiting(ctx, r.OwnerKind, r.OwnerID.String(), r.EventTypes, w.at)
+		}
+		out = append(out, w)
 	}
 	return out, nil
 }
 
+func (s *Service) pending(ctx context.Context, ownerKind, ownerID string, types []string, from cursor, limit int) ([]activity.Event, error) {
+	owner, err := s.principals.Principal(ctx, auth.PrincipalKind(ownerKind), ownerID)
+	if err != nil {
+		return nil, err
+	}
+	audience, err := s.source.audience(ctx, owner)
+	if err != nil {
+		return nil, err
+	}
+	page, _, err := s.source.next(ctx, audience, types, time.Now().Add(-expiry), from, limit)
+	return page, err
+}
+
+func (s *Service) waiting(ctx context.Context, ownerKind, ownerID string, types []string, from cursor) *Waiting {
+	page, err := s.pending(ctx, ownerKind, ownerID, types, from, maxWaitingCount+1)
+	if err != nil {
+		return nil
+	}
+	return &Waiting{Count: min(len(page), maxWaitingCount), More: len(page) > maxWaitingCount}
+}
+
+func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UUID) (skipped Delivery, updated Webhook, err error) {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		row, err := q.GetWebhookForUpdate(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if row.ConsecutiveFailures == 0 || row.DisabledAt.Valid {
+			return ErrNothingToSkip
+		}
+		if row.LeaseUntil.Valid && row.LeaseUntil.Time.After(time.Now()) {
+			return ErrBusy
+		}
+		page, err := s.pending(ctx, row.OwnerKind, row.OwnerID.String(), row.EventTypes, cursor{xid: row.CursorXid.Uint64, seq: row.CursorSeq}, 1)
+		if errors.Is(err, auth.ErrPrincipalGone) || (err == nil && len(page) == 0) {
+			return ErrNothingToSkip
+		}
+		if err != nil {
+			return err
+		}
+		e := page[0]
+		stored, err := q.InsertWebhookDelivery(ctx, deliveryParams(id, id.String()+"."+strconv.FormatInt(e.Seq, 10), e.Type,
+			pgtype.Int8{Int64: e.Seq, Valid: true}, attempt{outcome: outcomeSkipped, errorCode: errorSkippedByAdmin}))
+		if err != nil {
+			return err
+		}
+		at := cursorOf(e)
+		if _, err := q.SkipWebhookEvent(ctx, dbsqlc.SkipWebhookEventParams{ID: id, CursorXid: pgtype.Uint64{Uint64: at.xid, Valid: true}, CursorSeq: at.seq}); err != nil {
+			return err
+		}
+		skipped = deliveryOf(stored)
+		updated, err = view(ctx, q, id)
+		return err
+	})
+	if err != nil {
+		return Delivery{}, Webhook{}, wrapStore("skip webhook event", err)
+	}
+	s.logger.InfoContext(ctx, "webhook event skipped", slog.String("webhook_id", updated.ID), slog.String("actor_id", by.ID), slog.String("event_type", skipped.EventType))
+	return skipped, updated, nil
+}
+
 type cleanedPatch struct {
-	name, address string
-	types         []string
-	enabled       *bool
+	name, address, host, format string
+	types                       []string
+	enabled                     *bool
+	takeOwnership               bool
 }
 
 func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 	c := cleanedPatch{enabled: p.Enabled}
 	var err error
+	if p.Owner != nil {
+		if *p.Owner != ownerMe {
+			return cleanedPatch{}, &InvalidError{Message: `owner can only be "me"`}
+		}
+		c.takeOwnership = true
+	}
 	if p.Name != nil {
 		if c.name, err = cleanName(*p.Name); err != nil {
 			return cleanedPatch{}, err
 		}
 	}
 	if p.URL != nil {
-		var host string
-		if c.address, host, err = cleanURL(*p.URL); err != nil {
+		if c.address, c.host, err = cleanURL(*p.URL); err != nil {
 			return cleanedPatch{}, err
 		}
-		if err := s.checkHost(ctx, host); err != nil {
+	}
+	if p.Format != nil {
+		if c.format, err = cleanFormat(*p.Format); err != nil {
 			return cleanedPatch{}, err
 		}
 	}
@@ -263,13 +369,21 @@ func (s *Service) clean(ctx context.Context, p Patch) (cleanedPatch, error) {
 	return c, nil
 }
 
+func (c cleanedPatch) rehomes(current dbsqlc.Webhook) bool {
+	reenablesOrphan := c.enabled != nil && *c.enabled && current.DisabledReason.String == ReasonOwner
+	return c.takeOwnership || reenablesOrphan
+}
+
 func (c cleanedPatch) apply(current dbsqlc.Webhook, ownerKind string, ownerID pgtype.UUID, now time.Time) dbsqlc.UpdateWebhookParams {
 	at := pgtype.Timestamptz{Time: now, Valid: true}
 	params := dbsqlc.UpdateWebhookParams{
-		Name: cmp.Or(c.name, current.Name), Url: cmp.Or(c.address, current.Url), EventTypes: current.EventTypes,
-		OwnerKind: ownerKind, OwnerID: ownerID,
+		Name: cmp.Or(c.name, current.Name), Url: cmp.Or(c.address, current.Url), Format: cmp.Or(c.format, current.Format), EventTypes: current.EventTypes,
+		OwnerKind: current.OwnerKind, OwnerID: current.OwnerID,
 		ConsecutiveFailures: current.ConsecutiveFailures, NextAttemptAt: current.NextAttemptAt,
 		DisabledAt: current.DisabledAt, DisabledReason: current.DisabledReason,
+	}
+	if c.rehomes(current) {
+		params.OwnerKind, params.OwnerID = ownerKind, ownerID
 	}
 	if c.types != nil {
 		params.EventTypes = c.types
@@ -299,6 +413,11 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	}
 	var updated Webhook
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if cleaned.host != "" {
+			if err := s.lockAllowedHost(ctx, q, cleaned.host); err != nil {
+				return err
+			}
+		}
 		current, err := q.GetWebhookForUpdate(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -337,10 +456,6 @@ func (s *Service) RotateSecret(ctx context.Context, by auth.Principal, id pgtype
 	if !s.key.Set() {
 		return Created{}, ErrNoSecretKey
 	}
-	ownerKind, ownerID, err := owner(by)
-	if err != nil {
-		return Created{}, err
-	}
 	secret, err := newSecret()
 	if err != nil {
 		return Created{}, err
@@ -356,7 +471,7 @@ func (s *Service) RotateSecret(ctx context.Context, by auth.Principal, id pgtype
 		} else if err != nil {
 			return err
 		}
-		if _, err := q.SetWebhookSecret(ctx, dbsqlc.SetWebhookSecretParams{ID: id, SecretCiphertext: ciphertext, OwnerKind: ownerKind, OwnerID: ownerID}); err != nil {
+		if _, err := q.SetWebhookSecret(ctx, dbsqlc.SetWebhookSecretParams{ID: id, SecretCiphertext: ciphertext}); err != nil {
 			return err
 		}
 		rotated, err = view(ctx, q, id)
@@ -381,7 +496,7 @@ func (s *Service) Test(ctx context.Context, id pgtype.UUID) (Delivery, error) {
 	if err != nil {
 		return Delivery{}, err
 	}
-	body, deliveryID, err := testPayload(id.String())
+	body, deliveryID, err := testPayload(id.String(), row.Format)
 	if err != nil {
 		return Delivery{}, err
 	}

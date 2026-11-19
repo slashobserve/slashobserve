@@ -183,7 +183,7 @@ func newRigWithKey(t *testing.T, key sealed.Key) *rig {
 		r.principals.set(p)
 	}
 	logger := slog.New(slog.NewJSONHandler(r.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	r.svc = NewService(Deps{DB: database.DB, Activity: r.store, Domains: r.allow, Sender: r.sender, Key: key, Logger: logger})
+	r.svc = NewService(Deps{DB: database.DB, Activity: r.store, Principals: r.principals, Domains: r.allow, Sender: r.sender, Key: key, Logger: logger})
 	r.worker = r.workerAs(logger, "instance-a")
 	return r
 }

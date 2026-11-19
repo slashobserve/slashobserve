@@ -17,20 +17,29 @@ const (
 type webhooksOptions struct {
 	name   string
 	url    string
+	format string
 	events []string
 	limit  int
 	cursor string
 	all    bool
+
+	takeOwnership bool
 }
 
 type webhookView struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
 	URL            string   `json:"url"`
+	Format         string   `json:"format"`
 	EventTypes     []string `json:"event_types"`
 	State          string   `json:"state"`
 	DisabledReason *string  `json:"disabled_reason"`
-	Owner          struct {
+	NextAttemptAt  string   `json:"next_attempt_at"`
+	Waiting        *struct {
+		Count int  `json:"count"`
+		More  bool `json:"more"`
+	} `json:"waiting_events"`
+	Owner struct {
 		Label string `json:"label"`
 	} `json:"owner"`
 }
@@ -55,6 +64,11 @@ type webhookDelivery struct {
 	ErrorCode   *string `json:"error_code"`
 }
 
+type webhookSkip struct {
+	Webhook webhookView     `json:"webhook"`
+	Skipped webhookDelivery `json:"skipped"`
+}
+
 type webhookTest struct {
 	Delivery webhookDelivery `json:"delivery"`
 }
@@ -72,7 +86,7 @@ func (a *app) webhooksCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.webhooksListCommand(), a.webhooksAddCommand(), a.webhooksUpdateCommand(), a.webhooksSwitchCommand(true), a.webhooksSwitchCommand(false), a.webhooksTestCommand(), a.webhooksRotateCommand(), a.webhooksDeleteCommand(), a.webhooksDeliveriesCommand())
+	cmd.AddCommand(a.webhooksListCommand(), a.webhooksAddCommand(), a.webhooksUpdateCommand(), a.webhooksSwitchCommand(true), a.webhooksSwitchCommand(false), a.webhooksTestCommand(), a.webhooksSkipCommand(), a.webhooksRotateCommand(), a.webhooksDeleteCommand(), a.webhooksDeliveriesCommand())
 	return cmd
 }
 
@@ -100,13 +114,14 @@ func (a *app) webhooksAddCommand() *cobra.Command {
 
 func (a *app) webhooksUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <webhook id> [--name <name>] [--url <https address>] [--event <type> ...]",
-		Short: "Change a webhook's name, address or event types",
-		Long:  "update changes only the fields you pass; --event replaces the whole list of event types.\nYou become the webhook's owner, so it sends what you can read.",
+		Use:   "update <webhook id> [--name <name>] [--url <https address>] [--event <type> ...] [--take-ownership]",
+		Short: "Change a webhook's name, address, event types or owner",
+		Long:  "update changes only the fields you pass; --event replaces the whole list of event types.\nThe owner stays as it is unless you pass --take-ownership, which makes you the owner so the webhook sends what you can read, including your personal folder.",
 		Args:  exactArgs(1, "a webhook id"),
 		RunE:  a.runWebhooksUpdate,
 	}
 	a.webhookFields(cmd)
+	cmd.Flags().BoolVar(&a.webhooks.takeOwnership, "take-ownership", false, "make you the webhook's owner")
 	return cmd
 }
 
@@ -114,6 +129,7 @@ func (a *app) webhookFields(cmd *cobra.Command) {
 	flags := cmd.Flags()
 	flags.StringVar(&a.webhooks.name, "name", "", "the webhook's name")
 	flags.StringVar(&a.webhooks.url, "url", "", "the https address on port 443 that receives the events")
+	flags.StringVar(&a.webhooks.format, "format", "", "the body to send: generic (the signed JSON envelope, the default), slack or teams")
 	flags.StringSliceVar(&a.webhooks.events, "event", nil, "an activity event type to send, such as run.failed; repeat for several")
 }
 
@@ -140,11 +156,21 @@ func (a *app) webhooksTestCommand() *cobra.Command {
 	}
 }
 
+func (a *app) webhooksSkipCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "skip <webhook id>",
+		Short: "Pass over the event a failing webhook is stuck on",
+		Long:  "skip moves a retrying webhook past the oldest event it still has to send, so the events behind it go out; the skipped event is never sent to that receiver and shows in deliveries as skipped.\nIt exits 1 with nothing_to_skip when the webhook is not retrying.",
+		Args:  exactArgs(1, "a webhook id"),
+		RunE:  a.runWebhooksSkip,
+	}
+}
+
 func (a *app) webhooksRotateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rotate-secret <webhook id>",
 		Short: "Make a new signing secret and print it once",
-		Long:  "rotate-secret makes a new signing secret at once; the old one stops working with the next request.\nThe new secret is printed once and cannot be shown again.\nYou become the webhook's owner.",
+		Long:  "rotate-secret makes a new signing secret at once; the old one stops working with the next request.\nThe new secret is printed once and cannot be shown again.\nThe owner stays as it is.",
 		Args:  exactArgs(1, "a webhook id"),
 		RunE:  a.runWebhooksRotate,
 	}
@@ -212,7 +238,11 @@ func (a *app) runWebhooksAdd(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	data, err := c.post(cmd.Context(), "webhooks", map[string]any{"name": opts.name, "url": opts.url, "event_types": opts.events})
+	body := map[string]any{"name": opts.name, "url": opts.url, "event_types": opts.events}
+	if opts.format != "" {
+		body["format"] = opts.format
+	}
+	data, err := c.post(cmd.Context(), "webhooks", body)
 	if err != nil {
 		return err
 	}
@@ -232,11 +262,17 @@ func (a *app) runWebhooksUpdate(cmd *cobra.Command, args []string) error {
 	if flags.Changed("url") {
 		body["url"] = a.webhooks.url
 	}
+	if flags.Changed("format") {
+		body["format"] = a.webhooks.format
+	}
 	if flags.Changed("event") {
 		body["event_types"] = a.webhooks.events
 	}
+	if flags.Changed("take-ownership") && a.webhooks.takeOwnership {
+		body["owner"] = "me"
+	}
 	if len(body) == 0 {
-		return usagef("pass at least one of --name, --url or --event")
+		return usagef("pass at least one of --name, --url, --format, --event or --take-ownership")
 	}
 	return a.patchWebhook(cmd, id, body, "Updated")
 }
@@ -308,6 +344,33 @@ func (a *app) runWebhooksTest(cmd *cobra.Command, args []string) error {
 	if tested.Delivery.Outcome != "delivered" {
 		return errors.New("the test event was not delivered")
 	}
+	return nil
+}
+
+func (a *app) runWebhooksSkip(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	data, err := c.post(cmd.Context(), "webhooks/"+id+"/skip", struct{}{})
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	skipped, err := decode[webhookSkip](data)
+	if err != nil {
+		return err
+	}
+	out.confirm("Skipped %s on webhook %s", text(skipped.Skipped.EventType), text(skipped.Webhook.ID))
+	printWebhook(out, skipped.Webhook)
 	return nil
 }
 
@@ -406,6 +469,7 @@ func printWebhook(out *output, w webhookView) {
 		{"ID", text(w.ID)},
 		{"Name", text(w.Name)},
 		{"URL", text(w.URL)},
+		{"Format", text(w.Format)},
 		{"Events", text(strings.Join(w.EventTypes, ", "))},
 		{"Owner", text(w.Owner.Label)},
 		{"Status", webhookStatus(w)},
@@ -415,6 +479,13 @@ func printWebhook(out *output, w webhookView) {
 func webhookStatus(w webhookView) string {
 	if w.State == "disabled" {
 		return "disabled (" + orDash(w.DisabledReason) + ")"
+	}
+	if w.State == "retrying" && w.Waiting != nil {
+		more := ""
+		if w.Waiting.More {
+			more = "+"
+		}
+		return fmt.Sprintf("retrying (%d%s waiting, next %s)", w.Waiting.Count, more, when(w.NextAttemptAt))
 	}
 	return text(w.State)
 }

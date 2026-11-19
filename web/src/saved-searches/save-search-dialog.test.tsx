@@ -184,6 +184,15 @@ describe("SaveSearchDialog", () => {
     })
   })
 
+  it("selects the suggested title so that typing a name replaces it", async () => {
+    stubServer()
+    const { user } = open(logsDraftOf({ q: "level:error" }))
+    const title = await screen.findByLabelText("Title")
+    await waitFor(() => expect(title).toHaveFocus())
+    await user.keyboard("Checkout errors")
+    expect(title).toHaveValue("Checkout errors")
+  })
+
   it("keeps Save off until there is a title", async () => {
     stubServer()
     const { user } = open(logsDraftOf({ q: "error" }))

@@ -27,12 +27,14 @@ export function eligibleDatasources(
   return (list ?? []).filter((datasource) => types.includes(datasource.type))
 }
 
+export function distinctName(type: string, name: string): string | undefined {
+  return name.toLowerCase() === typeName(type).toLowerCase() ? undefined : name
+}
+
 export function optionText(datasource: DatasourceStatus): string {
   const type = typeName(datasource.type)
-  const text =
-    datasource.name.toLowerCase() === type.toLowerCase()
-      ? type
-      : `${datasource.name} (${type})`
+  const name = distinctName(datasource.type, datasource.name)
+  const text = name === undefined ? type : `${name} (${type})`
   return datasource.healthy ? text : `${text} - unavailable`
 }
 

@@ -20,6 +20,7 @@ A block is one of these kinds:
 | `run` | The agent run that is investigating, added by the server. |
 
 Each block is `full` width or `half` width, and blocks keep the order of their `position`.
+A person who can only comment sees positions that count only the blocks they can see, and a suggestion they place at one of those positions lands there once an editor keeps it.
 A page holds at most 100 blocks, of which at most 24 are panel and snapshot blocks together.
 A panel must be a valid data panel, and one that an agent or MCP client adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.
 Frozen data is limited to 2 MiB, and a larger result is refused with `snapshot_too_large`.
@@ -32,9 +33,11 @@ An observation lives in one folder and follows that folder's access, as a dashbo
 - A person who can view the folder can read the observation.
 - A person who can comment adds blocks that are `requested`, and takes part in the observation's one discussion, a single comment thread for the whole page.
 - A person who can edit adds `live` blocks, changes and removes them, moves the observation, resolves and reopens it, and publishes it.
-- A person who can manage the folder creates public links to its RCA.
+- A person who can manage the folder creates public links to its RCA, and deletes any observation in it.
+- A person who started the observation and can still edit it deletes it.
 
-A requested block is visible but is not part of the page's settled content until someone who can edit keeps it.
+A requested block is not part of the page's settled content until someone who can edit keeps it.
+Until then only its author, editors and admins see it; viewers and other commenters read the page without it, in the app, over the API, in MCP and in the CLI.
 An editor keeps a requested block or discards it, and the one who asked for it may discard it too.
 Each block has a `version`, and a change or a keep that names an older one is refused with `version_conflict`, so two people never overwrite each other unseen.
 An observation in My Dashboards is private to its owner.
@@ -45,22 +48,29 @@ A block someone requested also shows in the inbox of the person who created the 
 
 ### Open an observation
 
-**Observations** in the sidebar opens the list at `/observations`, with each observation's title, state, who opened it and when it last changed, most recently changed first within its folder.
-The list is grouped under its folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
-A folder with no observation in the current tab is not listed, and a folder's header counts its observations only once every page is loaded.
-The **Open**, **Resolved** and **All** tabs above the list choose which observations show, Open by default, and **Load more** fetches the next page, which joins the folders already shown.
+**Observations** in the sidebar opens the list at `/observations`, one row for each observation with its title, folder, state, who opened it and when it last changed, most recently changed first.
+The **Open**, **Resolved** and **All** tabs above the list choose which observations show, Open by default.
+The search box keeps the observations whose title contains the text, **Opened by me** keeps the ones you started, and the sort menu orders by last change, creation time or title, in either direction.
+Below the list, **Per page** chooses 20, 50 or 100 rows, and the page numbers with **Previous** and **Next** move through the result; the header says which rows show, as "21-40 of 59".
+
+The tab, search, filter, sort, page and page size are in the address, so a link reopens the same view.
+The checkbox on a row selects it, and the one in the header selects every row on the page.
+With rows selected, **Resolve** closes them all with one summary and **Delete** removes them; each counts only the rows you may resolve or delete.
+
+The **...** menu on a row offers **Resolve**, **Reopen** and **Delete** for that row when you may do them.
 Under **Observations** in the sidebar, up to five open observations are listed, indented, each with a green dot and in bold while it has unread inbox items, and **All observations** follows when more are open.
 On the icon rail, a dot on **Observations** shows that some are open.
 
 An observation opens at `/o/<id>`.
 The page updates when someone else changes its blocks, its state or the discussion.
+An address that is not an observation id, or an observation you cannot see, shows "Observation not found" with a link back to the list, and no Retry, because retrying cannot help.
 **Share** in the top row copies the address of the page, which only people who can see the observation can open; a read-only link for everyone else is a [public link to an RCA revision](#share-a-revision-in-the-web-app).
 
 ### Start one
 
 **New observation** on the list opens a panel with a **Title** of 1 to 200 characters and a **Folder**, and Home's **New observation** tab, which the command palette's **New observation** opens, asks for the same two fields plus an optional first note, which becomes the first text block, and links in it to a logs search, a trace or a dashboard panel of this app become panel blocks; see [Home](home.md#new-observation).
 The folder choices are the folders you can edit.
-With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General.
+With none chosen, the observation goes in My Dashboards when you may create there, and otherwise in General, and the folder box names that default before you pick one.
 **Create** opens the new page.
 
 ### Add blocks
@@ -69,7 +79,9 @@ A person who can edit sees **Add a block**, and a person who can only comment se
 The row offers four ways:
 
 - **Text** opens a box for Markdown.
-  **Add** or **Suggest** saves it, `⌘Enter` or `Ctrl+Enter` does the same, and `Esc` or **Cancel** closes the box.
+  **Add** or **Suggest** saves it, and `⌘Enter` or `Ctrl+Enter` does the same.
+  `Esc` closes the box and keeps what you typed for when you open it again, and **Cancel** closes it and throws the text away.
+  A word with no break in it, such as a hash or a long address, wraps inside the block instead of widening the page.
 - **Panel** opens a side panel where you search for a dashboard, then choose one of its data panels.
   The block is a copy of the panel with its own query, and it stays live on the page over the observation's range, or over the last hour when the observation has none.
 - **Logs** opens the logs page with this observation preselected, so a search can be added from there (see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs)).
@@ -80,6 +92,7 @@ An editor's block goes on the page as `live`.
 A commenter's block is `requested`: it shows with a dashed border and the caption "`<name>` suggests this block", or "Observe Agent suggests this block" when an agent run wrote it.
 **Keep** makes it live and **Discard** removes it.
 Both show to an editor, and only **Discard** shows to the person who asked for the block.
+Resolving does not close the page: a resolved observation still takes blocks from editors and suggestions from commenters, and the row says "This observation is resolved" so nobody is surprised; an editor who does not want more reopens it or discards the suggestion.
 
 A panel block's caption names its datasource and says "live", and a snapshot's caption says "Frozen" with the time range of its data.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.
@@ -88,21 +101,38 @@ A person who can only comment suggests that snapshot, as with any other block.
 ### Change blocks
 
 Hover a block, or focus it, to show its **Block actions** menu.
-It offers **Make half width** or **Make full width**, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
+It offers **Move up** and **Move down**, which swap the block with its neighbour and keep it in view, **Make half width** or **Make full width**, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
 Two half width blocks in a row sit side by side when the page is wide enough, and a half width block with no half width neighbour takes the left half of its row.
+
+**Delete block** on a block an agent wrote, which is every run block and any block added by the built-in agent or over MCP, asks "Delete this block?" first, because the block cannot be brought back.
 **Edit** on a text block opens its Markdown, and **Save** or `⌘Enter` keeps the change.
 If someone changed the block first, the editor says so and **Use their version** replaces your text with theirs.
 Text that is empty is refused; delete the block instead.
-Editing, resizing and deleting need edit access to the folder.
+Editing, moving, resizing and deleting need edit access to the folder.
+An agent reorders blocks with `update_block` and its `position`.
 
 ### Rename, resolve, reopen and move
 
 A person who can edit changes the title by choosing it, typing, and pressing `Enter`, or `Esc` to leave it as it was.
 **Resolve** asks for a one-line summary of at most 500 characters, which then shows under the title and in the list.
 **Reopen** turns a resolved observation back into an open one.
+The summary stays stored, so the next **Resolve** starts from it, and the page and a published RCA show it only while the observation is resolved: `observe o show` prints it as `Last summary`, and over the API and MCP it is still in `summary` beside `state: open`.
 **More actions**, then **Move to folder**, opens a panel that searches the shared folders you can edit; My Dashboards is not a choice.
 Resolving, reopening and moving need edit access, and moving needs it on the target folder too.
 The state line also shows who started the observation and when, and links to its folder.
+
+### Pin it and make a dashboard
+
+**More actions** has **Pin to dashboard** when the observation came from a run about a dashboard and you have edit access to that dashboard.
+It adds an annotation at the end of the observation's range with the title and a link back.
+Over the API the observation's `can_pin` says whether you may, and a pin to a dashboard you cannot open answers 404 "dashboard not found".
+Once it is pinned the item reads **Pinned to dashboard**, and pinning again over the API or MCP returns the same annotation.
+
+**Make a dashboard**, in **More actions** and in the actions of a live panel block, saves the live panel blocks, or that one block, as a new dashboard in My Dashboards and opens it.
+The dashboard keeps the variables each block carries and uses the observation's range, or the first panel's when it has none, and every query is run again first.
+Making it again from the same observation or block opens the one you made first, unless you can no longer see that dashboard, and then a new one is made.
+Over the API `new: true` makes another.
+Suggested blocks, text blocks and snapshots are left out.
 
 ### Discuss beside the blocks
 
@@ -110,7 +140,8 @@ The discussion is the observation's one comment thread, in a pane on the right o
 Drag the pane's left edge to make it wider or narrower; it shares its width with a dashboard's activity pane.
 The **Discussion** button in the top row, which shows the number of messages, hides and shows the pane, and **Close panel** in the pane hides it.
 The pane lists the messages together with the changes to the page, newest at the bottom, grouped under a heading for each day, with each entry showing its author's mark and the time of day.
-The changes are who started the observation (with its title, its folder and whether it is open or resolved), who added or suggested each block (a panel block also names its datasource and says it is live), who removed a block, and who renamed the observation.
+The changes are who started the observation (with the title it was created with and its folder), who added or suggested each block (a panel block also names its datasource and says it is live, and a snapshot names the panel it froze), who changed or removed a block, who renamed the observation, from which title to which, and who moved, resolved, reopened, published or withdrew a revision of it.
+The pane reads up to 500 of the newest such events.
 A removed block is drawn without a name, because the block is gone.
 A block's name scrolls the page to that block.
 
@@ -140,11 +171,12 @@ The line is not the model's text, and it never resolves the discussion.
 ### Add to an observation from a panel or from Logs
 
 **Add to observation** in a dashboard panel's menu copies that panel into an observation.
-The item shows for every data panel while you have no unsaved layout changes, and it is greyed with "(uses dashboard variables)" after it when the panel cannot be copied.
-A panel cannot be copied when a query, or the panel's datasource, holds `$name` or `${name`, where the name starts with a letter or an underscore.
-That includes the built-in names such as `$__interval`.
+The item shows for every data panel while you have no unsaved layout changes.
+A panel that uses dashboard variables, a `$name` or `${name}` in a query or in the panel's datasource, is copied with the variables it uses and the values selected at that moment, so the block shows what you saw.
+The built-in names, which start with two underscores, such as `$__rate_interval`, `$__interval` and `${__user.name}`, are not variables, because a block runs them as it runs any query.
 A `$` before a digit or on its own does not count, and a variable in the panel's title does not either.
-A block runs with no dashboard variables, so a panel that needs one is not offered.
+A multi-value selection and **All** expand in the query as they do on the dashboard, because the block keeps the variable's definition.
+The block says "with `service=checkout`" under its title, and changing the dashboard's selection later does not change the block.
 
 The side panel asks **Where**: **An open observation**, chosen from the open ones you can see, or **A new observation**, which asks for a title that starts as the panel's title and a folder as above.
 With no open observation, only the new one is offered.
@@ -159,12 +191,28 @@ A panel's `repeat` setting is dropped.
 
 ## Work on one from MCP and the CLI
 
-[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block` and `publish_rca`.
-The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `edit-block`, `remove-block` and `publish`.
+[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`, `pin_observation` and `make_dashboard`.
+The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `edit-block`, `remove-block`, `publish`, `pin` and `dashboard`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
+
+`GET /api/v1/observations` filters with `folder_id`, `state`, `q` (a title that contains the text, ignoring case, at most 200 characters) and `created_by=me`, and sorts with `sort` (`updated`, the default, `created` or `title`) and `order` (`asc` or `desc`; `title` starts ascending, the others descending).
+It pages in one of two ways: `cursor` and `next_cursor` for the default order, or `offset` (at most 100000) with `limit`, which also answers `total`, the number of observations that match.
+A cursor cannot be combined with `offset` or with another sort.
+
 Every observation the HTTP API and the MCP observation tools return carries `message_count`, how many messages its discussion holds, replies included, and 0 before anyone has written one.
 To read what changed on one observation, filter the [activity](activity.md) with `observation_id`.
 Searching the workspace finds observations too (see [Search](search.md)).
+
+## Delete an observation
+
+Deleting removes the observation for everyone, with its blocks, snapshots, discussion and RCA revisions, and the public links of those revisions stop working.
+It cannot be undone.
+A pin of the observation on a dashboard is taken off it too, when you started that pin or are an Admin; otherwise the marker stays and its link shows "Observation not found".
+While an investigation on the observation is queued or running, the delete is refused with `run_in_progress`; delete it once the run ends or has been stopped.
+The person who started the observation and can edit it may delete it, and so may anyone who manages its folder.
+In the web app it is **More actions**, then **Delete observation**, on the page, or **Delete** on the list, and it asks you to confirm first.
+Over HTTP it is `DELETE /api/v1/observations/{id}`, which answers 204, and in the CLI `observe o delete <observation-id> --yes`.
+The [activity](activity.md) log keeps an `observation.deleted` event with the title.
 
 ## Resolve with a summary
 
@@ -187,7 +235,10 @@ A revision leaves out requested blocks, run blocks, and the query text of every 
 If a panel cannot be frozen, nothing is published and the answer is `panel_failed` with the block it names, so fix or remove that panel and publish again.
 If the page changed while it was being frozen, the answer is `observation_changed`, and publishing again takes the new page.
 An observation keeps at most 50 revisions, and one more is refused with `rca_limit`.
+A page with no live panel block whose title, summary, state, range and blocks equal its latest revision is refused with `rca_unchanged`, so pressing Publish twice, or an agent retrying, never makes a copy.
+A page with a live panel block always publishes, because each publish takes new data.
 Publishing needs edit access to the observation's folder, and an observation in My Dashboards must be moved to a shared folder first, as a dashboard must before it is shared.
+Such an observation does not list `publish` in its `allowed_actions`, and the web page offers **Publish as RCA** with a **Move to folder** button instead of a publish button.
 
 An agent can publish with `publish_rca` and a person with `observe o publish <observation-id>`, which prints `Published revision N of <title>`.
 Neither shares the result with anyone outside the folder.
@@ -198,9 +249,23 @@ Neither shares the result with anyone outside the folder.
 **Publish revision N** freezes the page as the next revision and says "Published revision N" when it is done.
 **Revisions** lists each revision with who published it and when.
 A person who cannot edit sees **RCA revisions** instead, and only when a revision exists, with the note "You can view revisions. Editors publish them."
-The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a panel with too much data, and an observation in My Dashboards.
-Choosing a revision shows its public links.
-The app does not render a revision itself; a revision is read at the address of one of its links.
+The panel refuses a publish with the reasons above: a panel that could not be frozen, a page that changed meanwhile, the limit of 50 revisions, a page that has not changed since the latest revision, a panel with too much data, and an observation in My Dashboards.
+When a panel could not be frozen, the message names the panel and why, and **Show block** closes the panel and scrolls to that block so you can fix or remove it.
+
+Choosing a revision shows **Open revision N**, its public links and, for a person who can edit, **Withdraw**.
+**Open revision N** shows the stored revision inside the app at `/o/<observation-id>/rca/<revision>`, for anyone who can see the observation, whether or not it has a public link.
+The page is the same frozen text and panels a public link shows, with the name of who published it, and a link back to the observation.
+
+### Withdraw a revision
+
+A slip in a published revision cannot be edited, because a revision never changes, but it can be withdrawn.
+**Withdraw** asks for confirmation and then deletes the revision and its frozen panels for everyone.
+It needs Edit on the observation's folder and the same states as publishing, and the activity log keeps `observation.rca_withdrawn` with the title and the revision number.
+A revision that still has a live public link answers `rca_shared` (409), because a public link is a person's decision: a person with Manage on the folder revokes its links first and then withdraws it.
+Links that have already expired go with the revision.
+Withdrawing the newest revision frees its number, so the next publish takes it again.
+A person withdraws with `observe o withdraw <observation-id> <revision> --yes` or `DELETE /api/v1/observations/{id}/rcas/{revision}`.
+No MCP tool deletes anything, so an agent cannot withdraw a revision.
 
 ## Share a revision
 
@@ -232,13 +297,16 @@ Creating, listing and revoking links need Manage on the folder, and the panel sh
 
 `<public url>/rca/<token>` opens with no sign-in and shows the SlashObserve name, then:
 
-- The title, and a line "Revision N, published by `<name>`, `<date and time>`".
+- The title, and a line "Revision N, published by `<name>`, `<date and time>` `<time zone>`", in the time zone of the reader's browser.
 - "Resolved", or "Open at publish time", and the summary when there is one.
 - The blocks in page order: text as Markdown, and each panel as its frozen data under the panel's title.
-  A panel's caption is "Frozen" with the observation's time range when it had one, and otherwise "Frozen when published".
+  A panel's caption is "Frozen" with the observation's time range and its time zone when it had one, and otherwise "Frozen when published".
 - Half width blocks side by side when the page is wide enough.
 
 It shows no query, discussion, comment, activity, live panel or other revision, and it runs no query against a datasource.
+When a newer revision has been published since, the page says "Revision N is newer, so this one may be out of date", with N only and no link, because the reader cannot open another revision; `GET /api/v1/public/{token}/rca` carries the number as `superseded_by`, null on the newest.
+The same notice shows in the app, with **Open revision N** beside it.
+A person who finds a link to a superseded revision can revoke it, or withdraw the revision once its links are revoked.
 A panel of a type that cannot show on a public link, or that the page cannot draw yet, shows "This panel type is not shown yet."
 An expired, revoked or unknown token shows "This link has expired or was turned off."
 
@@ -253,7 +321,7 @@ An investigation that names an observation with 100 blocks already gets no run b
 
 Without `observation_id`, the server makes a new observation:
 
-- Its title is the first line of the prompt, cut to 200 characters, or "Investigation" when that line is empty.
+- Its title is the first non-empty line of the prompt without `@observe`, cut at a word to about 60 characters with "...", or "Investigation" when no line is left.
 - Its range is the window of the investigation, and it has none when the investigation was given no `from` and `to`.
 - It goes in the folder of the dashboard the investigation is about when you can edit that folder.
   Otherwise it goes in your My Dashboards when you may create there, and otherwise in General when you may create there.
@@ -263,6 +331,7 @@ When the agent saves its finding, the finding and its conclusion are written in 
 The conclusion becomes a text block that starts with `## <title>` and goes on with the finding's Markdown, cut to the 8,000 characters the server accepts in a text block, followed by one panel block for each panel of its evidence.
 The panel blocks show the finding's own window.
 The run block then cites these blocks, and a run adds them once, so saving the finding again adds nothing.
+The page names each cited block by the finding's heading or the panel's title.
 An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
 A finding saved by a run that has an observation takes its own id, and one saved with no run observation takes the id of the observation it creates; its `observation_id` names the observation either way.
 

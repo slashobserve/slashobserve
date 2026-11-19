@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { ApiError } from "@/api/errors"
 
 import {
+  connectionPatch,
   connectionProblems,
   grafanaProblemText,
   trimConnection,
@@ -84,5 +85,32 @@ describe("grafanaProblemText", () => {
     ],
   ])("explains %s", (_name, error, want) => {
     expect(grafanaProblemText(error)).toBe(want)
+  })
+})
+
+describe("editing a stored connection", () => {
+  const stored = { name: "Production", url: "https://grafana.example.com" }
+
+  it("keeps the stored token when only the name changes", () => {
+    const input = { name: "Prod", url: stored.url, token: "" }
+    expect(connectionProblems(input, stored)).toEqual({})
+    expect(connectionPatch(input, stored)).toEqual({ name: "Prod" })
+  })
+
+  it("asks for the token again when the URL changes", () => {
+    const input = {
+      name: "Production",
+      url: "https://g2.example.com",
+      token: "",
+    }
+    expect(Object.keys(connectionProblems(input, stored))).toEqual(["token"])
+    expect(connectionPatch({ ...input, token: " glsa_new " }, stored)).toEqual({
+      url: "https://g2.example.com",
+      token: "glsa_new",
+    })
+  })
+
+  it("sends nothing when nothing changed", () => {
+    expect(connectionPatch({ ...stored, token: "" }, stored)).toEqual({})
   })
 })

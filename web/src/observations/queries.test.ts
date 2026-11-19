@@ -11,6 +11,8 @@ import {
   keepKnownBlocks,
   observationQuery,
   observationsInfiniteQuery,
+  observationsPageQuery,
+  useDeleteObservation,
   replaceBlock,
   useAddBlock,
   useAddBlockTo,
@@ -96,6 +98,28 @@ describe("replaceBlock", () => {
     expect(result.observation.blocks).toEqual([a, newer, c])
     expect(result.observation.blocks?.[0]).toBe(a)
     expect(result.observation.blocks?.[2]).toBe(c)
+  })
+
+  it("shifts the blocks between when a block moves up", () => {
+    const [a, b, c] = [block("a", 0), block("b", 1), block("c", 2)]
+    const moved = block("c", 0, 2)
+    const result = replaceBlock(envelope([a, b, c]), moved)
+    expect(result.observation.blocks?.map((x) => [x.id, x.position])).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 0],
+    ])
+  })
+
+  it("shifts the blocks between when a block moves down", () => {
+    const [a, b, c] = [block("a", 0), block("b", 1), block("c", 2)]
+    const moved = block("a", 2, 2)
+    const result = replaceBlock(envelope([a, b, c]), moved)
+    expect(result.observation.blocks?.map((x) => [x.id, x.position])).toEqual([
+      ["a", 2],
+      ["b", 0],
+      ["c", 1],
+    ])
   })
 
   it("does not add a block the page does not have", () => {
@@ -226,7 +250,78 @@ describe("observation reads", () => {
   })
 })
 
+describe("the paged list", () => {
+  it("asks for a page by offset with the search, the author and the order", async () => {
+    const calls = stubServer({
+      "GET /api/v1/observations": {
+        status: 200,
+        body: { observations: [], next_cursor: null, total: 45 },
+      },
+    })
+    const queryClient = testQueryClient()
+    const page = await queryClient.fetchQuery(
+      observationsPageQuery({
+        state: "open",
+        q: "checkout",
+        mine: true,
+        sort: "title",
+        order: "desc",
+        page: 3,
+        size: 20,
+      })
+    )
+    expect(page.total).toBe(45)
+    const query = new URLSearchParams(calls[0]?.search)
+    expect(Object.fromEntries(query)).toEqual({
+      limit: "20",
+      offset: "40",
+      state: "open",
+      q: "checkout",
+      created_by: "me",
+      sort: "title",
+      order: "desc",
+    })
+  })
+
+  it("leaves out the filters that are not set", async () => {
+    const calls = stubServer({
+      "GET /api/v1/observations": {
+        status: 200,
+        body: { observations: [], next_cursor: null, total: 0 },
+      },
+    })
+    await testQueryClient().fetchQuery(
+      observationsPageQuery({
+        sort: "updated",
+        order: "desc",
+        page: 1,
+        size: 50,
+      })
+    )
+    expect(Object.fromEntries(new URLSearchParams(calls[0]?.search))).toEqual({
+      limit: "50",
+      offset: "0",
+      sort: "updated",
+      order: "desc",
+    })
+  })
+})
+
 describe("observation writes", () => {
+  it("deletes an observation, forgets it and marks the lists stale", async () => {
+    const calls = stubServer({
+      "DELETE /api/v1/observations/o1": { status: 204 },
+    })
+    const queryClient = seededClient()
+    const { result } = renderHook(() => useDeleteObservation(), {
+      wrapper: wrapperFor(queryClient),
+    })
+    await act(() => result.current.mutateAsync("o1"))
+    expect(calls).toHaveLength(1)
+    expect(queryClient.getQueryData(observationKeys.one("o1"))).toBeUndefined()
+    expect(isInvalidated(queryClient, observationKeys.list({}, 20))).toBe(true)
+  })
+
   it("files the new observation in the cache and marks the lists stale", async () => {
     const created = envelope([block("a", 0)])
     const calls = stubServer({

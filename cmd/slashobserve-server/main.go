@@ -330,7 +330,7 @@ func run() error {
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService))
 	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
@@ -455,7 +455,7 @@ func run() error {
 	defer stopGrafana()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
-		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
+		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
 	})
 	stopWebhooks := startBackground(ctx, "webhook worker", webhooks.NewWorker(webhooks.WorkerDeps{
 		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),

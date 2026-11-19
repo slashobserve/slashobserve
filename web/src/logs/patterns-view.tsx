@@ -199,7 +199,7 @@ function PatternRow({
         </div>
       </Cell>
       <Cell data-cell="action">
-        <div className="flex items-center justify-end gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
           <FilterButton
             label="Filter"
             ariaLabel="Filter to this pattern"

@@ -18,10 +18,11 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
-| Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
+| Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
-| Observation | `observation.published` | An RCA is published from an observation. |
+| Observation | `observation.deleted` | An observation is deleted with its blocks, RCA revisions and discussion; the event stays in the log and carries the title the observation had. |
+| Observation | `observation.published`, `observation.rca_withdrawn` | An RCA revision is published from an observation, or withdrawn again; both carry the title and the revision number. |
 | Observation | `observation.block_added`, `observation.block_updated` | A block is added to an observation's page, or one changes or moves. |
 | Observation | `observation.block_kept`, `observation.block_discarded` | An editor keeps a block someone requested, or discards it; its author may discard it too. |
 | Observation | `observation.block_removed` | A block is taken off an observation's page. |

@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteRCA = `-- name: DeleteRCA :execrows
+DELETE FROM observation_rcas WHERE id = $1
+`
+
+func (q *Queries) DeleteRCA(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRCA, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertRCA = `-- name: InsertRCA :one
 INSERT INTO observation_rcas (observation_id, revision, title, summary, observation_state, time_from, time_to, content,
   created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id)
@@ -132,6 +144,36 @@ func (q *Queries) ListRCAs(ctx context.Context, observationID pgtype.UUID) ([]Li
 		return nil, err
 	}
 	return items, nil
+}
+
+const liveRCALinkCount = `-- name: LiveRCALinkCount :one
+SELECT count(*)::int AS total FROM public_links
+WHERE rca_id = $1 AND (expires_at IS NULL OR expires_at > now())
+`
+
+func (q *Queries) LiveRCALinkCount(ctx context.Context, rcaID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, liveRCALinkCount, rcaID)
+	var total int32
+	err := row.Scan(&total)
+	return total, err
+}
+
+const lockRCAByRevision = `-- name: LockRCAByRevision :one
+SELECT id FROM observation_rcas
+WHERE observation_id = $1 AND revision = $2
+FOR UPDATE
+`
+
+type LockRCAByRevisionParams struct {
+	ObservationID pgtype.UUID
+	Revision      int32
+}
+
+func (q *Queries) LockRCAByRevision(ctx context.Context, arg LockRCAByRevisionParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockRCAByRevision, arg.ObservationID, arg.Revision)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const nextRCARevision = `-- name: NextRCARevision :one
