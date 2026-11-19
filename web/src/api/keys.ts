@@ -335,6 +335,8 @@ export const annotationKeys = {
     ["annotations", dashboardId, "range"] as const,
   range: (dashboardId: string, from: string, to: string) =>
     ["annotations", dashboardId, "range", from, to] as const,
+  activity: (dashboardId: string) =>
+    ["annotations", dashboardId, "activity"] as const,
 }
 
 export type HomeSearch = { q?: string; tag: string[] }

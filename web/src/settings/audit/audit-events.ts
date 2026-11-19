@@ -6,8 +6,15 @@ export type ActivityType = components["schemas"]["ActivityType"]
 export const auditKinds = [
   { value: "user.role_changed", label: "Role changed" },
   { value: "user.signed_out_everywhere", label: "Signed out everywhere" },
+  { value: "user.invited", label: "Person invited" },
+  { value: "user.invite_updated", label: "Invite changed" },
+  { value: "user.invite_withdrawn", label: "Invite withdrawn" },
+  { value: "user.deactivated", label: "Person deactivated" },
+  { value: "user.reactivated", label: "Person reactivated" },
+  { value: "user.removed", label: "Person removed" },
   { value: "service_account.created", label: "Service account created" },
   { value: "service_account.updated", label: "Service account changed" },
+  { value: "service_account.deleted", label: "Service account deleted" },
   { value: "service_account.key_created", label: "Key created" },
   { value: "service_account.key_revoked", label: "Key revoked" },
   { value: "webhook.created", label: "Webhook created" },
@@ -94,10 +101,24 @@ export function describeAuditEvent(event: ActivityEvent): string {
         : `Changed the role of ${name} from ${str(data, "from_role")} to ${str(data, "to_role")}`
     case "user.signed_out_everywhere":
       return `Signed ${name} out everywhere (${num(data, "sessions")} sessions, ${num(data, "grants")} connected agents)`
+    case "user.invited":
+      return `Invited ${str(data, "email")} as ${str(data, "role")}`
+    case "user.invite_updated":
+      return `Changed the invite of ${str(data, "email")}: ${changes(data, ["role"])}`
+    case "user.invite_withdrawn":
+      return `Withdrew the invite of ${str(data, "email")}`
+    case "user.deactivated":
+      return `Deactivated ${name} (${num(data, "sessions")} sessions, ${num(data, "grants")} connected agents)`
+    case "user.reactivated":
+      return `Reactivated ${name}`
+    case "user.removed":
+      return `Removed ${name}`
     case "service_account.created":
       return `Created ${quoted("service account", name)} as ${str(data, "role")}`
     case "service_account.updated":
       return `Changed ${quoted("service account", name)}: ${changes(data, ["role", "takes_runs"])}`
+    case "service_account.deleted":
+      return `Deleted ${quoted("service account", name)}`
     case "service_account.key_created":
       return `Created the key "${str(data, "key_name")}" for ${quoted("service account", name)}`
     case "service_account.key_revoked":

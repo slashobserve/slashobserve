@@ -12,6 +12,7 @@ import { IntervalControl } from "./variable-controls/interval-control"
 import { TextboxControl } from "./variable-controls/textbox-control"
 import { variableLabel } from "./variable-controls/variable-box"
 import { VariableSelect } from "./variable-select"
+import { unknownValues } from "./variables"
 
 type Props = {
   states: VariableState[]
@@ -104,6 +105,7 @@ export function VariablesBar({ states, unverified, onSelect }: Props) {
     }
   }
 
+  const unknown = unknownValues(shown)
   return (
     <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
       {shown.map((state) => {
@@ -121,6 +123,16 @@ export function VariablesBar({ states, unverified, onSelect }: Props) {
           </Fragment>
         )
       })}
+      {unknown.length > 0 ? (
+        <p role="status" className="basis-full text-xs text-muted-foreground">
+          {unknown
+            .map(
+              ({ label, values }) =>
+                `${values.map((value) => `"${value}"`).join(", ")} is not one of the values of ${label}, so its panels may show no data.`
+            )
+            .join(" ")}
+        </p>
+      ) : null}
     </div>
   )
 }

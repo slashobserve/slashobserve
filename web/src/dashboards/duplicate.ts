@@ -17,6 +17,7 @@ export function duplicateTargets(
   const choices = folders.filter((folder) => folder.permissions.create)
   const initial =
     choices.find((folder) => folder.id === sourceFolderId) ??
+    choices.find((folder) => folder.personal) ??
     choices.find((folder) => folder.general) ??
     choices[0]
   return { choices, initial: initial?.id ?? null }

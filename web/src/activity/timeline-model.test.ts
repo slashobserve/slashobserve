@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
+import type { Annotation } from "@/annotations/queries"
 import type { Comment } from "@/comments/queries"
 import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
+import type { ProposalSummary } from "@/proposals/queries"
 import type { Revision } from "@/revisions/queries"
 
 import {
@@ -775,7 +777,7 @@ describe("findings and investigations", () => {
     ])
   })
 
-  it("keeps findings for everything and changes, not for open comments or a panel", () => {
+  it("keeps findings for everything, changes and a panel filter, not for open comments", () => {
     const entries = buildTimeline({
       ...none,
       comments: [comment({ id: "c1", created_at: at(1) })],
@@ -789,6 +791,53 @@ describe("findings and investigations", () => {
       "finding:f1",
     ])
     expect(keys(filterTimeline(entries, "open", null))).toEqual(["thread:c1"])
-    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([])
+    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([
+      "finding:f1",
+    ])
+  })
+
+  it("shows an open proposal and an annotation, and credits a merged proposal on its version", () => {
+    const proposal = (
+      id: string,
+      state: ProposalSummary["state"],
+      createdAt: string
+    ) =>
+      ({
+        id,
+        state,
+        title: id,
+        created_at: createdAt,
+        actor: { ...actor, name: "Cleo", label: "Cleo" },
+        closed_by: state === "merged" ? author : null,
+      }) as ProposalSummary
+    const annotation = {
+      id: "a1",
+      dashboard_id: "d1",
+      panel_id: "p1",
+      created_at: at(3),
+    } as Annotation
+    const merged = { ...version(2, at(2)), merged_proposal_id: "pm" }
+    const entries = buildTimeline({
+      ...none,
+      versions: [version(1, at(0)), merged],
+      proposals: [
+        proposal("po", "open", at(1)),
+        proposal("pm", "merged", at(1)),
+      ],
+      annotations: [annotation],
+    })
+    expect(keys(entries)).toEqual([
+      "version:1",
+      "proposal:po",
+      "version:2",
+      "annotation:a1",
+    ])
+    const credited = entries.find((entry) => entry.key === "version:2")
+    expect(credited?.kind === "version" && credited.proposal?.id).toBe("pm")
+    expect(keys(filterTimeline(entries, "open", null))).toEqual(["proposal:po"])
+    expect(keys(filterTimeline(entries, "everything", "p1"))).toEqual([
+      "proposal:po",
+      "annotation:a1",
+    ])
   })
 })

@@ -6,6 +6,7 @@ import { RoleGate } from "@/components/role-gate"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { useDocumentTitle } from "@/lib/document-title"
+import { AccountsTable } from "@/service-accounts/accounts-table"
 import { ConnectClients } from "@/service-accounts/connect-clients"
 import { CreateKeyPanel } from "@/service-accounts/create-key-panel"
 import { KeysTable } from "@/service-accounts/keys-table"
@@ -67,6 +68,7 @@ function KeysContent() {
       />
       <ConnectClients open={noKeysYet} />
       <KeysTable onCreate={openPanel} revokeFocus={createButton} />
+      <AccountsTable deleteFocus={createButton} />
       {panelOpen ? (
         <CreateKeyPanel
           nameInput={nameInput}

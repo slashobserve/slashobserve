@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import {
   queryOptions,
   useMutation,
@@ -5,7 +6,7 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { ApiError, unwrap } from "@/api/errors"
 import { publicKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import type { Dashboard } from "@/spec"
@@ -30,6 +31,40 @@ export function publicDashboardQuery(token: string) {
         .then(withoutQueryText),
     staleTime: 60_000,
   })
+}
+
+export function isLinkGoneError(
+  queryKey: readonly unknown[],
+  token: string,
+  error: unknown
+): boolean {
+  return (
+    queryKey[0] === "public" &&
+    queryKey[1] === token &&
+    queryKey.length > 2 &&
+    error instanceof ApiError &&
+    error.status === 404 &&
+    error.code === "not_found"
+  )
+}
+
+export function useLinkGone(token: string): boolean {
+  const queryClient = useQueryClient()
+  const [gone, setGone] = useState(false)
+  useEffect(
+    () =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (
+          event.type === "updated" &&
+          event.action.type === "error" &&
+          isLinkGoneError(event.query.queryKey, token, event.action.error)
+        ) {
+          setGone(true)
+        }
+      }),
+    [queryClient, token]
+  )
+  return gone
 }
 
 export function publicLinksQuery(dashboardId: string) {

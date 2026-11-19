@@ -8,9 +8,9 @@ import {
   chatPaneStacked,
   chatPaneWidth,
   clampWidth,
+  dashboardActivityOpens,
   editWidth,
   isStacked,
-  opensByDefault,
   panelWidth,
 } from "@/components/dock/card-width"
 
@@ -54,7 +54,11 @@ function sanitize(saved: unknown, current: ActivityState): ActivityState {
     typeof value === "number" ? value : fallback
   return {
     ...current,
-    open: typeof stored.open === "boolean" ? stored.open : current.open,
+    open:
+      typeof stored.open === "boolean" &&
+      dashboardActivityOpens(window.innerWidth)
+        ? stored.open
+        : current.open,
     width: clampWidth(
       number(stored.width, current.width),
       activityWidth,
@@ -81,7 +85,7 @@ function sanitize(saved: unknown, current: ActivityState): ActivityState {
 export const useActivityStore = create<ActivityState>()(
   persist(
     (set) => ({
-      open: opensByDefault(window.innerWidth),
+      open: dashboardActivityOpens(window.innerWidth),
       width: activityWidth.initial,
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,
