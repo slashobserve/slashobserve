@@ -158,6 +158,7 @@ export function logsSwitchSearch(
     ask: undefined,
     line: undefined,
     cols: undefined,
+    saved: undefined,
     page: undefined,
   }
 }

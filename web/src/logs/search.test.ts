@@ -5,6 +5,7 @@ import {
   logsTimeRange,
   queryModeLabel,
   validAsk,
+  runPatch,
   searchAfter,
   validateLogsEntrySearch,
   validateLogsSearch,
@@ -255,5 +256,51 @@ describe("searchAfter", () => {
       q: "{b}",
       cols: "level",
     })
+  })
+})
+
+describe("runPatch", () => {
+  it("writes the query together with what came alongside it", () => {
+    expect(
+      runPatch({
+        text: "level:error",
+        current: { q: "old" },
+        asked: undefined,
+        alongside: { from: "now-15m", to: "now" },
+      })
+    ).toEqual({ q: "level:error", from: "now-15m", to: "now" })
+  })
+
+  it("writes nothing when the same query runs again", () => {
+    expect(
+      runPatch({
+        text: "a",
+        current: { q: "a" },
+        asked: undefined,
+        alongside: undefined,
+      })
+    ).toEqual({})
+  })
+
+  it("keeps the alongside change when the query is unchanged", () => {
+    expect(
+      runPatch({
+        text: "a",
+        current: { q: "a" },
+        asked: undefined,
+        alongside: { from: "now-15m" },
+      })
+    ).toEqual({ from: "now-15m" })
+  })
+
+  it("records the question that produced the query", () => {
+    expect(
+      runPatch({
+        text: "a",
+        current: { q: "a", ask: "old" },
+        asked: "new",
+        alongside: undefined,
+      })
+    ).toEqual({ q: "a", ask: "new" })
   })
 })

@@ -33,6 +33,7 @@ Times on the page are in the time zone of your browser, and a range between two 
 
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
+On Elasticsearch and OpenSearch it runs `*`, which matches every document, and shows the newest lines of the time range, so you can see which services the source holds in the Fields column before you narrow the query.
 On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
 The label browser lists the labels of the datasource and their values, and a click on a value puts that matcher into the stream selector the query already holds, replacing the value of the same label, so the rest of the query stays as it is.
 On ClickHouse, or when the query has no selector yet, the click inserts the matcher at the cursor.
@@ -133,7 +134,7 @@ Pick a pill to change it:
 The pills are not part of the text in the query box.
 The results, the log volume, the fields and the patterns all read the query with the active pills added, and the address keeps the pills as `f` beside `q`, so a shared link carries both.
 When you run a different query, the pills that are not pinned are cleared and a message says how many, with **Undo** to bring them back and run the query again.
-A long pill shortens with an ellipsis, and hovering it shows the whole text.
+A long pill shortens with an ellipsis inside the card, and hovering it or moving focus to it shows the whole text.
 A saved search stores the query with its pills folded in as text.
 
 On Elasticsearch and OpenSearch a pill needs a KQL query, so the row asks you to switch the query to KQL while the text starts with `lucene:` or `{`.
@@ -148,7 +149,8 @@ The volume strip above the lines counts every line the query matches over the wh
 Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
 It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
-The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars without changing the lines.
+The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**; the count of the other chips and the query do not change, and **All** shows every level again.
+The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level; to search for a level, add a filter.
 
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
@@ -206,6 +208,7 @@ A field says `exact: false` when the server reports a count error bound for it, 
 ## Documents
 
 The documents are the lines the query and its filters match, listed under the volume strip, newest first, 50 to a page.
+A row shows the time, the level and the message only: a line's stream labels and structured metadata are not written in front of the message, and the open line lists them all.
 Each one is a row you can open, as [Reading a line](#reading-a-line) describes.
 Live tail swaps the list for the tail, as [Live tail](#live-tail) describes.
 
@@ -552,6 +555,9 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The title starts as the query with all of it selected, so typing a name replaces it.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
+A logs search opened from the box, from the Logs list or from a folder shows its title and folder above the query, and the address carries its id as `saved`; **Close the saved search** removes it.
+A saved search never changes what it holds, so when you edit the query, the range or the columns the line says that **Save search** saves a new search and the open one stays as it was saved.
+The title shows only for a search among the 100 most recently changed that the list holds.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
 
