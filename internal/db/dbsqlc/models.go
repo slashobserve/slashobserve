@@ -223,6 +223,12 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DashboardViewer struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	SeenAt      pgtype.Timestamptz
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID
@@ -697,6 +703,12 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 }
 
+type ThreadRead struct {
+	UserID   pgtype.UUID
+	ThreadID pgtype.UUID
+	ReadAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID               pgtype.UUID
 	OidcIssuer       string
@@ -713,6 +725,7 @@ type User struct {
 	ManualRoleByID   pgtype.UUID
 	ManualRoleByName pgtype.Text
 	Groups           []string
+	ThreadsSeenSince pgtype.Timestamptz
 }
 
 type Webhook struct {

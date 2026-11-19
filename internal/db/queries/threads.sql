@@ -189,3 +189,22 @@ SELECT DISTINCT ON (thread_message_id) thread_message_id, id, status, assigned_k
 FROM agent_requests
 WHERE thread_message_id = ANY(@message_ids::uuid[])
 ORDER BY thread_message_id, created_at DESC, id DESC;
+
+-- name: MarkThreadRead :exec
+INSERT INTO thread_reads (user_id, thread_id, read_at)
+SELECT u.id, @thread_id::uuid, clock_timestamp() FROM users u WHERE u.id = @user_id::uuid
+ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = EXCLUDED.read_at;
+
+-- name: UnreadThreads :many
+SELECT t.id
+FROM threads t
+WHERE t.id = ANY(@thread_ids::uuid[])
+  AND EXISTS (
+    SELECT 1 FROM thread_messages m
+    WHERE m.thread_id = t.id
+      AND NOT (m.run_id IS NULL AND m.author_kind = @reader_kind::text AND m.author_id = @reader_id::uuid)
+      AND m.created_at > greatest(
+        coalesce((SELECT r.read_at FROM thread_reads r WHERE r.user_id = @reader_id::uuid AND r.thread_id = t.id), '-infinity'::timestamptz),
+        (SELECT u.threads_seen_since FROM users u WHERE u.id = @reader_id::uuid)
+      )
+  );

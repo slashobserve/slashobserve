@@ -36,6 +36,7 @@ type threadJSON struct {
 	PanelPresent      bool                 `json:"panel_present"`
 	Status            string               `json:"status"`
 	AllowedActions    []string             `json:"allowed_actions"`
+	Unread            bool                 `json:"unread"`
 	CreatedAt         string               `json:"created_at"`
 	UpdatedAt         string               `json:"updated_at"`
 	ResolvedAt        *string              `json:"resolved_at"`
@@ -126,6 +127,7 @@ func (th *Threads) Register(api auth.Routes) {
 	api.POST("/threads/:thread_id/messages", auth.RoleViewer, th.reply)
 	api.POST("/threads/:thread_id/resolve", auth.RoleViewer, th.resolve)
 	api.POST("/threads/:thread_id/reopen", auth.RoleViewer, th.reopen)
+	api.POST("/threads/:thread_id/read", auth.RoleViewer, auth.RequireUser, th.markRead)
 	api.PATCH("/messages/:message_id", auth.RoleViewer, th.edit)
 	api.DELETE("/messages/:message_id", auth.RoleViewer, th.deleteMessage)
 }
@@ -283,6 +285,18 @@ func (th *Threads) resolve(c *gin.Context) {
 	th.setStatus(c, id, StatusResolved, req.Version)
 }
 
+func (th *Threads) markRead(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "thread_id")
+	if !ok {
+		return
+	}
+	if err := th.service.MarkRead(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		th.fail(c, "mark thread read", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (th *Threads) reopen(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "thread_id")
 	if !ok {
@@ -380,6 +394,7 @@ func newThreadJSON(t Thread) threadJSON {
 		PanelPresent:      t.PanelPresent,
 		Status:            t.Status,
 		AllowedActions:    t.AllowedActions,
+		Unread:            t.Unread,
 		CreatedAt:         httpapi.FormatTime(t.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(t.UpdatedAt),
 		ResolvedByVersion: t.ResolvedByVersion,

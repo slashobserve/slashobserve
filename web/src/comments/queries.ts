@@ -125,6 +125,26 @@ export function useSetCommentStatus(
   })
 }
 
+export function useMarkThreadRead(id: string) {
+  const queryClient = useQueryClient()
+  const key = dashboardKeys.comments(id)
+  return useMutation({
+    mutationFn: (threadId: string) =>
+      api
+        .POST("/threads/{thread_id}/read", {
+          params: { path: { thread_id: threadId } },
+        })
+        .then(unwrap),
+    onSuccess: (_, threadId) =>
+      queryClient.setQueryData<CommentsData>(key, (data) =>
+        mapComment(data, threadId, (comment) => ({
+          ...comment,
+          unread: false,
+        }))
+      ),
+  })
+}
+
 export function useDeleteMessage(queryKey: QueryKey) {
   const queryClient = useQueryClient()
   return useMutation({

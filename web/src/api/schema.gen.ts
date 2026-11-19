@@ -1062,6 +1062,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/threads/{thread_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a thread read for the caller.
+         * @description Clears the thread's `unread` for the caller until someone else writes in it again. The web app calls it when a person opens a thread, and a reply by the caller marks the thread read too. Needs View on the thread's target. Only signed-in people may call it: a service-account key gets 403 `forbidden`, and the CLI and MCP have no equivalent because read state belongs to the person.
+         */
+        post: operations["markThreadRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{message_id}": {
         parameters: {
             query?: never;
@@ -4465,6 +4488,8 @@ export interface components {
             status: "open" | "resolved";
             /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
             allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
+            /** @description Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
+            unread: boolean;
             author: components["schemas"]["Author"];
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
@@ -4535,8 +4560,10 @@ export interface components {
             panel_present: boolean;
             /** @enum {string} */
             status: "open" | "resolved";
-            /** @description What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`. */
+            /** @description What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`. */
             allowed_actions: ("reply" | "resolve" | "reopen")[];
+            /** @description Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
+            unread: boolean;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -9277,6 +9304,32 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ThreadEnvelope"];
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    markThreadRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The thread is read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

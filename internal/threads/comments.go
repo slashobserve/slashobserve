@@ -51,6 +51,7 @@ type Comment struct {
 	CanEdit           bool
 	CanDelete         bool
 	AllowedActions    []string
+	Unread            bool
 	Revision          *CommentRevision
 }
 
@@ -251,6 +252,7 @@ func commentOf(thread Thread, message Message) Comment {
 		CanEdit:        message.CanEdit,
 		CanDelete:      message.CanDelete,
 		AllowedActions: thread.AllowedActions,
+		Unread:         thread.Unread && message.ID == thread.ID,
 	}
 	if message.ID != thread.ID {
 		comment.ParentID = thread.ID

@@ -761,6 +761,22 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	return id_2, err
 }
 
+const markThreadRead = `-- name: MarkThreadRead :exec
+INSERT INTO thread_reads (user_id, thread_id, read_at)
+SELECT u.id, $1::uuid, clock_timestamp() FROM users u WHERE u.id = $2::uuid
+ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = EXCLUDED.read_at
+`
+
+type MarkThreadReadParams struct {
+	ThreadID pgtype.UUID
+	UserID   pgtype.UUID
+}
+
+func (q *Queries) MarkThreadRead(ctx context.Context, arg MarkThreadReadParams) error {
+	_, err := q.db.Exec(ctx, markThreadRead, arg.ThreadID, arg.UserID)
+	return err
+}
+
 const mentionCandidates = `-- name: MentionCandidates :many
 SELECT id, name, email, role, groups FROM users
 WHERE id <> $1::uuid
@@ -1085,6 +1101,47 @@ func (q *Queries) ThreadsWithOtherAuthors(ctx context.Context, arg ThreadsWithOt
 			return nil, err
 		}
 		items = append(items, thread_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const unreadThreads = `-- name: UnreadThreads :many
+SELECT t.id
+FROM threads t
+WHERE t.id = ANY($1::uuid[])
+  AND EXISTS (
+    SELECT 1 FROM thread_messages m
+    WHERE m.thread_id = t.id
+      AND NOT (m.run_id IS NULL AND m.author_kind = $2::text AND m.author_id = $3::uuid)
+      AND m.created_at > greatest(
+        coalesce((SELECT r.read_at FROM thread_reads r WHERE r.user_id = $3::uuid AND r.thread_id = t.id), '-infinity'::timestamptz),
+        (SELECT u.threads_seen_since FROM users u WHERE u.id = $3::uuid)
+      )
+  )
+`
+
+type UnreadThreadsParams struct {
+	ThreadIds  []pgtype.UUID
+	ReaderKind string
+	ReaderID   pgtype.UUID
+}
+
+func (q *Queries) UnreadThreads(ctx context.Context, arg UnreadThreadsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, unreadThreads, arg.ThreadIds, arg.ReaderKind, arg.ReaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

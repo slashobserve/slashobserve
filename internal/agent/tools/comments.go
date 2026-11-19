@@ -66,6 +66,7 @@ type commentOut struct {
 	Version           *int         `json:"version"`
 	Status            string       `json:"status"`
 	AllowedActions    []string     `json:"allowed_actions"`
+	Unread            bool         `json:"unread"`
 	Author            string       `json:"author"`
 	CreatedAt         string       `json:"created_at"`
 	EditedAt          *string      `json:"edited_at"`
@@ -137,6 +138,7 @@ func commentItem(ref commentRef) commentOut {
 		Version:        t.Version,
 		Status:         t.Status,
 		AllowedActions: t.AllowedActions,
+		Unread:         t.Unread && m.ID == t.ID,
 		Author:         authorLabel(m),
 		CreatedAt:      formatCommentTime(m.CreatedAt),
 		Body:           clip(m.Body, maxCommentOutBytes),

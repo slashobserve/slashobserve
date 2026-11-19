@@ -21,6 +21,7 @@ function comment(overrides: Partial<Comment> & { id: string }): Comment {
     body: "text",
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     author,
     actor,
     created_at: "2026-01-01T00:00:00Z",

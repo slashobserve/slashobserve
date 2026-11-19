@@ -29,6 +29,7 @@ type Thread struct {
 	PanelPresent      bool
 	Status            string
 	AllowedActions    []string
+	Unread            bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	ResolvedAt        *time.Time

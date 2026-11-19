@@ -329,6 +329,36 @@ threads-threadid-reopen:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+threads-threadid-read:
+  parameters:
+    - name: thread_id
+      in: path
+      required: true
+      description: The thread's id, or the id of any of its messages.
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: markThreadRead
+    summary: Mark a thread read for the caller.
+    description: >-
+      Clears the thread's `unread` for the caller until someone else writes in it again.
+      The web app calls it when a person opens a thread, and a reply by the caller marks the thread read too.
+      Needs View on the thread's target.
+      Only signed-in people may call it: a service-account key gets 403 `forbidden`, and the CLI and MCP have no equivalent because read state belongs to the person.
+    responses:
+      "204":
+        description: The thread is read.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 threads-mentionable:
   get:
     operationId: listMentionablePeople

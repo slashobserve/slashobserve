@@ -28,6 +28,7 @@ var exceptions = map[string]exception{
 
 	"deleteAnnotation": {MCP: noMCPDeletes},
 	"deleteMessage":    {MCP: noMCPDeletes},
+	"markThreadRead":   {MCP: personOnly, CLI: personOnly},
 
 	"getAssetImage":   {MCP: personOnly, CLI: personOnly},
 	"getAssetGeojson": {MCP: personOnly, CLI: personOnly},

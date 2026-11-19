@@ -55,6 +55,7 @@ type commentJSON struct {
 	Body              string               `json:"body"`
 	Status            string               `json:"status"`
 	AllowedActions    []string             `json:"allowed_actions"`
+	Unread            bool                 `json:"unread"`
 	Author            authorJSON           `json:"author"`
 	Actor             actor.JSON           `json:"actor"`
 	CreatedAt         string               `json:"created_at"`
@@ -227,6 +228,7 @@ func newCommentJSON(c Comment) commentJSON {
 		Body:              c.Body,
 		Status:            c.Status,
 		AllowedActions:    commentAllowedActions(c),
+		Unread:            c.Unread,
 		Author:            newAuthorJSON(c.Author),
 		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),

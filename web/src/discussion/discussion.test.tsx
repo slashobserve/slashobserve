@@ -58,6 +58,7 @@ const thread: Thread = {
   panel_present: true,
   status: "open",
   allowed_actions: ["reply", "resolve"],
+  unread: false,
   created_at: "2020-11-10T09:00:00Z",
   updated_at: "2020-11-10T09:05:00Z",
   resolved_at: null,

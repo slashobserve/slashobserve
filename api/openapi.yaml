@@ -106,6 +106,8 @@ paths:
     $ref: "./paths/threads.yaml#/threads-threadid-resolve"
   /threads/{thread_id}/reopen:
     $ref: "./paths/threads.yaml#/threads-threadid-reopen"
+  /threads/{thread_id}/read:
+    $ref: "./paths/threads.yaml#/threads-threadid-read"
   /messages/{message_id}:
     $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
@@ -2280,6 +2282,7 @@ components:
         - body
         - status
         - allowed_actions
+        - unread
         - author
         - actor
         - created_at
@@ -2326,6 +2329,9 @@ components:
             type: string
             enum: [open, reply, resolve, reopen]
           description: What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md.
+        unread:
+          type: boolean
+          description: Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         author:
           $ref: "#/components/schemas/Author"
         actor:
@@ -2419,6 +2425,7 @@ components:
         - panel_present
         - status
         - allowed_actions
+        - unread
         - created_at
         - updated_at
         - resolved_at
@@ -2467,7 +2474,10 @@ components:
           items:
             type: string
             enum: [reply, resolve, reopen]
-          description: What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`.
+          description: What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`.
+        unread:
+          type: boolean
+          description: Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         created_at:
           type: string
           format: date-time

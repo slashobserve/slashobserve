@@ -248,6 +248,9 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err != nil {
 			return err
 		}
+		if err := markRead(ctx, q, by, current.ID); err != nil {
+			return err
+		}
 		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions)
 		if err != nil {
 			return err
@@ -486,11 +489,17 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	unread, err := s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows))
+	if err != nil {
+		return Page{}, err
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
 			seen[r.Thread.ID] = true
-			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.rights(started[r.Thread.ID])))
+			thread := threadOf(r.Thread, latestPanels, sc.rights(started[r.Thread.ID]))
+			thread.Unread = unread[r.Thread.ID]
+			page.Threads = append(page.Threads, thread)
 		}
 		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
 		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && others[r.Thread.ID])
@@ -714,6 +723,50 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 	return params
 }
 
+func (s *Service) unreadAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadIDs []pgtype.UUID) (map[pgtype.UUID]bool, error) {
+	if by.Kind != auth.KindUser || len(threadIDs) == 0 {
+		return nil, nil
+	}
+	readerID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return nil, fmt.Errorf("reader id: %w", err)
+	}
+	found, err := q.UnreadThreads(ctx, dbsqlc.UnreadThreadsParams{ThreadIds: threadIDs, ReaderKind: string(by.Kind), ReaderID: readerID})
+	if err != nil {
+		return nil, fmt.Errorf("list unread threads: %w", err)
+	}
+	unread := make(map[pgtype.UUID]bool, len(found))
+	for _, id := range found {
+		unread[id] = true
+	}
+	return unread, nil
+}
+
+func markRead(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadID pgtype.UUID) error {
+	if by.Kind != auth.KindUser {
+		return nil
+	}
+	readerID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return fmt.Errorf("reader id: %w", err)
+	}
+	if err := q.MarkThreadRead(ctx, dbsqlc.MarkThreadReadParams{UserID: readerID, ThreadID: threadID}); err != nil {
+		return fmt.Errorf("mark thread read: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) MarkRead(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	row, err := s.db.Queries().GetThreadOfMessage(ctx, id)
+	if err != nil {
+		return threadLookup(err)
+	}
+	if _, err := s.scopeOfThread(ctx, by, row); err != nil {
+		return err
+	}
+	return threadGone(markRead(ctx, s.db.Queries(), by, row.ID))
+}
+
 func (s *Service) startedBy(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadID pgtype.UUID) (bool, error) {
 	first, err := q.GetMessage(ctx, threadID)
 	if err != nil {
@@ -722,12 +775,16 @@ func (s *Service) startedBy(ctx context.Context, q *dbsqlc.Queries, by auth.Prin
 	return ownMessage(first, by), nil
 }
 
-func (s *Service) startedAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]bool, error) {
+func threadIDsOf(rows []dbsqlc.ListThreadMessagesRow) []pgtype.UUID {
 	ids := make([]pgtype.UUID, 0, len(rows))
 	for _, r := range rows {
 		ids = append(ids, r.Thread.ID)
 	}
-	firsts, err := q.ListMessagesByID(ctx, ids)
+	return ids
+}
+
+func (s *Service) startedAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]bool, error) {
+	firsts, err := q.ListMessagesByID(ctx, threadIDsOf(rows))
 	if err != nil {
 		return nil, fmt.Errorf("list the first messages of threads: %w", err)
 	}
@@ -743,7 +800,16 @@ func (s *Service) present(ctx context.Context, row dbsqlc.Thread, by auth.Princi
 	if err != nil {
 		return Thread{}, err
 	}
-	r := sc.rights(started)
+	unread, err := s.unreadAmong(ctx, s.db.Queries(), by, []pgtype.UUID{row.ID})
+	if err != nil {
+		return Thread{}, err
+	}
+	thread, err := s.presentWithPanels(ctx, row, sc.rights(started))
+	thread.Unread = unread[row.ID]
+	return thread, err
+}
+
+func (s *Service) presentWithPanels(ctx context.Context, row dbsqlc.Thread, r rights) (Thread, error) {
 	if !row.PanelID.Valid {
 		return threadOf(row, nil, r), nil
 	}

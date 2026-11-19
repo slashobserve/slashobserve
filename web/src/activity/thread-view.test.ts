@@ -37,6 +37,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     body: "text",
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     author,
     actor,
     created_at: at(0),

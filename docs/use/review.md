@@ -143,6 +143,13 @@ A link grants nothing: the person who opens it signs in, and sees "You don't hav
 "Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
 People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
 
+## Unread threads
+
+A thread that holds something you have not read shows a small dot before its author's name.
+It is unread when someone else wrote in it, or the agent answered a request you made in it, after you last opened it, answered in it or joined; your own messages never make a thread unread, and threads written before your account existed do not count.
+Click the dot, or click or focus anywhere in the thread, and it counts as read for you alone; answering in a thread marks it read too.
+Over the API each thread and comment carries `unread`, and `list_comments` shows it on the first comment of each thread; `POST /api/v1/threads/{thread_id}/read` marks one read for a person, and a service-account key never has unread threads.
+
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
