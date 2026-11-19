@@ -34,11 +34,11 @@ type personData struct {
 	Name string `json:"name"`
 }
 
-func recordInvite(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, row dbsqlc.UpsertInviteRow) error {
+func recordInvite(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, row dbsqlc.UpsertInviteRow, previous auth.Role) error {
 	if row.Inserted {
 		return activity.AppendAdmin(ctx, q, activity.By(ctx, by), activity.TypeUserInvited, row.ID, invitedData{Email: row.Email, Role: auth.Role(row.Role)})
 	}
-	change := activity.Changed(auth.Role(row.PreviousRole), auth.Role(row.Role))
+	change := activity.Changed(previous, auth.Role(row.Role))
 	if change == nil {
 		return nil
 	}

@@ -125,13 +125,17 @@ func (h *Handler) createInvite(c *gin.Context) {
 		if member, err = q.EmailHasSignedIn(ctx, email); err != nil || member {
 			return err
 		}
+		previous, err := q.LockInviteRole(ctx, email)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		row, err = q.UpsertInvite(ctx, dbsqlc.UpsertInviteParams{
 			Email: email, Role: string(role), CreatedByKind: string(caller.Kind), CreatedByID: callerID, CreatedByName: caller.Name,
 		})
 		if err != nil {
 			return err
 		}
-		return recordInvite(ctx, q, caller, row)
+		return recordInvite(ctx, q, caller, row, auth.Role(previous))
 	})
 	if err != nil {
 		h.fail(c, "create invite", err)

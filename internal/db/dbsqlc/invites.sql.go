@@ -108,15 +108,22 @@ func (q *Queries) ListInvites(ctx context.Context, arg ListInvitesParams) ([]Lis
 	return items, nil
 }
 
+const lockInviteRole = `-- name: LockInviteRole :one
+SELECT role FROM user_invites WHERE lower(email) = lower($1::text) FOR UPDATE
+`
+
+func (q *Queries) LockInviteRole(ctx context.Context, email string) (string, error) {
+	row := q.db.QueryRow(ctx, lockInviteRole, email)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
 const upsertInvite = `-- name: UpsertInvite :one
-WITH previous AS (
-  SELECT role FROM user_invites WHERE lower(email) = lower($1::text) FOR UPDATE
-)
 INSERT INTO user_invites (email, role, created_by_kind, created_by_id, created_by_name)
 VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT ((lower(email))) DO UPDATE SET role = EXCLUDED.role, updated_at = now()
-RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted,
-  coalesce((SELECT role FROM previous), '')::text AS previous_role
+RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted
 `
 
 type UpsertInviteParams struct {
@@ -135,7 +142,6 @@ type UpsertInviteRow struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	Inserted      bool
-	PreviousRole  string
 }
 
 func (q *Queries) UpsertInvite(ctx context.Context, arg UpsertInviteParams) (UpsertInviteRow, error) {
@@ -155,7 +161,6 @@ func (q *Queries) UpsertInvite(ctx context.Context, arg UpsertInviteParams) (Ups
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Inserted,
-		&i.PreviousRole,
 	)
 	return i, err
 }

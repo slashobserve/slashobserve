@@ -1,12 +1,11 @@
+-- name: LockInviteRole :one
+SELECT role FROM user_invites WHERE lower(email) = lower(@email::text) FOR UPDATE;
+
 -- name: UpsertInvite :one
-WITH previous AS (
-  SELECT role FROM user_invites WHERE lower(email) = lower(@email::text) FOR UPDATE
-)
 INSERT INTO user_invites (email, role, created_by_kind, created_by_id, created_by_name)
 VALUES (@email, @role, @created_by_kind, @created_by_id, @created_by_name)
 ON CONFLICT ((lower(email))) DO UPDATE SET role = EXCLUDED.role, updated_at = now()
-RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted,
-  coalesce((SELECT role FROM previous), '')::text AS previous_role;
+RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted;
 
 -- name: ListInvites :many
 SELECT id, email, role, created_by_name, created_at, updated_at FROM user_invites
