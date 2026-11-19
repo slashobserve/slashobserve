@@ -93,19 +93,31 @@ func TestDeactivateDropsCodesAnAgentHasNotExchangedYet(t *testing.T) {
 	r.makeAdmin(admin)
 	bob := r.addUser("bob", time.Now())
 	r.addGrant(bob, "client-a")
-	code := opaquetoken.Hash("bob-code")
-	r.db.Exec(t, "INSERT INTO oauth_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, resource, expires_at) VALUES ($1, 'client-a', $2, 'http://127.0.0.1:1/cb', 'challenge', 'http://localhost:8080/mcp', now() + interval '1 minute')", code, bob)
+	r.addCode(bob, "client-a", "bob-code")
 
 	decodePerson(t, http.StatusOK, r.do(http.MethodPost, "/api/v1/users/"+bob.String()+"/deactivate", adminCaller(admin, "Ada")))
 	decodePerson(t, http.StatusOK, r.do(http.MethodPost, "/api/v1/users/"+bob.String()+"/reactivate", adminCaller(admin, "Ada")))
 
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		_, err := q.GetOAuthCode(t.Context(), code)
+	if r.codeExchangeable("bob-code") {
+		t.Fatal("a code Bob approved before deactivation can still be exchanged after reactivation")
+	}
+}
+
+func (r *rig) addCode(user pgtype.UUID, clientID, token string) {
+	r.t.Helper()
+	r.db.Exec(r.t, "INSERT INTO oauth_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, resource, expires_at) VALUES ($1, $2, $3, 'http://127.0.0.1:1/cb', 'challenge', 'http://localhost:8080/mcp', now() + interval '1 minute')", opaquetoken.Hash(token), clientID, user)
+}
+
+func (r *rig) codeExchangeable(token string) bool {
+	r.t.Helper()
+	err := r.db.InTx(r.t.Context(), func(q *dbsqlc.Queries) error {
+		_, err := q.GetOAuthCode(r.t.Context(), opaquetoken.Hash(token))
 		return err
 	})
-	if !errors.Is(err, pgx.ErrNoRows) {
-		t.Fatalf("a code Bob approved before deactivation can still be exchanged after reactivation: %v", err)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		r.t.Fatal(err)
 	}
+	return err == nil
 }
 
 func TestKeysADeactivatedPersonCreatedKeepWorking(t *testing.T) {

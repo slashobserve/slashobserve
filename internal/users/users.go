@@ -305,6 +305,9 @@ func (h *Handler) signOut(c *gin.Context) {
 		if grants, err = q.RevokeUserOAuthGrants(ctx, dbsqlc.RevokeUserOAuthGrantsParams{By: by, UserID: id}); err != nil {
 			return err
 		}
+		if _, err = q.DeleteUnusedUserOAuthCodes(ctx, id); err != nil {
+			return err
+		}
 		return activity.AppendAdmin(ctx, q, activity.By(ctx, caller), activity.TypeUserSignedOutEverywhere, id, signedOutData{Name: person.Name, Sessions: sessions, Grants: grants})
 	})
 	if err != nil {

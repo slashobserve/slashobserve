@@ -354,6 +354,29 @@ func (r *rig) grantState(user pgtype.UUID, clientID string) grantState {
 	return state
 }
 
+func TestSignOutDropsTheCodesThePersonsAgentsHaveNotExchanged(t *testing.T) {
+	r := newRig(t)
+	admin := r.addUser("ada", time.Now())
+	bob := r.addUser("bob", time.Now())
+	cy := r.addUser("cy", time.Now())
+	r.addGrant(bob, "client-a")
+	r.addGrant(cy, "client-a")
+	r.addCode(bob, "client-a", "bob-code")
+	r.addCode(cy, "client-a", "cy-code")
+
+	rec := r.do(http.MethodDelete, "/api/v1/users/"+bob.String()+"/sessions", userCaller(admin))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body)
+	}
+
+	if r.codeExchangeable("bob-code") {
+		t.Error("an agent Bob approved just before the sign-out can still exchange its code")
+	}
+	if !r.codeExchangeable("cy-code") {
+		t.Error("cy's code was dropped")
+	}
+}
+
 func TestSignOutDisconnectsThePersonsAgentsAndNoOnesElse(t *testing.T) {
 	r := newRig(t)
 	admin := r.addUser("ada", time.Now())
