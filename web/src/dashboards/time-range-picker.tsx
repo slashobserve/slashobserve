@@ -26,6 +26,8 @@ import {
   zonedTimeValue,
 } from "@/lib/time"
 
+import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
+
 import { useSetDashboardSearch } from "./search"
 
 export type TimeRangeValue = { from: string; to: string }
@@ -34,7 +36,7 @@ type ControlProps = {
   value: TimeRangeValue
   onChange: (next: TimeRangeValue) => void
   quickRanges?: QuickRange[]
-  zone?: string
+  zone?: string | null
 }
 
 export function TimeRangeControl({
@@ -43,6 +45,11 @@ export function TimeRangeControl({
   quickRanges = defaultQuickRanges,
   zone,
 }: ControlProps) {
+  const preferredTimeZone = usePreferences((state) => state.timeZone)
+  const typedZone =
+    zone === undefined
+      ? preferredDisplayZone(preferredTimeZone)
+      : (zone ?? undefined)
   const fromId = useId()
   const toId = useId()
   const [open, setOpen] = useState(false)
@@ -57,8 +64,8 @@ export function TimeRangeControl({
 
   function onOpenChange(next: boolean) {
     if (next) {
-      setDraftFrom(zonedTimeValue(value.from, zone))
-      setDraftTo(zonedTimeValue(value.to, zone))
+      setDraftFrom(zonedTimeValue(value.from, typedZone))
+      setDraftTo(zonedTimeValue(value.to, typedZone))
       setError(null)
     }
     setOpen(next)
@@ -66,12 +73,12 @@ export function TimeRangeControl({
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const parsedFrom = parseUserTime(draftFrom, zone)
-    const parsedTo = parseUserTime(draftTo, zone)
+    const parsedFrom = parseUserTime(draftFrom, typedZone)
+    const parsedTo = parseUserTime(draftTo, typedZone)
     if (parsedFrom === null || parsedTo === null) {
       setError(
-        userTimeProblem(draftFrom, zone) ??
-          userTimeProblem(draftTo, zone) ??
+        userTimeProblem(draftFrom, typedZone) ??
+          userTimeProblem(draftTo, typedZone) ??
           "Enter a time like now-6h, now/d or 2026-10-17 09:00."
       )
       return
@@ -197,7 +204,7 @@ export function TimeRangePicker({
           value={{ from, to }}
           onChange={(next) => setSearch((state) => ({ ...state, ...next }))}
           quickRanges={quickRanges}
-          zone={displayZone(undefined, timezone)}
+          zone={displayZone(undefined, timezone) ?? null}
         />
       )}
       <Button

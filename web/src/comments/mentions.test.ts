@@ -12,6 +12,7 @@ import {
   mentionTriggerAt,
   observeAgent,
   threadParticipants,
+  typedMentionEnd,
 } from "./mentions"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
@@ -99,6 +100,19 @@ describe("insertMention", () => {
       value: expected,
       caret,
     })
+  })
+})
+
+describe("typedMentionEnd", () => {
+  it.each([
+    ["only the @ is there", "hi @", 3, 4, 4],
+    ["text was typed after the @", "hi @obs", 3, 7, 7],
+    ["the caret is still right after the @", "@foo", 0, 1, 1],
+    ["the caret is before the @", "hi @obs", 3, 0, 4],
+    ["the typed run has a space", "hi @ob s", 3, 8, 4],
+    ["a hyphen and a digit belong to the run", "@my-bot2", 0, 8, 8],
+  ])("%s", (_name, value, trigger, caret, expected) => {
+    expect(typedMentionEnd(value, trigger, caret)).toBe(expected)
   })
 })
 

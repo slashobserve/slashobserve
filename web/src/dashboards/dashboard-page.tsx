@@ -35,6 +35,7 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
+import { preferredZone, usePreferences } from "@/lib/preferences"
 import {
   displayZone,
   isRangeTooLong,
@@ -291,7 +292,9 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const viewZone = search.tz ?? spec.timezone
+  const preferences = usePreferences()
+  const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
+  const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
     () => timeOptionsFor({ ...spec, timezone: viewZone }),
     [spec, viewZone]
@@ -735,13 +738,10 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
-        timezone={spec.timezone}
+        timezone={ownZone}
       />
       {spec.timePicker?.hidden ? null : (
-        <ZonePicker
-          value={viewZone ?? "browser"}
-          dashboardZone={spec.timezone}
-        />
+        <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
       )}
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker

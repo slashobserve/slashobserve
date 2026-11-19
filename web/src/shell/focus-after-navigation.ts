@@ -21,23 +21,29 @@ export function focusPage(doc: Document) {
 }
 
 export function moveFocusToPage(doc: Document): () => void {
-  if (!focusIsLost(doc)) return () => undefined
+  const departing = focusIsLost(doc) ? null : doc.activeElement
+  if (departing === null) return waitForHeading(doc, () => true)
+  return waitForHeading(doc, () => !departing.isConnected)
+}
+
+function waitForHeading(doc: Document, mayMove: () => boolean): () => void {
   const heading = () => doc.querySelector<HTMLElement>("main h1")
+  const ready = () => mayMove() && focusIsLost(doc)
   const found = heading()
-  if (found) {
+  if (found && ready()) {
     focusElement(found)
     return () => undefined
   }
   const observer = new MutationObserver(() => {
     const next = heading()
-    if (!next) return
+    if (!next || !ready()) return
     stop()
-    if (focusIsLost(doc)) focusElement(next)
+    focusElement(next)
   })
   const timer = setTimeout(() => {
     stop()
     const main = doc.querySelector<HTMLElement>("main")
-    if (main && focusIsLost(doc)) focusElement(main)
+    if (main && ready()) focusElement(main)
   }, headingWaitMs)
   function stop() {
     observer.disconnect()

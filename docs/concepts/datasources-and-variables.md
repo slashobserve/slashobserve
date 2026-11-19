@@ -8,7 +8,7 @@ Both are fields of the [ObserveSpec](observespec.md) document.
 
 ## Datasources
 
-The `uid` of an entry in the [datasources file](../reference/datasources-file.md) is the name a dashboard uses.
+The `uid` of an entry in the [datasources file](../reference/datasources-file.md), or of a datasource an Admin [added in the app](../connect/datasources-in-the-app.md), is the name a dashboard uses.
 A uid is up to 40 letters, digits, `_` or `-`, starting with a letter or digit.
 The entry's `type`, `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`, decides the query language and which macros a query may use.
 
@@ -16,7 +16,9 @@ A data panel sets `datasource`, and any of its queries can set its own `datasour
 A `query` variable and an `adhoc` variable set `datasource` too.
 A save is rejected with `unknown_datasource` when a uid is not in the file, so renaming or removing a uid breaks the next save of every dashboard that uses it.
 
-`list_datasources` over MCP and the agent, and `GET /api/v1/datasources`, return each uid with its type and health.
+`list_datasources` over MCP and the agent, and `GET /api/v1/datasources`, return each uid with its type, health and `source`, and an unhealthy one carries `message` and `detail`, the cause the server knows, such as the HTTP status the datasource answered.
+`recheck_datasource` over MCP, `POST /api/v1/datasources/{uid}/recheck` and `observe datasources recheck` run a fresh check instead of reading the 10 second cache; checks of one datasource are at least 2 seconds apart, so a retry loop cannot hammer it.
+On the Datasources page an Admin sees the same reason on each row and a Recheck button.
 The agent is told which datasources are healthy before it starts.
 
 ## Variables

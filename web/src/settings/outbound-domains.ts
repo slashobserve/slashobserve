@@ -86,6 +86,7 @@ const userKindText: Record<OutboundDomain["used_by"][number]["kind"], string> =
   {
     webhook: "Webhook",
     grafana_connection: "Grafana connection",
+    datasource: "Datasource",
   }
 
 function userText(user: OutboundDomain["used_by"][number]): string {
@@ -101,6 +102,6 @@ export function removeConsequence(entry: OutboundDomain): string {
 
 export function originText(entry: OutboundDomain): string | null {
   if (entry.added_at === null) return null
-  if (entry.from_connection) return "Added for a Grafana connection"
+  if (entry.from_connection) return "Added for a connection or datasource"
   return entry.added_by === null ? "Added" : `Added by ${entry.added_by}`
 }

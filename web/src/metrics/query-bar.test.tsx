@@ -19,6 +19,7 @@ const datasource: DatasourceStatus = {
   uid: "prom",
   type: "prometheus",
   name: "prom",
+  source: "file",
   healthy: true,
   checked_at: "2026-11-19T12:00:00Z",
   dashboard_count: 0,
