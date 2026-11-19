@@ -62,6 +62,23 @@ func TestLogVolumeCountsEachLevelKindPerBucket(t *testing.T) {
 	}
 }
 
+func TestLogVolumeFiltersToTheCountedRangeInsideTheBucketGrid(t *testing.T) {
+	f, ds := searchServer(t, volumeFixture(t))
+	req := volumeRequest("")
+	req.Counted = datasource.TimeRange{From: queryRange.From.Add(5 * time.Minute), To: queryRange.To.Add(-5 * time.Minute)}
+	hist, err := ds.LogVolume(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const filter = `"gte":"2026-11-06T11:05:00Z","lt":"2026-11-06T11:55:00Z"`
+	if body := f.last(t).body; !strings.Contains(body, filter) {
+		t.Fatalf("body %s does not filter to the counted range", body)
+	}
+	if got := hist.Volume(); len(got.Buckets) != 3 || !got.Buckets[0].Start.Equal(queryRange.From) {
+		t.Fatalf("buckets %+v do not follow the requested grid", got.Buckets)
+	}
+}
+
 func TestLogVolumeWithoutALevelFieldCountsEverythingAsOther(t *testing.T) {
 	const caps = `{"fields":{
 		"@timestamp":{"date_nanos":{"type":"date_nanos","metadata_field":false,"searchable":true,"aggregatable":true}},

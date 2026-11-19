@@ -43,15 +43,24 @@ function savedText(request: RequestSummary): string {
     : `Revised ${request.dashboard_title}`
 }
 
+function observationOutcome(request: RequestSummary): string {
+  if (request.kind === "build") {
+    return request.dashboard_id === null
+      ? "Answered, no dashboard"
+      : "Answered, dashboard unchanged"
+  }
+  return request.observation_title === null
+    ? "Saved an observation"
+    : `Answered in ${request.observation_title}`
+}
+
 function succeededOutcome(request: RequestSummary): string {
   switch (request.result_kind) {
     case "version":
     case "partial_version":
       return savedText(request)
     case "observation":
-      return request.observation_title === null
-        ? "Saved an observation"
-        : `Answered in ${request.observation_title}`
+      return observationOutcome(request)
     case "suggestion":
       return "Suggested a panel"
     case "proposal":
@@ -74,6 +83,11 @@ export function chatOutcome(request: RequestSummary): string {
       })
     case "failed":
     case "canceled":
+      if (request.result_kind === "partial_version") {
+        return request.dashboard_title === null
+          ? requestStatusView(request).text
+          : `Saved part of ${request.dashboard_title}`
+      }
       return buildStatusText({
         status: request.status,
         build: request.build,

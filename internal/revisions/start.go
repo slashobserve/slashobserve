@@ -22,6 +22,7 @@ type StartRequest struct {
 	From          *string `json:"from"`
 	To            *string `json:"to"`
 	ObservationID *string `json:"observation_id"`
+	FollowsID     *string `json:"follows_id"`
 }
 
 type StartError struct {
@@ -55,22 +56,16 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 }
 
 func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string) (dbsqlc.AgentRequest, error) {
-	if req.PanelID != nil || req.From != nil || req.To != nil {
-		return dbsqlc.AgentRequest{}, refused("panel_id, from and to need kind investigate")
+	if message := buildFieldConflict(req); message != "" {
+		return dbsqlc.AgentRequest{}, refused("%s", message)
 	}
-	if req.ObservationID != nil {
-		return dbsqlc.AgentRequest{}, refused("observation_id goes with kind investigate")
+	dashboardID, err := uuidField("dashboard_id", req.DashboardID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
-	if req.DashboardID == nil && req.BaseVersion != nil {
-		return dbsqlc.AgentRequest{}, refused("base_version needs dashboard_id")
-	}
-	var dashboardID pgtype.UUID
-	if req.DashboardID != nil {
-		id, err := db.ParseUUID(*req.DashboardID)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, refused("dashboard_id must be a UUID")
-		}
-		dashboardID = id
+	followsID, err := uuidField("follows_id", req.FollowsID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		return dbsqlc.AgentRequest{}, refused("base_version must be a positive 32-bit integer")
@@ -81,7 +76,35 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 	if dashboardID.Valid {
 		return s.SubmitFollowUp(ctx, dashboardID, req.BaseVersion, "", prompt, by)
 	}
+	if followsID.Valid {
+		return s.SubmitObserveFollowUp(ctx, by, prompt, followsID)
+	}
 	return s.SubmitObserve(ctx, by, prompt)
+}
+
+func buildFieldConflict(req StartRequest) string {
+	switch {
+	case req.PanelID != nil || req.From != nil || req.To != nil:
+		return "panel_id, from and to need kind investigate"
+	case req.ObservationID != nil:
+		return "observation_id goes with kind investigate"
+	case req.DashboardID == nil && req.BaseVersion != nil:
+		return "base_version needs dashboard_id"
+	case req.DashboardID != nil && req.FollowsID != nil:
+		return "follows_id and dashboard_id exclude each other"
+	}
+	return ""
+}
+
+func uuidField(name string, raw *string) (pgtype.UUID, error) {
+	if raw == nil {
+		return pgtype.UUID{}, nil
+	}
+	id, err := db.ParseUUID(*raw)
+	if err != nil {
+		return pgtype.UUID{}, refused("%s must be a UUID", name)
+	}
+	return id, nil
 }
 
 func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string) (dbsqlc.AgentRequest, error) {
@@ -89,12 +112,9 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 		return dbsqlc.AgentRequest{}, refused("base_version is not allowed for kind investigate")
 	}
 	params := InvestigateParams{Prompt: prompt, By: by}
-	if req.DashboardID != nil {
-		id, err := db.ParseUUID(*req.DashboardID)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, refused("dashboard_id must be a UUID")
-		}
-		params.DashboardID = id
+	var err error
+	if params.DashboardID, err = uuidField("dashboard_id", req.DashboardID); err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	if req.PanelID != nil {
 		if !params.DashboardID.Valid {
@@ -105,14 +125,9 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 		}
 		params.PanelID = *req.PanelID
 	}
-	if req.ObservationID != nil {
-		id, err := db.ParseUUID(*req.ObservationID)
-		if err != nil {
-			return dbsqlc.AgentRequest{}, refused("observation_id must be a UUID")
-		}
-		params.ObservationID = id
+	if params.ObservationID, err = uuidField("observation_id", req.ObservationID); err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
-	var err error
 	if params.From, params.To, err = investigateWindow(req.From, req.To, time.Now()); err != nil {
 		return dbsqlc.AgentRequest{}, refused("%s", err.Error())
 	}

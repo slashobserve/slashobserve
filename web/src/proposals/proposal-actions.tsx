@@ -28,7 +28,7 @@ import { dashboardLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { mergeLeftProposalStale, mergeProblem } from "./merge-problem"
-import { choicesFrom, unitKey, type Picks } from "./proposal-view"
+import { choicesFrom, droppedText, unitKey, type Picks } from "./proposal-view"
 import {
   proposalQuery,
   useDiscardProposal,
@@ -193,9 +193,10 @@ export function ProposalActions({
         onSuccess: (merged) => {
           toast.success(
             merged.merged_version === null
-              ? "Merged"
+              ? "Merged without a new version"
               : `Merged as version ${merged.merged_version}`,
             {
+              description: droppedText(proposal, picks) ?? undefined,
               action: {
                 label: "Open dashboard",
                 onClick: () =>

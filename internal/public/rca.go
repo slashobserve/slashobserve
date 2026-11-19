@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -90,7 +91,7 @@ func (s *Service) manageRCA(ctx context.Context, by auth.Principal, observationI
 	case placement.Personal:
 		return ErrRCAPersonalFolder
 	case !placement.Abilities.Manage:
-		return folders.ErrForbidden
+		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", placement.Title))
 	}
 	return nil
 }

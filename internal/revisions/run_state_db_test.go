@@ -143,7 +143,7 @@ func TestReleasingACancelingRunSettlesItCanceledInsteadOfRequeueingIt(t *testing
 	}
 }
 
-func TestRetryByAnotherViewerStartsANewRunOwnedByTheCaller(t *testing.T) {
+func TestRetryByAnotherViewerStartsANewRunOwnedByTheCallerAndLeavesTheRequestersRetry(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "add a panel")
@@ -165,6 +165,12 @@ func TestRetryByAnotherViewerStartsANewRunOwnedByTheCaller(t *testing.T) {
 	}
 	if original.State != string(revisions.StateCanceled) {
 		t.Fatalf("the original is %s, want it untouched", original.State)
+	}
+	if next.RetriesID.Valid {
+		t.Fatalf("another viewer's retry points the requester's turn at %s", next.RetriesID)
+	}
+	if _, err := svc.Retry(context.Background(), id, user); err != nil {
+		t.Fatalf("the requester's own retry after another viewer's: %v", err)
 	}
 }
 

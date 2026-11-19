@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"syscall"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logtest"
@@ -257,5 +259,19 @@ func TestUnreachableDirectURLIsReportedByTheDirectHost(t *testing.T) {
 	logs.AssertSafeFailure(t, record, "database_unavailable", "bob", "hunter2", "pool.internal", "appdb", "carol", "swordfish", "otherdb")
 	if record["db_host"] != "127.0.0.1" || record["db_port"] != float64(1) || record["connection"] != "direct" {
 		t.Errorf("record = %v, want the direct host and port", record)
+	}
+}
+
+func TestFindingURLIsEmptyUntilTheAnswerIsSaved(t *testing.T) {
+	base, err := url.Parse("https://observe.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	of := savedFindingURL(base)
+	if got := of(findings.Finding{ID: "f1"}); got != "" {
+		t.Errorf("unsaved answer URL = %q, want empty", got)
+	}
+	if got := of(findings.Finding{ID: "f1", ObservationID: "o1"}); got != "https://observe.example.com/o/o1" {
+		t.Errorf("saved answer URL = %q, want the observation's address", got)
 	}
 }

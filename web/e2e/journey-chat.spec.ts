@@ -1,7 +1,11 @@
 import type { Locator, Page } from "@playwright/test"
 
 import { card } from "./activity"
-import { holdRequestPollsUntilFinished } from "./builds"
+import {
+  holdRequestPollsUntilFinished,
+  reachDashboard,
+  sentRequestId,
+} from "./builds"
 import { expectPanelsReady } from "./dashboards"
 import { expect, test } from "./fixtures"
 
@@ -9,7 +13,6 @@ const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "Show this per route"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
-const buildPath = /\/b\/([0-9a-f-]{36})$/
 const dashboardTitle = "Demo shop RED metrics"
 const refinedDashboardTitle = "E2E dashboard"
 
@@ -54,21 +57,14 @@ for (const colorScheme of ["light", "dark"] as const) {
         await composer(page).fill(askPrompt)
         await composer(page).press("Enter")
 
-        await expect(page).toHaveURL(buildPath)
-        firstId = buildPath.exec(page.url())?.[1] ?? ""
+        firstId = await sentRequestId(page)
         expect(firstId).not.toBe("")
       })
 
       await test.step("watch the build open the dashboard", async () => {
-        await expect(
-          page
-            .getByRole("complementary", { name: "Chat" })
-            .getByText(askPrompt, { exact: true })
-        ).toBeVisible()
+        await expect(firstTurn).toBeVisible()
         await release(firstId)
-        await expect(page).toHaveURL(/\/d\/[0-9a-f-]{36}/, {
-          timeout: agentTimeout,
-        })
+        await reachDashboard(page, agentTimeout)
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           dashboardTitle
         )

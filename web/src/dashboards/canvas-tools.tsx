@@ -27,6 +27,7 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
 
 type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
+  canInvestigate: boolean
   idle: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
@@ -41,7 +42,12 @@ export function useCanvasToolsShown(
   return permissions.comment || (permissions.edit && agentAvailable)
 }
 
-export function CanvasTools({ permissions, idle, composerRef }: Props) {
+export function CanvasTools({
+  permissions,
+  canInvestigate,
+  idle,
+  composerRef,
+}: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
   const setSearch = useSetDashboardSearch()
@@ -88,7 +94,13 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
             variant="ghost"
             size="sm"
             className={toolClass}
-            disabled={!idle}
+            disabled={!idle || !canInvestigate}
+            focusableWhenDisabled={!canInvestigate}
+            title={
+              canInvestigate
+                ? undefined
+                : "Asking the agent needs the Editor role"
+            }
             onClick={() => {
               setTool("select")
               askAboutDashboard(setSearch)
@@ -96,7 +108,7 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
             }}
           >
             <AtSignIcon aria-hidden="true" />
-            Ask
+            {canInvestigate ? "Ask" : "Ask (needs the Editor role)"}
           </Button>
         ) : null}
       </div>

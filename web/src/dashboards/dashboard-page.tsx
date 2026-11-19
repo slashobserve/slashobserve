@@ -1029,6 +1029,7 @@ function DashboardView({
                 {kiosk || editingPanel ? null : (
                   <CanvasTools
                     permissions={permissions}
+                    canInvestigate={canInvestigate}
                     idle={!editing}
                     composerRef={composerRef}
                   />

@@ -86,7 +86,18 @@ const texts: Record<string, FailureText> = {
   },
 }
 
-export function failureText(code: string | null): FailureText | null {
+const withoutBuild: Record<string, string> = {
+  run_timeout: "Try again with a narrower prompt.",
+  budget_exhausted: "Ask an admin about the limit, or try again.",
+  canceled: "Try again.",
+}
+
+export function failureText(
+  code: string | null,
+  buildLeft = true
+): FailureText | null {
   if (code === null || !Object.hasOwn(texts, code)) return null
-  return texts[code]
+  const text = texts[code]
+  if (buildLeft || !Object.hasOwn(withoutBuild, code)) return text
+  return { ...text, next: withoutBuild[code] }
 }

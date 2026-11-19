@@ -8,9 +8,17 @@ import (
 )
 
 type VolumeRequest struct {
-	Query Query
-	Range TimeRange
-	Step  time.Duration
+	Query   Query
+	Range   TimeRange
+	Counted TimeRange
+	Step    time.Duration
+}
+
+func (r VolumeRequest) CountedRange() TimeRange {
+	if r.Counted == (TimeRange{}) {
+		return r.Range
+	}
+	return r.Counted
 }
 
 func (r VolumeRequest) Buckets() int {

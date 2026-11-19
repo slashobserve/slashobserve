@@ -543,7 +543,7 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return Placement{}, err
 	}
-	return Placement{Folder: row.FolderID, Personal: folder.Personal, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
+	return Placement{Folder: row.FolderID, Personal: folder.Personal, Title: folder.Title, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
 }
 
 func (s *Service) Snapshot(ctx context.Context, by auth.Principal, id pgtype.UUID) (Snapshot, error) {

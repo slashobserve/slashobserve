@@ -47,6 +47,7 @@ type ObserveOptions struct {
 	DashboardURL   func(dashboardID, title string) string
 	ObservationURL func(observationID string) string
 	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	SaveAnswer     AnswerSaver
 	LiveText       func(runID string, attempt int) (string, bool)
 }
 
@@ -115,12 +116,14 @@ type agentRequestJSON struct {
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
+	RetriedBy         *string     `json:"retried_by"`
 
 	PinnedAt      *string         `json:"pinned_at"`
 	ArchivedAt    *string         `json:"archived_at"`
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
 	ObservationID *string         `json:"observation_id"`
+	ChatID        string          `json:"chat_id"`
 	Finding       json.RawMessage `json:"finding"`
 }
 
@@ -159,10 +162,12 @@ type requestSummaryJSON struct {
 	BuildSavedAt *string            `json:"build_saved_at"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
+	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
 
 	ObservationID    *string  `json:"observation_id"`
 	ObservationTitle *string  `json:"observation_title"`
+	ChatID           string   `json:"chat_id"`
 	AllowedActions   []string `json:"allowed_actions"`
 }
 
@@ -190,6 +195,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.DELETE("/observe/:id", auth.RoleViewer, h.archiveObserve)
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
+	api.POST("/observe/:id/observation", auth.RoleViewer, h.saveAnswer)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
@@ -371,7 +377,22 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 		}
 		filter.DashboardID = id
 	}
+	if raw, present := c.GetQuery("chat_id"); present {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "chat_id must be a UUID")
+			return filter, false
+		}
+		filter.ChatID = id
+	}
 	return filter, true
+}
+
+func chatOf(id, chat pgtype.UUID) string {
+	if chat.Valid {
+		return chat.String()
+	}
+	return id.String()
 }
 
 func requestTitle(title pgtype.Text, prompt string) string {
@@ -407,10 +428,12 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
 		ObservationID:    optionalUUID(row.ObservationID),
 		ObservationTitle: optionalText(row.ObservationTitle),
+		ChatID:           chatOf(row.ID, row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {

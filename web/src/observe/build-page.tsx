@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 
 import {
   answeredRequestId,
+  awaitsFirstPanel,
   buildQuery,
   newPanelIds,
   savedDashboardId,
@@ -188,7 +189,11 @@ export function BuildPage({ requestId }: { requestId: string }) {
     })
   }, [savedId, navigate, requestId])
 
-  const answeredId = request === undefined ? null : answeredRequestId(request)
+  const answeredId =
+    request === undefined
+      ? null
+      : (answeredRequestId(request) ??
+        (awaitsFirstPanel(request) ? request.id : null))
   useEffect(() => {
     if (answeredId === null) return
     void navigate({

@@ -95,6 +95,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `retry_run` | Viewer |
 | `run_dashboard_health` | Admin |
 | `sample_rows` | Viewer |
+| `save_run_answer` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
@@ -322,17 +323,23 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
+Only the person who asked and an Admin can read such an answer.
 When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
 To make that change, use `update_panels` on that dashboard yourself, or ask the built-in agent there with `start_run`, sending the finding's `ask_on.dashboard_id` as `dashboard_id` and the run's prompt, or with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
-`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`; it queues a run and answers with it at once, and you follow it with `get_run`.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, or a `follows_id`, an earlier run of yours with no dashboard whose chat the new run continues (not together with `dashboard_id`); it queues a run and answers with it at once, and you follow it with `get_run`.
 Every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
 `run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
+
+`save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
+It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
+Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

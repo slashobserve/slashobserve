@@ -41,7 +41,7 @@ type FindingAskOnJSON struct {
 
 type FindingJSON struct {
 	ID             string            `json:"id"`
-	ObservationID  string            `json:"observation_id"`
+	ObservationID  *string           `json:"observation_id"`
 	AgentRequestID *string           `json:"agent_request_id"`
 	DashboardID    *string           `json:"dashboard_id"`
 	FolderID       *string           `json:"folder_id"`
@@ -55,7 +55,7 @@ type FindingJSON struct {
 	CreatedBy      FindingAuthorJSON `json:"created_by"`
 	Actor          actor.JSON        `json:"actor"`
 	CreatedAt      string            `json:"created_at"`
-	URL            string            `json:"url"`
+	URL            *string           `json:"url"`
 }
 
 type findingFolderJSON struct {
@@ -95,7 +95,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 	}
 	return FindingJSON{
 		ID:             f.ID,
-		ObservationID:  f.ObservationID,
+		ObservationID:  httpapi.OptionalString(f.ObservationID),
 		AgentRequestID: httpapi.OptionalString(f.AgentRequestID),
 		DashboardID:    httpapi.OptionalString(f.DashboardID),
 		FolderID:       httpapi.OptionalString(f.FolderID),
@@ -109,7 +109,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 		CreatedBy:      FindingAuthorJSON{Kind: f.CreatedBy.Kind, ID: f.CreatedBy.ID, Name: f.CreatedBy.Name},
 		Actor:          f.Actor.JSON(),
 		CreatedAt:      httpapi.FormatTime(f.CreatedAt),
-		URL:            url,
+		URL:            httpapi.OptionalString(url),
 	}
 }
 
@@ -186,7 +186,9 @@ func (h *Handler) get(c *gin.Context) {
 		h.fail(c, "get finding", err)
 		return
 	}
-	c.Header("Link", "</api/v1/observations/"+f.ObservationID+">; rel=\"successor-version\"")
+	if f.Saved() {
+		c.Header("Link", "</api/v1/observations/"+f.ObservationID+">; rel=\"successor-version\"")
+	}
 	c.JSON(http.StatusOK, envelopeOf(h.render(f), f.Folder, f.Abilities))
 }
 
@@ -240,6 +242,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
 	case errors.Is(err, ErrNoDashboard):
 		httpapi.AbortError(c, http.StatusConflict, "finding_has_no_dashboard", err.Error())
+	case errors.Is(err, ErrNotSaved):
+		httpapi.AbortError(c, http.StatusConflict, "finding_not_saved", err.Error())
+	case errors.Is(err, ErrRequesterOnly):
+		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, ErrNoEvidence):
 		httpapi.AbortError(c, http.StatusConflict, "finding_has_no_evidence", err.Error())
 	case errors.Is(err, annotations.ErrForbidden), errors.Is(err, folders.ErrForbidden):

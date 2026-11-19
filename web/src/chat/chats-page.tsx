@@ -28,6 +28,7 @@ import { useMyRequests, type RequestSummary } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { groupChatsByDay } from "./chat-days"
+import { collapseChats } from "./chat-list"
 import { chatFooterText } from "./chat-footer"
 import {
   chatOutcome,
@@ -249,7 +250,8 @@ function ChatGroups({
   const id = useId()
   const current = useNow()
   const groups = useMemo(
-    () => groupChatsByDay(requests, new Date(current), !everyone),
+    () =>
+      groupChatsByDay(collapseChats(requests), new Date(current), !everyone),
     [requests, current, everyone]
   )
   return (

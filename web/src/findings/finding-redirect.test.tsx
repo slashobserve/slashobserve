@@ -45,13 +45,18 @@ function renderAt(url: string, queryClient: QueryClient) {
     path: "/o/$observationId",
     component: () => <p>observation page</p>,
   })
+  const chat = createRoute({
+    getParentRoute: () => root,
+    path: "/c/$requestId",
+    component: () => <p>chat page</p>,
+  })
   const observations = createRoute({
     getParentRoute: () => root,
     path: "/observations",
     component: () => <p>observation list</p>,
   })
   const router = createRouter({
-    routeTree: root.addChildren([finding, observation, observations]),
+    routeTree: root.addChildren([finding, observation, chat, observations]),
     history: createMemoryHistory({ initialEntries: [url] }),
     context: { queryClient },
     parseSearch,
@@ -90,6 +95,27 @@ describe("the /findings/<id> address", () => {
     expect(router.state.location.pathname).toBe(`/o/${observationId}`)
     expect(router.history.length).toBe(1)
     expect(requested).toEqual([`/api/v1/findings/${findingId}`])
+  })
+
+  it("lands on the chat of an answer nobody saved as an observation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({
+          finding: {
+            id: findingId,
+            observation_id: null,
+            agent_request_id: "r7",
+          },
+          folder: null,
+          permissions: {},
+        })
+      )
+    )
+    const router = renderAt(`/findings/${findingId}`, testQueryClient())
+
+    expect(await screen.findByText("chat page")).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe("/c/r7")
   })
 
   it("says the finding is missing and links to the observations list", async () => {

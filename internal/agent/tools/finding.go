@@ -29,15 +29,16 @@ const (
 
 	defaultWindow = time.Hour
 
-	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times as UTC with the word UTC, and never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics with a filter for the service. Reads are refused once the run's limit of model calls passes without a save, so run every read together, and put a read you were refused in the finding as not read. Cite an earlier observation you read by its title and /o/<id> link. A request on Home to change a dashboard that already exists cannot be done there: find the dashboard with list_dashboards, and when exactly one matches, say so in the finding and pass its id as ask_on_dashboard_id; when none or several match, list the candidates by title and pass none."
+	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data in the window. Call it exactly once, after you have checked each evidence query with query_range or query_instant. Open with one plain sentence, no query jargon. Write times as UTC with the word UTC, and never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics with a filter for the service. Reads are refused once the run's limit of model calls passes without a save, so run every read together, and put a read you were refused in the finding as not read. Cite an earlier observation you read by its title and /o/<id> link. A request on Home to change an existing dashboard cannot be done there: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
+	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
 	propFindingFrom     = `"from":{"type":"string","description":"Start of the window the evidence shows, such as now-1h or an RFC 3339 time."}`
 	propFindingTo       = `"to":{"type":"string","description":"End of the window the evidence shows, such as now or an RFC 3339 time."}`
 
-	propFindingAskOn = `"ask_on_dashboard_id":{"type":"string","description":"On a request on Home that names no dashboard: the id of the one existing dashboard the request is about, so the change can be asked for on that dashboard."}`
+	propFindingAskOn = `"ask_on_dashboard_id":{"type":"string","description":"On Home: the id of the one existing dashboard the request asks to change."}`
 
-	schemaSaveFinding = `{"type":"object","properties":{` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `},"required":["markdown"],"additionalProperties":false}`
+	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `},"required":["markdown"],"additionalProperties":false}`
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
@@ -51,6 +52,7 @@ func (r *Registry) findingEntries() []entry {
 }
 
 type findingInput struct {
+	Title    string            `json:"title"`
 	Markdown string            `json:"markdown"`
 	Evidence []json.RawMessage `json:"evidence"`
 	From     string            `json:"from"`
@@ -93,7 +95,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
-	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.Title(run.Prompt))
+	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Prompt))
 	if err != nil || !ok {
 		return res, err
 	}
@@ -105,7 +107,14 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+	return success("Saved finding "+f.ID, findingSavedOut{Code: "saved", FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+}
+
+func (r *Registry) findingURL(f findings.Finding) string {
+	if f.Saved() {
+		return links.Observation(r.deps.PublicURL, f.ObservationID)
+	}
+	return links.Chat(r.deps.PublicURL, f.AgentRequestID)
 }
 
 func askOnTarget(raw string, run Run) (pgtype.UUID, Result, bool) {

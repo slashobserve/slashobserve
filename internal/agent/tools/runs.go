@@ -34,7 +34,7 @@ const (
 	descGetRunBuild = "Read the dashboard a run of the built-in agent has saved so far: its Spec, how many panels and saves it holds and how many it planned, updated_at, and dashboard_id and base_version when it revises one. Only the person or key that started the run and an Admin can read it; a run with no saved work answers not_found. Read it to see what a run made before you keep, redo or replace it; nothing here changes it."
 	descRetryRun    = "Start a succeeded, failed or canceled run of the built-in agent again with the same prompt; the new run is yours and queues at once, with a new id to follow with get_run. A queued or running run answers invalid_transition with allowed_actions. It is not safe to repeat: each call queues another run. A run that was an investigation cannot be retried here."
 
-	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to revise; omit to create a new one."},"base_version":{"type":"integer","minimum":1,"description":"A version that exists on the dashboard; only with dashboard_id, and the latest by default."}},"required":["prompt"],"additionalProperties":false}`
+	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to revise; omit to create a new one."},"base_version":{"type":"integer","minimum":1,"description":"A version that exists on the dashboard; only with dashboard_id, and the latest by default."},"follows_id":{"type":"string","format":"uuid","description":"An earlier run of yours that has no dashboard, to continue its chat so the agent reads the earlier questions and answers; not with dashboard_id."}},"required":["prompt"],"additionalProperties":false}`
 	schemaRunTarget = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from start_run, get_run or list_activity."}},"required":["id"],"additionalProperties":false}`
 
 	runStepLimit = 20
@@ -97,6 +97,7 @@ type startRunInput struct {
 	Prompt      *string `json:"prompt"`
 	DashboardID *string `json:"dashboard_id"`
 	BaseVersion *int    `json:"base_version"`
+	FollowsID   *string `json:"follows_id"`
 }
 
 func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -108,7 +109,7 @@ func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result,
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion})
+	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, FollowsID: in.FollowsID})
 	if err != nil {
 		return runFailure(err)
 	}
