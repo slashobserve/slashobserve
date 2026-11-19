@@ -50,7 +50,7 @@ const columnWidth = {
   folder: "w-40",
 }
 
-const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
+const zeroWidthAfterLastWord = "-my-1 -mr-6"
 
 export const listFeatures = tableFeatures({})
 
@@ -77,7 +77,7 @@ export const dashboardColumns = column.columns([
           title={`Open ${row.original.title} in a new tab`}
           className={cn(
             zeroWidthAfterLastWord,
-            "inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+            "inline-flex size-6 items-center justify-center rounded-sm align-middle text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
           )}
         >
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />

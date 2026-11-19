@@ -310,7 +310,7 @@ function PaletteBody({ close }: { close: () => void }) {
                           event.stopPropagation()
                           openInNewTab(entry)
                         }}
-                        className="ml-auto flex-none rounded-sm p-0.5 text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 group-data-highlighted/item:opacity-100 hover:text-foreground"
+                        className="ml-auto grid size-6 flex-none place-items-center rounded-sm text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 group-data-highlighted/item:opacity-100 hover:text-foreground"
                       >
                         <ArrowUpRightIcon
                           aria-hidden="true"

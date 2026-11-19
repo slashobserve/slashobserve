@@ -111,6 +111,17 @@ describe("column widths", () => {
   })
 })
 
+describe("the open in a new tab link", () => {
+  it("is out of the tab order and a target of at least 24 by 24 pixels", async () => {
+    const { cells } = await cellsOf(summary())
+    const link = within(cells[0]).getByRole("link", {
+      name: "Open Checkout service health in a new tab",
+    })
+    expect(link).toHaveAttribute("tabindex", "-1")
+    expect(link).toHaveClass("size-6")
+  })
+})
+
 describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
     expect(dashboardColumns.map((c) => c.header)).toEqual([
