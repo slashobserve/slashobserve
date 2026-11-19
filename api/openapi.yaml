@@ -4374,7 +4374,6 @@ components:
             Only the import uses it; the preview ignores it.
         refuse_existing:
           type: boolean
-          default: false
           description: >-
             Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid.
             Ignored with `update_dashboard`, and by the preview.

@@ -5500,11 +5500,8 @@ export interface components {
              * @description The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard. Needs Edit on the dashboard; the folder is not changed. Only the import uses it; the preview ignores it.
              */
             update_dashboard?: string;
-            /**
-             * @description Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid. Ignored with `update_dashboard`, and by the preview.
-             * @default false
-             */
-            refuse_existing: boolean;
+            /** @description Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid. Ignored with `update_dashboard`, and by the preview. */
+            refuse_existing?: boolean;
         };
         ImportExisting: {
             /** Format: uuid */
