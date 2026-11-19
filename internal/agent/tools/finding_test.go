@@ -158,7 +158,7 @@ func TestOfferedInSplitsTheToolsByMode(t *testing.T) {
 		{nameUpdatePanels, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
 		{nameImportGrafana, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
 		{nameSaveFinding, []Mode{ModeCreate, ModeRevise, ModeInvestigate}},
-		{nameListAnnotations, []Mode{ModeInvestigate}},
+		{nameListAnnotations, modes},
 		{nameListComments, nil},
 	}
 	for _, c := range cases {

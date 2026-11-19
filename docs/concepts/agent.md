@@ -154,7 +154,7 @@ A run that keeps asking a read it already made is first answered, then refused: 
 A save identical to an earlier one is refused.
 When a read was refused because the run reached its window of model calls, the finding the run then saves ends with a line saying reading stopped early and how many reads were refused, so its counts are not taken for complete.
 
-A finding that says a metric is missing is sent back once when no `list_metrics` call of the run set `scope`, and one that says there was no deploy is sent back once when the run did not read `list_annotations`; outside an investigation, which cannot read annotations, the agent is told to say deploys were not checked instead.
+A finding that says a metric is missing is sent back once when no `list_metrics` call of the run set `scope`, and one that says there was no deploy is sent back once when the run did not read `list_annotations`.
 A request may name the person's time zone (`time_zone` on `POST /api/v1/observe`, which the web app always sends): the brief tells the model to write times in it with its label, and `save_finding` answers `wrong_time_zone` for a finding that labels times UTC without ever using that label; a retry or continue keeps the zone, and without one times stay UTC.
 A datasource read that ends in `query_timeout`, `datasource_unavailable` or `too_many_requests` is marked as could not check: its error carries a `note` telling the model the read says nothing about whether the data exists, its step reads "could not check", and the run remembers the datasource until the same tool reads it successfully, so the finding ends with a line naming each datasource that could not be checked and why.
 An empty `list_metrics` search carries a `note` that a service, job or pod is usually a label value, to be listed with `scope` before the model says a service has no metrics.
@@ -315,7 +315,7 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 ### Tools in a run
 
 The server has 89 tools: MCP clients get 88, every one except `save_finding`, which only a run offers.
-The built-in agent gets 28 in a new-dashboard or revision request and 27 in a suggestion, which leaves out `save_finding`.
+The built-in agent gets 29 in a new-dashboard or revision request and 28 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
 The other 60 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
 They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `run_dashboard_health`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.

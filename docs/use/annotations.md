@@ -113,7 +113,7 @@ A pipeline that needs a key before anyone signs in can get one from the [service
 An MCP client such as Claude Code lists annotations with `list_annotations`, adds one with `create_annotation` and changes the text or tags of one it added with `update_annotation`, so the agent that just deployed can post and correct the marker itself.
 `create_annotation` takes the fields of `POST /api/v1/annotations` and needs Edit on the dashboard, or the Editor role for an annotation on every dashboard.
 `update_annotation` takes an `id` and `text`, `tags` or both, like `PATCH /api/v1/annotations/{id}`.
-The built-in agent reads annotations with `list_annotations` when it investigates, so it can see a deploy beside a spike, and it never adds one.
+The built-in agent reads annotations with `list_annotations` in every run, as the person who asked and only on dashboards they can open, so it can see a deploy beside a spike or say when the last deploy was, and it never adds one.
 No tool deletes an annotation.
 See [MCP](mcp.md).
 
