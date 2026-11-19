@@ -561,6 +561,15 @@ function DashboardView({
     )
   }, [layoutEditingWithPanel, setSearch])
 
+  const closeSpec = useCallback(() => {
+    setSpecOpen(false)
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) {
+        findMoreMenuButton()?.focus()
+      }
+    })
+  }, [])
+
   const closeInspect = useCallback(
     () =>
       setSearch((state) => ({
@@ -1084,7 +1093,7 @@ function DashboardView({
                   spec={envelopeSpec}
                   version={envelopeVersion}
                   hidden={!specShown}
-                  onClose={() => setSpecOpen(false)}
+                  onClose={closeSpec}
                 />
               ) : null}
               <UnsavedBar dashboardId={dashboardId} />

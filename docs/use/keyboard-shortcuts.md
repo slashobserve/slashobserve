@@ -24,6 +24,9 @@ Press `?` on a dashboard to see them all in the app.
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
 
+Escape also closes the Share, Activity, Chat and Dashboard JSON panes of a dashboard.
+The focus returns to the button that opened the pane.
+
 ## Moving around the app
 
 The first Tab stop on every page after sign-in is **Skip to the page**, which appears at the top left; press Enter to move the focus to the page's heading and skip the sidebar.
