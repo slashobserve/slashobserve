@@ -81,7 +81,9 @@ The box above the list filters by title, and the folder and tag menus narrow it 
 The **More** button at the right of a dashboard's header opens:
 
 - **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
+- **Open on sign-in** makes the dashboard open in place of Home, see [Open a dashboard on sign-in](#open-a-dashboard-on-sign-in); it reads **Stop opening on sign-in** when it already does.
 - **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
+- **Print or save as PDF** and **Download as image** lay the dashboard out for paper or draw it as one PNG, see [Print a dashboard or download it as an image](#print-a-dashboard-or-download-it-as-an-image).
 - **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
 - **TV mode**, also `d` then `k`, starts [TV mode](public-links.md#show-it-on-a-wall); **TV mode for this folder** cycles through the folder's dashboards and is left out in a personal folder.
 - **Chart hover**, also Cmd/Ctrl+O, chooses how hovering one time chart shows on the others: **This chart only**, **Shared crosshair** or **Shared tooltip**.
