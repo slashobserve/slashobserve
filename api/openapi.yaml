@@ -194,6 +194,12 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
   /blocks/{id}:
     $ref: "./paths/observations.yaml#/blocks-id"
+  /observations/{id}/pin:
+    $ref: "./paths/observations.yaml#/observations-id-pin"
+  /observations/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/observations-id-dashboard"
+  /blocks/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/blocks-id-dashboard"
   /blocks/{id}/keep:
     $ref: "./paths/observations.yaml#/blocks-id-keep"
   /blocks/{id}/discard:
@@ -1472,7 +1478,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -5056,7 +5062,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 46
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5147,7 +5153,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 46
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5168,7 +5174,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 46
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5906,7 +5912,7 @@ components:
       description: See `docs/reference/states.md`.
     ObservationAction:
       type: string
-      enum: [update, move, resolve, reopen, publish]
+      enum: [update, move, resolve, reopen, publish, delete]
       description: An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
     ObservationBlockKind:
       type: string
@@ -5925,7 +5931,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, can_pin, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
       properties:
         id:
           type: string
@@ -5943,7 +5949,7 @@ components:
           type: string
           nullable: true
           maxLength: 500
-          description: The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve.
+          description: The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve.
         from:
           type: string
           format: date-time
@@ -5963,6 +5969,17 @@ components:
           format: uuid
           nullable: true
           description: The agent request that made the observation, when one did.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+        pinned:
+          type: boolean
+          description: Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id.
+        can_pin:
+          type: boolean
+          description: Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id.
         message_count:
           type: integer
           minimum: 0
@@ -6021,7 +6038,8 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`;
+            A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`
+            and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added;
             a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`.
         snapshot_id:
           type: string
@@ -6058,7 +6076,7 @@ components:
     ObservationList:
       type: object
       additionalProperties: false
-      required: [observations, next_cursor]
+      required: [observations, next_cursor, total]
       properties:
         observations:
           type: array
@@ -6067,6 +6085,10 @@ components:
         next_cursor:
           type: string
           nullable: true
+        total:
+          type: integer
+          nullable: true
+          description: The number of observations that match the filters, present only when the request has `offset`.
     BlockEnvelope:
       type: object
       additionalProperties: false
@@ -6162,7 +6184,9 @@ components:
         body:
           type: object
           additionalProperties: true
-          description: Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+          description: >-
+            Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+            A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`.
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
         position:
@@ -6191,6 +6215,32 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+    PinObservationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+          description: The dashboard to pin to; the one the observation's run was about when absent.
+    MakeDashboardRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        new:
+          type: boolean
+          description: Make another dashboard even when the caller already made one from this observation or block.
+    ObservationPin:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, annotation_id]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        annotation_id:
+          type: string
+          format: uuid
     KeepObservationBlockRequest:
       type: object
       additionalProperties: false
@@ -6388,7 +6438,7 @@ components:
     PublicRCA:
       type: object
       additionalProperties: false
-      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at]
+      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at, superseded_by]
       description: A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids.
       properties:
         revision:
@@ -6419,6 +6469,11 @@ components:
         created_at:
           type: string
           format: date-time
+        superseded_by:
+          type: integer
+          minimum: 2
+          nullable: true
+          description: The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation.
   headers:
     Deprecation:
       description: >-
@@ -6432,14 +6487,14 @@ components:
       description: >-
         The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`):
         `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation),
-        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
+        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
         `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB).
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ValidationError"
     ObservationConflict:
-      description: The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`).
+      description: The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
       content:
         application/json:
           schema:

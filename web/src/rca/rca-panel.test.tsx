@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { observationKeys } from "@/api/keys"
-import type { Observation } from "@/observations/queries"
+import type { Block, Observation } from "@/observations/queries"
 import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -37,7 +37,13 @@ function observation(actions: string[]): Observation {
   return { id: observationId, allowed_actions: actions } as Observation
 }
 
-function renderPanel(actions: string[], revisions: number[]) {
+function renderPanel(
+  actions: string[],
+  revisions: number[],
+  privateFolder?: () => void,
+  blocks: Block[] = [],
+  onShowBlock?: (blockId: string) => void
+) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observationKeys.rcas(observationId), {
     rcas: revisions.map(summary),
@@ -50,9 +56,12 @@ function renderPanel(actions: string[], revisions: number[]) {
         observation={observation(actions)}
         trigger={createRef()}
         onClose={() => {}}
+        privateFolder={privateFolder}
+        blocks={blocks}
+        onShowBlock={onShowBlock}
       />
     </PanelHostContext.Provider>,
-    { queryClient }
+    { queryClient, route: { path: "/", url: "/" } }
   )
 }
 
@@ -87,6 +96,17 @@ describe("RcaPanel", () => {
     expect(screen.queryByRole("button", { name: /^Publish/ })).toBeNull()
   })
 
+  it("sends a private observation to a shared folder before publishing", async () => {
+    const move = vi.fn()
+    const { user } = renderPanel(["update", "move"], [], move)
+    expect(
+      await screen.findByText(/private to you in My Dashboards/)
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /^Publish/ })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Move to folder" }))
+    expect(move).toHaveBeenCalledOnce()
+  })
+
   it("says why a publish was refused", async () => {
     vi.stubGlobal(
       "fetch",
@@ -110,5 +130,98 @@ describe("RcaPanel", () => {
         )
       ).toBeTruthy()
     )
+  })
+
+  it("names the block that could not be frozen and shows it on request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "a panel failed",
+              code: "panel_failed",
+              issues: [
+                {
+                  path: "/blocks/1",
+                  code: "query_timeout",
+                  message: "ran out of time",
+                },
+              ],
+            }),
+            { status: 422, headers: { "Content-Type": "application/json" } }
+          )
+        )
+      )
+    )
+    const blocks = [
+      {
+        id: "b1",
+        position: 1,
+        kind: "panel",
+        body: { panel: { title: "Checkout latency" } },
+      },
+    ] as unknown as Block[]
+    const show = vi.fn()
+    const { user } = renderPanel(["publish"], [], undefined, blocks, show)
+    await user.click(
+      await screen.findByRole("button", { name: "Publish revision 1" })
+    )
+    expect(
+      await screen.findByText(
+        'The panel "Checkout latency" could not be frozen: ran out of time'
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Show block" }))
+    expect(show).toHaveBeenCalledWith("b1")
+  })
+
+  it("opens a revision and lets an editor withdraw it once it is selected", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ public_links: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    )
+    const { user } = renderPanel(["publish"], [2, 1])
+    expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
+    await user.click(await screen.findByRole("button", { name: /Revision 1/ }))
+    expect(
+      await screen.findByRole("link", { name: "Open revision 1" })
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy()
+  })
+
+  it("lets someone who may not publish open a revision but not withdraw it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ public_links: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    )
+    const { user } = renderPanel(["update"], [1])
+    await user.click(await screen.findByRole("button", { name: /Revision 1/ }))
+    expect(
+      await screen.findByRole("link", { name: "Open revision 1" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Withdraw" })).toBeNull()
+  })
+
+  it("heads the panel of someone who may not publish as RCA revisions", async () => {
+    renderPanel(["update"], [1])
+    expect(
+      await screen.findByRole("heading", { name: "RCA revisions" })
+    ).toBeTruthy()
+    expect(screen.queryByText("Publish as RCA")).toBeNull()
   })
 })

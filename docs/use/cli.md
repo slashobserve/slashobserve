@@ -258,10 +258,17 @@ A block that someone who can only comment added shows the state `requested`.
 `bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.
 Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
 `--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
+A panel whose queries use variables needs `--var name=value` for each, repeated for more values of the same name, and without one the block is refused with `variable_missing` and the name of the variable.
 
 `bin/observe o resolve <observation-id> --summary <line>` closes an observation and prints `Resolved <title>`.
 
 `bin/observe o reopen <observation-id>` reopens a resolved observation and prints `Reopened <title>`.
+
+`bin/observe o pin <observation-id>` pins an observation to a dashboard as an annotation, to `--dashboard <id>` or by default the dashboard its run was about, and prints `Pinned to dashboard <id> as annotation <id>`.
+Pinning it again to the same dashboard prints the same annotation, and an observation with no dashboard to pin to exits 1 with `observation_has_no_dashboard`.
+
+`bin/observe o dashboard <observation-id>` makes a dashboard in My Dashboards from its live panel blocks, or from one block with `--block <block-id>`, and prints `Dashboard <id>: <title>`.
+Running it again prints the dashboard you made first; `--new` makes another.
 
 `bin/observe o edit <observation-id>` changes the title with `--title <title>`, the range its panels show with `--from <time> --to <time>`, RFC 3339 times that go together, or removes the range with `--clear-range`, and prints `Updated <title>`.
 Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range` exits 2.
@@ -269,13 +276,21 @@ Giving nothing, one of `--from` and `--to` alone, or a range with `--clear-range
 `bin/observe o move <observation-id> --folder <folder-id>` files the observation in another folder and prints `Moved <title> to folder <id>`.
 It needs Edit on the observation and on the folder, and My Dashboards takes no moves.
 
+`bin/observe o delete <observation-id> --yes` deletes the observation for everyone, with its blocks, snapshots, RCA revisions, the public links of those revisions and its discussion, and prints `Deleted observation <id>`.
+It needs Manage on the observation's folder, or Edit on it when you started the observation, and it cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
+
 `bin/observe o publish <observation-id>` publishes the observation as the next RCA revision and prints `Published revision <n> of <title>`, as in [Observations](observations.md#publish-as-rca).
 It needs Edit on the observation's folder, and it never creates a public link.
+
+`bin/observe o withdraw <observation-id> <revision> --yes` deletes one published revision and prints `Withdrew revision <n> of <observation-id>`, as in [Observations](observations.md#withdraw-a-revision).
+It needs Edit on the observation's folder, answers `rca_shared` while the revision has a live public link, and cannot be undone, so without `--yes` it exits 2.
+No MCP tool deletes anything, so an agent cannot do this.
 
 `bin/observe o rcas <observation-id>` lists the published revisions, newest first, as `REVISION`, `TITLE`, `STATE`, `PUBLISHED BY` and `PUBLISHED` columns.
 `bin/observe o rcas <observation-id> <revision>` prints one revision: its title, its summary, each text block's Markdown and a line `snapshot <id>` for each snapshot block.
 
-`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>` and `--state open|resolved` narrow it, and `--limit` and `--cursor` page through the result.
+`bin/observe o list` prints the observations you can see, most recently changed first, with their id, title, state and last change; `--folder <id>`, `--state open|resolved` and `--title <text>` (a title that contains the text, ignoring case) narrow it, and `--limit` and `--cursor` page through the result.
 
 `bin/observe o keep <block-id> --version <n>` makes a requested block live and needs the block's version from `o show`, and `bin/observe o discard <block-id>` deletes a requested block.
 Keeping needs Edit on the observation's folder, and discarding is open to an editor and to whoever asked for the block.

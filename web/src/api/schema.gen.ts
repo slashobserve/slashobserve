@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -1908,7 +1908,7 @@ export interface paths {
         };
         /**
          * List the observations in the folders the caller can see, most recently changed first.
-         * @description Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404. The items carry no blocks; read one observation for them.
+         * @description Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404. The items carry no blocks; read one observation for them. `q` keeps the observations whose title contains it, ignoring case, and `created_by=me` keeps those the caller started. `sort` orders by `updated` (the default, newest first), `created` (newest first) or `title` (A to Z), and `order` reverses or sets the direction. Page with `cursor` (the default order only) or with `offset`, which also returns `total`, the number of observations that match the filters, so a client can show page numbers.
          */
         get: operations["listObservations"];
         put?: never;
@@ -1934,12 +1934,16 @@ export interface paths {
         };
         /**
          * Read one observation with its blocks.
-         * @description Anyone who can view the observation's folder reads every block, requested ones included. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
+         * @description Anyone who can view the observation's folder reads the live blocks. A requested block is returned only to its author and to people who can edit the folder, and `position` stays dense in what the caller sees. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
          */
         get: operations["getObservation"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
+         * @description Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may. The delete cannot be undone, and an RCA's public links stop working with it. The activity log keeps the observation's events, ending with `observation.deleted`. It is refused with 409 `run_in_progress` while an investigation on the observation is queued or running, because the run would file a new observation when it finished. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["deleteObservation"];
         options?: never;
         head?: never;
         /**
@@ -1962,7 +1966,7 @@ export interface paths {
         put?: never;
         /**
          * Move an observation to another folder.
-         * @description Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`). Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing. There is no delete route: moving is the way out of a folder.
+         * @description Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`). Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing.
          */
         post: operations["moveObservation"];
         delete?: never;
@@ -2061,6 +2065,72 @@ export interface paths {
          * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
+        trace?: never;
+    };
+    "/observations/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin an observation to a dashboard as an annotation.
+         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+         */
+        post: operations["pinObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from the live panel blocks of an observation.
+         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. An observation without a live panel block answers 409 `observation_has_no_panels`.
+         */
+        post: operations["makeDashboardFromObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from one panel block.
+         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+         */
+        post: operations["makeDashboardFromBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/blocks/{id}/keep": {
@@ -2168,7 +2238,7 @@ export interface paths {
         put?: never;
         /**
          * Publish an observation as the next revision of its RCA.
-         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
+         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A page with no live panel block that equals its latest revision (title, summary, state, range and blocks) answers 409 `rca_unchanged`, so a retry never makes a copy; a page with a live panel always publishes, because its data may have moved. A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
          */
         post: operations["publishRca"];
         delete?: never;
@@ -2194,7 +2264,11 @@ export interface paths {
         get: operations["getRca"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Withdraw one published revision of an observation's RCA.
+         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["withdrawRca"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4008,7 +4082,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.rca_withdrawn" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -6309,7 +6383,7 @@ export interface components {
          * @description An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
          * @enum {string}
          */
-        ObservationAction: "update" | "move" | "resolve" | "reopen" | "publish";
+        ObservationAction: "update" | "move" | "resolve" | "reopen" | "publish" | "delete";
         /** @enum {string} */
         ObservationBlockKind: "text" | "panel" | "snapshot" | "run";
         /**
@@ -6331,7 +6405,7 @@ export interface components {
             folder_id: string;
             title: string;
             state: components["schemas"]["ObservationState"];
-            /** @description The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve. */
+            /** @description The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve. */
             summary: string | null;
             /**
              * Format: date-time
@@ -6350,6 +6424,15 @@ export interface components {
              * @description The agent request that made the observation, when one did.
              */
             run_id: string | null;
+            /**
+             * Format: uuid
+             * @description The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+             */
+            dashboard_id: string | null;
+            /** @description Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id. */
+            pinned: boolean;
+            /** @description Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id. */
+            can_pin: boolean;
             /** @description How many messages the observation's discussion thread holds, replies included; 0 while it has no thread. */
             message_count: number;
             /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */
@@ -6380,7 +6463,7 @@ export interface components {
             width: components["schemas"]["ObservationBlockWidth"];
             /** @description Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read. */
             version: number;
-            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
+            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos` and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
             body: {
                 [key: string]: unknown;
             };
@@ -6406,6 +6489,8 @@ export interface components {
         ObservationList: {
             observations: components["schemas"]["Observation"][];
             next_cursor: string | null;
+            /** @description The number of observations that match the filters, present only when the request has `offset`. */
+            total: number | null;
         };
         BlockEnvelope: {
             block: components["schemas"]["ObservationBlock"];
@@ -6461,7 +6546,7 @@ export interface components {
              * @enum {string}
              */
             kind: "text" | "panel" | "snapshot";
-            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. */
+            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`. */
             body?: {
                 [key: string]: unknown;
             };
@@ -6483,6 +6568,23 @@ export interface components {
             width?: components["schemas"]["ObservationBlockWidth"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
+        };
+        PinObservationRequest: {
+            /**
+             * Format: uuid
+             * @description The dashboard to pin to; the one the observation's run was about when absent.
+             */
+            dashboard_id?: string;
+        };
+        MakeDashboardRequest: {
+            /** @description Make another dashboard even when the caller already made one from this observation or block. */
+            new?: boolean;
+        };
+        ObservationPin: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** Format: uuid */
+            annotation_id: string;
         };
         KeepObservationBlockRequest: {
             version: number;
@@ -6606,10 +6708,12 @@ export interface components {
             published_by: string;
             /** Format: date-time */
             created_at: string;
+            /** @description The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation. */
+            superseded_by: number | null;
         };
     };
     responses: {
-        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
+        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
         ObservationInvalid: {
             headers: {
                 [name: string]: unknown;
@@ -6618,7 +6722,7 @@ export interface components {
                 "application/json": components["schemas"]["ValidationError"];
             };
         };
-        /** @description The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`). */
+        /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). */
         ObservationConflict: {
             headers: {
                 [name: string]: unknown;
@@ -11943,9 +12047,17 @@ export interface operations {
             query?: {
                 folder_id?: string;
                 state?: components["schemas"]["ObservationState"];
+                /** @description Title text to look for, at most 200 characters; `%` and `_` match themselves. */
+                q?: string;
+                created_by?: "me";
+                sort?: "updated" | "created" | "title";
+                /** @description `desc` by default, and `asc` when `sort` is `title`. */
+                order?: "asc" | "desc";
                 limit?: number;
-                /** @description The `next_cursor` of the previous page. */
+                /** @description The `next_cursor` of the previous page. It works only with the default order and not with `offset`. */
                 cursor?: string;
+                /** @description How many matching observations to skip; the response then carries `total`. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -12032,6 +12144,32 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The observation and everything that belongs to it are deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ObservationConflict"];
             500: components["responses"]["Internal"];
         };
     };
@@ -12293,6 +12431,149 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    pinObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation was already pinned to that dashboard; this is its annotation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            /** @description The annotation made for the observation. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this observation, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation has no live panel block (`observation_has_no_panels`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this block, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
     keepObservationBlock: {
         parameters: {
             query?: never;
@@ -12524,7 +12805,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12563,6 +12844,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    withdrawRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The revision is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

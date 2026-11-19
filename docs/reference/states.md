@@ -58,8 +58,8 @@ An observation is a page of blocks in a folder, started by POST /observations or
 
 | State | Meaning | Actions |
 | --- | --- | --- |
-| `open` | Still being worked on: blocks are added and the discussion goes on. | `update`, `move`, `resolve`, `publish` |
-| `resolved` | Closed with a one-line summary of what was found; it can be reopened. | `update`, `move`, `reopen`, `publish` |
+| `open` | Still being worked on: blocks are added and the discussion goes on. | `update`, `move`, `resolve`, `publish`, `delete` |
+| `resolved` | Closed with a one-line summary of what was found; it can be reopened. | `update`, `move`, `reopen`, `publish`, `delete` |
 
 | Action | From | To | Event | By |
 | --- | --- | --- | --- | --- |
@@ -69,6 +69,7 @@ An observation is a page of blocks in a folder, started by POST /observations or
 | `resolve` | `open` | `resolved` | `observation.resolved` | editor |
 | `reopen` | `resolved` | `open` | `observation.reopened` | editor |
 | `publish` | `open`, `resolved` | - | `observation.published` | editor |
+| `delete` | `open`, `resolved` | - | `observation.deleted` | admin, requester |
 
 ## Observation block
 

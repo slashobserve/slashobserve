@@ -100,6 +100,39 @@ func (q *Queries) CountBlocks(ctx context.Context, observationID pgtype.UUID) (C
 	return i, err
 }
 
+const countObservations = `-- name: CountObservations :one
+SELECT count(*)::integer FROM observations
+WHERE folder_id = ANY($1::uuid[])
+  AND ($2::uuid IS NULL OR folder_id = $2::uuid)
+  AND ($3::text IS NULL OR state = $3::text)
+  AND ($4::text IS NULL OR title ILIKE '%' || $4::text || '%')
+  AND ($5::uuid IS NULL
+    OR (created_by_kind = $6::text AND created_by_id = $5::uuid))
+`
+
+type CountObservationsParams struct {
+	Folders       []pgtype.UUID
+	FolderID      pgtype.UUID
+	State         pgtype.Text
+	TitleQuery    pgtype.Text
+	CreatedByID   pgtype.UUID
+	CreatedByKind pgtype.Text
+}
+
+func (q *Queries) CountObservations(ctx context.Context, arg CountObservationsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countObservations,
+		arg.Folders,
+		arg.FolderID,
+		arg.State,
+		arg.TitleQuery,
+		arg.CreatedByID,
+		arg.CreatedByKind,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createObservation = `-- name: CreateObservation :one
 INSERT INTO observations (folder_id, title, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id)
 VALUES ($1, $2, $3::timestamptz, $4::timestamptz,
@@ -169,6 +202,18 @@ type DeleteBlockParams struct {
 
 func (q *Queries) DeleteBlock(ctx context.Context, arg DeleteBlockParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteBlock, arg.ID, arg.FromStates, arg.Version)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteObservation = `-- name: DeleteObservation :execrows
+DELETE FROM observations WHERE id = $1
+`
+
+func (q *Queries) DeleteObservation(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteObservation, id)
 	if err != nil {
 		return 0, err
 	}
@@ -342,18 +387,35 @@ SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind
 WHERE folder_id = ANY($1::uuid[])
   AND ($2::uuid IS NULL OR folder_id = $2::uuid)
   AND ($3::text IS NULL OR state = $3::text)
-  AND ($4::timestamptz IS NULL
-    OR (updated_at, id) < ($4::timestamptz, $5::uuid))
-ORDER BY updated_at DESC, id DESC
-LIMIT $6
+  AND ($4::text IS NULL OR title ILIKE '%' || $4::text || '%')
+  AND ($5::uuid IS NULL
+    OR (created_by_kind = $6::text AND created_by_id = $5::uuid))
+  AND ($7::timestamptz IS NULL
+    OR (updated_at, id) < ($7::timestamptz, $8::uuid))
+ORDER BY
+  (CASE WHEN $9::text = 'title' AND NOT $10::boolean THEN lower(title) END) ASC,
+  (CASE WHEN $9::text = 'title' AND $10::boolean THEN lower(title) END) DESC,
+  (CASE WHEN $9::text = 'created' AND NOT $10::boolean THEN created_at END) ASC,
+  (CASE WHEN $9::text = 'created' AND $10::boolean THEN created_at END) DESC,
+  (CASE WHEN $9::text = 'updated' AND NOT $10::boolean THEN updated_at END) ASC,
+  (CASE WHEN $9::text = 'updated' AND $10::boolean THEN updated_at END) DESC,
+  (CASE WHEN NOT $10::boolean THEN id END) ASC,
+  (CASE WHEN $10::boolean THEN id END) DESC
+LIMIT $12 OFFSET $11
 `
 
 type ListObservationsParams struct {
 	Folders         []pgtype.UUID
 	FolderID        pgtype.UUID
 	State           pgtype.Text
+	TitleQuery      pgtype.Text
+	CreatedByID     pgtype.UUID
+	CreatedByKind   pgtype.Text
 	CursorUpdatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
+	Sort            string
+	Descending      bool
+	RowOffset       int32
 	RowLimit        int32
 }
 
@@ -362,8 +424,14 @@ func (q *Queries) ListObservations(ctx context.Context, arg ListObservationsPara
 		arg.Folders,
 		arg.FolderID,
 		arg.State,
+		arg.TitleQuery,
+		arg.CreatedByID,
+		arg.CreatedByKind,
 		arg.CursorUpdatedAt,
 		arg.CursorID,
+		arg.Sort,
+		arg.Descending,
+		arg.RowOffset,
 		arg.RowLimit,
 	)
 	if err != nil {

@@ -448,6 +448,22 @@ type ObservationBlock struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type ObservationDashboard struct {
+	ObservationID pgtype.UUID
+	BlockID       pgtype.UUID
+	DashboardID   pgtype.UUID
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
+type ObservationPin struct {
+	ObservationID pgtype.UUID
+	DashboardID   pgtype.UUID
+	AnnotationID  pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
 type ObservationRca struct {
 	ID               pgtype.UUID
 	ObservationID    pgtype.UUID

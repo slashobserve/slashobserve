@@ -14,6 +14,7 @@ var (
 	viewing    = folders.AbilitiesFor(folders.LevelView)
 	commenting = folders.AbilitiesFor(folders.LevelComment)
 	editing    = folders.AbilitiesFor(folders.LevelEdit)
+	managing   = folders.AbilitiesFor(folders.LevelAdmin)
 )
 
 func TestTheMachinesAreConsistent(t *testing.T) {
@@ -53,7 +54,7 @@ func TestEveryEventOfTheMachinesIsAKnownActivityType(t *testing.T) {
 
 func TestTheEventOfEachMoveIsTheOneThePlanNames(t *testing.T) {
 	events := map[Action]string{
-		ActionUpdate: activity.TypeObservationUpdated, ActionMove: activity.TypeObservationMoved,
+		ActionUpdate: activity.TypeObservationUpdated, ActionMove: activity.TypeObservationMoved, ActionDelete: activity.TypeObservationDeleted,
 		ActionReopen: activity.TypeObservationReopened, ActionPublish: activity.TypeObservationPublished,
 	}
 	for action, want := range events {
@@ -81,16 +82,20 @@ func TestWhatEachAbilityMayDoToAnObservation(t *testing.T) {
 		name      string
 		state     State
 		abilities folders.Abilities
+		author    bool
 		want      []Action
 	}{
-		{"viewer of an open one", StateOpen, viewing, []Action{}},
-		{"commenter of an open one", StateOpen, commenting, []Action{}},
-		{"editor of an open one", StateOpen, editing, []Action{ActionUpdate, ActionMove, ActionResolve, ActionPublish}},
-		{"editor of a resolved one", StateResolved, editing, []Action{ActionUpdate, ActionMove, ActionReopen, ActionPublish}},
-		{"viewer of a resolved one", StateResolved, viewing, []Action{}},
+		{"viewer of an open one", StateOpen, viewing, false, []Action{}},
+		{"commenter of an open one", StateOpen, commenting, false, []Action{}},
+		{"editor of an open one", StateOpen, editing, false, []Action{ActionUpdate, ActionMove, ActionResolve, ActionPublish}},
+		{"editor of a resolved one", StateResolved, editing, false, []Action{ActionUpdate, ActionMove, ActionReopen, ActionPublish}},
+		{"viewer of a resolved one", StateResolved, viewing, false, []Action{}},
+		{"editor who started an open one", StateOpen, editing, true, []Action{ActionUpdate, ActionMove, ActionResolve, ActionPublish, ActionDelete}},
+		{"commenter who started an open one", StateOpen, commenting, true, []Action{}},
+		{"manager of a resolved one", StateResolved, managing, false, []Action{ActionUpdate, ActionMove, ActionReopen, ActionPublish, ActionDelete}},
 	}
 	for _, c := range cases {
-		if got := allowedActions(c.state, c.abilities); !slices.Equal(got, c.want) {
+		if got := allowedActions(c.state, c.abilities, c.author); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
@@ -159,7 +164,7 @@ func TestAnActionNobodyMayTakeInThatStateIsForbiddenAndOtherwiseRefused(t *testi
 }
 
 func TestOnlyTheActionsAPersonMayTakeAreOffered(t *testing.T) {
-	if got, want := Machine.Offered(), []Action{ActionUpdate, ActionMove, ActionResolve, ActionReopen, ActionPublish}; !slices.Equal(got, want) {
+	if got, want := Machine.Offered(), []Action{ActionUpdate, ActionMove, ActionResolve, ActionReopen, ActionPublish, ActionDelete}; !slices.Equal(got, want) {
 		t.Errorf("observation offers %v, want %v", got, want)
 	}
 	if got, want := BlockMachine.Offered(), []BlockAction{BlockUpdate, BlockKeep, BlockDiscard, BlockRemove}; !slices.Equal(got, want) {
