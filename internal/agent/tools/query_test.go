@@ -518,7 +518,7 @@ func TestClassifyRouting(t *testing.T) {
 }
 
 func TestDiscoveryErrorsRouteThroughClassify(t *testing.T) {
-	ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	ds := &fakeDS{typ: "clickhouse", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		return nil, datasource.Errorf(datasource.ErrNotFound, "not supported")
 	}}
 	r := newTestRegistry(t, ds, nil)
@@ -567,7 +567,7 @@ func TestGetSchemaTruncation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) { return tt.catalog, nil }}
+			ds := &fakeDS{typ: "clickhouse", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) { return tt.catalog, nil }}
 			r := newTestRegistry(t, ds, nil)
 			res, err := call(t, r, nameGetSchema, tt.input)
 			if err != nil || res.IsError {

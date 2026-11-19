@@ -15,11 +15,11 @@ func TestChildEnv(t *testing.T) {
 	t.Setenv("HOME", "/home/slashobserve")
 	t.Setenv("TZ", "UTC")
 
-	env := childEnv("http://127.0.0.1:8080", "soa_token", 4, slog.LevelWarn)
+	env := childEnv("http://127.0.0.1:8080", "sob_token", 4, slog.LevelWarn)
 
 	want := []string{
 		"OBSERVE_AGENT_SERVER_URL=http://127.0.0.1:8080",
-		"OBSERVE_AGENT_TOKEN=soa_token",
+		"OBSERVE_AGENT_TOKEN=sob_token",
 		"OBSERVE_AGENT_SLOTS=4",
 		"OBSERVE_AGENT_LOG_LEVEL=warn",
 		"PATH=/usr/local/bin:/usr/bin",
@@ -43,7 +43,7 @@ func TestChildEnvOmitsUnsetInheritedVariables(t *testing.T) {
 	unsetForTest(t, "HOME")
 	unsetForTest(t, "TZ")
 
-	env := childEnv("http://127.0.0.1:1", "soa_t", 1, slog.LevelInfo)
+	env := childEnv("http://127.0.0.1:1", "sob_t", 1, slog.LevelInfo)
 
 	if len(env) != 5 || env[4] != "PATH=/bin" {
 		t.Fatalf("childEnv = %q, want the four variables and PATH only", env)
@@ -63,7 +63,7 @@ func TestChildEnvLogLevel(t *testing.T) {
 		{slog.LevelError + 4, "error"},
 	}
 	for _, tt := range tests {
-		env := childEnv("http://127.0.0.1:1", "soa_t", 1, tt.level)
+		env := childEnv("http://127.0.0.1:1", "sob_t", 1, tt.level)
 		if want := "OBSERVE_AGENT_LOG_LEVEL=" + tt.want; env[3] != want {
 			t.Errorf("level %v: got %q, want %q", tt.level, env[3], want)
 		}

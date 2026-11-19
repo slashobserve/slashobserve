@@ -26,20 +26,21 @@ It works only for a person's connection, never for a key.
 1. Call get_spec_guide once before your first save; every save is checked against its guide and JSON Schema.
 2. Take a datasource uid from list_datasources and find real names with list_metrics, list_labels, list_label_values, get_schema and sample_rows; never guess a metric, label or column.
 3. Check each query with lint_query and run it with query_range, or with query_instant for an instant query or a table.
-4. Save with create_dashboard; list_folders gives a folder_id.
+4. Save with create_dashboard; list_folders gives a folder_id, and create_folder makes a new folder.
    A save rejects the panels whose queries fail or return no data and lists them in failing_panels: fix only those and save again.
 
 ## Change a dashboard
 
 Read it with get_dashboard, or only the panels you need with get_panels, and send just the change with update_panels.
-Pass the version you read as parent_version.
+Pass the version you read as parent_version and a one-line summary of the change; both are required, and so are parent_version and dashboard_id for restore_dashboard_version.
 A save on an older version merges when it changed other panels; when it changed the same ones it answers version_conflict with the conflicts, so read the latest version and apply your change again.
 A save you may not make directly becomes a proposal for an Editor, and so does every save while your connection is in propose mode, which only your person can set: the result says proposed and is a success, not an error.
 Tell the person the proposal waits for review.
-A save that removes panels or variables is refused and names them: ask the person to remove them.
+While your connection is in propose mode, a save that removes panels or variables is refused as proposal_required and names them: ask the person to remove them.
+In direct mode update_panels with delete, or a spec without a panel, removes it as a new version, so delete only what the person asked you to, and restore_dashboard_version brings the old version back.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
-A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with observe --dashboard <id>.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending ask_on.dashboard_id as dashboard_id and the run's prompt.
 
 ## Review proposals
 
@@ -70,12 +71,13 @@ pin_observation pins an observation to a dashboard as an annotation, and make_da
 draft_query turns a question into a checked query for one datasource, PromQL on a Prometheus datasource; run it with query_instant.
 For logs, log_patterns groups lines, log_facets counts the values of fields and log_context reads the lines around one line.
 For traces, get_trace reads one trace, trace_stats summarizes a filter, compare_traces finds what sets some traces apart and logs_for_trace reads the log lines of a trace or span.
-save_search keeps a logs, traces or metrics search the team will reuse, after you check its query with lint_query or draft_query, and list_saved_searches lists the saved ones.
+save_search keeps a logs, traces or metrics search the team will reuse and refuses a query with a lint_query error; take the datasource from list_datasources as datasource, and draft_query writes a query.
+list_saved_searches lists the saved ones, and no tool renames or deletes one, so save a search once.
 
 ## Answer comments
 
 list_comments reads the threads on a dashboard, an observation, an annotation or a proposal.
-Fix what a comment asks, then reply_to_comment and resolve_comment with the version you saved.
+Fix what a comment asks, then reply_to_comment with your answer and resolve_comment with the version you saved; only resolve_comment takes a version.
 create_comment opens a thread on any of them, edit_comment changes a comment you wrote and reopen_comment reopens a resolved thread.
 A comment that mentions @observe addresses SlashObserve's own agent, and the mention is recorded in the activity log and by default starts no run.
 Set start_runs on create_comment or reply_to_comment, with exactly one agent mentioned, to start a run for it: @observe, one of your own connected agents or a service account that takes runs, written as the token the person gave you.
@@ -99,7 +101,11 @@ A call with a run that is not yours is refused, and a connection in propose mode
 ## Limits
 
 Lists show only what you may see, and not_found can mean you may not see it.
-Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, folders, webhooks or connected agents: tell the person to do it in the web app.
+Every refused tool call answers with `code`, a stable word to branch on, and `message`, what to change; some add fields such as issues, latest_version or allowed_actions.
+Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, who can see a folder, webhooks or connected agents: tell the person to do it in the web app.
+create_folder and rename_folder make and rename folders.
+start_run, cancel_run, retry_run and get_run_build hand work to the built-in agent and follow it; use them only when the person asks, because each start spends the server's model and is not safe to repeat.
+Investigations are a person's decision, and run_dashboard_health is for Admins.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.
 
 ## With only a shell

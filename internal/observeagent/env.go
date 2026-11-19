@@ -12,7 +12,7 @@ const (
 	EnvSlots     = "OBSERVE_AGENT_SLOTS"
 	EnvLogLevel  = "OBSERVE_AGENT_LOG_LEVEL"
 
-	TokenPrefix = "soa_"
+	TokenPrefix = "sob_"
 )
 
 var inheritedEnvNames = []string{"PATH", "HOME", "TZ"}

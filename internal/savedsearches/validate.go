@@ -2,6 +2,7 @@ package savedsearches
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -57,6 +58,10 @@ type validated struct {
 	filters Filters
 }
 
+func RangeOrDefault(from, to string) (string, string) {
+	return cmp.Or(from, defaultFrom), cmp.Or(to, defaultTo)
+}
+
 func validate(in CreateInput, now time.Time) (validated, error) {
 	out := validated{CreateInput: in}
 	if !in.Kind.Valid() {
@@ -76,12 +81,7 @@ func validate(in CreateInput, now time.Time) (validated, error) {
 	if out.filters, err = parseFilters(in.Kind, in.Filters); err != nil {
 		return out, err
 	}
-	if out.From == "" {
-		out.From = defaultFrom
-	}
-	if out.To == "" {
-		out.To = defaultTo
-	}
+	out.From, out.To = RangeOrDefault(out.From, out.To)
 	for _, t := range []struct {
 		name, expr string
 		roundUp    bool

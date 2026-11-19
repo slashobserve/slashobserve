@@ -93,8 +93,8 @@ func TestDiffDashboardVersionsComparesTheLatestWithTheOneBeforeByDefault(t *test
 	if code := errorCode(t, r.call(t, viewerCaller, nameDiffDashboardVersions, fmt.Sprintf(`{"dashboard_id":%q,"from":2,"to":1}`, id))); code != codeInvalidRequest {
 		t.Errorf("from 2 to 1 answered %s, want invalid_request", code)
 	}
-	if code := errorCode(t, r.call(t, viewerCaller, nameDiffDashboardVersions, fmt.Sprintf(`{"dashboard_id":%q,"from":1,"to":9}`, id))); code != codeNotFound {
-		t.Errorf("a missing version answered %s, want not_found", code)
+	if code := errorCode(t, r.call(t, viewerCaller, nameDiffDashboardVersions, fmt.Sprintf(`{"dashboard_id":%q,"from":1,"to":9}`, id))); code != codeVersionNotFound {
+		t.Errorf("a missing version answered %s, want version_not_found", code)
 	}
 	if code := errorCode(t, r.call(t, viewerCaller, nameDiffDashboardVersions, fmt.Sprintf(`{"dashboard_id":%q}`, b.hidden.String()))); code != codeNotFound {
 		t.Errorf("hidden dashboard answered %s, want not_found", code)

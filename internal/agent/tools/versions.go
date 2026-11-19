@@ -155,6 +155,9 @@ func (r *Registry) diffDashboardVersions(ctx context.Context, input json.RawMess
 	case errors.Is(err, dashboards.ErrInvalidRange):
 		return invalid("from must be less than to"), nil
 	case errors.Is(err, dashboards.ErrNotFound):
+		if res, ok := r.versionNotFound(ctx, id); ok {
+			return res, nil
+		}
 		return toolError(codeNotFound, "dashboard or version not found"), nil
 	case err != nil:
 		return Result{}, err
@@ -196,7 +199,7 @@ func (r *Registry) restoreDashboardVersion(ctx context.Context, input json.RawMe
 	principal, _ := auth.FromContext(ctx)
 	dash, ver, err := r.deps.Dashboards.Restore(ctx, principal, id, *in.Version, *in.ParentVersion, in.Summary)
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, id, err)
 	}
 	return success(fmt.Sprintf("Restored version %d as version %d", *in.Version, ver.Number), r.savedOut(dash, ver, nil)), nil
 }

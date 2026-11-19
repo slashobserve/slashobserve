@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -129,6 +130,13 @@ func TestObservationToolsBuildAPageFromCreateToResolve(t *testing.T) {
 	text, panel := page.Blocks[0], page.Blocks[1]
 	if text.Kind != "text" || text.Markdown != "Errors began at 09:12" || text.State != "live" || text.Position != 0 || text.Version != 1 {
 		t.Errorf("text block = %#v", text)
+	}
+	if !strings.Contains(string(panel.Panel), "sum(rate(errors[5m]))") {
+		t.Errorf("the panel block does not return its panel: %s", panel.Panel)
+	}
+	editing := r.view(t, editorCaller, created.ObservationID).Blocks
+	if slices.Contains(editing[1].AllowedActions, "remove") || slices.Contains(editing[0].AllowedActions, "remove") || !slices.Contains(editing[1].AllowedActions, "update") {
+		t.Errorf("allowed actions offer a tool that does not exist: %v %v", editing[0].AllowedActions, editing[1].AllowedActions)
 	}
 	if panel.Kind != "panel" || panel.Title != "Errors" || panel.Type != "timeseries" || strings.Join(panel.Datasources, ",") != fakeUID || panel.Width != "half" {
 		t.Errorf("panel block = %#v", panel)

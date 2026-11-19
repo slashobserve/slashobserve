@@ -184,6 +184,9 @@ func (r *Registry) panelsSource(ctx context.Context, run Run, scoped bool, id pg
 		_, ver, err = r.deps.Dashboards.GetVersion(ctx, id, version)
 	}
 	if errors.Is(err, dashboards.ErrNotFound) {
+		if res, ok := r.versionNotFound(ctx, id); ok {
+			return 0, nil, res, false, nil
+		}
 		return 0, nil, toolError(codeNotFound, "dashboard or version not found"), false, nil
 	}
 	if err != nil {
@@ -243,7 +246,7 @@ func (r *Registry) updatePanels(ctx context.Context, input json.RawMessage) (Res
 		return Result{}, err
 	}
 	if !scoped {
-		if res, ok, err := r.viewableDashboard(ctx, target.id, "dashboard not found"); err != nil || !ok {
+		if res, ok, err := r.commentableDashboard(ctx, target.id, "dashboard not found"); err != nil || !ok {
 			return res, err
 		}
 	}
@@ -253,7 +256,7 @@ func (r *Registry) updatePanels(ctx context.Context, input json.RawMessage) (Res
 func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, target saveTarget, requestID pgtype.UUID, in updatePanelsInput) (Result, error) {
 	_, parent, err := r.deps.Dashboards.GetVersion(ctx, target.id, target.parent)
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
 	res, err := r.deps.Dashboards.SavePatch(ctx, principal, dashboards.PatchInput{
 		DashboardID:     target.id,
@@ -269,7 +272,7 @@ func (r *Registry) savePatch(ctx context.Context, principal auth.Principal, targ
 		return patchRejected(patchErr.Issues, patchErr.PanelIDs), nil
 	}
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
 	return r.saveSucceeded(ctx, res, parent.Spec), nil
 }
@@ -347,7 +350,7 @@ func repairHint(code spec.IssueCode) string {
 func rejectionOf(issues []spec.Issue, panelIDs map[string]string) patchRejectedOut {
 	kept, truncated := fit(slices.Clone(issues), listBudget)
 	return patchRejectedOut{
-		invalidSpecOut: invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated},
+		invalidSpecOut: invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated},
 		FailingPanels:  failingPanels(issues, panelIDs),
 	}
 }

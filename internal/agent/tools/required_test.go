@@ -24,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -71,7 +72,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Search:        search.New(database.DB, access, nil),
 		Viewers:       viewers.New(database.DB),
 		Provider:      &scriptedDraft{},
-		Runs:          &fakeRuns{raw: json.RawMessage(`{}`)},
+		Runs:          revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
 		Logger:        logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
@@ -96,6 +97,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"kind":           json.RawMessage(`"logs"`),
 		"title":          json.RawMessage(`"Checkout errors"`),
 		"question":       json.RawMessage(`"error logs from checkout"`),
+		"prompt":         json.RawMessage(`"add a latency panel"`),
 		"query":          json.RawMessage(`"up"`),
 		"q":              json.RawMessage(`"checkout"`),
 		"table":          json.RawMessage(`"t"`),
