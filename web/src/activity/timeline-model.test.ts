@@ -83,6 +83,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     build_saved_at: null,
     continues_id: null,
     continued_by: null,
+    retried_by: null,
     continue_note: null,
     ...overrides,
   }

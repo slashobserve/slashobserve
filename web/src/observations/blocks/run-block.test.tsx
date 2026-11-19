@@ -145,6 +145,7 @@ describe("RunBlock", () => {
       source: "investigate",
       dashboard_id: null,
       continued_by: null,
+      retried_by: null,
       allowed_actions: [],
     })
     renderRun(runBlock([]))

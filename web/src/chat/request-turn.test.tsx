@@ -1,9 +1,14 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { RequestTurn, type TurnSummary } from "./request-turn"
+import {
+  opensBuildPage,
+  RequestTurn,
+  workingText,
+  type TurnSummary,
+} from "./request-turn"
 
 const fetchMock = vi.hoisted(() => vi.fn())
 
@@ -33,6 +38,7 @@ const failed: TurnSummary = {
   build_saved_at: null,
   continues_id: null,
   continued_by: null,
+  retried_by: null,
   continue_note: null,
 }
 
@@ -63,5 +69,123 @@ describe("RequestTurn", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe("RequestTurn while a run settles", () => {
+  const answered: TurnSummary = {
+    ...failed,
+    source: "observe",
+    status: "succeeded",
+    state: "succeeded",
+    result_kind: "observation",
+    allowed_actions: [],
+    failure_code: null,
+    error: null,
+  }
+
+  function serve(detail: object) {
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ request: detail }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+    )
+  }
+
+  it("does not describe a stale running read as a run with no steps", async () => {
+    serve({
+      ...answered,
+      status: "running",
+      state: "running",
+      steps: [],
+      finding: null,
+    })
+    renderTurn(answered)
+    expect(await screen.findByText("Show steps")).toBeInTheDocument()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(screen.queryByText("No steps recorded")).toBeNull()
+    expect(screen.queryByText(/finished without a dashboard/)).toBeNull()
+  })
+
+  it("waits for the answer instead of saying nothing was produced", async () => {
+    serve({ ...answered, steps: [{ id: "s1" }], finding: null })
+    renderTurn(answered)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(screen.queryByText(/finished without a dashboard/)).toBeNull()
+  })
+})
+
+const building: Pick<
+  TurnSummary,
+  "source" | "status" | "dashboard_id" | "build"
+> = {
+  source: "observe",
+  status: "running",
+  dashboard_id: null,
+  build: {
+    saves: 1,
+    panels: 1,
+    planned_panels: 4,
+    title: "Checkout",
+    updated_at: "2026-11-06T10:00:30Z",
+  },
+}
+
+describe("opensBuildPage", () => {
+  it("opens the canvas once a new dashboard has a saved panel", () => {
+    expect(
+      opensBuildPage({ request: building, own: true, onChatPage: true })
+    ).toBe(true)
+  })
+
+  it("keeps a question on the chat page until a build exists", () => {
+    expect(
+      opensBuildPage({
+        request: { ...building, build: null },
+        own: true,
+        onChatPage: true,
+      })
+    ).toBe(false)
+  })
+
+  it("stays put for a finished run, another person's run and the pane", () => {
+    const base = { request: building, own: true, onChatPage: true }
+    expect(
+      opensBuildPage({ ...base, request: { ...building, status: "failed" } })
+    ).toBe(false)
+    expect(opensBuildPage({ ...base, own: false })).toBe(false)
+    expect(opensBuildPage({ ...base, onChatPage: false })).toBe(false)
+  })
+
+  it("never moves a revision of an existing dashboard", () => {
+    expect(
+      opensBuildPage({
+        request: { ...building, dashboard_id: "d1" },
+        own: true,
+        onChatPage: true,
+      })
+    ).toBe(false)
+  })
+})
+
+describe("workingText", () => {
+  it("does not promise a dashboard before one is being built", () => {
+    expect(workingText({ dashboard_id: null, build: null }, undefined)).toBe(
+      "Working on your request"
+    )
+  })
+
+  it("names the dashboard being built or revised", () => {
+    expect(
+      workingText({ dashboard_id: null, build: building.build }, undefined)
+    ).toBe("Building the dashboard")
+    expect(workingText({ dashboard_id: "d1", build: null }, undefined)).toBe(
+      "Revising the dashboard"
+    )
+    expect(workingText({ dashboard_id: "d1", build: null }, "Checkout")).toBe(
+      "Revising Checkout"
+    )
   })
 })

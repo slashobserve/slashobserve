@@ -80,8 +80,17 @@ func TestPrintFindingShowsTitleAnswerAndAddress(t *testing.T) {
 		Title:    "Checkout errors rose after the deploy",
 		Markdown: "Errors rose at 10:02.\n\n- **p99** \x1b[31mdoubled\n",
 		URL:      "https://observe.example.com/findings/f1",
-	})
+	}, investigationID)
 	want := "Checkout errors rose after the deploy\n\nErrors rose at 10:02.\n\n- **p99**  [31mdoubled\n\nhttps://observe.example.com/findings/f1\n"
+	if stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+}
+
+func TestPrintFindingOffersToSaveAnAnswerThatIsNotAnObservation(t *testing.T) {
+	var stdout bytes.Buffer
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{Title: "Log sources", Markdown: "Two sources."}, investigationID)
+	want := "Log sources\n\nTwo sources.\n\nThis answer is kept in the chat only. Save it as an observation: observe save-answer " + investigationID + "\n"
 	if stdout.String() != want {
 		t.Errorf("printed %q\nwant %q", stdout.String(), want)
 	}

@@ -11,10 +11,12 @@ import {
   continueErrorText,
   continueNoteError,
   newPanelIds,
+  planChangeText,
   readBuild,
   saveBuildErrorText,
   savedDashboardId,
   answeredRequestId,
+  awaitsFirstPanel,
   type BuildProgress,
 } from "./build"
 import type { ObserveRequest } from "./queries"
@@ -314,6 +316,31 @@ describe("answeredRequestId", () => {
   })
 })
 
+describe("awaitsFirstPanel", () => {
+  type Waiting = Pick<
+    ObserveRequest,
+    "status" | "build" | "source" | "dashboard_id"
+  >
+  const waiting: Waiting = {
+    status: "running",
+    source: "observe",
+    dashboard_id: null,
+    build: null,
+  }
+  it("is true until the run has saved a first panel", () => {
+    expect(awaitsFirstPanel(waiting)).toBe(true)
+    expect(awaitsFirstPanel({ ...waiting, status: "queued" })).toBe(true)
+  })
+  it.each<[string, Partial<Waiting>]>([
+    ["a build exists", { build: progress() }],
+    ["the run ended", { status: "failed" }],
+    ["it revises a dashboard", { dashboard_id: "d1" }],
+    ["it is not a new-dashboard request", { source: "investigate" }],
+  ])("is false when %s", (_name, overrides) => {
+    expect(awaitsFirstPanel({ ...waiting, ...overrides })).toBe(false)
+  })
+})
+
 describe("buildGone", () => {
   it.each<[string, unknown, boolean]>([
     ["a build or request 404", buildNotFound, true],
@@ -456,5 +483,42 @@ describe("readBuild", () => {
     refetch.resolve(running)
     for (const read of reads) await expect(read).rejects.toBe(buildNotFound)
     expect(requestCalls()).toBe(2)
+  })
+})
+
+describe("planChangeText", () => {
+  const step = (message: string) => ({ message })
+
+  it("says nothing when the plan never changed", () => {
+    expect(
+      planChangeText([
+        step("Saved panel 1 of 6: Errors"),
+        step("Saved panel 2 of 6: Latency"),
+      ])
+    ).toBeNull()
+  })
+
+  it("says what was planned and what was built when the plan was lowered", () => {
+    expect(
+      planChangeText([
+        step("Saved panel 2 of 6: Latency"),
+        step("Saved panel 3 of 3: Traffic (planned 6 -> 3)"),
+      ])
+    ).toBe("Planned 6 panels, built 3.")
+  })
+
+  it("starts from the first plan across several changes", () => {
+    expect(
+      planChangeText([
+        step("Saved panel 2 of 4: Latency (planned 6 -> 4)"),
+        step("Saved panel 3 of 3: Traffic (planned 4 -> 3)"),
+      ])
+    ).toBe("Planned 6 panels, built 3.")
+  })
+
+  it("ignores a plan that grew", () => {
+    expect(
+      planChangeText([step("Saved panel 2 of 8: Latency (planned 6 -> 8)")])
+    ).toBeNull()
   })
 })

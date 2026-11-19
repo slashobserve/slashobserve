@@ -45,6 +45,10 @@ func shellWord(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+func (f findingSummary) saved() bool {
+	return f.URL != ""
+}
+
 func (a *app) investigateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "investigate <question...>",
@@ -117,12 +121,16 @@ func investigatePayload(args []string, o investigateOptions) (map[string]any, er
 	return payload, nil
 }
 
-func printFinding(out *output, f findingSummary) {
+func printFinding(out *output, f findingSummary, requestID string) {
 	out.line("%s", text(f.Title))
 	out.line("")
 	for line := range strings.SplitSeq(strings.TrimSpace(f.Markdown), "\n") {
 		out.line("%s", text(line))
 	}
 	out.line("")
-	out.line("%s", text(f.URL))
+	if f.saved() {
+		out.line("%s", text(f.URL))
+		return
+	}
+	out.line("This answer is kept in the chat only. Save it as an observation: observe save-answer %s", text(requestID))
 }

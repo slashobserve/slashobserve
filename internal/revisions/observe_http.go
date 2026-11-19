@@ -48,6 +48,7 @@ type ObserveOptions struct {
 	DashboardURL   func(dashboardID, title string) string
 	ObservationURL func(observationID string) string
 	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	SaveAnswer     AnswerSaver
 	LiveText       func(runID string, attempt int) (string, bool)
 }
 
@@ -71,6 +72,7 @@ type observeRequest struct {
 	To          *string `json:"to"`
 
 	ObservationID *string `json:"observation_id"`
+	FollowsID     *string `json:"follows_id"`
 	TimeZone      *string `json:"time_zone"`
 }
 
@@ -129,12 +131,14 @@ type agentRequestJSON struct {
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
 	ContinuedBy       *string     `json:"continued_by"`
+	RetriedBy         *string     `json:"retried_by"`
 
 	PinnedAt      *string         `json:"pinned_at"`
 	ArchivedAt    *string         `json:"archived_at"`
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
 	ObservationID *string         `json:"observation_id"`
+	ChatID        string          `json:"chat_id"`
 	Finding       json.RawMessage `json:"finding"`
 }
 
@@ -173,10 +177,12 @@ type requestSummaryJSON struct {
 	BuildSavedAt *string            `json:"build_saved_at"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
+	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
 
 	ObservationID    *string  `json:"observation_id"`
 	ObservationTitle *string  `json:"observation_title"`
+	ChatID           string   `json:"chat_id"`
 	AllowedActions   []string `json:"allowed_actions"`
 }
 
@@ -204,6 +210,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.DELETE("/observe/:id", auth.RoleViewer, h.archiveObserve)
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
+	api.POST("/observe/:id/observation", auth.RoleViewer, h.saveAnswer)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
@@ -253,26 +260,17 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 }
 
 func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt string) {
-	if req.PanelID != nil || req.From != nil || req.To != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "panel_id, from and to need kind investigate")
+	if message := buildFieldConflict(req); message != "" {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", message)
 		return
 	}
-	if req.ObservationID != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "observation_id goes with kind investigate")
+	dashboardID, ok := optionalUUIDField(c, "dashboard_id", req.DashboardID)
+	if !ok {
 		return
 	}
-	if req.DashboardID == nil && req.BaseVersion != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version needs dashboard_id")
+	followsID, ok := optionalUUIDField(c, "follows_id", req.FollowsID)
+	if !ok {
 		return
-	}
-	var dashboardID pgtype.UUID
-	if req.DashboardID != nil {
-		id, err := db.ParseUUID(*req.DashboardID)
-		if err != nil {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "dashboard_id must be a UUID")
-			return
-		}
-		dashboardID = id
 	}
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
@@ -282,12 +280,38 @@ func (h *ObserveHandler) createBuild(c *gin.Context, req observeRequest, prompt 
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", ErrUnavailable.Error())
 		return
 	}
-	row, queued := h.enqueue(c, dashboardID, req.BaseVersion, prompt)
+	row, queued := h.enqueue(c, dashboardID, followsID, req.BaseVersion, prompt)
 	if !queued {
 		return
 	}
 	c.Header("Location", "/api/v1/observe/"+row.ID.String())
 	h.replyRequest(c, http.StatusAccepted, row, false)
+}
+
+func buildFieldConflict(req observeRequest) string {
+	switch {
+	case req.PanelID != nil || req.From != nil || req.To != nil:
+		return "panel_id, from and to need kind investigate"
+	case req.ObservationID != nil:
+		return "observation_id goes with kind investigate"
+	case req.DashboardID == nil && req.BaseVersion != nil:
+		return "base_version needs dashboard_id"
+	case req.DashboardID != nil && req.FollowsID != nil:
+		return "follows_id and dashboard_id exclude each other"
+	}
+	return ""
+}
+
+func optionalUUIDField(c *gin.Context, name string, raw *string) (pgtype.UUID, bool) {
+	if raw == nil {
+		return pgtype.UUID{}, true
+	}
+	id, err := db.ParseUUID(*raw)
+	if err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
+		return pgtype.UUID{}, false
+	}
+	return id, true
 }
 
 func (h *ObserveHandler) createInvestigation(c *gin.Context, req observeRequest, prompt string) {
@@ -370,12 +394,15 @@ func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time,
 	return &start, &end, nil
 }
 
-func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
+func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID, followsID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
 	var row dbsqlc.AgentRequest
 	var err error
-	if dashboardID.Valid {
+	switch {
+	case dashboardID.Valid:
 		row, err = h.service.SubmitFollowUp(c.Request.Context(), dashboardID, baseVersion, "", prompt, httpapi.Caller(c))
-	} else {
+	case followsID.Valid:
+		row, err = h.service.SubmitObserveFollowUp(c.Request.Context(), httpapi.Caller(c), prompt, followsID)
+	default:
 		row, err = h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
 	}
 	if err != nil {
@@ -510,7 +537,22 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 		}
 		filter.DashboardID = id
 	}
+	if raw, present := c.GetQuery("chat_id"); present {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "chat_id must be a UUID")
+			return filter, false
+		}
+		filter.ChatID = id
+	}
 	return filter, true
+}
+
+func chatOf(id, chat pgtype.UUID) string {
+	if chat.Valid {
+		return chat.String()
+	}
+	return id.String()
 }
 
 func requestTitle(title pgtype.Text, prompt string) string {
@@ -546,10 +588,12 @@ func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildS
 		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
 		ObservationID:    optionalUUID(row.ObservationID),
 		ObservationTitle: optionalText(row.ObservationTitle),
+		ChatID:           chatOf(row.ID, row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {

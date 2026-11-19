@@ -78,6 +78,8 @@ type AgentRequest struct {
 	ObservationID     pgtype.UUID
 	ThreadMessageID   pgtype.UUID
 	ThreadContext     pgtype.Text
+	ChatID            pgtype.UUID
+	RetriesID         pgtype.UUID
 	TimeZone          pgtype.Text
 }
 
