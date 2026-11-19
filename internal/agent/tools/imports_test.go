@@ -190,6 +190,9 @@ func TestImportContentRefusalRefusesWhatTheAgentCannotWrite(t *testing.T) {
 			if body, ok := res.Content.(importErrorOut); refused && (!res.IsError || !ok || body.Code != codeImportContent) {
 				t.Fatalf("res = %#v, want an error with code %q", res, codeImportContent)
 			}
+			if body, _ := res.Content.(importErrorOut); refused && (strings.Contains(body.Error, "observe import") || !strings.Contains(body.Error, "ask a person")) {
+				t.Fatalf("refusal = %q, want it to send the agent to a person, not to another import path", body.Error)
+			}
 		})
 	}
 }

@@ -287,7 +287,7 @@ It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id
 No tool deletes an annotation; people do that in the web app or through the HTTP API.
 
 MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
-The tool refuses JSON that converts to an HTML text panel, a placeholder panel or a panel action with `import_content_not_allowed`, the same content `update_dashboard` and `create_dashboard` refuse; the message names the panels, and the person can import that JSON in the web app or with `observe import`.
+The tool refuses JSON that converts to an HTML text panel, a placeholder panel or a panel action with `import_content_not_allowed`, the same content `update_dashboard` and `create_dashboard` refuse; the message names the panels and asks the agent to remove them or to have a person import the JSON in the web app, where a person can also use `observe import`.
 The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
 To repair an imported dashboard, read it with `get_dashboard`, fix the panels and variables in its `unverified` list with `update_panels`, and leave placeholder panels to people; the web repair queue does the same through `POST /api/v1/repairs`.
 See [Import Grafana dashboards](import-grafana.md).

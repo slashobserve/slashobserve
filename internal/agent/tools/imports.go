@@ -180,7 +180,7 @@ func importContentRefusal(converted *spec.Dashboard) (Result, bool) {
 	if more := len(issues) - len(shown); more > 0 {
 		lines = append(lines, fmt.Sprintf("%d more", more))
 	}
-	message := fmt.Sprintf("this Grafana JSON converts to content the agent cannot save (%s); remove those panels from the JSON, or import it in the web app or with observe import", strings.Join(lines, "; "))
+	message := fmt.Sprintf("this Grafana JSON converts to content the agent cannot save (%s); remove those panels from the JSON, or ask a person to import it in the web app", strings.Join(lines, "; "))
 	return importFailure(codeImportContent, message), true
 }
 
