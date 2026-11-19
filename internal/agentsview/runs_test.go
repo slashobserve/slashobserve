@@ -14,7 +14,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/legacy"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
@@ -295,10 +295,7 @@ func TestKeysCannotListRuns(t *testing.T) {
 func TestTheRunResponsesMatchTheDocument(t *testing.T) {
 	r := newRig(t, Observe{})
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
 	if err != nil {
 		t.Fatal(err)

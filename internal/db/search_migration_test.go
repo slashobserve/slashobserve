@@ -65,10 +65,7 @@ VALUES ('logs', 'Payment failures', 'loki', '{app="billing"} |= "declined"', '{"
 
 func migrateToSearch(t *testing.T) *dbtest.Database {
 	t.Helper()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(context.Background(), searchVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, searchVersion-1)
 	seedSearchFixtures(t, d)
 	if err := d.MigrateUpTo(context.Background(), searchVersion); err != nil {
 		t.Fatal(err)

@@ -191,6 +191,23 @@ func TestSuggestionsAreCappedPerPrincipalAndPerInstance(t *testing.T) {
 	}
 }
 
+func TestPostRefusesAThirdQueuedSuggestionOfOneCallerWith429(t *testing.T) {
+	svc, d := newSuggestService(t, proposing(suggestedPanel))
+	dash := seedDashboard(t, d, 1)
+	r := newRouter(svc)
+	path := "/api/v1/dashboards/" + dash.String() + "/suggestions"
+	body := `{"version":1,"panel_id":"p1","prompt":"make it better"}`
+	for i := range revisions.MaxActiveSuggestPerPrincipal {
+		if rec := call(r, http.MethodPost, path, body); rec.Code != http.StatusAccepted {
+			t.Fatalf("suggestion %d: %d %s", i+1, rec.Code, rec.Body)
+		}
+	}
+	rec := call(r, http.MethodPost, path, body)
+	if rec.Code != http.StatusTooManyRequests || errorCode(t, rec) != "too_many_suggestions" {
+		t.Fatalf("suggestion over the cap: %d %s", rec.Code, rec.Body)
+	}
+}
+
 func TestExhaustedLeaseFailsASuggestionWithoutRunningItAgain(t *testing.T) {
 	var calls atomic.Int32
 	svc, d := newSuggestService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {

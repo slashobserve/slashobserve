@@ -30,10 +30,7 @@ VALUES ($1, 'http://grafana.example', '\x01'::bytea, NULLIF($2, '')::jsonb) RETU
 
 func TestGrafanaSyncsBackfill(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, grafanaSyncsVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, grafanaSyncsVersion-1)
 	connA := insertGrafanaConnection(t, d, "a", `{"id":"`+syncA+`","status":"finished","total":3,"done":3,"failed":1,"skipped":1,"started_at":"2026-11-01T10:00:00.123456789Z","finished_at":"2026-11-01T10:05:00Z"}`)
 	connB := insertGrafanaConnection(t, d, "b", `{"id":"`+syncB+`","status":"failed","total":0,"done":0,"failed":0,"skipped":0,"error":"Grafana refused the token (status 401).","started_at":"2026-11-02T10:00:00Z","finished_at":"2026-11-02T10:00:01Z"}`)
 	insertGrafanaConnection(t, d, "c", "")
@@ -84,11 +81,7 @@ FROM grafana_syncs WHERE id = $1`, syncA).Scan(&connection, &state, &total, &don
 }
 
 func TestGrafanaSyncsConstraints(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, grafanaSyncsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, grafanaSyncsVersion)
 	sqlDB := d.SQLDB(t)
 
 	const running = `INSERT INTO grafana_syncs (connection_id, state, request, started_by_kind, started_by_id, lease_id, leased_by, lease_until)
@@ -146,10 +139,7 @@ SELECT id, 'u', 't2', 'updated' FROM grafana_syncs WHERE connection_id = $1`, "g
 
 func TestGrafanaSyncsDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, grafanaSyncsVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, grafanaSyncsVersion-1)
 	connA := insertGrafanaConnection(t, d, "a", `{"id":"`+syncA+`","status":"finished","total":3,"done":3,"failed":1,"skipped":1,"started_at":"2026-11-01T10:00:00Z","finished_at":"2026-11-01T10:05:00Z"}`)
 	connC := insertGrafanaConnection(t, d, "c", "")
 	if err := d.MigrateUpTo(ctx, grafanaSyncsVersion); err != nil {
