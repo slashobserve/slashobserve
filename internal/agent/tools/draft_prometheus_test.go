@@ -176,12 +176,12 @@ func largePrometheus(t *testing.T) datasource.Datasource {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		data := []string{}
-		switch {
-		case r.URL.Path == "/api/v1/label/__name__/values":
+		switch r.URL.Path {
+		case "/api/v1/label/__name__/values":
 			data = names
-		case r.URL.Path == "/api/v1/labels":
+		case "/api/v1/labels":
 			data = []string{"job", "service"}
-		case r.URL.Path == "/api/v1/metadata":
+		case "/api/v1/metadata":
 			_, _ = w.Write([]byte(`{"status":"success","data":{}}`))
 			return
 		}

@@ -244,13 +244,7 @@ func draftSignal(dsType spec.DatasourceType, uid, signal string) (string, error)
 		}
 		return "", invalidDraftf("%s is a Tempo datasource, which holds traces; signal must be traces", clip(uid, maxStepNameBytes))
 	case spec.ClickHouse:
-		switch signal {
-		case "":
-			return "", invalidDraftf("signal is required on a ClickHouse datasource: logs or traces")
-		case signalMetrics:
-			return "", invalidDraftf("%s is a ClickHouse datasource; signal must be logs or traces", clip(uid, maxStepNameBytes))
-		}
-		return signal, nil
+		return clickHouseDraftSignal(uid, signal)
 	case spec.Prometheus:
 		if signal == "" || signal == signalMetrics {
 			return signalMetrics, nil
@@ -263,6 +257,16 @@ func draftSignal(dsType spec.DatasourceType, uid, signal string) (string, error)
 		return "", invalidDraftf("%s is an %s datasource, which holds logs; signal must be logs", clip(uid, maxStepNameBytes), searchName(dsType))
 	}
 	return "", invalidDraftf("draft_query works on Loki, ClickHouse, Tempo, Prometheus, Elasticsearch and OpenSearch datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType)
+}
+
+func clickHouseDraftSignal(uid, signal string) (string, error) {
+	switch signal {
+	case "":
+		return "", invalidDraftf("signal is required on a ClickHouse datasource: logs or traces")
+	case signalMetrics:
+		return "", invalidDraftf("%s is a ClickHouse datasource; signal must be logs or traces", clip(uid, maxStepNameBytes))
+	}
+	return signal, nil
 }
 
 type draftStats struct {
