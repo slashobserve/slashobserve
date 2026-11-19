@@ -58,6 +58,7 @@ type Props = {
   width: number
   onToggle: (key: string) => void
   onHover?: LegendHover
+  more?: number
 }
 
 export function LegendTable({
@@ -74,6 +75,7 @@ export function LegendTable({
   width,
   onToggle,
   onHover,
+  more = 0,
 }: Props) {
   const sorted = sortDesc ? "descending" : "ascending"
   const bottom = placement === "bottom"
@@ -153,6 +155,16 @@ export function LegendTable({
               </tr>
             )
           })}
+          {more > 0 ? (
+            <tr>
+              <td
+                colSpan={reducers.length + 1}
+                className="px-1.5 py-0.5 text-muted-foreground"
+              >
+                +{more} more
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

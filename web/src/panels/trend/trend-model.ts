@@ -7,6 +7,11 @@ import {
   type PreparedFrame,
 } from "../transforms"
 
+export const tableFallbackNote =
+  "No numeric field besides the x field to plot, so this shows a table. Use Time series for values over time."
+
+export const tableFallbackNoteHeight = 48
+
 export const noXFieldReason = "A trend needs a numeric field for its x axis."
 
 export function xFieldOf(
