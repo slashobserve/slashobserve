@@ -107,14 +107,13 @@ export function variableValuesKey(
 export function keepsPreviousData(
   source: PanelSource,
   fingerprint: string,
-  previousKey: readonly unknown[],
-  panelUnchanged = false
+  previousKey: readonly unknown[]
 ): boolean {
   switch (source.kind) {
     case "version":
       return (
         previousKey[1] === source.dashboardId &&
-        (previousKey[3] === source.version || panelUnchanged)
+        previousKey[3] === source.version
       )
     case "build":
       return (

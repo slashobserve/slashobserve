@@ -74,8 +74,7 @@ export function usePanelData({
   inView,
 }: Args) {
   const selections = sortSelections(vars)
-  const panelState = panelFingerprint(panel)
-  const fingerprint = source.kind === "build" ? panelState : ""
+  const fingerprint = source.kind === "build" ? panelFingerprint(panel) : ""
   const query = useQuery({
     queryKey: panelDataKey(source, panel.id, fingerprint, {
       from,
@@ -137,16 +136,10 @@ export function usePanelData({
         ? readBuild(client, source.requestId, signal, read)
         : read()
     },
-    meta: { panelState },
     enabled,
     placeholderData: (previous, previousQuery) =>
       previousQuery !== undefined &&
-      keepsPreviousData(
-        source,
-        fingerprint,
-        previousQuery.queryKey,
-        previousQuery.meta?.panelState === panelState
-      )
+      keepsPreviousData(source, fingerprint, previousQuery.queryKey)
         ? previous
         : undefined,
     staleTime: 0,

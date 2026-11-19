@@ -162,15 +162,6 @@ describe("keepsPreviousData", () => {
     )
   })
 
-  it("keeps the data of an unchanged panel across a new version of the same dashboard", () => {
-    const key = panelDataKey(version, "p1", "", params)
-    const next = { ...version, version: 4 }
-    expect(keepsPreviousData(next, "", key, true)).toBe(true)
-    expect(
-      keepsPreviousData({ ...next, dashboardId: "x" }, "", key, true)
-    ).toBe(false)
-  })
-
   it("keeps build data only while the panel is unchanged", () => {
     const key = panelDataKey(build, "p1", "fp", params)
     expect(keepsPreviousData(build, "fp", key)).toBe(true)

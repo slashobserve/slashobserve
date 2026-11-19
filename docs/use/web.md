@@ -245,7 +245,6 @@ The pane has three tabs:
 - **Stats** shows how long the request took, whether the server answered from its cache, when it ran, and the number of frames, series, points and rows with the first and last time; **Run again** runs the panel's queries again.
 
 **Download CSV** and **Save as PNG** are always in each panel's menu and are greyed until its data has loaded.
-After a new version of an open dashboard is saved, a panel that did not change keeps showing its last data while the new data loads.
 
 The CSV has every row, quoted as RFC 4180 describes, with times in RFC 3339 UTC.
 When every series of the panel has its own time column with no repeated times, the CSV joins them into one row per time, with one column per series.
