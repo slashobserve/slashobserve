@@ -49,6 +49,9 @@ type Comment struct {
 	PanelPresent      bool
 	Mentions          []Mention
 	CanEdit           bool
+	CanDelete         bool
+	AllowedActions    []string
+	Unread            bool
 	Revision          *CommentRevision
 }
 
@@ -236,20 +239,23 @@ func (cm *Comments) attachRevisions(ctx context.Context, comments []Comment) err
 
 func commentOf(thread Thread, message Message) Comment {
 	comment := Comment{
-		ID:           message.ID,
-		DashboardID:  thread.DashboardID,
-		Version:      *thread.Version,
-		PanelID:      thread.PanelID,
-		Body:         message.Body,
-		Status:       thread.Status,
-		Author:       authorOf(message.Author, message.AuthorEmail),
-		Actor:        message.Author,
-		CreatedAt:    message.CreatedAt,
-		UpdatedAt:    message.UpdatedAt,
-		EditedAt:     message.EditedAt,
-		PanelPresent: thread.PanelPresent,
-		Mentions:     message.Mentions,
-		CanEdit:      message.CanEdit,
+		ID:             message.ID,
+		DashboardID:    thread.DashboardID,
+		Version:        *thread.Version,
+		PanelID:        thread.PanelID,
+		Body:           message.Body,
+		Status:         thread.Status,
+		Author:         authorOf(message.Author, message.AuthorEmail),
+		Actor:          message.Author,
+		CreatedAt:      message.CreatedAt,
+		UpdatedAt:      message.UpdatedAt,
+		EditedAt:       message.EditedAt,
+		PanelPresent:   thread.PanelPresent,
+		Mentions:       message.Mentions,
+		CanEdit:        message.CanEdit,
+		CanDelete:      message.CanDelete,
+		AllowedActions: thread.AllowedActions,
+		Unread:         thread.Unread && message.ID == thread.ID,
 	}
 	if message.ID != thread.ID {
 		comment.ParentID = thread.ID

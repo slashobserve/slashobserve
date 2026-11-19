@@ -28,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 )
 
 func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
@@ -69,6 +70,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Health:        health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
 		Annotations:   notes,
 		Search:        search.New(database.DB, access, nil),
+		Viewers:       viewers.New(database.DB),
 		Provider:      &scriptedDraft{},
 		Runs:          revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
 		Logger:        logger,

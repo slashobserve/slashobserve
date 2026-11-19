@@ -31,6 +31,8 @@ const emptyHint = {
   logs: "Save search on a log source's page keeps its query, columns and time range for everyone who can view the folder.",
   traces:
     "Save search on a trace source's page keeps its filters and time range for everyone who can view the folder.",
+  metrics:
+    "Save search on a metrics source's page keeps its query, view and time range for everyone who can view the folder.",
 } as const
 
 function SavedSearchColumns() {

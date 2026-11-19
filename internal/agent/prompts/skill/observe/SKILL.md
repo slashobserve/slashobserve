@@ -68,10 +68,10 @@ pin_observation pins an observation to a dashboard as an annotation, and make_da
 
 ## Search logs and traces
 
-draft_query turns a question into a checked query for one datasource; run it with query_instant.
+draft_query turns a question into a checked query for one datasource, PromQL on a Prometheus datasource; run it with query_instant.
 For logs, log_patterns groups lines, log_facets counts the values of fields and log_context reads the lines around one line.
 For traces, get_trace reads one trace, trace_stats summarizes a filter, compare_traces finds what sets some traces apart and logs_for_trace reads the log lines of a trace or span.
-save_search keeps a logs or traces search the team will reuse and refuses a query with a lint_query error; take the datasource from list_datasources as datasource, and draft_query writes a query.
+save_search keeps a logs, traces or metrics search the team will reuse and refuses a query with a lint_query error; take the datasource from list_datasources as datasource, and draft_query writes a query.
 list_saved_searches lists the saved ones, and no tool renames or deletes one, so save a search once.
 
 ## Answer comments

@@ -5,7 +5,7 @@ import { Link } from "@tanstack/react-router"
 import { ApiError } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { proposalPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
@@ -15,8 +15,15 @@ import { ProposalBody } from "@/proposals/proposal-body"
 import type { Picks } from "@/proposals/proposal-view"
 import { proposalQuery } from "@/proposals/queries"
 
-import { itemLink, itemText, type InboxItem } from "./inbox-item"
+import {
+  itemExcerpt,
+  itemLink,
+  itemText,
+  threadTarget,
+  type InboxItem,
+} from "./inbox-item"
 import { ReasonChip } from "./reason-chip"
+import { ThreadDetail } from "./thread-detail"
 
 const linkClass = "w-fit text-[13px] underline underline-offset-4"
 
@@ -76,9 +83,17 @@ function ProposalDetail({ proposalId }: { proposalId: string }) {
   )
 }
 
-function ItemDetail({ item }: { item: InboxItem }) {
+function ItemDetail({
+  item,
+  onToggleUnread,
+}: {
+  item: InboxItem
+  onToggleUnread: (item: InboxItem) => void
+}) {
   const { actor, verb, object } = itemText(item)
   const link = itemLink(item)
+  const excerpt = itemExcerpt(item)
+  const target = threadTarget(item)
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold wrap-anywhere">
@@ -89,23 +104,47 @@ function ItemDetail({ item }: { item: InboxItem }) {
         {item.reason === null ? null : <ReasonChip reason={item.reason} />}
         <RelativeTime iso={item.created_at} />
       </p>
-      {link === null ? null : (
-        <Link
-          to={link.to}
-          search={link.search}
-          className={cn(
-            buttonVariants({ variant: "outline" }),
-            "w-fit no-underline"
-          )}
-        >
-          Open
-        </Link>
+      {target !== null ? (
+        <ThreadDetail
+          key={item.target.id}
+          target={target}
+          threadId={item.target.id}
+        />
+      ) : excerpt === null ? null : (
+        <p className="text-[13px] wrap-anywhere">{excerpt}</p>
       )}
+      <div className="flex flex-wrap items-center gap-2">
+        {link === null ? null : (
+          <Link
+            to={link.to}
+            search={link.search}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-fit no-underline"
+            )}
+          >
+            Open
+          </Link>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => onToggleUnread(item)}
+        >
+          {item.unread ? "Mark as read" : "Mark as unread"}
+        </Button>
+      </div>
     </div>
   )
 }
 
-export function InboxDetail({ item }: { item: InboxItem | null }) {
+export function InboxDetail({
+  item,
+  onToggleUnread,
+}: {
+  item: InboxItem | null
+  onToggleUnread: (item: InboxItem) => void
+}) {
   if (item === null) {
     return (
       <p className="text-[13px] text-muted-foreground">
@@ -116,5 +155,5 @@ export function InboxDetail({ item }: { item: InboxItem | null }) {
   if (item.target.kind === "proposal") {
     return <ProposalDetail key={item.target.id} proposalId={item.target.id} />
   }
-  return <ItemDetail item={item} />
+  return <ItemDetail item={item} onToggleUnread={onToggleUnread} />
 }

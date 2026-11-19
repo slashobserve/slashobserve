@@ -36,6 +36,7 @@ function thread(id: string, createdAt: string): Thread {
     panel_present: true,
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     created_at: createdAt,
     updated_at: createdAt,
     resolved_at: null,
@@ -56,6 +57,7 @@ function message(id: string, threadId: string, createdAt: string): Message {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     block_id: null,
     reply_to: null,
   }

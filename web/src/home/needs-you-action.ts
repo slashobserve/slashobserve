@@ -21,6 +21,7 @@ export function needsYouAction(item: InboxItem): NeedsYouAction | null {
     case "reply":
       return linkAction(item, "Reply")
     case "repaired":
+    case "proposal_closed":
       return linkAction(item, "Open")
     case "run_failed":
       return item.target.kind === "run"

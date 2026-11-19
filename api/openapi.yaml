@@ -102,6 +102,8 @@ paths:
     $ref: "./paths/proposals.yaml#/proposals-id-discard"
   /dashboards/{id}/views:
     $ref: "./paths/dashboards.yaml#/dashboards-id-views"
+  /dashboards/{id}/viewers:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-viewers"
   /dashboards/{id}/import:
     $ref: "./paths/imports.yaml#/dashboards-id-import"
   /dashboards/{id}/actions:
@@ -114,12 +116,16 @@ paths:
     $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
   /threads:
     $ref: "./paths/threads.yaml#/threads"
+  /threads/mentionable:
+    $ref: "./paths/threads.yaml#/threads-mentionable"
   /threads/{thread_id}/messages:
     $ref: "./paths/threads.yaml#/threads-threadid-messages"
   /threads/{thread_id}/resolve:
     $ref: "./paths/threads.yaml#/threads-threadid-resolve"
   /threads/{thread_id}/reopen:
     $ref: "./paths/threads.yaml#/threads-threadid-reopen"
+  /threads/{thread_id}/read:
+    $ref: "./paths/threads.yaml#/threads-threadid-read"
   /messages/{message_id}:
     $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
@@ -348,6 +354,8 @@ paths:
     $ref: "./paths/inbox.yaml#/inbox"
   /inbox/read:
     $ref: "./paths/inbox.yaml#/inbox-read"
+  /inbox/items/{seq}:
+    $ref: "./paths/inbox.yaml#/inbox-item"
 components:
   securitySchemes:
     sessionCookie:
@@ -1882,7 +1890,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1942,7 +1950,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -1980,10 +1988,18 @@ components:
         reason:
           type: string
           nullable: true
-          enum: [proposal, requested_block, mention, reply, run_failed, repaired]
+          enum: [proposal, requested_block, mention, reply, run_failed, repaired, proposal_closed]
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        target_title:
+          type: string
+          nullable: true
+          description: The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists.
+        excerpt:
+          type: string
+          nullable: true
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items.
     InboxList:
       type: object
       additionalProperties: false
@@ -2759,6 +2775,7 @@ components:
         - body
         - status
         - allowed_actions
+        - unread
         - author
         - actor
         - created_at
@@ -2771,6 +2788,7 @@ components:
         - panel_present
         - mentions
         - can_edit
+        - can_delete
         - revision
       properties:
         id:
@@ -2804,6 +2822,9 @@ components:
             type: string
             enum: [open, reply, resolve, reopen]
           description: What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md.
+        unread:
+          type: boolean
+          description: Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         author:
           $ref: "#/components/schemas/Author"
         actor:
@@ -2848,6 +2869,9 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this comment; see `can_delete` on a thread message.
         revision:
           type: object
           nullable: true
@@ -2894,6 +2918,7 @@ components:
         - panel_present
         - status
         - allowed_actions
+        - unread
         - created_at
         - updated_at
         - resolved_at
@@ -2942,7 +2967,10 @@ components:
           items:
             type: string
             enum: [reply, resolve, reopen]
-          description: What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`.
+          description: What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`.
+        unread:
+          type: boolean
+          description: Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         created_at:
           type: string
           format: date-time
@@ -2979,7 +3007,7 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, block_id, reply_to]
+      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, can_delete, block_id, reply_to]
       properties:
         id:
           type: string
@@ -3008,7 +3036,10 @@ components:
             $ref: "#/components/schemas/Mention"
         can_edit:
           type: boolean
-          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment; false for a reply an agent run wrote.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this message. Its author may, while they can still comment, unless an agent run wrote it; the first message of a thread also needs that nobody else wrote in the thread. Anyone who manages the target's folder may delete any message.
         block_id:
           type: string
           format: uuid
@@ -3034,7 +3065,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [id, status, assigned_kind]
-          description: The run this write started, set only on the response of a write sent with `start_runs`; null on every list read and edit.
+          description: The run this message started, set on the response of a write sent with `start_runs` and on every read of the message while that run exists; null when the message started no run, and on an edit.
           properties:
             id:
               type: string
@@ -3055,8 +3086,8 @@ components:
           properties:
             code:
               type: string
-              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs]
-              description: "`mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
+              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs, investigation_person_only]
+              description: "`investigation_person_only` when an MCP client or key asks the agent on an observation, which only a person starts from the web app or the CLI, `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
             message:
               type: string
     ThreadPage:
@@ -3078,6 +3109,48 @@ components:
         can_comment:
           type: boolean
           description: Whether the caller may start threads and write messages on the target.
+    MentionablePeople:
+      type: object
+      additionalProperties: false
+      required: [people, more]
+      properties:
+        more:
+          type: boolean
+          description: True when more people match than `limit` returned; narrow `q` to reach them.
+        people:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, email]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have none.
+              email:
+                type: string
+    DashboardViewers:
+      type: object
+      additionalProperties: false
+      required: [viewers]
+      properties:
+        viewers:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have no name.
     ThreadEnvelope:
       type: object
       additionalProperties: false
@@ -4767,7 +4840,7 @@ components:
     SavedSearchFilters:
       type: object
       additionalProperties: false
-      description: The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others.
+      description: The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others.
       properties:
         columns:
           type: array
@@ -4793,6 +4866,10 @@ components:
         errors:
           type: boolean
           description: Only traces with an error.
+        mode:
+          type: string
+          enum: [graph, table]
+          description: A metrics search as a time series (`graph`, the default) or as the table of an instant query.
     SavedSearch:
       type: object
       additionalProperties: false
@@ -4803,7 +4880,7 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           minLength: 1
@@ -4839,7 +4916,7 @@ components:
           description: When the search was saved, renamed or moved last.
         url:
           type: string
-          description: The address of the logs or traces page that reopens the search, relative when the server has no public URL configured.
+          description: The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured.
     SavedSearchList:
       type: object
       additionalProperties: false
@@ -4859,17 +4936,17 @@ components:
       properties:
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           description: 1 to 120 characters after trimming, without control characters.
         datasource_uid:
           type: string
-          description: The uid of a datasource that exists and fits the kind.
+          description: The uid of a datasource that exists and fits the kind, which is Prometheus for metrics.
         query:
           type: string
           nullable: true
-          description: 1 to 8000 characters; required for a logs search.
+          description: 1 to 8000 characters; required for a logs or metrics search.
         filters:
           $ref: "#/components/schemas/SavedSearchFilters"
         from:
@@ -5594,7 +5671,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 75
+          maxItems: 76
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5685,7 +5762,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 75
+          maxItems: 76
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5706,7 +5783,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 75
+          maxItems: 76
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -6384,7 +6461,7 @@ components:
           maxLength: 128
         signal:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
     DraftQuery:
       type: object
       additionalProperties: false
@@ -6392,10 +6469,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, kql, filters]
+          enum: [logql, clickhouse_sql, traceql, promql, kql, filters]
         trace_filters:
           nullable: true
           allOf:

@@ -27,6 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 )
 
 const (
@@ -83,7 +84,7 @@ func newAccessRig(t *testing.T) *accessRig {
 	}
 	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	queue := revisions.NewService(database.DB, logger, revisions.WithAccess(access))
-	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Mentions: threads.NewMentionRuns(commentThreads, queue, false), Folders: access, Annotations: notes, Logger: logger})
+	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Mentions: threads.NewMentionRuns(commentThreads, queue, false), Folders: access, Annotations: notes, Viewers: viewers.New(database.DB), Logger: logger})
 	return &accessRig{registry: registry, service: service, threads: commentThreads, notes: notes, findings: found, db: database}
 }
 

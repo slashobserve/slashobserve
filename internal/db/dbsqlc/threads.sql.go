@@ -171,6 +171,24 @@ func (q *Queries) DeleteMentions(ctx context.Context, messageID pgtype.UUID) err
 	return err
 }
 
+const deleteMessage = `-- name: DeleteMessage :exec
+DELETE FROM thread_messages WHERE id = $1
+`
+
+func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteMessage, id)
+	return err
+}
+
+const deleteThread = `-- name: DeleteThread :exec
+DELETE FROM threads WHERE id = $1
+`
+
+func (q *Queries) DeleteThread(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteThread, id)
+	return err
+}
+
 const editMessage = `-- name: EditMessage :one
 UPDATE thread_messages
 SET body = $1::text, edited_at = clock_timestamp(), updated_at = clock_timestamp()
@@ -453,6 +471,47 @@ func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([
 	return items, nil
 }
 
+const listMessagesByID = `-- name: ListMessagesByID :many
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id FROM thread_messages WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListMessagesByID(ctx context.Context, ids []pgtype.UUID) ([]ThreadMessage, error) {
+	rows, err := q.db.Query(ctx, listMessagesByID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ThreadMessage
+	for rows.Next() {
+		var i ThreadMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.ThreadID,
+			&i.Body,
+			&i.AuthorKind,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.Origin,
+			&i.OriginClient,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EditedAt,
+			&i.RunID,
+			&i.RunAssignedKind,
+			&i.ReplyToID,
+			&i.ObservationBlockID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReplyQuotes = `-- name: ListReplyQuotes :many
 SELECT m.id AS message_id, q.id AS quoted_id, q.author_kind, q.author_id, q.author_name, q.origin, q.origin_client,
   q.run_id, q.run_assigned_kind, left(q.body, 200)::text AS excerpt
@@ -702,6 +761,81 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	return id_2, err
 }
 
+const markThreadRead = `-- name: MarkThreadRead :exec
+INSERT INTO thread_reads (user_id, thread_id, read_at)
+SELECT u.id, $1::uuid, clock_timestamp() FROM users u WHERE u.id = $2::uuid
+ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = EXCLUDED.read_at
+`
+
+type MarkThreadReadParams struct {
+	ThreadID pgtype.UUID
+	UserID   pgtype.UUID
+}
+
+func (q *Queries) MarkThreadRead(ctx context.Context, arg MarkThreadReadParams) error {
+	_, err := q.db.Exec(ctx, markThreadRead, arg.ThreadID, arg.UserID)
+	return err
+}
+
+const mentionCandidates = `-- name: MentionCandidates :many
+SELECT id, name, email, role, groups, lower(coalesce(nullif(name, ''), email))::text AS sort_key FROM users
+WHERE id <> $1::uuid
+  AND (name ILIKE $2::text ESCAPE '\' OR email ILIKE $2::text ESCAPE '\')
+  AND (lower(coalesce(nullif(name, ''), email)), id) > ($3::text, $4::uuid)
+ORDER BY lower(coalesce(nullif(name, ''), email)), id
+LIMIT $5
+`
+
+type MentionCandidatesParams struct {
+	Self     pgtype.UUID
+	Pattern  string
+	AfterKey string
+	AfterID  pgtype.UUID
+	RowLimit int32
+}
+
+type MentionCandidatesRow struct {
+	ID      pgtype.UUID
+	Name    string
+	Email   string
+	Role    string
+	Groups  []string
+	SortKey string
+}
+
+func (q *Queries) MentionCandidates(ctx context.Context, arg MentionCandidatesParams) ([]MentionCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, mentionCandidates,
+		arg.Self,
+		arg.Pattern,
+		arg.AfterKey,
+		arg.AfterID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MentionCandidatesRow
+	for rows.Next() {
+		var i MentionCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Role,
+			&i.Groups,
+			&i.SortKey,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const mentionableGrant = `-- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
 FROM oauth_grants g
@@ -795,6 +929,45 @@ func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForR
 		&i.ProposalID,
 	)
 	return i, err
+}
+
+const runsOfMessages = `-- name: RunsOfMessages :many
+SELECT DISTINCT ON (thread_message_id) thread_message_id, id, status, assigned_kind
+FROM agent_requests
+WHERE thread_message_id = ANY($1::uuid[])
+ORDER BY thread_message_id, created_at DESC, id DESC
+`
+
+type RunsOfMessagesRow struct {
+	ThreadMessageID pgtype.UUID
+	ID              pgtype.UUID
+	Status          string
+	AssignedKind    string
+}
+
+func (q *Queries) RunsOfMessages(ctx context.Context, messageIds []pgtype.UUID) ([]RunsOfMessagesRow, error) {
+	rows, err := q.db.Query(ctx, runsOfMessages, messageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunsOfMessagesRow
+	for rows.Next() {
+		var i RunsOfMessagesRow
+		if err := rows.Scan(
+			&i.ThreadMessageID,
+			&i.ID,
+			&i.Status,
+			&i.AssignedKind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setThreadStatus = `-- name: SetThreadStatus :one
@@ -914,14 +1087,89 @@ func (q *Queries) ThreadTranscript(ctx context.Context, arg ThreadTranscriptPara
 	return items, nil
 }
 
+const threadsWithOtherAuthors = `-- name: ThreadsWithOtherAuthors :many
+SELECT DISTINCT thread_id FROM thread_messages
+WHERE thread_id = ANY($1::uuid[])
+  AND NOT (author_kind = $2::text AND author_id = $3::uuid)
+`
+
+type ThreadsWithOtherAuthorsParams struct {
+	ThreadIds  []pgtype.UUID
+	AuthorKind string
+	AuthorID   pgtype.UUID
+}
+
+func (q *Queries) ThreadsWithOtherAuthors(ctx context.Context, arg ThreadsWithOtherAuthorsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, threadsWithOtherAuthors, arg.ThreadIds, arg.AuthorKind, arg.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var thread_id pgtype.UUID
+		if err := rows.Scan(&thread_id); err != nil {
+			return nil, err
+		}
+		items = append(items, thread_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const unreadThreads = `-- name: UnreadThreads :many
+SELECT t.id
+FROM threads t
+WHERE t.id = ANY($1::uuid[])
+  AND EXISTS (
+    SELECT 1 FROM thread_messages m
+    WHERE m.thread_id = t.id
+      AND NOT (m.run_id IS NULL AND m.author_kind = $2::text AND m.author_id = $3::uuid)
+      AND m.created_at > greatest(
+        coalesce((SELECT r.read_at FROM thread_reads r WHERE r.user_id = $3::uuid AND r.thread_id = t.id), '-infinity'::timestamptz),
+        (SELECT u.threads_seen_since FROM users u WHERE u.id = $3::uuid)
+      )
+  )
+`
+
+type UnreadThreadsParams struct {
+	ThreadIds  []pgtype.UUID
+	ReaderKind string
+	ReaderID   pgtype.UUID
+}
+
+func (q *Queries) UnreadThreads(ctx context.Context, arg UnreadThreadsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, unreadThreads, arg.ThreadIds, arg.ReaderKind, arg.ReaderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const userMentionNames = `-- name: UserMentionNames :many
-SELECT id, name, email FROM users WHERE id = ANY($1::uuid[])
+SELECT id, name, email, role, groups FROM users WHERE id = ANY($1::uuid[])
 `
 
 type UserMentionNamesRow struct {
-	ID    pgtype.UUID
-	Name  string
-	Email string
+	ID     pgtype.UUID
+	Name   string
+	Email  string
+	Role   string
+	Groups []string
 }
 
 func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]UserMentionNamesRow, error) {
@@ -933,7 +1181,13 @@ func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]Us
 	var items []UserMentionNamesRow
 	for rows.Next() {
 		var i UserMentionNamesRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.Email); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Role,
+			&i.Groups,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

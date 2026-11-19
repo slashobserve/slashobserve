@@ -40,6 +40,7 @@ type Service struct {
 	access     *folders.Access
 	dashboards *dashboards.Service
 	logger     *slog.Logger
+	notifier   ClosedNotifier
 }
 
 func New(database *db.DB, access *folders.Access, dashboardService *dashboards.Service, logger *slog.Logger) *Service {
@@ -395,7 +396,9 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	if err != nil {
 		return Proposal{}, err
 	}
+	var savedVersion *int
 	merged := func(ctx context.Context, q *dbsqlc.Queries, version *int) error {
+		savedVersion = version
 		if err := closeProposal(ctx, q, h, StateMerged, cols, ""); err != nil {
 			return err
 		}
@@ -425,6 +428,7 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	}
 	s.logger.InfoContext(ctx, "proposal merged",
 		slog.String("actor_id", by.ID), slog.String("proposal_id", id.String()), slog.String("dashboard_id", h.row.DashboardID.String()))
+	s.announceClosed(ctx, by, Closure{ProposalID: id, State: StateMerged, Version: savedVersion})
 	return s.Get(ctx, by, id)
 }
 
@@ -477,5 +481,6 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 	}
 	s.logger.InfoContext(ctx, "proposal discarded",
 		slog.String("actor_id", by.ID), slog.String("proposal_id", id.String()), slog.String("dashboard_id", h.row.DashboardID.String()))
+	s.announceClosed(ctx, by, Closure{ProposalID: id, State: StateDiscarded, Reason: reason})
 	return s.Get(ctx, by, id)
 }

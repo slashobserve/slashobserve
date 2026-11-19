@@ -31,6 +31,7 @@ type Props = {
   edited?: boolean
   nested?: boolean
   focused?: boolean
+  unread?: { onRead: () => void }
   children?: ReactNode
 }
 
@@ -48,6 +49,7 @@ export function EntryFrame({
   edited,
   nested,
   focused,
+  unread,
   children,
 }: Props) {
   const item = useRef<HTMLLIElement>(null)
@@ -58,6 +60,8 @@ export function EntryFrame({
     <li
       ref={item}
       aria-current={focused ? "true" : undefined}
+      onClickCapture={unread?.onRead}
+      onFocusCapture={unread?.onRead}
       className={cn(
         "group/entry relative flex gap-2.5",
         nested ? "py-1.5" : "py-2",
@@ -74,6 +78,15 @@ export function EntryFrame({
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-baseline gap-2 text-[13px]">
           <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 gap-y-1">
+            {unread === undefined ? null : (
+              <button
+                type="button"
+                aria-label="Unread, mark as read"
+                title="Unread, mark as read"
+                onClick={unread.onRead}
+                className="size-2 flex-none self-center rounded-full bg-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            )}
             <span className="font-medium wrap-anywhere text-foreground">
               {who}
             </span>

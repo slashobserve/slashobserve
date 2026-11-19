@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -43,18 +44,18 @@ const (
 	descSubmitQuery     = "Answer with the query or trace filters for the question, and one sentence saying what they match."
 	descCannotTranslate = "Answer that this datasource cannot answer the question, with one sentence saying why."
 
-	descDraftQuery = "Write a logs query, or trace filters for the trace list, for one Loki, ClickHouse, Elastic, OpenSearch or Tempo datasource from a plain-language question. " +
-		"The server first reads the datasource's labels or columns, then checks the answer with the lint check and one run over the last 15 minutes of the range; it never runs the full query. " +
+	descDraftQuery = "Write a logs query, a PromQL query, or trace filters for the trace list, for one Loki, ClickHouse, Elastic, OpenSearch, Prometheus or Tempo datasource from a plain-language question. " +
+		"The server first reads the datasource's metric names, labels or columns, then checks the answer with the lint check and one run over the last 15 minutes of the range; it never runs the full query. " +
 		"It spends at most two of this server's model calls per question, the second only to fix a query that failed its check, and stops after 60 seconds; a key may have 3 questions in flight and 60 questions an hour, counted across every server. " +
-		"Returns query and language (logql on Loki, clickhouse_sql on ClickHouse logs, kql on Elastic and OpenSearch, traceql on Tempo), or trace_filters with language filters (ClickHouse traces always, Tempo when the filters are enough), with a one-sentence explanation and warnings. " +
+		"Returns query and language (logql on Loki, clickhouse_sql on ClickHouse logs, kql on Elastic and OpenSearch, promql on Prometheus, traceql on Tempo), or trace_filters with language filters (ClickHouse traces always, Tempo when the filters are enough), with a one-sentence explanation and warnings. " +
 		"The code cannot_translate means the datasource cannot answer the question, with the reason as the message. Run a returned query with query_instant."
 
 	schemaDraftQuery = `{"type":"object","properties":{` +
-		`"datasource":{"type":"string","minLength":1,"description":"Uid of a Loki, ClickHouse, Elasticsearch, OpenSearch or Tempo datasource, from list_datasources."},` +
+		`"datasource":{"type":"string","minLength":1,"description":"Uid of a Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, from list_datasources."},` +
 		`"question":{"type":"string","minLength":1,"maxLength":2000,"description":"The question in plain language, such as error logs from checkout with a trace id."},` +
 		`"from":{"type":"string","description":"Start of the range the answer is for: a relative time such as now-1h, epoch milliseconds or an RFC 3339 time. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the range, in the same forms. Default now."},` +
-		`"signal":{"type":"string","enum":["logs","traces"],"description":"Which data the question is about. Loki, Elasticsearch and OpenSearch default to logs and Tempo to traces; ClickHouse needs it."}},` +
+		`"signal":{"type":"string","enum":["logs","traces","metrics"],"description":"Which data the question is about. Loki, Elasticsearch and OpenSearch default to logs, Tempo to traces and Prometheus to metrics; ClickHouse needs it."}},` +
 		`"required":["datasource","question"],"additionalProperties":false}`
 )
 
@@ -234,8 +235,8 @@ func (r *Registry) draftRequest(in DraftInput) (draftRun, string, error) {
 	if utf8.RuneCountInString(question) > maxQuestionRunes {
 		return draftRun{}, "", invalidDraftf("question must be at most %d characters; shorten it", maxQuestionRunes)
 	}
-	if in.Signal != "" && in.Signal != signalLogs && in.Signal != signalTraces {
-		return draftRun{}, "", invalidDraftf("signal must be logs or traces")
+	if !slices.Contains([]string{"", signalLogs, signalTraces, signalMetrics}, in.Signal) {
+		return draftRun{}, "", invalidDraftf("signal must be logs, traces or metrics")
 	}
 	if in.DatasourceUID == "" {
 		return draftRun{}, "", invalidDraftf("datasource is required")
@@ -269,17 +270,29 @@ func draftSignal(dsType spec.DatasourceType, uid, signal string) (string, error)
 		}
 		return "", invalidDraftf("%s is a Tempo datasource, which holds traces; signal must be traces", clip(uid, maxStepNameBytes))
 	case spec.ClickHouse:
-		if signal == "" {
-			return "", invalidDraftf("signal is required on a ClickHouse datasource: logs or traces")
+		return clickHouseDraftSignal(uid, signal)
+	case spec.Prometheus:
+		if signal == "" || signal == signalMetrics {
+			return signalMetrics, nil
 		}
-		return signal, nil
+		return "", invalidDraftf("%s is a Prometheus datasource, which holds metrics; signal must be metrics", clip(uid, maxStepNameBytes))
 	case spec.Elasticsearch, spec.OpenSearch:
 		if signal == "" || signal == signalLogs {
 			return signalLogs, nil
 		}
 		return "", invalidDraftf("%s is an %s datasource, which holds logs; signal must be logs", clip(uid, maxStepNameBytes), searchName(dsType))
 	}
-	return "", invalidDraftf("draft_query works on Loki, ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType)
+	return "", invalidDraftf("draft_query works on Loki, ClickHouse, Tempo, Prometheus, Elasticsearch and OpenSearch datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType)
+}
+
+func clickHouseDraftSignal(uid, signal string) (string, error) {
+	switch signal {
+	case "":
+		return "", invalidDraftf("signal is required on a ClickHouse datasource: logs or traces")
+	case signalMetrics:
+		return "", invalidDraftf("%s is a ClickHouse datasource; signal must be logs or traces", clip(uid, maxStepNameBytes))
+	}
+	return signal, nil
 }
 
 type draftStats struct {
@@ -290,7 +303,7 @@ type draftStats struct {
 
 func (r *Registry) draft(ctx context.Context, run draftRun, question string) (Draft, draftStats, error) {
 	var stats draftStats
-	facts, err := r.draftContext(ctx, run.inst, run.signal, run.rng)
+	facts, err := r.draftContext(ctx, run.inst, run.signal, run.rng, question)
 	stats.reads = facts.Reads
 	if err != nil {
 		return Draft{}, stats, err

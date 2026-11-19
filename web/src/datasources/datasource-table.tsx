@@ -9,7 +9,7 @@ import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { logsLink, tracesLink } from "@/lib/links"
+import { logsLink, metricsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -258,6 +258,15 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
           className={exploreLinkClass}
         >
           Search traces
+        </Link>
+      ) : null}
+      {targets.includes("metrics") ? (
+        <Link
+          {...metricsLink(datasource.uid)}
+          aria-label={`Explore metrics in ${datasource.uid}`}
+          className={exploreLinkClass}
+        >
+          Explore metrics
         </Link>
       ) : null}
     </>

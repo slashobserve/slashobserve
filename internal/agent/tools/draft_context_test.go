@@ -24,7 +24,7 @@ func contextFor(t *testing.T, ds *fakeDS, signal string) (draftFacts, error) {
 	if !ok {
 		t.Fatal("no datasource")
 	}
-	return r.draftContext(context.Background(), inst, signal, draftRange)
+	return r.draftContext(context.Background(), inst, signal, draftRange, "")
 }
 
 func valueRequests(ds *fakeDS) []datasource.DiscoverRequest {
@@ -262,7 +262,7 @@ func searchFacts(t *testing.T, ds datasource.Datasource) (draftFacts, error) {
 	t.Helper()
 	r := searchRegistry(t, nil, ds)
 	inst, _ := r.deps.Datasources.Get("es")
-	return r.draftContext(context.Background(), inst, signalLogs, draftRange)
+	return r.draftContext(context.Background(), inst, signalLogs, draftRange, "")
 }
 
 func TestDraftContextSearchListsFieldsWithKindsAndTheRoleValues(t *testing.T) {

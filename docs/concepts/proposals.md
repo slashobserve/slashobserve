@@ -53,6 +53,8 @@ When the result equals the latest version, nothing is saved, and the proposal cl
 Its author, and anyone who may merge it, can discard it.
 The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason`.
 The reason is not copied into the activity log, which never carries free text: read it from the proposal.
+When someone other than its author merges or discards a proposal, the author gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
+Merging or discarding also posts a comment in the proposal's discussion, "Merged as version N." or "Discarded." with "Reason: ..." when there is one, written as the person or key that closed it; a failed post never undoes the close.
 A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
 
 ## States

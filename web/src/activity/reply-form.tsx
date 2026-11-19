@@ -60,6 +60,7 @@ export function ReplyForm({
         formLabel="Reply to this comment"
         placeholder="Reply, or type @ to ask an agent"
         people={people}
+        target={`dashboard:${dashboardId}`}
         agents={agents}
         agentsBlocked={gate.kind === "blocked" ? gate.reason : null}
         autoFocus

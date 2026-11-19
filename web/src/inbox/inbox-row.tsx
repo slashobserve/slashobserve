@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router"
+import { MailIcon, MailOpenIcon } from "lucide-react"
 
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
+import { Button } from "@/components/ui/button"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 
-import { itemLink, itemText, type InboxItem } from "./inbox-item"
+import { itemExcerpt, itemLink, itemText, type InboxItem } from "./inbox-item"
 import { ReasonChip } from "./reason-chip"
 
 type Props = {
@@ -14,15 +16,22 @@ type Props = {
   tabStop: boolean
   asLink: boolean
   onSelect: (item: InboxItem) => void
+  onOpen?: (item: InboxItem) => void
+  onToggleUnread?: (item: InboxItem) => void
 }
 
 const rowClass =
-  "flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2 text-left no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  "flex min-h-14 w-full items-start gap-3 rounded-control py-2 pr-3 pl-3 text-left no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
 function ItemLine({ item }: { item: InboxItem }) {
   const { actor, verb, object } = itemText(item)
   return (
-    <span className="line-clamp-2 text-[13px] leading-snug">
+    <span
+      className={cn(
+        "line-clamp-2 text-[13px] leading-snug",
+        item.unread && "font-medium"
+      )}
+    >
       {actor === "" ? null : `${actor} `}
       {verb} <span className="font-semibold">{object}</span>
     </span>
@@ -30,55 +39,92 @@ function ItemLine({ item }: { item: InboxItem }) {
 }
 
 function RowBody({ item }: { item: InboxItem }) {
+  const excerpt = itemExcerpt(item)
   return (
     <>
+      <span
+        aria-hidden="true"
+        className={cn(
+          "mt-[11px] size-[7px] flex-none rounded-full",
+          item.unread ? "bg-primary" : "bg-transparent"
+        )}
+      />
+      {item.unread ? <span className="sr-only">Unread</span> : null}
       <AuthorMark mark={markOf(item.actor)} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <ItemLine item={item} />
+        {excerpt === null ? null : (
+          <span className="line-clamp-2 text-xs leading-snug wrap-anywhere text-muted-foreground">
+            {excerpt}
+          </span>
+        )}
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
           {item.reason === null ? null : <ReasonChip reason={item.reason} />}
           <RelativeTime iso={item.created_at} />
         </span>
       </span>
-      {item.unread ? (
-        <>
-          <span
-            aria-hidden="true"
-            className="size-[7px] flex-none rounded-full bg-primary"
-          />
-          <span className="sr-only">Unread</span>
-        </>
-      ) : null}
     </>
   )
 }
 
-export function InboxRow({ item, selected, tabStop, asLink, onSelect }: Props) {
-  const className = cn(rowClass, selected && "bg-selection")
+export function InboxRow({
+  item,
+  selected,
+  tabStop,
+  asLink,
+  onSelect,
+  onOpen,
+  onToggleUnread,
+}: Props) {
+  const className = cn(
+    rowClass,
+    onToggleUnread !== undefined && "pr-10",
+    selected && "bg-selection"
+  )
   const link = itemLink(item)
-  if (asLink && link !== null) {
-    return (
-      <Link
-        to={link.to}
-        search={link.search}
-        data-inbox-row=""
-        tabIndex={tabStop ? 0 : -1}
-        className={className}
-      >
-        <RowBody item={item} />
-      </Link>
-    )
-  }
+  const toggleLabel = item.unread ? "Mark as read" : "Mark as unread"
   return (
-    <button
-      type="button"
-      data-inbox-row=""
-      tabIndex={tabStop ? 0 : -1}
-      aria-current={selected ? "true" : undefined}
-      onClick={() => onSelect(item)}
-      className={className}
-    >
-      <RowBody item={item} />
-    </button>
+    <div className="group/row relative">
+      {asLink && link !== null ? (
+        <Link
+          to={link.to}
+          search={link.search}
+          data-inbox-row=""
+          tabIndex={tabStop ? 0 : -1}
+          className={className}
+          onClick={() => onOpen?.(item)}
+        >
+          <RowBody item={item} />
+        </Link>
+      ) : (
+        <button
+          type="button"
+          data-inbox-row=""
+          tabIndex={tabStop ? 0 : -1}
+          aria-current={selected ? "true" : undefined}
+          onClick={() => onSelect(item)}
+          className={className}
+        >
+          <RowBody item={item} />
+        </button>
+      )}
+      {onToggleUnread === undefined ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          className="absolute top-2 right-2 text-muted-foreground opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 pointer-coarse:opacity-100"
+          onClick={() => onToggleUnread(item)}
+        >
+          {item.unread ? (
+            <MailOpenIcon aria-hidden="true" />
+          ) : (
+            <MailIcon aria-hidden="true" />
+          )}
+        </Button>
+      )}
+    </div>
   )
 }

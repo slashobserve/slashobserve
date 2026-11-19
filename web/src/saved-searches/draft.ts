@@ -1,6 +1,7 @@
 import type { Folder } from "@/folders/queries"
 import { applyPills, decodePills } from "@/logs/pills"
 import type { LogsSearch } from "@/logs/search"
+import type { MetricsSearch } from "@/metrics/search"
 import type { TraceSearch } from "@/traces/search"
 
 import type { CreateSavedSearch, SavedSearch } from "./queries"
@@ -102,5 +103,26 @@ export function tracesDraft(input: {
     },
     from: range.from,
     to: range.to,
+  }
+}
+
+export type MetricsDraft = { draft: SearchDraft } | { blocked: "no-query" }
+
+export function metricsDraft(input: {
+  uid: string
+  search: MetricsSearch
+  range: { from: string; to: string }
+}): MetricsDraft {
+  const { search, range } = input
+  if (search.q === undefined) return { blocked: "no-query" }
+  return {
+    draft: {
+      kind: "metrics",
+      datasource_uid: input.uid,
+      query: search.q,
+      filters: search.mode === "table" ? { mode: "table" } : undefined,
+      from: range.from,
+      to: range.to,
+    },
   }
 }

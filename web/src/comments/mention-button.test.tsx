@@ -1,10 +1,12 @@
 import { useRef, useState } from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { renderWithProviders } from "@/test/render"
 
 import { MentionButton } from "./mention-button"
-import { mentionOptions } from "./mentions"
+import { useMentionPicks } from "./use-mention-picks"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
 const people = [
@@ -16,11 +18,14 @@ function Harness({
   initial,
   replaceFrom = null,
   initiallyOpen = false,
+  target = null,
 }: {
   initial: string
   replaceFrom?: number | null
   initiallyOpen?: boolean
+  target?: string | null
 }) {
+  const picks = useMentionPicks()
   const [value, setValue] = useState(initial)
   const [open, setOpen] = useState(initiallyOpen)
   const field = useRef<HTMLTextAreaElement>(null)
@@ -32,8 +37,12 @@ function Harness({
         value={value}
         onChange={(event) => setValue(event.target.value)}
       />
+      <output aria-label="Sent">{picks.wire(value)}</output>
       <MentionButton
-        options={mentionOptions(people, [])}
+        agents={[]}
+        people={people}
+        target={target}
+        onPick={picks.pick}
         field={field}
         value={value}
         onChange={setValue}
@@ -45,9 +54,9 @@ function Harness({
   )
 }
 
-async function setup(initial: string, caret: number) {
+async function setup(initial: string, caret: number, target?: string) {
   const user = userEvent.setup()
-  render(<Harness initial={initial} />)
+  renderWithProviders(<Harness initial={initial} target={target} />)
   const body = screen.getByRole<HTMLTextAreaElement>("textbox", {
     name: "Body",
   })
@@ -59,7 +68,55 @@ async function setup(initial: string, caret: number) {
   return { user, body }
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 describe("MentionButton", () => {
+  it("adds the people the server finds for what is typed, even when only the email matches", async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        urls.push(request.url)
+        return new Response(
+          JSON.stringify({
+            people: [
+              {
+                id: "11111111-1111-4111-8111-111111111111",
+                name: "Linus",
+                email: "ada.lab@example.com",
+              },
+            ],
+          }),
+          { headers: { "content-type": "application/json" } }
+        )
+      })
+    )
+    const { user, body } = await setup("", 0, "dashboard:d1")
+    await user.keyboard("ada.lab")
+    await waitFor(() =>
+      expect(urls.some((url) => url.includes("q=ada.lab"))).toBe(true)
+    )
+    await user.click(await screen.findByRole("option", { name: /Linus/ }))
+    await waitFor(() => expect(body).toHaveValue("@Linus "))
+    expect(screen.getByLabelText("Sent")).toHaveTextContent(
+      "@[Linus](user:11111111-1111-4111-8111-111111111111)"
+    )
+    expect(
+      urls.some(
+        (url) =>
+          url.includes("target=dashboard%3Ad1") && url.includes("q=ada.lab")
+      )
+    ).toBe(true)
+  })
+
+  it("keeps two people with one name apart", async () => {
+    const { user, body } = await setup("", 0)
+    await user.click(await screen.findByRole("option", { name: "Ada" }))
+    await waitFor(() => expect(body).toHaveValue("@Ada "))
+  })
+
   it("offers @observe and the people it is given", async () => {
     await setup("", 0)
     const options = await screen.findAllByRole("option")
@@ -73,8 +130,9 @@ describe("MentionButton", () => {
   it("inserts a user token at the caret", async () => {
     const { user, body } = await setup("ping now", 5)
     await user.click(await screen.findByRole("option", { name: "Ada" }))
-    await waitFor(() =>
-      expect(body).toHaveValue(`ping @[Ada](user:${adaId}) now`)
+    await waitFor(() => expect(body).toHaveValue("ping @Ada now"))
+    expect(screen.getByLabelText("Sent")).toHaveTextContent(
+      `ping @[Ada](user:${adaId}) now`
     )
   })
 
@@ -95,7 +153,9 @@ describe("MentionButton", () => {
 
   it("replaces the typed @ when it was opened by typing", async () => {
     const user = userEvent.setup()
-    render(<Harness initial="hi @" replaceFrom={3} initiallyOpen />)
+    renderWithProviders(
+      <Harness initial="hi @" replaceFrom={3} initiallyOpen />
+    )
     const body = screen.getByRole<HTMLTextAreaElement>("textbox", {
       name: "Body",
     })
@@ -105,7 +165,9 @@ describe("MentionButton", () => {
 
   it("replaces what was typed after the @ when the field kept the focus", async () => {
     const user = userEvent.setup()
-    render(<Harness initial="hi @obs" replaceFrom={3} initiallyOpen />)
+    renderWithProviders(
+      <Harness initial="hi @obs" replaceFrom={3} initiallyOpen />
+    )
     const body = screen.getByRole<HTMLTextAreaElement>("textbox", {
       name: "Body",
     })

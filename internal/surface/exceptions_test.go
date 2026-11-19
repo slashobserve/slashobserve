@@ -24,6 +24,7 @@ const (
 	removesPeople       = "an Admin removes a deactivated person in the web app; keys never manage people's accounts (auth.RequireUser), and the CLI signs in with a key"
 	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
 	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
+	presenceReport      = "an open dashboard page reports itself every 20 seconds, for people only; agents and the CLI read who is looking with list_dashboard_viewers and observe dashboards viewers"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -31,6 +32,8 @@ var exceptions = map[string]exception{
 	"runAction": {MCP: panelActions, CLI: panelActions},
 
 	"deleteAnnotation": {MCP: noMCPDeletes},
+	"deleteMessage":    {MCP: noMCPDeletes},
+	"markThreadRead":   {MCP: personOnly, CLI: personOnly},
 
 	"getAssetImage":   {MCP: personOnly, CLI: personOnly},
 	"getAssetGeojson": {MCP: personOnly, CLI: personOnly},
@@ -47,6 +50,7 @@ var exceptions = map[string]exception{
 	"deleteDashboard":        {MCP: noMCPDeletes},
 	"createDashboardVersion": {CLI: viaApply},
 	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
+	"reportDashboardViewer":  {MCP: presenceReport, CLI: presenceReport},
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 
@@ -97,8 +101,9 @@ var exceptions = map[string]exception{
 	"listAgentRuns":     {MCP: connectedAgents, CLI: personOnly},
 	"listWorkingRuns":   {MCP: connectedAgents, CLI: personOnly},
 
-	"listInbox":     {CLI: personOnly},
-	"markInboxRead": {MCP: personOnly, CLI: personOnly},
+	"listInbox":          {CLI: personOnly},
+	"markInboxRead":      {MCP: personOnly, CLI: personOnly},
+	"setInboxItemUnread": {MCP: personOnly, CLI: personOnly},
 
 	"requestHealthRepairs": {MCP: notBuilt},
 

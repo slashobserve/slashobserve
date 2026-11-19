@@ -5,7 +5,7 @@ description: See what asks something of you, a proposal to merge, a block to kee
 
 The inbox is the activity you can see, filtered to what asks something of you now.
 It is a read over the [activity log](activity.md), not a second store of events, so it cannot show something that did not happen.
-`GET /api/v1/inbox` lists it, newest first, and `POST /api/v1/inbox/read` marks it read.
+`GET /api/v1/inbox` lists it, newest first, `POST /api/v1/inbox/read` marks it read up to one item, and `PUT /api/v1/inbox/items/{seq}` marks one item read or unread.
 Both need the Viewer role or higher and a signed-in person: a service-account key gets 403 `user_session_required`.
 A connected agent signed in as a person reads the same list with the MCP tool `list_inbox`, which marks nothing read.
 
@@ -17,11 +17,17 @@ The page lists the items in two groups, "Needs you" for the items with a reason,
 The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
 The list refreshes when new activity arrives.
 
+Each row names who did what and the real title of the dashboard, observation or proposal, shows the start of the comment for a mention or a reply, and has a dot while it is unread.
+A button at the right of the row, shown when you hover or focus the row, marks that one item read or unread.
+
 **Mark all read** marks the newest item on the page and everything older as read, and shows only while something is unread.
 Arrow keys move through the rows.
 On a window 1100 pixels wide or more, a selected row opens in a pane beside the list, and the address keeps the view and the item (`view` and `item`).
-A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page; any other item has an **Open** button.
-On a narrower window the list stands alone and each row is a link.
+A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page.
+A mention or a reply opens there as the whole thread, with a **Reply** box that works as it does on the page: `@` asks an agent, and you can edit or delete your own comments.
+Any other item shows its text, and every item has an **Open** button and **Mark as read** or **Mark as unread**.
+Opening an item marks it read, once: marking it unread again while it is open keeps it unread.
+On a narrower window the list stands alone and each row is a link, and following it marks the item read.
 
 ## What asks something of you
 
@@ -36,13 +42,16 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 | `reply` | A reply by someone else in a thread you wrote in, or a reply that an agent run wrote for a run you requested. |
 | `run_failed` | A run you requested that failed and that nobody has continued. |
 | `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
+| `proposal_closed` | A proposal you opened that someone else merged or discarded. |
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
+A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
 
 ## Opening an item
 
 A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
 A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
+A closed proposal reads "merged your proposal" or "discarded your proposal" with its title, shows the reason given for a discard, and opens the proposal; the same notice is posted as a comment in the proposal's discussion.
 A failed run opens its chat.
 A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
 An item recorded before the title and panel count were stored reads "Your repair saved version N".
@@ -54,19 +63,23 @@ An item recorded before the title and panel count were stored reads "Your repair
 | View | Holds |
 | --- | --- |
 | `for_you` | Every item with a reason. |
-| `proposals` | The `proposal` items. |
+| `proposals` | The `proposal` and `proposal_closed` items. |
 | `mentions` | The `mention` and `reply` items. |
 | `everything` | Every visible event from others, and every item with a reason, with `reason` null on the events that have none. |
 
 `limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
-An item is the event as `GET /api/v1/activity` returns it, plus `reason` and `unread`, and like the log it carries no comment, message or finding text.
+An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title` and `excerpt`.
+`target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
+`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the reason a proposal was discarded, as plain text of at most 200 characters, and is null for other items.
+The rest of an item carries no comment, message or finding text, as in the log.
 
 ## What you have read
 
 The server keeps one read position per person, so it follows you from one browser to the next.
 `POST /api/v1/inbox/read` takes `{"seq": N}`, the `seq` of the newest item you saw: that event and everything older is read.
 The position only moves forward, so marking an older `seq` changes nothing, and an unknown `seq` is refused with 422 `unknown_seq`.
-Marking one item without the ones before it is not offered.
+`PUT /api/v1/inbox/items/{seq}` takes `{"unread": true}` or `{"unread": false}` and marks that one item, whatever its place relative to the position.
+Marking a later `seq` read with `POST /api/v1/inbox/read` sets every item up to it to read again, including those you marked unread.
 Until you read once, every item in the last 30 days is unread.
 
 Every list answers `unread_count`, the number of unread `for_you` items whatever the view is, and 100 means 100 or more.

@@ -26,7 +26,11 @@ export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
   })
   const { crumbs } = useCrumbs()
   const title = phoneTitle(pathname, crumbs, pageTitle)
-  const exploreKind = pathname.startsWith("/traces/") ? "traces" : "logs"
+  const exploreKind = pathname.startsWith("/traces/")
+    ? "traces"
+    : pathname.startsWith("/explore/metrics/")
+      ? "metrics"
+      : "logs"
   const source = useRouteSource(exploreKind).current
   const unread = unreadBadge(useInboxCount())
   return (

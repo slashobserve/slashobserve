@@ -16,7 +16,7 @@ import (
 const (
 	nameSearchWorkspace = "search_workspace"
 
-	descSearchWorkspace = "Search everything this key may read in the workspace by words: dashboards (title, tags, description, panel titles, query text), observations, annotations, comments and saved logs and trace searches. Every word must match, exactly or by its English stem; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix. Results are ranked by relevance, newer first among near-equals, each with a snippet and its url; read the object with its own tool for more. Page with next_cursor."
+	descSearchWorkspace = "Search everything this key may read in the workspace by words: dashboards (title, tags, description, panel titles, query text), observations, annotations, comments and saved logs, trace and metrics searches. Every word must match, exactly or by its English stem; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix. Results are ranked by relevance, newer first among near-equals, each with a snippet and its url; read the object with its own tool for more. Page with next_cursor."
 )
 
 var schemaSearchWorkspace = `{"type":"object","properties":{` +

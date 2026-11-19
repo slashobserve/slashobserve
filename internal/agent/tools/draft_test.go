@@ -499,17 +499,19 @@ func TestDraftRefusesBadInput(t *testing.T) {
 		in   DraftInput
 		want error
 	}{
-		"prometheus":         {DraftInput{DatasourceUID: "prom", Question: "q"}, ErrDraftInvalid},
-		"traces on loki":     {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalTraces}, ErrDraftInvalid},
-		"logs on tempo":      {DraftInput{DatasourceUID: "tempo", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
-		"clickhouse signal":  {DraftInput{DatasourceUID: "ch", Question: "q"}, ErrDraftInvalid},
-		"unknown signal":     {DraftInput{DatasourceUID: "loki", Question: "q", Signal: "metrics"}, ErrDraftInvalid},
-		"empty question":     {DraftInput{DatasourceUID: "loki", Question: "  "}, ErrDraftInvalid},
-		"long question":      {DraftInput{DatasourceUID: "loki", Question: strings.Repeat("q", maxQuestionRunes+1)}, ErrDraftInvalid},
-		"control character":  {DraftInput{DatasourceUID: "loki", Question: "q\x00"}, ErrDraftInvalid},
-		"missing datasource": {DraftInput{Question: "q"}, ErrDraftInvalid},
-		"bad range":          {DraftInput{DatasourceUID: "loki", Question: "q", From: "now", To: "now-1h"}, ErrDraftInvalid},
-		"unknown uid":        {DraftInput{DatasourceUID: "nope", Question: "q"}, ErrDraftNotFound},
+		"logs on prometheus":    {DraftInput{DatasourceUID: "prom", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
+		"metrics on clickhouse": {DraftInput{DatasourceUID: "ch", Question: "q", Signal: signalMetrics}, ErrDraftInvalid},
+		"traces on loki":        {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalTraces}, ErrDraftInvalid},
+		"logs on tempo":         {DraftInput{DatasourceUID: "tempo", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
+		"clickhouse signal":     {DraftInput{DatasourceUID: "ch", Question: "q"}, ErrDraftInvalid},
+		"metrics on loki":       {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalMetrics}, ErrDraftInvalid},
+		"unknown signal":        {DraftInput{DatasourceUID: "loki", Question: "q", Signal: "events"}, ErrDraftInvalid},
+		"empty question":        {DraftInput{DatasourceUID: "loki", Question: "  "}, ErrDraftInvalid},
+		"long question":         {DraftInput{DatasourceUID: "loki", Question: strings.Repeat("q", maxQuestionRunes+1)}, ErrDraftInvalid},
+		"control character":     {DraftInput{DatasourceUID: "loki", Question: "q\x00"}, ErrDraftInvalid},
+		"missing datasource":    {DraftInput{Question: "q"}, ErrDraftInvalid},
+		"bad range":             {DraftInput{DatasourceUID: "loki", Question: "q", From: "now", To: "now-1h"}, ErrDraftInvalid},
+		"unknown uid":           {DraftInput{DatasourceUID: "nope", Question: "q"}, ErrDraftNotFound},
 	}
 	for name, c := range cases {
 		if _, err := r.DraftQuery(viewerContext(), c.in); !errors.Is(err, c.want) {

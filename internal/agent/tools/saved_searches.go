@@ -23,30 +23,31 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. A query with a lint_query error is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
-	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
+	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder, by default your My Dashboards, so people can open it from its page. A query with a lint_query error is not saved; draft_query writes one. Repeating the call returns the search already saved, with replayed true. Returns its url."
+	descListSavedSearches = "List the saved logs, trace and metrics searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
-	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
+	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
-		`"datasource":{"type":"string","description":"The datasource, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
-		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs; optional TraceQL for Tempo; not allowed for ClickHouse traces."},` +
+		`"datasource":{"type":"string","description":"The datasource, from list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse for logs, Tempo or ClickHouse for traces, Prometheus for metrics."},` +
+		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
 		`"min":{"type":"string","description":"Traces: the shortest span duration, such as 250ms."},` +
 		`"max":{"type":"string","description":"Traces: the longest span duration, such as 2s."},` +
-		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."}},` +
-		`"additionalProperties":false,"description":"Logs take only columns, traces the other keys."},` +
+		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."},` +
+		`"mode":{"type":"string","enum":["graph","table"],"description":"Metrics: graph (default) or table."}},` +
+		`"additionalProperties":false,"description":"Logs take columns, metrics take mode, traces take the rest."},` +
 		`"from":{"type":"string","description":"Range start, such as now-1h or an RFC 3339 time. Default now-1h."},` +
 		`"to":{"type":"string","description":"Range end, such as now or an RFC 3339 time. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"A folder from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
-		`"kind":{"type":"string","enum":["logs","traces"],"description":"Only searches of this kind."},` +
+		`"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Only searches of this kind."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"Only searches in this folder, from list_folders."},` +
 		`"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Searches per page. Default 20."},` +
 		`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
@@ -222,8 +223,8 @@ type listSavedSearchesInput struct {
 
 func (in listSavedSearchesInput) parse() (savedsearches.ListFilter, int, Result, bool) {
 	filter := savedsearches.ListFilter{Kind: savedsearches.Kind(in.Kind)}
-	if in.Kind != "" && filter.Kind != savedsearches.KindLogs && filter.Kind != savedsearches.KindTraces {
-		return filter, 0, invalid("kind must be logs or traces"), false
+	if in.Kind != "" && !filter.Kind.Valid() {
+		return filter, 0, invalid("kind must be logs, traces or metrics"), false
 	}
 	folderID, res, ok := parseFolderID(in.FolderID)
 	if !ok {
