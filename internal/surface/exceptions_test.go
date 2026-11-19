@@ -3,7 +3,7 @@ package surface
 type exception struct{ MCP, CLI string }
 
 const (
-	savedSearchCuration = "people curate saved searches; an agent saves and lists them"
+	savedSearchCuration = "people delete saved searches; an agent saves, lists and updates them"
 	builtInRuns         = "an outside agent does its own work over MCP; the built-in agent's runs are read in the web app and the CLI, and their events and cost reach MCP through list_activity"
 	consentScreen       = "browser consent screen"
 	connectedAgents     = "connected agents are a person's credentials; keys never manage credentials, the CLI signs in with a key, and no MCP tool manages a person's credentials"
@@ -161,7 +161,6 @@ var exceptions = map[string]exception{
 	"listDashboardRevisions":  {MCP: builtInRuns},
 	"getDashboardRevision":    {MCP: builtInRuns},
 
-	"updateSavedSearch": {MCP: savedSearchCuration},
 	"deleteSavedSearch": {MCP: savedSearchCuration},
 
 	"createServiceAccount":     {MCP: accountKeys, CLI: accountKeys},
