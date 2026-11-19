@@ -535,6 +535,18 @@ func TestHTTPSkipRefusesWhileAWorkerHoldsTheLease(t *testing.T) {
 	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", ""), http.StatusConflict, "webhook_busy")
 }
 
+func TestHTTPSkipRefusesADisabledWebhookSoNoEventIsDroppedWhileItStaysOff(t *testing.T) {
+	h := newHTTPRig(t, newRig(t))
+	created := h.create(t, activity.TypeFindingCreated)
+	h.append(t, activity.TypeFindingCreated)
+	failFirstEvent(h.rig)
+	h.pass(t)
+	if rec := h.call(t, http.MethodPatch, "/api/v1/webhooks/"+created.Webhook.ID, `{"enabled":false}`); rec.Code != http.StatusOK {
+		t.Fatalf("disable answered %d %s", rec.Code, rec.Body)
+	}
+	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks/"+created.Webhook.ID+"/skip", ""), http.StatusConflict, "nothing_to_skip")
+}
+
 func TestHTTPASlackWebhookPostsOneTextLineAndRejectsAnUnknownFormat(t *testing.T) {
 	h := newHTTPRig(t, newRig(t))
 	expect(t, h.call(t, http.MethodPost, "/api/v1/webhooks", `{"name":"x","url":"`+receiverURL+`","format":"discord","event_types":["finding.created"]}`), http.StatusBadRequest, "invalid_request")

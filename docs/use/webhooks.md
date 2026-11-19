@@ -261,7 +261,7 @@ A receiver that keeps refusing one event holds back every event behind it, becau
 A retrying webhook in `GET /api/v1/webhooks` carries `waiting_events`, the number of events it still has to send (counted up to 100, with `more` true beyond that), and `next_attempt_at`.
 `POST /api/v1/webhooks/{id}/skip`, `observe webhooks skip <id>` and the **Skip stuck event** menu item pass over the oldest of those events.
 The skipped event is never sent to this receiver, it is recorded as a `skipped` attempt with the error `skipped_by_admin`, the failure count goes back to 0 and the webhook sends the next event at once.
-The call answers `409 nothing_to_skip` when the webhook is not retrying and `409 webhook_busy` while a server is delivering for it, so retry after a few seconds.
+The call answers `409 nothing_to_skip` when the webhook is not retrying or is disabled and `409 webhook_busy` while a server is delivering for it, so retry after a few seconds.
 
 A disabled webhook sends nothing.
 Its `disabled_reason` says why: `manual`, `gone`, `failing`, `owner` or `secret_unreadable`.

@@ -289,7 +289,7 @@ func (s *Service) SkipEvent(ctx context.Context, by auth.Principal, id pgtype.UU
 		if err != nil {
 			return err
 		}
-		if row.ConsecutiveFailures == 0 {
+		if row.ConsecutiveFailures == 0 || row.DisabledAt.Valid {
 			return ErrNothingToSkip
 		}
 		if row.LeaseUntil.Valid && row.LeaseUntil.Time.After(time.Now()) {

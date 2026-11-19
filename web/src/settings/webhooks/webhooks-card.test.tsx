@@ -113,6 +113,24 @@ describe("WebhooksCard", () => {
     ).toBeNull()
   })
 
+  it("hides Skip stuck event on a disabled webhook that kept its failures", async () => {
+    const { user } = renderCard({
+      ...stuck,
+      enabled: false,
+      state: "disabled",
+      disabled_reason: "failing",
+    })
+    await user.click(
+      screen.getByRole("button", { name: "More for Dashboard changes" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: "Enable" })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: "Skip stuck event" })
+    ).toBeNull()
+  })
+
   it("offers Make me the owner only on another person's webhook, and patches the owner after a confirmation", async () => {
     fetchMock.mockResolvedValue(
       new Response(

@@ -317,7 +317,8 @@ export function WebhooksCard({
                           >
                             {webhook.enabled ? "Disable" : "Enable"}
                           </DropdownMenuItem>
-                          {webhook.consecutive_failures > 0 ? (
+                          {webhook.enabled &&
+                          webhook.consecutive_failures > 0 ? (
                             <DropdownMenuItem
                               onClick={() =>
                                 setConfirming({ kind: "skip", webhook })
