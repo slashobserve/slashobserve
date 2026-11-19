@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -17,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -308,30 +307,13 @@ type Revision struct {
 	AssignedID   string
 }
 
-func CleanPrompt(s string) (string, bool) {
-	if PromptProblem("text", s) != "" {
-		return "", false
-	}
-	return strings.TrimSpace(s), true
+func CheckPrompt(field, s string) (string, error) {
+	return usertext.Clean(field, s, usertext.Text(MaxPromptRunes))
 }
 
-func PromptProblem(field, s string) string {
-	s = strings.TrimSpace(s)
-	n := utf8.RuneCountInString(s)
-	switch {
-	case !utf8.ValidString(s):
-		return field + " is not valid UTF-8; send plain text"
-	case n < 1:
-		return field + " is empty; write 1 to " + strconv.Itoa(MaxPromptRunes) + " characters"
-	case n > MaxPromptRunes:
-		return fmt.Sprintf("%s is %d characters; the limit is %d, so shorten it", field, n, MaxPromptRunes)
-	}
-	for _, r := range s {
-		if forbiddenRune(r) {
-			return fmt.Sprintf("%s contains the control or bidirectional override character U+%04X; remove it", field, r)
-		}
-	}
-	return ""
+func CleanPrompt(s string) (string, bool) {
+	cleaned, err := CheckPrompt("prompt", s)
+	return cleaned, err == nil
 }
 
 func Kind(source Source) string {
@@ -349,19 +331,15 @@ func DefaultTitle(prompt string) string {
 	return strings.TrimSpace(line)
 }
 
-func CleanTitle(s string) (string, bool) {
-	title, ok := CleanPrompt(s)
-	if !ok || strings.ContainsAny(title, "\n\r") || utf8.RuneCountInString(title) > MaxTitleRunes {
-		return "", false
-	}
-	return title, true
+func CheckTitle(s string) (string, error) {
+	return usertext.Clean("title", s, usertext.Line(MaxTitleRunes))
 }
 
-func CleanContinueNote(note *string) (string, bool) {
+func CheckContinueNote(note *string) (string, error) {
 	if note == nil {
-		return "", true
+		return "", nil
 	}
-	return CleanPrompt(*note)
+	return CheckPrompt("note", *note)
 }
 
 func ValidPanelID(panelID string) error {
@@ -369,17 +347,6 @@ func ValidPanelID(panelID string) error {
 		return fmt.Errorf("panel_id must be 1 to %d characters without NUL", MaxPanelIDRunes)
 	}
 	return nil
-}
-
-func forbiddenRune(r rune) bool {
-	switch {
-	case r == '\n', r == '\r', r == '\t':
-		return false
-	case unicode.IsControl(r):
-		return true
-	default:
-		return r >= '\u202a' && r <= '\u202e' || r >= '\u2066' && r <= '\u2069'
-	}
 }
 
 func truncateError(message string) string {

@@ -65,9 +65,11 @@ describe("promptNameError", () => {
 
 describe("promptBodyError", () => {
   it("rejects empty and over-long text and accepts the rest", () => {
-    expect(promptBodyError("  \n ")).toBe("Enter the prompt.")
+    expect(promptBodyError("  \n ")).toBe(
+      "Prompt must not be empty; enter 1 to 4000 characters."
+    )
     expect(promptBodyError("a".repeat(4001))).toBe(
-      "Use at most 4000 characters."
+      "Prompt must be at most 4000 characters; shorten it."
     )
     expect(promptBodyError("a".repeat(4000))).toBeNull()
     expect(promptBodyError(` ${"a".repeat(4000)} `)).toBeNull()

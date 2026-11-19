@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 type response struct {
@@ -277,6 +278,11 @@ func TestEditingAMessageThroughTheRoute(t *testing.T) {
 
 	r.call(t, commenter, http.MethodPatch, "/messages/"+messageID, map[string]any{"body": "mine now"}).expect(t, http.StatusForbidden, CodeNotAuthor)
 	r.call(t, testUser, http.MethodPatch, "/messages/"+messageID, map[string]any{"body": "  "}).expect(t, http.StatusUnprocessableEntity, CodeInvalidBody)
+	invisible := r.call(t, testUser, http.MethodPatch, "/messages/"+messageID, map[string]any{"body": "\u200b"})
+	invisible.expect(t, http.StatusUnprocessableEntity, CodeInvalidBody)
+	if invisible.body["reason"] != string(usertext.ReasonInvisibleOnly) {
+		t.Errorf("reason = %v, want %s", invisible.body["reason"], usertext.ReasonInvisibleOnly)
+	}
 }
 
 func TestResolvingAndReopeningThroughTheRoutes(t *testing.T) {

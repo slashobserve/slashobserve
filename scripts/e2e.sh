@@ -927,7 +927,7 @@ dashboards_suite() {
     fail "a NUL character should be rejected as an invalid Spec ($out: $(cat "$TMP/api.body"))"
   fi
   for path in /summary /title /panels/0/title; do
-    grep -q "\"path\":\"$path\",\"code\":\"schema\"" "$TMP/api.body" || fail "NUL rejection should point at $path in one response ($(cat "$TMP/api.body"))"
+    grep -Eq "\"path\":\"$path\",\"code\":\"(schema|text_control_characters)\"" "$TMP/api.body" || fail "NUL rejection should point at $path in one response ($(cat "$TMP/api.body"))"
   done
   pass "NUL characters in the summary and the Spec are rejected together with their paths"
 
@@ -1534,7 +1534,7 @@ comments_suite() {
     "$(comment_body 1 "$(printf 'p%.0s' $(seq 1 65))" 'x')" "$(comment_body 0 "$panel" 'x')" '{"version":1,"panel_id":"p"}' \
     "$(comment_body 1 "$panel" 'x' | sed 's/}$/,"extra":1}/')" '{"version":"1","panel_id":"p","body":"x"}'; do
     out="$(api POST "/dashboards/$id/comments" -d "$bad")"
-    if [[ "$out" != 400 ]] || ! grep -qE '"code":"invalid_(request|body)"' "$TMP/api.body"; then
+    if [[ "$out" != 400 ]] || ! grep -qE '"code":"invalid_(request|body|panel_id)"' "$TMP/api.body"; then
       fail "invalid comment ${bad:0:80} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
     fi
   done

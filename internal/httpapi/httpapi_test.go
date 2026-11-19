@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 func TestDecodeTimeCursorRejectsMalformedValues(t *testing.T) {
@@ -149,5 +152,24 @@ func TestDecodeBodyNamesTheFieldThatBrokeARule(t *testing.T) {
 				t.Fatalf("status %d body %s, want 400 invalid_request containing %q", rec.Code, rec.Body.String(), tc.want)
 			}
 		})
+	}
+}
+
+func TestAbortTextAddsTheReasonOfATextError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cases := map[string]struct {
+		err  error
+		body string
+	}{
+		"text error": {&usertext.Error{Field: "title", Reason: usertext.ReasonInvisibleOnly, Rule: usertext.Line(100)}, `"code":"invalid_request","error":"title has no visible character; enter 1 to 100 characters of visible text","reason":"text_invisible_only"`},
+		"other":      {errors.New("boom"), `"code":"invalid_request","error":"boom"}`},
+	}
+	for name, tc := range cases {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		AbortText(c, http.StatusBadRequest, "invalid_request", tc.err)
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tc.body) {
+			t.Errorf("%s: %d %s", name, rec.Code, rec.Body.String())
+		}
 	}
 }

@@ -104,9 +104,9 @@ func (s *Service) createRevision(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "prompt and base_version are required")
 		return
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", PromptProblem("prompt", *req.Prompt))
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	if *req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32 {
@@ -130,7 +130,6 @@ func (s *Service) createRevision(c *gin.Context) {
 		return
 	}
 	var row dbsqlc.AgentRequest
-	var err error
 	if commentID.Valid {
 		row, err = s.SubmitForThread(c.Request.Context(), dashboardID, commentID, req.BaseVersion, prompt, httpapi.Caller(c))
 	} else {

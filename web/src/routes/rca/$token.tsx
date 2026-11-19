@@ -2,7 +2,8 @@ import { useState } from "react"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
-import { PublicLinkUnavailable, PublicPageSkeleton } from "@/public/public-page"
+import { PublicLinkUnavailable } from "@/public/public-page"
+import { PublicPageSkeleton } from "@/public/public-page-skeleton"
 import { PublicRcaLoadError, PublicRcaPage } from "@/rca/public-rca-page"
 
 export const Route = createFileRoute("/rca/$token")({

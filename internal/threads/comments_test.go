@@ -79,6 +79,8 @@ func TestCheckCommentBody(t *testing.T) {
 		"isolate end":     "a\u2069b",
 		"too long":        strings.Repeat("a", maxBodyRunes+1),
 		"invalid UTF-8":   "a\xffb",
+		"zero width only": "\u200b",
+		"joiners only":    "\u200d\u200b\ufeff",
 	}
 	for name, in := range invalid {
 		var target *InvalidInputError

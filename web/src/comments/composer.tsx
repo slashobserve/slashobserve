@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
+import { cleanText } from "@/lib/user-text"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
@@ -115,7 +116,7 @@ export function Composer({
   const textarea = useRef<HTMLTextAreaElement>(null)
   const coarse = useCoarsePointer()
   const picks = useMentionPicks()
-  const text = body.trim()
+  const text = cleanText(body)
   const wire = picks.wire(text)
   const unavailable = typeof disabledReason === "string"
   const sendBlock = agentSendBlock(wire, agentsBlocked)

@@ -117,7 +117,7 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, folderI
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary, nil)
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
@@ -172,7 +172,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary, nil)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -656,9 +656,9 @@ func (s *Service) conflict(ctx context.Context, id pgtype.UUID) error {
 	return &ConflictError{Latest: latest}
 }
 
-func validateSave(rawSpec []byte, summary, fallback string) (string, *spec.Dashboard, []byte, error) {
+func validateSave(rawSpec []byte, summary, fallback string, previous *spec.Dashboard) (string, *spec.Dashboard, []byte, error) {
 	summary, issues := checkSummary(summary, fallback)
-	parsed, canonical, err := parseSpec(rawSpec)
+	parsed, canonical, err := parseSpec(rawSpec, previous)
 	if err != nil {
 		var invalid *InvalidSpecError
 		if !errors.As(err, &invalid) {
@@ -672,10 +672,13 @@ func validateSave(rawSpec []byte, summary, fallback string) (string, *spec.Dashb
 	return summary, parsed, canonical, nil
 }
 
-func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
+func parseSpec(raw []byte, previous *spec.Dashboard) (*spec.Dashboard, []byte, error) {
 	parsed, err := spec.Parse(raw)
 	if err != nil {
 		return nil, nil, asInvalidSpec(err)
+	}
+	if issues := cleanTitles(parsed, previous); len(issues) > 0 {
+		return nil, nil, &InvalidSpecError{Issues: issues}
 	}
 	canonical, err := json.Marshal(parsed)
 	if err != nil {

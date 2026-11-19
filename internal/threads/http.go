@@ -362,7 +362,7 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrNotAuthor), errors.Is(err, ErrCannotDelete):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotAuthor, err.Error())
 	case errors.As(err, &invalid) && invalid.Code != "":
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, invalid.Code, invalid.Message)
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
 	default:
 		th.service.dashboards.Fail(c, action, err)
 	}

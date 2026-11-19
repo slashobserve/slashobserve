@@ -65,6 +65,7 @@ import {
   useAgentInfo,
   useCreateObserveRequest,
 } from "@/observe/queries"
+import { cleanText } from "@/lib/user-text"
 import { StopRequestButton } from "@/observe/request-actions"
 import { isAgentUnavailable, maxPromptLength } from "@/revisions/queries"
 
@@ -209,7 +210,7 @@ export function ActivityComposer({
 
   const panelId =
     target.kind === "panel" && !targetMissing ? target.panelId : null
-  const trimmed = picks.wire(draft.trim())
+  const trimmed = picks.wire(cleanText(draft))
   const length = [...trimmed].length
   const over = length > maxPromptLength
   const showCounter = length >= counterThreshold

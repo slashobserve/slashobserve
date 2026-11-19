@@ -36,7 +36,10 @@ func (e *ObservationThreadExistsError) Error() string {
 type InvalidInputError struct {
 	Code    string
 	Message string
+	Cause   error
 }
+
+func (e *InvalidInputError) Unwrap() error { return e.Cause }
 
 func (e *InvalidInputError) Error() string {
 	return e.Message

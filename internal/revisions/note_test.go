@@ -15,6 +15,7 @@ func TestCleanContinueNote(t *testing.T) {
 	}{
 		{"absent note is no note", nil, "", true},
 		{"blank note is invalid", ptr("  \n\t "), "", false},
+		{"a zero-width note is invalid", ptr("\u200b"), "", false},
 		{"empty note is invalid", ptr(""), "", false},
 		{"surrounding space is trimmed", ptr("  use the pod label \n"), "use the pod label", true},
 		{"4000 characters pass", ptr(strings.Repeat("a", 4000)), strings.Repeat("a", 4000), true},
@@ -26,9 +27,9 @@ func TestCleanContinueNote(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, ok := CleanContinueNote(c.note)
-			if got != c.want || ok != c.ok {
-				t.Fatalf("CleanContinueNote = (%q, %v), want (%q, %v)", got, ok, c.want, c.ok)
+			got, err := CheckContinueNote(c.note)
+			if got != c.want || (err == nil) != c.ok {
+				t.Fatalf("CheckContinueNote = (%q, %v), want (%q, ok %v)", got, err, c.want, c.ok)
 			}
 		})
 	}

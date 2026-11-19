@@ -76,9 +76,9 @@ func (s *Service) createSuggestion(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", PromptProblem("prompt", *req.Prompt))
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	draft, ok := draftOf(req.Panel)

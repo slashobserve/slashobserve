@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -920,9 +921,9 @@ func checkPanelID(panelID string) error {
 }
 
 func checkBody(body string) (string, []Mention, error) {
-	cleaned, ok := revisions.CleanPrompt(body)
-	if !ok {
-		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: revisions.PromptProblem("body", body)}
+	cleaned, err := usertext.Clean("body", body, usertext.Text(maxBodyRunes))
+	if err != nil {
+		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: err.Error(), Cause: err}
 	}
 	mentions, err := ParseMentions(cleaned)
 	if err != nil {

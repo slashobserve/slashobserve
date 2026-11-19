@@ -1,4 +1,10 @@
-import { queryOptions, useQuery } from "@tanstack/react-query"
+import { useMemo, useSyncExternalStore } from "react"
+import {
+  queryOptions,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -81,21 +87,20 @@ export function useDashboardAnnotations({
   return enabled ? query.data : undefined
 }
 
-function distinctTags(list: readonly Annotation[]): string[] {
-  return [...new Set(list.flatMap((a) => a.tags))].sort()
+function cachedTags(queryClient: QueryClient, dashboardId: string): string {
+  const tags = queryClient
+    .getQueriesData<readonly Annotation[]>({
+      queryKey: annotationKeys.ranges(dashboardId),
+    })
+    .flatMap(([, list]) => list?.flatMap((a) => a.tags) ?? [])
+  return JSON.stringify([...new Set(tags)].sort())
 }
 
-export function annotationTagsQuery(dashboardId: string) {
-  return queryOptions({
-    queryKey: annotationKeys.tags(dashboardId),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/annotations", {
-          params: { query: { dashboard_id: dashboardId, limit: pageLimit } },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => distinctTags(body.annotations)),
-    staleTime: 60_000,
-  })
+export function useKnownAnnotationTags(dashboardId: string): string[] {
+  const queryClient = useQueryClient()
+  const tags = useSyncExternalStore(
+    (notify) => queryClient.getQueryCache().subscribe(notify),
+    () => cachedTags(queryClient, dashboardId)
+  )
+  return useMemo(() => JSON.parse(tags) as string[], [tags])
 }
