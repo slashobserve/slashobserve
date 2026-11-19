@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -130,6 +131,13 @@ func TestObservationToolsBuildAPageFromCreateToResolve(t *testing.T) {
 	if text.Kind != "text" || text.Markdown != "Errors began at 09:12" || text.State != "live" || text.Position != 0 || text.Version != 1 {
 		t.Errorf("text block = %#v", text)
 	}
+	if !strings.Contains(string(panel.Panel), "sum(rate(errors[5m]))") {
+		t.Errorf("the panel block does not return its panel: %s", panel.Panel)
+	}
+	editing := r.view(t, editorCaller, created.ObservationID).Blocks
+	if slices.Contains(editing[1].AllowedActions, "remove") || slices.Contains(editing[0].AllowedActions, "remove") || !slices.Contains(editing[1].AllowedActions, "update") {
+		t.Errorf("allowed actions offer a tool that does not exist: %v %v", editing[0].AllowedActions, editing[1].AllowedActions)
+	}
 	if panel.Kind != "panel" || panel.Title != "Errors" || panel.Type != "timeseries" || strings.Join(panel.Datasources, ",") != fakeUID || panel.Width != "half" {
 		t.Errorf("panel block = %#v", panel)
 	}
@@ -206,7 +214,7 @@ func TestObservationPanelBlocksAreCheckedLikeFindingEvidence(t *testing.T) {
 	id := r.start(t, editorCaller)
 
 	res := r.call(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Nothing", "empty")))
-	rejected, ok := res.Content.(invalidSpecOut)
+	rejected, ok := res.Content.(patchRejectedOut)
 	if !res.IsError || !ok || rejected.Code != codeInvalidSpec || len(rejected.Issues) == 0 || !strings.HasPrefix(rejected.Issues[0].Path, "/panels/0") {
 		t.Fatalf("a panel with no data: %#v", res.Content)
 	}
@@ -224,7 +232,7 @@ func TestObservationPanelBlocksAreCheckedLikeFindingEvidence(t *testing.T) {
 
 	good := r.written(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Errors", "up")))
 	change := r.call(t, editorCaller, nameUpdateBlock, fmt.Sprintf(`{"block_id":%q,"version":1,"panel":%s}`, good.BlockID, evidencePanel("Nothing", "empty")))
-	if _, ok := change.Content.(invalidSpecOut); !change.IsError || !ok {
+	if _, ok := change.Content.(patchRejectedOut); !change.IsError || !ok {
 		t.Errorf("updating to a panel with no data: %#v", change.Content)
 	}
 	if page := r.view(t, editorCaller, id); len(page.Blocks) != 1 || page.Blocks[0].Title != "Errors" || page.Blocks[0].Version != 1 {
@@ -306,7 +314,7 @@ func TestCreateObservationReportsTheBlockThatStoppedIt(t *testing.T) {
 	if !res.IsError || !ok || refused.Code != codeBlockRefused || refused.BlockIndex != 1 || refused.ObservationID == "" {
 		t.Fatalf("a bad second block: %#v", res.Content)
 	}
-	if inner, ok := refused.Refused.(invalidSpecOut); !ok || len(inner.Issues) == 0 {
+	if inner, ok := refused.Refused.(patchRejectedOut); !ok || len(inner.Issues) == 0 {
 		t.Errorf("refused = %#v", refused.Refused)
 	}
 	page := r.view(t, editorCaller, refused.ObservationID)

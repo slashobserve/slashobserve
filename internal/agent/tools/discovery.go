@@ -118,6 +118,14 @@ func typeOf(inst datasource.Instance) spec.DatasourceType {
 	return spec.DatasourceType(inst.Datasource.Type())
 }
 
+func holdsMetrics(t spec.DatasourceType) bool {
+	return t == spec.Prometheus || t == spec.ClickHouse
+}
+
+func hasTables(t spec.DatasourceType) bool {
+	return t == spec.ClickHouse || t == spec.Tempo || isSearch(t)
+}
+
 func isSearch(t spec.DatasourceType) bool {
 	return t == spec.Elasticsearch || t == spec.OpenSearch
 }
@@ -160,7 +168,7 @@ func (r *Registry) discover(ctx context.Context, uid string, req datasource.Disc
 
 const uncheckedNote = "Could not check: this read did not finish, so it says nothing about whether the data exists. Retry it with a narrower range or filter, or say in the answer that this datasource could not be checked; never report it as empty or missing."
 
-func couldNotCheck(code string) bool {
+func CouldNotCheck(code string) bool {
 	switch spec.IssueCode(code) {
 	case queryproxy.CodeQueryTimeout, queryproxy.CodeDatasourceDown, queryproxy.CodeTooManyRequests:
 		return true
@@ -174,7 +182,7 @@ func datasourceFailure(step string, err error) (Result, error) {
 	case string(queryproxy.CodeCanceled), string(queryproxy.CodeInternal):
 		return Result{}, err
 	}
-	if !couldNotCheck(code) {
+	if !CouldNotCheck(code) {
 		return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
 	}
 	res := failure(step+": could not check, "+code, errorBody{Code: code, Message: message, Note: uncheckedNote})
@@ -315,6 +323,9 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	}
 	if in.Scope != "" {
 		return r.listInventory(ctx, in, offset)
+	}
+	if inst, found := r.deps.Datasources.Get(in.Datasource); found && !holdsMetrics(typeOf(inst)) {
+		return invalid("list_metrics works on Prometheus and ClickHouse datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
@@ -580,6 +591,9 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	inst, res, ok := r.instance(in.Datasource)
 	if !ok {
 		return res, nil
+	}
+	if !hasTables(typeOf(inst)) {
+		return invalid("get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	if typeOf(inst) == spec.Tempo {
 		return r.spanSchema(ctx, in, offset)

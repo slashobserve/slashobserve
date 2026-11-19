@@ -1,5 +1,5 @@
 const stepMultipliers = [1, 2, 2.5, 5]
-const fewestTicks = 4
+const tickFloors = [4, 3, 2, 1]
 const mostTicks = 6
 const preferredTicks = 5
 const floatSlack = 1e-9
@@ -33,16 +33,22 @@ function niceStep(
   originMs: number
 ): number | null {
   const most = Math.min(mostTicks, limit)
-  const fewest = Math.min(fewestTicks, most)
   const preferred = Math.min(preferredTicks, most)
-  let best: { step: number; distance: number } | null = null
-  for (const step of candidateSteps(durationMs)) {
-    const { count } = stepIndexes(originMs, durationMs, step)
-    if (count < fewest || count > most) continue
-    const distance = Math.abs(count - preferred)
-    if (best === null || distance <= best.distance) best = { step, distance }
+  const steps = candidateSteps(durationMs).map((step) => ({
+    step,
+    count: stepIndexes(originMs, durationMs, step).count,
+  }))
+  for (const floor of tickFloors) {
+    const fewest = Math.min(floor, most)
+    let best: { step: number; distance: number } | null = null
+    for (const { step, count } of steps) {
+      if (count < fewest || count > most) continue
+      const distance = Math.abs(count - preferred)
+      if (best === null || distance <= best.distance) best = { step, distance }
+    }
+    if (best) return best.step
   }
-  return best?.step ?? null
+  return null
 }
 
 export function tickLimit(rulerPx: number): number {

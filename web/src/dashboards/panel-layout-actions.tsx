@@ -51,6 +51,7 @@ export function usePanelLayoutActions(
           patch: duplicatePanelPatch(spec, panel),
           summary: `Duplicate "${panelTitle(panel)}"`,
           parent_version: version,
+          acceptEmpty: true,
         },
         {
           onSuccess: (outcome) => toast.success(saveToast(outcome)),

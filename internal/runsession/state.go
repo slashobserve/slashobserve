@@ -21,17 +21,19 @@ const (
 )
 
 type State struct {
-	Guard        guard.State          `json:"guard"`
-	Digest       brief.Digest         `json:"digest"`
-	Restarts     int                  `json:"restarts"`
-	Build        *tools.BuildProgress `json:"build,omitempty"`
-	Suggestion   json.RawMessage      `json:"suggestion,omitempty"`
-	IssueCodes   []string             `json:"issue_codes,omitempty"`
-	Failing      []string             `json:"failing_panels,omitempty"`
-	FailingOther int                  `json:"failing_other,omitempty"`
-	Settled      Settled              `json:"settled"`
-	Usage        revisions.Usage      `json:"usage"`
-	Turn         OpenTurn             `json:"turn"`
+	Guard             guard.State          `json:"guard"`
+	Digest            brief.Digest         `json:"digest"`
+	Restarts          int                  `json:"restarts"`
+	Build             *tools.BuildProgress `json:"build,omitempty"`
+	Suggestion        json.RawMessage      `json:"suggestion,omitempty"`
+	IssueCodes        []string             `json:"issue_codes,omitempty"`
+	Failing           []string             `json:"failing_panels,omitempty"`
+	FailingOther      int                  `json:"failing_other,omitempty"`
+	RejectedFinding   bool                 `json:"rejected_finding,omitempty"`
+	RejectedTransient bool                 `json:"rejected_transient,omitempty"`
+	Settled           Settled              `json:"settled"`
+	Usage             revisions.Usage      `json:"usage"`
+	Turn              OpenTurn             `json:"turn"`
 }
 
 type Settled struct {
@@ -46,6 +48,10 @@ type OpenTurn struct {
 	Calls    int    `json:"calls,omitempty"`
 	Admitted int    `json:"admitted,omitempty"`
 	Settled  int    `json:"settled,omitempty"`
+}
+
+func (s *State) rejection() revisions.Rejection {
+	return revisions.Rejection{Finding: s.RejectedFinding, Transient: s.RejectedTransient, Panels: s.Failing, Other: s.FailingOther, Codes: s.IssueCodes}
 }
 
 func (s *State) addDiscovery(found tools.Discovery) {

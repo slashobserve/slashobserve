@@ -270,6 +270,8 @@ func errorCodeOf(t *testing.T, res Result) string {
 		return body.Code
 	case invalidSpecOut:
 		return body.Code
+	case versionNotFoundOut:
+		return body.Code
 	}
 	t.Fatalf("result is not an error: %#v", res.Content)
 	return ""

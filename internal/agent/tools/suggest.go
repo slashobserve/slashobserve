@@ -109,5 +109,5 @@ func suggestionFailure(err error) (Result, error) {
 func suggestionRejected(issues []spec.Issue) Result {
 	step := "Suggestion rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
 	kept, truncated := fit(slices.Clone(issues), listBudget)
-	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
+	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated})
 }

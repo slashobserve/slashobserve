@@ -128,6 +128,7 @@ export function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
 
 type Props = {
   partial?: { prompt: string }
+  addMissing: boolean
   dashboardId: string
   version: number
   finishedAt: string | null
@@ -136,6 +137,7 @@ type Props = {
 
 type BodyProps = {
   partial?: { prompt: string }
+  addMissing: boolean
   data: DashboardEnvelope | undefined
   dashboardId: string
   version: number
@@ -148,6 +150,7 @@ function CardBody({
   version,
   finishedAt,
   partial,
+  addMissing,
 }: BodyProps) {
   const now = useNow()
   const spec = data === undefined ? null : asDashboardSpec(data.version.spec)
@@ -195,7 +198,7 @@ function CardBody({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {partial === undefined ? null : (
+          {partial === undefined || !addMissing ? null : (
             <MissingPanels dashboardId={dashboardId} prompt={partial.prompt} />
           )}
           <OpenDashboardLink
@@ -229,6 +232,7 @@ export function ResultCard({
   finishedAt,
   eager,
   partial,
+  addMissing,
 }: Props) {
   const card = useRef<HTMLDivElement>(null)
   const [nearViewport, setNearViewport] = useState(false)
@@ -270,6 +274,7 @@ export function ResultCard({
           version={version}
           finishedAt={finishedAt}
           partial={partial}
+          addMissing={addMissing}
         />
       )}
     </div>

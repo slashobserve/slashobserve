@@ -106,6 +106,7 @@ type Tool struct {
 	AgentOnly   bool
 	Claim       bool
 	MinRole     auth.Role
+	PersonOnly  bool
 
 	Answers bool
 
@@ -141,32 +142,33 @@ type Discovery struct {
 }
 
 type Deps struct {
-	Datasources   *datasource.Registry
-	Runner        *queryproxy.Runner
-	Dashboards    *dashboards.Service
-	Threads       *threads.Service
-	Mentions      *threads.MentionRuns
-	Proposals     *proposals.Service
-	Imports       *imports.Service
-	Folders       *folders.Access
-	Findings      *findings.Service
-	Observations  *observations.Service
-	SavedSearches *savedsearches.Service
-	Health        *health.Service
-	Annotations   *annotations.Service
-	Activity      *activity.Store
-	Runs          RunReader
-	Claims        ClaimService
-	RunSessions   RunSessions
-	LiveText      LiveText
-	Search        *search.Service
-	Stars         *stars.Service
-	Viewers       *viewers.Service
-	Home          *homedash.Service
-	Provider      llm.Provider
-	DraftBudget   DraftBudget
-	PublicURL     *url.URL
-	Logger        *slog.Logger
+	Datasources    *datasource.Registry
+	Runner         *queryproxy.Runner
+	Dashboards     *dashboards.Service
+	Threads        *threads.Service
+	Mentions       *threads.MentionRuns
+	Proposals      *proposals.Service
+	Imports        *imports.Service
+	Folders        *folders.Access
+	Findings       *findings.Service
+	Observations   *observations.Service
+	SavedSearches  *savedsearches.Service
+	Health         *health.Service
+	StartHealthRun func()
+	Annotations    *annotations.Service
+	Activity       *activity.Store
+	Runs           RunDesk
+	Claims         ClaimService
+	RunSessions    RunSessions
+	LiveText       LiveText
+	Search         *search.Service
+	Stars          *stars.Service
+	Viewers        *viewers.Service
+	Home           *homedash.Service
+	Provider       llm.Provider
+	DraftBudget    DraftBudget
+	PublicURL      *url.URL
+	Logger         *slog.Logger
 }
 
 type Mode string

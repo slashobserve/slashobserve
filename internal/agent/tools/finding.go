@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -250,9 +251,35 @@ func (r *Registry) evidenceDashboardWith(ctx context.Context, principal auth.Pri
 		return nil, Result{}, false, err
 	}
 	if len(issues) > 0 {
-		return nil, suggestionRejected(issues), false, nil
+		return nil, evidenceRejected(issues, evidencePanelPointers(d)), false, nil
 	}
 	return d, Result{}, true, nil
+}
+
+func evidencePanelPointers(d *spec.Dashboard) map[string]string {
+	pointers := map[string]string{}
+	for _, e := range d.DataPanels() {
+		pointers[e.Pointer] = e.Panel.ID
+	}
+	return pointers
+}
+
+func evidenceRejected(issues []spec.Issue, pointers map[string]string) Result {
+	out := rejectionOf(issues, pointers)
+	out.Message = evidenceRepairMessage(issues)
+	return failure("Evidence rejected: "+plural(len(issues), "issue", "issues")+issueCodes(issues), out)
+}
+
+func evidenceRepairMessage(issues []spec.Issue) string {
+	lead := "evidence-N is the Nth panel you sent. "
+	if allTransient(issues) {
+		return lead + "A datasource did not answer in time; that is not a fault in the panels. Send the call again without the panels in failing_panels and say in the text that their data was not read."
+	}
+	return lead + repairLead + " " + repairQuery + " Or leave a panel out and say in the text what you could not check."
+}
+
+func allTransient(issues []spec.Issue) bool {
+	return len(issues) > 0 && !slices.ContainsFunc(issues, func(i spec.Issue) bool { return !CouldNotCheck(string(i.Code)) })
 }
 
 func evidencePanelAllowed(i int, raw json.RawMessage) (Result, bool) {

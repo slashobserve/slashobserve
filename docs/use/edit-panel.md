@@ -53,7 +53,8 @@ Each query row can use another datasource through its own menu.
 
 A row is "Query A", "Query B" and so on, up to 26.
 Type the query in the editor; a query is at most 20000 characters.
-The server lints the query, and the problems show under the line with "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
+The server lints the query, and each problem shows once, under the line that has it, with a marker in the gutter.
+A screen reader hears it as "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
 A clean query shows "Syntax is valid.": the lint checks only how the query is written, and the preview is what runs it.
 "Lint is unavailable right now." means the check did not run, not that the query is wrong.
 
@@ -83,7 +84,7 @@ It draws the panel in the type you chose, and reports its state:
 - "Waiting for variables." until the variables the queries use have values;
 - "Running the draft.";
 - "Draft ran `<time>`, 3 series" when it finished;
-- "The draft did not run." with the reason, such as "Query A failed: invalid query: ...", in place of the chart.
+- "The draft did not run." in place of the chart, with the reason under it, such as "The datasource is not answering."; when the lint already shows a query's parse error under its line, the preview does not repeat it.
 
 When the draft's queries or datasource differ from the saved panel, a dotted line labelled "Saved in v3" shows the saved panel's data next to yours.
 
@@ -219,6 +220,7 @@ When nothing overlaps, it says so.
 The button saves at once: it applies your change to that version's copy of the panel, and if the panel no longer exists there it says "This panel no longer exists in the latest version.", and if your change does not fit it says "Your changes do not fit version 4.".
 
 If someone deletes the dashboard while you have unsaved changes, the editor stays open with your draft and says "<name> deleted this dashboard. Your draft stays here until you close the editor, but it cannot be saved. Copy what you need from the JSON view."
+The save button is disabled and the footer says "This dashboard was deleted, so this draft cannot be saved."
 When you close the editor, or when you had no unsaved changes, the page reads "Dashboard deleted" instead of "Dashboard not found".
 
 A save made on an older version is merged by the server when the newer versions changed other panels, variables or settings than you did.

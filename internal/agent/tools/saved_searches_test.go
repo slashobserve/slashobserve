@@ -1,12 +1,17 @@
 package tools
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
@@ -27,6 +32,15 @@ func newSearchRig(t *testing.T) *searchRig {
 		datasource.Instance{UID: fakeUID, Name: "Metrics", Datasource: &fakeDS{}},
 		datasource.Instance{UID: "logs", Name: "Logs", Datasource: &fakeDS{typ: "loki"}},
 		datasource.Instance{UID: "traces", Name: "Traces", Datasource: &fakeDS{typ: "tempo"}},
+		datasource.Instance{UID: "linted", Name: "Linted", Datasource: &fakeDS{typ: "loki", lintFn: func(_ context.Context, query string) ([]datasource.Diagnostic, error) {
+			if query == "{" {
+				return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "unexpected end of input"}}, nil
+			}
+			return []datasource.Diagnostic{{Severity: datasource.SeverityWarning, Message: "slow regex"}}, nil
+		}}},
+		datasource.Instance{UID: "lintdown", Name: "Unreachable", Datasource: &fakeDS{typ: "loki", lintFn: func(context.Context, string) ([]datasource.Diagnostic, error) {
+			return nil, errors.New("connection refused")
+		}}},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -53,6 +67,15 @@ func (r *searchRig) call(t *testing.T, run *Run, by auth.Principal, tool, input 
 		t.Fatalf("%s: %v", tool, err)
 	}
 	return res
+}
+
+func (r *searchRig) newFolder(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
+	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return folder.ID
 }
 
 func TestSavedSearchToolsOnlyRunOutsideAgentRuns(t *testing.T) {
@@ -180,5 +203,75 @@ func TestSaveSearchRefusesWhatCannotBeSaved(t *testing.T) {
 	}
 	if res := r.call(t, nil, keyCaller, nameListSavedSearches, `{"folder_id":"`+restricted+`"}`); errorCode(t, res) != codeNotFound {
 		t.Errorf("listing a folder the key cannot see: %#v", res.Content)
+	}
+}
+
+func TestSaveSearchRefusesAQueryThatFailsTheLintCheckAndKeepsWarnings(t *testing.T) {
+	r := newSearchRig(t)
+	input := func(query string) string {
+		return `{"kind":"logs","title":"Errors","datasource":"linted","query":"` + query + `"}`
+	}
+	res := r.call(t, nil, keyCaller, nameSaveSearch, input("{"))
+	eb, ok := res.Content.(errorBody)
+	if !res.IsError || !ok || eb.Code != codeInvalidRequest || !strings.Contains(eb.Message, "unexpected end of input") {
+		t.Fatalf("a failing query: %#v", res.Content)
+	}
+	if list := r.call(t, nil, keyCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut); len(list.SavedSearches) != 0 {
+		t.Fatalf("a refused search was saved: %+v", list)
+	}
+	if res := r.call(t, nil, keyCaller, nameSaveSearch, input("{a=\\\"b\\\"}")); res.IsError {
+		t.Fatalf("a query with only a warning: %#v", res.Content)
+	}
+}
+
+func TestSaveSearchTwiceReturnsTheSearchAlreadySaved(t *testing.T) {
+	r := newSearchRig(t)
+	input := `{"kind":"logs","title":"Checkout errors","datasource_uid":"logs","query":"{app=\"checkout\"}","filters":{"columns":["level"]}}`
+	first, ok := r.call(t, nil, keyCaller, nameSaveSearch, input).Content.(savedsearches.SavedSearchJSON)
+	if !ok {
+		t.Fatal("the first save did not save")
+	}
+	again, ok := r.call(t, nil, keyCaller, nameSaveSearch, input).Content.(savedSearchReplayOut)
+	if !ok || again.ID != first.ID || !again.Replayed {
+		t.Fatalf("second save = %#v, want the first search replayed", again)
+	}
+	changed, ok := r.call(t, nil, keyCaller, nameSaveSearch, strings.Replace(input, `"level"`, `"level","msg"`, 1)).Content.(savedsearches.SavedSearchJSON)
+	if !ok || changed.ID == first.ID {
+		t.Fatalf("a different search was treated as the same: %#v", changed)
+	}
+	list, _ := r.call(t, nil, viewerCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut)
+	if len(list.SavedSearches) != 2 {
+		t.Fatalf("saved searches = %d, want 2", len(list.SavedSearches))
+	}
+}
+
+func TestSaveSearchReplaysOnlyWithinTheFolderItWouldBeSavedIn(t *testing.T) {
+	r := newSearchRig(t)
+	ops := r.newFolder(t, "Ops")
+	body := `"kind":"logs","title":"Checkout errors","datasource_uid":"logs","query":"{app=\"checkout\"}"`
+	inOps := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`,"folder_id":"`+ops.String()+`"}`)
+	savedInOps, ok := inOps.Content.(savedsearches.SavedSearchJSON)
+	if !ok || savedInOps.Folder.Title != "Ops" {
+		t.Fatalf("save into Ops: %#v", inOps.Content)
+	}
+	byDefault, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`}`).Content.(savedsearches.SavedSearchJSON)
+	if !ok || byDefault.ID == savedInOps.ID || byDefault.Folder.ID == savedInOps.Folder.ID {
+		t.Fatalf("a save without folder_id returned the Ops search: %#v", byDefault)
+	}
+	again, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`}`).Content.(savedSearchReplayOut)
+	if !ok || again.ID != byDefault.ID || !again.Replayed {
+		t.Fatalf("a repeat without folder_id = %#v, want the default folder's search replayed", again)
+	}
+	inOpsAgain, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{`+body+`,"folder_id":"`+ops.String()+`"}`).Content.(savedSearchReplayOut)
+	if !ok || inOpsAgain.ID != savedInOps.ID {
+		t.Fatalf("a repeat into Ops = %#v, want the Ops search replayed", inOpsAgain)
+	}
+}
+
+func TestSaveSearchStillSavesWhenTheLintCheckCannotRun(t *testing.T) {
+	r := newSearchRig(t)
+	res := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource":"lintdown","query":"{app=\"x\"}"}`)
+	if saved, ok := res.Content.(savedsearches.SavedSearchJSON); res.IsError || !ok || saved.DatasourceUID != "lintdown" {
+		t.Fatalf("a save while the lint check is down: %#v", res.Content)
 	}
 }

@@ -7,12 +7,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
-var investigateRoleTools = map[string]auth.Role{nameSaveFinding: auth.RoleEditor}
+var roleFloors = map[string]auth.Role{nameSaveFinding: auth.RoleEditor, nameRunDashboardHealth: auth.RoleAdmin}
 
 func TestToolRoles(t *testing.T) {
 	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {
 		want := auth.RoleViewer
-		if role, ok := investigateRoleTools[tool.Name]; ok {
+		if role, ok := roleFloors[tool.Name]; ok {
 			want = role
 		}
 		if tool.MinRole != want {

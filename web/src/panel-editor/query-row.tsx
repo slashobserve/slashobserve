@@ -1,10 +1,12 @@
-import { useId, useImperativeHandle, useRef, useState, type Ref } from "react"
 import {
-  CheckIcon,
-  CircleAlertIcon,
-  TriangleAlertIcon,
-  XIcon,
-} from "lucide-react"
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react"
+import { CheckIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -53,50 +55,42 @@ type Props = {
   onRemove: () => void
   canRemove: boolean
   onFocus: () => void
+  onInlineErrorChange: (ref: string, shown: boolean) => void
   editorRef: Ref<CodeEditorHandle>
+}
+
+function hasLintError(lint: LintResult | null) {
+  return (
+    lint?.status === "ok" &&
+    lint.items.some((item) => item.severity === "error")
+  )
+}
+
+function currentLint(lint: LintResult | null, query: string) {
+  return lint?.query === query ? lint : null
 }
 
 function Diagnostics({
   lint,
   query,
-  onPick,
 }: {
   lint: LintResult | null
   query: string
-  onPick: (from: number) => void
 }) {
-  const current = lint?.query === query ? lint : null
+  const current = currentLint(lint, query)
   if (current?.status === "unavailable") {
     return <p className="text-muted-foreground">{current.message}</p>
   }
   if (current?.status !== "ok") return null
   if (current.items.length > 0) {
     return (
-      <ul className="flex flex-col gap-0.5">
+      <ul className="sr-only">
         {current.items.map((item, index) => {
           const { line, column } = lineAndColumn(current.query, item.from)
-          const isError = item.severity === "error"
-          const Icon = isError ? CircleAlertIcon : TriangleAlertIcon
           return (
             <li key={index}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto w-full items-start justify-start px-1.5 py-1 text-left text-xs whitespace-normal"
-                onClick={() => onPick(item.from)}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-0.5",
-                    isError ? "text-status-critical" : "text-status-warning"
-                  )}
-                />
-                <span>
-                  {isError ? "Error" : "Warning"}: {item.message} (line {line},
-                  column {column})
-                </span>
-              </Button>
+              {item.severity === "error" ? "Error" : "Warning"}: {item.message}{" "}
+              (line {line}, column {column})
             </li>
           )
         })}
@@ -134,6 +128,7 @@ export function QueryRow({
   onRemove,
   canRemove,
   onFocus,
+  onInlineErrorChange,
   editorRef,
 }: Props) {
   const legendId = useId()
@@ -148,6 +143,11 @@ export function QueryRow({
     []
   )
   const [lint, setLint] = useState<LintResult | null>(null)
+  const inlineError = hasLintError(currentLint(lint, query.query))
+  useEffect(() => {
+    onInlineErrorChange(refName, inlineError)
+    return () => onInlineErrorChange(refName, false)
+  }, [refName, inlineError, onInlineErrorChange])
   const marker =
     baseQuery === undefined
       ? "New"
@@ -205,11 +205,7 @@ export function QueryRow({
         />
       )}
       <div role="status" className="flex flex-col text-xs">
-        <Diagnostics
-          lint={lint}
-          query={query.query}
-          onPick={(from) => editor.current?.focusAt(from)}
-        />
+        <Diagnostics lint={lint} query={query.query} />
       </div>
       {tooLong ? (
         <p className="text-xs text-status-critical">
