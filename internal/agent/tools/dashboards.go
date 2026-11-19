@@ -257,12 +257,8 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
-	if r.deps.Health != nil {
-		views, err := r.deps.Health.Views(ctx, id)
-		if err != nil {
-			return Result{}, err
-		}
-		out.ViewCount, out.WindowDays = &views.Count, views.WindowDays
+	if err = r.addViewCount(ctx, id, &out); err != nil {
+		return Result{}, err
 	}
 	body, err := json.Marshal(out)
 	if err != nil {
@@ -272,6 +268,18 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), MaxModelSpecBytes)), nil
 	}
 	return success("Read version "+strconv.Itoa(ver.Number), out), nil
+}
+
+func (r *Registry) addViewCount(ctx context.Context, id pgtype.UUID, out *dashboardOut) error {
+	if r.deps.Health == nil {
+		return nil
+	}
+	views, err := r.deps.Health.Views(ctx, id)
+	if err != nil {
+		return err
+	}
+	out.ViewCount, out.WindowDays = &views.Count, views.WindowDays
+	return nil
 }
 
 func (r *Registry) importAttention(ctx context.Context, id pgtype.UUID, version int) ([]Attention, bool, error) {
