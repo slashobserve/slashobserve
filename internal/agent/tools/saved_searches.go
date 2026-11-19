@@ -25,7 +25,7 @@ const (
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"Short title."},` +
 		`"datasource_uid":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
-		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
+		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional for traces: TraceQL on Tempo, SQL on ClickHouse."},` +
 		`"filters":{"type":"object","properties":{` +
 		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
 		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +

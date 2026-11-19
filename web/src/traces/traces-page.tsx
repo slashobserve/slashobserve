@@ -100,7 +100,12 @@ import { traceFilterChips } from "./trace-filters"
 import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
 import { shorterRange, traceQLProblem } from "./trace-query-problem"
 import { TraceSearchForm } from "./trace-search-form"
-import { durationText, traceRows, type TraceRow } from "./trace-rows"
+import {
+  durationText,
+  lacksTraceIdColumn,
+  traceRows,
+  type TraceRow,
+} from "./trace-rows"
 import {
   histogramPercentile,
   p95Label,
@@ -731,13 +736,14 @@ function TraceResults({
     ...polling,
     enabled: !future,
   })
+  const statsFilter = traceStatsFilter(datasource.type, search)
   const stats = useQuery({
     ...traceStatsQuery(datasource.uid, {
-      query: traceStatsFilter(datasource.type, search),
+      query: statsFilter ?? "",
       ...range,
     }),
     ...polling,
-    enabled: !future,
+    enabled: !future && statsFilter !== null,
   })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
@@ -833,6 +839,15 @@ function TraceResults({
     return (
       <div className="flex flex-col gap-3">
         {failure}
+        {datasource.type === "clickhouse" && lacksTraceIdColumn(data.frames) ? (
+          <p role="status" className="text-[13px]">
+            <StatusLabel tone="warning">
+              The SQL returned rows without a TraceId column, so there are no
+              traces to list. Select TraceId; Write as SQL shows a query to
+              start from.
+            </StatusLabel>
+          </p>
+        ) : null}
         <p className="text-[13px] text-muted-foreground">
           No traces match in {lowerFirst(describeRange(range.from, range.to))}.
         </p>
@@ -1005,7 +1020,7 @@ function SelectableTraceTable({
       selectionActions={
         selection === null ? undefined : (
           <KeepSelectionButton
-            next={keepSelectionSearch(search, selection)}
+            next={keepSelectionSearch(datasource.type, search, selection)}
             onKeep={keep}
           />
         )

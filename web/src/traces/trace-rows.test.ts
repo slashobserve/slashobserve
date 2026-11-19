@@ -10,6 +10,7 @@ import {
   durationText,
   hasErrorCounts,
   hasSpanCounts,
+  lacksTraceIdColumn,
   nextSort,
   openTraceLabel,
   pageSortParam,
@@ -19,6 +20,30 @@ import {
   traceRows,
   type TraceRow,
 } from "./trace-rows"
+
+describe("lacksTraceIdColumn", () => {
+  const frame = (names: string[], count: number): WireFrame => ({
+    ref: "A",
+    fields: names.map((name) => ({
+      name,
+      type: "string",
+      values: Array.from({ length: count }, () => "x"),
+    })),
+  })
+
+  it("is true when rows came back without a TraceId column", () => {
+    expect(lacksTraceIdColumn([frame(["ServiceName"], 2)])).toBe(true)
+  })
+
+  it("is false when the column is there in any case", () => {
+    expect(lacksTraceIdColumn([frame(["traceid"], 2)])).toBe(false)
+  })
+
+  it("is false for an empty answer", () => {
+    expect(lacksTraceIdColumn([frame(["ServiceName"], 0)])).toBe(false)
+    expect(lacksTraceIdColumn([])).toBe(false)
+  })
+})
 
 describe("traceRows", () => {
   it("reads a Tempo search frame", () => {

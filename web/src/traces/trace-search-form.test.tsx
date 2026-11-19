@@ -58,7 +58,9 @@ describe("TraceSearchForm", () => {
 describe("TraceSearchForm on ClickHouse", () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  function clickhouseForm() {
+  function clickhouseForm(
+    value: Parameters<typeof TraceSearchForm>[0]["value"] = {}
+  ) {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -75,7 +77,7 @@ describe("TraceSearchForm on ClickHouse", () => {
           id="f"
           type="clickhouse"
           uid="ch"
-          value={{}}
+          value={value}
           onSubmit={onSubmit}
         />
         <button type="submit" form="f">
@@ -105,5 +107,43 @@ describe("TraceSearchForm on ClickHouse", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ service: "cart" })
     )
+  })
+
+  it("lets written SQL replace the fields while it has text", async () => {
+    const { user, onSubmit } = clickhouseForm({
+      service: "checkout",
+      q: "SELECT TraceId FROM otel_traces",
+    })
+    expect(screen.getByRole("combobox", { name: "Service" })).toBeDisabled()
+    expect(screen.getByLabelText("Span name")).toBeDisabled()
+    await user.click(screen.getByRole("button", { name: "Search" }))
+    expect(onSubmit).toHaveBeenCalledWith({
+      q: "SELECT TraceId FROM otel_traces",
+    })
+  })
+
+  it("searches with the fields when the SQL is empty", async () => {
+    const { user, onSubmit } = clickhouseForm()
+    await user.type(screen.getByLabelText("Span name"), "POST /pay")
+    await user.click(screen.getByRole("button", { name: "Search" }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ span: "POST /pay", q: undefined })
+    )
+  })
+
+  it("writes the fields as SQL to start from", async () => {
+    const { user, onSubmit } = clickhouseForm({ span: "POST /pay" })
+    await user.click(screen.getByRole("button", { name: "Write as SQL" }))
+    const sql = screen.getByLabelText<HTMLTextAreaElement>("SQL")
+    expect(sql.value).toContain("FROM otel_traces")
+    expect(sql.value).toContain("SpanName = 'POST /pay'")
+    expect(screen.getByLabelText("Span name")).toBeDisabled()
+    await user.click(screen.getByRole("button", { name: "Search" }))
+    expect(onSubmit).toHaveBeenCalledWith({ q: sql.value })
+  })
+
+  it("has no SQL field on Tempo", () => {
+    form({})
+    expect(screen.queryByLabelText("SQL")).toBeNull()
   })
 })

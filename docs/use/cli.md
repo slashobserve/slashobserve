@@ -296,7 +296,7 @@ A snapshot block's body cannot change, and a requested block is kept or discarde
 A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource (TraceQL) or a ClickHouse datasource (SQL over `otel_traces`, which replaces the filters when the search reopens); a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of another kind is refused with exit code 2 before any request is sent.
 

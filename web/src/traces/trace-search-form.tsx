@@ -10,6 +10,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,7 +18,11 @@ import { languageReference } from "@/datasources/sources"
 import { labelValuesQuery } from "@/panel-editor/queries"
 
 import type { TraceFormSearch, TraceSearch } from "./search"
-import { parseDuration } from "./search-query"
+import {
+  clickhouseTraceSearch,
+  parseDuration,
+  type TraceForm,
+} from "./search-query"
 import { traceFilterLabels } from "./trace-filters"
 
 const durationProblem = "Use a number and a unit, like 250ms or 1.5s."
@@ -166,10 +171,10 @@ export function TraceSearchForm({
   const [errors, setErrors] = useState(value.errors === "1")
   const [q, setQ] = useState(value.q ?? "")
   const [checked, setChecked] = useState(false)
-  const tempo = type === "tempo"
-  const reference = languageReference("traces", type)
   const clickhouse = type === "clickhouse"
-  const queryReplacesFields = tempo && q.trim() !== ""
+  const reference = languageReference(clickhouse ? "logs" : "traces", type)
+  const queryLabel = clickhouse ? "SQL" : traceFilterLabels.q
+  const queryReplacesFields = q.trim() !== ""
   const minProblem =
     checked && !queryReplacesFields && durationInvalid(min)
       ? durationProblem
@@ -188,6 +193,17 @@ export function TraceSearchForm({
     }
   }
 
+  function writeFieldsAsSql() {
+    const form: TraceForm = {
+      service: service.trim(),
+      span: span.trim(),
+      min: durationInvalid(min) ? "" : min.trim(),
+      max: durationInvalid(max) ? "" : max.trim(),
+      errors,
+    }
+    edited(setQ)(clickhouseTraceSearch(form))
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setChecked(true)
@@ -202,7 +218,7 @@ export function TraceSearchForm({
       min: optional(min),
       max: optional(max),
       errors: errors ? "1" : undefined,
-      q: tempo ? optional(q) : undefined,
+      q: undefined,
     })
   }
 
@@ -268,37 +284,49 @@ export function TraceSearchForm({
         />
         {traceFilterLabels.errors}
       </Label>
-      {tempo ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${ids}-q`} className="text-[13px]">
-            {traceFilterLabels.q}
-          </Label>
-          <Textarea
-            id={`${ids}-q`}
-            value={q}
-            rows={2}
-            maxLength={maxQueryLength}
-            aria-describedby={`${ids}-q-help`}
-            className="font-mono"
-            onChange={(event) => edited(setQ)(event.target.value)}
-          />
-          <p id={`${ids}-q-help`} className="text-xs text-muted-foreground">
-            {queryReplacesFields
-              ? "This query replaces the fields above; clear it to use them again."
-              : "Leave empty to search with the fields above."}{" "}
-            {reference === null ? null : (
-              <a
-                href={reference.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-3"
-              >
-                {reference.label}
-              </a>
-            )}
-          </p>
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${ids}-q`} className="text-[13px]">
+          {queryLabel}
+        </Label>
+        <Textarea
+          id={`${ids}-q`}
+          value={q}
+          rows={clickhouse ? 4 : 2}
+          maxLength={maxQueryLength}
+          aria-describedby={`${ids}-q-help`}
+          className="font-mono"
+          onChange={(event) => edited(setQ)(event.target.value)}
+        />
+        <p id={`${ids}-q-help`} className="text-xs text-muted-foreground">
+          {queryReplacesFields
+            ? "This query replaces the fields above; clear it to use them again."
+            : "Leave empty to search with the fields above."}{" "}
+          {clickhouse
+            ? "It must return a TraceId column; StartTime, ServiceName, SpanName, Duration in nanoseconds, Spans and Errors fill the other columns. Keep $__timeFilter(Timestamp) in the WHERE clause."
+            : null}{" "}
+          {reference === null ? null : (
+            <a
+              href={reference.url}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-3"
+            >
+              {reference.label}
+            </a>
+          )}
+        </p>
+        {clickhouse && !queryReplacesFields ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="self-start"
+            onClick={writeFieldsAsSql}
+          >
+            Write as SQL
+          </Button>
+        ) : null}
+      </div>
     </form>
   )
 }

@@ -129,6 +129,7 @@ export function attributeFilter(
   value: string
 ): Partial<TraceSearch> | null {
   if (type !== "tempo") {
+    if (search.q !== undefined) return null
     if (attribute === "name") return { span: value }
     if (attribute === "resource.service.name") return { service: value }
     return null
@@ -157,9 +158,11 @@ function tighterBound(
 }
 
 export function keepSelectionSearch(
+  type: string,
   search: TraceSearch,
   selection: Selection
 ): Partial<TraceSearch> | null {
+  if (type !== "tempo" && search.q !== undefined) return null
   const floor = durationField(selection.minMs, "down")
   const ceiling =
     selection.maxMs === null ? undefined : durationField(selection.maxMs, "up")
@@ -249,13 +252,22 @@ export function clickhouseLatestTraceSpans(form: TraceForm): string {
   return `${clickhouseSpanSelect} WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE ${where.join(" AND ")} ORDER BY Timestamp DESC LIMIT 1) ORDER BY startTime LIMIT 1000`
 }
 
+export function clickhouseLatestTraceSpansOf(sql: string): string {
+  const inner = sql.trim().replace(/;+\s*$/, "")
+  return `${clickhouseSpanSelect} WHERE TraceId = (SELECT TraceId FROM (${inner}) ORDER BY StartTime DESC LIMIT 1) AND $__timeFilter(Timestamp) ORDER BY startTime LIMIT 1000`
+}
+
 export function clickhouseTraceSpans(traceId: string): string {
   return `${clickhouseSpanSelect} WHERE TraceId = '${traceId}' AND $__timeFilter(Timestamp) ORDER BY startTime LIMIT 1000`
 }
 
-export function traceStatsFilter(type: string, search: TraceSearch): string {
+export function traceStatsFilter(
+  type: string,
+  search: TraceSearch
+): string | null {
   const form = traceForm(search)
   if (type === "tempo") return search.q ?? traceQLFor(form)
+  if (search.q !== undefined) return null
   return clickhouseConditions(form, "").join(" AND ")
 }
 
@@ -268,7 +280,7 @@ export function traceSearchParams(
     query:
       type === "tempo"
         ? (search.q ?? traceQLFor(form))
-        : clickhouseTraceSearch(form),
+        : (search.q ?? clickhouseTraceSearch(form)),
     kind: "instant",
     ...tracesTimeRange(search),
     pageSize: search.size ?? defaultPageSize,
