@@ -13,6 +13,10 @@ export type ShareOptions = { time: boolean; variables: boolean }
 
 const timeKeys = ["from", "to"]
 
+export function offersVariables(spec: Pick<Dashboard, "variables">): boolean {
+  return (spec.variables ?? []).length > 0
+}
+
 type LinkQuery = Record<string, string | string[] | number>
 
 function linkSearch(

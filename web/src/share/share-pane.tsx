@@ -20,6 +20,7 @@ import type { Dashboard } from "@/spec"
 import {
   dashboardShareUrl,
   linkHint,
+  offersVariables,
   panelChoices,
   panelShareUrl,
   type ShareOptions,
@@ -50,10 +51,15 @@ export function SharePane({
   const linkId = useId()
   const panelId = useId()
   const whoId = useId()
-  const [options, setOptions] = useState<ShareOptions>({
+  const [chosenOptions, setOptions] = useState<ShareOptions>({
     time: true,
     variables: true,
   })
+  const hasVariables = offersVariables(spec)
+  const options = {
+    ...chosenOptions,
+    variables: chosenOptions.variables && hasVariables,
+  }
   const [chosen, setChosen] = useState<string>()
 
   const from = search.from ?? spec.time.from
@@ -84,14 +90,16 @@ export function SharePane({
           checked={options.time}
           onChange={(time) => setOptions((prev) => ({ ...prev, time }))}
         />
-        <OptionCheckbox
-          label="Include variable values"
-          hint={variableNames.join(", ")}
-          checked={options.variables}
-          onChange={(variables) =>
-            setOptions((prev) => ({ ...prev, variables }))
-          }
-        />
+        {hasVariables ? (
+          <OptionCheckbox
+            label="Include variable values"
+            hint={variableNames.join(", ")}
+            checked={options.variables}
+            onChange={(variables) =>
+              setOptions((prev) => ({ ...prev, variables }))
+            }
+          />
+        ) : null}
         <LinkRow url={dashboardShareUrl(origin, dashboard, current, options)} />
         <p className="text-xs text-muted-foreground">
           {linkHint(folder.personal)}
