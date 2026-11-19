@@ -386,8 +386,9 @@ func TestAContentUpdateReplacesTheQueryFiltersAndRangeAndAppendsOneEvent(t *test
 		t.Fatalf("title and query together = %+v, %v", both, err)
 	}
 	events = r.events(t, saved.ID)
-	if last := events[len(events)-1]; !strings.Contains(last.Data, `"changed":["title","query"]`) {
-		t.Fatalf("last event %s", last.Data)
+	last := events[len(events)-1]
+	if err := json.Unmarshal([]byte(last.Data), &data); err != nil || strings.Join(data.Changed, ",") != "title,query" {
+		t.Fatalf("last event %s: %v", last.Data, err)
 	}
 }
 
