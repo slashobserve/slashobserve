@@ -362,3 +362,57 @@ func TestRemoveDropsAnAppDatasource(t *testing.T) {
 		t.Fatal("Remove reported a second removal")
 	}
 }
+
+type signalledHealth struct {
+	datasource.Datasource
+	started chan struct{}
+	release chan struct{}
+	err     error
+}
+
+func (s signalledHealth) Type() string { return "prometheus" }
+func (s signalledHealth) CheckHealth(context.Context) error {
+	close(s.started)
+	<-s.release
+	return s.err
+}
+func (s signalledHealth) Close() error { return nil }
+
+func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := signalledHealth{started: make(chan struct{}), release: make(chan struct{}), err: datasource.Errorf(datasource.ErrUnavailable, "down")}
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: old}); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		registry.Health(t.Context())
+	}()
+	<-old.started
+
+	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	rechecked := make(chan datasource.Status, 1)
+	go func() {
+		status, _ := registry.Recheck(t.Context(), "added")
+		rechecked <- status
+	}()
+	select {
+	case status := <-rechecked:
+		if !status.Healthy {
+			t.Fatalf("a recheck after the edit reported the old definition: %+v", status)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a recheck after the edit waited for the check of the old definition")
+	}
+	close(old.release)
+	<-done
+	if got := registry.Health(t.Context()); !got[0].Healthy {
+		t.Fatalf("the finished check of the old definition replaced the cached status: %+v", got[0])
+	}
+}

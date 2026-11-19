@@ -44,6 +44,8 @@ type Instance struct {
 	GrafanaUIDs []string
 	Datasource  Datasource
 	Source      string
+
+	generation uint64
 }
 
 type Status struct {
@@ -73,6 +75,7 @@ type Registry struct {
 
 	instancesMu sync.RWMutex
 	instances   map[string]Instance
+	generations uint64
 	retired     map[*retired]struct{}
 
 	mu     sync.Mutex
@@ -107,6 +110,7 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		if _, dup := r.instances[in.UID]; dup {
 			return nil, fmt.Errorf("duplicate datasource uid %q", in.UID)
 		}
+		in.generation = r.nextGenerationLocked()
 		r.instances[in.UID] = in
 	}
 	return r, nil
@@ -143,6 +147,7 @@ func (r *Registry) Put(in Instance) error {
 		r.instancesMu.Unlock()
 		return ErrFileOwned
 	}
+	in.generation = r.nextGenerationLocked()
 	r.instances[in.UID] = in
 	r.instancesMu.Unlock()
 	r.dropCached(in.UID)
@@ -150,6 +155,18 @@ func (r *Registry) Put(in Instance) error {
 		r.retire(old.Datasource)
 	}
 	return nil
+}
+
+func (r *Registry) nextGenerationLocked() uint64 {
+	r.generations++
+	return r.generations
+}
+
+func (r *Registry) current(in Instance) bool {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
+	latest, ok := r.instances[in.UID]
+	return ok && latest.generation == in.generation
 }
 
 func (r *Registry) Remove(uid string) bool {
@@ -249,7 +266,7 @@ func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration
 	if s, ok := r.fresh(in.UID, maxAge); ok {
 		return s
 	}
-	ch := r.group.DoChan(in.UID, func() (any, error) {
+	ch := r.group.DoChan(fmt.Sprintf("%s#%d", in.UID, in.generation), func() (any, error) {
 		if s, ok := r.fresh(in.UID, maxAge); ok {
 			return s, nil
 		}
@@ -291,7 +308,9 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 
 	r.mu.Lock()
 	prev, seen := r.cached[in.UID]
-	r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
+	if r.current(in) {
+		r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
+	}
 	r.mu.Unlock()
 
 	if err != nil && (!seen || prev.status.Healthy) {
