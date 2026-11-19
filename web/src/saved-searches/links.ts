@@ -8,7 +8,7 @@ export type SavedSearchLocation =
 export function savedSearchLocation(
   saved: Pick<
     SavedSearch,
-    "kind" | "datasource_uid" | "query" | "filters" | "from" | "to"
+    "id" | "kind" | "datasource_uid" | "query" | "filters" | "from" | "to"
   >
 ): SavedSearchLocation {
   const { datasource_uid: uid, filters, from, to } = saved
@@ -20,6 +20,7 @@ export function savedSearchLocation(
       cols: columns.length === 0 ? undefined : columns.join(","),
       from,
       to,
+      saved: saved.id,
     })
   }
   return tracesLink(uid, {

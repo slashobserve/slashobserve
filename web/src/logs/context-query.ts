@@ -19,6 +19,11 @@ WHERE $__timeFilter(Timestamp)
 ORDER BY Timestamp DESC
 LIMIT 1000`
 
+export function openingQuery(type: string): string | undefined {
+  if (type === "clickhouse") return clickhouseLogsTemplate
+  return isSearchFamily(type) ? "*" : undefined
+}
+
 export const perLineLokiLabels = new Set([
   "trace_id",
   "span_id",

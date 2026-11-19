@@ -177,7 +177,9 @@ function VolumeBars({
   const bucketCount = buckets.length
   const describedBy = useId()
   const brushable = !useCoarsePointer()
-  const [hidden, setHidden] = useState<ReadonlySet<LogLevelKind>>(new Set())
+  const {
+    levels: { hidden, setHidden },
+  } = useLogsWorkspace()
   const [hover, setHover] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; to: number } | null>(null)
   const [selection, setSelection] = useState<BucketSelection | null>(null)
@@ -203,11 +205,9 @@ function VolumeBars({
     : selection
 
   function toggle(kind: LogLevelKind) {
-    setHidden((current) => {
-      const next = new Set(current)
-      if (!next.delete(kind)) next.add(kind)
-      return next
-    })
+    const next = new Set(hidden)
+    if (!next.delete(kind)) next.add(kind)
+    setHidden(next)
   }
 
   function bucketUnder(event: PointerEvent<HTMLDivElement>): number {
