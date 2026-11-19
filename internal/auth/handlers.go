@@ -209,7 +209,7 @@ func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailur
 	if user.DeactivatedAt.Valid {
 		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}}
 	}
-	if id.EmailVerified {
+	if user.Inserted && id.EmailVerified {
 		manual, err := s.queries.AcceptInvite(ctx, dbsqlc.AcceptInviteParams{ID: user.ID, Email: id.Email})
 		switch {
 		case err == nil:

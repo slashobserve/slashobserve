@@ -104,3 +104,25 @@ func TestAnUnverifiedSignInLeavesTheInvitePending(t *testing.T) {
 		t.Errorf("%d invites, want the invite still pending", n)
 	}
 }
+
+func TestAnInviteIsNotAppliedToSomeoneWhoHasSignedInBefore(t *testing.T) {
+	s, database := newSignInService(t)
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "first", Email: "first@example.com"}); failure != nil {
+		t.Fatal(failure)
+	}
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "bob", Email: "bob@example.com", EmailVerified: true}); failure != nil {
+		t.Fatal(failure)
+	}
+	addInvite(t, database, "lead@example.com", "admin")
+
+	if _, failure := s.signIn(t.Context(), identity{Issuer: "i", Subject: "bob", Email: "lead@example.com", EmailVerified: true}); failure != nil {
+		t.Fatal(failure)
+	}
+
+	if role, source, _ := roleOf(t, database, "lead@example.com"); role != "editor" || source != "default" {
+		t.Errorf("role = %s from %s, want Bob to keep the default Editor", role, source)
+	}
+	if n := countInvites(t, database); n != 1 {
+		t.Errorf("%d invites, want the invite still pending for the new hire", n)
+	}
+}

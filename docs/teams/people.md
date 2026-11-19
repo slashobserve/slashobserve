@@ -26,6 +26,7 @@ An invite lets no one in that the sign-in rules refuse:
 - admin emails and identity-provider group roles still decide the role over an invite, as [Roles](roles.md) describes.
 
 An email that has already signed in cannot be invited; change that person's role in the table instead.
+Only a first sign-in uses an invite: someone who signed in before keeps their role even if the identity provider later gives them the invited email, and an invite left unused by a first sign-in, such as an unverified one, stays pending until you withdraw it.
 
 ## Deactivate a person
 
