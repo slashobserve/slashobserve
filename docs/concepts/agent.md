@@ -320,7 +320,8 @@ The agent sends what its tools return to the LLM provider, including names, labe
 The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
-The server refuses that token on any request that carries a forwarding header, so a reverse proxy on the same host cannot pass it on from outside.
+The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).
+A reverse proxy on the same host that adds none of them, such as nginx with a bare `proxy_pass`, still reaches the server from loopback, so configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 The server enforces the guards and the limits and stores the saved result.
 It looks for `observe-agent` on `PATH`, and it does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 
