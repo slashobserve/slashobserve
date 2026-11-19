@@ -7,6 +7,7 @@ import {
   defaultTitle,
   logsDraft,
   matchesSaved,
+  metricsDraft,
   noSaveFolderText,
   saveBlockedText,
   saveTargets,
@@ -205,6 +206,36 @@ describe("tracesDraft", () => {
     })
     expect(JSON.parse(JSON.stringify(draft)).filters).toEqual({
       service: "checkout",
+    })
+  })
+})
+
+describe("metricsDraft", () => {
+  it("saves the query that ran with its range", () => {
+    expect(metricsDraft({ uid: "prom", search: { q: "up" }, range })).toEqual({
+      draft: {
+        kind: "metrics",
+        datasource_uid: "prom",
+        query: "up",
+        filters: undefined,
+        from: "now-6h",
+        to: "now",
+      },
+    })
+  })
+
+  it("keeps the table mode", () => {
+    const saved = metricsDraft({
+      uid: "prom",
+      search: { q: "up", mode: "table" },
+      range,
+    })
+    expect("draft" in saved && saved.draft.filters).toEqual({ mode: "table" })
+  })
+
+  it("is blocked until a query has run", () => {
+    expect(metricsDraft({ uid: "prom", search: {}, range })).toEqual({
+      blocked: "no-query",
     })
   })
 })

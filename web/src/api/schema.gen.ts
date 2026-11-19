@@ -1684,8 +1684,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
-         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10, and each caller may start 60 drafts per clock hour across all servers; the count is kept in the database. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         * Turn a question into a checked log query, PromQL query, TraceQL query or trace filters for one datasource.
+         * @description The server reads the datasource's metric names, labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10, and each caller may start 60 drafts per clock hour across all servers; the count is kept in the database. Loki answers LogQL, Prometheus answers PromQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki, `metrics` on Prometheus and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
          */
         post: operations["draftQuery"];
         delete?: never;
@@ -2648,14 +2648,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the saved logs and trace searches the caller can view, most recently changed first.
-         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+         * List the saved logs, trace and metrics searches the caller can view, most recently changed first.
+         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only one kind of search, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs, traces or metrics page that reopens it.
          */
         get: operations["listSavedSearches"];
         put?: never;
         /**
-         * Save a logs or trace search in a folder.
-         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * Save a logs, trace or metrics search in a folder.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -6133,7 +6133,7 @@ export interface components {
             folder: components["schemas"]["DashboardFolder"] | null;
             permissions: components["schemas"]["Permissions"];
         };
-        /** @description The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others. */
+        /** @description The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others. */
         SavedSearchFilters: {
             /** @description The visible columns of a logs search, in order. */
             columns?: string[];
@@ -6145,12 +6145,17 @@ export interface components {
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
+            /**
+             * @description A metrics search as a time series (`graph`, the default) or as the table of an instant query.
+             * @enum {string}
+             */
+            mode?: "graph" | "table";
         };
         SavedSearch: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             title: string;
             datasource_uid: string;
             /** @description The query as it runs, with the filter pills folded in; null for a trace search made of filters only. */
@@ -6170,7 +6175,7 @@ export interface components {
              * @description When the search was saved, renamed or moved last.
              */
             updated_at: string;
-            /** @description The address of the logs or traces page that reopens the search, relative when the server has no public URL configured. */
+            /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
         };
         SavedSearchList: {
@@ -6179,12 +6184,12 @@ export interface components {
         };
         CreateSavedSearchRequest: {
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             /** @description 1 to 120 characters after trimming, without control characters. */
             title: string;
-            /** @description The uid of a datasource that exists and fits the kind. */
+            /** @description The uid of a datasource that exists and fits the kind, which is Prometheus for metrics. */
             datasource_uid: string;
-            /** @description 1 to 8000 characters; required for a logs search. */
+            /** @description 1 to 8000 characters; required for a logs or metrics search. */
             query?: string | null;
             filters?: components["schemas"]["SavedSearchFilters"];
             /**
@@ -6959,13 +6964,13 @@ export interface components {
             from?: string;
             to?: string;
             /** @enum {string} */
-            signal?: "logs" | "traces";
+            signal?: "logs" | "traces" | "metrics";
         };
         DraftQuery: {
-            /** @description LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
+            /** @description LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
             query: string;
             /** @enum {string} */
-            language: "logql" | "clickhouse_sql" | "traceql" | "kql" | "filters";
+            language: "logql" | "clickhouse_sql" | "traceql" | "promql" | "kql" | "filters";
             /** @description The Traces form's fields; null unless `language` is `filters`. */
             trace_filters: components["schemas"]["TraceFilters"] | null;
             explanation: string;
@@ -14452,7 +14457,7 @@ export interface operations {
     listSavedSearches: {
         parameters: {
             query?: {
-                kind?: "logs" | "traces";
+                kind?: "logs" | "traces" | "metrics";
                 folder_id?: string;
                 limit?: number;
                 /** @description The `next_cursor` of the previous page. */

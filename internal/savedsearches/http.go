@@ -125,8 +125,8 @@ func (h *Handler) list(c *gin.Context) {
 	}
 	var filter ListFilter
 	if kind, present := c.GetQuery("kind"); present {
-		if filter.Kind = Kind(kind); filter.Kind != KindLogs && filter.Kind != KindTraces {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be logs or traces")
+		if filter.Kind = Kind(kind); !filter.Kind.Valid() {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be logs, traces or metrics")
 			return
 		}
 	}

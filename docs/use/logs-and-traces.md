@@ -531,14 +531,15 @@ On Loki it writes LogQL, on ClickHouse logs it writes ClickHouse SQL, and on Ela
 It writes a `lucene:` query only when KQL cannot say what the question needs.
 For traces it fills the trace search fields: service, span name, minimum and maximum duration, and errors only.
 On Tempo it writes TraceQL instead when the question needs more than those fields.
+On a Prometheus datasource it writes PromQL, as the [Metrics](metrics.md#ask-in-plain-language) page describes.
 
-The server first reads the datasource's labels, attributes or columns and some of their values, so the query names real ones.
+The server first reads the datasource's metric names, labels, attributes or columns and some of their values, so the query names real ones.
 On Loki it also offers the values of `detected_level`, the structured metadata level that Loki adds, when no level label is listed, so a question about errors filters after the selector with `| detected_level="error"`.
 Then it asks the model once.
 It checks the answer with the query lint and one sample run over the last 15 minutes of the time range, and never runs the full query.
 When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
 
-The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches.
+The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches or, on Prometheus, no series.
 When the model cannot write a query for the question, or the fixed query still fails its check, the answer says it could not turn that into a query and why.
 
 Each person can have 3 questions in flight and ask 60 questions per clock hour, and each question stops after 60 seconds.

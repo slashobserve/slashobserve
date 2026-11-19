@@ -27,6 +27,7 @@ type savedSearchSaveOptions struct {
 	min        string
 	max        string
 	errors     bool
+	mode       string
 }
 
 type savedSearchMoveOptions struct {
@@ -50,16 +51,20 @@ type savedSearchListBody struct {
 	NextCursor    *string          `json:"next_cursor"`
 }
 
-var (
-	logsOnlySearchFlags   = []string{"columns"}
-	tracesOnlySearchFlags = []string{"service", "span", "min", "max", "errors"}
-)
+var searchFlagKinds = []struct {
+	kind  string
+	flags []string
+}{
+	{"logs", []string{"columns"}},
+	{"traces", []string{"service", "span", "min", "max", "errors"}},
+	{"metrics", []string{"mode"}},
+}
 
 func (a *app) savedSearchesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "saved-searches",
-		Short: "List, save, rename, move and delete saved logs and trace searches",
-		Long:  "saved-searches manages the logs and trace searches filed in folders.\nEveryone who can view a search's folder can read it, and the web app reopens it from the Logs and Traces pages.",
+		Short: "List, save, rename, move and delete saved logs, trace and metrics searches",
+		Long:  "saved-searches manages the logs, trace and metrics searches filed in folders.\nEveryone who can view a search's folder can read it, and the web app reopens it from the Logs, Traces and Metrics pages.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -69,15 +74,15 @@ func (a *app) savedSearchesCommand() *cobra.Command {
 
 func searchKind(value string, required bool) (string, error) {
 	switch value {
-	case "logs", "traces":
+	case "logs", "traces", "metrics":
 		return value, nil
 	case "":
 		if !required {
 			return "", nil
 		}
-		return "", usagef("--kind logs|traces is required")
+		return "", usagef("--kind logs|traces|metrics is required")
 	}
-	return "", usagef("--kind must be logs or traces, not %q", text(value))
+	return "", usagef("--kind must be logs, traces or metrics, not %q", text(value))
 }
 
 func optionalID(value string) (string, error) {
@@ -89,13 +94,13 @@ func optionalID(value string) (string, error) {
 
 func (a *app) savedSearchesListCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [--kind logs|traces] [--folder <id>]",
+		Use:   "list [--kind logs|traces|metrics] [--folder <id>]",
 		Short: "List the saved searches you can view, most recently changed first",
 		Args:  noArgs,
 		RunE:  a.runSavedSearchesList,
 	}
 	addPageFlags(cmd, &a.savedSearchList.pageOptions, maxSavedSearchPage)
-	cmd.Flags().StringVar(&a.savedSearchList.kind, "kind", "", "only logs or only traces searches")
+	cmd.Flags().StringVar(&a.savedSearchList.kind, "kind", "", "only searches of this kind: logs, traces or metrics")
 	cmd.Flags().StringVar(&a.savedSearchList.folder, "folder", "", "only searches saved in this folder id")
 	return cmd
 }
@@ -155,50 +160,46 @@ func (a *app) runSavedSearchesList(cmd *cobra.Command, _ []string) error {
 
 func (a *app) savedSearchesSaveCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "save --kind logs|traces --title <title> --datasource <uid> [flags]",
-		Short: "Save a logs or trace search in a folder and print its address",
-		Long:  "save files a search where its readers can reopen it, by default in your My Dashboards.\nA service-account key has no My Dashboards, so with a key the search lands in the folder General, which everyone who can see General can read; pass --folder to file it elsewhere.\nThe id goes to standard error and the address to standard output, so -q still prints the address.\nA logs search needs --query and may set --columns.\nA trace search may set --service, --span, --min, --max and --errors, and --query on Tempo only.\nFlags of the other kind are refused.",
+		Use:   "save --kind logs|traces|metrics --title <title> --datasource <uid> [flags]",
+		Short: "Save a logs, trace or metrics search in a folder and print its address",
+		Long:  "save files a search where its readers can reopen it, by default in your My Dashboards.\nA service-account key has no My Dashboards, so with a key the search lands in the folder General, which everyone who can see General can read; pass --folder to file it elsewhere.\nThe id goes to standard error and the address to standard output, so -q still prints the address.\nA logs search needs --query and may set --columns.\nA trace search may set --service, --span, --min, --max and --errors, and --query on Tempo only.\nA metrics search needs --query on a Prometheus datasource and may set --mode table to reopen as a table.\nFlags of another kind are refused.",
 		Example: "  observe saved-searches save --kind logs --title \"Checkout errors\" --datasource loki --query '{app=\"checkout\"} |= \"error\"' --columns timestamp,line\n" +
-			"  observe saved-searches save --kind traces --title \"Slow checkout\" --datasource tempo --service checkout --min 2s --errors --folder <folder-id>",
+			"  observe saved-searches save --kind traces --title \"Slow checkout\" --datasource tempo --service checkout --min 2s --errors --folder <folder-id>\n" +
+			"  observe saved-searches save --kind metrics --title \"Request rate\" --datasource prom --query 'sum(rate(http_requests_total[5m]))' --mode table",
 		Args: noArgs,
 		RunE: a.runSavedSearchesSave,
 	}
 	flags := cmd.Flags()
 	opts := &a.savedSearchSave
-	flags.StringVar(&opts.kind, "kind", "", "logs or traces")
+	flags.StringVar(&opts.kind, "kind", "", "logs, traces or metrics")
 	flags.StringVar(&opts.title, "title", "", "the title, 1 to 120 characters")
 	flags.StringVar(&opts.datasource, "datasource", "", "the datasource uid (observe doctor lists them)")
 	flags.StringVar(&opts.folder, "folder", "", "the folder id to save in; default your My Dashboards, or General with a service-account key")
 	flags.StringVar(&opts.from, "from", "now-1h", "start of the range, kept as written")
 	flags.StringVar(&opts.to, "to", "now", "end of the range, kept as written")
-	flags.StringVar(&opts.query, "query", "", "the query; required for logs")
+	flags.StringVar(&opts.query, "query", "", "the query; required for logs and metrics")
 	flags.StringSliceVar(&opts.columns, "columns", nil, "logs only: the visible columns, comma separated")
 	flags.StringVar(&opts.service, "service", "", "traces only: the service name")
 	flags.StringVar(&opts.span, "span", "", "traces only: the span name")
 	flags.StringVar(&opts.min, "min", "", "traces only: the shortest span duration, such as 250ms")
 	flags.StringVar(&opts.max, "max", "", "traces only: the longest span duration, such as 2s")
 	flags.BoolVar(&opts.errors, "errors", false, "traces only: only traces with an error")
+	flags.StringVar(&opts.mode, "mode", "", "metrics only: graph or table, how the page reopens the query")
 	return cmd
 }
 
 func refuseFlagsOfOtherKind(cmd *cobra.Command, kind string) error {
-	refused := tracesOnlySearchFlags
-	if kind == "traces" {
-		refused = logsOnlySearchFlags
-	}
-	for _, name := range refused {
-		if cmd.Flags().Changed(name) {
-			return usagef("--%s applies to %s searches, not %s", name, otherKind(kind), kind)
+	for _, group := range searchFlagKinds {
+		if group.kind == kind {
+			continue
+		}
+		for _, name := range group.flags {
+			if cmd.Flags().Changed(name) {
+				return usagef("--%s applies to %s searches, not %s", name, group.kind, kind)
+			}
 		}
 	}
 	return nil
-}
-
-func otherKind(kind string) string {
-	if kind == "logs" {
-		return "traces"
-	}
-	return "logs"
 }
 
 func (o savedSearchSaveOptions) filters() map[string]any {
@@ -213,6 +214,9 @@ func (o savedSearchSaveOptions) filters() map[string]any {
 	}
 	if o.errors {
 		filters["errors"] = true
+	}
+	if o.mode != "" {
+		filters["mode"] = o.mode
 	}
 	return filters
 }

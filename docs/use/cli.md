@@ -78,7 +78,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
@@ -313,16 +313,16 @@ A snapshot block's body cannot change, and a requested block is kept or discarde
 
 ## Saved searches
 
-`bin/observe saved-searches list` prints the logs and trace searches you can view, most recently changed first, with their id, kind, title, folder, datasource and last change.
-`--kind logs|traces` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
+`bin/observe saved-searches list` prints the logs, trace and metrics searches you can view, most recently changed first, with their id, kind, title, folder, datasource and last change.
+`--kind logs|traces|metrics` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
 
-`bin/observe saved-searches save --kind logs|traces --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
+`bin/observe saved-searches save --kind logs|traces|metrics --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
 A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
-A flag of the other kind is refused with exit code 2 before any request is sent.
+A flag of another kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.
 `bin/observe saved-searches move <id> --folder <folder-id>` files the search in another folder and shares it with that folder's readers; My Dashboards takes no moves, so save the search there instead.
@@ -612,6 +612,25 @@ It prints `ATTRIBUTE`, `VALUE`, `SELECTED` and `BASELINE` columns: the attribute
 `--limit` is the most differences to print, 1 to 100 and 20 by default, and `--from` and `--to` bound where the traces are read.
 A note on standard error says when some traces were not found in the range or more differences exist than `--limit` allows, and `--json` prints the response body.
 `--compare` takes no trace id argument and cannot be combined with `--ask`, and `--baseline` and `--limit` need `--compare`; each mistake exits 2.
+
+## Metrics
+
+`bin/observe metrics query <promql> --datasource <uid>` runs a PromQL query on a Prometheus datasource and prints one line per series:
+
+```sh
+bin/observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datasource prom --from now-6h
+bin/observe metrics query 'up == 0' --datasource prom --instant
+bin/observe metrics query --ask "requests per second by service" --datasource prom --dry-run
+```
+
+`--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard.
+Each line shows the series name with its labels, then the number of points and the last, minimum, maximum and mean value.
+`--instant` evaluates the query once at the end of the range and prints the value of each series.
+`--ask` takes a question instead of the query, and the server writes the PromQL with [Ask](metrics.md#ask-in-plain-language) and prints it to stderr with its explanation and warnings before it runs.
+`--dry-run` prints them and runs nothing, and needs `--ask`; giving a query and `--ask` together exits 2.
+`--json` prints the response body.
+An invalid query exits 1 with the datasource's message, and so does a query that hits a server limit on time, series or points; the message names the limit.
+The [Metrics](metrics.md) page runs the same queries in the web app.
 
 ## Grafana connections
 

@@ -85,4 +85,35 @@ describe("savedSearchLocation", () => {
     expect(location.search).toMatchObject({ q: "{ status = error }" })
     expect(location.search).not.toHaveProperty("errors", expect.anything())
   })
+
+  it("reopens a metrics search on the metrics page, as a table when saved as one", () => {
+    expect(
+      savedSearchLocation({
+        id: "s2",
+        kind: "metrics",
+        datasource_uid: "prom",
+        query: "up",
+        filters: { mode: "table" },
+        from: "now-6h",
+        to: "now",
+      })
+    ).toEqual({
+      to: "/explore/metrics/$datasourceUid",
+      params: { datasourceUid: "prom" },
+      search: { q: "up", mode: "table", from: "now-6h", to: "now" },
+    })
+  })
+
+  it("leaves the mode out of a metrics graph", () => {
+    const location = savedSearchLocation({
+      id: "s3",
+      kind: "metrics",
+      datasource_uid: "prom",
+      query: "up",
+      filters: {},
+      from: "now-1h",
+      to: "now",
+    })
+    expect(location.search).toHaveProperty("mode", undefined)
+  })
 })

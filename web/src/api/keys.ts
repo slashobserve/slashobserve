@@ -320,7 +320,7 @@ export const findingKeys = {
 }
 
 export type SavedSearchListParams = {
-  kind?: "logs" | "traces"
+  kind?: "logs" | "traces" | "metrics"
   folderId?: string
 }
 

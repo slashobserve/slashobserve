@@ -4767,7 +4767,7 @@ components:
     SavedSearchFilters:
       type: object
       additionalProperties: false
-      description: The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others.
+      description: The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others.
       properties:
         columns:
           type: array
@@ -4793,6 +4793,10 @@ components:
         errors:
           type: boolean
           description: Only traces with an error.
+        mode:
+          type: string
+          enum: [graph, table]
+          description: A metrics search as a time series (`graph`, the default) or as the table of an instant query.
     SavedSearch:
       type: object
       additionalProperties: false
@@ -4803,7 +4807,7 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           minLength: 1
@@ -4839,7 +4843,7 @@ components:
           description: When the search was saved, renamed or moved last.
         url:
           type: string
-          description: The address of the logs or traces page that reopens the search, relative when the server has no public URL configured.
+          description: The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured.
     SavedSearchList:
       type: object
       additionalProperties: false
@@ -4859,17 +4863,17 @@ components:
       properties:
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           description: 1 to 120 characters after trimming, without control characters.
         datasource_uid:
           type: string
-          description: The uid of a datasource that exists and fits the kind.
+          description: The uid of a datasource that exists and fits the kind, which is Prometheus for metrics.
         query:
           type: string
           nullable: true
-          description: 1 to 8000 characters; required for a logs search.
+          description: 1 to 8000 characters; required for a logs or metrics search.
         filters:
           $ref: "#/components/schemas/SavedSearchFilters"
         from:
@@ -6384,7 +6388,7 @@ components:
           maxLength: 128
         signal:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
     DraftQuery:
       type: object
       additionalProperties: false
@@ -6392,10 +6396,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, kql, filters]
+          enum: [logql, clickhouse_sql, traceql, promql, kql, filters]
         trace_filters:
           nullable: true
           allOf:

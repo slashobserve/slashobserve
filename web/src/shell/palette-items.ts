@@ -1,8 +1,13 @@
 import type { components } from "@/api/schema.gen"
-import { sourceLanguage, type ExploreKind } from "@/datasources/sources"
+import {
+  exploreText,
+  sourceLanguage,
+  type ExploreKind,
+} from "@/datasources/sources"
 import {
   dashboardPath,
   logsPath,
+  metricsPath,
   observationPath,
   tracesPath,
 } from "@/lib/links"
@@ -194,8 +199,10 @@ function sourceEntries(
       kind: "source",
       id: `source:${explore}:${uid}`,
       label: name,
-      secondary: `${explore === "logs" ? "Logs" : "Traces"}, ${sourceLanguage(explore, type)}`,
-      path: explore === "logs" ? logsPath(uid) : tracesPath(uid),
+      secondary: `${exploreText[explore].page}, ${sourceLanguage(explore, type)}`,
+      path: { logs: logsPath, traces: tracesPath, metrics: metricsPath }[
+        explore
+      ](uid),
       explore,
     }))
 }
