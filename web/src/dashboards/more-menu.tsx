@@ -1,4 +1,5 @@
 import {
+  BookOpenIcon,
   BracesIcon,
   CopyIcon,
   DownloadIcon,
@@ -22,6 +23,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { docsPageUrl } from "@/lib/docs"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
@@ -76,7 +78,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, add panel, edit Spec JSON, open on sign-in, export, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label="More: edit details, add panel, edit Spec JSON, open on sign-in, export, dashboards as code, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -127,6 +129,18 @@ export function MoreMenu({
         <DropdownMenuItem onClick={onExport}>
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={
+            <a
+              href={docsPageUrl("use/dashboards-as-code")}
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
+        >
+          <BookOpenIcon aria-hidden="true" />
+          Dashboards as code
         </DropdownMenuItem>
         <ExportItems blockedBy={exportBlockedBy} />
         {onDuplicate !== null ? (

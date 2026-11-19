@@ -25,7 +25,7 @@ Three choices in the format follow from how dashboards are used here:
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
 
-**Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing.
+**Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing, and **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI (see [Dashboards as code](../use/dashboards-as-code.md)).
 **Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
 **Edit Spec JSON** in the same menu opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
 It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`, and **Save as version N** saves it with the note you give, or "Edit the dashboard JSON", running every panel query as any whole-document save does.
