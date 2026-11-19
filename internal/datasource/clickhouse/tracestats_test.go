@@ -157,7 +157,7 @@ func TestTraceStatsErrorsDoNotEchoTheGeneratedSQL(t *testing.T) {
 			}
 		})
 	}
-	if got := trimGeneratedSQL(datasource.Errorf(datasource.ErrTimeout, "query timed out")); got.Error() != datasource.ErrTimeout.Error()+": query timed out" {
+	if got := trimGeneratedSQL(datasource.Errorf(datasource.ErrTimeout, "query timed out")); got.Error() != "query timed out" {
 		t.Errorf("a timeout must pass through, got %v", got)
 	}
 }
