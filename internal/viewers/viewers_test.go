@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -86,7 +87,7 @@ func TestPeopleAreListedByNameWhileTheirPageKeepsReporting(t *testing.T) {
 		}
 	}
 
-	if got := r.others(t, ada, dash); !equal(got, []string{"bob", "cy@example.com"}) {
+	if got := r.others(t, ada, dash); !slices.Equal(got, []string{"bob", "cy@example.com"}) {
 		t.Fatalf("what Ada sees = %v, want Bob and Cy by name or email, without Ada", got)
 	}
 	if got := r.others(t, bot, dash); len(got) != 3 {
@@ -94,7 +95,7 @@ func TestPeopleAreListedByNameWhileTheirPageKeepsReporting(t *testing.T) {
 	}
 
 	r.db.Exec(t, `UPDATE dashboard_viewers SET seen_at = now() - interval '2 minutes' WHERE user_id = $1::uuid`, bob.ID)
-	if got := r.others(t, ada, dash); !equal(got, []string{"cy@example.com"}) {
+	if got := r.others(t, ada, dash); !slices.Equal(got, []string{"cy@example.com"}) {
 		t.Fatalf("after Bob stopped reporting = %v, want only Cy", got)
 	}
 	if err := r.service.Record(t.Context(), bob, dash); err != nil {
@@ -173,10 +174,10 @@ func TestTheRoutesReportAndListAndHonourFolderAccess(t *testing.T) {
 	if got := viewersOf(t, serve(t, r, bob, http.MethodPost, path)); len(got) != 0 {
 		t.Fatalf("Bob alone sees %v", got)
 	}
-	if got := viewersOf(t, serve(t, r, ada, http.MethodPost, path)); !equal(got, []string{"bob"}) {
+	if got := viewersOf(t, serve(t, r, ada, http.MethodPost, path)); !slices.Equal(got, []string{"bob"}) {
 		t.Fatalf("Ada's report answers %v, want Bob", got)
 	}
-	if got := viewersOf(t, serve(t, r, bot, http.MethodGet, path)); !equal(got, []string{"Ada", "bob"}) {
+	if got := viewersOf(t, serve(t, r, bot, http.MethodGet, path)); !slices.Equal(got, []string{"Ada", "bob"}) {
 		t.Fatalf("a key reads %v, want both", got)
 	}
 	if got := viewersOf(t, serve(t, r, bot, http.MethodPost, path)); len(got) != 2 {
@@ -194,16 +195,4 @@ func TestTheRoutesReportAndListAndHonourFolderAccess(t *testing.T) {
 	if rec := serve(t, r, ada, http.MethodGet, "/dashboards/00000000-0000-4000-8000-000000000000/viewers"); rec.Code != http.StatusNotFound {
 		t.Fatalf("a missing dashboard: status %d, want 404", rec.Code)
 	}
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

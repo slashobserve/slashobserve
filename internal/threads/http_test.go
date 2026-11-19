@@ -386,7 +386,7 @@ func TestABodyErrorNamesTheFirstRuleBroken(t *testing.T) {
 	}{
 		{"empty", "  ", "body is empty"},
 		{"too long", strings.Repeat("a", 4001), "body is 4001 characters; the limit is 4000"},
-		{"bidirectional override", "a‮b", "U+202E"},
+		{"bidirectional override", "a\u202eb", "U+202E"},
 		{"NUL", "a\x00b", "U+0000"},
 	}
 	seen := map[string]bool{}
