@@ -248,6 +248,32 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 	}
 }
 
+func TestQueryInstantExplainsAnEmptyResultWithTheDatasourceHint(t *testing.T) {
+	hint := "No document has log.level = error in this range, but it has ERROR."
+	ds := &fakeDS{
+		typ: "clickhouse",
+		instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+			f := logTableFrame()
+			for i := range f.Fields {
+				f.Fields[i].Values = nil
+			}
+			f.Meta = &datasource.FrameMeta{Hint: hint}
+			return []datasource.Frame{f}, nil
+		},
+	}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameQueryInstant, `{"datasource":"fake","query":"SELECT Timestamp, ServiceName, Body FROM otel_logs"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if want := "Ran a query on fake: no data (" + hint + ")"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if summary := res.Content.(querySummary); !summary.Empty || summary.Hint != hint {
+		t.Fatalf("summary = %+v", summary)
+	}
+}
+
 func TestQueryRangeThroughCall(t *testing.T) {
 	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		return []datasource.Frame{timeNumberFrame(map[string]string{"route": "/a"}, 1, 2)}, nil

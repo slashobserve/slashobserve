@@ -254,7 +254,7 @@ describe("openingQuery", () => {
     expect(openingQuery("opensearch")).toBe("*")
   })
 
-  it("leaves Loki waiting for a stream selector", () => {
-    expect(openingQuery("loki")).toBeUndefined()
+  it("opens Loki on a selector of every stream that has a service_name", () => {
+    expect(openingQuery("loki")).toBe('{service_name=~".+"}')
   })
 })

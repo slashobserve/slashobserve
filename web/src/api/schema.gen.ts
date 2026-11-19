@@ -5436,6 +5436,8 @@ export interface components {
             partial: boolean;
             /** @description The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one. */
             warning?: string;
+            /** @description One plain sentence that says why a search returned no rows when the datasource can tell, present only on an empty Elasticsearch or OpenSearch result whose KQL query asks for a keyword value that no document has in the range: it names the value and the values the field does have, and says when one differs only by letter case, because keyword values are case sensitive. */
+            hint?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
             note?: string;
             /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */

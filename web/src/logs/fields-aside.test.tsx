@@ -84,7 +84,9 @@ function setup({
   linesRerunning = false,
   linesTimedOut = false,
   seedFacets = true,
+  window = range,
 }: {
+  window?: { from: string; to: string }
   seedFacets?: boolean
   linesTimedOut?: boolean
   linesLoading?: boolean
@@ -111,7 +113,7 @@ function setup({
     },
     search,
     effectiveQuery,
-    range,
+    range: window,
     run,
     setDraft,
     results: {
@@ -124,16 +126,17 @@ function setup({
         ? new ApiError(504, "query_timeout", "query timed out after 15s")
         : null,
     },
+    tail: { shown: false },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
-  queryClient.setQueryData(datasourceKeys.labels("ds", range), {
+  queryClient.setQueryData(datasourceKeys.labels("ds", window), {
     labels: names,
     truncated: false,
   })
   if (effectiveQuery !== undefined && seedFacets) {
     queryClient.setQueryData(
-      exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
+      exploreKeys.facets("ds", { query: effectiveQuery, ...window, limit: 5 }),
       facets
     )
   }
@@ -144,7 +147,7 @@ function setup({
     </LogsWorkspaceContext>,
     { queryClient }
   )
-  return { ...view, run, setDraft }
+  return { ...view, run, setDraft, queryClient }
 }
 
 function stubNarrow() {
@@ -180,6 +183,35 @@ describe("FieldsAside", () => {
     setup({ linesLoading: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts a wide range only after the volume strip has answered", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    const window = { from: "now-24h", to: "now" }
+    const { queryClient } = setup({ window, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(
+      screen.getByText("The fields load when the volume answers")
+    ).toBeVisible()
+    queryClient.setQueryData(
+      [
+        "explore",
+        "ds",
+        "volume",
+        { query: "service.name:checkout", ...window },
+      ],
+      { step_ms: 60000, total: 0, buckets: [] }
+    )
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+  })
+
+  it("counts a narrow range at once without waiting for the volume", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
   })
 
   it("does not count the values when the lines timed out, and says the source is slow", async () => {
