@@ -189,7 +189,7 @@ const tickClass: Record<TickAnchor, string> = {
   end: "right-0",
 }
 
-const spanColumns =
+export const spanColumns =
   "grid-cols-[min(288px,40%)_minmax(0,1fr)_76px] narrow:grid-cols-[minmax(0,1fr)_auto] narrow:grid-rows-[18px_minmax(0,1fr)]"
 const nameCell = "narrow:col-start-1 narrow:row-start-1"
 const barCell = "narrow:col-span-2 narrow:col-start-1 narrow:row-start-2"

@@ -36,6 +36,7 @@ func init() { registerEntries((*Registry).discoveryEntries) }
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDatasources},
+		{Tool{Name: nameRecheckDatasource, Description: descRecheckDatasource, InputSchema: json.RawMessage(schemaRecheckDatasource), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.recheckDatasource},
 		{Tool{Name: nameListMetrics, Description: descListMetrics, InputSchema: json.RawMessage(schemaListMetrics), ReadOnly: true, MinRole: auth.RoleViewer}, r.listMetrics},
 		{Tool{Name: nameListLabels, Description: descListLabels, InputSchema: json.RawMessage(schemaListLabels), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabels},
 		{Tool{Name: nameListLabelValues, Description: descListLabelValues, InputSchema: json.RawMessage(schemaListLabelValues), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabelValues},
@@ -50,6 +51,7 @@ type datasourceOut struct {
 	Name    string `json:"name"`
 	Healthy bool   `json:"healthy"`
 	Message string `json:"message,omitempty"`
+	Detail  string `json:"detail,omitempty"`
 }
 
 type datasourcesOut struct {
@@ -68,10 +70,36 @@ func (r *Registry) listDatasources(ctx context.Context, input json.RawMessage) (
 	}
 	items := make([]datasourceOut, len(statuses))
 	for i, s := range statuses {
-		items[i] = datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes)}
+		items[i] = datasourceStatusOut(s)
 	}
 	items, truncated := fit(items, listBudget)
 	return success("Listed "+plural(len(items), "datasource", "datasources"), datasourcesOut{Datasources: items, Truncated: truncated}), nil
+}
+
+func datasourceStatusOut(s datasource.Status) datasourceOut {
+	return datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes), Detail: clip(s.Detail, maxCellBytes)}
+}
+
+func (r *Registry) recheckDatasource(ctx context.Context, input json.RawMessage) (Result, error) {
+	var in struct {
+		Datasource string `json:"datasource"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	status, _ := r.deps.Datasources.Recheck(ctx, inst.UID)
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	summary := "Rechecked " + status.UID + ": healthy"
+	if !status.Healthy {
+		summary = "Rechecked " + status.UID + ": unhealthy"
+	}
+	return success(summary, datasourceStatusOut(status)), nil
 }
 
 func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {

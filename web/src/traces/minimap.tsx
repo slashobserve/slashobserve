@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "@/panels/colors"
 import {
   DragSelection,
+  spanColumns,
   useZoomDrag,
   type TraceViewProps,
 } from "@/panels/traces/traces-panel"
@@ -24,50 +25,58 @@ export function TraceMinimap({
   const drag = useZoomDrag(zoom, onZoom)
   const zoomed = !isWholeTrace(zoom)
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2">
-      <span className="shrink-0 text-xs text-muted-foreground">
+    <div
+      className={cn(
+        "grid h-10 shrink-0 items-center border-b border-border",
+        spanColumns,
+        "narrow:grid-cols-[auto_minmax(0,1fr)_auto] narrow:grid-rows-none"
+      )}
+    >
+      <span className="truncate px-2 text-xs text-muted-foreground">
         Whole trace, drag to zoom
       </span>
-      <div
-        role="img"
-        aria-label="Overview of the whole trace"
-        className="relative h-[34px] min-w-0 flex-1 cursor-col-resize touch-none overflow-hidden select-none"
-        {...drag.handlers}
-      >
-        {rows.map((row, index) => (
-          <span
-            key={index}
-            aria-hidden="true"
-            className={cn("absolute h-px", row.error && "bg-status-critical")}
-            style={{
-              top: row.top,
-              left: `${row.left * 100}%`,
-              width: `${row.width * 100}%`,
-              minWidth: 1,
-              backgroundColor: row.error
-                ? undefined
-                : styleForSlot(row.slot).color,
-            }}
-          />
-        ))}
-        {zoomed ? (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 border-x border-ring bg-selection/40"
-            style={{
-              left: `${zoom.start * 100}%`,
-              width: `${(zoom.end - zoom.start) * 100}%`,
-            }}
-          />
-        ) : null}
-        <DragSelection selection={drag.selection} />
+      <div className="min-w-0 px-2">
+        <div
+          role="img"
+          aria-label="Overview of the whole trace"
+          className="relative h-[34px] cursor-col-resize touch-none overflow-hidden select-none"
+          {...drag.handlers}
+        >
+          {rows.map((row, index) => (
+            <span
+              key={index}
+              aria-hidden="true"
+              className={cn("absolute h-px", row.error && "bg-status-critical")}
+              style={{
+                top: row.top,
+                left: `${row.left * 100}%`,
+                width: `${row.width * 100}%`,
+                minWidth: 1,
+                backgroundColor: row.error
+                  ? undefined
+                  : styleForSlot(row.slot).color,
+              }}
+            />
+          ))}
+          {zoomed ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 border-x border-ring bg-selection/40"
+              style={{
+                left: `${zoom.start * 100}%`,
+                width: `${(zoom.end - zoom.start) * 100}%`,
+              }}
+            />
+          ) : null}
+          <DragSelection selection={drag.selection} />
+        </div>
       </div>
       {zoomed ? (
         <Button
           type="button"
           variant="ghost"
           size="xs"
-          className="shrink-0"
+          className="justify-self-end"
           onClick={() => onZoom(wholeTrace)}
         >
           Reset zoom

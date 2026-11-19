@@ -27,9 +27,9 @@ const emptyTitles = {
 } as const
 
 const emptyText = {
-  logs: "No logs datasource is configured. An Admin adds an Elasticsearch, OpenSearch, Loki or ClickHouse datasource in the datasources file.",
+  logs: "No logs datasource is configured. An Admin adds an Elasticsearch, OpenSearch, Loki or ClickHouse datasource on the Datasources page.",
   traces:
-    "No traces datasource is configured. An Admin adds a Tempo or ClickHouse datasource in the datasources file.",
+    "No traces datasource is configured. An Admin adds a Tempo or ClickHouse datasource on the Datasources page.",
 } as const
 
 const tableWidth = 480
