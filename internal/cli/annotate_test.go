@@ -177,3 +177,25 @@ func TestAnnotateQuietHidesTheConfirmation(t *testing.T) {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
 	}
 }
+
+func TestAnAnnotationFarInTheFutureWarns(t *testing.T) {
+	now := time.Date(2026, 11, 19, 10, 0, 0, 0, time.UTC)
+	cases := []struct {
+		at   string
+		warn bool
+	}{
+		{"2099-01-01T00:00:00Z", true},
+		{"2026-11-20T09:00:00Z", false},
+		{"2026-11-19T09:00:00Z", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		var at *string
+		if tc.at != "" {
+			at = &tc.at
+		}
+		if got := futureWarning(at, now) != ""; got != tc.warn {
+			t.Errorf("--at %q warned %v, want %v", tc.at, got, tc.warn)
+		}
+	}
+}

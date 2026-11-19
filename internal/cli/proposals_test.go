@@ -54,7 +54,7 @@ func TestProposalsCommands(t *testing.T) {
 				testProposal + " open 2 behind main Rename the errors panel",
 				testProposal + " merged 1 - Older change",
 			},
-			wantErr: "more results: --cursor c1",
+			wantErr: "More: --cursor c1",
 		},
 		{
 			name:       "list takes a state and a page",

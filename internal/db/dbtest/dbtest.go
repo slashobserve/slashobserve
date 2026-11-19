@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -98,6 +99,44 @@ func New(t testing.TB) *Database {
 func NewWithLogger(t testing.TB, logger *slog.Logger) *Database {
 	t.Helper()
 	return create(t, logger, " TEMPLATE "+templateDB)
+}
+
+type Template struct {
+	prepare func(ctx context.Context, d *db.DB) error
+	once    sync.Once
+	name    string
+	err     error
+}
+
+func NewTemplate(prepare func(ctx context.Context, d *db.DB) error) *Template {
+	return &Template{prepare: prepare}
+}
+
+func (tpl *Template) New(t testing.TB) *Database {
+	t.Helper()
+	if skipped {
+		t.Skip("Postgres tests are skipped with -short")
+	}
+	tpl.once.Do(func() { tpl.name, tpl.err = buildTemplate(tpl.prepare) })
+	if tpl.err != nil {
+		t.Fatalf("prepare the template database: %v", tpl.err)
+	}
+	return create(t, quietLogger(), " TEMPLATE "+tpl.name)
+}
+
+func buildTemplate(prepare func(ctx context.Context, d *db.DB) error) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), setupTimeout)
+	defer cancel()
+	name := fmt.Sprintf("template_%d", counter.Add(1))
+	if err := adminExec(ctx, "CREATE DATABASE "+name); err != nil {
+		return "", err
+	}
+	d, err := db.Open(ctx, db.Config{URL: urlFor(name)}, quietLogger())
+	if err != nil {
+		return "", err
+	}
+	defer d.Close()
+	return name, prepare(ctx, d)
 }
 
 func NewUnmigrated(t testing.TB) *Database {

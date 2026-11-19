@@ -14,10 +14,7 @@ const (
 
 func TestRunStateBackfill(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runStateVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runStateVersion-1)
 	seedDashboard(t, d, runStateDashboard, 3)
 	sqlDB := d.SQLDB(t)
 
@@ -104,11 +101,7 @@ VALUES ($1, 't', 'm', now() - interval '1 hour', now(), 'user', gen_random_uuid(
 }
 
 func TestRunStateConstraints(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runStateVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runStateVersion)
 	sqlDB := d.SQLDB(t)
 	cases := []struct {
 		name, state, status string
@@ -133,10 +126,7 @@ VALUES ('p', 'user', gen_random_uuid(), 'seed', 'observe', $1, $2, $3)`, c.state
 
 func TestRunStateDown(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, runStateVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, runStateVersion)
 	if got := runStateColumns(t, d); got != 2 {
 		t.Fatalf("columns after up = %d, want 2", got)
 	}

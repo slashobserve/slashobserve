@@ -17,6 +17,7 @@ const (
 	TypeDashboardDeleted        = "dashboard.deleted"
 
 	TypeAnnotationCreated = "annotation.created"
+	TypeAnnotationUpdated = "annotation.updated"
 	TypeAnnotationDeleted = "annotation.deleted"
 
 	TypeFindingCreated = "finding.created"
@@ -70,6 +71,7 @@ var knownTypes = []string{
 	TypeDashboardMoved,
 	TypeDashboardDeleted,
 	TypeAnnotationCreated,
+	TypeAnnotationUpdated,
 	TypeAnnotationDeleted,
 	TypeFindingCreated,
 	TypeFindingPinned,

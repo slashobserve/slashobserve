@@ -94,6 +94,9 @@ func (a *app) proposalsListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := page.check(); err != nil {
+				return err
+			}
 			query := page.query()
 			if state != "" {
 				if !slices.Contains(proposalStates, state) {
@@ -101,20 +104,20 @@ func (a *app) proposalsListCommand() *cobra.Command {
 				}
 				query.Set("state", state)
 			}
-			return a.proposalsList(cmd, id, query)
+			return a.proposalsList(cmd, id, query, page.all)
 		},
 	}
-	addPageFlags(cmd, &page)
+	addPageFlags(cmd, &page, maxProposalPage)
 	cmd.Flags().StringVar(&state, "state", "", "open, merged, discarded or all; default open")
 	return cmd
 }
 
-func (a *app) proposalsList(cmd *cobra.Command, dashboardID string, query url.Values) error {
+func (a *app) proposalsList(cmd *cobra.Command, dashboardID string, query url.Values, all bool) error {
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "dashboards/"+dashboardID+"/proposals", query)
+	data, err := c.getPages(cmd.Context(), "dashboards/"+dashboardID+"/proposals", query, all)
 	if err != nil {
 		return err
 	}
@@ -132,7 +135,7 @@ func (a *app) proposalsList(cmd *cobra.Command, dashboardID string, query url.Va
 		rows = append(rows, []string{text(p.ID), text(p.State), strconv.Itoa(p.Revision), behindText(p.Behind), text(p.Title)})
 	}
 	out.table([]string{"ID", "STATE", "REVISION", "BEHIND", "TITLE"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Proposals), nil, page.NextCursor)
 	return nil
 }
 
