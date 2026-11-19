@@ -113,6 +113,7 @@ func TestHealthAndAnnotationToolsAreOfferedOnlyWhereTheyBelong(t *testing.T) {
 	}{
 		{nameListDashboardHealth, false, false},
 		{nameCreateAnnotation, false, false},
+		{nameUpdateAnnotation, false, false},
 		{nameListAnnotations, false, true},
 	}
 	for _, c := range cases {
@@ -202,6 +203,58 @@ func TestCreateAnnotationIsRefusedInsideARun(t *testing.T) {
 	}
 }
 
+func TestUpdateAnnotationChangesWhatTheCallerAdded(t *testing.T) {
+	r := newAccessRig(t)
+	vera := r.person(t, "vera", auth.RoleViewer)
+	mine := r.createdSaved(t, r.create(t, vera, "Mine", pgtype.UUID{}))
+	res := r.call(t, vera, nameCreateAnnotation, `{"text":"deploy v1","dashboard_id":"`+mine+`","tags":["deploy"]}`)
+	if res.IsError {
+		t.Fatalf("create: %s", textOf(t, res))
+	}
+	var created annotationOut
+	if err := json.Unmarshal([]byte(textOf(t, res)), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	res = r.call(t, vera, nameUpdateAnnotation, `{"id":"`+created.ID+`","text":"deploy v2","tags":["deploy","checkout"]}`)
+	if res.IsError {
+		t.Fatalf("update: %s", textOf(t, res))
+	}
+	var updated annotationOut
+	if err := json.Unmarshal([]byte(textOf(t, res)), &updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.ID != created.ID || updated.Text != "deploy v2" || strings.Join(updated.Tags, ",") != "deploy,checkout" || updated.TimeFrom != created.TimeFrom {
+		t.Errorf("updated %+v from %+v", updated, created)
+	}
+
+	other := r.person(t, "olga", auth.RoleEditor)
+	res = r.call(t, other, nameUpdateAnnotation, `{"id":"`+created.ID+`","text":"hijack"}`)
+	if code := errorCode(t, res); code != codeNotFound {
+		t.Errorf("someone who cannot see the dashboard: %s", textOf(t, res))
+	}
+	res = r.call(t, vera, nameUpdateAnnotation, `{"id":"`+created.ID+`"}`)
+	if code := errorCode(t, res); code != codeInvalidRequest {
+		t.Errorf("nothing to change: %s", textOf(t, res))
+	}
+	res = r.call(t, vera, nameUpdateAnnotation, `{"id":"deploy","text":"x"}`)
+	if code := errorCode(t, res); code != codeInvalidRequest {
+		t.Errorf("an id that is not a UUID: %s", textOf(t, res))
+	}
+}
+
+func TestUpdateAnnotationIsRefusedInsideARun(t *testing.T) {
+	r := New(Deps{})
+	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
+	res, err := r.Call(WithRun(editor, Run{Mode: ModeInvestigate}), nameUpdateAnnotation, []byte(`{"id":"0a1b2c3d-0000-4000-8000-000000000001","text":"x"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "for MCP clients") {
+		t.Errorf("%#v", res.Content)
+	}
+}
+
 func TestAnnotationFailureMapsServiceErrors(t *testing.T) {
 	cases := []struct {
 		err     error
@@ -209,7 +262,8 @@ func TestAnnotationFailureMapsServiceErrors(t *testing.T) {
 		message string
 	}{
 		{&annotations.InvalidError{Code: "invalid_text", Message: "text must be 1 to 2000 characters"}, codeInvalidRequest, "text must be 1 to 2000 characters"},
-		{annotations.ErrNotFound, codeNotFound, "dashboard not found"},
+		{annotations.ErrNotFound, codeNotFound, "annotation or dashboard not found"},
+		{annotations.ErrNotCreator, codeNotCreator, annotations.ErrNotCreator.Error()},
 		{annotations.ErrForbidden, codeForbiddenRole, roleDeniedMessage},
 	}
 	for _, c := range cases {

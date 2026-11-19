@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -207,10 +207,7 @@ func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testin
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	var decoded any
 	if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatal(err)

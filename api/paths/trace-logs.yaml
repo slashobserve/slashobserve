@@ -9,6 +9,7 @@ datasources-uid-trace-logs:
     operationId: traceLogs
     x-surfaces:
       mcp: [logs_for_trace]
+      cli: [observe datasources trace-logs]
     summary: Read the log lines that carry a trace id, or one span id, from a logs datasource.
     description: >-
       The trace view's path from a span to its logs; the datasource in the path must be Loki or ClickHouse.

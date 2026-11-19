@@ -254,7 +254,7 @@ func TestObservationCommands(t *testing.T) {
 			wantPath:   "/api/v1/observations",
 			wantQuery:  "limit=50",
 			wantOut:    []string{"ID TITLE STATE UPDATED", testObservation + " Checkout 5xx open 2026-01-02T03:04Z"},
-			wantErr:    "more results: --cursor more",
+			wantErr:    "More: --cursor more",
 		},
 		{
 			name:       "list filters by folder and state",
