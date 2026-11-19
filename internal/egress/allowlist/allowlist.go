@@ -106,7 +106,11 @@ type User struct {
 }
 
 func (s *Store) Users(ctx context.Context, pattern domains.Pattern) ([]User, error) {
-	rows, err := s.db.Queries().ListOutboundUsers(ctx)
+	return usersIn(ctx, s.db.Queries(), pattern)
+}
+
+func usersIn(ctx context.Context, q *dbsqlc.Queries, pattern domains.Pattern) ([]User, error) {
+	rows, err := q.ListOutboundUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list outbound users: %w", err)
 	}
@@ -133,14 +137,18 @@ func (s *Store) Release(ctx context.Context, host string) error {
 	if err != nil {
 		return nil
 	}
-	users, err := s.Users(ctx, pattern)
-	if err != nil {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockOutboundDomains(ctx); err != nil {
+			return err
+		}
+		users, err := usersIn(ctx, q, pattern)
+		if err != nil || len(users) > 0 {
+			return err
+		}
+		_, err = q.DeleteConnectionOutboundDomain(ctx, pattern.String())
 		return err
-	}
-	if len(users) > 0 {
-		return nil
-	}
-	if _, err := s.db.Queries().DeleteConnectionOutboundDomain(ctx, pattern.String()); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("release outbound domain: %w", err)
 	}
 	return nil

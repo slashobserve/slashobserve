@@ -4,7 +4,9 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -105,5 +107,49 @@ func TestReleaseRemovesOnlyAnUnusedConnectionEntry(t *testing.T) {
 	list, err := store.Allowed(t.Context())
 	if err != nil || list.Allows("grafana.example.com") || !list.Allows("manual.example.com") {
 		t.Fatalf("allowlist %v, err %v", list, err)
+	}
+}
+
+func TestReleaseWaitsForTheLockAWebhookTakesWhileItIsSaved(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	by := auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
+	if _, err := store.AddForConnection(t.Context(), by, pattern(t, "grafana.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	held := make(chan struct{})
+	free := make(chan struct{})
+	finished := make(chan error, 1)
+	go func() {
+		finished <- database.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+			if err := q.LockOutboundDomains(t.Context()); err != nil {
+				return err
+			}
+			close(held)
+			<-free
+			return nil
+		})
+	}()
+	<-held
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			close(free)
+			if err := <-finished; err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	t.Cleanup(release)
+	done := make(chan error, 1)
+	go func() { done <- store.Release(t.Context(), "grafana.example.com") }()
+	select {
+	case err := <-done:
+		t.Fatalf("release finished (%v) while another writer held the lock", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	release()
+	if err := <-done; err != nil {
+		t.Fatal(err)
 	}
 }
