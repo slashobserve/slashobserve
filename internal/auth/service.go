@@ -124,12 +124,29 @@ func setUserRoleParams(id pgtype.UUID, d RoleDecision) dbsqlc.SetUserRoleParams 
 }
 
 func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, groups []string) error {
-	first, err := s.queries.IsFirstUser(ctx, user.ID)
+	return s.inTx(ctx, func(q *dbsqlc.Queries) error {
+		first, err := q.IsFirstUser(ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
+		return s.settleRole(ctx, q, user.ID, decision, !user.Inserted)
+	})
+}
+
+func (s *Service) settleRole(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID, decision RoleDecision, record bool) error {
+	before, err := q.GetUserForRole(ctx, id)
 	if err != nil {
 		return err
 	}
-	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
-	return s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision))
+	if err := q.SetUserRole(ctx, setUserRoleParams(id, decision)); err != nil {
+		return err
+	}
+	if !record || Role(before.Role) == decision.Role {
+		return nil
+	}
+	self := Principal{Kind: KindUser, ID: id.String(), Name: before.Name, Email: before.Email}
+	return s.changes.RoleChanged(ctx, q, self, RoleChange{UserID: id, Name: before.Name, From: Role(before.Role), To: decision.Role, Source: decision.Source})
 }
 
 func (s *Service) ReconcileRoles(ctx context.Context) error {
@@ -144,7 +161,7 @@ func (s *Service) ReconcileRoles(ctx context.Context) error {
 		if u.Role == want.Role && u.RoleSource == want.RoleSource && u.RoleGroup == want.RoleGroup {
 			continue
 		}
-		if err := s.queries.SetUserRole(ctx, want); err != nil {
+		if err := s.inTx(ctx, func(q *dbsqlc.Queries) error { return s.settleRole(ctx, q, u.ID, decision, true) }); err != nil {
 			return fmt.Errorf("set user role: %w", err)
 		}
 		changed++

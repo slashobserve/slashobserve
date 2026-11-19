@@ -143,3 +143,63 @@ func TestARoleChangeIsRecordedWithBeforeAndAfter(t *testing.T) {
 		t.Errorf("clearing the override = %+v, want Manual false", got)
 	}
 }
+
+func TestAPolicyRoleChangeIsRecordedOnReconcileAndOnLogin(t *testing.T) {
+	r := newProvisionRig(t)
+	log := &recordedChanges{}
+	r.service.RecordChanges(r.db.DB, log)
+	r.service.cfg.RolePolicy = RolePolicy{GroupRoles: []GroupRole{{Group: "viewers", Role: RoleViewer}}}
+	bob, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "bob", Email: "bob@example.com", Name: "Bob", Groups: []string{"viewers"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.service.ReconcileRoles(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(log.roles) != 1 {
+		t.Fatalf("recorded %+v, want one change for Bob only", log.roles)
+	}
+	got := log.roles[0]
+	if got.UserID != bob.ID || got.Name != "Bob" || got.From != RoleEditor || got.To != RoleViewer || got.Manual || got.Source != SourceGroup {
+		t.Errorf("reconcile change = %+v", got)
+	}
+
+	r.db.Exec(t, "UPDATE users SET role = 'editor' WHERE id = $1", bob.ID)
+	bob, err = r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "bob", Email: "bob@example.com", Name: "Bob", Groups: []string{"viewers"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(log.roles) != 2 || log.roles[1].From != RoleEditor || log.roles[1].To != RoleViewer {
+		t.Errorf("login change = %+v", log.roles)
+	}
+	if err := r.service.assignRole(t.Context(), bob, []string{"viewers"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(log.roles) != 2 {
+		t.Errorf("a login that changes nothing recorded %+v", log.roles[2:])
+	}
+}
+
+func TestAFirstLoginIsNotARoleChange(t *testing.T) {
+	r := newProvisionRig(t)
+	log := &recordedChanges{}
+	r.service.RecordChanges(r.db.DB, log)
+	r.service.cfg.RolePolicy = RolePolicy{GroupRoles: []GroupRole{{Group: "viewers", Role: RoleViewer}}}
+	newcomer, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "new", Email: "new@example.com", Name: "New", Groups: []string{"viewers"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.service.assignRole(t.Context(), newcomer, []string{"viewers"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(log.roles) != 0 {
+		t.Fatalf("recorded %+v, want nothing for a person's first login", log.roles)
+	}
+}

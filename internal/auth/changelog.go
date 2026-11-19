@@ -15,6 +15,7 @@ type RoleChange struct {
 	From   Role
 	To     Role
 	Manual bool
+	Source RoleSource
 }
 
 type ChangeLog interface {

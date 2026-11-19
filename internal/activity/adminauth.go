@@ -38,10 +38,11 @@ type roleChangedData struct {
 	FromRole auth.Role `json:"from_role"`
 	ToRole   auth.Role `json:"to_role"`
 	Manual   bool      `json:"manual"`
+	Source   string    `json:"source,omitempty"`
 }
 
 func (AuthChanges) RoleChanged(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, c auth.RoleChange) error {
-	return AppendAdmin(ctx, q, By(ctx, by), TypeUserRoleChanged, c.UserID, roleChangedData{Name: c.Name, FromRole: c.From, ToRole: c.To, Manual: c.Manual})
+	return AppendAdmin(ctx, q, By(ctx, by), TypeUserRoleChanged, c.UserID, roleChangedData{Name: c.Name, FromRole: c.From, ToRole: c.To, Manual: c.Manual, Source: string(c.Source)})
 }
 
 type serviceAccountCreatedData struct {

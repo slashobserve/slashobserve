@@ -53,6 +53,22 @@ describe("describeAuditEvent", () => {
     ).toBe("Changed the role of Asha from viewer to editor")
   })
 
+  test("says when the sign-in policy changed a role", () => {
+    expect(
+      describeAuditEvent(
+        event("user.role_changed", {
+          name: "Asha",
+          from_role: "editor",
+          to_role: "admin",
+          manual: false,
+          source: "group",
+        })
+      )
+    ).toBe(
+      "The sign-in policy changed the role of Asha from editor to admin (group)"
+    )
+  })
+
   test("says when a role override was cleared", () => {
     expect(
       describeAuditEvent(

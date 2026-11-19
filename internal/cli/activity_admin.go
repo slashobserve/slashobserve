@@ -11,6 +11,7 @@ type adminData struct {
 	FromRole   string `json:"from_role"`
 	ToRole     string `json:"to_role"`
 	Manual     bool   `json:"manual"`
+	Source     string `json:"source"`
 	Sessions   int    `json:"sessions"`
 	Grants     int    `json:"grants"`
 	KeyName    string `json:"key_name"`
@@ -86,6 +87,9 @@ func describeAdmin(e activityEvent) (string, bool) {
 func describeAccess(typ string, d adminData) (string, bool) {
 	switch typ {
 	case "user.role_changed":
+		if d.Source != "" {
+			return fmt.Sprintf("had the role of %s changed from %s to %s by the sign-in policy (%s)", text(d.Name), text(d.FromRole), text(d.ToRole), text(d.Source)), true
+		}
 		if !d.Manual {
 			return fmt.Sprintf("cleared the role override of %s; the role is now %s (was %s)", text(d.Name), text(d.ToRole), text(d.FromRole)), true
 		}

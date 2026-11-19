@@ -44,6 +44,7 @@ Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks
 | Target | Event types | Written when |
 | --- | --- | --- |
 | Person | `user.role_changed` | An Admin sets or clears a person's role override; `data` has the person's `name`, `from_role`, `to_role` and `manual`, which is false when the override was cleared. |
+| Person | `user.role_changed` | The sign-in policy changes a person's role, at their login or when the server starts: they joined or left an admin group, or the admin emails or group roles changed. The person is the actor, `manual` is false and `data` has `source`, one of `admin_emails`, `first_user`, `group` or `default`. A person's first login is not a change. |
 | Person | `user.signed_out_everywhere` | An Admin signs a person out everywhere; `data` has `name`, `sessions` and `grants`, how many sessions and connected agents ended. |
 | Service account | `service_account.created`, `service_account.updated` | An Admin creates a service account, or changes its role or whether it takes runs; an update lists each changed field as `{from, to}`. |
 | Service account | `service_account.key_created`, `service_account.key_revoked` | An Admin creates or revokes a key; `data` has the key's `key_id` and `key_name`, never the key. |

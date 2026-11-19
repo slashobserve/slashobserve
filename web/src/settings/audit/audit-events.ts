@@ -87,6 +87,8 @@ export function describeAuditEvent(event: ActivityEvent): string {
   const name = str(data, "name")
   switch (event.type) {
     case "user.role_changed":
+      if (str(data, "source") !== "")
+        return `The sign-in policy changed the role of ${name} from ${str(data, "from_role")} to ${str(data, "to_role")} (${str(data, "source")})`
       return data.manual === false
         ? `Cleared the role override of ${name}; the role is now ${str(data, "to_role")} (was ${str(data, "from_role")})`
         : `Changed the role of ${name} from ${str(data, "from_role")} to ${str(data, "to_role")}`

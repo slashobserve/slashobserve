@@ -278,6 +278,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"dashboard.created", `{"title":"Evil\u001b[31m"}`, `created "Evil [31m"`},
 		{"user.role_changed", `{"name":"Bob","from_role":"viewer","to_role":"editor","manual":true}`, `changed the role of Bob from viewer to editor`},
 		{"user.role_changed", `{"name":"Bob","from_role":"editor","to_role":"viewer","manual":false}`, `cleared the role override of Bob; the role is now viewer (was editor)`},
+		{"user.role_changed", `{"name":"Bob","from_role":"editor","to_role":"admin","manual":false,"source":"group"}`, `had the role of Bob changed from editor to admin by the sign-in policy (group)`},
 		{"user.signed_out_everywhere", `{"name":"Bob","sessions":2,"grants":1}`, `signed Bob out everywhere (2 sessions, 1 connected agents)`},
 		{"service_account.created", `{"name":"ci","role":"viewer","takes_runs":false}`, `created the service account "ci" (viewer)`},
 		{"service_account.updated", `{"name":"ci","role":{"from":"viewer","to":"editor"},"takes_runs":{"from":false,"to":true}}`, `changed the service account "ci": role viewer to editor, takes runs false to true`},
