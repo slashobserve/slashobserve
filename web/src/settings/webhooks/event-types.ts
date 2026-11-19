@@ -68,6 +68,9 @@ export const eventTypeLabels = {
   "grafana_connection.created": "Grafana connection created",
   "grafana_connection.updated": "Grafana connection updated",
   "grafana_connection.deleted": "Grafana connection deleted",
+  "datasource.created": "Datasource added",
+  "datasource.updated": "Datasource changed",
+  "datasource.deleted": "Datasource deleted",
 } satisfies Record<ActivityType, string>
 
 const groupLabels: Record<string, string> = {
@@ -86,6 +89,7 @@ const groupLabels: Record<string, string> = {
   mcp_client: "Connected agents",
   outbound_domain: "Outbound access",
   grafana_connection: "Grafana connections",
+  datasource: "Datasources",
 }
 
 export const allEventTypes = Object.keys(eventTypeLabels) as ActivityType[]

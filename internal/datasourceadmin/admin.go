@@ -368,8 +368,10 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	var row dbsqlc.Datasource
 	err = s.saveOnAllowedHost(ctx, by, cand.host, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = q.InsertDatasource(ctx, params)
-		return err
+		if row, err = q.InsertDatasource(ctx, params); err != nil {
+			return err
+		}
+		return recordCreated(ctx, q, by, row.ID, cand.def)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
@@ -438,8 +440,10 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	var updated dbsqlc.Datasource
 	save := func(q *dbsqlc.Queries) error {
 		var err error
-		updated, err = q.UpdateDatasource(ctx, params)
-		return err
+		if updated, err = q.UpdateDatasource(ctx, params); err != nil {
+			return err
+		}
+		return recordUpdated(ctx, q, by, updated.ID, current.Definition, cand.def, !change.empty())
 	}
 	addressChanged := cand.def.Address != current.Definition.Address
 	if addressChanged {
@@ -475,7 +479,18 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, uid string) err
 	if len(users.Users)+users.Hidden > 0 {
 		return &users
 	}
-	n, err := s.db.Queries().DeleteDatasource(ctx, uid)
+	current, err := recordOf(row)
+	if err != nil {
+		return err
+	}
+	var n int64
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		if n, err = q.DeleteDatasource(ctx, uid); err != nil || n == 0 {
+			return err
+		}
+		return recordDeleted(ctx, q, by, row.ID, current.Definition)
+	})
 	if err != nil {
 		return err
 	}
@@ -485,10 +500,8 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, uid string) err
 	s.mu.Lock()
 	s.forgetLocked(uid)
 	s.mu.Unlock()
-	if current, err := recordOf(row); err == nil {
-		if host, problem := endpointOf(current.Definition); problem == nil {
-			s.releaseHost(ctx, by, host)
-		}
+	if host, problem := endpointOf(current.Definition); problem == nil {
+		s.releaseHost(ctx, by, host)
 	}
 	s.logger.InfoContext(ctx, "datasource removed", slog.String("actor_id", by.ID), slog.String("uid", uid))
 	return nil

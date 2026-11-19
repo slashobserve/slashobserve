@@ -61,6 +61,7 @@ func (s *slotTotals) total(uid string) int {
 
 type rig struct {
 	db       *db.DB
+	database *dbtest.Database
 	registry *datasource.Registry
 	slots    *slotTotals
 	domains  *allowlist.Store
@@ -88,7 +89,7 @@ func newRigWith(t *testing.T, opts rigOptions) (*rig, *Service) {
 	}
 	t.Cleanup(func() { _ = registry.Close() })
 	r := &rig{
-		db: database.DB, registry: registry, slots: &slotTotals{},
+		db: database.DB, database: database, registry: registry, slots: &slotTotals{},
 		domains: allowlist.New(database.DB, opts.lock, slog.New(slog.DiscardHandler)),
 		access:  folders.NewAccess(database.DB),
 	}

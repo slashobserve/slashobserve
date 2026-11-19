@@ -12,5 +12,15 @@ CREATE TABLE datasources (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
+ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
+ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check
+  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search', 'observation', 'proposal',
+    'user', 'service_account', 'webhook', 'mcp_client', 'outbound_domain', 'grafana_connection', 'public_link', 'datasource'));
+
 -- +goose Down
+DELETE FROM activity WHERE target_kind = 'datasource';
+ALTER TABLE activity DROP CONSTRAINT activity_target_kind_check;
+ALTER TABLE activity ADD CONSTRAINT activity_target_kind_check
+  CHECK (target_kind IN ('dashboard', 'annotation', 'finding', 'run', 'thread', 'saved_search', 'observation', 'proposal',
+    'user', 'service_account', 'webhook', 'mcp_client', 'outbound_domain', 'grafana_connection', 'public_link'));
 DROP TABLE datasources;

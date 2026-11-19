@@ -23,12 +23,15 @@ type adminData struct {
 	Object     struct {
 		Kind string `json:"kind"`
 	} `json:"object"`
-	Host         string                     `json:"host"`
-	URLChanged   bool                       `json:"url_changed"`
-	TokenChanged bool                       `json:"token_changed"`
-	Role         json.RawMessage            `json:"role"`
-	TakesRuns    json.RawMessage            `json:"takes_runs"`
-	Changes      map[string]json.RawMessage `json:"changes"`
+	Host               string                     `json:"host"`
+	URLChanged         bool                       `json:"url_changed"`
+	TokenChanged       bool                       `json:"token_changed"`
+	AddressChanged     bool                       `json:"address_changed"`
+	SettingsChanged    bool                       `json:"settings_changed"`
+	CredentialsChanged bool                       `json:"credentials_changed"`
+	Role               json.RawMessage            `json:"role"`
+	TakesRuns          json.RawMessage            `json:"takes_runs"`
+	Changes            map[string]json.RawMessage `json:"changes"`
 }
 
 func (d activityData) admin() adminData {
@@ -144,6 +147,12 @@ func describeIntegration(typ string, d adminData) (string, bool) {
 		return changedText(quotedName("Grafana connection", d.Name), d, "name", "host"), true
 	case "grafana_connection.deleted":
 		return "removed " + quotedName("Grafana connection", d.Name), true
+	case "datasource.created":
+		return "added " + quotedName("datasource", d.Name) + " at " + text(d.Host), true
+	case "datasource.updated":
+		return changedText(quotedName("datasource", d.Name), d, "name", "host"), true
+	case "datasource.deleted":
+		return "deleted " + quotedName("datasource", d.Name), true
 	}
 	return "", false
 }
@@ -157,11 +166,21 @@ func changedText(subject string, d adminData, order ...string) string {
 }
 
 func secretNote(d adminData) string {
-	switch {
-	case d.TokenChanged:
-		return " (token replaced)"
-	case d.URLChanged:
-		return " (address changed)"
+	var notes []string
+	if d.TokenChanged {
+		notes = append(notes, "token replaced")
 	}
-	return ""
+	if d.CredentialsChanged {
+		notes = append(notes, "credentials replaced")
+	}
+	if !d.TokenChanged && (d.URLChanged || d.AddressChanged) {
+		notes = append(notes, "address changed")
+	}
+	if d.SettingsChanged {
+		notes = append(notes, "settings changed")
+	}
+	if len(notes) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(notes, ", ") + ")"
 }

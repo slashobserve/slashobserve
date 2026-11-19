@@ -136,6 +136,35 @@ describe("describeAuditEvent", () => {
     ).toBe('Changed the Grafana connection "prod": token replaced')
   })
 
+  test("describes a datasource change without credentials", () => {
+    expect(
+      describeAuditEvent(
+        event("datasource.updated", {
+          name: "Metrics",
+          host: "prom2.example.com",
+          address_changed: true,
+          credentials_changed: true,
+          changes: {
+            host: { from: "prom.example.com", to: "prom2.example.com" },
+          },
+        })
+      )
+    ).toBe(
+      'Changed the datasource "Metrics": host prom.example.com to prom2.example.com, address changed, credentials replaced'
+    )
+    expect(
+      describeAuditEvent(
+        event("datasource.created", {
+          name: "Metrics",
+          host: "prom.example.com",
+        })
+      )
+    ).toBe('Added the datasource "Metrics" at prom.example.com')
+    expect(
+      describeAuditEvent(event("datasource.deleted", { name: "Metrics" }))
+    ).toBe('Deleted the datasource "Metrics"')
+  })
+
   test("calls an observation link an RCA", () => {
     expect(
       describeAuditEvent(

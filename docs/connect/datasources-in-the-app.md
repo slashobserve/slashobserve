@@ -46,6 +46,12 @@ A datasource that saved dashboards or saved searches use cannot be removed.
 The refusal is `409 datasource_in_use` and lists the users, so you can change them to another datasource first.
 Dashboards in folders you cannot see are counted but not named.
 
+## Audit log
+
+Adding, changing and deleting a datasource is recorded as `datasource.created`, `datasource.updated` and `datasource.deleted` in the [Audit log](../use/activity.md), with the name, the address's host and port and what changed.
+A credential and the address path are never recorded, only that credentials were replaced.
+Datasources from the datasources file are not recorded.
+
 ## Stored datasources that cannot load
 
 If the secret key is missing or changed, or a stored row no longer validates, the datasource still appears, as Unavailable with the reason, and dashboards that use it fail with a clear message.
