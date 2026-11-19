@@ -80,10 +80,12 @@ function setup({
   openLine = false,
   drawer = false,
   linesLoading = false,
+  linesRerunning = false,
   seedFacets = true,
 }: {
   seedFacets?: boolean
   linesLoading?: boolean
+  linesRerunning?: boolean
   drawer?: boolean
   openLine?: boolean
   type?: string
@@ -109,7 +111,11 @@ function setup({
     range,
     run,
     setDraft,
-    results: { isLoading: linesLoading },
+    results: {
+      isLoading: linesLoading,
+      isFetching: linesLoading || linesRerunning,
+      isPlaceholderData: linesRerunning,
+    },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
@@ -164,6 +170,14 @@ describe("FieldsAside", () => {
     const fetcher = vi.fn(async () => Response.json(esFacets))
     vi.stubGlobal("fetch", fetcher)
     setup({ linesLoading: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts the values only once a rerun's lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesRerunning: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
   })

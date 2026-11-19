@@ -313,6 +313,8 @@ function FieldsPanel({
     ...labelNamesQuery(uid, { from: range.from, to: range.to }),
     enabled: type !== "clickhouse",
   })
+  const linesPending =
+    results.isLoading || (results.isFetching && results.isPlaceholderData)
   const facets = useQuery({
     ...logFacetsQuery(uid, {
       query: effectiveQuery ?? "",
@@ -320,7 +322,7 @@ function FieldsPanel({
       to: range.to,
       limit: topValues,
     }),
-    enabled: q !== undefined && !results.isLoading,
+    enabled: q !== undefined && !linesPending,
   })
   const base: Base = {
     data: facets.data,
