@@ -845,7 +845,7 @@ export interface paths {
         };
         /**
          * Get how a dashboard was imported from Grafana.
-         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. Answers 403 `forbidden_role` when the caller cannot see the dashboard's folder.
+         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. A dashboard in a folder the caller cannot see answers 404 `not_found` too.
          */
         get: operations["getDashboardImport"];
         put?: never;
@@ -2917,7 +2917,7 @@ export interface paths {
         put?: never;
         /**
          * Create a public link that opens the dashboard read-only without sign-in.
-         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A dashboard has at most 20 links.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given. A dashboard has at most 20 unexpired links; an expired link no longer counts. An optional `label` of up to 80 characters says what the link is for; a longer one or one with a control character is refused with 400 `invalid_request`.
          */
         post: operations["createPublicLink"];
         delete?: never;
@@ -2961,7 +2961,7 @@ export interface paths {
         };
         /**
          * Read the dashboard a public link shows.
-         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text, tags and links: every panel query's `query` and every variable's `query` are left out, and so are the dashboard's `tags` and `links`. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
          */
         get: operations["getPublicDashboard"];
         put?: never;
@@ -3388,6 +3388,18 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /**
+             * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+             * @enum {string}
+             */
+            needed_role?: "viewer" | "commenter" | "editor" | "admin";
+            /**
+             * @description On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+             * @enum {string}
+             */
+            needed_access?: "view" | "comment" | "edit" | "manage";
+            /** @description The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder. */
+            folder_title?: string;
         };
         Issue: {
             path: string;
@@ -6015,6 +6027,8 @@ export interface components {
             id: string;
             /** @description The first 12 characters of the token, to tell links apart; the token itself is never shown again. */
             prefix: string;
+            /** @description What the link is for, set when it was created; empty when none was given. */
+            label: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections: components["schemas"]["PublicLinkSelections"];
@@ -6044,6 +6058,8 @@ export interface components {
             state: "expired" | "active";
         };
         CreatePublicLinkRequest: {
+            /** @description Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for. */
+            label?: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections?: components["schemas"]["PublicLinkSelections"];
@@ -6592,7 +6608,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The resource does not exist. */
+        /** @description The resource does not exist, or the caller cannot see it; the two are never told apart. */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -14037,7 +14053,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -14070,7 +14086,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -14203,7 +14219,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`). */
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 unexpired links (`too_many_links`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14213,6 +14229,15 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+            /** @description A `free` link's selections could not be checked because a variable's options could not be read from its datasource (`variable_options_unavailable`); try again or create a `frozen` link. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     deletePublicLink: {

@@ -541,6 +541,7 @@ type PublicLink struct {
 	CreatedAt     pgtype.Timestamptz
 	LastViewedAt  pgtype.Timestamptz
 	RcaID         pgtype.UUID
+	Label         string
 }
 
 type RunSession struct {

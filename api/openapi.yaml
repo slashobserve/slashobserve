@@ -333,6 +333,17 @@ components:
           type: string
         code:
           type: string
+        needed_role:
+          type: string
+          enum: [viewer, commenter, editor, admin]
+          description: On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+        needed_access:
+          type: string
+          enum: [view, comment, edit, manage]
+          description: On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+        folder_title:
+          type: string
+          description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
     Issue:
       type: object
       additionalProperties: false
@@ -5438,7 +5449,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -5446,6 +5457,10 @@ components:
         prefix:
           type: string
           description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        label:
+          type: string
+          maxLength: 80
+          description: What the link is for, set when it was created; empty when none was given.
         variables:
           type: string
           enum: [frozen, free]
@@ -5490,6 +5505,10 @@ components:
       additionalProperties: false
       required: [variables]
       properties:
+        label:
+          type: string
+          maxLength: 80
+          description: Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for.
         variables:
           type: string
           enum: [frozen, free]
@@ -6400,7 +6419,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     NotFound:
-      description: The resource does not exist.
+      description: The resource does not exist, or the caller cannot see it; the two are never told apart.
       content:
         application/json:
           schema:

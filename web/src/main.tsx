@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 
 import { watchPostedDrafts } from "@/activity/activity-store"
-import { setUnauthorizedHandler } from "@/api/client"
+import { setRoleRefusedHandler, setUnauthorizedHandler } from "@/api/client"
 import { createQueryClient } from "@/api/query-client"
 import { refreshSession } from "@/lib/auth"
 import { parseSearch, stringifySearch } from "@/lib/search"
@@ -33,14 +33,21 @@ declare module "@tanstack/react-router" {
   }
 }
 
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible") return
+function catchUpWithSession() {
   refreshSession().then(
     ({ changed }) => {
-      if (changed) void router.invalidate()
+      if (!changed) return
+      void router.invalidate()
+      void queryClient.invalidateQueries()
     },
     () => undefined
   )
+}
+
+setRoleRefusedHandler(catchUpWithSession)
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") catchUpWithSession()
 })
 
 const rootElement = document.getElementById("root")

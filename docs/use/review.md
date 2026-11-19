@@ -54,7 +54,7 @@ A comment is attached to the latest version when you write it.
 A comment that mentions no agent never asks an agent to do anything.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
-Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
+Without it you see "You can view dashboards in `<folder>`. Ask an Admin of this folder, or of this server, to give you Comment access."
 With Comment but not Edit you see "You can view and comment in `<folder>`. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
@@ -111,9 +111,9 @@ An external agent can pick the comment up over [MCP](mcp.md).
 "Link to this dashboard" copies the address of the dashboard.
 It carries the time range and the variable values you are looking at, and each has a checkbox to leave it out.
 "Link to one panel" picks a data or text panel by title and copies a link that opens the dashboard with that panel focused, expanding its row if the row is collapsed.
-A link grants nothing: the person who opens it signs in, and sees "You don't have access to this dashboard" when the dashboard's folder is not open to them.
+A link grants nothing: the person who opens it signs in, and sees "Dashboard not found" when the dashboard's folder is not open to them, the same page as for a link with a wrong id.
 "Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
-People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
+People who can manage a folder other than General also get a **Manage folder access** button; everyone else sees who can add people and create public links, namely the people who manage that folder; see [Folders](../teams/folders.md).
 
 ## Resolve and reopen
 

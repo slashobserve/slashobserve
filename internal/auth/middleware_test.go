@@ -66,6 +66,7 @@ func newSessionRigWithIssuer(t *testing.T, logger *slog.Logger, issuer string) *
 	engine := gin.New()
 	authenticated := s.Mount(engine.Group("/api/v1"))
 	authenticated.POST("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	authenticated.DELETE("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	authenticated.GET("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	return &sessionRig{t: t, db: database, engine: engine, userID: user.ID, cookie: s.sessionCookie + "=" + token, login: s.loginCookie}
 }
@@ -103,6 +104,18 @@ func TestRejectedCrossOriginRequestDoesNotMarkThePersonOnline(t *testing.T) {
 	}
 	if idle := r.idleFor(); idle > time.Minute {
 		t.Fatalf("an accepted request left last_seen_at stale (idle %s)", idle)
+	}
+}
+
+func TestAForeignOrCookieOnlyOriginIsRefusedAsForbiddenNeverAsSignedOut(t *testing.T) {
+	r := newSessionRig(t)
+	for _, origin := range []string{"http://evil.example", "null"} {
+		if got := r.request(http.MethodDelete, "/api/v1/ping", origin); got != http.StatusForbidden {
+			t.Errorf("DELETE with Origin %q = %d, want 403", origin, got)
+		}
+	}
+	if got := r.request(http.MethodDelete, "/api/v1/ping", ""); got != http.StatusNoContent {
+		t.Errorf("DELETE with no Origin = %d, want 204", got)
 	}
 }
 
