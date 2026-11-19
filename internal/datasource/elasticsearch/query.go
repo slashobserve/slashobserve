@@ -254,8 +254,11 @@ const (
 	fieldKeys
 	nameKeys
 	aggregationKeys
+	pipelineKeys
 	strictKeys
 )
+
+var bucketScriptAggregations = []string{"bucket_script", "moving_fn"}
 
 var namedChildren = []string{"aggs", "aggregations"}
 
@@ -267,6 +270,8 @@ func (r keyRole) isScript(name string) bool {
 		return name == "_script"
 	case nameKeys:
 		return false
+	case pipelineKeys:
+		return name != "script" && slices.Contains(scriptKeys, name)
 	}
 	return slices.Contains(scriptKeys, name)
 }
@@ -291,6 +296,8 @@ func (r keyRole) child(name string) keyRole {
 			return nameKeys
 		case name == "filter":
 			return clauseKeys
+		case slices.Contains(bucketScriptAggregations, name):
+			return pipelineKeys
 		}
 	}
 	return strictKeys
