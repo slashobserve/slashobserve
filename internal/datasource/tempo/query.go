@@ -207,31 +207,22 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 		rows    []spanRow
 		metrics searchMetrics
 		seen    = map[string]bool{}
-		took    time.Duration
-		span    time.Duration
+		pacer   datasource.Pacer
 	)
-	for i, w := range searchWindows(r) {
-		budget, bounded := windowBudget(ctx)
-		if i > 0 && bounded && projected(took, span, w.To.Sub(w.From)) > budget {
+	for _, w := range searchWindows(r) {
+		win, ok := pacer.Start(ctx, w.To.Sub(w.From))
+		if !ok {
 			metrics.cut = true
 			break
 		}
-		windowCtx, cancel := ctx, context.CancelFunc(func() {})
-		if bounded {
-			windowCtx, cancel = context.WithTimeout(ctx, budget)
-		}
-		started := time.Now()
-		got, m, err := d.searchWindow(windowCtx, text, w, limit-len(rows))
-		ranOut := errors.Is(windowCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
-		cancel()
-		if err != nil {
+		got, m, err := d.searchWindow(win.Ctx, text, w, limit-len(rows))
+		if ranOut := win.End(err); err != nil {
 			if !ranOut {
 				return nil, searchMetrics{}, err
 			}
 			metrics.cut = true
 			break
 		}
-		took, span = time.Since(started), w.To.Sub(w.From)
 		metrics = metrics.plus(m)
 		for _, row := range got {
 			if !seen[row.traceID] {
@@ -249,10 +240,7 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 	return rows, metrics, nil
 }
 
-const (
-	firstSearchWindow = time.Hour
-	searchReserve     = time.Second
-)
+const firstSearchWindow = time.Hour
 
 func searchWindows(r datasource.TimeRange) []datasource.TimeRange {
 	var out []datasource.TimeRange
@@ -266,21 +254,6 @@ func searchWindows(r datasource.TimeRange) []datasource.TimeRange {
 		to, span = from, span*2
 	}
 	return out
-}
-
-func windowBudget(ctx context.Context) (time.Duration, bool) {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return 0, false
-	}
-	return time.Until(deadline) - searchReserve, true
-}
-
-func projected(took, span, next time.Duration) time.Duration {
-	if span <= 0 {
-		return 0
-	}
-	return time.Duration(float64(took) * float64(next) / float64(span))
 }
 
 func (d *Datasource) searchWindow(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
