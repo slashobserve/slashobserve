@@ -17,7 +17,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 		want string
 	}{
 		"no prompt":                  {StartRequest{}, "prompt is required"},
-		"blank prompt":               {StartRequest{Prompt: ptr("   ")}, "prompt must be 1 to"},
+		"blank prompt":               {StartRequest{Prompt: ptr("   ")}, "prompt must not be empty"},
 		"unknown kind":               {StartRequest{Prompt: ptr("x"), Kind: ptr("rca")}, "kind must be build or investigate"},
 		"investigation fields":       {StartRequest{Prompt: ptr("x"), PanelID: ptr("p")}, "need kind investigate"},
 		"observation on a build":     {StartRequest{Prompt: ptr("x"), ObservationID: ptr("o")}, "goes with kind investigate"},
