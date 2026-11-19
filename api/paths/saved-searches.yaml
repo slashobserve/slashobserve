@@ -104,6 +104,7 @@ saved-searches-id:
   patch:
     operationId: updateSavedSearch
     x-surfaces:
+      mcp: [update_saved_search]
       cli: [observe saved-searches update, observe saved-searches rename, observe saved-searches move]
     summary: Rename a saved search, move it to another folder or change what it searches.
     description: >-
