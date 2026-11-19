@@ -234,38 +234,11 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	none := func(err error) (dashboards.Dashboard, dashboards.Version, bool, error) {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, err
 	}
-	if blockID.Valid {
-		block, err := s.store.block(ctx, blockID)
-		if err != nil {
-			return none(err)
-		}
-		if id.Valid && id != block.ObservationID {
-			return none(ErrNotFound)
-		}
-		id = block.ObservationID
-	}
-	parent, _, abilities, err := s.open(ctx, by, id)
+	parent, panels, err := s.panelsToMake(ctx, by, id, blockID)
 	if err != nil {
 		return none(err)
 	}
-	rows, err := s.store.blocks(ctx, id)
-	if err != nil {
-		return none(err)
-	}
-	viewer := actor.Of(by, origin.Origin{}, "")
-	var panels []dbsqlc.ObservationBlock
-	for _, b := range rows {
-		if Kind(b.Kind) == KindPanel && BlockState(b.State) == BlockLive && visibleTo(b, abilities, viewer) && (!blockID.Valid || b.ID == blockID) {
-			panels = append(panels, b)
-		}
-	}
-	switch {
-	case blockID.Valid && len(panels) == 0:
-		return none(ErrNotFound)
-	case len(panels) == 0:
-		return none(ErrNoPanels)
-	}
-	key, err := s.outputKeyFor(by, id, blockID)
+	key, err := s.outputKeyFor(by, parent.ID, blockID)
 	if err != nil {
 		return none(err)
 	}
@@ -281,32 +254,71 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	var version dashboards.Version
 	var created bool
 	err = s.locked(ctx, key.lockName(), func(q *dbsqlc.Queries) error {
-		if !again {
-			d, v, ok, err := s.madeDashboard(ctx, q, by, key)
-			if err != nil || ok {
-				made, version, created = d, v, false
-				return err
-			}
-		}
-		if err := q.DeleteObservationDashboard(ctx, dbsqlc.DeleteObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
-			return fmt.Errorf("replace made dashboard: %w", err)
-		}
-		d, v, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, madeDashboardSummary)
-		if err != nil {
-			return err
-		}
-		dashboardID, err := db.ParseUUID(d.ID)
-		if err != nil {
-			return err
-		}
-		if err := q.InsertObservationDashboard(ctx, dbsqlc.InsertObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, DashboardID: dashboardID, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
-			return fmt.Errorf("record made dashboard: %w", err)
-		}
-		made, version, created = d, v, true
-		return nil
+		var err error
+		made, version, created, err = s.makeOrReadDashboard(ctx, q, by, key, raw, again)
+		return err
 	})
 	if err != nil {
 		return none(err)
 	}
 	return made, version, created, nil
+}
+
+func (s *Service) panelsToMake(ctx context.Context, by auth.Principal, id, blockID pgtype.UUID) (dbsqlc.Observation, []dbsqlc.ObservationBlock, error) {
+	if blockID.Valid {
+		block, err := s.store.block(ctx, blockID)
+		if err != nil {
+			return dbsqlc.Observation{}, nil, err
+		}
+		if id.Valid && id != block.ObservationID {
+			return dbsqlc.Observation{}, nil, ErrNotFound
+		}
+		id = block.ObservationID
+	}
+	parent, _, abilities, err := s.open(ctx, by, id)
+	if err != nil {
+		return dbsqlc.Observation{}, nil, err
+	}
+	rows, err := s.store.blocks(ctx, id)
+	if err != nil {
+		return dbsqlc.Observation{}, nil, err
+	}
+	viewer := actor.Of(by, origin.Origin{}, "")
+	var panels []dbsqlc.ObservationBlock
+	for _, b := range rows {
+		if Kind(b.Kind) == KindPanel && BlockState(b.State) == BlockLive && visibleTo(b, abilities, viewer) && (!blockID.Valid || b.ID == blockID) {
+			panels = append(panels, b)
+		}
+	}
+	switch {
+	case blockID.Valid && len(panels) == 0:
+		return dbsqlc.Observation{}, nil, ErrNotFound
+	case len(panels) == 0:
+		return dbsqlc.Observation{}, nil, ErrNoPanels
+	}
+	return parent, panels, nil
+}
+
+func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, key outputKey, raw []byte, again bool) (dashboards.Dashboard, dashboards.Version, bool, error) {
+	if !again {
+		d, v, ok, err := s.madeDashboard(ctx, q, by, key)
+		if err != nil || ok {
+			return d, v, false, err
+		}
+	}
+	if err := q.DeleteObservationDashboard(ctx, dbsqlc.DeleteObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("replace made dashboard: %w", err)
+	}
+	d, v, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, madeDashboardSummary)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	dashboardID, err := db.ParseUUID(d.ID)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	if err := q.InsertObservationDashboard(ctx, dbsqlc.InsertObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, DashboardID: dashboardID, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("record made dashboard: %w", err)
+	}
+	return d, v, true, nil
 }

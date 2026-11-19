@@ -574,7 +574,7 @@ func (h *Handler) pin(c *gin.Context) {
 		status = http.StatusCreated
 		c.Header("Location", "/api/v1/annotations/"+pin.AnnotationID)
 	}
-	c.JSON(status, PinJSON{DashboardID: pin.DashboardID, AnnotationID: pin.AnnotationID})
+	c.JSON(status, PinJSON(pin))
 }
 
 func (h *Handler) makeObservationDashboard(c *gin.Context) {
@@ -762,42 +762,46 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 }
 
+type knownFailure struct {
+	err     error
+	status  int
+	code    string
+	message string
+}
+
+var knownFailures = []knownFailure{
+	{ErrNoDashboard, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error()},
+	{ErrDashboardNotFound, http.StatusNotFound, "not_found", ErrDashboardNotFound.Error()},
+	{ErrNoPanels, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error()},
+	{ErrRunInProgress, http.StatusConflict, "run_in_progress", ErrRunInProgress.Error()},
+	{ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+	{ErrFolderNotFound, http.StatusNotFound, "not_found", ErrFolderNotFound.Error()},
+	{ErrInvalidCursor, http.StatusBadRequest, "invalid_request", "cursor is not valid"},
+	{ErrCursorOrder, http.StatusBadRequest, "invalid_request", ErrCursorOrder.Error()},
+	{ErrNothingToUpdate, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error()},
+	{folders.ErrMoveIntoPersonal, http.StatusConflict, "personal_folder", moveIntoPersonalMessage},
+	{folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
+	{folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
+}
+
 func abortKnown(c *gin.Context, err error) bool {
+	for _, known := range knownFailures {
+		if errors.Is(err, known.err) {
+			httpapi.AbortError(c, known.status, known.code, known.message)
+			return true
+		}
+	}
 	var invalid *InvalidInputError
 	var conflict *ConflictError
 	var refusal *lifecycle.Refusal
 	var badSpec *dashboards.InvalidSpecError
 	switch {
-	case errors.Is(err, ErrNoDashboard):
-		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error())
-	case errors.Is(err, ErrDashboardNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrDashboardNotFound.Error())
-	case errors.Is(err, ErrNoPanels):
-		httpapi.AbortError(c, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error())
-	case errors.Is(err, ErrRunInProgress):
-		httpapi.AbortError(c, http.StatusConflict, "run_in_progress", ErrRunInProgress.Error())
 	case errors.As(err, &badSpec):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)
-	case errors.Is(err, ErrNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
-	case errors.Is(err, ErrFolderNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
-	case errors.Is(err, ErrInvalidCursor):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
-	case errors.Is(err, ErrCursorOrder):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrCursorOrder.Error())
-	case errors.Is(err, ErrNothingToUpdate):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error())
-	case errors.Is(err, folders.ErrMoveIntoPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", moveIntoPersonalMessage)
 	case errors.As(err, &refusal):
 		lifecycle.AbortRefusal(c, refusal)
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: conflict.Error(), Code: codeVersionConflict, Current: BlockOf(conflict.Current)})
-	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
-	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.As(err, &invalid):
 		issues := invalid.Issues
 		if issues == nil {

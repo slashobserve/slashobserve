@@ -230,11 +230,7 @@ type addBlockOptions struct {
 	position   int
 }
 
-func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error) {
-	markdown, hasText, err := o.source.markdown()
-	if err != nil {
-		return nil, "", err
-	}
+func (o addBlockOptions) checkSources(hasText bool) error {
 	given := 0
 	for _, present := range []bool{hasText, o.panelFile != "", o.snapshotOf != ""} {
 		if present {
@@ -242,13 +238,24 @@ func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error
 		}
 	}
 	if given != 1 {
-		return nil, "", usagef("give exactly one of --text, --text-file, --panel-file and --snapshot-of")
+		return usagef("give exactly one of --text, --text-file, --panel-file and --snapshot-of")
 	}
 	if (o.from != "" || o.to != "") && o.panelFile == "" {
-		return nil, "", usagef("--from and --to go with --panel-file")
+		return usagef("--from and --to go with --panel-file")
 	}
 	if len(o.vars) > 0 && o.panelFile == "" {
-		return nil, "", usagef("--var goes with --panel-file")
+		return usagef("--var goes with --panel-file")
+	}
+	return nil
+}
+
+func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error) {
+	markdown, hasText, err := o.source.markdown()
+	if err != nil {
+		return nil, "", err
+	}
+	if err := o.checkSources(hasText); err != nil {
+		return nil, "", err
 	}
 	body := map[string]any{}
 	var kind string

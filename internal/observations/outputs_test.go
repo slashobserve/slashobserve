@@ -212,12 +212,12 @@ func TestPinAndMakeDashboardRoutesMatchTheDocument(t *testing.T) {
 	about := d.dashboard(t)
 	o := d.newObservation(t, editor, d.shared.String(), "").Observation
 	pin := "/api/v1/observations/" + o.ID + "/pin"
-	make := "/api/v1/observations/" + o.ID + "/dashboard"
+	madeAt := "/api/v1/observations/" + o.ID + "/dashboard"
 
 	if got := errorCode(t, d.send(t, editor, http.MethodPost, pin, `{}`, http.StatusConflict)); got != "observation_has_no_dashboard" {
 		t.Errorf("pin code %q", got)
 	}
-	if got := errorCode(t, d.send(t, editor, http.MethodPost, make, `{}`, http.StatusConflict)); got != "observation_has_no_panels" {
+	if got := errorCode(t, d.send(t, editor, http.MethodPost, madeAt, `{}`, http.StatusConflict)); got != "observation_has_no_panels" {
 		t.Errorf("make code %q", got)
 	}
 	d.send(t, editor, http.MethodPost, pin, `{"dashboard_id":"nope"}`, http.StatusBadRequest)
@@ -234,12 +234,12 @@ func TestPinAndMakeDashboardRoutesMatchTheDocument(t *testing.T) {
 		Dashboard struct {
 			ID string `json:"id"`
 		} `json:"dashboard"`
-	}](t, d.send(t, editor, http.MethodPost, make, `{}`, http.StatusCreated))
-	again := d.send(t, editor, http.MethodPost, make, `{}`, http.StatusOK)
+	}](t, d.send(t, editor, http.MethodPost, madeAt, `{}`, http.StatusCreated))
+	again := d.send(t, editor, http.MethodPost, madeAt, `{}`, http.StatusOK)
 	if !strings.Contains(again.Body.String(), first.Dashboard.ID) {
 		t.Errorf("a second make answered %s, want dashboard %s", again.Body, first.Dashboard.ID)
 	}
-	d.send(t, editor, http.MethodPost, make, `{"new":true}`, http.StatusCreated)
+	d.send(t, editor, http.MethodPost, madeAt, `{"new":true}`, http.StatusCreated)
 	d.send(t, editor, http.MethodPost, "/api/v1/blocks/"+block.ID+"/dashboard", `{}`, http.StatusCreated)
 	d.send(t, editor, http.MethodPost, "/api/v1/blocks/"+block.ID+"/dashboard", `{}`, http.StatusOK)
 	d.send(t, editor, http.MethodPost, "/api/v1/blocks/"+o.ID+"/dashboard", `{}`, http.StatusNotFound)
