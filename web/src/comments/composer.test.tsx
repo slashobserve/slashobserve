@@ -124,6 +124,36 @@ describe("Composer", () => {
     )
   })
 
+  it("sends a line typed straight through from @observe on Enter and asks the agent", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@observe add a stat panel for request rate")
+    expect(field).toHaveValue("@observe add a stat panel for request rate")
+    expect(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    ).toBeEnabled()
+    await user.keyboard("{Enter}")
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        "@observe add a stat panel for request rate"
+      )
+    )
+  })
+
+  it("sends a line with an unknown handle on Enter", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@nobody look at this{Enter}")
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith("@nobody look at this")
+    )
+  })
+
+  it("picks the highlighted match on Enter instead of sending", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@obs{Enter}")
+    await waitFor(() => expect(field).toHaveValue("@observe "))
+    expect(submit).not.toHaveBeenCalled()
+  })
+
   it("does not open the picker for an @ inside a word", async () => {
     const { user, field } = setup()
     await user.type(field, "mail@")

@@ -6,11 +6,16 @@ import { threadKeys } from "@/api/keys"
 
 import type { MentionPerson } from "./mentions"
 
+export type MentionablePeople = {
+  people: MentionPerson[]
+  searching: boolean
+}
+
 export function useMentionablePeople(
   target: string | null,
   term: string,
   enabled: boolean
-): MentionPerson[] {
+): MentionablePeople {
   const query = useQuery({
     queryKey: [...threadKeys.all, "mentionable", target, term] as const,
     queryFn: ({ signal }) =>
@@ -24,5 +29,8 @@ export function useMentionablePeople(
     staleTime: 30_000,
     placeholderData: (previous) => previous,
   })
-  return query.data?.people ?? []
+  return {
+    people: query.data?.people ?? [],
+    searching: query.isFetching,
+  }
 }
