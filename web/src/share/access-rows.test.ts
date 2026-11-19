@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { Entry } from "@/folders/grants"
 import type { Folder, FolderPermissions } from "@/folders/queries"
 
-import { accessRows, canManageAccess } from "./access-rows"
+import { accessRows, canManageAccess, manageNote } from "./access-rows"
 
 const priya: Entry = {
   kind: "user",
@@ -164,4 +164,18 @@ describe("canManageAccess", () => {
       expect(canManageAccess({ general }, canManage)).toBe(expected)
     }
   )
+})
+
+describe("manageNote", () => {
+  it("names the folder whose managers can add people and create public links", () => {
+    expect(manageNote({ title: "Payments", general: false })).toBe(
+      "Only people who manage Payments can add people to it or create public links."
+    )
+  })
+
+  it("says General has no list to change", () => {
+    expect(manageNote({ title: "General", general: true })).toBe(
+      "General is open to everyone, so it has no access list to change. Only Admins create public links there."
+    )
+  })
 })

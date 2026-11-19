@@ -152,6 +152,31 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 	}
 }
 
+func TestGetTraceNamesTheMessageAnErrorSpanSet(t *testing.T) {
+	r, ds := newTraceRig(t)
+	ds.traceFn = func(context.Context, string, datasource.TimeRange, int) (datasource.Frame, error) {
+		f := thirtySpans()
+		messages := make([]any, len(f.Fields[0].Values))
+		for i, id := range f.Fields[1].Values {
+			if id == "pay0000000000000" {
+				messages[i] = "card declined"
+			} else {
+				messages[i] = ""
+			}
+		}
+		f.Fields = append(f.Fields, datasource.Field{Name: "StatusMessage", Type: datasource.FieldString, Values: messages})
+		return f, nil
+	}
+	res, err := call(t, r, nameGetTrace, `{"datasource":"tempo","trace_id":"`+fixtureTraceID+`"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := decodeTrace(t, res)
+	if len(out.Errors) != 2 || out.Errors[0].StatusMessage != "card declined" || out.Errors[1].StatusMessage != "" {
+		t.Fatalf("errors = %+v, want the first to carry its message", out.Errors)
+	}
+}
+
 func TestGetTracePassesTruncationThroughAndSendsTheBudget(t *testing.T) {
 	r, ds := newTraceRig(t)
 	var got struct {

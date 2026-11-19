@@ -17,7 +17,12 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "@/panels/colors"
 
 import { DurationScatter } from "./duration-scatter"
-import { selectedRows, type Selection, type TimeWindow } from "./scatter"
+import {
+  fittedWindow,
+  selectedRows,
+  type Selection,
+  type TimeWindow,
+} from "./scatter"
 import {
   countText,
   defaultTraceSort,
@@ -120,7 +125,7 @@ function DurationBar({
       </span>
       <div
         aria-hidden="true"
-        className="relative h-1.5 min-w-20 flex-1 rounded-full bg-muted"
+        className="relative h-1.5 min-w-10 flex-1 rounded-full bg-muted"
       >
         <div
           className={cn(
@@ -188,6 +193,11 @@ function TraceCell({
       return (
         <Cell className="py-1 text-right tabular-nums">
           {row.spans === null ? "-" : row.spans.toLocaleString("en")}
+          {row.matching == null || row.matching === row.spans ? null : (
+            <span className="block text-xs text-muted-foreground">
+              {row.matching.toLocaleString("en")} matching
+            </span>
+          )}
         </Cell>
       )
     case "errors":
@@ -278,6 +288,13 @@ type TraceP95 = {
   p95Ms?: number | null
   p95Label?: string
   footerNote?: string
+  fitWindow?: boolean
+  headerActions?: ReactNode
+}
+
+export type TraceSortControl = {
+  value: TraceSort | null
+  onChange: (next: TraceSort | null) => void
 }
 
 type TraceSelection = {
@@ -296,28 +313,39 @@ function SortedTraceTable({
   p95Ms,
   p95Label = rowsP95Label,
   footerNote,
+  fitWindow = false,
+  headerActions,
   selection,
   onSelectionChange,
   selectionActions,
   selectionPanel,
+  sortControl,
 }: {
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
   hidden: ReadonlySet<TraceSortKey>
   onToggleColumn: (key: TraceSortKey, visible: boolean) => void
+  sortControl?: TraceSortControl
 } & TraceP95 &
   TraceSelection) {
-  const [sort, setSort] = useState<TraceSort | null>(defaultTraceSort)
+  const [pageSort, setPageSort] = useState<TraceSort | null>(defaultTraceSort)
+  const sort = sortControl === undefined ? pageSort : sortControl.value
+  const setSort = sortControl === undefined ? setPageSort : sortControl.onChange
   const [highlighted, setHighlighted] = useState<string | null>(null)
   const listed = useMemo(
     () => (selection === null ? rows : selectedRows(rows, selection)),
     [rows, selection]
   )
-  const sorted = useMemo(() => sortTraceRows(listed, sort), [listed, sort])
+  const sorted = useMemo(
+    () => (sortControl === undefined ? sortTraceRows(listed, sort) : listed),
+    [listed, sort, sortControl]
+  )
   const window = useMemo(
-    () => resolveWindow(range.from, range.to),
-    [range.from, range.to]
+    () =>
+      (fitWindow ? fittedWindow(rows) : null) ??
+      resolveWindow(range.from, range.to),
+    [fitWindow, rows, range.from, range.to]
   )
   const slots = useMemo(() => serviceSlots(rows), [rows])
 
@@ -347,7 +375,7 @@ function SortedTraceTable({
     <div className="flex flex-col gap-3">
       <div
         className={cn(
-          "grid gap-4",
+          "grid items-start gap-4",
           selectionPanel !== undefined
             ? "grid-cols-[minmax(0,1fr)_384px] max-[1100px]:grid-cols-1"
             : "narrow:hidden"
@@ -389,8 +417,10 @@ function SortedTraceTable({
           </p>
         ) : null}
         <p className="ml-auto text-xs text-muted-foreground">
-          {sortHint(sort)} Sorting applies to this page.
+          {sortHint(sort)}
+          {sortControl === undefined ? " Sorting applies to this page." : ""}
         </p>
+        {headerActions}
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
       <TableCard
@@ -453,6 +483,7 @@ export function TraceTable({
   rows: TraceRow[]
   datasourceUid: string
   range: TraceRange
+  sortControl?: TraceSortControl
 } & TraceP95 &
   TraceSelection) {
   const [hidden, setHidden] = useState<ReadonlySet<TraceSortKey>>(

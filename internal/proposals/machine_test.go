@@ -3,6 +3,8 @@ package proposals
 import (
 	"slices"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/activity"
 )
 
 func TestMachineIsConsistent(t *testing.T) {
@@ -32,5 +34,19 @@ func TestAllowedActionsFollowTheCallersPowers(t *testing.T) {
 				t.Errorf("allowedActions(%+v) = %v, want %v", c.in, got, c.want)
 			}
 		})
+	}
+}
+
+func TestTheLiveEventNamesTheStateAProposalMovedTo(t *testing.T) {
+	cases := map[string]State{
+		activity.TypeProposalOpened:    StateOpen,
+		activity.TypeProposalUpdated:   StateOpen,
+		activity.TypeProposalMerged:    StateMerged,
+		activity.TypeProposalDiscarded: StateDiscarded,
+	}
+	for typ, want := range cases {
+		if got := stateAfter(typ); got != want {
+			t.Errorf("stateAfter(%s) = %s, want %s", typ, got, want)
+		}
 	}
 }

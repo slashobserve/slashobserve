@@ -39,6 +39,8 @@ const (
 	CodeVariableEmpty      spec.IssueCode = "variable_empty"
 	CodeVariableUnresolved spec.IssueCode = "variable_unresolved"
 	CodeTimeRangeInvalid   spec.IssueCode = "time_range_invalid"
+	CodeTimeRangeFuture    spec.IssueCode = "time_range_in_future"
+	CodeTimeRangeTooLong   spec.IssueCode = "time_range_too_long"
 	CodeTooManyRequests    spec.IssueCode = "too_many_requests"
 	CodeExpressionFailed   spec.IssueCode = "expression_error"
 )
@@ -60,6 +62,10 @@ func Classify(err error) (status int, code, message string) {
 		return statusCanceled, string(CodeCanceled), canceledMessage
 	case errors.Is(err, ErrInvalidRequest):
 		return http.StatusBadRequest, string(CodeInvalidRequest), err.Error()
+	case errors.Is(err, datasource.ErrRangeInFuture):
+		return http.StatusUnprocessableEntity, string(CodeTimeRangeFuture), err.Error()
+	case errors.Is(err, datasource.ErrRangeTooLong):
+		return http.StatusUnprocessableEntity, string(CodeTimeRangeTooLong), err.Error()
 	case errors.Is(err, datasource.ErrInvalidQuery):
 		return http.StatusUnprocessableEntity, string(CodeQueryInvalid), err.Error()
 	case errors.Is(err, datasource.ErrForbiddenQuery):

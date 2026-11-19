@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { dashboardLink } from "@/lib/links"
+import { sentence } from "@/observe/queries"
 
 import { cleanText } from "@/lib/user-text"
 
@@ -184,7 +185,7 @@ export function DuplicateDashboardDialog({
           ) : null}
           {problem?.kind === "failed" ? (
             <Alert variant="destructive">
-              <AlertDescription>{problem.message}</AlertDescription>
+              <AlertDescription>{sentence(problem.message)}</AlertDescription>
             </Alert>
           ) : null}
           <DialogFooter>

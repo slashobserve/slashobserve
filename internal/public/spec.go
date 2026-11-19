@@ -22,6 +22,8 @@ func publicSpec(d *spec.Dashboard) (*spec.Dashboard, error) {
 	if err := json.Unmarshal(raw, out); err != nil {
 		return nil, err
 	}
+	out.Tags = nil
+	out.Links = nil
 	for _, e := range out.AllPanels() {
 		for i := range e.Panel.Queries {
 			e.Panel.Queries[i].Query = ""

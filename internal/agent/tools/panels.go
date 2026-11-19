@@ -37,6 +37,7 @@ var queryIssueCodes = []spec.IssueCode{
 	queryproxy.CodeQueryInvalid, queryproxy.CodeQueryEmpty, queryproxy.CodeQueryTimeout, queryproxy.CodeQueryForbidden,
 	queryproxy.CodeLimitExceeded, queryproxy.CodeExpressionFailed, queryproxy.CodeVariableFailed, queryproxy.CodeVariableEmpty,
 	queryproxy.CodeVariableUnresolved, queryproxy.CodeDatasourceDown, queryproxy.CodeUnknownDatasource,
+	queryproxy.CodeTimeRangeFuture, queryproxy.CodeTimeRangeTooLong,
 }
 
 func init() { registerEntries((*Registry).panelEntries) }
