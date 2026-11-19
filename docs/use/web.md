@@ -128,7 +128,8 @@ Opening a dashboard writes once for the page, never for each panel, and a servic
 `GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
 `order=name` sorts every visible dashboard by lower-case title and then by id, across folders, and pages the same way.
-The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
+The **Sort** menu on the list switches between **By folder**, **Last updated**, **Name** and **Most viewed**; every order except by folder drops the folder headers and shows the folder as a column, because the order crosses folders.
+The choice is kept in the address as `sort=updated`, `sort=name` or `sort=views`, and the list asks the server for the same `order`.
 The daily records are kept for 90 days.
 `list_dashboards` takes `order` (`updated`, `views` or `name`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
 

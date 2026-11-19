@@ -7,6 +7,10 @@ import {
 
 import { maxListPage } from "./list-pages"
 
+export const listSorts = ["updated", "name", "views"] as const
+
+export type ListSort = (typeof listSorts)[number]
+
 export type ListSearch = {
   q?: string
   made_by?: string
@@ -14,7 +18,7 @@ export type ListSearch = {
   tag?: string[]
   folder?: string
   kind?: ProblemFilter
-  sort?: "views"
+  sort?: ListSort
   page?: number
 }
 
@@ -110,7 +114,8 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   }
   const kind = firstString(raw.kind)
   if (isProblemFilter(kind)) search.kind = kind
-  if (firstString(raw.sort) === "views") search.sort = "views"
+  const sort = firstString(raw.sort)
+  search.sort = listSorts.find((known) => known === sort)
   const page = pageText(raw.page)
   if (page !== undefined && pagePattern.test(page)) {
     const n = Number(page)

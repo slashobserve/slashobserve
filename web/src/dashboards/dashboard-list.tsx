@@ -351,7 +351,7 @@ export function DashboardList({
   )
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
-  const flat = search.sort === "views"
+  const flat = search.sort !== undefined
   const table = useListTable(dashboards, flat)
   const allFolders = folderResult.data
   const folders = useMemo(
