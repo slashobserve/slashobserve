@@ -145,6 +145,7 @@ The row holds at most 50 pills, and the address holds the pills in about 4,000 c
 ## Volume
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
+On Elasticsearch, OpenSearch and ClickHouse it counts exactly the lines the results list, so the strip total equals the hits or lines total; the first and last bar hold partial buckets.
 Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
 It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
