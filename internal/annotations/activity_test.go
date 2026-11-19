@@ -100,20 +100,20 @@ func TestADashboardAnnotationLandsInTheDashboardsFolder(t *testing.T) {
 	if e.Actor.ID != admin.ID || e.Actor.Name != "Root" {
 		t.Errorf("actor = %+v", e.Actor)
 	}
-	sameJSON(t, e.Data, `{"panel_id":"p1","tags":["deploy"],"time_from":"2026-11-01T10:10:00Z","time_to":"2026-11-01T10:30:00Z"}`)
+	sameJSON(t, e.Data, `{"title":"secret payroll deploy","panel_id":"p1","tags":["deploy"],"time_from":"2026-11-01T10:10:00Z","time_to":"2026-11-01T10:30:00Z"}`)
 	if len(r.activityFor(t, viewer)) != 0 {
 		t.Error("a viewer outside the restricted folder sees the annotation")
 	}
 }
 
-func TestTheDataOfAnAnnotationOmitsUnsetFieldsAndNeverHoldsTheText(t *testing.T) {
+func TestTheDataOfAnAnnotationOmitsUnsetFieldsAndCarriesOnlyAShortTitle(t *testing.T) {
 	r := newRig(t)
 	r.create(t, editor, CreateInput{DashboardID: r.open, From: at(0), Text: "a distinctive annotation body"})
 	got := r.activityFor(t, viewer)
 	if len(got) != 1 {
 		t.Fatalf("events = %+v", got)
 	}
-	sameJSON(t, got[0].Data, `{"tags":[],"time_from":"2026-11-01T10:00:00Z"}`)
+	sameJSON(t, got[0].Data, `{"title":"a distinctive annotation body","tags":[],"time_from":"2026-11-01T10:00:00Z"}`)
 }
 
 func TestAGlobalAnnotationLandsInGeneralAndIsVisibleToAViewer(t *testing.T) {
@@ -151,7 +151,7 @@ func TestDeletingAnAnnotationAppendsOneRowWithItsDashboard(t *testing.T) {
 	if deleted.TargetID != onDashboard.ID || deleted.DashboardID != r.hidden.String() || deleted.FolderID != r.folderOf(t, r.hidden) {
 		t.Errorf("dashboard annotation delete = %+v", deleted)
 	}
-	sameJSON(t, deleted.Data, `{"panel_id":"p1","tags":["deploy"],"time_from":"2026-11-01T10:00:00Z","time_to":"2026-11-01T10:20:00Z"}`)
+	sameJSON(t, deleted.Data, `{"title":"one","panel_id":"p1","tags":["deploy"],"time_from":"2026-11-01T10:00:00Z","time_to":"2026-11-01T10:20:00Z"}`)
 	if deleted.Actor.ID != admin.ID {
 		t.Errorf("delete actor %+v", deleted.Actor)
 	}

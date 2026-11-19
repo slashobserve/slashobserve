@@ -82,6 +82,7 @@ export type ChatListFilters = {
   q?: string
   pinned?: boolean
   dashboardId?: string
+  chatId?: string
   scope?: "all"
   states?: components["schemas"]["RequestSummary"]["state"][]
 }

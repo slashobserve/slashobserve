@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { ApiError } from "@/api/errors"
 import { datasourceKeys, exploreKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -81,9 +82,11 @@ function setup({
   drawer = false,
   linesLoading = false,
   linesRerunning = false,
+  linesTimedOut = false,
   seedFacets = true,
 }: {
   seedFacets?: boolean
+  linesTimedOut?: boolean
   linesLoading?: boolean
   linesRerunning?: boolean
   drawer?: boolean
@@ -115,6 +118,11 @@ function setup({
       isLoading: linesLoading,
       isFetching: linesLoading || linesRerunning,
       isPlaceholderData: linesRerunning,
+      isSuccess: !linesLoading && !linesTimedOut,
+      isError: linesTimedOut,
+      error: linesTimedOut
+        ? new ApiError(504, "query_timeout", "query timed out after 15s")
+        : null,
     },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
@@ -172,6 +180,19 @@ describe("FieldsAside", () => {
     setup({ linesLoading: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("does not count the values when the lines timed out, and says the source is slow", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesTimedOut: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(
+        "This source is slow: the fields load when the query answers"
+      )
+    ).toBeVisible()
   })
 
   it("counts the values only once a rerun's lines have arrived", async () => {

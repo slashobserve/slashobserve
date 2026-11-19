@@ -244,6 +244,16 @@ func TestMergeProposal(t *testing.T) {
 			t.Fatalf("out = %+v step = %q", out, res.Step)
 		}
 	})
+	t.Run("keeping the dashboard's side names what the merge dropped", func(t *testing.T) {
+		rig := newProposalsRig(t)
+		id := rig.propose(asUser(commenterCaller), t, "Theirs")
+		rig.editMain(t, "Ours")
+		res := rig.call(asUser(editorCaller), t, nameMergeProposal, mergeInput(id, 1, `[{"kind":"panel","id":"p1","take":"ours"}]`))
+		want := `Merged proposal; it saved no new version because the dashboard already had everything kept; the proposed change to panel "p1" was dropped because the dashboard's own was kept`
+		if res.IsError || res.Step != want {
+			t.Fatalf("step = %q, want %q", res.Step, want)
+		}
+	})
 	t.Run("conflicts are named and a choice resolves them", func(t *testing.T) {
 		rig := newProposalsRig(t)
 		id := rig.propose(asUser(commenterCaller), t, "Theirs")

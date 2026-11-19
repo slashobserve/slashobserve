@@ -122,7 +122,7 @@ func (b *factsBuilder) structuredLevel() error {
 	if err != nil || !ok || len(cat.Values) == 0 {
 		return err
 	}
-	b.list("values of "+lokiStructuredLevel+" (structured metadata, not an index label: filter after the selector with | "+lokiStructuredLevel+"=\"value\", never inside it)", quoted(cat.Values), cat.Truncated)
+	b.list("values of "+lokiStructuredLevel+" (structured metadata read from a sample of the newest lines, so a level can exist that is not listed; not an index label: filter after the selector with | "+lokiStructuredLevel+"=\"value\", never inside it)", quoted(cat.Values), cat.Truncated)
 	return nil
 }
 

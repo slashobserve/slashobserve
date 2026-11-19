@@ -57,6 +57,68 @@ func (a *app) runCancel(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func (a *app) saveAnswerCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "save-answer <request-id>",
+		Short: "Save the answer of an agent request as an observation",
+		Long:  "save-answer files the answer a request gave to a plain question as an observation and prints its address.\nA question asked in chat or in a comment is answered on the request alone until you do this; only the person who made the request can.\nRunning it again prints the same observation.",
+		Args:  exactArgs(1, "one request id"),
+		RunE:  a.runSaveAnswer,
+	}
+}
+
+func (a *app) runSaveAnswer(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	data, err := c.do(cmd.Context(), http.MethodPost, "observe/"+id+"/observation", nil, nil)
+	if err != nil {
+		return saveAnswerError(err, id)
+	}
+	saved, err := decode[savedAnswer](data)
+	if err != nil {
+		return err
+	}
+	out := a.output()
+	if a.json {
+		out.body(data)
+		return nil
+	}
+	if saved.Replayed {
+		out.line("Already an observation: %s", text(saved.URL))
+		return nil
+	}
+	out.line("Saved as an observation: %s", text(saved.URL))
+	return nil
+}
+
+type savedAnswer struct {
+	ObservationID string `json:"observation_id"`
+	URL           string `json:"url"`
+	Replayed      bool   `json:"replayed"`
+}
+
+func saveAnswerError(err error, id string) error {
+	var api *apiError
+	if !errors.As(err, &api) {
+		return err
+	}
+	switch {
+	case api.status == http.StatusConflict && api.code == "no_answer":
+		return fmt.Errorf("request %s has no answer to save", id)
+	case api.status == http.StatusNotFound:
+		return fmt.Errorf("request %s was not found, or it is not yours: only the person who made it can save its answer", id)
+	case api.status == http.StatusForbidden:
+		return errors.New("you may not file an observation: your role or your folders do not allow it")
+	}
+	return err
+}
+
 func (a *app) continueCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "continue <request-id>",

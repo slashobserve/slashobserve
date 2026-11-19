@@ -107,7 +107,7 @@ A query may hold 200 terms, and the values of one `field:(a or b or ...)` list c
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
-KQL values are case sensitive, so when a query with `log.level:error` finds no lines and the field holds `ERROR`, the empty result says no document has that value and lists the values the field does hold in the range.
+KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines and a field in any of its clauses holds `ERROR` where the query says `error`, the empty result says no document has that value and lists the values the field does hold in the range.
 
 ### Share a search
 
@@ -146,8 +146,10 @@ The row holds at most 50 pills, and the address holds the pills in about 4,000 c
 ## Volume
 
 The volume strip above the lines counts every line the query matches over the whole time range by level, not only the lines shown.
-Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines, and the total can run a little above the hit count by the lines in the two edge buckets that fall outside the range.
-It comes from its own log volume request, so the lines never wait for it, and it hides while live tail shows its lines.
+On Elasticsearch, OpenSearch and ClickHouse it counts exactly the lines the results list, so the strip total equals the hits or lines total; the first and last bar hold partial buckets.
+Its buckets are whole steps that start at or before the start of the range and end at or after its end, so the bars never leave out the newest lines; on Loki the total can run a little above the line count by the lines in the two edge buckets that fall outside the range.
+It comes from its own log volume request, which starts once the lines have answered or failed, so one slow source gets one request at a time; when the lines time out the strip says the source is slow instead of starting more requests, and it hides while live tail shows its lines.
+The fields list on the logs page and the trace search statistics wait for the results in the same way.
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 The level chips above the bars show a count for each level, and a chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**; the count of the other chips and the query do not change, and **All** shows every level again.
 The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level; to search for a level, add a filter.

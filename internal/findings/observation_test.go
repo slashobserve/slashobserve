@@ -36,6 +36,13 @@ func (r rig) count(t *testing.T, query string, args ...any) int {
 	return n
 }
 
+func (r rig) investigation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	request := r.request(t, by, dashboardID)
+	r.openRunObservation(t, by, request)
+	return request
+}
+
 func (r rig) openRunObservation(t *testing.T, by auth.Principal, request pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	run, err := r.db.Queries().GetAgentRequestByID(t.Context(), request)
@@ -95,22 +102,6 @@ func TestAFindingFromARunWritesIntoTheRunsObservationOnceAndGetsItsOwnId(t *test
 	}
 	if n := r.count(t, `SELECT count(*) FROM observation_blocks WHERE observation_id = $1 AND kind = 'text'`, observation); n != 1 {
 		t.Fatalf("text blocks after a replay: %d", n)
-	}
-}
-
-func TestAnAnswerRunOnADashboardFilesItsObservationInTheDashboardsFolder(t *testing.T) {
-	r := newRig(t)
-	folder := r.folder(t, "Payments")
-	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, r.open, folder)
-	request := r.request(t, editor, r.open)
-
-	saved := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
-	run, err := r.db.Queries().GetAgentRequestByID(t.Context(), request)
-	if err != nil || !run.ObservationID.Valid || run.ObservationID.String() != saved.ObservationID {
-		t.Fatalf("run observation %v, finding observation %s, %v", run.ObservationID, saved.ObservationID, err)
-	}
-	if n := r.count(t, `SELECT count(*) FROM observations WHERE id = $1::uuid AND folder_id = $2`, saved.ObservationID, folder); n != 1 {
-		t.Fatalf("observation is not in the dashboard's folder %s", folder)
 	}
 }
 

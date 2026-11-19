@@ -66,6 +66,7 @@ type Snapshot struct {
 type Placement struct {
 	Folder    pgtype.UUID
 	Personal  bool
+	Title     string
 	Abilities folders.Abilities
 	Activity  activity.Owner
 }
