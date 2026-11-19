@@ -70,12 +70,17 @@ describe("PanelChrome", () => {
     const { user, rerender } = renderWithProviders(
       <PanelChrome panel={panel} state="ready" onSelect={onSelect} />
     )
-    await user.click(screen.getByRole("button", { name: "Checkout latency" }))
+    expect(
+      screen.getByRole("heading", { name: "Checkout latency" })
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", { name: "Select panel: Checkout latency" })
+    )
     expect(onSelect).toHaveBeenCalledTimes(1)
 
     rerender(<PanelChrome panel={panel} state="ready" />)
     expect(
-      screen.queryByRole("button", { name: "Checkout latency" })
+      screen.queryByRole("button", { name: "Select panel: Checkout latency" })
     ).not.toBeInTheDocument()
   })
 

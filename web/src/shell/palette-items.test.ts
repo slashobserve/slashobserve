@@ -48,6 +48,7 @@ describe("paletteGroups", () => {
     ])
     expect(groups[3]?.items.map((entry) => entry.label)).toEqual([
       "Help and docs",
+      "Keyboard shortcuts",
     ])
     expect(groups[4]?.items.map((entry) => entry.label)).toEqual([
       "Switch theme",
@@ -105,6 +106,18 @@ describe("paletteGroups", () => {
         { kind: "action", id: "action:docs", label: "Help and docs" },
       ])
     }
+  })
+
+  test("finds the keyboard shortcuts in the Help group", () => {
+    const groups = paletteGroups("shortcut", [], [], "viewer", [])
+    expect(groups.map((group) => group.value)).toEqual(["Help"])
+    expect(groups[0]?.items).toEqual([
+      {
+        kind: "action",
+        id: "action:shortcuts",
+        label: "Keyboard shortcuts",
+      },
+    ])
   })
 
   test("finds switch theme in the Account group", () => {

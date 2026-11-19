@@ -56,7 +56,8 @@ import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 import { PanelHostContext } from "@/shell/side-panel"
-import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
   useDashboardShortcuts,
@@ -467,7 +468,7 @@ function DashboardView({
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const setShortcutsOpen = useShortcutsStore((state) => state.setOpen)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
@@ -1096,12 +1097,9 @@ function DashboardView({
                   onClose={closeSpec}
                 />
               ) : null}
+              {kiosk ? <ShortcutsHost /> : null}
               <UnsavedBar dashboardId={dashboardId} />
               {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
-              <ShortcutsDialog
-                open={shortcutsOpen}
-                onOpenChange={setShortcutsOpen}
-              />
               <DetailsDialog
                 dashboardId={dashboardId}
                 spec={envelopeSpec}

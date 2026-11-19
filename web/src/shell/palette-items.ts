@@ -55,6 +55,7 @@ type ActionId =
   | "action:sign-out"
   | "action:theme"
   | "action:docs"
+  | "action:shortcuts"
   | "action:search-all"
 type ActionEntry = {
   kind: "action"
@@ -98,6 +99,12 @@ const docsEntry: ActionEntry = {
   kind: "action",
   id: "action:docs",
   label: "Help and docs",
+}
+
+const shortcutsEntry: ActionEntry = {
+  kind: "action",
+  id: "action:shortcuts",
+  label: "Keyboard shortcuts",
 }
 
 const themeEntry: ActionEntry = {
@@ -273,7 +280,7 @@ export function paletteGroups(
     },
     {
       value: "Help",
-      items: [docsEntry].filter((e) => matches(e.label)),
+      items: [docsEntry, shortcutsEntry].filter((e) => matches(e.label)),
     },
     {
       value: "Account",

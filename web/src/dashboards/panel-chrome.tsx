@@ -148,6 +148,7 @@ export function PanelChrome({
         <h2
           id={titleId}
           title={title}
+          aria-label={selectable ? title : undefined}
           className={cn(
             "min-w-0 text-[13px] font-semibold",
             !selectable && "truncate",
@@ -159,6 +160,7 @@ export function PanelChrome({
               type="button"
               data-panel-title=""
               aria-pressed={selected}
+              aria-label={`Select panel: ${title}`}
               className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={onSelect}
             >

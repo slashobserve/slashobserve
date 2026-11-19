@@ -4,7 +4,7 @@ description: The keys that view, edit and inspect a panel, move the time range, 
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
-Press `?` on a dashboard to see them all in the app.
+Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortcuts** in the command palette on any page.
 
 | Keys | What they do |
 | --- | --- |

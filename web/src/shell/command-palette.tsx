@@ -22,6 +22,7 @@ import {
   HouseIcon,
   InboxIcon,
   KeyIcon,
+  KeyboardIcon,
   LayoutDashboardIcon,
   LogsIcon,
   Loader2Icon,
@@ -43,6 +44,8 @@ import { useExploreSources } from "@/datasources/use-sources"
 import { readRecent } from "@/home/recent"
 import { docsUrl } from "@/lib/docs"
 import { isModChord } from "@/lib/shortcuts"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 import {
@@ -97,6 +100,7 @@ const actionIcons: Record<
   "action:import": UploadIcon,
   "action:theme": SunMoonIcon,
   "action:docs": BookOpenIcon,
+  "action:shortcuts": KeyboardIcon,
   "action:search-all": SearchIcon,
   "action:sign-out": LogOutIcon,
 }
@@ -225,6 +229,8 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: "/search", search: { q: needle } })
     } else if (entry.id === "action:docs") {
       window.open(docsUrl, "_blank", "noopener")
+    } else if (entry.id === "action:shortcuts") {
+      useShortcutsStore.getState().setOpen(true)
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {
@@ -396,14 +402,17 @@ export function CommandPalette() {
   }, [toggle])
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10" />
-        <Dialog.Popup className="fixed top-[12vh] left-1/2 z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-card border bg-popover text-popover-foreground outline-none">
-          <Dialog.Title className="sr-only">Search or jump to</Dialog.Title>
-          <PaletteBody close={() => setOpen(false)} />
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10" />
+          <Dialog.Popup className="fixed top-[12vh] left-1/2 z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-card border bg-popover text-popover-foreground outline-none">
+            <Dialog.Title className="sr-only">Search or jump to</Dialog.Title>
+            <PaletteBody close={() => setOpen(false)} />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <ShortcutsHost />
+    </>
   )
 }
