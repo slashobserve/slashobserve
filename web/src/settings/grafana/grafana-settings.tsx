@@ -11,6 +11,7 @@ import type { SettingsPanel } from "@/settings/sections"
 import { AddConnectionPanel, connectionsHint } from "./add-connection-panel"
 import { grafanaProblemText } from "./connection-problems"
 import { ConnectionsCard } from "./connections-card"
+import { EditConnectionPanel } from "./edit-connection-panel"
 import { ImportLauncher } from "./import-launcher"
 import { ImportProgress } from "./import-progress"
 import { connectionsQuery, type GrafanaConnection } from "./queries"
@@ -32,7 +33,10 @@ export function GrafanaSettings({
 }: Props) {
   const query = useQuery(connectionsQuery())
   const [launching, setLaunching] = useState<GrafanaConnection | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const addButton = useRef<HTMLButtonElement>(null)
+  const editTrigger = useRef<HTMLElement | null>(null)
+  const editing = query.data?.find((c) => c.id === editingId)
 
   return (
     <SettingsSection
@@ -43,7 +47,10 @@ export function GrafanaSettings({
           ref={addButton}
           variant={panelOpen ? "outline" : "default"}
           className="narrow:h-11"
-          onClick={() => onPanel({ kind: "grafana-add" })}
+          onClick={() => {
+            setEditingId(null)
+            onPanel({ kind: "grafana-add" })
+          }}
         >
           <PlusIcon aria-hidden="true" />
           Add connection
@@ -67,7 +74,14 @@ export function GrafanaSettings({
             No connections yet.
           </p>
         ) : (
-          <ConnectionsCard connections={query.data} onImport={setLaunching} />
+          <ConnectionsCard
+            connections={query.data}
+            onImport={setLaunching}
+            onEdit={(connection, trigger) => {
+              editTrigger.current = trigger ?? null
+              setEditingId(connection.id)
+            }}
+          />
         )}
         <p className="flex items-center gap-2 border-t px-4 py-3 text-[13px] text-muted-foreground">
           <LockIcon aria-hidden="true" className="size-3.5 flex-none" />
@@ -92,7 +106,15 @@ export function GrafanaSettings({
           syncId={running.syncId}
         />
       )}
-      {panelOpen ? (
+      {editing === undefined ? null : (
+        <EditConnectionPanel
+          key={editing.id}
+          connection={editing}
+          onClose={() => setEditingId(null)}
+          trigger={editTrigger}
+        />
+      )}
+      {panelOpen && editing === undefined ? (
         <AddConnectionPanel onClose={() => onPanel(null)} trigger={addButton} />
       ) : null}
     </SettingsSection>

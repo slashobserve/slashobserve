@@ -151,6 +151,7 @@ func (s *store) remove(ctx context.Context, id pgtype.UUID, by actor.Actor) erro
 			TargetID: id,
 			Owner:    activityOwner(row.DashboardID),
 			Actor:    by,
+			Data:     newCreatedData(annotationOf(row)),
 		}, nil); err != nil {
 			return err
 		}

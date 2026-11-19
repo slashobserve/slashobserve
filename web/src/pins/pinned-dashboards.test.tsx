@@ -55,6 +55,7 @@ function serve(initial: Pin[], dashboard = { id: "d9", title: "Checkout" }) {
 }
 
 beforeEach(() => {
+  localStorage.clear()
   return () => vi.unstubAllGlobals()
 })
 

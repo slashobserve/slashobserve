@@ -54,17 +54,20 @@ type Props = {
 function TextComposer({
   observation,
   verb,
+  text,
+  onText,
   onAdded,
   onClose,
 }: {
   observation: Observation
   verb: string
+  text: string
+  onText: (text: string) => void
   onAdded: (blockId: string) => void
-  onClose: () => void
+  onClose: (discard: boolean) => void
 }) {
   const problemId = useId()
   const addBlock = useAddBlock(observation.id)
-  const [text, setText] = useState("")
   const [problem, setProblem] = useState<string | null>(null)
   const empty = text.trim() === ""
 
@@ -76,7 +79,7 @@ function TextComposer({
       {
         onSuccess: ({ block }) => {
           onAdded(block.id)
-          onClose()
+          onClose(true)
         },
         onError: (error) => setProblem(addProblemText(error)),
       }
@@ -89,7 +92,7 @@ function TextComposer({
       submit()
     } else if (event.key === "Escape") {
       event.stopPropagation()
-      onClose()
+      onClose(false)
     }
   }
 
@@ -101,10 +104,10 @@ function TextComposer({
         aria-invalid={problem !== null}
         autoFocus
         className="min-h-24"
-        placeholder="Write Markdown"
+        placeholder="Write Markdown, then press Cmd or Ctrl and Enter to add it"
         value={text}
         readOnly={addBlock.isPending}
-        onChange={(event) => setText(event.target.value)}
+        onChange={(event) => onText(event.target.value)}
         onKeyDown={onKeyDown}
       />
       {problem === null ? null : (
@@ -122,7 +125,7 @@ function TextComposer({
         >
           {verb}
         </Button>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={() => onClose(true)}>
           Cancel
         </Button>
       </div>
@@ -137,6 +140,7 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
   const textButton = useRef<HTMLButtonElement>(null)
   const panelButton = useRef<HTMLButtonElement>(null)
   const [composing, setComposing] = useState(false)
+  const [draft, setDraft] = useState("")
   const [picking, setPicking] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const freezable = blocks.filter(
@@ -147,7 +151,8 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
     onProblem: setProblem,
   })
 
-  function closeComposer() {
+  function closeComposer(discard: boolean) {
+    if (discard) setDraft("")
     setComposing(false)
     textButton.current?.focus()
   }
@@ -229,6 +234,13 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {observation.state !== "resolved" ? null : (
+        <p className="text-xs text-muted-foreground">
+          {canEdit
+            ? "This observation is resolved. Blocks you add still go on the page."
+            : "This observation is resolved. A block you suggest waits for an editor to keep it."}
+        </p>
+      )}
       {problem === null ? null : (
         <p role="alert" className="text-sm text-destructive">
           {problem}
@@ -238,6 +250,8 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
         <TextComposer
           observation={observation}
           verb={verb}
+          text={draft}
+          onText={setDraft}
           onAdded={onAdded}
           onClose={closeComposer}
         />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { parseKql } from "./kql"
-import { problemOf } from "./query-problem"
+import { problemOf, unreadableKql } from "./query-problem"
 
 function problem(text: string, offset = 0) {
   return problemOf(text, parseKql(text.slice(offset)), offset)
@@ -90,5 +90,28 @@ describe("problemOf", () => {
     ["not", "not negates"],
   ])("explains %s", (text, words) => {
     expect(problem(text)?.explanation).toContain(words)
+  })
+})
+
+describe("unreadableKql", () => {
+  it("finds the problem of a KQL query on a search store", () => {
+    expect(
+      unreadableKql("message:(foo and bar", "elasticsearch")?.headline
+    ).toContain("Missing a closing parenthesis")
+    expect(unreadableKql("message:(foo and bar", "opensearch")).not.toBeNull()
+  })
+
+  it("passes a readable query", () => {
+    expect(unreadableKql("message:foo", "elasticsearch")).toBeNull()
+  })
+
+  it("leaves a Lucene or Query DSL form to the server", () => {
+    expect(unreadableKql("lucene:message:(foo", "elasticsearch")).toBeNull()
+    expect(unreadableKql('{"query":', "elasticsearch")).toBeNull()
+  })
+
+  it("leaves other stores alone", () => {
+    expect(unreadableKql("{service=", "loki")).toBeNull()
+    expect(unreadableKql("SELEKT", "clickhouse")).toBeNull()
   })
 })

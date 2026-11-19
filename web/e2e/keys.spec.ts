@@ -200,7 +200,7 @@ test("creates a key for a new service account and shows it once", async ({
   const row = keyRow(page, keyName)
   await expect(row).toContainText(accountName)
   await expect(row).toContainText(`${token.slice(0, 12)}…`)
-  await expect(row.getByRole("cell").nth(3)).toHaveText("Never")
+  await expect(row.getByRole("cell").nth(4)).toHaveText("Never")
   await expect(row.locator('[data-status="ok"]')).toHaveText("In 90 days")
   expect(await page.content()).not.toContain(token)
   await page.reload()
@@ -525,7 +525,7 @@ test("shows a dash for Created by when people fail to load", async ({
     })
   await page.route(isUsers, fail)
   await openKeysPage(page)
-  await expect(keyRow(page, keyName).getByRole("cell").nth(2)).toHaveText("-")
+  await expect(keyRow(page, keyName).getByRole("cell").nth(3)).toHaveText("-")
   failedResourceLogged(consoleErrors, "500")
 })
 

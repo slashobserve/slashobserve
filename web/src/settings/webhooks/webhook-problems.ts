@@ -3,7 +3,19 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import type { ActivityType } from "./event-types"
 
-export type WebhookInput = { name: string; url: string; events: ActivityType[] }
+export type WebhookFormat = "generic" | "slack" | "teams"
+export type WebhookInput = {
+  name: string
+  url: string
+  format: WebhookFormat
+  events: ActivityType[]
+}
+
+export const formatLabels: Record<WebhookFormat, string> = {
+  generic: "signed JSON",
+  slack: "a Slack message",
+  teams: "a Microsoft Teams card",
+}
 export type WebhookProblems = Partial<Record<keyof WebhookInput, string>>
 
 const maxNameCharacters = 100
@@ -31,6 +43,13 @@ function urlProblem(url: string): string | undefined {
     return "The address cannot hold a user name or password."
   }
   if (parsed.hash !== "") return "The address cannot end with a # fragment."
+  if (
+    !parsed.hostname.includes(".") ||
+    /^[\d.]+$/.test(parsed.hostname) ||
+    parsed.hostname.startsWith("[")
+  ) {
+    return "The address must use a public domain name, like hooks.example.com. localhost and IP addresses are refused."
+  }
   return undefined
 }
 
@@ -62,6 +81,10 @@ export function webhookProblemText(error: unknown): string {
       return "The signing secret cannot be read with the current SLASHOBSERVE_SECRET_KEY. Rotate the secret, then enable the webhook."
     case "too_many_webhooks":
       return "At most 20 webhooks can exist. Delete one first."
+    case "nothing_to_skip":
+      return "This webhook is no longer holding an event back, so there is nothing to skip."
+    case "webhook_busy":
+      return "The webhook is sending right now. Try again in a few seconds."
   }
   return error.message
 }

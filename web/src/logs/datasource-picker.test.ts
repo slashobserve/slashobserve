@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { DatasourceStatus } from "@/datasources/queries"
 
-import { optionText } from "./datasource-picker"
+import { distinctName, optionText } from "./datasource-picker"
 
 function datasource(
   name: string,
@@ -35,5 +35,12 @@ describe("optionText", () => {
     expect(optionText(datasource("Loki", "loki", false))).toBe(
       "Loki - unavailable"
     )
+  })
+})
+
+describe("distinctName", () => {
+  it("drops a name that repeats the type and keeps another", () => {
+    expect(distinctName("loki", "Loki")).toBeUndefined()
+    expect(distinctName("loki", "prod-logs")).toBe("prod-logs")
   })
 })

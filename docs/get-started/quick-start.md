@@ -60,6 +60,7 @@ Home's **Ask Observe Agent** tab then says no model is connected and offers **Im
 ### Ports, rebuilds and shutdown
 
 To build the server and shop images from your working tree instead of pulling them, which is for people changing the code, run `make demo-build`.
+The image is stamped with `git describe`, so Settings shows that version instead of `dev`.
 Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 

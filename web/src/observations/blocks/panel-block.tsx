@@ -16,6 +16,7 @@ import { createSharedCursor } from "@/panels/shared-cursor"
 import type { Block } from "@/observations/queries"
 import { isDataPanel, isRowPanel, type LayoutPanel } from "@/spec"
 
+import { bakedSelections, variableCaption } from "../panel-input"
 import { BlockByline } from "./block-byline"
 import {
   blockPanelId,
@@ -24,8 +25,6 @@ import {
   useBlockPanelData,
   type PanelBlockBody,
 } from "./block-data"
-
-const noVars = {}
 
 const defaultFrom = "now-1h"
 
@@ -42,7 +41,13 @@ function ignoreRangeSelect() {}
 
 type Props = { block: Block; height: number }
 
-function LiveCaption({ datasource }: { datasource: string | undefined }) {
+function LiveCaption({
+  datasource,
+  variables,
+}: {
+  datasource: string | undefined
+  variables: string
+}) {
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
       <span
@@ -50,7 +55,9 @@ function LiveCaption({ datasource }: { datasource: string | undefined }) {
         className="size-1.5 flex-none rounded-full bg-status-ok"
       />
       <span className="truncate">
-        {datasource === undefined ? "live" : `${datasource}, live`}
+        {[datasource === undefined ? "live" : `${datasource}, live`, variables]
+          .filter((part) => part !== "")
+          .join(", ")}
       </span>
     </span>
   )
@@ -86,6 +93,7 @@ function ReadablePanelBlock({
   height: number
 }) {
   const { panel, from, to } = body
+  const vars = useMemo(() => bakedSelections(body.variables), [body.variables])
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })
@@ -102,8 +110,8 @@ function ReadablePanelBlock({
     enabled: dataPanel !== undefined && supported && mounted,
   })
   const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel, noVars) : undefined),
-    [dataPanel]
+    () => (dataPanel ? createFieldResolver(dataPanel, vars) : undefined),
+    [dataPanel, vars]
   )
   const populated = useMemo(
     () =>
@@ -131,7 +139,12 @@ function ReadablePanelBlock({
   return (
     <BlockFrame
       block={block}
-      caption={<LiveCaption datasource={datasourceName} />}
+      caption={
+        <LiveCaption
+          datasource={datasourceName}
+          variables={variableCaption(vars)}
+        />
+      }
     >
       <div ref={containerRef} style={{ height }} className="w-full">
         {mounted ? (
@@ -151,7 +164,7 @@ function ReadablePanelBlock({
                 stateScope={`block:${block.id}`}
                 cursor={cursor}
                 onTimeRangeSelect={ignoreRangeSelect}
-                vars={noVars}
+                vars={vars}
                 timezone={undefined}
                 from={from}
                 to={to}
@@ -162,7 +175,7 @@ function ReadablePanelBlock({
                 panel={panel}
                 width={size.width}
                 height={size.height}
-                vars={noVars}
+                vars={vars}
                 from={from ?? defaultFrom}
                 to={to ?? defaultTo}
               />

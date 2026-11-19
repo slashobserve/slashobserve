@@ -10,9 +10,12 @@ import {
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import {
+  annotationKeys,
+  dashboardKeys,
   observationKeys,
   threadKeys,
   type ObservationListFilters,
+  type ObservationPageParams,
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { touchesObservation } from "@/live/activity-match"
@@ -36,15 +39,34 @@ export function replaceBlock(
 ): ObservationEnvelope {
   const blocks = envelope.observation.blocks
   if (blocks === undefined) return envelope
+  const before = blocks.find((existing) => existing.id === block.id)?.position
   return {
     ...envelope,
     observation: {
       ...envelope.observation,
       blocks: blocks.map((existing) =>
-        existing.id === block.id ? block : existing
+        existing.id === block.id
+          ? block
+          : shiftedBy(existing, before, block.position)
       ),
     },
   }
+}
+
+function shiftedBy(
+  existing: Block,
+  from: number | undefined,
+  to: number
+): Block {
+  if (from === undefined || from === to) return existing
+  const here = existing.position
+  if (to < from && here >= to && here < from) {
+    return { ...existing, position: here + 1 }
+  }
+  if (to > from && here > from && here <= to) {
+    return { ...existing, position: here - 1 }
+  }
+  return existing
 }
 
 export function withoutBlock(
@@ -111,6 +133,32 @@ export function observationsInfiniteQuery(
         .then(unwrap),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
+  })
+}
+
+export function observationsPageQuery(params: ObservationPageParams) {
+  return queryOptions({
+    queryKey: observationKeys.page(params),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/observations", {
+          params: {
+            query: {
+              limit: params.size,
+              offset: (params.page - 1) * params.size,
+              sort: params.sort,
+              order: params.order,
+              ...(params.state === undefined ? {} : { state: params.state }),
+              ...(params.q === undefined || params.q === ""
+                ? {}
+                : { q: params.q }),
+              ...(params.mine === true ? { created_by: "me" as const } : {}),
+            },
+          },
+          signal,
+        })
+        .then(unwrap),
+    placeholderData: (previous) => previous,
   })
 }
 
@@ -228,6 +276,97 @@ export function useReopenObservation(id: string) {
       .POST("/observations/{id}/reopen", { params: { path: { id } } })
       .then(unwrap)
   )
+}
+
+export function usePinObservation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observations/{id}/pin", {
+          params: { path: { id } },
+          body: {},
+        })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: observationKeys.one(id) })
+      void queryClient.invalidateQueries({ queryKey: annotationKeys.all })
+    },
+  })
+}
+
+export function useMakeDashboard(target: {
+  observationId: string
+  blockId?: string
+}) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      target.blockId === undefined
+        ? api
+            .POST("/observations/{id}/dashboard", {
+              params: { path: { id: target.observationId } },
+              body: {},
+            })
+            .then(unwrap)
+        : api
+            .POST("/blocks/{id}/dashboard", {
+              params: { path: { id: target.blockId } },
+              body: {},
+            })
+            .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
+    },
+  })
+}
+
+export function useDeleteObservation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .DELETE("/observations/{id}", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: (_, id) => {
+      queryClient.removeQueries({
+        queryKey: observationKeys.one(id),
+        exact: true,
+      })
+    },
+    onSettled: () => refreshLists(queryClient),
+  })
+}
+
+export function useResolveObservations() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: ({ id, summary }: { id: string; summary: string }) =>
+      api
+        .POST("/observations/{id}/resolve", {
+          params: { path: { id } },
+          body: { summary },
+        })
+        .then(unwrap),
+    onSuccess: (envelope, { id }) => writeEnvelope(queryClient, id, envelope),
+    onSettled: () => refreshLists(queryClient),
+  })
+}
+
+export function useReopenObservationRow() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .POST("/observations/{id}/reopen", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: (envelope, id) => writeEnvelope(queryClient, id, envelope),
+    onSettled: () => refreshLists(queryClient),
+  })
 }
 
 function useBlockMutation<Input, Result>(

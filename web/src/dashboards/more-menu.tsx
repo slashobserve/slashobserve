@@ -25,6 +25,8 @@ import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
+import { HomeDashboardItem } from "./home-dashboard-item"
+import { ExportItems } from "./print/export-items"
 
 import { moreMenuButtonId } from "./edit/layout-store"
 
@@ -35,7 +37,10 @@ export function moreLabel(menu: {
 }): string {
   const items = [
     menu.mayEdit ? "edit details" : null,
+    "open on sign-in",
     "export",
+    "print",
+    "image",
     menu.canDuplicate ? "duplicate" : null,
     "TV mode",
     menu.folderTv ? "TV mode for this folder" : null,
@@ -46,10 +51,12 @@ export function moreLabel(menu: {
 }
 
 type Props = {
+  dashboardId: string
   mayEdit: boolean
   detailsBlockedBy: string | null
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
+  exportBlockedBy: string | null
   onEditDetails: () => void
   onDuplicate: (() => void) | null
   onDelete: () => void
@@ -61,10 +68,12 @@ type Props = {
 }
 
 export function MoreMenu({
+  dashboardId,
   mayEdit,
   detailsBlockedBy,
   duplicateBlockedBy,
   deleteBlockedBy,
+  exportBlockedBy,
   onEditDetails,
   onDuplicate,
   onDelete,
@@ -110,10 +119,12 @@ export function MoreMenu({
               : `Edit details (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
+        <HomeDashboardItem dashboardId={dashboardId} />
         <DropdownMenuItem onClick={onExport}>
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
         </DropdownMenuItem>
+        <ExportItems blockedBy={exportBlockedBy} />
         {onDuplicate !== null ? (
           <DropdownMenuItem
             disabled={duplicateBlockedBy !== null}

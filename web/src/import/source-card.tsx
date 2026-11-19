@@ -130,7 +130,9 @@ export function SourceCard({
     body = (
       <div className="flex flex-col items-center gap-3 px-3.5 py-8 text-center">
         <FileTile />
-        <p className="text-sm">Drop a Grafana dashboard JSON file here</p>
+        <p className="text-sm">
+          Drop a Grafana dashboard or an exported Spec JSON file here
+        </p>
         <div className="flex flex-wrap justify-center gap-2">
           <Button variant="outline" className="font-normal" onClick={choose}>
             Choose file

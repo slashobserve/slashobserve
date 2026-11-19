@@ -295,13 +295,13 @@ function FieldRow({
             {action(
               "in",
               `Include ${name} ${shown}`,
-              "Filter in",
+              "Include",
               <FilterIcon aria-hidden />
             )}
             {action(
               "out",
               `Exclude ${name} ${shown}`,
-              "Filter out",
+              "Exclude",
               <FilterXIcon aria-hidden />
             )}
             {searchFamily

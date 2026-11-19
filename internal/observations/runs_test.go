@@ -145,8 +145,12 @@ func TestAnInvestigationTitleComesFromThePromptsFirstLine(t *testing.T) {
 		t.Errorf("observation %+v", o)
 	}
 	long := r.run(t, editor, r.dashboardIn(t, r.shared), strings.Repeat("é", 300), nil, nil)
-	if got := r.mustOpenForRun(t, observations.RunOpen{Run: long, By: editor, Strict: true}).Title; len([]rune(got)) != observations.MaxTitleRunes {
-		t.Errorf("title of %d characters", len([]rune(got)))
+	if got := r.mustOpenForRun(t, observations.RunOpen{Run: long, By: editor, Strict: true}).Title; got != strings.Repeat("é", 60)+"..." {
+		t.Errorf("title %q", got)
+	}
+	mention := r.run(t, editor, r.dashboardIn(t, r.shared), "@observe why did checkout latency double after the deploy yesterday evening?\nmore", nil, nil)
+	if got := r.mustOpenForRun(t, observations.RunOpen{Run: mention, By: editor, Strict: true}).Title; got != "why did checkout latency double after the deploy yesterday..." {
+		t.Errorf("title %q", got)
 	}
 	blank := r.run(t, editor, r.dashboardIn(t, r.shared), "\n\n\t", nil, nil)
 	if got := r.mustOpenForRun(t, observations.RunOpen{Run: blank, By: editor, Strict: true}).Title; got != "Investigation" {

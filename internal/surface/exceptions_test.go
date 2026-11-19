@@ -54,6 +54,8 @@ var exceptions = map[string]exception{
 	"saveFindingAsDashboard": {MCP: notBuilt, CLI: notBuilt},
 	"getFindingPanelData":    {MCP: personOnly, CLI: personOnly},
 
+	"deleteObservation":      {MCP: noMCPDeletes},
+	"withdrawRca":            {MCP: noMCPDeletes},
 	"removeObservationBlock": {MCP: noMCPDeletes},
 	"getSnapshot":            {MCP: webRendering, CLI: webRendering},
 	"observationBlockData":   {MCP: webRendering, CLI: webRendering},
@@ -169,6 +171,10 @@ var exceptions = map[string]exception{
 	"unstarDashboard": {CLI: personOnly},
 	"listStars":       {CLI: personOnly},
 
+	"getHomeDashboard":   {CLI: personOnly},
+	"setHomeDashboard":   {CLI: personOnly},
+	"clearHomeDashboard": {CLI: personOnly},
+
 	"createPanelSuggestion": {MCP: builtInAgentQueue, CLI: notBuilt},
 	"getPanelSuggestion":    {MCP: builtInAgentQueue, CLI: notBuilt},
 
@@ -184,5 +190,6 @@ var exceptions = map[string]exception{
 	"deleteWebhook":         {MCP: webhookAdmin},
 	"rotateWebhookSecret":   {MCP: webhookAdmin},
 	"testWebhook":           {MCP: webhookAdmin},
+	"skipWebhookEvent":      {MCP: webhookAdmin},
 	"listWebhookDeliveries": {MCP: webhookAdmin},
 }
