@@ -67,6 +67,7 @@ type requestEnvelope struct {
 
 type promptOptions struct {
 	dashboard string
+	follows   string
 	noWait    bool
 	timeout   time.Duration
 }
@@ -79,6 +80,7 @@ type statusOptions struct {
 func (a *app) addPromptFlags(root *cobra.Command) {
 	flags := root.Flags()
 	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "revise this dashboard with a follow-up prompt")
+	flags.StringVar(&a.prompt.follows, "follows", "", "continue the chat of this earlier request of yours, which has no dashboard")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.prompt.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
 }
@@ -96,12 +98,22 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 		return usagef("--timeout must be positive")
 	}
 	payload := map[string]any{"prompt": prompt}
+	if a.prompt.dashboard != "" && a.prompt.follows != "" {
+		return usagef("--dashboard and --follows exclude each other")
+	}
 	if a.prompt.dashboard != "" {
 		id, err := parseID(a.prompt.dashboard)
 		if err != nil {
 			return err
 		}
 		payload["dashboard_id"] = id
+	}
+	if a.prompt.follows != "" {
+		id, err := parseID(a.prompt.follows)
+		if err != nil {
+			return err
+		}
+		payload["follows_id"] = id
 	}
 	c, err := a.newClient()
 	if err != nil {
