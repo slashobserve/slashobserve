@@ -44,6 +44,10 @@ func record(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, typ strin
 	return activity.AppendAdmin(ctx, q, activity.By(ctx, by), typ, id, data)
 }
 
+func recordCreated(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id pgtype.UUID, data recordedWebhook) (int64, error) {
+	return activity.Append(ctx, q, activity.Entry{Type: activity.TypeWebhookCreated, TargetID: id, Actor: activity.By(ctx, by), Data: data}, nil)
+}
+
 func recordUpdate(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, before, after dbsqlc.Webhook) error {
 	update := recordedUpdate{
 		Name: after.Name,

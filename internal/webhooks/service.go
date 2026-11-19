@@ -164,10 +164,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 	if err != nil {
 		return Created{}, err
 	}
-	head, err := source{store: s.activity}.head(ctx)
-	if err != nil {
-		return Created{}, err
-	}
 	secret, err := newSecret()
 	if err != nil {
 		return Created{}, err
@@ -189,14 +185,19 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Crea
 		if count >= maxWebhooks {
 			return ErrTooMany
 		}
+		seq, err := recordCreated(ctx, q, by, id, recordedWebhook{Name: name, Host: host, EventTypes: types})
+		if err != nil {
+			return err
+		}
+		xid, err := q.ActivityXid(ctx, seq)
+		if err != nil {
+			return err
+		}
 		if _, err := q.InsertWebhook(ctx, dbsqlc.InsertWebhookParams{
 			ID: id, Name: name, Url: address, SecretCiphertext: ciphertext, EventTypes: types,
 			OwnerKind: ownerKind, OwnerID: ownerID,
-			CursorXid: pgtype.Uint64{Uint64: head.xid, Valid: true}, CursorSeq: head.seq,
+			CursorXid: xid, CursorSeq: seq,
 		}); err != nil {
-			return err
-		}
-		if err := record(ctx, q, by, activity.TypeWebhookCreated, id, recordedWebhook{Name: name, Host: host, EventTypes: types}); err != nil {
 			return err
 		}
 		created, err = view(ctx, q, id)
