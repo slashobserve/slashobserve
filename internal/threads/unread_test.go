@@ -26,8 +26,8 @@ func unreadOf(page Page, threadID string) bool {
 
 func TestAThreadIsUnreadUntilTheReaderOpensItOrAnswersInIt(t *testing.T) {
 	r := newRig(t)
-	r.seedReaders(t, testUser, commenter, viewer)
 	dash := r.createDashboard(t)
+	r.seedReaders(t, testUser, commenter, viewer)
 	tg := target(KindDashboard, dash)
 	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "question"})
 
@@ -62,8 +62,8 @@ func TestAThreadIsUnreadUntilTheReaderOpensItOrAnswersInIt(t *testing.T) {
 
 func TestMessagesFromBeforeAPersonJoinedAreNotUnreadForThem(t *testing.T) {
 	r := newRig(t)
-	r.seedReaders(t, testUser, commenter)
 	dash := r.createDashboard(t)
+	r.seedReaders(t, testUser, commenter)
 	tg := target(KindDashboard, dash)
 	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "old news"})
 	r.db.Exec(t, `UPDATE users SET threads_seen_since = now() + interval '1 hour' WHERE id = $1::uuid`, commenterID)
@@ -79,8 +79,8 @@ func TestMessagesFromBeforeAPersonJoinedAreNotUnreadForThem(t *testing.T) {
 
 func TestAnAgentReplyIsUnreadForTheRequesterWhoAskedForIt(t *testing.T) {
 	r := newAgentRig(t, true)
-	r.seedReaders(t, testUser)
 	dash := r.createDashboard(t, "rps", "errors")
+	r.seedReaders(t, testUser)
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
 	if err := r.service.MarkRead(t.Context(), testUser, mustParse(t, thread)); err != nil {
 		t.Fatal(err)
@@ -95,8 +95,8 @@ func TestAnAgentReplyIsUnreadForTheRequesterWhoAskedForIt(t *testing.T) {
 
 func TestMarkingAThreadReadThroughTheRouteIsForPeopleWhoCanSeeIt(t *testing.T) {
 	r := newRig(t)
-	r.seedReaders(t, testUser, commenter, viewer)
 	dash := r.createDashboard(t)
+	r.seedReaders(t, testUser, commenter, viewer)
 	opened := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "dashboard:" + dash.String(), "body": "mine"})
 	threadID := opened.at(t, "thread", "id").(string)
 	path := "/threads?target=dashboard:" + dash.String()
