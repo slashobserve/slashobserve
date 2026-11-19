@@ -14,6 +14,7 @@ import { MentionButton } from "./mention-button"
 import { toDisplay, type MentionAgent, type MentionPerson } from "./mentions"
 import { useEditMessage } from "./queries"
 import { SendHint } from "./send-hint"
+import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"
 
 const noAgents: readonly MentionAgent[] = []
@@ -42,7 +43,7 @@ export function EditMessageForm({
   const [body, setBody] = useState(shown.text)
   const picks = useMentionPicks(shown.picks)
   const [error, setError] = useState<string | null>(null)
-  const [mentioning, setMentioning] = useState(false)
+  const mention = useInlineMention()
   const textarea = useRef<HTMLTextAreaElement>(null)
   const coarse = useCoarsePointer()
   const edit = useEditMessage(queryKey)
@@ -109,7 +110,10 @@ export function EditMessageForm({
         maxLength={maxPromptLength}
         value={body}
         readOnly={busy}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          mention.typed(body, event.target.value, event.target.selectionStart)
+          setBody(event.target.value)
+        }}
       />
       <SendHint action="save" />
       {error === null ? null : (
@@ -126,9 +130,9 @@ export function EditMessageForm({
           field={textarea}
           value={body}
           onChange={setBody}
-          open={mentioning}
-          onOpenChange={setMentioning}
-          replaceFrom={null}
+          open={mention.open}
+          onOpenChange={mention.onOpenChange}
+          replaceFrom={mention.replaceFrom}
           disabled={busy}
           className="mr-auto"
         />

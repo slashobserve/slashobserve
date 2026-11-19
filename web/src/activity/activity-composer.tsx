@@ -52,6 +52,7 @@ import {
   type SentMessage,
 } from "@/comments/thread-queries"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { useInlineMention } from "@/comments/use-inline-mention"
 import { useMentionPicks } from "@/comments/use-mention-picks"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
@@ -184,7 +185,7 @@ export function ActivityComposer({
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
-  const [mentioning, setMentioning] = useState(false)
+  const mention = useInlineMention()
   const history = usePromptHistory()
   const coarse = useCoarsePointer()
   const agent = useAgentInfo()
@@ -457,7 +458,10 @@ export function ActivityComposer({
           readOnly={pending}
           className="field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0"
           onChange={(event) => {
-            onDraftChange(applyText(event.target.value))
+            const { value, selectionStart } = event.target
+            const next = applyText(value)
+            if (next === value) mention.typed(draft, value, selectionStart)
+            onDraftChange(next)
             setCursor(freshCursor)
             if (failure) setFailure(null)
           }}
@@ -510,9 +514,9 @@ export function ActivityComposer({
               field={field}
               value={draft}
               onChange={onDraftChange}
-              open={mentioning}
-              onOpenChange={setMentioning}
-              replaceFrom={null}
+              open={mention.open}
+              onOpenChange={mention.onOpenChange}
+              replaceFrom={mention.replaceFrom}
               disabled={pending}
             />
             {runningRequestId !== undefined ? (

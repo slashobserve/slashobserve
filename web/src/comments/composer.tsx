@@ -21,10 +21,10 @@ import { SendHint } from "./send-hint"
 import { MentionButton } from "./mention-button"
 import {
   mentionedAgents,
-  mentionTriggerAt,
   type MentionAgent,
   type MentionPerson,
 } from "./mentions"
+import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"
 
 type ComposerProps = {
@@ -111,8 +111,7 @@ export function Composer({
   const [body, setBody] = useState(defaultValue)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [mentioning, setMentioning] = useState(false)
-  const [replaceFrom, setReplaceFrom] = useState<number | null>(null)
+  const mention = useInlineMention()
   const textarea = useRef<HTMLTextAreaElement>(null)
   const coarse = useCoarsePointer()
   const picks = useMentionPicks()
@@ -152,12 +151,8 @@ export function Composer({
 
   function onChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const { value, selectionStart } = event.target
-    const typed = value.length > body.length
+    mention.typed(body, value, selectionStart)
     setBody(value)
-    const trigger = typed ? mentionTriggerAt(value, selectionStart) : null
-    if (trigger === null) return
-    setReplaceFrom(trigger)
-    setMentioning(true)
   }
 
   return (
@@ -216,12 +211,9 @@ export function Composer({
           field={textarea}
           value={body}
           onChange={setBody}
-          open={mentioning}
-          onOpenChange={(next) => {
-            setMentioning(next)
-            if (!next) setReplaceFrom(null)
-          }}
-          replaceFrom={replaceFrom}
+          open={mention.open}
+          onOpenChange={mention.onOpenChange}
+          replaceFrom={mention.replaceFrom}
           disabled={busy || unavailable}
         />
         <SendButton
