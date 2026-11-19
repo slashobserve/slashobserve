@@ -259,6 +259,7 @@ type Registry struct {
 	deps    Deps
 	entries map[string]entry
 	fields  map[string]surfaceFields
+	aliases map[string]map[string]string
 	tools   []Tool
 	drafts  draftLimiter
 }
@@ -309,7 +310,7 @@ func New(d Deps) *Registry {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}}
+	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}, aliases: map[string]map[string]string{}}
 	all := r.baseEntries()
 	for _, e := range all {
 		if e.tool.MinRole == "" {
@@ -322,6 +323,7 @@ func New(d Deps) *Registry {
 		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
 		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
 		r.fields[e.tool.Name] = surfaceFields{mcp: propertyNames(e.tool.InputSchema), agent: propertyNames(e.tool.AgentInputSchema)}
+		r.aliases[e.tool.Name] = aliasesOf(e.tool.Name, r.fields[e.tool.Name].mcp)
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -387,6 +389,12 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	}
 	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
+	}
+	if !inRun {
+		var refused Result
+		if input, refused, ok = r.canonicalInput(name, input); !ok {
+			return refused, nil
+		}
 	}
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {

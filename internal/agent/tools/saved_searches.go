@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -63,15 +62,14 @@ func (r *Registry) savedSearchEntries() []entry {
 }
 
 type saveSearchInput struct {
-	Kind          string          `json:"kind"`
-	Title         string          `json:"title"`
-	Datasource    string          `json:"datasource"`
-	DatasourceUID string          `json:"datasource_uid"`
-	Query         *string         `json:"query"`
-	Filters       json.RawMessage `json:"filters"`
-	From          string          `json:"from"`
-	To            string          `json:"to"`
-	FolderID      string          `json:"folder_id"`
+	Kind       string          `json:"kind"`
+	Title      string          `json:"title"`
+	Datasource string          `json:"datasource"`
+	Query      *string         `json:"query"`
+	Filters    json.RawMessage `json:"filters"`
+	From       string          `json:"from"`
+	To         string          `json:"to"`
+	FolderID   string          `json:"folder_id"`
 }
 
 type savedSearchItemOut struct {
@@ -111,7 +109,7 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	create := savedsearches.CreateInput{
 		Kind:          savedsearches.Kind(in.Kind),
 		Title:         in.Title,
-		DatasourceUID: cmp.Or(in.Datasource, in.DatasourceUID),
+		DatasourceUID: in.Datasource,
 		Query:         in.Query,
 		Filters:       in.Filters,
 		From:          in.From,
