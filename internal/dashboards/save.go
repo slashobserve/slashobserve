@@ -131,7 +131,7 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 	if !in.ProposeIfNeeded || s.proposer == nil || !access.Abilities.Comment {
 		return SaveResult{}, folders.ErrForbidden
 	}
-	summary, parsed, _, err := validateSave(in.Spec, in.Summary, "")
+	summary, parsed, _, err := validateSave(in.Spec, in.Summary, "", s.parentSpec(ctx, in))
 	if err != nil {
 		return SaveResult{}, err
 	}
@@ -154,6 +154,24 @@ func (s *Service) propose(ctx context.Context, by auth.Principal, in SaveInput, 
 		return SaveResult{}, err
 	}
 	return SaveResult{Dashboard: withAccess(dash, access), Proposal: &ref}, nil
+}
+
+func (s *Service) existingParent(ctx context.Context, in SaveInput, latest int) (*spec.Dashboard, error) {
+	if in.Parent < 1 || in.Parent > latest {
+		return nil, nil
+	}
+	return s.VersionSpec(ctx, in.DashboardID, in.Parent)
+}
+
+func (s *Service) parentSpec(ctx context.Context, in SaveInput) *spec.Dashboard {
+	if in.Parent < 1 {
+		return nil
+	}
+	parent, err := s.VersionSpec(ctx, in.DashboardID, in.Parent)
+	if err != nil {
+		return nil
+	}
+	return parent
 }
 
 func (s *Service) CheckProposal(ctx context.Context, by auth.Principal, id pgtype.UUID, base int, next *spec.Dashboard, partial bool) error {
@@ -179,19 +197,19 @@ func (s *Service) persist(ctx context.Context, by auth.Principal, in SaveInput) 
 			return SaveResult{Dashboard: dash, Version: ver, Replayed: true}, nil
 		}
 	}
-	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, "")
-	if err != nil {
-		return SaveResult{}, err
-	}
 	latest, err := s.store.latestVersion(ctx, in.DashboardID)
 	if err != nil {
 		return SaveResult{}, err
 	}
-	if in.Parent >= 1 && in.Parent <= latest {
-		prev, err := s.VersionSpec(ctx, in.DashboardID, in.Parent)
-		if err != nil {
-			return SaveResult{}, err
-		}
+	prev, err := s.existingParent(ctx, in, latest)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, "", prev)
+	if err != nil {
+		return SaveResult{}, err
+	}
+	if prev != nil {
 		if freezeResized(prev, parsed) {
 			if canonical, err = json.Marshal(parsed); err != nil {
 				return SaveResult{}, fmt.Errorf("marshal spec: %w", err)

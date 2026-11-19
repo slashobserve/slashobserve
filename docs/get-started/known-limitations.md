@@ -18,8 +18,23 @@ The agent finds metrics, labels, tables, columns, log labels and trace attribute
 
 ## No alerting
 
-There are no alert rules, no notifications and no Alertmanager integration; alerting is the next stage of the roadmap.
+There are no alert rules, no contact points, no silences, no notifications and no Alertmanager integration, and none is built.
+Keep alerting where it runs today: Grafana alerting, or Prometheus rules with Alertmanager, which work without Grafana's dashboards.
 An alert list panel shows the firing and pending alerts that a Prometheus `ALERTS` query returns, and that is all it does with alerts.
+
+## Who can query which datasource
+
+Datasources are defined in the server's [datasources file](../reference/datasources-file.md), and every signed-in person from Viewer up, and every service-account key, may run a query against any of them through the explore query that the logs page and the trace search use.
+There is no per-team or per-folder datasource permission.
+A restricted folder hides its dashboards, not the datasources they read (see [Folders and access](../teams/folders.md)).
+To keep a team away from data, give the datasource account only the access you want every person here to have.
+
+## Sharing, snapshots and reports
+
+A public link opens one dashboard read-only and always shows its latest version, so there is no stored-data snapshot of a moment in time (see [Public links and TV mode](../use/public-links.md)).
+Every response carries `X-Frame-Options: DENY` and `frame-ancestors 'none'`, so neither a dashboard nor a public link can be framed in another page, and there is no embeddable panel link.
+There are no scheduled reports: nothing emails a dashboard on a schedule.
+For a screen that must stay current, use a public link or [TV mode](../use/public-links.md#show-it-on-a-wall).
 
 ## Exploring data
 
@@ -42,7 +57,8 @@ Panel types and options the ObserveSpec format cannot hold are reported at their
 
 Alert rules and annotations are not imported.
 The report marks them as excluded by decision, and a panel whose only report lines are such decisions still counts as imported.
-Library panels import as placeholders, and users, teams, folder permissions and playlists stay in Grafana (see [Switch from Grafana](../use/switch-from-grafana.md#what-maps-what-changes-and-what-waits)).
+Library panels and panels from plugins import as placeholders, because there is no shared panel object and no plugin mechanism: SlashObserve draws the panel types it ships, and each dashboard holds its own copy of a panel.
+Users, teams, folder permissions and playlists stay in Grafana (see [Switch from Grafana](../use/switch-from-grafana.md#what-maps-what-changes-and-what-waits)).
 
 ## Wall screens
 

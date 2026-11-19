@@ -205,9 +205,12 @@ func timedOut(caller, draftCtx context.Context, err error) error {
 }
 
 func (r *Registry) draftRequest(in DraftInput) (draftRun, string, error) {
-	question, ok := revisions.CleanPrompt(in.Question)
-	if !ok || utf8.RuneCountInString(question) > maxQuestionRunes {
-		return draftRun{}, "", invalidDraftf("question must be 1 to %d characters of text without control characters", maxQuestionRunes)
+	question, err := revisions.CheckPrompt("question", in.Question)
+	if err != nil {
+		return draftRun{}, "", invalidDraftf("%s", err)
+	}
+	if utf8.RuneCountInString(question) > maxQuestionRunes {
+		return draftRun{}, "", invalidDraftf("question must be at most %d characters; shorten it", maxQuestionRunes)
 	}
 	if !slices.Contains([]string{"", signalLogs, signalTraces, signalMetrics}, in.Signal) {
 		return draftRun{}, "", invalidDraftf("signal must be logs, traces or metrics")

@@ -58,11 +58,18 @@ async function choose(user: UserEvent, name: string) {
 }
 
 describe("AccountMenu", () => {
-  it("offers Theme above Sign out", async () => {
+  it("offers Theme, a link to the docs and Sign out", async () => {
     const { user } = renderWithProviders(<AccountMenu collapsed />)
     await user.click(screen.getByRole("button", { name: /^Account: / }))
     const items = await screen.findAllByRole("menuitem")
-    expect(items.map((item) => item.textContent)).toEqual(["Theme", "Sign out"])
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Theme",
+      "Help and docs",
+      "Sign out",
+    ])
+    expect(
+      screen.getByRole("menuitem", { name: "Help and docs" })
+    ).toHaveAttribute("href", "https://slashobserve.com/docs")
     await user.click(screen.getByRole("menuitem", { name: "Sign out" }))
     expect(signOut).toHaveBeenCalledOnce()
   })

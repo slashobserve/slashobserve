@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
 import { Route as PTokenRouteImport } from './routes/p/$token'
 import { Route as RcaTokenRouteImport } from './routes/rca/$token'
+import { Route as AuthedShellSplatRouteImport } from './routes/_authed/_shell/$'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellChatsRouteImport } from './routes/_authed/_shell/chats'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
@@ -21,6 +22,7 @@ import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/h
 import { Route as AuthedShellInboxRouteImport } from './routes/_authed/_shell/inbox'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
+import { Route as AuthedShellSearchRouteImport } from './routes/_authed/_shell/search'
 import { Route as AuthedBRequestIdRouteImport } from './routes/_authed/b/$requestId'
 import { Route as AuthedBuildsRequestIdRouteImport } from './routes/_authed/builds/$requestId'
 import { Route as AuthedConnectRequestIdRouteImport } from './routes/_authed/connect/$requestId'
@@ -79,6 +81,11 @@ const RcaTokenRoute = RcaTokenRouteImport.update({
   path: '/rca/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedShellSplatRoute = AuthedShellSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
 const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
   id: '/_chat',
   getParentRoute: () => AuthedShellRoute,
@@ -111,6 +118,11 @@ const AuthedShellKeysRoute = AuthedShellKeysRouteImport.update({
 const AuthedShellPeopleRoute = AuthedShellPeopleRouteImport.update({
   id: '/people',
   path: '/people',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellSearchRoute = AuthedShellSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedBRequestIdRoute = AuthedBRequestIdRouteImport.update({
@@ -306,12 +318,14 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/search': typeof AuthedShellSearchRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -351,12 +365,14 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/search': typeof AuthedShellSearchRoute
   '/b/$requestId': typeof AuthedBRequestIdRoute
   '/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -398,6 +414,7 @@ export interface FileRoutesById {
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
   '/p/$token': typeof PTokenRoute
   '/rca/$token': typeof RcaTokenRoute
+  '/_authed/_shell/$': typeof AuthedShellSplatRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/chats': typeof AuthedShellChatsRoute
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
@@ -405,6 +422,7 @@ export interface FileRoutesById {
   '/_authed/_shell/inbox': typeof AuthedShellInboxRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
+  '/_authed/_shell/search': typeof AuthedShellSearchRoute
   '/_authed/b/$requestId': typeof AuthedBRequestIdRoute
   '/_authed/builds/$requestId': typeof AuthedBuildsRequestIdRoute
   '/_authed/connect/$requestId': typeof AuthedConnectRequestIdRoute
@@ -447,12 +465,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/$'
     | '/chats'
     | '/datasources'
     | '/health'
     | '/inbox'
     | '/keys'
     | '/people'
+    | '/search'
     | '/b/$requestId'
     | '/builds/$requestId'
     | '/connect/$requestId'
@@ -492,12 +512,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/p/$token'
     | '/rca/$token'
+    | '/$'
     | '/chats'
     | '/datasources'
     | '/health'
     | '/inbox'
     | '/keys'
     | '/people'
+    | '/search'
     | '/b/$requestId'
     | '/builds/$requestId'
     | '/connect/$requestId'
@@ -538,6 +560,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell'
     | '/p/$token'
     | '/rca/$token'
+    | '/_authed/_shell/$'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/chats'
     | '/_authed/_shell/datasources'
@@ -545,6 +568,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/inbox'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
+    | '/_authed/_shell/search'
     | '/_authed/b/$requestId'
     | '/_authed/builds/$requestId'
     | '/_authed/connect/$requestId'
@@ -625,6 +649,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RcaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/_shell/$': {
+      id: '/_authed/_shell/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof AuthedShellSplatRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/_chat': {
       id: '/_authed/_shell/_chat'
       path: ''
@@ -672,6 +703,13 @@ declare module '@tanstack/react-router' {
       path: '/people'
       fullPath: '/people'
       preLoaderRoute: typeof AuthedShellPeopleRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/search': {
+      id: '/_authed/_shell/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AuthedShellSearchRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/b/$requestId': {
@@ -932,6 +970,7 @@ const AuthedShellChatRouteWithChildren = AuthedShellChatRoute._addFileChildren(
 )
 
 interface AuthedShellRouteChildren {
+  AuthedShellSplatRoute: typeof AuthedShellSplatRoute
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellChatsRoute: typeof AuthedShellChatsRoute
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
@@ -939,6 +978,7 @@ interface AuthedShellRouteChildren {
   AuthedShellInboxRoute: typeof AuthedShellInboxRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
+  AuthedShellSearchRoute: typeof AuthedShellSearchRoute
   AuthedShellAgentsAgentRefRoute: typeof AuthedShellAgentsAgentRefRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
@@ -963,6 +1003,7 @@ interface AuthedShellRouteChildren {
 }
 
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
+  AuthedShellSplatRoute: AuthedShellSplatRoute,
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellChatsRoute: AuthedShellChatsRoute,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
@@ -970,6 +1011,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellInboxRoute: AuthedShellInboxRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
+  AuthedShellSearchRoute: AuthedShellSearchRoute,
   AuthedShellAgentsAgentRefRoute: AuthedShellAgentsAgentRefRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,

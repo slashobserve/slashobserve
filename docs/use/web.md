@@ -14,8 +14,8 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/o/<observation id>` | One observation, its blocks and its discussion; `rca=1` in the query string opens the Publish as RCA panel. |
 | `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
-| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
-| `/f/<folder id>` | A folder's settings. |
+| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its version history, headed "Versions of <title>", and `thread=<thread id>` opens the activity pane on that comment thread. |
+| `/f/<folder id>` | A folder: its dashboards, observations and saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
@@ -33,6 +33,15 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 [Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view, and [Metrics](metrics.md) describes the metrics page.
 
 The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
+
+An address that nothing answers opens **Page not found** inside the app, with the sidebar and the top bar, the address it could not find and links to Home and the dashboards; a signed-out visitor signs in first and then sees it.
+A folder's page names the folder in the breadcrumb and in the tab title, such as "Dashboards / Checkout" and "Checkout - SlashObserve".
+
+## When your session ends
+
+When an Admin uses Sign out everywhere, or the server drops your session, the next page or save sends you to the sign-in page, which says "Your session was ended, so you were signed out."
+After you sign in you return to the page you were on.
+Signing out yourself shows no such note.
 
 ## Public links
 
@@ -79,7 +88,7 @@ Arrow keys move through the results and Enter opens one.
 
 Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
 A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted while **Dashboards** itself turns semibold instead of highlighted.
-The sidebar lists ten pins and then a **More** link to the dashboards list, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
+The sidebar lists ten pins and then **Show all pins**, which lists every pin in place until you choose **Show fewer pins**, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
 Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
 Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
@@ -222,8 +231,9 @@ A panel that uses dashboard variables is copied with them and the values you hav
 
 ## Sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
+The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
@@ -239,7 +249,14 @@ Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the
 The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
-A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
+A comment opens the page of what it is on, and an annotation that is on no dashboard is left out of the palette, because it has no page.
+
+Snippets show plain text, with Markdown links and emphasis flattened.
+With nothing typed, the palette lists the observations you opened last under **Recent observations**.
+**See all results** at the end of a search, or the address `/search?q=checkout`, opens the Search page: every match in pages of 20 with **Show more**, one button per kind to narrow them, and global annotations as rows with no link.
+Search matches whole words, their English stems and the start of the last word, so a misspelling finds nothing, and the empty result says so.
+**Help and docs** in the palette, and in the account menu, opens these docs in a new tab.
+The empty Dashboards list and the Search page link to their docs page the same way.
 [Search](search.md) describes what each kind matches and how to write a query.
 
 ## Keyboard shortcuts
@@ -257,9 +274,17 @@ Each panel type keeps a minimum height there, so a chart or a table stays readab
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
 
+## Wide and narrow screens
+
+On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
+The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+Browser zoom scales the whole app if the text is small on a large display.
+
 ## Connected agents
 
 Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
+A section's address is `/settings#<section>`, such as `/settings#grafana`; `#grafana-connection` opens the same section.
+An address whose section does not exist, or one that only Admins can open, shows Server with a note that says so.
 On a phone the section list is a **Settings section** menu at the top of the page.
 
 Open Settings and choose **Connected agents** in its section list to see **Your connected agents**: the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.

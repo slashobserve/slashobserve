@@ -43,9 +43,12 @@ var (
 type InvalidInputError struct {
 	Code    string
 	Message string
+	Cause   error
 }
 
 func (e *InvalidInputError) Error() string { return e.Message }
+
+func (e *InvalidInputError) Unwrap() error { return e.Cause }
 
 type Filters struct {
 	Columns []string `json:"columns,omitempty"`

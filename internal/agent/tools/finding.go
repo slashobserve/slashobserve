@@ -167,11 +167,11 @@ func findingMarkdown(raw string, refused int) (string, Result, bool) {
 		res.Step = fmt.Sprintf("Finding was %d words, over the %d word limit; the agent must shorten it", n, maxWords)
 		return "", res, false
 	}
-	switch _, clean := revisions.CleanPrompt(markdown); {
+	switch _, textErr := revisions.CheckPrompt("markdown", markdown); {
 	case utf8.RuneCountInString(markdown) > maxRunes:
 		return "", invalid("markdown must be at most %d characters", maxRunes), false
-	case !clean:
-		return "", invalid("markdown must not contain control or bidirectional override characters"), false
+	case textErr != nil:
+		return "", invalid("%s", textErr), false
 	case containsHTML(markdown):
 		return "", invalid("markdown must be plain Markdown without HTML"), false
 	}

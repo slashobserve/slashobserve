@@ -11,6 +11,7 @@ import {
   RecentChatsList,
   RecentImportsList,
 } from "./tab-lists"
+import { StartHere } from "./start-here"
 import { ExampleChips, TaskCard } from "./task-card"
 
 type Props = {
@@ -26,7 +27,7 @@ export function HomePage({ tab, onTabChange }: Props) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 pt-[26px] pb-5 narrow:pt-2.5">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 pt-[26px] pb-5 min-[1800px]:max-w-[960px] narrow:pt-2.5">
       <TopRowActions>
         <span className="text-xs text-muted-foreground narrow:hidden">
           {homeDate(new Date())}
@@ -52,6 +53,7 @@ export function HomePage({ tab, onTabChange }: Props) {
       <NeedsYouList />
       <WorkingNowList />
       <PickUpList />
+      <StartHere />
     </div>
   )
 }

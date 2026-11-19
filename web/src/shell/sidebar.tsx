@@ -370,19 +370,19 @@ export function SidebarContent({
       </div>
       <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
         {renderItems(main)}
+      </div>
+      <div
+        role="group"
+        aria-labelledby={workspaceId}
+        className="flex flex-none flex-col gap-0.5 pb-1"
+      >
         <div
-          role="group"
-          aria-labelledby={workspaceId}
-          className="flex flex-col gap-0.5"
+          id={workspaceId}
+          className="px-2.5 pt-2.5 pb-1.5 text-xs text-muted-foreground"
         >
-          <div
-            id={workspaceId}
-            className="px-2.5 pt-3.5 pb-1.5 text-xs text-muted-foreground"
-          >
-            Workspace
-          </div>
-          {renderItems(workspace)}
+          Workspace
         </div>
+        {renderItems(workspace)}
       </div>
       <div className="flex items-center gap-1">
         <AccountMenu collapsed={false} />

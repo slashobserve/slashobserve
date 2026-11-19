@@ -7,6 +7,7 @@ import {
   DatabaseIcon,
   HouseIcon,
   InboxIcon,
+  KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
   NotebookTextIcon,
@@ -53,6 +54,7 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
+  "/keys": KeyIcon,
   "/people": UsersIcon,
   "/settings": SettingsIcon,
 }

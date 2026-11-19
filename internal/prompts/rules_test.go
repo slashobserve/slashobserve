@@ -48,14 +48,15 @@ func TestCleanBody(t *testing.T) {
 		{"4000 runes", strings.Repeat("é", 4000), strings.Repeat("é", 4000), true},
 		{"4001 runes", strings.Repeat("é", 4001), "", false},
 		{"empty", "  ", "", false},
+		{"zero-width only", "\u200b", "", false},
 		{"nul", "a\x00b", "", false},
 		{"bidi override", "a\u202eb", "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, ok := CleanBody(tc.in)
-			if ok != tc.ok || got != tc.want {
-				t.Fatalf("CleanBody(%q) = %q, %v; want %q, %v", tc.in, got, ok, tc.want, tc.ok)
+			got, err := CleanBody(tc.in)
+			if (err == nil) != tc.ok || got != tc.want {
+				t.Fatalf("CleanBody(%q) = %q, %v; want %q, ok %v", tc.in, got, err, tc.want, tc.ok)
 			}
 		})
 	}
