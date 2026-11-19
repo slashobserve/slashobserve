@@ -351,14 +351,14 @@ func TestTheVersionsRouteAnswersAViewerBeforeReadingTheBodyAndACommenterAfter(t 
 	id := r.staleDashboard(t)
 	path := "/dashboards/" + id.String() + "/versions"
 
-	if rec := b.serve(viewerNoGrant, http.MethodPost, path, `{`); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) {
-		t.Errorf("a viewer with a malformed body = %d %s, want 403 %s", rec.Code, rec.Body, roleErrorCode)
+	if rec := b.serve(viewerNoGrant, http.MethodPost, path, `{`); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) || !strings.Contains(rec.Body.String(), `"needed_access":"comment"`) {
+		t.Errorf("a viewer with a malformed body = %d %s, want 403 %s naming Comment", rec.Code, rec.Body, roleErrorCode)
 	}
 	if rec := b.serve(commenterNoGrant, http.MethodPost, path, `{`); rec.Code != http.StatusBadRequest {
 		t.Errorf("a commenter with a malformed body = %d %s, want 400", rec.Code, rec.Body)
 	}
-	if rec := b.serve(commenterNoGrant, http.MethodPost, path, saveBody(twoPanels("y0", "x1"), 2, "")); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) {
-		t.Errorf("a commenter with a valid body = %d %s, want 403 %s", rec.Code, rec.Body, roleErrorCode)
+	if rec := b.serve(commenterNoGrant, http.MethodPost, path, saveBody(twoPanels("y0", "x1"), 2, "")); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) || !strings.Contains(rec.Body.String(), `"needed_access":"edit"`) {
+		t.Errorf("a commenter with a valid body = %d %s, want 403 %s naming Edit", rec.Code, rec.Body, roleErrorCode)
 	}
 }
 

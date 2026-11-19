@@ -197,6 +197,34 @@ describe("RcaPanel", () => {
     expect(screen.getByRole("button", { name: "Withdraw" })).toBeTruthy()
   })
 
+  it("says once that a person who may not manage links cannot, with no way to create or retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "your role does not allow this",
+              code: "forbidden_role",
+              needed_access: "manage",
+              folder_title: "Payments",
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          )
+        )
+      )
+    )
+    const { user } = renderPanel(["publish"], [1])
+    await user.click(await screen.findByRole("button", { name: /Revision 1/ }))
+    expect(
+      await screen.findByText(
+        "Your role does not allow this; it needs Manage on Payments."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Create link" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+  })
+
   it("lets someone who may not publish open a revision but not withdraw it", async () => {
     vi.stubGlobal(
       "fetch",

@@ -1,9 +1,10 @@
 import { useId, useRef, useState, type FormEvent, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import { outboundDomainKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -89,7 +90,11 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
   const remove = useRemoveDomain()
   const removeButtons = useRef(new Map<string, HTMLButtonElement>())
   const input = useRef<HTMLInputElement>(null)
-  const [confirming, setConfirming] = useState<OutboundDomain | null>(null)
+  const [chosen, setChosen] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const refreshing = useIsFetching({ queryKey: outboundDomainKeys.list() }) > 0
+  const confirming =
+    list.domains.find((entry) => entry.domain === chosen) ?? null
   const { principal } = useRouteContext({ from: "/_authed" })
   const managedByConfig = list.managed_by === "config"
   const isAdmin = roleAtLeast(principal.role, "admin")
@@ -100,7 +105,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
     const index = names.indexOf(domain)
     const neighbour = names[index + 1] ?? names[index - 1]
     remove.mutate(domain, {
-      onSettled: () => setConfirming(null),
+      onSettled: () => setChosen(null),
       onSuccess: () => {
         toast.success(`Removed ${domain}`)
         const next =
@@ -128,7 +133,12 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
               entry={entry}
               locked={locked}
               removing={remove.isPending && remove.variables === entry.domain}
-              onRemove={() => setConfirming(entry)}
+              onRemove={() => {
+                setChosen(entry.domain)
+                void queryClient.invalidateQueries({
+                  queryKey: outboundDomainKeys.list(),
+                })
+              }}
               buttonRef={(button) => {
                 if (button === null) removeButtons.current.delete(entry.domain)
                 else removeButtons.current.set(entry.domain, button)
@@ -140,7 +150,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
       <AlertDialog
         open={confirming !== null}
         onOpenChange={(open) => {
-          if (!open && !remove.isPending) setConfirming(null)
+          if (!open && !remove.isPending) setChosen(null)
         }}
       >
         <AlertDialogContent>
@@ -159,7 +169,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={remove.isPending}
+              disabled={remove.isPending || refreshing}
               focusableWhenDisabled
               aria-busy={remove.isPending}
               onClick={() => {
