@@ -100,6 +100,14 @@ func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.P
 	return row, err
 }
 
+func (s *Store) Claim(ctx context.Context, pattern domains.Pattern) (dbsqlc.ClaimConnectionOutboundDomainRow, bool, error) {
+	row, err := s.db.Queries().ClaimConnectionOutboundDomain(ctx, pattern.String())
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.ClaimConnectionOutboundDomainRow{}, false, nil
+	}
+	return row, err == nil, err
+}
+
 type User struct {
 	Kind string
 	Name string

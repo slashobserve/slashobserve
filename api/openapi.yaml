@@ -1041,7 +1041,7 @@ components:
           description: True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host.
         used_by:
           type: array
-          description: The webhooks and Grafana connections whose address this entry allows, so removing it would stop them.
+          description: The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
           items:
             type: object
             additionalProperties: false

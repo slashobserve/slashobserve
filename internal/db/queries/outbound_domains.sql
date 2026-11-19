@@ -26,3 +26,8 @@ SELECT 'webhook'::text AS kind, name, url FROM webhooks
 UNION ALL
 SELECT 'grafana_connection'::text AS kind, name, url FROM grafana_connections
 ORDER BY kind, name;
+
+-- name: ClaimConnectionOutboundDomain :one
+UPDATE outbound_domains SET for_connection = false
+WHERE domain = @domain AND for_connection
+RETURNING domain, created_at, created_by_name, for_connection;

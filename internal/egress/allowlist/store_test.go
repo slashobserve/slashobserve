@@ -1,12 +1,18 @@
 package allowlist
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -151,5 +157,88 @@ func TestReleaseWaitsForTheLockAWebhookTakesWhileItIsSaved(t *testing.T) {
 	release()
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func serveWithDatabase(t *testing.T, store *Store, caller auth.Principal, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	api := engine.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
+	})
+	store.Register(auth.NewRoutes(api))
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, httptest.NewRequest(method, "/api/v1/outbound-domains"+path, strings.NewReader(body)))
+	return rec
+}
+
+func userPrincipal(t *testing.T, database *dbtest.Database, email string, role auth.Role) auth.Principal {
+	t.Helper()
+	user, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: email, Email: email})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return auth.Principal{Kind: auth.KindUser, ID: user.ID.String(), Email: email, Role: role}
+}
+
+func TestOnlyAdminsSeeWhichWebhooksAndConnectionsUseAnEntry(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	admin := userPrincipal(t, database, "ada@example.com", auth.RoleAdmin)
+	editor := userPrincipal(t, database, "eve@example.com", auth.RoleEditor)
+	if _, err := store.Add(t.Context(), admin, pattern(t, "hooks.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	database.Exec(t, `INSERT INTO webhooks (name, url, secret_ciphertext, event_types, owner_kind, owner_id, cursor_xid, cursor_seq)
+		VALUES ('pagerduty-prod-oncall', 'https://hooks.example.com/in', '\x00', ARRAY['finding.created'], 'user', $1::uuid, '0'::xid8, 0)`, admin.ID)
+
+	type listed struct {
+		Domains []struct {
+			Domain string `json:"domain"`
+			UsedBy []struct {
+				Name string `json:"name"`
+			} `json:"used_by"`
+		} `json:"domains"`
+	}
+	read := func(caller auth.Principal) listed {
+		rec := serveWithDatabase(t, store, caller, http.MethodGet, "", "")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET as %s = %d %s", caller.Role, rec.Code, rec.Body)
+		}
+		var got listed
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	if got := read(admin); len(got.Domains) != 1 || len(got.Domains[0].UsedBy) != 1 || got.Domains[0].UsedBy[0].Name != "pagerduty-prod-oncall" {
+		t.Fatalf("admin list %+v, want the webhook named", got)
+	}
+	got := read(editor)
+	if len(got.Domains) != 1 || got.Domains[0].UsedBy == nil || len(got.Domains[0].UsedBy) != 0 {
+		t.Fatalf("editor list %+v, want the domain with an empty used_by", got)
+	}
+}
+
+func TestAnAdminAllowingAConnectionsHostByHandKeepsItWhenTheConnectionGoes(t *testing.T) {
+	database := dbtest.New(t)
+	store := New(database.DB, Lock{}, slog.New(slog.DiscardHandler))
+	admin := userPrincipal(t, database, "ada@example.com", auth.RoleAdmin)
+	if _, err := store.AddForConnection(t.Context(), admin, pattern(t, "grafana.example.com")); err != nil {
+		t.Fatal(err)
+	}
+	rec := serveWithDatabase(t, store, admin, http.MethodPost, "", `{"domain":"grafana.example.com"}`)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"from_connection":false`) {
+		t.Fatalf("allowing by hand answered %d %s, want 200 with from_connection false", rec.Code, rec.Body)
+	}
+	if err := store.Release(t.Context(), "grafana.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if list, err := store.Allowed(t.Context()); err != nil || !list.Allows("grafana.example.com") {
+		t.Fatalf("allowlist %v, err %v, want the hand-allowed host kept", list, err)
+	}
+	if rec := serveWithDatabase(t, store, admin, http.MethodPost, "", `{"domain":"grafana.example.com"}`); rec.Code != http.StatusConflict {
+		t.Fatalf("allowing it again answered %d %s, want 409", rec.Code, rec.Body)
 	}
 }

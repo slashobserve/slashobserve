@@ -258,7 +258,7 @@ export interface paths {
         };
         /**
          * List the domains the server may fetch content from.
-         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry; dashboard feeds, actions and assets are fetched on demand and not listed. Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`. Service accounts cannot call this endpoint.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry, for Admins only and empty for Editors; dashboard feeds, actions and assets are fetched on demand and not listed. Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`. Service accounts cannot call this endpoint.
          */
         get: operations["listOutboundDomains"];
         put?: never;
@@ -3772,7 +3772,7 @@ export interface components {
             domain: string;
             /** @description True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host. */
             from_connection: boolean;
-            /** @description The webhooks and Grafana connections whose address this entry allows, so removing it would stop them. */
+            /** @description The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
             used_by: {
                 /** @enum {string} */
                 kind: "webhook" | "grafana_connection";
@@ -7210,6 +7210,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description A Grafana connection had already added the domain, so it is now kept as an entry of its own and no longer leaves with the connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundDomain"];
+                };
+            };
             /** @description The domain is allowed. */
             201: {
                 headers: {
@@ -7222,7 +7231,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`). */
+            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain was already allowed by hand (`domain_exists`). */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -84,11 +84,12 @@ func (s *Store) list(c *gin.Context) {
 		s.fail(c, "list outbound users", err)
 		return
 	}
+	showUsers := httpapi.Caller(c).Role == auth.RoleAdmin
 	body := listJSON{ManagedBy: managedBySettings, Domains: make([]entryJSON, 0, len(rows))}
 	for _, r := range rows {
 		at := httpapi.FormatTime(r.CreatedAt.Time)
 		entry := entryJSON{Domain: r.Domain, AddedAt: &at, FromConnection: r.ForConnection, UsedBy: []userJSON{}}
-		if p, err := domains.ParsePattern(r.Domain); err == nil {
+		if p, err := domains.ParsePattern(r.Domain); err == nil && showUsers {
 			for _, u := range usersOf(users, p) {
 				entry.UsedBy = append(entry.UsedBy, userJSON(u))
 			}
@@ -125,7 +126,7 @@ func (s *Store) add(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed")
 		return
 	case errors.Is(err, ErrExists):
-		httpapi.AbortError(c, http.StatusConflict, "domain_exists", "that domain is already allowed")
+		s.claim(c, pattern)
 		return
 	case err != nil:
 		s.fail(c, "allow outbound domain", err)
@@ -135,6 +136,22 @@ func (s *Store) add(c *gin.Context) {
 	at := httpapi.FormatTime(row.CreatedAt.Time)
 	by := row.CreatedByName
 	c.JSON(http.StatusCreated, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by, FromConnection: row.ForConnection, UsedBy: []userJSON{}})
+}
+
+func (s *Store) claim(c *gin.Context, pattern domains.Pattern) {
+	ctx := c.Request.Context()
+	row, claimed, err := s.Claim(ctx, pattern)
+	switch {
+	case err != nil:
+		s.fail(c, "allow outbound domain", err)
+	case !claimed:
+		httpapi.AbortError(c, http.StatusConflict, "domain_exists", "that domain is already allowed")
+	default:
+		s.logger.InfoContext(ctx, "kept a connection's outbound domain", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("domain", row.Domain))
+		at := httpapi.FormatTime(row.CreatedAt.Time)
+		by := row.CreatedByName
+		c.JSON(http.StatusOK, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by, FromConnection: row.ForConnection, UsedBy: []userJSON{}})
+	}
 }
 
 func (s *Store) remove(c *gin.Context) {

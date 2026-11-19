@@ -11,6 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimConnectionOutboundDomain = `-- name: ClaimConnectionOutboundDomain :one
+UPDATE outbound_domains SET for_connection = false
+WHERE domain = $1 AND for_connection
+RETURNING domain, created_at, created_by_name, for_connection
+`
+
+type ClaimConnectionOutboundDomainRow struct {
+	Domain        string
+	CreatedAt     pgtype.Timestamptz
+	CreatedByName string
+	ForConnection bool
+}
+
+func (q *Queries) ClaimConnectionOutboundDomain(ctx context.Context, domain string) (ClaimConnectionOutboundDomainRow, error) {
+	row := q.db.QueryRow(ctx, claimConnectionOutboundDomain, domain)
+	var i ClaimConnectionOutboundDomainRow
+	err := row.Scan(
+		&i.Domain,
+		&i.CreatedAt,
+		&i.CreatedByName,
+		&i.ForConnection,
+	)
+	return i, err
+}
+
 const countOutboundDomains = `-- name: CountOutboundDomains :one
 SELECT count(*) FROM outbound_domains
 `
