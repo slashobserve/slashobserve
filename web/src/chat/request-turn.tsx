@@ -76,6 +76,7 @@ type Props = {
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
+  latest?: boolean
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -150,6 +151,7 @@ export function RequestTurn({
   onRetried,
   buildOnScreen = false,
   opensRunsIn = "chat",
+  latest = true,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -352,6 +354,7 @@ export function RequestTurn({
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
               partial={savedBuild ? { prompt: request.prompt } : undefined}
+              addMissing={latest}
             />
           ) : null}
           {request.status === "failed" && !savedBuild ? (

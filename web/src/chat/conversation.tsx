@@ -318,6 +318,7 @@ function ConversationView({
                 onRetried={appended}
                 buildOnScreen={pane && turn.id === requestId}
                 opensRunsIn={pane ? "build" : "chat"}
+                latest={index === turns.length - 1}
               />
             </div>
           ))

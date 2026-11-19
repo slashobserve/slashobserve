@@ -142,6 +142,7 @@ When someone has, the build cannot be saved and the page says so; open the dashb
 You need Edit access to the target to save it, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
 The chat keeps the result card with "5 of 8 panels, saved before the run finished" when the plan is known, the status line says "Saved part of the dashboard" instead of "Stopped", and **Add the missing panels** asks the agent for the rest as a follow-up on that dashboard.
+The button shows only on the newest turn of the chat, so once you have asked for the rest, or anything else, the earlier card no longer offers it.
 
 On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
