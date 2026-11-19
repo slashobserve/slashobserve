@@ -173,6 +173,7 @@ A text panel has a **Content** box instead of queries: Markdown up to 20000 char
 The box notes that HTML is cleaned: scripts, styles, forms and embeds are removed.
 The panel's `mode` is set in the JSON view (see [Panels and layout](../concepts/observespec.md#panels-and-layout)): `markdown` is the default, `html` reads the content as HTML only, and `code` shows it as code with a `code.language` and optional line numbers.
 Only people and Grafana imports can write HTML; the agent and MCP cannot, so an agent request can leave an HTML panel as it is but not change its text.
+The agent writes text panels in Markdown, bold, lists and tables included, and writes a requested HTML table as a Markdown table instead of refusing it.
 A dashboard list panel has the title, **Search**, **Tags** (up to 10), **Limit** (1 to 100), **Keep the time range** and **Include variable values**, and a news panel has the title and **Feed URL**.
 Canvas elements, connections and background images are edited in the JSON view.
 
