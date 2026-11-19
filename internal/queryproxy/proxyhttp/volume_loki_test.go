@@ -136,29 +136,29 @@ func TestALokiVolumeOverADayIsTheSingleRequestItWasBeforeChunking(t *testing.T) 
 	}
 }
 
-func TestALokiVolumeOverAWeekIsCountedInDaySizedRequestsOneAtATimeNewestFirst(t *testing.T) {
+func TestALokiVolumeOverAWeekIsCountedInDaySizedRequestsOfShortWindowsOneAtATimeNewestFirst(t *testing.T) {
 	hn, fake := newLokiVolumeHarness(t)
 	body := decodeVolume(t, hn.volume("loki", lokiVolumeOver(7*24*time.Hour)))
 	sent, maxInFlight := fake.requests()
-	count := lokiCount("10080000")
+	count := lokiCount("1680000")
 	assertLokiRequests(t, sent, []url.Values{
-		lokiWindow(count, "2026-11-19T00:00:00Z", "2026-11-19T22:24:00Z", "10080"),
-		lokiWindow(count, "2026-11-17T22:48:00Z", "2026-11-18T21:12:00Z", "10080"),
-		lokiWindow(count, "2026-11-16T21:36:00Z", "2026-11-17T20:00:00Z", "10080"),
-		lokiWindow(count, "2026-11-15T20:24:00Z", "2026-11-16T18:48:00Z", "10080"),
-		lokiWindow(count, "2026-11-14T19:12:00Z", "2026-11-15T17:36:00Z", "10080"),
-		lokiWindow(count, "2026-11-13T18:00:00Z", "2026-11-14T16:24:00Z", "10080"),
-		lokiWindow(count, "2026-11-12T19:36:00Z", "2026-11-13T15:12:00Z", "10080"),
+		lokiWindow(count, "2026-11-18T21:40:00Z", "2026-11-19T22:24:00Z", "1680"),
+		lokiWindow(count, "2026-11-17T20:28:00Z", "2026-11-18T21:12:00Z", "1680"),
+		lokiWindow(count, "2026-11-16T19:16:00Z", "2026-11-17T20:00:00Z", "1680"),
+		lokiWindow(count, "2026-11-15T18:04:00Z", "2026-11-16T18:48:00Z", "1680"),
+		lokiWindow(count, "2026-11-14T16:52:00Z", "2026-11-15T17:36:00Z", "1680"),
+		lokiWindow(count, "2026-11-13T15:40:00Z", "2026-11-14T16:24:00Z", "1680"),
+		lokiWindow(count, "2026-11-12T19:36:00Z", "2026-11-13T15:12:00Z", "1680"),
 	})
 	if maxInFlight != 1 {
 		t.Fatalf("%d requests in flight at once, want 1", maxInFlight)
 	}
-	if body.Partial || body.StepMS != 10080000 || len(body.Buckets) != 61 || body.Total != 61 {
+	if body.Partial || body.StepMS != 10080000 || len(body.Buckets) != 61 || body.Total != 366 {
 		t.Fatalf("partial %v, step_ms %d, %d buckets, total %d", body.Partial, body.StepMS, len(body.Buckets), body.Total)
 	}
 	for i, b := range body.Buckets {
-		if b.Error != 1 {
-			t.Fatalf("bucket %d = %+v, want one error line in every bucket", i, b)
+		if b.Error != 6 {
+			t.Fatalf("bucket %d = %+v, want the six 28 minute counts of every bucket", i, b)
 		}
 	}
 }
