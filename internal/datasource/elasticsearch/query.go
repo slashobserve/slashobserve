@@ -239,7 +239,7 @@ func parseDSL(body string) (map[string]any, []dslProblem) {
 			problems = append(problems, dslProblem{message: fmt.Sprintf("unsupported key %q in the query body", truncateText(key.name)), start: key.start, end: key.end})
 		}
 	}
-	if name, found := findScriptKey(obj); found {
+	if name, found := findScriptKey(obj, clauseKeys); found {
 		quoted := strconv.Quote(name)
 		start := max(strings.Index(body, quoted), 0)
 		problems = append(problems, dslProblem{message: fmt.Sprintf("scripts are not allowed in a query body: remove %q", name), start: start, end: min(start+len(quoted), len(body))})
@@ -247,20 +247,69 @@ func parseDSL(body string) (map[string]any, []dslProblem) {
 	return obj, problems
 }
 
-func findScriptKey(node any) (string, bool) {
+type keyRole int
+
+const (
+	clauseKeys keyRole = iota
+	fieldKeys
+	nameKeys
+	aggregationKeys
+	strictKeys
+)
+
+var namedChildren = []string{"aggs", "aggregations"}
+
+var fieldChildren = []string{"term", "terms", "terms_set", "match", "match_phrase", "match_phrase_prefix", "match_bool_prefix", "range", "prefix", "wildcard", "regexp", "fuzzy", "span_term", "sort", "fields", "runtime_mappings"}
+
+func (r keyRole) isScript(name string) bool {
+	switch r {
+	case fieldKeys:
+		return name == "_script"
+	case nameKeys:
+		return false
+	}
+	return slices.Contains(scriptKeys, name)
+}
+
+func (r keyRole) child(name string) keyRole {
+	switch r {
+	case clauseKeys:
+		switch {
+		case slices.Contains(namedChildren, name):
+			return nameKeys
+		case slices.Contains(fieldChildren, name):
+			return fieldKeys
+		}
+		return clauseKeys
+	case fieldKeys:
+		return clauseKeys
+	case nameKeys:
+		return aggregationKeys
+	case aggregationKeys:
+		switch {
+		case slices.Contains(namedChildren, name):
+			return nameKeys
+		case name == "filter":
+			return clauseKeys
+		}
+	}
+	return strictKeys
+}
+
+func findScriptKey(node any, role keyRole) (string, bool) {
 	switch v := node.(type) {
 	case map[string]any:
 		for _, name := range slices.Sorted(maps.Keys(v)) {
-			if slices.Contains(scriptKeys, name) {
+			if role.isScript(name) {
 				return name, true
 			}
-			if found, ok := findScriptKey(v[name]); ok {
+			if found, ok := findScriptKey(v[name], role.child(name)); ok {
 				return found, true
 			}
 		}
 	case []any:
 		for _, item := range v {
-			if found, ok := findScriptKey(item); ok {
+			if found, ok := findScriptKey(item, role); ok {
 				return found, true
 			}
 		}
