@@ -85,6 +85,7 @@ It resolves only for a signed-in caller who can see the dashboard: a signed-out 
 **New folder**, offered to an Editor or an Admin, asks for a name and creates a folder you own; it appears in the list as soon as it is created.
 Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
 The box above the list filters by title, and the folder and tag menus narrow it further.
+
 Where you may edit dashboards and there is a shared folder you can move into, every row you may move has a checkbox, and the checkbox in the header selects all of them on the page.
 A bar above the list then shows how many are selected, a **Move to folder** menu of the shared folders you can edit, **Move** and **Clear selection**.
 **Move** moves each selected dashboard with one request, as a row's **Move to folder** does, skips the ones already in that folder and says how many moved and which failed and why; the ones that failed stay selected.
@@ -133,6 +134,7 @@ Opening a dashboard writes once for the page, never for each panel, and a servic
 `GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
 `order=name` sorts every visible dashboard by lower-case title and then by id, across folders, and pages the same way.
+
 The **Sort** menu on the list switches between **By folder**, **Last updated**, **Name** and **Most viewed**; every order except by folder drops the folder headers and shows the folder as a column, because the order crosses folders.
 The choice is kept in the address as `sort=updated`, `sort=name` or `sort=views`, and the list asks the server for the same `order`.
 The daily records are kept for 90 days.
