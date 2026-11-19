@@ -137,6 +137,7 @@ import {
   pickerRefreshOptions,
 } from "./time-picker-settings"
 import { TimeRangePicker } from "./time-range-picker"
+import { ZonePicker } from "./zone-picker"
 import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
@@ -280,7 +281,11 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
+  const viewZone = search.tz ?? spec.timezone
+  const timeOptions = useMemo(
+    () => timeOptionsFor({ ...spec, timezone: viewZone }),
+    [spec, viewZone]
+  )
 
   const source = useMemo<PanelSource>(
     () => ({ kind: "version", dashboardId, version }),
@@ -291,7 +296,7 @@ function DashboardView({
     variables,
     from: search.from,
     to: search.to,
-    timezone: spec.timezone,
+    timezone: viewZone,
     urlVars: search.vars,
   })
   const mixedDatasources = useMemo(
@@ -707,6 +712,12 @@ function DashboardView({
         hidden={spec.timePicker?.hidden === true}
       />
       {spec.timePicker?.hidden ? null : (
+        <ZonePicker
+          value={viewZone ?? "browser"}
+          dashboardZone={spec.timezone}
+        />
+      )}
+      {spec.timePicker?.hidden ? null : (
         <RefreshPicker
           value={refreshValue}
           choices={pickerRefreshOptions(spec)}
@@ -788,7 +799,7 @@ function DashboardView({
       height={size.height}
       from={search.from}
       to={search.to}
-      timezone={spec.timezone}
+      timezone={viewZone}
       rangeFrom={effectiveFrom}
       rangeTo={effectiveTo}
       selections={item.selections}
@@ -835,7 +846,7 @@ function DashboardView({
 
   const annotationActions = {
     dashboardId,
-    zone: displayZone(undefined, spec.timezone),
+    zone: displayZone(undefined, viewZone),
     panelTitle: annotationPanelTitle,
     canEdit: permissions.edit && !kiosk,
     principal,
@@ -1003,7 +1014,7 @@ function DashboardView({
                       : null
                   }
                   variables={variables}
-                  zone={displayZone(inspectPanel.timezone, spec.timezone)}
+                  zone={displayZone(inspectPanel.timezone, viewZone)}
                   onClose={closeInspect}
                 />
               ) : null}

@@ -17,6 +17,7 @@ export function SidebarSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
+        aria-modal="true"
         finalFocus={returnFocus}
         className="gap-0 bg-chrome data-[side=left]:w-[248px]"
       >

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { modChordLabel } from "@/lib/shortcuts"
+import { sidebarChordKey } from "@/shell/sidebar-shortcut"
 
 import { dashboardShortcuts, keyLabel } from "./chords"
 
@@ -47,6 +48,10 @@ export function ShortcutsDialog({
     {
       keys: [modChordLabel(userAgent, "K")],
       description: "Open the command palette",
+    },
+    {
+      keys: [modChordLabel(userAgent, sidebarChordKey)],
+      description: "Collapse or expand the sidebar",
     },
   ]
   return (
