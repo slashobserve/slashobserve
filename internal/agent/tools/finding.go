@@ -133,11 +133,11 @@ func findingMarkdown(raw string) (string, Result, bool) {
 	if n := findings.Words(markdown); n > findings.MaxWords {
 		return "", toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, findings.MaxWords)), false
 	}
-	switch _, clean := revisions.CleanPrompt(markdown); {
+	switch _, textErr := revisions.CheckPrompt("markdown", markdown); {
 	case utf8.RuneCountInString(markdown) > findings.MaxMarkdownRunes:
 		return "", invalid("markdown must be at most %d characters", findings.MaxMarkdownRunes), false
-	case !clean:
-		return "", invalid("markdown must not contain control or bidirectional override characters"), false
+	case textErr != nil:
+		return "", invalid("%s", textErr), false
 	case containsHTML(markdown):
 		return "", invalid("markdown must be plain Markdown without HTML"), false
 	}

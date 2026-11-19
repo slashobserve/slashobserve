@@ -291,13 +291,13 @@ func blockMarkdown(raw *string) (string, Result, bool) {
 		return "", invalid("markdown is required for a text block"), false
 	}
 	markdown := strings.TrimSpace(*raw)
-	switch _, clean := revisions.CleanPrompt(markdown); {
+	switch _, textErr := revisions.CheckPrompt("markdown", markdown); {
 	case markdown == "":
 		return "", invalid("markdown must not be empty"), false
 	case utf8.RuneCountInString(markdown) > maxBlockMarkdownRunes:
 		return "", invalid("markdown must be at most %d characters", maxBlockMarkdownRunes), false
-	case !clean:
-		return "", invalid("markdown must not contain control or bidirectional override characters"), false
+	case textErr != nil:
+		return "", invalid("%s", textErr), false
 	case containsHTML(markdown):
 		return "", toolError(string(codeHTMLNotAllowed), "the agent cannot write HTML; write Markdown without tags"), false
 	}
