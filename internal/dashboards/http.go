@@ -249,8 +249,10 @@ func folderFilters(c *gin.Context, params *ListParams) bool {
 		params.ByFolder = true
 	case "views":
 		params.ByViews = true
+	case "name":
+		params.ByName = true
 	default:
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be updated, folder or views")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be updated, folder, views or name")
 		return false
 	}
 	return true

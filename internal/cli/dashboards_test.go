@@ -179,7 +179,7 @@ func TestDashboardsListShowsViewsAndSortsByThem(t *testing.T) {
 func TestDashboardsListRejectsAnUnknownOrderBeforeAnyRequest(t *testing.T) {
 	called := false
 	_, errOut, code := runDashboards(t, func(http.ResponseWriter, *http.Request) { called = true }, "dashboards", "list", "--order", "title")
-	if code != 2 || called || !strings.Contains(errOut, "--order must be one of updated, views") {
+	if code != 2 || called || !strings.Contains(errOut, "--order must be one of updated, views, name") {
 		t.Fatalf("exit %d, called %t, stderr %q", code, called, errOut)
 	}
 }

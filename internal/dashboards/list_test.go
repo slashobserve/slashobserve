@@ -549,4 +549,62 @@ func TestListRejectsACursorFromAnotherOrder(t *testing.T) {
 	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByFolder: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a views cursor under order folder: %v, want ErrInvalidCursor", err)
 	}
+	byName, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: byName.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor under order updated: %v, want ErrInvalidCursor", err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a views cursor under order name: %v, want ErrInvalidCursor", err)
+	}
+}
+
+func TestListByNameSortsByLowerCaseTitleAcrossFolders(t *testing.T) {
+	r := newRig(t, false)
+	r.seedList(t)
+
+	whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, ByName: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, item := range whole.Items {
+		got = append(got, item.Title)
+	}
+	want := slices.Clone(got)
+	slices.SortStableFunc(want, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	if len(got) != 5 || !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want the five titles sorted ignoring case: %v", got, want)
+	}
+
+	var walked []string
+	cursor := ""
+	for range 5 {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: cursor, ByName: true, SkipTotal: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		walked = append(walked, itemIDs(page.Items)...)
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(walked, want) {
+		t.Errorf("cursor pages = %v, want %v", walked, want)
+	}
+
+	var offsets []string
+	for _, offset := range []int{0, 2, 4} {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByName: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		offsets = append(offsets, itemIDs(page.Items)...)
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(offsets, want) {
+		t.Errorf("offset pages = %v, want %v", offsets, want)
+	}
 }

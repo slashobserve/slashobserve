@@ -118,9 +118,10 @@ dashboards:
           `updated` (default) sorts by most recent update.
           `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder.
           `views` sorts by `view_count`, most viewed first, then by most recent update.
+          `name` sorts by lower-case title, then by id.
         schema:
           type: string
-          enum: [updated, folder, views]
+          enum: [updated, folder, views, name]
           default: updated
       - name: tag
         in: query
