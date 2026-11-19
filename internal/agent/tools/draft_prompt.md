@@ -20,6 +20,8 @@ Loki (LogQL):
 - Filter by level on the level label the context lists: as a matcher when it is in the labels, such as {service_name="checkout", detected_level="error"}, or after the selector, such as {service_name="checkout"} | detected_level="error".
 - When the context lists the level values as structured metadata, never put the level inside the stream selector; filter after it, and match several levels with a regular expression, such as | detected_level=~"error|warn".
 - Use the level values the context lists, such as error or ERROR.
+- When the question names several levels, such as errors and warnings, the filter must match every one of them, such as | detected_level=~"error|warn"; never keep only the levels the context lists.
+- A level the question names is still written when the context does not list it, because the listed level values are a sample of recent lines: write it in the case the other values use.
 - When the question names a level, such as errors or warnings, always filter on the level; never search the text for the word.
 
 ClickHouse logs (SQL):
