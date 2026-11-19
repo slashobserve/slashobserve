@@ -370,11 +370,6 @@ export function ChatComposer({
           <label htmlFor={inputId} className="sr-only">
             Message the agent
           </label>
-          {coarse ? null : (
-            <p id={hintId} className="sr-only">
-              {keyboardHint}
-            </p>
-          )}
           {chips.length > 0 ? (
             <div className="px-4 pt-3">
               <ContextChips chips={chips} />
@@ -403,6 +398,11 @@ export function ChatComposer({
             onBlur={picker.dismiss}
             onKeyDown={onKeyDown}
           />
+          {coarse ? null : (
+            <p id={hintId} className="px-4 pb-1 text-xs text-muted-foreground">
+              {keyboardHint}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 pr-2 pb-2 pl-4">
             <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted-foreground">
               {healthy.map((datasource) => (

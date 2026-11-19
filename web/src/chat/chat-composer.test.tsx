@@ -94,6 +94,13 @@ afterEach(() => {
 })
 
 describe("ChatComposer", () => {
+  it("shows the keyboard hint to everyone, not only to screen readers", async () => {
+    renderComposer()
+    const hint = await screen.findByText(/Enter sends\. Shift\+Enter/)
+    expect(hint).not.toHaveClass("sr-only")
+    expect(await box()).toHaveAccessibleDescription(hint.textContent ?? "")
+  })
+
   it("adds a new line on Shift+Enter and sends nothing", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer()
