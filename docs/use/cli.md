@@ -168,6 +168,7 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
+| `bin/observe dashboards viewers <dashboard-id>` | Lists, by name, the other people who have the dashboard open now; it needs View and prints nothing when nobody is looking. |
 | `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
 | `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |

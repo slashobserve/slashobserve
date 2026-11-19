@@ -20,6 +20,7 @@ const (
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
 	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
+	presenceReport      = "an open dashboard page reports itself every 20 seconds, for people only; agents and the CLI read who is looking with list_dashboard_viewers and observe dashboards viewers"
 	notBuilt            = "no tool or command yet"
 )
 
@@ -45,6 +46,7 @@ var exceptions = map[string]exception{
 	"deleteDashboard":        {MCP: noMCPDeletes},
 	"createDashboardVersion": {CLI: viaApply},
 	"recordDashboardView":    {MCP: openRecording, CLI: openRecording},
+	"reportDashboardViewer":  {MCP: presenceReport, CLI: presenceReport},
 
 	"streamDashboardEvents": {MCP: liveWebPage, CLI: liveWebPage},
 

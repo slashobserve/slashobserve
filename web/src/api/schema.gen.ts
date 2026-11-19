@@ -834,6 +834,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/viewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the other people who have the dashboard open now.
+         * @description Needs View on the dashboard. A person is listed while their open dashboard page has reported in during the last 45 seconds, by name and user id, ordered by name; the caller is left out. Everyone who can view a dashboard can see who else is looking at it.
+         */
+        get: operations["listDashboardViewers"];
+        put?: never;
+        /**
+         * Report that the caller has the dashboard open, and list who else does.
+         * @description Needs View on the dashboard. The web app calls it when a dashboard page opens and every 20 seconds while the page is visible; each call keeps the caller listed for 45 seconds and answers with the same list as `GET /api/v1/dashboards/{id}/viewers`. A service-account key gets the list and nothing is recorded, because only people count as viewers.
+         */
+        post: operations["reportDashboardViewer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/import": {
         parameters: {
             query?: never;
@@ -4654,6 +4680,14 @@ export interface components {
                 /** @description The person's name, or their email address when they have none. */
                 name: string;
                 email: string;
+            }[];
+        };
+        DashboardViewers: {
+            viewers: {
+                /** Format: uuid */
+                id: string;
+                /** @description The person's name, or their email address when they have no name. */
+                name: string;
             }[];
         };
         ThreadEnvelope: {
@@ -8702,6 +8736,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listDashboardViewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The people looking at the dashboard now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardViewers"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reportDashboardViewer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The other people looking at the dashboard now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardViewers"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

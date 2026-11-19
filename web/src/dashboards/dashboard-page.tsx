@@ -65,6 +65,7 @@ import {
 
 import { ActivityToggle } from "./activity-toggle"
 import { focusComment } from "./panel-actions"
+import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
   cursorSyncLabel,
@@ -869,6 +870,7 @@ function DashboardView({
                       back={backFromSearch(search)}
                     />
                   }
+                  presence={<ViewerNames dashboardId={dashboardId} />}
                   controls={controls}
                   actions={actions}
                 />

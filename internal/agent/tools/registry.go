@@ -36,6 +36,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -159,6 +160,7 @@ type Deps struct {
 	LiveText      LiveText
 	Search        *search.Service
 	Stars         *stars.Service
+	Viewers       *viewers.Service
 	Provider      llm.Provider
 	PublicURL     *url.URL
 	Logger        *slog.Logger

@@ -716,3 +716,62 @@ dashboards-id-views:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-viewers:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listDashboardViewers
+    x-surfaces:
+      mcp: [list_dashboard_viewers]
+      cli: [observe dashboards viewers]
+    summary: List the other people who have the dashboard open now.
+    description: >-
+      Needs View on the dashboard.
+      A person is listed while their open dashboard page has reported in during the last 45 seconds, by name and user id, ordered by name; the caller is left out.
+      Everyone who can view a dashboard can see who else is looking at it.
+    responses:
+      "200":
+        description: The people looking at the dashboard now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardViewers"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: reportDashboardViewer
+    summary: Report that the caller has the dashboard open, and list who else does.
+    description: >-
+      Needs View on the dashboard.
+      The web app calls it when a dashboard page opens and every 20 seconds while the page is visible; each call keeps the caller listed for 45 seconds and answers with the same list as `GET /api/v1/dashboards/{id}/viewers`.
+      A service-account key gets the list and nothing is recorded, because only people count as viewers.
+    responses:
+      "200":
+        description: The other people looking at the dashboard now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardViewers"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

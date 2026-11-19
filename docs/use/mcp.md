@@ -50,6 +50,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
+| `list_dashboard_viewers` | Viewer |
 | `list_dashboards` | Viewer |
 | `list_datasources` | Viewer |
 | `list_folders` | Viewer |
@@ -243,6 +244,9 @@ Like every agent write, a text block with HTML is refused with `html_not_allowed
 No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
+
+`list_dashboard_viewers` is available over MCP only.
+It lists, by name, the other people who have the dashboard open in the web app now, so a client can see who is looking before it changes the dashboard; it needs View, and the list is empty when nobody is looking.
 
 `list_dashboard_health` is available over MCP only.
 It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.

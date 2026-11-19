@@ -86,6 +86,8 @@ paths:
     $ref: "./paths/proposals.yaml#/proposals-id-discard"
   /dashboards/{id}/views:
     $ref: "./paths/dashboards.yaml#/dashboards-id-views"
+  /dashboards/{id}/viewers:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-viewers"
   /dashboards/{id}/import:
     $ref: "./paths/imports.yaml#/dashboards-id-import"
   /dashboards/{id}/actions:
@@ -2639,6 +2641,25 @@ components:
                 description: The person's name, or their email address when they have none.
               email:
                 type: string
+    DashboardViewers:
+      type: object
+      additionalProperties: false
+      required: [viewers]
+      properties:
+        viewers:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have no name.
     ThreadEnvelope:
       type: object
       additionalProperties: false

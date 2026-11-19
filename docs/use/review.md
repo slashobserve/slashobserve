@@ -150,6 +150,12 @@ It is unread when someone else wrote in it, or the agent answered a request you 
 Click the dot, or click or focus anywhere in the thread, and it counts as read for you alone; answering in a thread marks it read too.
 Over the API each thread and comment carries `unread`, and `list_comments` shows it on the first comment of each thread; `POST /api/v1/threads/{thread_id}/read` marks one read for a person, and a service-account key never has unread threads.
 
+## Who else is viewing
+
+While a dashboard is open, the header shows "Also viewing" with the names of the other people who have it open, up to three and a count for the rest; it is empty when nobody else is there.
+Anyone who can view the dashboard sees the names, and a person counts for 45 seconds after their open page last reported in.
+Over the API `GET /api/v1/dashboards/{id}/viewers` returns the list, `list_dashboard_viewers` returns it over MCP and `bin/observe dashboards viewers <dashboard-id>` prints it; a service-account key never counts as a viewer.
+
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
