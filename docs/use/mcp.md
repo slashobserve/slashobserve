@@ -118,6 +118,20 @@ A key has no My Dashboards and is never on a folder's list, so below Editor it c
 Every refused tool call returns one shape: `code`, a stable word to branch on, and `message`, what to change, plus fields specific to the refusal such as `issues`, `latest_version` or `allowed_actions`.
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
+
+Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
+A client that approves only non-destructive tools on its own therefore asks before any of them runs.
+
+`list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
+The schema accepts the `{code, message}` body a failed call answers with, because a client that validates results checks a failed one too.
+Every other tool publishes none.
+
+A thing's id is named `<thing>_id` and a datasource is named `datasource`, and every tool that takes one also accepts its common alias, so a guess costs no call.
+`datasource_uid` is accepted wherever `datasource` is, `id` for `dashboard_id` on a tool named for a dashboard, for `observation_id` on one named for an observation and for `run_id` on one named for a run, and `run_id` for the `id` of `get_run`, `get_run_build`, `cancel_run` and `retry_run`.
+`diff_dashboard_versions` also accepts `from_version` and `to_version` for `from` and `to`, and `get_panels` accepts `panel_ids` for `ids`.
+A call that sends both names with the same value works, and one that sends them with different values is refused with `invalid_request`.
+The names in `tools/list` are the documented ones; a run of the built-in agent takes only those.
+
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.
 On `initialize` the server sends instructions with the order of work: read `get_spec_guide` once before the first save, find real names with the discovery tools, check each query with `lint_query` and `query_range` or `query_instant`, then save, sending changes with `update_panels`.
 Each tool's description and input schema are the text the built-in agent reads, except that MCP clients get the full guide from `get_spec_guide`, `folder_id` on `create_dashboard`, and `dashboard_id` and `parent_version` on `update_dashboard` and `update_panels`.
@@ -251,9 +265,11 @@ A key needs the Comment ability on the target to write; a target the key cannot 
 When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
-It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource` (the old name `datasource_uid` still works, as it does on `draft_query`), and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
+It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
 The query is linted as `lint_query` does it, and one with a lint error is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
-When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved as the HTTP API and the CLI save it.
+When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved anyway.
+A repeat of a search you already saved, with the same title, datasource, query, filters, range and folder, returns that search with `replayed` true and saves no second copy.
+`POST /api/v1/saved-searches` and `observe saved-searches save` apply the same two checks to a service-account key, and refuse a lint error with 422 `query_invalid` and answer a repeat with 200 and `replayed` true; a person's browser session saves as before.
 A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 
@@ -276,9 +292,9 @@ A panel that uses a variable with no value in `variables` is refused with `varia
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
-Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
+Every write answers with the ids, the `state` of what it changed, the block `version` and the `url`.
 
-`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
 No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.

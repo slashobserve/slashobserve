@@ -168,6 +168,10 @@ paths:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
+  /datasources/{uid}/schema:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-schema"
+  /datasources/{uid}/sample:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-sample"
   /datasources/{uid}/labels:
     $ref: "./paths/names.yaml#/datasources-uid-labels"
   /datasources/{uid}/labels/{name}/values:
@@ -1845,6 +1849,96 @@ components:
           type: string
         table:
           type: string
+    DatasourceTables:
+      type: object
+      additionalProperties: false
+      required: [tables, truncated]
+      properties:
+        tables:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceColumns:
+      type: object
+      additionalProperties: false
+      required: [table, columns, truncated]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceSpanSchema:
+      type: object
+      additionalProperties: false
+      required: [datasource, columns, rows, attributes]
+      properties:
+        datasource:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        attributes:
+          type: array
+          items:
+            type: string
+        truncated:
+          type: boolean
+    DatasourceSample:
+      type: object
+      additionalProperties: false
+      required: [table, columns, rows]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        truncated:
+          type: boolean
     Author:
       type: object
       additionalProperties: false
@@ -3298,7 +3392,7 @@ components:
         rows:
           type: integer
           minimum: 0
-          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+          description: The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0.
         rows_total:
           type: integer
           minimum: 0
@@ -3396,7 +3490,7 @@ components:
     LogVolume:
       type: object
       additionalProperties: false
-      required: [step_ms, total, buckets]
+      required: [step_ms, total, buckets, partial]
       properties:
         step_ms:
           type: integer
@@ -3409,6 +3503,13 @@ components:
           description: Every bucket of the aligned range, oldest first, empty buckets included.
           items:
             $ref: "#/components/schemas/LogVolumeBucket"
+        partial:
+          type: boolean
+          description: Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero.
+        counted_from:
+          type: string
+          format: date-time
+          description: Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
     LogVolumeBucket:
       type: object
       additionalProperties: false
@@ -4936,6 +5037,47 @@ components:
         url:
           type: string
           description: The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured.
+    SavedSearchReplayed:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, datasource_uid, query, filters, from, to, folder, permissions, actor, created_at, updated_at, url, replayed]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [logs, traces, metrics]
+        title:
+          type: string
+        datasource_uid:
+          type: string
+        query:
+          type: string
+          nullable: true
+        filters:
+          $ref: "#/components/schemas/SavedSearchFilters"
+        from:
+          type: string
+        to:
+          type: string
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+        replayed:
+          type: boolean
+          description: Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy.
     SavedSearchList:
       type: object
       additionalProperties: false

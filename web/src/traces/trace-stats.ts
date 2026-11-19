@@ -61,10 +61,23 @@ export function p95Label(search: TraceSearch): string {
     : `p95 of all ${search.service} traces`
 }
 
-export function partialReason(rowCount: number, pageSize: number): string {
-  return rowCount >= pageSize
-    ? `Showing the newest ${pageSize.toLocaleString("en")} traces that match; older matches are on the next pages.`
+export function partialReason(
+  rowCount: number,
+  pageSize: number,
+  hasNext: boolean
+): string {
+  if (rowCount >= pageSize) {
+    return `Showing the newest ${pageSize.toLocaleString("en")} traces that match; older matches are on the next pages.`
+  }
+  return hasNext
+    ? "Tempo stopped searching at its time limit, so these are the newest matches it found; the next page searches further back."
     : "Tempo stopped searching at its time limit, so some matching traces may be missing."
+}
+
+export function noTracesText(partial: boolean, range: string): string {
+  return partial
+    ? `Tempo stopped searching at its time limit before it found a trace in ${range}. Choose a shorter range or add a filter.`
+    : `No traces match in ${range}.`
 }
 
 export function partialNote(

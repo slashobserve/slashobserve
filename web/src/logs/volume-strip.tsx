@@ -29,6 +29,7 @@ import { exploreErrorText } from "./explore"
 import {
   bucketTotal,
   logVolumeQuery,
+  partialVolumeText,
   selectionEdges,
   selectionText,
   volumeBucketText,
@@ -38,6 +39,7 @@ import {
   volumeKinds,
   volumeLabel,
   volumeTotals,
+  uncountedBuckets,
   type LogVolume,
 } from "./volume"
 import { useLogsWorkspace } from "./workspace"
@@ -306,6 +308,13 @@ function VolumeBars({
   }
 
   const hovered = hover === null ? undefined : buckets[hover]
+  const uncounted = uncountedBuckets(volume)
+  const hoveredText =
+    hover !== null && hover < uncounted
+      ? "Not counted"
+      : hovered === undefined
+        ? ""
+        : volumeBucketText(hovered)
   const edges =
     selection === null
       ? null
@@ -323,7 +332,7 @@ function VolumeBars({
     <div className={cardClasses}>
       <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <p>{volumeCaption(total, from, to)}</p>
+          <p>{volumeCaption(total, from, to, volume.counted_from)}</p>
           {selection === null ? null : (
             <>
               <p className="text-[13px] text-foreground tabular-nums">
@@ -416,6 +425,13 @@ function VolumeBars({
             )
           })}
         </div>
+        {uncounted === 0 ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-control bg-muted"
+            style={{ width: `${(uncounted / bucketCount) * 100}%` }}
+          />
+        )}
         {preview === null ? null : (
           <div
             aria-hidden="true"
@@ -460,13 +476,13 @@ function VolumeBars({
             <p className="text-muted-foreground tabular-nums">
               {zonedDateTime(hovered.start, undefined)}
             </p>
-            <p className="tabular-nums">{volumeBucketText(hovered)}</p>
+            <p className="tabular-nums">{hoveredText}</p>
           </div>
         )}
         <p id={describedBy} aria-live="polite" className="sr-only">
           {hovered === undefined
             ? ""
-            : `${zonedDateTime(hovered.start, undefined)}, ${volumeBucketText(hovered)}`}
+            : `${zonedDateTime(hovered.start, undefined)}, ${hoveredText}`}
         </p>
       </div>
       <div
@@ -483,6 +499,11 @@ function VolumeBars({
           </span>
         ))}
       </div>
+      {volume.counted_from === undefined ? null : (
+        <p role="status" className="text-xs leading-4 text-muted-foreground">
+          {partialVolumeText(volume.counted_from, total === 0)}
+        </p>
+      )}
     </div>
   )
 }

@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"encoding/json"
@@ -167,17 +166,16 @@ func (r *Registry) draftEntries() []entry {
 
 func (r *Registry) draftQuery(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in struct {
-		Datasource    string `json:"datasource"`
-		DatasourceUID string `json:"datasource_uid"`
-		Question      string `json:"question"`
-		Signal        string `json:"signal"`
-		From          string `json:"from"`
-		To            string `json:"to"`
+		Datasource string `json:"datasource"`
+		Question   string `json:"question"`
+		Signal     string `json:"signal"`
+		From       string `json:"from"`
+		To         string `json:"to"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	draft, err := r.DraftQuery(ctx, DraftInput{DatasourceUID: cmp.Or(in.Datasource, in.DatasourceUID), Question: in.Question, Signal: in.Signal, From: in.From, To: in.To})
+	draft, err := r.DraftQuery(ctx, DraftInput{DatasourceUID: in.Datasource, Question: in.Question, Signal: in.Signal, From: in.From, To: in.To})
 	if err != nil {
 		code, message, ok := DraftFailure(err)
 		if !ok {

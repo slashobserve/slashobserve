@@ -35,6 +35,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/discoveryhttp"
 	"github.com/slashobserve/slashobserve/internal/draftbudget"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
@@ -520,7 +521,7 @@ func run() error {
 			findings.NewHandler(findingsService, findingURL, logger),
 			observations.NewHandler(observationsService, logger, observations.WithPanelChecker(toolRegistry)),
 			observations.NewRCAHandler(observationsService, logger),
-			savedsearches.NewHandler(savedSearchesService, logger),
+			savedsearches.NewHandler(savedSearchesService, logger, savedsearches.WithSaveGuard(toolRegistry)),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
@@ -538,6 +539,7 @@ func run() error {
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,

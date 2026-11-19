@@ -226,14 +226,25 @@ func logFrames() []datasource.Frame {
 	}
 }
 
-func TestExploreCountsNoRowsAndNoEdgesForSeries(t *testing.T) {
+func TestExploreCountsARowPerSeriesOfAnInstantVectorAndNoneOverARange(t *testing.T) {
 	hn, _ := newExploreHarness(t)
+	two := func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		second := sampleFrames()[0]
+		second.Labels = map[string]string{"pod": "b"}
+		return append(sampleFrames(), second), nil
+	}
+	hn.ds.onInstant = two
 	body := decodeData(t, hn.explore(auth.KindUser, "prom", instantBody("up")))
-	if body.Meta.Rows != 0 {
-		t.Fatalf("rows = %d for series data, want 0", body.Meta.Rows)
+	if body.Meta.Rows != 2 {
+		t.Fatalf("rows = %d for an instant vector of 2 series, want 2", body.Meta.Rows)
 	}
 	if body.Meta.Oldest != "2025-10-09T08:53:20Z" || body.Meta.Newest != body.Meta.Oldest {
 		t.Fatalf("edges = %q to %q, want the one sample time", body.Meta.Oldest, body.Meta.Newest)
+	}
+	rangeBody := instantBody("up")
+	rangeBody["kind"] = "range"
+	if body := decodeData(t, hn.explore(auth.KindUser, "prom", rangeBody)); body.Meta.Rows != 0 {
+		t.Fatalf("rows = %d for range series, want 0", body.Meta.Rows)
 	}
 	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
 		return []datasource.Frame{{Fields: []datasource.Field{{Name: "name", Type: datasource.FieldString, Values: []any{"a"}}}}}, nil

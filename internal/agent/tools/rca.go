@@ -29,7 +29,6 @@ func (r *Registry) rcaEntries() []entry {
 }
 
 type rcaPublishedOut struct {
-	Code           string `json:"code"`
 	ObservationID  string `json:"observation_id"`
 	Revision       int    `json:"revision"`
 	Blocks         int    `json:"blocks"`
@@ -81,6 +80,6 @@ func (r *Registry) publishRCA(ctx context.Context, input json.RawMessage) (Resul
 			snapshots++
 		}
 	}
-	out := rcaPublishedOut{Code: "ok", ObservationID: rca.ObservationID, Revision: rca.Revision, Blocks: len(rca.Blocks), Snapshots: snapshots, ObservationURL: r.deps.Observations.URL(rca.ObservationID)}
+	out := rcaPublishedOut{ObservationID: rca.ObservationID, Revision: rca.Revision, Blocks: len(rca.Blocks), Snapshots: snapshots, ObservationURL: r.deps.Observations.URL(rca.ObservationID)}
 	return success(fmt.Sprintf("Published revision %d of observation %s", rca.Revision, rca.ObservationID), out), nil
 }

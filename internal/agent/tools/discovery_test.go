@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -772,5 +773,51 @@ func TestRecheckDatasourceRefusesAnUnknownUID(t *testing.T) {
 	res, _ = call(t, r, nameRecheckDatasource, `{}`)
 	if got := errorCode(t, res); got != codeInvalidRequest {
 		t.Errorf("code = %q", got)
+	}
+}
+
+func TestReadSchemaAndSampleAnswerWhatTheToolsAnswer(t *testing.T) {
+	ds := &fakeDS{typ: "clickhouse", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch req.Kind {
+		case datasource.DiscoverTables:
+			return &datasource.Catalog{Tables: []datasource.Table{{Name: "otel_logs"}}}, nil
+		case datasource.DiscoverColumns:
+			return &datasource.Catalog{Columns: []datasource.Column{{Name: "Body", Type: "String"}}}, nil
+		}
+		return &datasource.Catalog{Sample: &datasource.Frame{Fields: []datasource.Field{{Name: "Body", Values: []any{"hello"}}}}}, nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+
+	tables, err := r.DatasourceSchema(ctx, "fake", "", nil)
+	if err != nil || tables.(tablesOut).Tables[0].Name != "otel_logs" {
+		t.Fatalf("tables = %#v, err = %v", tables, err)
+	}
+	columns, err := r.DatasourceSchema(ctx, "fake", "otel_logs", nil)
+	if err != nil || columns.(columnsOut).Columns[0].Type != "String" {
+		t.Fatalf("columns = %#v, err = %v", columns, err)
+	}
+	limit := 3
+	sample, err := r.DatasourceSample(ctx, "fake", "otel_logs", &limit)
+	if err != nil || sample.(sampleOut).Rows[0][0] != "hello" {
+		t.Fatalf("sample = %#v, err = %v", sample, err)
+	}
+	if got := ds.lastRequest(); got.Kind != datasource.DiscoverSampleRows || got.Limit != 3 || got.Table != "otel_logs" {
+		t.Fatalf("discovery request = %+v", got)
+	}
+}
+
+func TestReadSchemaRefusesWithTheToolsCode(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+
+	_, err := r.DatasourceSchema(ctx, "fake", "", nil)
+	var refused *ReadError
+	if !errors.As(err, &refused) || refused.Code != codeInvalidRequest || !strings.Contains(refused.Message, "list_labels") {
+		t.Fatalf("err = %v", err)
+	}
+	_, err = r.DatasourceSchema(ctx, "nope", "", nil)
+	if !errors.As(err, &refused) || refused.Code != string(queryproxy.CodeUnknownDatasource) {
+		t.Fatalf("err = %v", err)
 	}
 }

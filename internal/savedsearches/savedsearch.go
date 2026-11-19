@@ -29,6 +29,7 @@ const ModeTable = "table"
 
 const (
 	CodeInvalid               = "invalid_saved_search"
+	CodeQueryInvalid          = "query_invalid"
 	CodeUnknownDatasource     = "unknown_datasource"
 	CodeUnsupportedDatasource = "unsupported_datasource"
 )

@@ -1558,7 +1558,7 @@ export interface paths {
         put?: never;
         /**
          * Count the log lines a logs query matches over a range, by level.
-         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first. Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first. Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. Loki counts a range longer than a day one day at a time, newest first; when the next day would not finish within the query time limit, the server stops, returns the days it counted with `partial` true and `counted_from` set to where the count starts, and leaves the older buckets at zero. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logVolume"];
         delete?: never;
@@ -1781,6 +1781,50 @@ export interface paths {
          * @description The browser's only path to metric names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_metrics` tool: a Prometheus datasource lists its metrics with their type and help, and a ClickHouse datasource lists the OpenTelemetry metric names of its `otel_metrics_*` tables with the OTel kind as `type` and the table. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the tables, or the columns of one table, of a ClickHouse, Elasticsearch or OpenSearch datasource, or the services and span names of Tempo.
+         * @description It runs the same code, validation and limits as the agent's `get_schema` tool. Without `table` it lists the tables; with `table` it lists that table's columns with their types, and `offset` pages on from a `next_offset`. A Tempo datasource has no tables: it answers the services, span names and attribute names it holds, and a request with `table` or `offset` is a 400. Prometheus and Loki datasources answer 400 `invalid_request`; their label names are read with the labels route. An unknown datasource is a 404 `not_found`. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a few rows of a ClickHouse table, or a few log lines or documents of a Loki, Elasticsearch or OpenSearch datasource.
+         * @description It runs the same code, validation and limits as the agent's `sample_rows` tool. `table` is required on ClickHouse; on Loki it is an optional stream selector, and Elasticsearch and OpenSearch read their index pattern without it. Cell values are cut to 300 bytes, and `truncated` is true when columns, cells or rows were dropped to fit. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSample"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2728,7 +2772,7 @@ export interface paths {
         put?: never;
         /**
          * Save a logs, trace or metrics search in a folder.
-         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -4680,6 +4724,40 @@ export interface components {
             unit?: string;
             table?: string;
         };
+        DatasourceTables: {
+            tables: {
+                name: string;
+                kind?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceColumns: {
+            table: string;
+            columns: {
+                name: string;
+                type?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceSpanSchema: {
+            datasource: string;
+            columns: string[];
+            rows: unknown[][];
+            attributes: string[];
+            truncated?: boolean;
+        };
+        DatasourceSample: {
+            table: string;
+            columns: string[];
+            rows: unknown[][];
+            truncated?: boolean;
+        };
         Author: {
             /** @enum {string} */
             kind: "user" | "service_account";
@@ -5448,7 +5526,7 @@ export interface components {
             hint?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
             note?: string;
-            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            /** @description The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
             rows_total?: number;
@@ -5511,6 +5589,13 @@ export interface components {
             total: number;
             /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
             buckets: components["schemas"]["LogVolumeBucket"][];
+            /** @description Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero. */
+            partial: boolean;
+            /**
+             * Format: date-time
+             * @description Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
+             */
+            counted_from?: string;
         };
         LogVolumeBucket: {
             /**
@@ -6311,6 +6396,28 @@ export interface components {
             updated_at: string;
             /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
+        };
+        SavedSearchReplayed: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "logs" | "traces" | "metrics";
+            title: string;
+            datasource_uid: string;
+            query: string | null;
+            filters: components["schemas"]["SavedSearchFilters"];
+            from: string;
+            to: string;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+            actor: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            url: string;
+            /** @description Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy. */
+            replayed: boolean;
         };
         SavedSearchList: {
             saved_searches: components["schemas"]["SavedSearch"][];
@@ -12529,6 +12636,75 @@ export interface operations {
             504: components["responses"]["QueryTimeout"];
         };
     };
+    getDatasourceSchema: {
+        parameters: {
+            query?: {
+                /** @description The table whose columns to list. */
+                table?: string;
+                /** @description How many items to skip, from a previous answer's `next_offset`. */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of tables, or of columns, or the Tempo services and span names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTables"] | components["schemas"]["DatasourceColumns"] | components["schemas"]["DatasourceSpanSchema"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    getDatasourceSample: {
+        parameters: {
+            query?: {
+                table?: string;
+                /** @description Maximum rows to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` rows with their column names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceSample"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
     listDatasourceLabels: {
         parameters: {
             query?: {
@@ -14791,6 +14967,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The search this key had already saved, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchReplayed"];
+                };
+            };
             /** @description The saved search. */
             201: {
                 headers: {
@@ -14805,7 +14990,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
-            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`). */
+            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`). */
             422: {
                 headers: {
                     [name: string]: unknown;

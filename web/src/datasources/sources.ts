@@ -39,6 +39,10 @@ export const exploreText = {
   },
 } as const
 
+export function isSourcePage(kind: ExploreKind, pathname: string): boolean {
+  return pathname.startsWith(`${exploreText[kind].path}/`)
+}
+
 const listedSourceCap = 5
 
 const datasourceTypesOf: Record<ExploreKind, readonly string[]> = {

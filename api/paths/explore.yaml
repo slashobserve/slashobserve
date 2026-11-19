@@ -156,6 +156,7 @@ datasources-uid-log-volume:
       Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it.
       Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other.
       For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored.
+      Loki counts a range longer than a day one day at a time, newest first; when the next day would not finish within the query time limit, the server stops, returns the days it counted with `partial` true and `counted_from` set to where the count starts, and leaves the older buckets at zero.
       For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects.
       The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
       Viewers and above may call it, service-account keys included.

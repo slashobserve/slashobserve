@@ -190,7 +190,7 @@ func (a *app) dashboardDiffCommand() *cobra.Command {
 			}
 			data, err := c.get(cmd.Context(), "dashboards/"+id+"/diff", query)
 			if err != nil {
-				return err
+				return explainMissingDiffVersion(cmd.Context(), c, id, from, to, err)
 			}
 			out := a.output()
 			if a.json {

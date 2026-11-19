@@ -25,7 +25,7 @@ func (r *observationRig) published(t *testing.T, by auth.Principal, id string) r
 	t.Helper()
 	res := r.call(t, by, namePublishRCA, fmt.Sprintf(`{"observation_id":%q}`, id))
 	out, ok := res.Content.(rcaPublishedOut)
-	if res.IsError || !ok || out.Code != "ok" {
+	if res.IsError || !ok {
 		t.Fatalf("publish_rca: %#v", res.Content)
 	}
 	return out

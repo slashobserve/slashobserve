@@ -60,6 +60,7 @@ saved-searches:
       The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus.
       A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none.
       A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`.
+      A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy.
       The kind, datasource, query, filters and range never change afterwards: save a new search instead.
     requestBody:
       required: true
@@ -68,6 +69,12 @@ saved-searches:
           schema:
             $ref: "../openapi.yaml#/components/schemas/CreateSavedSearchRequest"
     responses:
+      "200":
+        description: The search this key had already saved, with `replayed` true.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedSearchReplayed"
       "201":
         description: The saved search.
         content:
@@ -85,7 +92,7 @@ saved-searches:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`).
+        description: A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`).
         content:
           application/json:
             schema:

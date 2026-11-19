@@ -67,15 +67,23 @@ func (b Bucket) total() int64 {
 }
 
 type Volume struct {
-	StepMS  int64
-	Total   int64
-	Buckets []Bucket
+	StepMS      int64
+	Total       int64
+	Buckets     []Bucket
+	CountedFrom time.Time
 }
 
+func (v Volume) Partial() bool { return !v.CountedFrom.IsZero() }
+
 type Histogram struct {
-	from    time.Time
-	step    time.Duration
-	buckets []Bucket
+	from        time.Time
+	step        time.Duration
+	buckets     []Bucket
+	countedFrom time.Time
+}
+
+func (h *Histogram) CountedOnlyFrom(t time.Time) {
+	h.countedFrom = t
 }
 
 func New(from time.Time, step time.Duration, buckets int) *Histogram {
@@ -98,7 +106,7 @@ func (h *Histogram) Add(start time.Time, k Kind, n int64) {
 }
 
 func (h *Histogram) Volume() Volume {
-	v := Volume{StepMS: h.step.Milliseconds(), Buckets: slices.Clone(h.buckets)}
+	v := Volume{StepMS: h.step.Milliseconds(), Buckets: slices.Clone(h.buckets), CountedFrom: h.countedFrom}
 	for _, b := range v.Buckets {
 		v.Total += b.total()
 	}

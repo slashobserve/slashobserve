@@ -23,7 +23,6 @@ const (
 )
 
 type runAnswerSavedOut struct {
-	Code          string `json:"code"`
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	Replayed      bool   `json:"replayed"`
@@ -63,5 +62,5 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 	case err != nil:
 		return Result{}, err
 	}
-	return success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{Code: "saved", ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed}), nil
+	return success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed}), nil
 }

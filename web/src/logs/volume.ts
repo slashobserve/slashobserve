@@ -146,7 +146,15 @@ export function volumeLabel(total: number, totals: VolumeTotals): string {
   return parts.length === 0 ? lines : `${lines}: ${parts.join(", ")}`
 }
 
-export function volumeCaption(total: number, from: string, to: string) {
+export function volumeCaption(
+  total: number,
+  from: string,
+  to: string,
+  countedFrom?: string
+) {
+  if (countedFrom !== undefined) {
+    return `${count(total)} lines since ${zonedDateTime(countedFrom, undefined).slice(0, 16)}`
+  }
   const range = describeRange(from, to)
   const words = range.startsWith("Last ")
     ? `in the ${lowerFirst(range)}`
@@ -158,4 +166,22 @@ export function isWideRange(from: string, to: string, now = Date.now()) {
   const start = resolveTime(from, now, false)
   const end = resolveTime(to, now, true)
   return end - start > wideRangeMs
+}
+
+export function uncountedBuckets(
+  volume: Pick<LogVolume, "buckets" | "counted_from">
+): number {
+  if (volume.counted_from === undefined) return 0
+  const countedFrom = Date.parse(volume.counted_from)
+  const first = volume.buckets.findIndex(
+    (bucket) => Date.parse(bucket.start) >= countedFrom
+  )
+  return first === -1 ? volume.buckets.length : first
+}
+
+export function partialVolumeText(countedFrom: string, empty: boolean) {
+  const since = zonedDateTime(countedFrom, undefined).slice(0, 16)
+  return empty
+    ? "The datasource ran out of time before it counted any lines, so the bars are empty. The lines below are not affected."
+    : `The datasource ran out of time, so only the lines since ${since} are counted; the shaded bars before it are not counted.`
 }

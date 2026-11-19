@@ -44,6 +44,7 @@ type savedSearchRow struct {
 	} `json:"folder"`
 	UpdatedAt string `json:"updated_at"`
 	URL       string `json:"url"`
+	Replayed  bool   `json:"replayed"`
 }
 
 type savedSearchListBody struct {
@@ -267,7 +268,11 @@ func (a *app) runSavedSearchesSave(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	out.notice("Saved search %s", text(saved.ID))
+	if saved.Replayed {
+		out.notice("Search %s was already saved", text(saved.ID))
+	} else {
+		out.notice("Saved search %s", text(saved.ID))
+	}
 	out.line("%s", text(saved.URL))
 	return nil
 }
