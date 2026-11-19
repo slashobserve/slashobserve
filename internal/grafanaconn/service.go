@@ -210,25 +210,16 @@ func cleanToken(raw string) (string, error) {
 	return token, nil
 }
 
-func (s *Service) ensureAllowed(ctx context.Context, by auth.Principal, host string) error {
-	list, err := s.domains.Allowed(ctx)
-	if err != nil {
-		return err
-	}
-	if list.Allows(host) {
-		return nil
-	}
-	pattern, err := domains.ParsePattern(host)
-	if err != nil {
-		return &InvalidError{Message: "url must name a domain"}
-	}
-	_, err = s.domains.AddForConnection(ctx, by, pattern)
+func (s *Service) saveOnAllowedHost(ctx context.Context, by auth.Principal, host string, save func(*dbsqlc.Queries) error) error {
+	added, err := s.domains.SaveOnAllowedHost(ctx, by, host, save)
 	switch {
 	case err == nil:
-		s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", pattern.String()))
+		if added != "" {
+			s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", by.ID), slog.String("domain", added))
+		}
 		return nil
-	case errors.Is(err, allowlist.ErrExists):
-		return nil
+	case errors.Is(err, allowlist.ErrNotADomain):
+		return &InvalidError{Message: "url must name a domain"}
 	case errors.Is(err, allowlist.ErrLocked):
 		return &egress.HostError{Host: host, Err: egress.ErrNotAllowed}
 	case errors.Is(err, allowlist.ErrTooMany):
@@ -263,9 +254,6 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if !s.key.Set() {
 		return Connection{}, ErrNoSecretKey
 	}
-	if err := s.ensureAllowed(ctx, by, host); err != nil {
-		return Connection{}, err
-	}
 	id := newID()
 	ciphertext, err := s.sealToken(id, token)
 	if err != nil {
@@ -275,7 +263,15 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in Input) (Conn
 	if creator, err := db.ParseUUID(by.ID); err == nil {
 		params.CreatedBy = creator
 	}
-	created, err := s.store.insert(ctx, params)
+	var row dbsqlc.GrafanaConnection
+	err = s.saveOnAllowedHost(ctx, by, host, func(q *dbsqlc.Queries) (err error) {
+		row, err = s.store.insert(ctx, q, params)
+		return err
+	})
+	if err != nil {
+		return Connection{}, err
+	}
+	created, err := s.store.one(ctx, row)
 	if err != nil {
 		return Connection{}, err
 	}
@@ -316,12 +312,20 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		}
 		params.ResetTest = true
 	}
-	if host != "" {
-		if err := s.ensureAllowed(ctx, by, host); err != nil {
-			return Connection{}, err
-		}
+	var row dbsqlc.GrafanaConnection
+	save := func(q *dbsqlc.Queries) (err error) {
+		row, err = s.store.update(ctx, q, params)
+		return err
 	}
-	updated, err := s.store.update(ctx, params)
+	if host != "" {
+		err = s.saveOnAllowedHost(ctx, by, host, save)
+	} else {
+		err = s.store.db.InTx(ctx, save)
+	}
+	if err != nil {
+		return Connection{}, err
+	}
+	updated, err := s.store.one(ctx, row)
 	if err != nil {
 		return Connection{}, err
 	}

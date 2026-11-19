@@ -21,6 +21,8 @@ var (
 	ErrLocked  = errors.New("outbound domains are set by configuration")
 	ErrTooMany = errors.New("too many outbound domains")
 	ErrExists  = errors.New("outbound domain exists")
+
+	ErrNotADomain = errors.New("not a domain name")
 )
 
 type Lock struct {
@@ -45,7 +47,14 @@ func (s *Store) Allowed(ctx context.Context) (domains.List, error) {
 	if s.lock.Locked {
 		return s.lock.Domains, nil
 	}
-	rows, err := s.db.Queries().ListOutboundDomains(ctx)
+	return s.allowedBy(ctx, s.db.Queries())
+}
+
+func (s *Store) allowedBy(ctx context.Context, q *dbsqlc.Queries) (domains.List, error) {
+	if s.lock.Locked {
+		return s.lock.Domains, nil
+	}
+	rows, err := q.ListOutboundDomains(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list outbound domains: %w", err)
 	}
@@ -72,6 +81,19 @@ func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.P
 	if s.lock.Locked {
 		return dbsqlc.InsertOutboundDomainRow{}, ErrLocked
 	}
+	var row dbsqlc.InsertOutboundDomainRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockOutboundDomains(ctx); err != nil {
+			return err
+		}
+		var err error
+		row, err = insertLocked(ctx, q, by, pattern, forConnection)
+		return err
+	})
+	return row, err
+}
+
+func insertLocked(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, pattern domains.Pattern, forConnection bool) (dbsqlc.InsertOutboundDomainRow, error) {
 	params := dbsqlc.InsertOutboundDomainParams{Domain: pattern.String(), CreatedByName: by.Name, ForConnection: forConnection}
 	if params.CreatedByName == "" {
 		params.CreatedByName = by.Email
@@ -79,25 +101,49 @@ func (s *Store) insert(ctx context.Context, by auth.Principal, pattern domains.P
 	if id, err := db.ParseUUID(by.ID); err == nil && by.Kind == auth.KindUser {
 		params.CreatedByID = id
 	}
-	var row dbsqlc.InsertOutboundDomainRow
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := q.LockOutboundDomains(ctx); err != nil {
-			return err
+	n, err := q.CountOutboundDomains(ctx)
+	if err != nil {
+		return dbsqlc.InsertOutboundDomainRow{}, err
+	}
+	if n >= config.MaxOutboundDomains {
+		return dbsqlc.InsertOutboundDomainRow{}, ErrTooMany
+	}
+	row, err := q.InsertOutboundDomain(ctx, params)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.InsertOutboundDomainRow{}, ErrExists
+	}
+	return row, err
+}
+
+func (s *Store) SaveOnAllowedHost(ctx context.Context, by auth.Principal, host string, save func(*dbsqlc.Queries) error) (added string, err error) {
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		added = ""
+		if !s.lock.Locked {
+			if err := q.LockOutboundDomains(ctx); err != nil {
+				return err
+			}
 		}
-		n, err := q.CountOutboundDomains(ctx)
+		allowed, err := s.allowedBy(ctx, q)
 		if err != nil {
 			return err
 		}
-		if n >= config.MaxOutboundDomains {
-			return ErrTooMany
+		if !allowed.Allows(host) {
+			if s.lock.Locked {
+				return ErrLocked
+			}
+			pattern, err := domains.ParsePattern(host)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrNotADomain, err)
+			}
+			row, err := insertLocked(ctx, q, by, pattern, true)
+			if err != nil && !errors.Is(err, ErrExists) {
+				return err
+			}
+			added = row.Domain
 		}
-		row, err = q.InsertOutboundDomain(ctx, params)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrExists
-		}
-		return err
+		return save(q)
 	})
-	return row, err
+	return added, err
 }
 
 func (s *Store) Claim(ctx context.Context, pattern domains.Pattern) (dbsqlc.ClaimConnectionOutboundDomainRow, bool, error) {
