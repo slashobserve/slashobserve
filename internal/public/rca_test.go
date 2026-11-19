@@ -31,6 +31,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
@@ -201,8 +202,12 @@ func TestRCALinkRefusals(t *testing.T) {
 			}
 		})
 	}
-	if _, err := r.service.ListRCALinks(t.Context(), viewer, id, 1); !errors.Is(err, folders.ErrForbidden) {
+	_, err := r.service.ListRCALinks(t.Context(), viewer, id, 1)
+	if !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer listed links: %v", err)
+	}
+	if body := forbidden.BodyOf(err); body.NeededAccess != "manage" || body.FolderTitle == "" {
+		t.Errorf("the refusal names %+v, want Manage on the observation's folder", body)
 	}
 }
 

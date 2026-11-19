@@ -54,6 +54,18 @@ export function RcaLinks({ observationId, revision }: Props) {
   const links = useQuery(rcaLinksQuery(observationId, revision))
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [latest, setLatest] = useState<string | null>(null)
+  const refused =
+    links.error instanceof ApiError && links.error.status === 403
+      ? links.error
+      : null
+
+  if (refused !== null) {
+    return (
+      <Alert>
+        <AlertDescription>{loadProblemText(refused)}</AlertDescription>
+      </Alert>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-2.5">
