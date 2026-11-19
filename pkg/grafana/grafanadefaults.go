@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"maps"
 	"reflect"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -475,8 +474,6 @@ func isCosmeticOn(typ spec.PanelType, path string, value any) bool {
 	}
 	return len(option.values) == 0 || slices.ContainsFunc(option.values, func(v any) bool { return sameJSON(value, v) })
 }
-
-var indexPattern = regexp.MustCompile(`\[[0-9]+\]`)
 
 func normalizePath(path string) string {
 	open := strings.IndexByte(path, '[')

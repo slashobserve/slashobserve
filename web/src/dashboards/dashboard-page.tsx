@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -19,12 +19,15 @@ import {
   useActivityStore,
   useChatPaneLayout,
 } from "@/activity/activity-store"
+import { AnnotationActionsProvider } from "@/annotations/actions"
+import { AnnotationControls } from "@/annotations/annotation-controls"
 import { dashboardKeys } from "@/api/keys"
 import { ChatPane } from "@/chat/chat-pane"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
 import { foldersQuery } from "@/folders/queries"
+import { panelTitles } from "@/history/diff-groups"
 import { DashboardHealthButton } from "@/health/dashboard-health-button"
 import { usePanelHealth } from "@/health/use-dashboard-health"
 import {
@@ -236,6 +239,7 @@ function DashboardView({
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
   const { permissions } = access
+  const { principal } = useRouteContext({ from: "/_authed" })
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -686,7 +690,10 @@ function DashboardView({
     flashTimer.current = window.setTimeout(() => setFlashed(null), 2000)
   }, [])
 
+  const annotationPanelTitle = (id: string) =>
+    panelTitles(envelopeSpec).get(id) ?? id
   const controls = [
+    <AnnotationControls key="annotations" />,
     <div key="time" className="flex items-center gap-1.5">
       <TimeRangePicker
         dashboardId={dashboardId}
@@ -822,222 +829,234 @@ function DashboardView({
     />
   )
 
+  const annotationActions = {
+    dashboardId,
+    zone: displayZone(undefined, spec.timezone),
+    panelTitle: annotationPanelTitle,
+    canEdit: permissions.edit && !kiosk,
+    principal,
+  }
+
   if (exporting) {
     return (
-      <ExportView
-        spec={spec}
-        folder={access.folder.title}
-        version={version}
-        from={effectiveFrom}
-        to={effectiveTo}
-        states={states}
-        selections={selections}
-        values={values}
-        actions={actionContext}
-        renderPanel={(item, size) => renderPanel(item, size)}
-      />
+      <AnnotationActionsProvider {...annotationActions}>
+        <ExportView
+          spec={spec}
+          folder={access.folder.title}
+          version={version}
+          from={effectiveFrom}
+          to={effectiveTo}
+          states={states}
+          selections={selections}
+          values={values}
+          actions={actionContext}
+          renderPanel={(item, size) => renderPanel(item, size)}
+        />
+      </AnnotationActionsProvider>
     )
   }
 
   return (
-    <div className="flex min-h-svh bg-chrome">
-      {kiosk ? null : <Sidebar rail />}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {kiosk ? null : (
-          <>
-            <PhoneBar title={spec.title} />
-            <CommandPalette />
-          </>
-        )}
-        <div
-          className={cn(
-            pageClass(
-              (cardVisible && cardLayout.stacked) ||
-                (chatRequestId !== undefined && chatLayout.stacked) ||
-                (inspecting && inspectLayout.stacked)
-            ),
-            "min-w-0 narrow:flex-1"
+    <AnnotationActionsProvider {...annotationActions}>
+      <div className="flex min-h-svh bg-chrome">
+        {kiosk ? null : <Sidebar rail />}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {kiosk ? null : (
+            <>
+              <PhoneBar title={spec.title} />
+              <CommandPalette />
+            </>
           )}
-        >
-          <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-            {kiosk ? null : (
-              <DashboardTopRow
-                title={spec.title}
-                folder={access.folder}
-                madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-                views={viewsText}
-                versionControl={
-                  <VersionMenu
-                    dashboardId={dashboardId}
-                    version={version}
-                    latest={latestVersion}
-                    current={envelope.version}
-                    pinned={pinned}
-                    editing={editing}
-                    status={liveStatus}
-                    back={backFromSearch(search)}
+          <div
+            className={cn(
+              pageClass(
+                (cardVisible && cardLayout.stacked) ||
+                  (chatRequestId !== undefined && chatLayout.stacked) ||
+                  (inspecting && inspectLayout.stacked)
+              ),
+              "min-w-0 narrow:flex-1"
+            )}
+          >
+            <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+              {kiosk ? null : (
+                <DashboardTopRow
+                  title={spec.title}
+                  folder={access.folder}
+                  madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                  views={viewsText}
+                  versionControl={
+                    <VersionMenu
+                      dashboardId={dashboardId}
+                      version={version}
+                      latest={latestVersion}
+                      current={envelope.version}
+                      pinned={pinned}
+                      editing={editing}
+                      status={liveStatus}
+                      back={backFromSearch(search)}
+                    />
+                  }
+                  controls={controls}
+                  actions={actions}
+                />
+              )}
+              {kiosk ? null : (
+                <>
+                  <VariablesBar
+                    states={states}
+                    unverified={unverified.variables}
+                    onSelect={select}
                   />
+                  <DashboardLinks
+                    links={spec.links}
+                    dashboardId={dashboardId}
+                    timeOptions={timeOptions}
+                    scope={{
+                      vars: selections,
+                      from: effectiveFrom,
+                      to: effectiveTo,
+                    }}
+                  />
+                </>
+              )}
+              <LayoutAnnouncer />
+              <main
+                ref={gridBox}
+                data-export-pane=""
+                className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+              >
+                <ActionProvider value={actionContext}>
+                  {viewed ? (
+                    <ViewedPanel onBack={closeView}>
+                      {(size) =>
+                        renderPanel(
+                          {
+                            kind: "panel",
+                            key: viewed.id,
+                            panel: viewed,
+                            title: interpolateTitle(
+                              panelTitle(viewed),
+                              selections
+                            ),
+                            selections,
+                            first: true,
+                            gridPos: viewed.gridPos,
+                          },
+                          size,
+                          true
+                        )
+                      }
+                    </ViewedPanel>
+                  ) : (
+                    <DashboardGrid
+                      dashboardId={dashboardId}
+                      spec={spec}
+                      selections={selections}
+                      values={values}
+                      editable={arranging && layout !== undefined}
+                      layout={layout}
+                      onLayoutChange={layout ? setLayout : undefined}
+                      selectedId={selectedId}
+                      newPanelIds={editing ? undefined : seen.fresh}
+                      renderPanel={(item, size) => renderPanel(item, size)}
+                    />
+                  )}
+                </ActionProvider>
+              </main>
+            </div>
+            {cardVisible ? (
+              <ActivityCard
+                dashboardId={dashboardId}
+                apiId={envelope.dashboard.id}
+                spec={spec}
+                version={version}
+                latestVersion={latestVersion}
+                pinned={pinned}
+                canEdit={mayOpenEditor}
+                folder={access.folder}
+                canManage={permissions.manage}
+                madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                back={backFromSearch(search)}
+                timeRange={timeRange}
+                selections={ready ? selections : null}
+                composerRef={composerRef}
+                guardRef={editGuard}
+                onSelectPanel={onSelectPanel}
+                onClose={closeCard}
+              />
+            ) : null}
+            {chatRequestId !== undefined ? (
+              <ChatPane requestId={chatRequestId} onClose={closeCard} />
+            ) : null}
+            {inspecting ? (
+              <InspectPane
+                title={panelTitle(inspectPanel)}
+                tab={search.inspectTab ?? "data"}
+                target={
+                  inspectTarget?.panel.id === inspectPanel.id
+                    ? inspectTarget
+                    : null
                 }
-                controls={controls}
-                actions={actions}
+                variables={variables}
+                zone={displayZone(inspectPanel.timezone, spec.timezone)}
+                onClose={closeInspect}
+              />
+            ) : null}
+            <UnsavedBar dashboardId={dashboardId} />
+            {kiosk ? null : (
+              <CanvasTools
+                permissions={permissions}
+                idle={!editing}
+                composerRef={composerRef}
               />
             )}
-            {kiosk ? null : (
-              <>
-                <VariablesBar
-                  states={states}
-                  unverified={unverified.variables}
-                  onSelect={select}
-                />
-                <DashboardLinks
-                  links={spec.links}
-                  dashboardId={dashboardId}
-                  timeOptions={timeOptions}
-                  scope={{
-                    vars: selections,
-                    from: effectiveFrom,
-                    to: effectiveTo,
-                  }}
-                />
-              </>
-            )}
-            <LayoutAnnouncer />
-            <main
-              ref={gridBox}
-              data-export-pane=""
-              className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
-            >
-              <ActionProvider value={actionContext}>
-                {viewed ? (
-                  <ViewedPanel onBack={closeView}>
-                    {(size) =>
-                      renderPanel(
-                        {
-                          kind: "panel",
-                          key: viewed.id,
-                          panel: viewed,
-                          title: interpolateTitle(
-                            panelTitle(viewed),
-                            selections
-                          ),
-                          selections,
-                          first: true,
-                          gridPos: viewed.gridPos,
-                        },
-                        size,
-                        true
-                      )
-                    }
-                  </ViewedPanel>
-                ) : (
-                  <DashboardGrid
-                    dashboardId={dashboardId}
-                    spec={spec}
-                    selections={selections}
-                    values={values}
-                    editable={arranging && layout !== undefined}
-                    layout={layout}
-                    onLayoutChange={layout ? setLayout : undefined}
-                    selectedId={selectedId}
-                    newPanelIds={editing ? undefined : seen.fresh}
-                    renderPanel={(item, size) => renderPanel(item, size)}
-                  />
-                )}
-              </ActionProvider>
-            </main>
-          </div>
-          {cardVisible ? (
-            <ActivityCard
+            {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
+            <ShortcutsDialog
+              open={shortcutsOpen}
+              onOpenChange={setShortcutsOpen}
+            />
+            <DetailsDialog
               dashboardId={dashboardId}
-              apiId={envelope.dashboard.id}
-              spec={spec}
-              version={version}
-              latestVersion={latestVersion}
-              pinned={pinned}
-              canEdit={mayOpenEditor}
-              folder={access.folder}
-              canManage={permissions.manage}
-              madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-              back={backFromSearch(search)}
-              timeRange={timeRange}
-              selections={ready ? selections : null}
-              composerRef={composerRef}
-              guardRef={editGuard}
-              onSelectPanel={onSelectPanel}
-              onClose={closeCard}
+              spec={envelopeSpec}
+              version={envelopeVersion}
+              open={detailsOpen}
+              onOpenChange={setDetailsOpen}
+              finalFocus={() => findMoreMenuButton() ?? true}
             />
-          ) : null}
-          {chatRequestId !== undefined ? (
-            <ChatPane requestId={chatRequestId} onClose={closeCard} />
-          ) : null}
-          {inspecting ? (
-            <InspectPane
-              title={panelTitle(inspectPanel)}
-              tab={search.inspectTab ?? "data"}
-              target={
-                inspectTarget?.panel.id === inspectPanel.id
-                  ? inspectTarget
-                  : null
-              }
-              variables={variables}
-              zone={displayZone(inspectPanel.timezone, spec.timezone)}
-              onClose={closeInspect}
+            <DuplicateDashboardDialog
+              source={{
+                id: dashboardId,
+                title: spec.title,
+                version: latestVersion,
+              }}
+              targets={duplicate}
+              open={duplicating}
+              onOpenChange={setDuplicating}
+              finalFocus={() => findMoreMenuButton() ?? true}
             />
-          ) : null}
-          <UnsavedBar dashboardId={dashboardId} />
-          {kiosk ? null : (
-            <CanvasTools
-              permissions={permissions}
-              idle={!editing}
-              composerRef={composerRef}
+            <DeleteDashboardDialog
+              dashboard={{
+                id: dashboardId,
+                title: spec.title,
+                versions: latestVersion,
+              }}
+              open={deleting}
+              onOpenChange={setDeleting}
+              finalFocus={() => findMoreMenuButton() ?? true}
+              onDeleted={async (alreadyGone) => {
+                toast.success(
+                  alreadyGone
+                    ? `${spec.title} was already deleted`
+                    : `Deleted ${spec.title}`
+                )
+                await navigate({ to: "/dashboards", ignoreBlocker: true })
+                forgetDashboard(queryClient, dashboardId)
+              }}
             />
-          )}
-          {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
-          <ShortcutsDialog
-            open={shortcutsOpen}
-            onOpenChange={setShortcutsOpen}
-          />
-          <DetailsDialog
-            dashboardId={dashboardId}
-            spec={envelopeSpec}
-            version={envelopeVersion}
-            open={detailsOpen}
-            onOpenChange={setDetailsOpen}
-            finalFocus={() => findMoreMenuButton() ?? true}
-          />
-          <DuplicateDashboardDialog
-            source={{
-              id: dashboardId,
-              title: spec.title,
-              version: latestVersion,
-            }}
-            targets={duplicate}
-            open={duplicating}
-            onOpenChange={setDuplicating}
-            finalFocus={() => findMoreMenuButton() ?? true}
-          />
-          <DeleteDashboardDialog
-            dashboard={{
-              id: dashboardId,
-              title: spec.title,
-              versions: latestVersion,
-            }}
-            open={deleting}
-            onOpenChange={setDeleting}
-            finalFocus={() => findMoreMenuButton() ?? true}
-            onDeleted={async (alreadyGone) => {
-              toast.success(
-                alreadyGone
-                  ? `${spec.title} was already deleted`
-                  : `Deleted ${spec.title}`
-              )
-              await navigate({ to: "/dashboards", ignoreBlocker: true })
-              forgetDashboard(queryClient, dashboardId)
-            }}
-          />
+          </div>
         </div>
       </div>
-    </div>
+    </AnnotationActionsProvider>
   )
 }
 

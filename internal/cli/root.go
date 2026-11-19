@@ -2,12 +2,14 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -34,6 +36,7 @@ type app struct {
 	continuing      continueOptions
 	retrying        retryOptions
 	list            pageOptions
+	listOrder       string
 	versions        pageOptions
 	show            showOptions
 	remove          deleteOptions
@@ -78,7 +81,11 @@ func Main(args []string, std IO, version string) int {
 	if err == nil {
 		return 0
 	}
-	if message := strings.TrimSpace(err.Error()); message != "" {
+	message := strings.TrimSpace(err.Error())
+	switch {
+	case message != "" && a.json:
+		_, _ = fmt.Fprintln(std.Err, errorJSON(err, message))
+	case message != "":
 		_, _ = fmt.Fprintln(std.Err, message)
 	}
 	var usage usageError
@@ -86,6 +93,38 @@ func Main(args []string, std IO, version string) int {
 		return 2
 	}
 	return 1
+}
+
+func errorJSON(err error, message string) string {
+	data, marshalErr := json.Marshal(struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}{Error: message, Code: errorCode(err)})
+	if marshalErr != nil {
+		return message
+	}
+	return string(data)
+}
+
+func errorCode(err error) string {
+	var usage usageError
+	var api *apiError
+	var transport transportFailure
+	switch {
+	case errors.As(err, &usage):
+		return "usage"
+	case errors.Is(err, errUnauthorized):
+		return "unauthenticated"
+	case errors.Is(err, errInterrupted):
+		return "interrupted"
+	case errors.As(err, &api) && api.code != "":
+		return api.code
+	case errors.As(err, &api):
+		return "http_" + strconv.Itoa(api.status)
+	case errors.As(err, &transport):
+		return "unreachable"
+	}
+	return "failed"
 }
 
 func Commands() *cobra.Command {
@@ -121,18 +160,23 @@ func (a *app) command() *cobra.Command {
 	a.addPromptFlags(root)
 	a.addOpenFlag(root)
 
-	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand())
+	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand(), a.requestsCommand(), a.datasourcesCommand())
 	root.Long += quotedCommandsNote(root)
 	return root
 }
 
-func quotedCommandsNote(root *cobra.Command) string {
+func commandNames(root *cobra.Command) []string {
 	names := []string{"help"}
 	for _, c := range root.Commands() {
 		names = append(names, c.Name())
+		names = append(names, c.Aliases...)
 	}
 	slices.Sort(names)
-	return "\nA prompt whose first word is a command name (" + strings.Join(slices.Compact(names), ", ") + ") must be quoted as one argument."
+	return slices.Compact(names)
+}
+
+func quotedCommandsNote(root *cobra.Command) string {
+	return "\nA prompt whose first word is a command name (" + strings.Join(commandNames(root), ", ") + ") must be quoted as one argument.\nA lone word, or words whose first word nearly spells a command name, is refused as a probable typo; quote the words as one argument to send them as a prompt; a prompt with --dashboard is never refused."
 }
 
 func (a *app) versionCommand() *cobra.Command {

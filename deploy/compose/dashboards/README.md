@@ -14,3 +14,5 @@ They set the bar for how a SlashObserve dashboard looks: a headline line of stat
 `internal/provision/reference_test.go` checks those layout rules on every `.json` file in this directory, so `go test -short ./internal/provision/` fails on a file that breaks one.
 A file's path is its identity, so renaming or moving one creates a new dashboard on every demo that already loaded the old path.
 A panel over a series that exists only after its first event, such as agent runs on a server without a model, adds a query that ends in `or vector(0)`, because a provisioned file whose panel returns no data is not saved.
+`Demo/shop-overview.json` also holds one panel of every type the product draws, in the last four rows, so a new panel type is added there when it lands.
+Its news panel needs github.com on the outbound allowlist and says so until an Admin allows it.

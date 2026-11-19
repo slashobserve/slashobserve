@@ -19,7 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -36,10 +36,7 @@ type documentedObserve struct {
 func newDocumentedObserve(t *testing.T, svc *revisions.Service, who auth.Principal, finding func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error)) *documentedObserve {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	router, err := legacy.NewRouter(doc)
 	if err != nil {
 		t.Fatal(err)

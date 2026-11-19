@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/url"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -12,8 +14,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/links"
 )
-
-const defaultPageSize = 50
 
 type author struct {
 	Name string `json:"name"`
@@ -25,13 +25,18 @@ type dashboardSummary struct {
 	LatestVersion int    `json:"latest_version"`
 	UpdatedAt     string `json:"updated_at"`
 	UpdatedBy     author `json:"updated_by"`
-	ViewCount     int    `json:"view_count"`
+	Folder        struct {
+		Title string `json:"title"`
+	} `json:"folder"`
+	ViewCount int `json:"view_count"`
 }
 
 type dashboardViews struct {
 	ViewCount  int `json:"view_count"`
 	WindowDays int `json:"window_days"`
 }
+
+var dashboardOrders = []string{"updated", "views"}
 
 type actorLabel struct {
 	Label string `json:"label"`
@@ -65,14 +70,6 @@ type shownPanel struct {
 	Panels []shownPanel `json:"panels"`
 }
 
-type pageOptions struct {
-	limit  int
-	cursor string
-	order  string
-}
-
-var dashboardOrders = []string{"updated", "views"}
-
 type showOptions struct {
 	version int
 }
@@ -80,6 +77,7 @@ type showOptions struct {
 type dashboardList struct {
 	Dashboards []dashboardSummary `json:"dashboards"`
 	NextCursor *string            `json:"next_cursor"`
+	TotalCount *int               `json:"total_count"`
 }
 
 type dashboardWithVersion struct {
@@ -99,47 +97,38 @@ func (a *app) dashboardsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand(), a.dashboardMoveCommand(), a.dashboardDuplicateCommand(), a.dashboardRestoreCommand(), a.dashboardDiffCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand(), a.dashboardMoveCommand(), a.dashboardDuplicateCommand(), a.dashboardRestoreCommand(), a.dashboardDiffCommand(), a.dashboardRevisionsCommand(), a.dashboardTagsCommand())
 	return cmd
-}
-
-func addPageFlags(cmd *cobra.Command, opts *pageOptions) {
-	cmd.Flags().IntVar(&opts.limit, "limit", defaultPageSize, "rows per page")
-	cmd.Flags().StringVar(&opts.cursor, "cursor", "", "continue from a next_cursor")
-}
-
-func (o pageOptions) query() url.Values {
-	query := url.Values{"limit": {strconv.Itoa(o.limit)}}
-	if o.cursor != "" {
-		query.Set("cursor", o.cursor)
-	}
-	if o.order != "" {
-		query.Set("order", o.order)
-	}
-	return query
 }
 
 func (a *app) listCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List dashboards, newest update first or most viewed first",
+		Short: "List dashboards, newest update first",
 		Args:  noArgs,
 		RunE:  a.runList,
 	}
-	addPageFlags(cmd, &a.list)
-	cmd.Flags().StringVar(&a.list.order, "order", "", "updated (default) or views, most opened in the last 30 days first")
+	addPageFlags(cmd, &a.list, maxDashboardPage)
+	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default) or views, most opened in the last 30 days first")
 	return cmd
 }
 
 func (a *app) runList(cmd *cobra.Command, _ []string) error {
-	if a.list.order != "" && !slices.Contains(dashboardOrders, a.list.order) {
-		return usagef("--order must be one of %s, not %q", strings.Join(dashboardOrders, ", "), text(a.list.order))
+	if err := a.list.check(); err != nil {
+		return err
+	}
+	if a.listOrder != "" && !slices.Contains(dashboardOrders, a.listOrder) {
+		return usagef("--order must be one of %s, not %q", strings.Join(dashboardOrders, ", "), text(a.listOrder))
 	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "dashboards", a.list.query())
+	query := a.list.query()
+	if a.listOrder != "" {
+		query.Set("order", a.listOrder)
+	}
+	data, err := c.getPages(cmd.Context(), "dashboards", query, a.list.all)
 	if err != nil {
 		return err
 	}
@@ -154,17 +143,11 @@ func (a *app) runList(cmd *cobra.Command, _ []string) error {
 	}
 	rows := make([][]string, 0, len(page.Dashboards))
 	for _, d := range page.Dashboards {
-		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), strconv.Itoa(d.ViewCount), when(d.UpdatedAt), text(d.UpdatedBy.Name)})
+		rows = append(rows, []string{text(d.ID), text(d.Title), strconv.Itoa(d.LatestVersion), strconv.Itoa(d.ViewCount), when(d.UpdatedAt), text(d.UpdatedBy.Name), text(d.Folder.Title)})
 	}
-	out.table([]string{"ID", "TITLE", "VERSION", "VIEWS", "UPDATED", "UPDATED BY"}, rows)
-	nextPageHint(out, page.NextCursor)
+	out.table([]string{"ID", "TITLE", "VERSION", "VIEWS", "UPDATED", "UPDATED BY", "FOLDER"}, rows)
+	pageFooter(out, len(page.Dashboards), page.TotalCount, page.NextCursor)
 	return nil
-}
-
-func nextPageHint(out *output, cursor *string) {
-	if cursor != nil && *cursor != "" {
-		out.notice("more results: --cursor %s", text(*cursor))
-	}
 }
 
 func (a *app) showCommand() *cobra.Command {
@@ -196,6 +179,9 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	}
 	data, err := c.get(cmd.Context(), path, nil)
 	if err != nil {
+		if cmd.Flags().Changed("version") {
+			return explainMissingVersion(cmd.Context(), c, id, a.show.version, err)
+		}
 		return err
 	}
 	viewData, err := c.get(cmd.Context(), "dashboards/"+id+"/views", nil)
@@ -222,6 +208,7 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 	out.fields([][2]string{
 		{"Title", text(shown.Dashboard.Title)},
 		{"ID", text(shown.Dashboard.ID)},
+		{"Folder", text(shown.Dashboard.Folder.Title)},
 		{"URL", links.Dashboard(c.base, shown.Dashboard.ID, shown.Dashboard.Title)},
 		{"Version", strconv.Itoa(shown.Version.Version)},
 		{"Views", fmt.Sprintf("%d in the last %d days", views.ViewCount, views.WindowDays)},
@@ -248,6 +235,26 @@ func withViewCount(data []byte, views dashboardViews) ([]byte, error) {
 	return json.Marshal(fields)
 }
 
+func explainMissingVersion(ctx context.Context, c *client, id string, version int, cause error) error {
+	var api *apiError
+	if !errors.As(cause, &api) || api.status != http.StatusNotFound {
+		return cause
+	}
+	data, err := c.get(ctx, "dashboards/"+id, nil)
+	if err != nil {
+		return cause
+	}
+	latest, err := decode[dashboardWithVersion](data)
+	if err != nil {
+		return cause
+	}
+	return versionNotFound(id, version, latest.Version.Version)
+}
+
+func versionNotFound(id string, version, latest int) *apiError {
+	return &apiError{status: http.StatusNotFound, code: "version_not_found", message: fmt.Sprintf("dashboard %s has no version %d; its latest version is %d, and observe dashboards versions %s lists them", text(id), version, latest, text(id))}
+}
+
 func (a *app) versionsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "versions <dashboard-id>",
@@ -255,7 +262,7 @@ func (a *app) versionsCommand() *cobra.Command {
 		Args:  exactArgs(1, "one dashboard id"),
 		RunE:  a.runVersions,
 	}
-	addPageFlags(cmd, &a.versions)
+	addPageFlags(cmd, &a.versions, maxDashboardPage)
 	return cmd
 }
 
@@ -264,11 +271,14 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := a.versions.check(); err != nil {
+		return err
+	}
 	c, err := a.newClient()
 	if err != nil {
 		return err
 	}
-	data, err := c.get(cmd.Context(), "dashboards/"+id+"/versions", a.versions.query())
+	data, err := c.getPages(cmd.Context(), "dashboards/"+id+"/versions", a.versions.query(), a.versions.all)
 	if err != nil {
 		return err
 	}
@@ -290,7 +300,7 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 		rows = append(rows, []string{strconv.Itoa(v.Version), parent, text(v.Actor.Label), when(v.CreatedAt), text(v.Summary)})
 	}
 	out.table([]string{"VERSION", "PARENT", "AUTHOR", "CREATED", "SUMMARY"}, rows)
-	nextPageHint(out, page.NextCursor)
+	pageFooter(out, len(page.Versions), nil, page.NextCursor)
 	return nil
 }
 
