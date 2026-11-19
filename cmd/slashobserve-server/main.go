@@ -324,7 +324,7 @@ func run() error {
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
-	annotationsService := annotations.New(database, folderAccess)
+	annotationsService := annotations.New(database, folderAccess, annotations.WithPanels(dashboardsService))
 	annotationsHandler := annotations.NewHandler(annotationsService, logger)
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)

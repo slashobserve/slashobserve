@@ -1,6 +1,7 @@
 package annotations
 
 import (
+	"context"
 	"errors"
 	"os"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -297,6 +299,129 @@ func TestCreateRejectsInvalidInput(t *testing.T) {
 	tenTags := elevenTags[:MaxTags]
 	maxText := strings.Repeat("é", MaxTextRunes)
 	r.create(t, editor, CreateInput{Text: maxText, Tags: tenTags})
+}
+
+type fakePanels struct {
+	known     map[string]bool
+	latestErr error
+}
+
+func (f fakePanels) LatestVersion(context.Context, pgtype.UUID) (int, error) {
+	return 3, f.latestErr
+}
+
+func (f fakePanels) HasPanel(_ context.Context, _ pgtype.UUID, version int, panelID string) (bool, error) {
+	return version == 3 && f.known[panelID], nil
+}
+
+func TestCreateChecksThePanelAgainstTheLatestVersion(t *testing.T) {
+	r := newRig(t)
+	r.service = New(r.db.DB, folders.NewAccess(r.db.DB), WithPanels(fakePanels{known: map[string]bool{"latency": true}}))
+	a := r.create(t, editor, CreateInput{DashboardID: r.open, PanelID: "latency", Text: "on a panel"})
+	if a.PanelID != "latency" {
+		t.Errorf("panel %q", a.PanelID)
+	}
+	_, err := r.service.Create(t.Context(), editor, CreateInput{DashboardID: r.open, PanelID: "nope", Text: "x"})
+	var invalid *InvalidError
+	if !errors.As(err, &invalid) || invalid.Code != "unknown_panel" {
+		t.Errorf("error %v, want unknown_panel", err)
+	}
+	if got := r.list(t, editor, ListQuery{DashboardID: r.open}); len(got.Annotations) != 1 {
+		t.Errorf("annotations %v, want only the one on a known panel", texts(got))
+	}
+}
+
+func TestCreateAnswersNotFoundWhenTheDashboardIsGoneBeforeThePanelCheck(t *testing.T) {
+	r := newRig(t)
+	r.service = New(r.db.DB, folders.NewAccess(r.db.DB), WithPanels(fakePanels{latestErr: dashboards.ErrNotFound}))
+	_, err := r.service.Create(t.Context(), editor, CreateInput{DashboardID: r.open, PanelID: "latency", Text: "x"})
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("error %v, want ErrNotFound", err)
+	}
+}
+
+func TestParseCreateRejectsTimesOutsideTheSupportedYears(t *testing.T) {
+	for name, raw := range map[string]string{
+		"year 1":    "0001-01-01T00:00:00Z",
+		"1969":      "1969-12-31T23:59:59Z",
+		"year 2100": "2100-01-01T00:00:00Z",
+		"year 9999": "9999-12-31T23:59:59Z",
+	} {
+		for field, req := range map[string]CreateRequest{"time_from": {TimeFrom: &raw}, "time_to": {TimeTo: &raw}} {
+			_, err := ParseCreate(req)
+			var invalid *InvalidError
+			if !errors.As(err, &invalid) || invalid.Code != "invalid_time" {
+				t.Errorf("%s %s: error %v, want invalid_time", name, field, err)
+			}
+		}
+	}
+	epoch, last := "1970-01-01T00:00:00Z", "2099-12-31T23:59:59Z"
+	if _, err := ParseCreate(CreateRequest{TimeFrom: &epoch, TimeTo: &last}); err != nil {
+		t.Errorf("the supported range: %v", err)
+	}
+}
+
+func TestUpdateChangesTextAndTagsForTheCreatorOrAnAdmin(t *testing.T) {
+	r := newRig(t)
+	mine := r.create(t, editor, CreateInput{DashboardID: r.open, From: at(0), Text: "deploy v1", Tags: []string{"deploy"}})
+	id := mustParse(t, mine.ID)
+	text, tags := "  deploy v2  ", []string{"deploy", "checkout", "deploy"}
+	got, err := r.service.Update(t.Context(), editor, id, UpdateInput{Text: &text, Tags: &tags})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Text != "deploy v2" || !slices.Equal(got.Tags, []string{"deploy", "checkout"}) {
+		t.Errorf("updated %+v", got)
+	}
+	if got.CreatedBy != editor.ID || !got.From.Equal(at(0)) || !got.CreatedAt.Equal(mine.CreatedAt) {
+		t.Errorf("author or time changed: %+v", got)
+	}
+	cleared := []string{}
+	got, err = r.service.Update(t.Context(), admin, id, UpdateInput{Tags: &cleared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Text != "deploy v2" || len(got.Tags) != 0 || got.CreatedBy != editor.ID {
+		t.Errorf("an admin's update of the tags: %+v", got)
+	}
+}
+
+func TestUpdateRefusals(t *testing.T) {
+	r := newRig(t)
+	mine := r.create(t, editor, CreateInput{DashboardID: r.open, From: at(0), Text: "mine"})
+	hidden := r.create(t, admin, CreateInput{DashboardID: r.hidden, From: at(1), Text: "hidden"})
+	text, empty, upper := "new", "  ", []string{"Deploy"}
+	cases := []struct {
+		name string
+		by   auth.Principal
+		id   string
+		in   UpdateInput
+		code string
+		want error
+	}{
+		{"another editor", otherEditor, mine.ID, UpdateInput{Text: &text}, "", ErrNotCreator},
+		{"a viewer", viewer, mine.ID, UpdateInput{Text: &text}, "", ErrNotCreator},
+		{"someone who cannot see the dashboard", editor, hidden.ID, UpdateInput{Text: &text}, "", ErrNotFound},
+		{"nothing given", editor, mine.ID, UpdateInput{}, "invalid_request", nil},
+		{"empty text", editor, mine.ID, UpdateInput{Text: &empty}, "invalid_text", nil},
+		{"bad tag", editor, mine.ID, UpdateInput{Tags: &upper}, "invalid_tags", nil},
+	}
+	for _, tc := range cases {
+		_, err := r.service.Update(t.Context(), tc.by, mustParse(t, tc.id), tc.in)
+		var invalid *InvalidError
+		switch {
+		case tc.code != "" && (!errors.As(err, &invalid) || invalid.Code != tc.code):
+			t.Errorf("%s: error %v, want %s", tc.name, err, tc.code)
+		case tc.code == "" && !errors.Is(err, tc.want):
+			t.Errorf("%s: error %v, want %v", tc.name, err, tc.want)
+		}
+	}
+	if _, err := r.service.Update(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}, UpdateInput{Text: &text}); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a missing annotation: %v", err)
+	}
+	if got := r.list(t, editor, ListQuery{DashboardID: r.open}); texts(got)[0] != "mine" {
+		t.Errorf("a refused update changed %v", texts(got))
+	}
 }
 
 func TestDeleteIsForTheCreatorOrAnAdmin(t *testing.T) {

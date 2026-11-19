@@ -8,7 +8,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/activity"
 )
 
@@ -68,10 +68,7 @@ func documentedTypeArrays(doc *openapi3.T) []typeArray {
 }
 
 func TestOpenAPIActivityTypesMatchTheLog(t *testing.T) {
-	doc, err := api.Load(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	doc := apitest.Load(t)
 	logged := activity.Types()
 
 	schema := doc.Components.Schemas["ActivityType"]

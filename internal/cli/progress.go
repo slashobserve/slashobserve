@@ -182,7 +182,7 @@ func truncate(s string, width int) string {
 	return string(runes[:width-1]) + "…"
 }
 
-func (p *requestProgress) finish(ctx context.Context, dashboardID string) (string, bool) {
+func (p *requestProgress) finish(ctx context.Context, dashboardID string, resultVersion *int) (string, bool) {
 	data, err := p.c.get(ctx, "dashboards/"+dashboardID, nil)
 	if err != nil {
 		return "", false
@@ -191,10 +191,28 @@ func (p *requestProgress) finish(ctx context.Context, dashboardID string) (strin
 	if err != nil {
 		return "", false
 	}
-	if p.seeded && !p.out.quiet {
+	if !p.out.quiet && (p.seeded || p.catchUp(ctx, resultVersion)) {
 		p.report(saved.Version.Spec.Panels)
 	}
 	return saved.Dashboard.Title, true
+}
+
+func (p *requestProgress) catchUp(ctx context.Context, resultVersion *int) bool {
+	if resultVersion != nil && *resultVersion == 1 {
+		p.seeded = true
+		return true
+	}
+	data, err := p.c.get(ctx, "observe/"+p.id+"/build", nil)
+	if err != nil {
+		return false
+	}
+	build, err := decode[buildEnvelope](data)
+	if err != nil || build.Build.BaseVersion == nil || build.Build.DashboardID == nil {
+		return false
+	}
+	p.planned = build.Build.PlannedPanels
+	p.seeded = p.seedFromVersion(ctx, *build.Build.DashboardID, *build.Build.BaseVersion)
+	return p.seeded
 }
 
 func titled(address, dashboardID, title string) string {
