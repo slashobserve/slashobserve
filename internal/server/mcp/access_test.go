@@ -429,6 +429,18 @@ func TestSavedSearchToolsFollowTheKeysRole(t *testing.T) {
 	if res := f.as(t, viewerKey, "list_saved_searches", map[string]any{}); res.IsError {
 		t.Errorf("a Viewer key's list_saved_searches = %s", text(res))
 	}
+
+	saved := f.as(t, editorKey, "save_search", input)
+	if saved.IsError {
+		t.Fatalf("an Editor key's save_search = %s", text(saved))
+	}
+	update := map[string]any{"id": saved.StructuredContent["id"], "from": "now-2h"}
+	if res := f.as(t, viewerKey, "update_saved_search", update); !res.IsError || res.StructuredContent["code"] != forbidden {
+		t.Errorf("a Viewer key's update_saved_search = %s, want %s", text(res), forbidden)
+	}
+	if res := f.as(t, editorKey, "update_saved_search", update); res.IsError {
+		t.Errorf("an Editor key's update_saved_search = %s", text(res))
+	}
 }
 
 func mustUUID(t *testing.T, raw string) pgtype.UUID {

@@ -70,7 +70,7 @@ pin_observation pins an observation to a dashboard as an annotation, and make_da
 draft_query turns a question into a checked query for one datasource; run it with query_instant.
 For logs, log_patterns groups lines, log_facets counts the values of fields and log_context reads the lines around one line.
 For traces, get_trace reads one trace, trace_stats summarizes a filter, compare_traces finds what sets some traces apart and logs_for_trace reads the log lines of a trace or span.
-save_search keeps a logs or traces search the team will reuse, after you check its query with lint_query or draft_query, and list_saved_searches lists the saved ones.
+save_search keeps a logs or traces search the team will reuse, after you check its query with lint_query or draft_query, list_saved_searches lists the saved ones and update_saved_search changes the query, filters or range of one.
 
 ## Answer comments
 

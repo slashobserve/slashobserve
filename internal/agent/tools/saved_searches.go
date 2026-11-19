@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 )
@@ -13,31 +14,43 @@ import (
 const (
 	nameSaveSearch        = "save_search"
 	nameListSavedSearches = "list_saved_searches"
+	nameUpdateSavedSearch = "update_saved_search"
 
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
 	descSaveSearch        = "Save a logs or trace search with a title in a folder, by default your My Dashboards, so people can open it from the logs or traces page. Check the query with lint_query or draft_query first. Returns its url."
+	descUpdateSavedSearch = "Change what a saved logs or trace search runs: its query, filters or range, which each replace the saved value (filters replace all the filters, so send every one to keep). Its kind, datasource, title and folder stay. Needs Edit on the search's folder; get the id and the current values from list_saved_searches. Check a new query with lint_query or draft_query first. Returns the search with its url."
 	descListSavedSearches = "List the saved logs and trace searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces"],"description":"Which page opens the search."}`
+
+	propSearchFilters = `"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
+		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
+		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
+		`"min":{"type":"string","description":"Traces: the shortest span duration, such as 250ms."},` +
+		`"max":{"type":"string","description":"Traces: the longest span duration, such as 2s."},` +
+		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."}`
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"A short title on one line."},` +
 		`"datasource_uid":{"type":"string","description":"The datasource to search, from list_datasources: Loki, ClickHouse, Elasticsearch or OpenSearch for logs, Tempo or ClickHouse for traces."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs; optional TraceQL for Tempo traces; not allowed for ClickHouse traces."},` +
-		`"filters":{"type":"object","properties":{` +
-		`"columns":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":256},"description":"Logs: the columns to show."},` +
-		`"service":{"type":"string","maxLength":200,"description":"Traces: only this service."},` +
-		`"span":{"type":"string","maxLength":200,"description":"Traces: only spans with this name."},` +
-		`"min":{"type":"string","description":"Traces: the shortest span duration, such as 250ms."},` +
-		`"max":{"type":"string","description":"Traces: the longest span duration, such as 2s."},` +
-		`"errors":{"type":"boolean","description":"Traces: true for only traces with errors."}},` +
+		`"filters":{"type":"object","properties":{` + propSearchFilters + `},` +
 		`"additionalProperties":false,"description":"A logs search takes only columns, a traces search the other keys."},` +
 		`"from":{"type":"string","description":"Start of the saved range, such as now-1h or an RFC 3339 time. Default now-1h."},` +
 		`"to":{"type":"string","description":"End of the saved range, such as now or an RFC 3339 time. Default now."},` +
 		`"folder_id":{"type":"string","format":"uuid","description":"The folder to save it in, from list_folders. Default your My Dashboards, else General."}},` +
 		`"required":["kind","title","datasource_uid"],"additionalProperties":false}`
+
+	schemaUpdateSavedSearch = `{"type":"object","properties":{` +
+		`"id":{"type":"string","format":"uuid","description":"The saved search, from list_saved_searches."},` +
+		`"query":{"type":"string","maxLength":8000,"description":"The new query as it runs. An empty string removes the query of a Tempo trace search and is refused for a logs search."},` +
+		`"filters":{"type":["object","null"],"properties":{` + propSearchFilters + `},` +
+		`"additionalProperties":false,"description":"Replaces all the filters. A logs search takes only columns, a traces search the other keys; null removes every filter."},` +
+		`"from":{"type":"string","description":"New start of the saved range, such as now-1h or an RFC 3339 time."},` +
+		`"to":{"type":"string","description":"New end of the saved range, such as now or an RFC 3339 time."}},` +
+		`"required":["id"],"additionalProperties":false}`
 
 	schemaListSavedSearches = `{"type":"object","properties":{` +
 		`"kind":{"type":"string","enum":["logs","traces"],"description":"Only searches of this kind."},` +
@@ -53,6 +66,7 @@ func init() { registerEntries((*Registry).savedSearchEntries) }
 func (r *Registry) savedSearchEntries() []entry {
 	return []entry{
 		{Tool{Name: nameSaveSearch, Description: descSaveSearch, InputSchema: json.RawMessage(schemaSaveSearch), MCPOnly: true, MinRole: auth.RoleViewer}, r.saveSearch},
+		{Tool{Name: nameUpdateSavedSearch, Description: descUpdateSavedSearch, InputSchema: json.RawMessage(schemaUpdateSavedSearch), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateSavedSearch},
 		{Tool{Name: nameListSavedSearches, Description: descListSavedSearches, InputSchema: json.RawMessage(schemaListSavedSearches), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listSavedSearches},
 	}
 }
@@ -66,6 +80,14 @@ type saveSearchInput struct {
 	From          string          `json:"from"`
 	To            string          `json:"to"`
 	FolderID      string          `json:"folder_id"`
+}
+
+type updateSavedSearchInput struct {
+	ID      string          `json:"id"`
+	Query   *string         `json:"query"`
+	Filters json.RawMessage `json:"filters"`
+	From    *string         `json:"from"`
+	To      *string         `json:"to"`
 }
 
 type savedSearchItemOut struct {
@@ -117,6 +139,32 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 		return savedSearchFailure(err)
 	}
 	return success("Saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
+}
+
+func (r *Registry) updateSavedSearch(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, scoped := rejectInRun(ctx, nameUpdateSavedSearch); scoped {
+		return res, nil
+	}
+	if r.deps.SavedSearches == nil {
+		return Result{}, errSavedSearchesNotConfigured
+	}
+	var in updateSavedSearchInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	id, err := db.ParseUUID(in.ID)
+	if err != nil {
+		return invalid("id must be a saved search id from list_saved_searches"), nil
+	}
+	principal, _ := auth.FromContext(ctx)
+	saved, err := r.deps.SavedSearches.Update(ctx, principal, id, savedsearches.UpdateInput{Query: in.Query, Filters: in.Filters, From: in.From, To: in.To})
+	if errors.Is(err, savedsearches.ErrNothingToUpdate) {
+		return invalid("give at least one of query, filters, from or to"), nil
+	}
+	if err != nil {
+		return savedSearchFailure(err)
+	}
+	return success("Updated saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
 }
 
 type listSavedSearchesInput struct {
@@ -210,10 +258,12 @@ func savedSearchFailure(err error) (Result, error) {
 		return invalid("%s", invalidInput.Message), nil
 	case errors.Is(err, savedsearches.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
+	case errors.Is(err, savedsearches.ErrNotFound):
+		return toolError(codeNotFound, "saved search not found"), nil
 	case errors.Is(err, savedsearches.ErrFolderNotFound), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeNotFound, "folder not found"), nil
 	case errors.Is(err, folders.ErrForbidden):
-		return toolError(codeForbiddenRole, "you cannot save searches in this folder"), nil
+		return toolError(codeForbiddenRole, "you cannot save or change searches in this folder"), nil
 	}
 	return Result{}, err
 }

@@ -358,7 +358,7 @@ func TestNeighbourToolsNameEachOther(t *testing.T) {
 	}
 }
 
-var toolsAboutSearch = map[string]bool{nameSaveSearch: true, nameListSavedSearches: true, nameSearchWorkspace: true}
+var toolsAboutSearch = map[string]bool{nameSaveSearch: true, nameListSavedSearches: true, nameUpdateSavedSearch: true, nameSearchWorkspace: true}
 
 func TestDescriptionsOfferOnlySearchTheToolTakes(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
