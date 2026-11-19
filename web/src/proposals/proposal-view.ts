@@ -126,6 +126,27 @@ export function choicesFrom(
   return { choices, missing }
 }
 
+export function droppedText(
+  proposal: Pick<Proposal, "spec" | "conflicts">,
+  picks: Picks
+): string | null {
+  const titles = [panelTitles(proposal.spec)]
+  const units = proposal.conflicts
+    .filter(
+      (conflict) =>
+        conflict.reason !== "invalid" && picks[unitKey(conflict)] === "ours"
+    )
+    .map((conflict) =>
+      conflict.kind === "panel"
+        ? `panel "${labelOf(conflict.kind, conflict.id, titles)}"`
+        : conflict.kind === "variable"
+          ? `variable "${conflict.id}"`
+          : `the ${conflict.id} setting`
+    )
+  if (units.length === 0) return null
+  return `The proposed change to ${units.join(", ")} was dropped; the dashboard keeps its own.`
+}
+
 export function stateLine(proposal: ProposalSummary): string {
   const based = `Open, based on version ${proposal.base_version}`
   switch (proposal.state) {
@@ -135,7 +156,7 @@ export function stateLine(proposal: ProposalSummary): string {
         : based
     case "merged":
       if (proposal.merged_version === null) {
-        return "Merged without a new version; the dashboard already had everything that was kept"
+        return "Merged without a new version; nothing from this proposal was added to the dashboard"
       }
       return proposal.closed_by === null
         ? `Merged as version ${proposal.merged_version}`

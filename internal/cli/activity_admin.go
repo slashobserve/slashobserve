@@ -8,6 +8,7 @@ import (
 
 type adminData struct {
 	Name       string `json:"name"`
+	Email      string `json:"email"`
 	FromRole   string `json:"from_role"`
 	ToRole     string `json:"to_role"`
 	Manual     bool   `json:"manual"`
@@ -23,12 +24,15 @@ type adminData struct {
 	Object     struct {
 		Kind string `json:"kind"`
 	} `json:"object"`
-	Host         string                     `json:"host"`
-	URLChanged   bool                       `json:"url_changed"`
-	TokenChanged bool                       `json:"token_changed"`
-	Role         json.RawMessage            `json:"role"`
-	TakesRuns    json.RawMessage            `json:"takes_runs"`
-	Changes      map[string]json.RawMessage `json:"changes"`
+	Host               string                     `json:"host"`
+	URLChanged         bool                       `json:"url_changed"`
+	TokenChanged       bool                       `json:"token_changed"`
+	AddressChanged     bool                       `json:"address_changed"`
+	SettingsChanged    bool                       `json:"settings_changed"`
+	CredentialsChanged bool                       `json:"credentials_changed"`
+	Role               json.RawMessage            `json:"role"`
+	TakesRuns          json.RawMessage            `json:"takes_runs"`
+	Changes            map[string]json.RawMessage `json:"changes"`
 }
 
 func (d activityData) admin() adminData {
@@ -78,6 +82,9 @@ func describeAdmin(e activityEvent) (string, bool) {
 	if line, ok := describeAccess(e.Type, d); ok {
 		return line, true
 	}
+	if line, ok := describePeople(e.Type, d); ok {
+		return line, true
+	}
 	if line, ok := describePublicLink(e.Type, d); ok {
 		return line, true
 	}
@@ -100,10 +107,30 @@ func describeAccess(typ string, d adminData) (string, bool) {
 		return fmt.Sprintf("created %s (%s)", quotedName("service account", d.Name), changeText(d.Role)), true
 	case "service_account.updated":
 		return "changed " + quotedName("service account", d.Name) + ": " + changes(map[string]json.RawMessage{"role": d.Role, "takes_runs": d.TakesRuns}, "role", "takes_runs"), true
+	case "service_account.deleted":
+		return "deleted " + quotedName("service account", d.Name), true
 	case "service_account.key_created":
 		return fmt.Sprintf("created the key %q for %s", text(d.KeyName), quotedName("service account", d.Name)), true
 	case "service_account.key_revoked":
 		return fmt.Sprintf("revoked the key %q of %s", text(d.KeyName), quotedName("service account", d.Name)), true
+	}
+	return "", false
+}
+
+func describePeople(typ string, d adminData) (string, bool) {
+	switch typ {
+	case "user.invited":
+		return fmt.Sprintf("invited %s as %s", text(d.Email), changeText(d.Role)), true
+	case "user.invite_updated":
+		return "changed the invite of " + text(d.Email) + ": " + changes(map[string]json.RawMessage{"role": d.Role}, "role"), true
+	case "user.invite_withdrawn":
+		return "withdrew the invite of " + text(d.Email), true
+	case "user.deactivated":
+		return fmt.Sprintf("deactivated %s (%d sessions, %d connected agents)", text(d.Name), d.Sessions, d.Grants), true
+	case "user.reactivated":
+		return "reactivated " + text(d.Name), true
+	case "user.removed":
+		return "removed " + text(d.Name), true
 	}
 	return "", false
 }
@@ -144,6 +171,12 @@ func describeIntegration(typ string, d adminData) (string, bool) {
 		return changedText(quotedName("Grafana connection", d.Name), d, "name", "host"), true
 	case "grafana_connection.deleted":
 		return "removed " + quotedName("Grafana connection", d.Name), true
+	case "datasource.created":
+		return "added " + quotedName("datasource", d.Name) + " at " + text(d.Host), true
+	case "datasource.updated":
+		return changedText(quotedName("datasource", d.Name), d, "name", "host"), true
+	case "datasource.deleted":
+		return "deleted " + quotedName("datasource", d.Name), true
 	}
 	return "", false
 }
@@ -157,11 +190,21 @@ func changedText(subject string, d adminData, order ...string) string {
 }
 
 func secretNote(d adminData) string {
-	switch {
-	case d.TokenChanged:
-		return " (token replaced)"
-	case d.URLChanged:
-		return " (address changed)"
+	var notes []string
+	if d.TokenChanged {
+		notes = append(notes, "token replaced")
 	}
-	return ""
+	if d.CredentialsChanged {
+		notes = append(notes, "credentials replaced")
+	}
+	if !d.TokenChanged && (d.URLChanged || d.AddressChanged) {
+		notes = append(notes, "address changed")
+	}
+	if d.SettingsChanged {
+		notes = append(notes, "settings changed")
+	}
+	if len(notes) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(notes, ", ") + ")"
 }

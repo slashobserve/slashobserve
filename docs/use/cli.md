@@ -78,7 +78,7 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
@@ -392,6 +392,7 @@ A proposal is a change that someone who cannot edit a dashboard, or whose connec
 `bin/observe proposals show <proposal-id>` prints the proposal's summary, then `Changes`, one line for each panel, variable or setting it adds, changes, removes or moves, such as `added panel p4`, then `Conflicts` with the units a merge onto the latest version would hit, and the actions you may take now.
 
 `bin/observe proposals merge <proposal-id> --revision <n>` merges the proposal as the next version of its dashboard and prints `Merged as version <n>`, or `Already in the dashboard` when the dashboard already held its change.
+When a `--take` keeps the dashboard's side, it also prints which units the proposal's change was dropped for, and `Merged without a new version` replaces `Already in the dashboard` if nothing was saved.
 `--revision` is the revision `show` printed, and a proposal that gained a newer one is refused with `proposal_changed`.
 For each conflict, `--take <kind>:<id>=ours|theirs` names the side that wins, `ours` keeping the dashboard's unit and `theirs` taking the proposal's, and it repeats: `--take panel:p1=theirs --take setting:title=ours`.
 A `--take` that is not `<kind>:<id>=ours|theirs` with kind `panel`, `variable` or `setting` exits 2.
@@ -487,7 +488,7 @@ key         ok      ci-deploy (service_account)
 role        ok      editor
 version     ok      CLI v0.2.0, server v0.2.0
 datasource  ok      prom (prometheus)
-datasource  fail    logs (loki): connection refused
+datasource  fail    logs (loki): The datasource is not answering (The server could not connect to the datasource's address)
 model       ok      anthropic claude-haiku-5-5, effort low
 ```
 
@@ -500,6 +501,18 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table, and colour marks `ok` and `fail` only in a terminal.
+
+## Datasources
+
+`bin/observe datasources list` prints each datasource's uid, type, name, health, source (`file` or `app`), the dashboards that use it and when it was last checked.
+An unhealthy one shows the failure and, when the server knows it, the cause.
+`bin/observe datasources recheck <uid>` skips the server's 10 second health cache, prints the new status and exits 1 while the datasource is unhealthy.
+Any role can list and recheck; `--json` prints the API response.
+
+An Admin can also run `datasources get <uid>` (address, login and which credentials are set, never their values), `add <uid> --type <type> --address <address>`, `edit <uid>`, `test <uid> [--saved]` and `remove <uid>`.
+Credentials come from `--password-file`, `--bearer-token-file`, `--api-key-file` or `--header NAME=FILE`, where `-` reads standard input once, and `--clear` removes a stored one.
+`test` exits 1 while the datasource is unhealthy, and `remove` lists the dashboards and saved searches that still use the datasource.
+See [Add datasources in the app](../connect/datasources-in-the-app.md).
 
 ## Logs
 
@@ -707,6 +720,44 @@ bin/observe webhooks test <webhook id>
 `--json` prints the response body of each request unchanged.
 `update`, `enable`, `disable` and `rotate-secret` keep the webhook's owner.
 `update --take-ownership` makes the caller the owner, and `enable` does the same for a webhook disabled with the reason `owner`, as the [HTTP API](webhooks.md#manage-webhooks-over-http) does.
+
+## People
+
+`bin/observe people` lists everyone who has signed in and invites people by email with the role they get at their first sign-in, as described in [People](../teams/people.md#invite-people).
+Every verb needs an Admin key.
+No email is sent: send the printed sign-in link yourself.
+
+```sh
+bin/observe people list
+bin/observe people invite new@example.com --role viewer
+bin/observe people invites
+bin/observe people uninvite <invite id>
+```
+
+- `list` prints everyone who has signed in, newest first, as a table of id, name, email, role, status (`active` or `deactivated`) and when they were last active, up to `--limit` of them (1 to 500); `--cursor` prints the next page and `--all` every page.
+- `invite <email> --role <role>` records a pending invite and prints it with its sign-in link; `--role` is `admin`, `editor`, `commenter` or `viewer`.
+  Inviting an email that already has a pending invite changes its role.
+  An email that has already signed in fails with `already_member`, and one outside `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` with `email_domain_not_allowed`.
+- `invites` prints the pending invites, newest first, as a table of id, email, role, who invited and when, up to `--limit` of them (1 to 500); `--cursor` prints the next page and `--all` every page.
+- `uninvite <invite id>` withdraws a pending invite.
+
+Deactivating and reactivating people is done by an Admin in the web app, because a key never ends another person's sessions.
+
+## Teams
+
+`bin/observe teams` manages the [teams](../teams/people.md#teams) whose names share folders with their members.
+Every verb needs an Admin key.
+
+```sh
+bin/observe teams create sre
+bin/observe teams add <team id> <person id>
+bin/observe teams list
+```
+
+- `list` prints each team's id, name, number of members and their names.
+- `create <name>` creates a team with no members; a name another team has, in any case, fails with `team_exists`.
+- `add <team id> <person id>` and `remove <team id> <person id>` change the members and print the team; `observe people list` prints the person ids.
+- `delete <team id>` deletes the team.
 
 ## Agent skill
 

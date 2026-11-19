@@ -534,6 +534,7 @@ export const PanelContainer = memo(function PanelContainer({
         <PanelToolbar
           panel={panel}
           permissions={permissions}
+          canInvestigate={canInvestigate}
           composerRef={composerRef}
           from={from}
           to={to}

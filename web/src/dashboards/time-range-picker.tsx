@@ -15,12 +15,18 @@ import {
 } from "@/components/ui/popover"
 import {
   describeRange,
-  formatTimeValue,
+  displayZone,
   isAbsoluteOrdered,
+  isRangeTooLong,
+  maxRangeDays,
   parseUserTime,
+  userTimeProblem,
   quickRanges as defaultQuickRanges,
   type QuickRange,
+  zonedTimeValue,
 } from "@/lib/time"
+
+import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
 
 import { useSetDashboardSearch } from "./search"
 
@@ -30,13 +36,20 @@ type ControlProps = {
   value: TimeRangeValue
   onChange: (next: TimeRangeValue) => void
   quickRanges?: QuickRange[]
+  zone?: string | null
 }
 
 export function TimeRangeControl({
   value,
   onChange,
   quickRanges = defaultQuickRanges,
+  zone,
 }: ControlProps) {
+  const preferredTimeZone = usePreferences((state) => state.timeZone)
+  const typedZone =
+    zone === undefined
+      ? preferredDisplayZone(preferredTimeZone)
+      : (zone ?? undefined)
   const fromId = useId()
   const toId = useId()
   const [open, setOpen] = useState(false)
@@ -51,8 +64,8 @@ export function TimeRangeControl({
 
   function onOpenChange(next: boolean) {
     if (next) {
-      setDraftFrom(formatTimeValue(value.from))
-      setDraftTo(formatTimeValue(value.to))
+      setDraftFrom(zonedTimeValue(value.from, typedZone))
+      setDraftTo(zonedTimeValue(value.to, typedZone))
       setError(null)
     }
     setOpen(next)
@@ -60,14 +73,22 @@ export function TimeRangeControl({
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const parsedFrom = parseUserTime(draftFrom)
-    const parsedTo = parseUserTime(draftTo)
+    const parsedFrom = parseUserTime(draftFrom, typedZone)
+    const parsedTo = parseUserTime(draftTo, typedZone)
     if (parsedFrom === null || parsedTo === null) {
-      setError("Enter a time like now-6h, now/d or 2026-10-17 09:00.")
+      setError(
+        userTimeProblem(draftFrom, typedZone) ??
+          userTimeProblem(draftTo, typedZone) ??
+          "Enter a time like now-6h, now/d or 2026-10-17 09:00."
+      )
       return
     }
     if (!isAbsoluteOrdered(parsedFrom, parsedTo)) {
       setError("From must be earlier than To.")
+      return
+    }
+    if (isRangeTooLong(parsedFrom, parsedTo)) {
+      setError(`The range can be at most ${maxRangeDays} days.`)
       return
     }
     choose(parsedFrom, parsedTo)
@@ -161,6 +182,7 @@ type Props = {
   to: string
   quickRanges: QuickRange[]
   hidden: boolean
+  timezone: string | undefined
 }
 
 export function TimeRangePicker({
@@ -170,6 +192,7 @@ export function TimeRangePicker({
   to,
   quickRanges,
   hidden,
+  timezone,
 }: Props) {
   const queryClient = useQueryClient()
   const setSearch = useSetDashboardSearch()
@@ -181,6 +204,7 @@ export function TimeRangePicker({
           value={{ from, to }}
           onChange={(next) => setSearch((state) => ({ ...state, ...next }))}
           quickRanges={quickRanges}
+          zone={displayZone(undefined, timezone) ?? null}
         />
       )}
       <Button

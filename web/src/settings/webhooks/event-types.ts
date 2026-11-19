@@ -53,8 +53,15 @@ export const eventTypeLabels = {
   "public_link.revoked": "Public link revoked",
   "user.role_changed": "Role changed",
   "user.signed_out_everywhere": "Signed out everywhere",
+  "user.invited": "Person invited",
+  "user.invite_updated": "Invite changed",
+  "user.invite_withdrawn": "Invite withdrawn",
+  "user.deactivated": "Person deactivated",
+  "user.reactivated": "Person reactivated",
+  "user.removed": "Person removed",
   "service_account.created": "Service account created",
   "service_account.updated": "Service account updated",
+  "service_account.deleted": "Service account deleted",
   "service_account.key_created": "Service account key created",
   "service_account.key_revoked": "Service account key revoked",
   "webhook.created": "Webhook created",
@@ -68,6 +75,9 @@ export const eventTypeLabels = {
   "grafana_connection.created": "Grafana connection created",
   "grafana_connection.updated": "Grafana connection updated",
   "grafana_connection.deleted": "Grafana connection deleted",
+  "datasource.created": "Datasource added",
+  "datasource.updated": "Datasource changed",
+  "datasource.deleted": "Datasource deleted",
 } satisfies Record<ActivityType, string>
 
 const groupLabels: Record<string, string> = {
@@ -86,6 +96,7 @@ const groupLabels: Record<string, string> = {
   mcp_client: "Connected agents",
   outbound_domain: "Outbound access",
   grafana_connection: "Grafana connections",
+  datasource: "Datasources",
 }
 
 export const allEventTypes = Object.keys(eventTypeLabels) as ActivityType[]

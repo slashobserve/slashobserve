@@ -29,6 +29,7 @@ describe("eventTypeGroups", () => {
       "mcp_client",
       "outbound_domain",
       "grafana_connection",
+      "datasource",
     ])
     expect(eventTypeGroups.flatMap((group) => group.types)).toEqual(
       allEventTypes
@@ -56,11 +57,12 @@ describe("eventTypeGroups", () => {
       "Connected agents",
       "Outbound access",
       "Grafana connections",
+      "Datasources",
     ])
   })
 
   test("has a label for every type", () => {
-    expect(allEventTypes).toHaveLength(65)
+    expect(allEventTypes).toHaveLength(75)
     for (const type of allEventTypes) expect(eventTypeLabels[type]).not.toBe("")
   })
 })

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { ApiError } from "@/api/errors"
 import { datasourceKeys, exploreKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -81,9 +82,11 @@ function setup({
   drawer = false,
   linesLoading = false,
   linesRerunning = false,
+  linesTimedOut = false,
   seedFacets = true,
 }: {
   seedFacets?: boolean
+  linesTimedOut?: boolean
   linesLoading?: boolean
   linesRerunning?: boolean
   drawer?: boolean
@@ -115,6 +118,11 @@ function setup({
       isLoading: linesLoading,
       isFetching: linesLoading || linesRerunning,
       isPlaceholderData: linesRerunning,
+      isSuccess: !linesLoading && !linesTimedOut,
+      isError: linesTimedOut,
+      error: linesTimedOut
+        ? new ApiError(504, "query_timeout", "query timed out after 15s")
+        : null,
     },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
@@ -172,6 +180,19 @@ describe("FieldsAside", () => {
     setup({ linesLoading: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("does not count the values when the lines timed out, and says the source is slow", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesTimedOut: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(
+        "This source is slow: the fields load when the query answers"
+      )
+    ).toBeVisible()
   })
 
   it("counts the values only once a rerun's lines have arrived", async () => {
@@ -354,5 +375,26 @@ describe("FieldsAside", () => {
     expect(localStorage.getItem("slashobserve-logs-facets-open")).toBeNull()
     await user.click(screen.getByRole("button", { name: "Show fields" }))
     expect(screen.getByRole("complementary", { name: "Fields" })).toBeVisible()
+  })
+
+  it("widens with the keyboard on the resize handle and remembers the width", async () => {
+    const { user } = setup()
+    const aside = screen.getByRole("complementary", { name: "Fields" })
+    expect(aside).toHaveStyle({ width: "248px" })
+    const grip = screen.getByRole("separator", { name: "Resize fields" })
+    grip.focus()
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}")
+    expect(aside).toHaveStyle({ width: "288px" })
+    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("288")
+    await user.dblClick(grip)
+    expect(aside).toHaveStyle({ width: "248px" })
+  })
+
+  it("opens at the width the person left it", () => {
+    localStorage.setItem("slashobserve-logs-fields-width", "400")
+    setup()
+    expect(screen.getByRole("complementary", { name: "Fields" })).toHaveStyle({
+      width: "400px",
+    })
   })
 })

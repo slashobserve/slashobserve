@@ -108,23 +108,25 @@ describe("DashboardHealthButton", () => {
     }
   )
 
-  test("shows a Healthy badge for a checked dashboard with no problem", async () => {
+  test("shows a Queries OK badge for a checked dashboard with no problem", async () => {
     serve([item({ problems: [], state: "healthy" })])
     renderButton()
-    const button = await screen.findByRole("button", { name: "Healthy" })
+    const button = await screen.findByRole("button", { name: "Queries OK" })
     expect(button.querySelector("[data-status=ok]")).not.toBeNull()
   })
 
-  test("shows Healthy for a dashboard whose only problem is unopened", async () => {
+  test("shows Queries OK for a dashboard whose only problem is unopened", async () => {
     serve([item({ problems: [unopened] })])
     renderButton()
-    expect(await screen.findByRole("button", { name: "Healthy" })).toBeTruthy()
+    expect(
+      await screen.findByRole("button", { name: "Queries OK" })
+    ).toBeTruthy()
   })
 
   test("opens the healthy popover with when and on which version it was checked", async () => {
     serve([item({ problems: [], state: "outdated" })])
     const { user } = renderButton()
-    await user.click(await screen.findByRole("button", { name: "Healthy" }))
+    await user.click(await screen.findByRole("button", { name: "Queries OK" }))
     expect(await screen.findByText("No problems found")).toBeTruthy()
     expect(
       screen.getByText(/on version 4, before the latest version/)
@@ -132,7 +134,7 @@ describe("DashboardHealthButton", () => {
     expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
   })
 
-  test("reads a running repair, not Healthy", async () => {
+  test("reads a running repair, not Queries OK", async () => {
     serve([
       item({
         problems: [],
@@ -150,7 +152,7 @@ describe("DashboardHealthButton", () => {
     expect(
       await screen.findByRole("button", { name: "Repairing" })
     ).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Healthy" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Queries OK" })).toBeNull()
   })
 
   test("renders nothing while loading or when the load fails", async () => {

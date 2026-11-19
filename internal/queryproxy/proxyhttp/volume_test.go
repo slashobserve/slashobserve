@@ -258,6 +258,22 @@ func TestVolumeFillsClickHouseBucketsFromTheGroupedTable(t *testing.T) {
 	}
 }
 
+func TestVolumeCountsClickHouseOverTheRequestedRangeOnly(t *testing.T) {
+	hn, _, clickhouseDS := newVolumeHarness(t)
+	clickhouseDS.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) { return nil, nil }
+	body := volumeBody("SELECT Timestamp, SeverityText FROM otel_logs WHERE $__timeFilter(Timestamp)")
+	from, to := volumeStart.Add(20*time.Second), volumeStart.Add(time.Hour+20*time.Second)
+	body["from"], body["to"] = strconv.FormatInt(from.UnixMilli(), 10), strconv.FormatInt(to.UnixMilli(), 10)
+	got := decodeVolume(t, hn.volume("ch", body))
+	calls := clickhouseDS.instantCalls()
+	if len(calls) != 1 || !calls[0].rng.From.Equal(from) || !calls[0].rng.To.Equal(to) {
+		t.Fatalf("instant calls %+v, want one over %v to %v", calls, from, to)
+	}
+	if len(got.Buckets) != 61 || got.Buckets[0].Start != "2025-10-09T08:54:00Z" {
+		t.Fatalf("%d buckets from %s", len(got.Buckets), got.Buckets[0].Start)
+	}
+}
+
 func TestVolumeAnswersInternalWhenTheClickHouseTableLacksItsFields(t *testing.T) {
 	hn, _, clickhouseDS := newVolumeHarness(t)
 	clickhouseDS.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
@@ -378,6 +394,21 @@ func TestVolumeAsksACapabilityDatasourceForTheAlignedWindow(t *testing.T) {
 	}
 	if held := hn.heldSlots(); held != 0 {
 		t.Fatalf("%d slots still held", held)
+	}
+}
+
+func TestVolumeAsksACapabilityDatasourceToCountOnlyTheRequestedRange(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return logvolume.New(req.Range.From, req.Step, req.Buckets()), nil
+	}
+	from, to := volumeStart.Add(20*time.Second), volumeStart.Add(time.Hour+20*time.Second)
+	body := volumeBody(`service.name:checkout`)
+	body["from"], body["to"] = strconv.FormatInt(from.UnixMilli(), 10), strconv.FormatInt(to.UnixMilli(), 10)
+	decodeVolume(t, hn.volume("search", body))
+	reqs := search.volumeRequests()
+	if len(reqs) != 1 || !reqs[0].Counted.From.Equal(from) || !reqs[0].Counted.To.Equal(to) {
+		t.Fatalf("requests %+v, want the count limited to %v to %v", reqs, from, to)
 	}
 }
 

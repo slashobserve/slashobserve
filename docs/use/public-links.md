@@ -56,6 +56,7 @@ The dashboard list, news and geomap panels need the signed-in app, so they show 
 Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
 Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
 An address that is unknown, revoked or expired reads "This link has expired or was turned off."
+A page that is already open shows the same message as soon as a panel refresh finds the link revoked or expired, without a reload.
 
 ## Show it on a wall
 
@@ -73,7 +74,7 @@ TV mode lives in the address, so a TV can open a bookmark straight into it:
 | `kiosk=1` | TV mode; `kiosk` alone or `kiosk=true` work too. |
 | `cycle=rows` | Bring each expanded row to the top of the screen in turn. |
 | `cycle=folder` | Open each dashboard of the same folder in turn, ordered by title. |
-| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600; the default is 60. |
+| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600, the default is 60, and a value outside that range is moved to the nearest limit and shown so in the address (`interval=5` becomes `interval=10`). |
 
 **TV mode for this folder** in the **More** menu starts `cycle=folder`, and is not offered for a personal folder.
 A folder cycle keeps the time range and the auto-refresh, and opens each dashboard with its default variable values.

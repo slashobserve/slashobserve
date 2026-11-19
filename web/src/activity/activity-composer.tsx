@@ -168,7 +168,7 @@ export function ActivityComposer({
   const queryClient = useQueryClient()
   const agentKind = useActivityStore((state) => state.agentKind)
   const setAgentKind = useActivityStore((state) => state.setAgentKind)
-  const investigating = agentKind === "investigate"
+  const investigating = agentKind === "investigate" && canInvestigate
   const [rangeOn, setRangeOn] = useState(true)
   const [rangeKind, setRangeKind] = useState(agentKind)
   if (rangeKind !== agentKind) {

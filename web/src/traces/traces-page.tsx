@@ -61,6 +61,7 @@ import { isModEnter } from "@/lib/shortcuts"
 import { tracesLink } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { usePageCursors } from "@/lib/use-page-cursors"
 import { cn } from "@/lib/utils"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
@@ -731,13 +732,14 @@ function TraceResults({
     ...polling,
     enabled: !future,
   })
+  const { ready: statsReady } = useAfterMainQuery(results, scope)
   const stats = useQuery({
     ...traceStatsQuery(datasource.uid, {
       query: traceStatsFilter(datasource.type, search),
       ...range,
     }),
     ...polling,
-    enabled: !future,
+    enabled: !future && statsReady,
   })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)

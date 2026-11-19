@@ -73,7 +73,7 @@ import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 import { tailRows } from "./use-live-tail"
-import { firstValueClause, valueMissText } from "./value-miss"
+import { firstValueMiss, valueClauses, type SeenValues } from "./value-miss"
 import { useLogsWorkspace } from "./workspace"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -388,23 +388,27 @@ export function ResultSkeleton() {
 
 function ValueMiss() {
   const { datasource, effectiveQuery, range } = useLogsWorkspace()
-  const clause = firstValueClause(datasource.type, effectiveQuery)
+  const clauses = valueClauses(datasource.type, effectiveQuery)
   const facets = useQuery({
     ...logFacetsQuery(datasource.uid, {
       query: "",
       from: range.from,
       to: range.to,
       limit: 10,
-      fields: [clause?.field ?? ""],
+      fields: [...new Set(clauses.map((clause) => clause.field))],
     }),
-    enabled: clause !== null,
+    enabled: clauses.length > 0,
   })
-  if (clause === null) return null
-  const seen =
-    facets.data?.fields
-      .find((field) => field.name === clause.field)
-      ?.values.map((value) => value.value) ?? []
-  const text = valueMissText(clause, seen)
+  const seenByField = new Map<string, SeenValues>(
+    (facets.data?.fields ?? []).map((field) => [
+      field.name,
+      {
+        values: field.values.map((value) => value.value),
+        complete: (field.cardinality ?? 0) <= field.values.length,
+      },
+    ])
+  )
+  const text = firstValueMiss(clauses, seenByField)
   return text === null ? null : <p>{text}</p>
 }
 
@@ -420,6 +424,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     update,
     detail,
     paging,
+    levels,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
   const phone = usePhone()
@@ -503,6 +508,7 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
       onColumnsChange,
       linkedId: search.line,
       onLinkedChange,
+      hiddenLevels: levels.hidden,
     }
   }
 

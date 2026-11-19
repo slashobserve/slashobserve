@@ -35,7 +35,14 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
-import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
+import { preferredZone, usePreferences } from "@/lib/preferences"
+import {
+  displayZone,
+  isRangeTooLong,
+  maxRangeDays,
+  refreshToMs,
+  timeOptionsFor,
+} from "@/lib/time"
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
@@ -72,7 +79,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { CanvasTools, useCanvasTool, useCanvasToolsShown } from "./canvas-tools"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -96,6 +103,7 @@ import {
   useDashboardEvents,
   type LiveStatus,
 } from "./live/use-dashboard-events"
+import { useDashboardMovedLive } from "./live/use-dashboards-live"
 import { downloadSpec } from "./export-spec"
 import { KioskHint } from "./kiosk/kiosk-hint"
 import { useKiosk } from "./kiosk/use-kiosk"
@@ -284,7 +292,9 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const viewZone = search.tz ?? spec.timezone
+  const preferences = usePreferences()
+  const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
+  const viewZone = search.tz ?? ownZone
   const timeOptions = useMemo(
     () => timeOptionsFor({ ...spec, timezone: viewZone }),
     [spec, viewZone]
@@ -329,6 +339,10 @@ function DashboardView({
   const timeRange = useMemo(
     () => ({ from: search.from, to: search.to }),
     [search.from, search.to]
+  )
+  const rangeTooLong = useMemo(
+    () => isRangeTooLong(effectiveFrom, effectiveTo, undefined, timeOptions),
+    [effectiveFrom, effectiveTo, timeOptions]
   )
   const refreshValue = effectiveRefresh(search.refresh, spec)
   const refreshMs = refreshToMs(refreshValue)
@@ -426,6 +440,7 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const toolsShown = useCanvasToolsShown(permissions)
   const [specOpen, setSpecOpen] = useState(false)
   const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
@@ -723,12 +738,10 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
+        timezone={ownZone}
       />
       {spec.timePicker?.hidden ? null : (
-        <ZonePicker
-          value={viewZone ?? "browser"}
-          dashboardZone={spec.timezone}
-        />
+        <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
       )}
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker
@@ -912,7 +925,7 @@ function DashboardView({
                 "@container min-w-0 @max-[1000px]:has-[[data-panel-host]>aside]:h-auto @max-[1000px]:has-[[data-panel-host]>aside]:min-h-svh @max-[1000px]:has-[[data-panel-host]>aside]:flex-wrap narrow:flex-1"
               )}
             >
-              <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+              <div className="@container/dash flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
                 {kiosk ? null : (
                   <DashboardTopRow
                     title={spec.title}
@@ -954,11 +967,26 @@ function DashboardView({
                     />
                   </>
                 )}
+                {rangeTooLong && !kiosk ? (
+                  <p
+                    role="alert"
+                    className="pr-2.5 pb-2.5 pl-4 text-[13px] text-destructive"
+                  >
+                    The time range is longer than {maxRangeDays} days, so panels
+                    cannot load. Choose a shorter range.
+                  </p>
+                ) : null}
                 <LayoutAnnouncer />
                 <main
                   ref={gridBox}
                   data-export-pane=""
-                  className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+                  className={cn(
+                    "min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4",
+                    toolsShown &&
+                      !kiosk &&
+                      !editingPanel &&
+                      "pb-16 narrow:pb-2.5"
+                  )}
                 >
                   <ActionProvider value={actionContext}>
                     {viewed ? (
@@ -998,6 +1026,14 @@ function DashboardView({
                     )}
                   </ActionProvider>
                 </main>
+                {kiosk || editingPanel ? null : (
+                  <CanvasTools
+                    permissions={permissions}
+                    canInvestigate={canInvestigate}
+                    idle={!editing}
+                    composerRef={composerRef}
+                  />
+                )}
               </div>
               {cardVisible ? (
                 <ActivityCard
@@ -1048,13 +1084,6 @@ function DashboardView({
                 />
               ) : null}
               <UnsavedBar dashboardId={dashboardId} />
-              {kiosk || editingPanel ? null : (
-                <CanvasTools
-                  permissions={permissions}
-                  idle={!editing}
-                  composerRef={composerRef}
-                />
-              )}
               {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
               <ShortcutsDialog
                 open={shortcutsOpen}
@@ -1141,6 +1170,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
     pinnedVersion: search.version,
     toastVersions: !panelEditorShowsNewerVersion(search),
   })
+  useDashboardMovedLive(dashboardId)
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
   if (search.version !== undefined) {

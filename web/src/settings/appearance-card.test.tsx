@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
+import { usePreferences } from "@/lib/preferences"
 import { renderWithProviders } from "@/test/render"
 
 import { AppearanceSection } from "./appearance-card"
@@ -8,6 +9,11 @@ import { AppearanceSection } from "./appearance-card"
 const storageKey = "slashobserve-theme"
 
 describe("AppearanceSection", () => {
+  afterEach(() => {
+    usePreferences.setState({ timeZone: "browser" })
+    localStorage.clear()
+  })
+
   it("offers the three theme choices under a Theme label", () => {
     renderWithProviders(<AppearanceSection />)
     const group = screen.getByRole("radiogroup", { name: "Theme" })
@@ -33,4 +39,14 @@ describe("AppearanceSection", () => {
       expect(localStorage.getItem(storageKey)).toBe(stored)
     }
   )
+
+  it("stores the time zone when one is picked", async () => {
+    const { user } = renderWithProviders(<AppearanceSection />)
+    const box = screen.getByRole("combobox", { name: "Time zone" })
+    expect(box).toHaveValue("Browser time")
+    await user.click(box)
+    await user.click(await screen.findByRole("option", { name: "UTC" }))
+    expect(localStorage.getItem("slashobserve-time-zone")).toBe("utc")
+    expect(usePreferences.getState().timeZone).toBe("utc")
+  })
 })

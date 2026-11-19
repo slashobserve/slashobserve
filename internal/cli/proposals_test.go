@@ -121,7 +121,16 @@ func TestProposalsCommands(t *testing.T) {
 			wantMethod: http.MethodPost,
 			wantPath:   proposalPath + "/merge",
 			wantBody:   mergeTwo,
-			wantOut:    []string{"Merged as version 6"},
+			wantOut:    []string{"Merged as version 6", `The proposed change to setting "title" was dropped; the dashboard keeps its own`},
+		},
+		{
+			name:       "merge that keeps the dashboard's side and saves nothing says what was dropped",
+			args:       []string{"proposals", "merge", testProposal, "--revision", "2", "--take", "panel:p1=ours"},
+			response:   proposalJSON("merged", 2, "", false),
+			wantMethod: http.MethodPost,
+			wantPath:   proposalPath + "/merge",
+			wantBody:   `{"revision":2,"choices":[{"kind":"panel","id":"p1","take":"ours"}]}`,
+			wantOut:    []string{"Merged without a new version", `The proposed change to panel "p1" was dropped; the dashboard keeps its own`},
 		},
 		{
 			name:       "merge of a change already in the dashboard says so",

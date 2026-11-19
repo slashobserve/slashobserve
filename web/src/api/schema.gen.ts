@@ -132,7 +132,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a service account and all its keys.
+         * @description Service accounts cannot call this endpoint. Every key of the account stops working at once, and mentions of the account in comments stop pointing at it. What the account made stays, under the name it was saved with. An account from the service-accounts file answers 409 `provisioned`; remove it from the file instead.
+         */
+        delete: operations["deleteServiceAccount"];
         options?: never;
         head?: never;
         /**
@@ -194,7 +198,7 @@ export interface paths {
         };
         /**
          * List everyone who has signed in, newest first.
-         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Service accounts cannot call this endpoint.
+         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Only Admins can call this endpoint, and an Admin service-account key can too.
          */
         get: operations["listUsers"];
         put?: never;
@@ -217,7 +221,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove a deactivated person and their My Dashboards.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         */
+        delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
@@ -244,6 +252,169 @@ export interface paths {
          * @description Admin only. Deletes every session of the person and disconnects every MCP client they connected; the person can sign in and connect again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
          */
         delete: operations["signOutUserEverywhere"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a person from signing in or acting, and keep what they made.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         */
+        post: operations["deactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a deactivated person sign in again.
+         * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
+         */
+        post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the pending invites, newest first.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. An invite stays pending until someone signs in with its email verified by the identity provider.
+         */
+        get: operations["listInvites"];
+        put?: never;
+        /**
+         * Invite an email with the role it gets at its first sign-in.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. No email is sent: share the returned sign_in_url with the person. The role applies at the first sign-in of that email, only when the identity provider says the email is verified, and it then shows as set by the Admin who invited. An invite lets no one in that the sign-in rules would refuse; admin emails and identity-provider group roles still win over it. Inviting an email that already has a pending invite changes its role and answers 200.
+         */
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a pending invite.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The email can still sign in when the sign-in rules allow it, with the role those rules give.
+         */
+        delete: operations["deleteInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the teams with their members.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Teams are sorted by name; at most 200 exist.
+         */
+        get: operations["listTeams"];
+        put?: never;
+        /**
+         * Create a team that folders can be shared with by its name.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. A team's name works as a group name in a folder's access list: each member matches a group entry with exactly that name, as if their identity provider sent it. A team never changes a role; roles still come from identity-provider groups only. Names are unique without regard to case, and a name equal to an identity-provider group makes the team's members match that group's entries too.
+         */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Its members lose what the team's name gave them at their next request; folder entries naming it stay and match no one unless a team or an identity-provider group of that name exists.
+         */
+        delete: operations["deleteTeam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Add a person to a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Adding a member twice changes nothing. The person's access follows at their next request.
+         */
+        put: operations["addTeamMember"];
+        post?: never;
+        /**
+         * Remove a person from a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Removing someone who is not a member changes nothing. The person loses what the team gave them at their next request.
+         */
+        delete: operations["removeTeamMember"];
         options?: never;
         head?: never;
         patch?: never;
@@ -354,7 +525,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never the text; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` carries `name`, `sessions` and `grants`; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -465,7 +636,11 @@ export interface paths {
         /** Report the health and dashboard usage of every configured datasource, never its connection details. */
         get: operations["listDatasources"];
         put?: never;
-        post?: never;
+        /**
+         * Add a datasource in the app.
+         * @description Only Admins can call this endpoint. The server saves the definition, encrypts every credential with a key derived from `SLASHOBSERVE_SECRET_KEY`, and starts using the datasource at once; other servers pick it up within 15 seconds. The uid must not belong to any datasource, from the file or the app, so a retried request answers 409 `uid_taken` and never adds a second one. The address host must pass the outbound allowlist like a Grafana connection's: a domain name is added to an unlocked list, and refused when the list is set by configuration and does not hold it. An IP address or a name without a dot cannot be listed, so it is refused when the list is set by configuration. Link-local, unspecified and multicast addresses are always refused. At most 100 datasources can be added in the app.
+         */
+        post: operations["createDatasource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -918,7 +1093,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1135,6 +1310,96 @@ export interface paths {
         get: operations["getVariableValues"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a datasource definition against the real datasource without saving it.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+         */
+        post: operations["testDatasource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a datasource added in the app.
+         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        delete: operations["deleteDatasource"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a datasource added in the app.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        patch: operations["updateDatasource"];
+        trace?: never;
+    };
+    "/datasources/{uid}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the definition of a datasource added in the app.
+         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        get: operations["getDatasourceConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a fresh health check on one datasource now.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         */
+        post: operations["recheckDatasource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3571,6 +3836,51 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "editor" | "commenter" | "viewer";
+        Invite: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            /** @description The name of the Admin or service account that sent the invite. */
+            invited_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description The address to share with the person; signing in there with the invited email uses the invite. */
+            sign_in_url: string;
+        };
+        InviteList: {
+            invites: components["schemas"]["Invite"][];
+            next_cursor: string | null;
+        };
+        TeamMember: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+        };
+        Team: {
+            /** Format: uuid */
+            id: string;
+            /** @description The group name a folder entry uses to share with the team's members. */
+            name: string;
+            /** @description The name of the Admin or service account that created the team. */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            members: components["schemas"]["TeamMember"][];
+        };
+        TeamList: {
+            teams: components["schemas"]["Team"][];
+        };
+        CreateTeamRequest: {
+            name: string;
+        };
+        CreateInviteRequest: {
+            email: string;
+            role: components["schemas"]["Role"];
+        };
         /**
          * @description Where a person's role comes from. admin_emails, first_user and group are decided by the server settings or the identity provider and cannot be changed through the API.
          * @enum {string}
@@ -3707,6 +4017,19 @@ export interface components {
             role_set_by: string | null;
             /** @description True when the role cannot be changed through the API. */
             role_locked: boolean;
+            /**
+             * Format: date-time
+             * @description When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+             */
+            deactivated_at: string | null;
+            /** @description The name of the Admin who deactivated the person. */
+            deactivated_by: string | null;
+            /** @description What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person. */
+            personal_items: {
+                dashboards: number;
+                observations: number;
+                saved_searches: number;
+            } | null;
         };
         ConnectedAgent: {
             /** Format: uuid */
@@ -3917,12 +4240,12 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
-            /** @description True when a Grafana connection added the entry; it is removed with the last connection or webhook that uses that host. */
+            /** @description True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host. */
             from_connection: boolean;
-            /** @description The webhooks and Grafana connections whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
+            /** @description The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
             used_by: {
                 /** @enum {string} */
-                kind: "webhook" | "grafana_connection";
+                kind: "webhook" | "grafana_connection" | "datasource";
                 name: string;
             }[];
             /**
@@ -4091,15 +4414,23 @@ export interface components {
             uid: string;
             type: string;
             name: string;
+            /**
+             * @description `file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app.
+             * @enum {string}
+             */
+            source: "file" | "app";
             /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
+            /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
+            detail?: string;
             /**
              * Format: date-time
-             * @description When the server last checked the datasource; checks are cached for 10 seconds.
+             * @description When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
              */
             checked_at: string;
             /** @description Dashboards whose latest version uses this datasource. */
@@ -4107,6 +4438,123 @@ export interface components {
         };
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];
+        };
+        DatasourceLimits: {
+            /** @description A duration such as `30s`; empty uses the adapter default. */
+            timeout?: string;
+            max_series?: number;
+            max_points?: number;
+            max_rows?: number;
+            /** @description The most queries this datasource runs at once across the fleet; 0 uses the default of 32. */
+            max_concurrent_queries?: number;
+        };
+        /** @description Which fields of an Elasticsearch or OpenSearch index play which role in logs and traces. */
+        DatasourceFieldRoles: {
+            message?: string;
+            level?: string;
+            service?: string;
+            trace_id?: string;
+            span_id?: string;
+        };
+        /** @description Credentials, written and never read back. A field left out keeps what is stored; a value replaces it. */
+        DatasourceSecrets: {
+            /** @description The basic-auth password, or the ClickHouse password. */
+            password?: string;
+            bearer_token?: string;
+            /** @description The Elasticsearch or OpenSearch API key. */
+            api_key?: string;
+            /** @description Custom request headers by name. Every value is treated as a credential. */
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        /** @description A datasource definition. Creating needs `uid`, `type` and `address`. Changing and testing a saved datasource take only the fields to change. */
+        DatasourceDraft: {
+            uid?: string;
+            /** @enum {string} */
+            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
+            /** @description The display name; the uid when empty. */
+            name?: string;
+            /** @description Grafana datasource uids this one stands for when dashboards are imported. */
+            grafana_uids?: string[];
+            /** @description An http or https URL, or `host:port` for ClickHouse. A login belongs in `username` and `secrets`, not here. */
+            address?: string;
+            /** @description The basic-auth user, or the ClickHouse user. */
+            username?: string;
+            /** @description ClickHouse only. */
+            database?: string;
+            /** @description ClickHouse only. */
+            tls?: boolean;
+            /** @description Loki only. */
+            tenant_id?: string;
+            /** @description Prometheus only, a duration such as `15s`. */
+            scrape_interval?: string;
+            /** @description Elasticsearch and OpenSearch only. */
+            index?: string;
+            time_field?: string;
+            /** @enum {string} */
+            query_language?: "" | "kql" | "lucene";
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            secrets?: components["schemas"]["DatasourceSecrets"];
+            /** @description Credentials to remove, each `password`, `bearer_token`, `api_key` or `header:<name>`. */
+            clear_secrets?: string[];
+        };
+        /** @description A datasource added in the app, without its credentials. */
+        DatasourceConfig: {
+            uid: string;
+            type: string;
+            name: string;
+            /** @enum {string} */
+            source: "app";
+            grafana_uids?: string[];
+            address: string;
+            username?: string;
+            database?: string;
+            tls?: boolean;
+            tenant_id?: string;
+            scrape_interval?: string;
+            index?: string;
+            time_field?: string;
+            query_language?: string;
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */
+            secrets_set: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DatasourceTestResult: {
+            healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
+            message?: string;
+            /** @description The cause when the server knows it; never an address, user or secret. */
+            detail?: string;
+        };
+        InvalidDatasourceError: {
+            error: string;
+            /** @enum {string} */
+            code: "invalid_datasource";
+            fields: {
+                field: string;
+                message: string;
+            }[];
+        };
+        DatasourceInUseError: {
+            error: string;
+            /** @enum {string} */
+            code: "datasource_in_use";
+            used_by: {
+                /** @enum {string} */
+                kind: "dashboard" | "saved_search";
+                /** Format: uuid */
+                id: string;
+                title: string;
+            }[];
+            /** @description How many more dashboards and saved searches use it in folders the caller cannot see. */
+            hidden: number;
         };
         MetricName: {
             name: string;
@@ -4143,7 +4591,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.rca_withdrawn" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept" | "public_link.created" | "public_link.revoked" | "user.role_changed" | "user.signed_out_everywhere" | "service_account.created" | "service_account.updated" | "service_account.key_created" | "service_account.key_revoked" | "webhook.created" | "webhook.updated" | "webhook.secret_rotated" | "webhook.deleted" | "mcp_client.connected" | "mcp_client.disconnected" | "outbound_domain.added" | "outbound_domain.removed" | "grafana_connection.created" | "grafana_connection.updated" | "grafana_connection.deleted";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.rca_withdrawn" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept" | "public_link.created" | "public_link.revoked" | "user.role_changed" | "user.signed_out_everywhere" | "user.invited" | "user.invite_updated" | "user.invite_withdrawn" | "user.deactivated" | "user.reactivated" | "user.removed" | "service_account.created" | "service_account.updated" | "service_account.deleted" | "service_account.key_created" | "service_account.key_revoked" | "webhook.created" | "webhook.updated" | "webhook.secret_rotated" | "webhook.deleted" | "mcp_client.connected" | "mcp_client.disconnected" | "outbound_domain.added" | "outbound_domain.removed" | "grafana_connection.created" | "grafana_connection.updated" | "grafana_connection.deleted" | "datasource.created" | "datasource.updated" | "datasource.deleted";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -4154,7 +4602,7 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "public_link";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "datasource" | "public_link";
                 /**
                  * Format: uuid
                  * @description The id of the dashboard, annotation, finding, saved search, observation, proposal, comment thread or agent request the event is about.
@@ -4188,7 +4636,7 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "public_link";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "datasource" | "public_link";
                 /** Format: uuid */
                 id: string;
             };
@@ -7207,6 +7655,40 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    deleteServiceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service account and its keys are deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     updateServiceAccountRole: {
         parameters: {
             query?: never;
@@ -7379,6 +7861,32 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    removePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
     updatePersonRole: {
         parameters: {
             query?: never;
@@ -7429,6 +7937,320 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, deactivated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, active. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listInvites: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of pending invites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description The pending invite for this email, with the new role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            /** @description The invite is created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Someone with this email has already signed in (`already_member`); change their role instead. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The email's domain is not in `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` (`email_domain_not_allowed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invite is withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every team. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description The team is created with no members. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A team with this name exists (`team_exists`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description 200 teams already exist (`too_many_teams`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    addTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team with its members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    removeTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team with its members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -8074,6 +8896,61 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The datasource is saved and in use; credentials are not returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix), 100 datasources already exist (`too_many_datasources`), or the outbound allowlist is full (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -9835,6 +10712,216 @@ export interface operations {
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
             504: components["responses"]["QueryTimeout"];
+        };
+    };
+    testDatasource: {
+        parameters: {
+            query?: {
+                /** @description The uid of a saved app datasource to start from. */
+                base?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The result of the health check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceInUseError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The changed datasource; credentials are not returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the new address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDatasourceConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The definition without credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    recheckDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource's status after the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     lintDatasourceQuery: {

@@ -94,7 +94,8 @@ function reducedRaw(field: PreparedField, reducer: Reducer): ReducedValue {
 function rowLabel(
   frame: PreparedFrame,
   row: number,
-  zone: string | undefined
+  zone: string | undefined,
+  onlyRowName: string | undefined
 ): string {
   for (const field of frame.fields) {
     const value = field.values[row]
@@ -102,6 +103,7 @@ function rowLabel(
       return value
     }
   }
+  if (onlyRowName !== undefined) return onlyRowName
   const time = frame.fields.find((field) => field.type === "time")
   const at = time?.values[row]
   return typeof at === "number" ? zonedDateTime(at, zone) : String(row + 1)
@@ -140,11 +142,15 @@ export function reduceItems(
         continue
       }
       const rows = Math.min(field.values.length, options.limit)
+      const onlyRowName =
+        field.values.length === 1
+          ? resolver.displayName(frame, field)
+          : undefined
       for (let row = 0; row < rows; row++) {
         const raw = plain(field.values[row])
         items.push({
           key: uniqueKey(seen, `${base}@${row}`),
-          label: rowLabel(frame, row, zone),
+          label: rowLabel(frame, row, zone, onlyRowName),
           value: numeric(raw),
           raw,
           config,

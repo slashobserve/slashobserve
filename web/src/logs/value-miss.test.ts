@@ -1,21 +1,47 @@
 import { describe, expect, it } from "vitest"
 
-import { firstValueClause, valueMissText } from "./value-miss"
+import { firstValueMiss, valueClauses, valueMissText } from "./value-miss"
 
-describe("firstValueClause", () => {
-  it("takes the first field and value of a KQL query", () => {
+describe("valueClauses", () => {
+  it("takes every field and value of a KQL query", () => {
     expect(
-      firstValueClause(
-        "elasticsearch",
-        "service.name:checkout and log.level:error"
-      )
-    ).toEqual({ field: "service.name", value: "checkout" })
+      valueClauses("elasticsearch", "service.name:checkout and log.level:error")
+    ).toEqual([
+      { field: "service.name", value: "checkout" },
+      { field: "log.level", value: "error" },
+    ])
   })
 
   it("has nothing to say for a query the builder cannot show or another language", () => {
-    expect(firstValueClause("elasticsearch", "a:1 or b:2")).toBeNull()
-    expect(firstValueClause("loki", '{service_name="a"}')).toBeNull()
-    expect(firstValueClause("elasticsearch", undefined)).toBeNull()
+    expect(valueClauses("elasticsearch", "a:1 or b:2")).toEqual([])
+    expect(valueClauses("loki", '{service_name="a"}')).toEqual([])
+    expect(valueClauses("elasticsearch", undefined)).toEqual([])
+  })
+})
+
+describe("firstValueMiss", () => {
+  const clauses = valueClauses(
+    "elasticsearch",
+    "service.name:checkout and log.level:error"
+  )
+
+  it("finds the clause that misses after one that matches", () => {
+    const seen = new Map([
+      ["service.name", { values: ["checkout", "frontend"], complete: true }],
+      ["log.level", { values: ["INFO", "ERROR"], complete: true }],
+    ])
+    expect(firstValueMiss(clauses, seen)).toContain(
+      "No document has log.level = error in this range, but it has ERROR"
+    )
+  })
+
+  it("does not claim a miss from a truncated list of values", () => {
+    const seen = new Map([
+      ["service.name", { values: ["a", "b"], complete: false }],
+      ["log.level", { values: ["INFO", "ERROR"], complete: true }],
+    ])
+    expect(firstValueMiss(clauses, seen)).toContain("log.level = error")
+    expect(firstValueMiss(clauses.slice(0, 1), seen)).toBeNull()
   })
 })
 

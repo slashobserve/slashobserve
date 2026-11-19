@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
 import {
@@ -30,6 +31,7 @@ function versionToastId(dashboardId: string, version: number): string {
 const eventNames = [
   "ready",
   "resync",
+  "role.changed",
   "version.created",
   "dashboard.deleted",
   "comment.created",
@@ -47,6 +49,10 @@ function cachedLatestVersion(
   return queryClient.getQueryData<DashboardEnvelope>(
     dashboardKeys.latest(dashboardId)
   )?.version.version
+}
+
+export function isGone(error: ApiError): boolean {
+  return error.status === 404 || error.status === 403
 }
 
 function describeVersion(event: { summary: string; authorName: string }) {
@@ -123,7 +129,8 @@ export function useDashboardEvents(
       invalidate(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
-        dashboardKeys.list()
+        dashboardKeys.list(),
+        dashboardKeys.panels(dashboardId, event.version)
       )
       const saving = queryClient.isMutating({
         mutationKey: dashboardKeys.saves(dashboardId),
@@ -198,6 +205,9 @@ export function useDashboardEvents(
         case "resync":
           refetchAll()
           return
+        case "role.changed":
+          catchUpWithSession(latest.current.router, queryClient)
+          return
         case "version.created":
           onVersionCreated(event)
           return
@@ -239,8 +249,16 @@ export function useDashboardEvents(
         })
       } catch (error) {
         if (disposed) return
-        if (!(error instanceof ApiError) || error.status !== 404) return
-        useDeletedDashboards.getState().markDeleted(dashboardId, by)
+        if (!(error instanceof ApiError) || !isGone(error)) return
+        if (error.status === 404) {
+          useDeletedDashboards.getState().markDeleted(dashboardId, by)
+          return
+        }
+        queryClient.removeQueries({
+          queryKey: dashboardKeys.latest(dashboardId),
+          exact: true,
+        })
+        void latest.current.router.invalidate()
       }
     }
 

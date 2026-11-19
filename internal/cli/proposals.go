@@ -64,6 +64,16 @@ type mergeChoice struct {
 	Take string `json:"take"`
 }
 
+func droppedUnits(choices []mergeChoice) string {
+	var units []string
+	for _, c := range choices {
+		if c.Take == "ours" {
+			units = append(units, c.Kind+" "+strconv.Quote(c.ID))
+		}
+	}
+	return strings.Join(units, ", ")
+}
+
 type proposalMergeBody struct {
 	Revision int           `json:"revision"`
 	Choices  []mergeChoice `json:"choices,omitempty"`
@@ -243,11 +253,18 @@ func (a *app) proposalsMergeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if merged.MergedVersion == nil {
+				dropped := droppedUnits(choices)
+				switch {
+				case merged.MergedVersion != nil:
+					out.confirm("Merged as version %d", *merged.MergedVersion)
+				case dropped != "":
+					out.confirm("Merged without a new version")
+				default:
 					out.confirm("Already in the dashboard")
-					return nil
 				}
-				out.confirm("Merged as version %d", *merged.MergedVersion)
+				if dropped != "" {
+					out.confirm("The proposed change to %s was dropped; the dashboard keeps its own", dropped)
+				}
 				return nil
 			})
 		},

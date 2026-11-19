@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 
@@ -175,18 +177,50 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		return "", failure
 	}
 
-	groups := groupsClaim(claims.Groups)
-	user, err := s.queries.UpsertUser(ctx, dbsqlc.UpsertUserParams{
-		OidcIssuer:  idToken.Issuer,
-		OidcSubject: idToken.Subject,
-		Email:       claims.Email,
-		Name:        truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
-		Groups:      groups,
+	return s.signIn(ctx, identity{
+		Issuer:        idToken.Issuer,
+		Subject:       idToken.Subject,
+		Email:         claims.Email,
+		EmailVerified: claims.EmailVerified,
+		Name:          truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
+		Groups:        groupsClaim(claims.Groups),
+	})
+}
+
+type identity struct {
+	Issuer        string
+	Subject       string
+	Email         string
+	EmailVerified bool
+	Name          string
+	Groups        []string
+}
+
+func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailure) {
+	user, err := s.upsertUser(ctx, dbsqlc.UpsertUserParams{
+		OidcIssuer:  id.Issuer,
+		OidcSubject: id.Subject,
+		Email:       id.Email,
+		Name:        id.Name,
+		Groups:      id.Groups,
 	})
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
-	if err := s.assignRole(ctx, user, groups, claims.EmailVerified); err != nil {
+	if user.DeactivatedAt.Valid {
+		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}}
+	}
+	if user.Inserted && id.EmailVerified {
+		manual, err := s.queries.AcceptInvite(ctx, dbsqlc.AcceptInviteParams{ID: user.ID, Email: id.Email})
+		switch {
+		case err == nil:
+			user.ManualRole = manual
+			s.logger.InfoContext(ctx, "invite accepted", slog.String("user_id", user.ID.String()), slog.String("role", manual.String))
+		case !errors.Is(err, pgx.ErrNoRows):
+			return "", &loginFailure{code: "internal", err: err}
+		}
+	}
+	if err := s.assignRole(ctx, user, id.Groups, id.EmailVerified); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := opaquetoken.New("")
@@ -205,6 +239,17 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		s.logger.WarnContext(ctx, "delete expired sessions", logattrs.Failure("session_cleanup_failed", err)...)
 	}
 	return token, nil
+}
+
+const firstUserIndex = "users_first_user_idx"
+
+func (s *Service) upsertUser(ctx context.Context, params dbsqlc.UpsertUserParams) (dbsqlc.UpsertUserRow, error) {
+	user, err := s.queries.UpsertUser(ctx, params)
+	var pgErr *pgconn.PgError
+	if isUniqueViolation(err) && errors.As(err, &pgErr) && pgErr.ConstraintName == firstUserIndex {
+		return s.queries.UpsertUser(ctx, params)
+	}
+	return user, err
 }
 
 func (s *Service) emailRefusal(email string, verified bool) *loginFailure {
@@ -257,7 +302,7 @@ func (s *Service) refuse(c *gin.Context, f *loginFailure) {
 	}
 	attrs = append(attrs, f.attrs...)
 	msg := "sign-in failed"
-	if f.code == "email_not_allowed" {
+	if f.code == "email_not_allowed" || f.code == "account_deactivated" {
 		msg = "sign-in refused"
 	}
 	s.logger.WarnContext(c.Request.Context(), msg, attrs...)

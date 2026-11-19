@@ -10,6 +10,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
@@ -147,24 +152,32 @@ function PillChip({
           if (!next) setEditing(false)
         }}
       >
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              aria-label={`Filter ${label}`}
-              data-negate={pill.negate}
-              data-paused={pill.paused}
-              data-pinned={pill.pinned}
-              title={label}
-              className={cn(pillClass, "max-w-full min-w-0 font-mono")}
-            />
-          }
-        >
-          {pill.pinned ? (
-            <PinIcon aria-hidden="true" className="size-3" />
-          ) : null}
-          <span className="truncate">{label}</span>
-        </PopoverTrigger>
+        <Tooltip>
+          <PopoverTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={`Filter ${label}`}
+                    data-negate={pill.negate}
+                    data-paused={pill.paused}
+                    data-pinned={pill.pinned}
+                    className={cn(pillClass, "max-w-full min-w-0 font-mono")}
+                  />
+                }
+              />
+            }
+          >
+            {pill.pinned ? (
+              <PinIcon aria-hidden="true" className="size-3" />
+            ) : null}
+            <span className="truncate">{label}</span>
+          </PopoverTrigger>
+          <TooltipContent className="max-w-lg font-mono [overflow-wrap:anywhere]">
+            {label}
+          </TooltipContent>
+        </Tooltip>
         <PopoverContent align="start" className={editing ? "w-80" : "w-40"}>
           {editing ? (
             <FilterForm
@@ -274,7 +287,7 @@ export function FilterPills() {
   )
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex max-w-full min-w-0 flex-col gap-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <ul role="list" aria-label="Filters" className="contents">
           {pills.map((pill) => (

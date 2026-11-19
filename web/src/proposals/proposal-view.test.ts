@@ -6,6 +6,7 @@ import {
   choicesFrom,
   conflictText,
   dashboardLinkOf,
+  droppedText,
   stateLine,
   unitKey,
 } from "./proposal-view"
@@ -214,6 +215,33 @@ describe("choicesFrom", () => {
   })
 })
 
+describe("droppedText", () => {
+  it("names each unit whose dashboard side was kept", () => {
+    const conflicts = [
+      conflict(),
+      conflict({ kind: "variable", id: "env" }),
+      conflict({ kind: "setting", id: "refresh" }),
+    ]
+    expect(
+      droppedText(proposal({ conflicts }), {
+        "panel:p-errors": "ours",
+        "variable:env": "ours",
+        "setting:refresh": "ours",
+      })
+    ).toBe(
+      'The proposed change to panel "Errors", variable "env", the refresh setting was dropped; the dashboard keeps its own.'
+    )
+  })
+
+  it("says nothing when every conflict took the proposal's side", () => {
+    expect(
+      droppedText(proposal({ conflicts: [conflict()] }), {
+        "panel:p-errors": "theirs",
+      })
+    ).toBeNull()
+  })
+})
+
 describe("stateLine", () => {
   it.each([
     [summary(), "Open, based on version 3"],
@@ -231,7 +259,7 @@ describe("stateLine", () => {
     ],
     [
       summary({ state: "merged", merged_version: null, closed_by: ada }),
-      "Merged without a new version; the dashboard already had everything that was kept",
+      "Merged without a new version; nothing from this proposal was added to the dashboard",
     ],
     [
       summary({ state: "discarded", closed_by: { ...ada, name: "Grace" } }),

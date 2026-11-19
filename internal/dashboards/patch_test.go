@@ -155,6 +155,9 @@ func TestPanelsRouteSavesReplaysAndRefuses(t *testing.T) {
 			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != tc.status || body.Code != tc.code {
 				t.Fatalf("answered %d %s, want %d %s", rec.Code, rec.Body, tc.status, tc.code)
 			}
+			if tc.code == roleErrorCode && !strings.Contains(rec.Body.String(), `"needed_access":"comment"`) {
+				t.Fatalf("answered %s, want the refusal to name Comment", rec.Body)
+			}
 		})
 	}
 }

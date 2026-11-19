@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { usePreferences } from "@/lib/preferences"
 import { quickRanges } from "@/lib/time"
 import { renderWithProviders } from "@/test/render"
 
@@ -15,6 +16,7 @@ async function applyRange(from: string, to: string) {
       to="now"
       quickRanges={quickRanges}
       hidden={false}
+      timezone={undefined}
     />,
     { route: { path: "/dashboards/$dashboardId", url: "/dashboards/d1" } }
   )
@@ -62,12 +64,15 @@ describe("TimeRangePicker", () => {
 })
 
 describe("TimeRangeControl", () => {
-  function renderControl() {
+  afterEach(() => usePreferences.setState({ timeZone: "browser" }))
+
+  function renderControl(zone?: string | null) {
     const onChange = vi.fn()
     const result = renderWithProviders(
       <TimeRangeControl
         value={{ from: "now-1h", to: "now" }}
         onChange={onChange}
+        zone={zone}
       />
     )
     return { ...result, onChange }
@@ -113,5 +118,83 @@ describe("TimeRangeControl", () => {
       "Enter a time like now-6h, now/d or 2026-10-17 09:00."
     )
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("says why a time before the year 2000 is refused", async () => {
+    const { user, onChange } = renderControl()
+    await open(user)
+    const fromInput = await screen.findByLabelText("From")
+    await user.clear(fromInput)
+    await user.type(fromInput, "1999-12-31 23:00")
+    await user.click(screen.getByRole("button", { name: "Apply" }))
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Times before the year 2000 are not accepted."
+    )
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("reads typed text in the dashboard's zone", async () => {
+    const onChange = vi.fn()
+    const { user } = renderWithProviders(
+      <TimeRangeControl
+        value={{ from: "now-1h", to: "now" }}
+        onChange={onChange}
+        zone="Asia/Kolkata"
+      />
+    )
+    await open(user)
+    const fromInput = await screen.findByLabelText("From")
+    await user.clear(fromInput)
+    await user.type(fromInput, "2026-10-17 09:00")
+    await user.click(screen.getByRole("button", { name: "Apply" }))
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: String(Date.UTC(2026, 9, 17, 3, 30)),
+      to: "now",
+    })
+  })
+
+  async function applyTyped(
+    user: ReturnType<typeof renderControl>["user"],
+    from: string,
+    to: string
+  ) {
+    await open(user)
+    const fromInput = await screen.findByLabelText("From")
+    await user.clear(fromInput)
+    await user.type(fromInput, from)
+    const toInput = screen.getByLabelText("To")
+    await user.clear(toInput)
+    await user.type(toInput, to)
+    await user.click(screen.getByRole("button", { name: "Apply" }))
+  }
+
+  it("reads typed times in the zone the person prefers", async () => {
+    usePreferences.setState({ timeZone: "Asia/Tokyo" })
+    const { user, onChange } = renderControl()
+    await applyTyped(user, "2026-10-17 09:00", "2026-10-17 10:00")
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: String(Date.UTC(2026, 9, 17, 0, 0, 0)),
+      to: String(Date.UTC(2026, 9, 17, 1, 0, 0)),
+    })
+  })
+
+  it("reads typed times in the zone it is given before the preference", async () => {
+    usePreferences.setState({ timeZone: "Asia/Tokyo" })
+    const { user, onChange } = renderControl("UTC")
+    await applyTyped(user, "2026-10-17 09:00", "2026-10-17 10:00")
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: String(Date.UTC(2026, 9, 17, 9, 0, 0)),
+      to: String(Date.UTC(2026, 9, 17, 10, 0, 0)),
+    })
+  })
+
+  it("reads browser time when it is told so, whatever the preference", async () => {
+    usePreferences.setState({ timeZone: "Asia/Tokyo" })
+    const { user, onChange } = renderControl(null)
+    await applyTyped(user, "2026-10-17 09:00", "2026-10-17 10:00")
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      from: String(new Date(2026, 9, 17, 9, 0, 0).getTime()),
+      to: String(new Date(2026, 9, 17, 10, 0, 0).getTime()),
+    })
   })
 })

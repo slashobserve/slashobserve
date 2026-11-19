@@ -719,3 +719,30 @@ func TestListMetricsScopeOnLokiKeepsTheStoredInventory(t *testing.T) {
 		t.Fatalf("stored inventory = %v, %v; want the Prometheus families", got, ok)
 	}
 }
+
+func TestRecheckDatasourceReportsTheCauseOfAnUnhealthySource(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{healthErr: datasource.ErrorfStatus(datasource.ErrUnavailable, 503, "Ingester not ready")}, nil)
+	res, err := call(t, r, nameRecheckDatasource, `{"datasource":"fake"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("result = %+v, err = %v", res, err)
+	}
+	out, ok := res.Content.(datasourceOut)
+	if !ok {
+		t.Fatalf("content is %T", res.Content)
+	}
+	if out.UID != fakeUID || out.Healthy || out.Message != "The datasource is not answering" || out.Detail != "The datasource answered HTTP 503" {
+		t.Errorf("status = %+v", out)
+	}
+}
+
+func TestRecheckDatasourceRefusesAnUnknownUID(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, _ := call(t, r, nameRecheckDatasource, `{"datasource":"nope"}`)
+	if got := errorCode(t, res); got != string(queryproxy.CodeUnknownDatasource) {
+		t.Errorf("code = %q", got)
+	}
+	res, _ = call(t, r, nameRecheckDatasource, `{}`)
+	if got := errorCode(t, res); got != codeInvalidRequest {
+		t.Errorf("code = %q", got)
+	}
+}

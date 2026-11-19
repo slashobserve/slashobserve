@@ -8,6 +8,7 @@ const (
 	consentScreen       = "browser consent screen"
 	connectedAgents     = "connected agents are a person's credentials; keys never manage credentials, the CLI signs in with a key, and no MCP tool manages a person's credentials"
 	webhookAdmin        = "An Admin decides where workspace activity is sent; an agent that could register a webhook could send it anywhere."
+	datasourceAdmin     = "An Admin decides where the server connects and with which credentials; an agent that could add or change a datasource, or read its address, could point the server anywhere. Agents list datasources and recheck them."
 	publicLink          = "a public link is a person's decision: no agent or MCP tool creates, lists or revokes one"
 	noMCPDeletes        = "no MCP tool deletes anything: every MCP write is advertised as non-destructive, so people delete in the web app, the HTTP API or the CLI"
 	panelActions        = "runs a panel action a person clicks; the agent and MCP clients never add, change or run actions"
@@ -19,6 +20,9 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
+	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
+	removesPeople       = "an Admin removes a deactivated person in the web app; keys never manage people's accounts (auth.RequireUser), and the CLI signs in with a key"
+	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
 	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
 	notBuilt            = "no tool or command yet"
 )
@@ -166,6 +170,7 @@ var exceptions = map[string]exception{
 	"createServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
 	"listServiceAccountKeys":   {MCP: accountKeys, CLI: accountKeys},
 	"revokeServiceAccountKey":  {MCP: accountKeys, CLI: accountKeys},
+	"deleteServiceAccount":     {MCP: accountKeys, CLI: accountKeys},
 
 	"starDashboard":   {CLI: personOnly},
 	"unstarDashboard": {CLI: personOnly},
@@ -180,10 +185,26 @@ var exceptions = map[string]exception{
 
 	"tailLogs": {MCP: liveWebPage},
 
-	"listUsers":             {MCP: personOnly, CLI: personOnly},
+	"listUsers":             {MCP: peopleAdmin},
 	"updatePersonRole":      {MCP: personOnly, CLI: personOnly},
 	"signOutUserEverywhere": {MCP: personOnly, CLI: personOnly},
+	"deactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"reactivatePerson":      {MCP: endsSignIns, CLI: endsSignIns},
+	"removePerson":          {MCP: noMCPDeletes, CLI: removesPeople},
+	"listInvites":           {MCP: peopleAdmin},
+	"createInvite":          {MCP: peopleAdmin},
+	"deleteInvite":          {MCP: noMCPDeletes},
+	"listTeams":             {MCP: peopleAdmin},
+	"createTeam":            {MCP: peopleAdmin},
+	"deleteTeam":            {MCP: noMCPDeletes},
+	"addTeamMember":         {MCP: peopleAdmin},
+	"removeTeamMember":      {MCP: noMCPDeletes},
 
+	"getDatasourceConfig":   {MCP: datasourceAdmin},
+	"createDatasource":      {MCP: datasourceAdmin},
+	"updateDatasource":      {MCP: datasourceAdmin},
+	"deleteDatasource":      {MCP: datasourceAdmin},
+	"testDatasource":        {MCP: datasourceAdmin},
 	"listWebhooks":          {MCP: webhookAdmin},
 	"createWebhook":         {MCP: webhookAdmin},
 	"updateWebhook":         {MCP: webhookAdmin},

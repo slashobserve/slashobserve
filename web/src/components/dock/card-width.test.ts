@@ -5,6 +5,7 @@ import {
   chatPaneStacked,
   chatPaneWidth,
   clampWidth,
+  dashboardActivityOpens,
   draggedWidth,
   editWidth,
   isNarrow,
@@ -92,6 +93,15 @@ describe("opensByDefault", () => {
     expect(opensByDefault(761)).toBe(true)
     expect(opensByDefault(760)).toBe(false)
     expect(opensByDefault(390)).toBe(false)
+  })
+})
+
+describe("dashboardActivityOpens", () => {
+  it("keeps the Activity pane closed on phones and at 900px, where it would take a third of the dashboard", () => {
+    expect(dashboardActivityOpens(1440)).toBe(true)
+    expect(dashboardActivityOpens(901)).toBe(true)
+    expect(dashboardActivityOpens(900)).toBe(false)
+    expect(dashboardActivityOpens(390)).toBe(false)
   })
 })
 
