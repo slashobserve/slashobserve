@@ -796,7 +796,13 @@ func (rc refChecker) checkVariableRef(ref Reference, visible int) *Issue {
 		return &Issue{Code: CodeVariableOrder, Message: fmt.Sprintf("query references variable %q declared at %s; a variable query can only reference variables declared before it", ref.Name, pointer("variables", strconv.Itoa(idx)))}
 	case rc.adhoc[ref.Name] && rc.fromVariable:
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("a variable query cannot use adhoc variable %q", ref.Name)}
-	case rc.adhoc[ref.Name] && ref.Format != "":
+	}
+	return VariableFormatIssue(ref, rc.adhoc[ref.Name])
+}
+
+func VariableFormatIssue(ref Reference, adhoc bool) *Issue {
+	switch {
+	case adhoc && ref.Format != "":
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("adhoc variable %q takes no format", ref.Name)}
 	case ref.Format != "" && !slices.Contains(VariableFormats(), ref.Format):
 		return unknownFormatIssue(ref)

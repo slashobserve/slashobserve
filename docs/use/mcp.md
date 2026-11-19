@@ -217,7 +217,7 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day.
 
 `save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
 It takes `kind` (`logs` or `traces`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
@@ -517,6 +517,7 @@ The loop of an agent that takes runs:
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
 5. Call `report_run` at least every 30 seconds with the `run_id` and `attempt`; the lease ends 60 seconds after the last call, and `stop: true` in the answer means the run was canceled or has ended.
    `note`, one line of at most 500 characters, shows in the run's steps.
+   When the server has no run time limit, the session's `expires_at` is a minute out and every `report_run` moves it a minute on, so a run lasts as long as it keeps reporting.
 6. Call `finish_run` with `outcome` `succeeded` or `failed`.
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
@@ -563,6 +564,7 @@ Some results also carry a note after the content, which an agent reads like any 
 Calling it starts a session: it resets the read guard and pins the parent version the run's saves are checked against, and the server may replace `reason` (with `conflict` after a rebase, with the resume reason when the run has a build).
 An agent that never calls it works from the claim answer and the `observe` prompt.
 It answers `run_ended` for a run that has ended.
+A request on the run's token after the run ended is answered with HTTP 409 and `run_ended`, not a server error.
 
 `report_run` also takes, all optional:
 

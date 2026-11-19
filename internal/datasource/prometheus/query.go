@@ -137,11 +137,15 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 }
 
 func (d *Datasource) runQuery(ctx context.Context, path string, form url.Values, lim datasource.Limits) ([]datasource.Frame, error) {
-	raw, err := d.do(ctx, http.MethodPost, path, form)
+	raw, warnings, err := d.doWithWarnings(ctx, http.MethodPost, path, form)
 	if err != nil {
 		return nil, err
 	}
-	return convert(raw, lim)
+	frames, err := convert(raw, lim)
+	if err != nil || len(warnings) == 0 {
+		return frames, err
+	}
+	return datasource.MarkPartial(frames, warnings...), nil
 }
 
 func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {

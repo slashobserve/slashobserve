@@ -416,6 +416,7 @@ type querySummary struct {
 	Truncated bool            `json:"truncated"`
 	MoreRows  bool            `json:"more_rows,omitempty"`
 	Partial   bool            `json:"partial,omitempty"`
+	Warning   string          `json:"warning,omitempty"`
 	Note      string          `json:"note,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
@@ -454,12 +455,19 @@ func (s querySummary) describeLimits() string {
 		out += " (" + s.moreRowsNote() + ")"
 	}
 	if s.Partial {
-		out += " (" + queryproxy.PartialNote + ")"
+		out += " (" + queryproxy.PartialNote + warnedSuffix(s.Warning) + ")"
 	}
 	if s.Page != nil {
 		out += s.Page.describe()
 	}
 	return out
+}
+
+func warnedSuffix(warning string) string {
+	if warning == "" {
+		return ""
+	}
+	return "; the datasource warned: " + warning
 }
 
 func summarize(res queryproxy.Result) querySummary {
@@ -474,6 +482,7 @@ func summarize(res queryproxy.Result) querySummary {
 		Frames:   len(frames),
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
+		Warning:  meta.Warning,
 		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
 	}
 	if s.Empty {

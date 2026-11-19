@@ -73,6 +73,9 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 				return nil, nil, errNoRunSessions
 			}
 			scope, err := h.runs.Scope(ctx, req)
+			if errors.Is(err, tools.ErrRunEnded) {
+				return nil, nil, err
+			}
 			if err != nil {
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", err, slog.String("agent_request_id", req.ID))...)
 				return nil, nil, err

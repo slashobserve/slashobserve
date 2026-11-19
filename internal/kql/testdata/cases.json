@@ -57,5 +57,6 @@
   {"text": "*name:x", "error": "a field name cannot start with *", "start": 0, "end": 5},
   {"text": "message:a\\ b", "error": "quote a value that contains spaces", "start": 9, "end": 11},
   {"text": "kql:a", "error": "kql: is a form prefix, not a query", "start": 0, "end": 4},
-  {"text": "a:\"x", "error": "unterminated string", "start": 2, "end": 4}
+  {"text": "a:\"x", "error": "unterminated string", "start": 2, "end": 4},
+  {"text": "a:\"x\\ny\\tz\\rw\"", "ast": "(match 0:14 a \"x\\ny\\tz\\rw\" quoted)"}
 ]

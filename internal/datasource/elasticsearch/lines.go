@@ -7,7 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const tailLag = 5 * time.Second
+const tailLag = datasource.DefaultTailLag
 
 var (
 	_ datasource.LineSource = (*Datasource)(nil)

@@ -1,10 +1,13 @@
 package runsession
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -192,4 +195,21 @@ func newGuardForTest() guard.State {
 	g.BeginSession(true, 2)
 	g.BeginTurn(false)
 	return g
+}
+
+func TestSlotsBlockWhenFullAndFreeOnRelease(t *testing.T) {
+	l := make(slots, 1)
+	release, err := l.acquire(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := l.acquire(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("second acquire = %v, want the context's deadline while the slot is held", err)
+	}
+	release()
+	if _, err := l.acquire(context.Background()); err != nil {
+		t.Fatalf("acquire after release = %v", err)
+	}
 }

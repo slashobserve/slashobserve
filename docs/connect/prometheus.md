@@ -26,6 +26,12 @@ prometheus:
 
 The server does not follow redirects, so give the final address, and it refuses a response over 64 MiB.
 
+## Warnings
+
+Thanos and Mimir answer with a `warnings` list when a store did not answer.
+SlashObserve marks that result partial, so `meta.partial` is true even when the result is empty, and `meta.warning` carries the text, with a server address replaced by a generic line.
+The agent's query tools report the same text, so an empty answer is not read as "no data".
+
 ## Exemplars
 
 A time series or heatmap query with `exemplar: true` also asks Prometheus for exemplars over the same range, through `/api/v1/query_exemplars`.

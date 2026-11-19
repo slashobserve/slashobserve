@@ -135,13 +135,15 @@ func (s *Service) openSession(ctx context.Context, c Claimer, row dbsqlc.AgentRe
 	if err != nil {
 		return RunSession{}, err
 	}
-	if err := s.db.Queries().DeleteRunTokens(ctx, row.ID); err != nil {
-		return RunSession{}, err
-	}
-	expires := time.Now().Add(s.runTime())
-	err = s.db.Queries().InsertRunToken(ctx, dbsqlc.InsertRunTokenParams{
-		TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts,
-		ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
+	expires := s.tokenExpiry()
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.DeleteRunTokens(ctx, row.ID); err != nil {
+			return err
+		}
+		return q.InsertRunToken(ctx, dbsqlc.InsertRunTokenParams{
+			TokenHash: hash, AgentRequestID: row.ID, Attempt: row.Attempts,
+			ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
+		})
 	})
 	if err != nil {
 		return RunSession{}, err

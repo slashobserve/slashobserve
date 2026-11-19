@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -218,6 +220,35 @@ func TestARevisionWithAUserScopedSnapshotHasNoLink(t *testing.T) {
 	}
 	if _, err := r.service.CreateRCALink(t.Context(), admin, id, 2, CreateRCAInput{}); err != nil {
 		t.Errorf("a later revision with no scoped snapshot: %v", err)
+	}
+}
+
+func TestRacingRCALinkCreatesCannotPassTheLimit(t *testing.T) {
+	r := newRCARig(t)
+	id := r.published(t)
+	for range maxLinksPerObservation - 1 {
+		r.createLink(t, id, 1, CreateRCAInput{})
+	}
+	const racers = 8
+	var wg sync.WaitGroup
+	var created, refused atomic.Int32
+	for range racers {
+		wg.Go(func() {
+			_, err := r.service.CreateRCALink(t.Context(), admin, id, 1, CreateRCAInput{})
+			switch {
+			case err == nil:
+				created.Add(1)
+			case errors.Is(err, ErrTooManyRCALinks):
+				refused.Add(1)
+			default:
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if created.Load() != 1 || refused.Load() != racers-1 {
+		t.Fatalf("%d racing creates succeeded and %d were refused, want 1 and %d", created.Load(), refused.Load(), racers-1)
 	}
 }
 

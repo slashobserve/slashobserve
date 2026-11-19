@@ -69,8 +69,8 @@ func lineFilterTraceQuery(selector string, req datasource.TraceLogsRequest) stri
 }
 
 func (d *Datasource) traceLines(ctx context.Context, req datasource.TraceLogsRequest, text string) ([]datasource.Frame, error) {
-	q := datasource.Query{Text: text, Limits: datasource.Limits{MaxRows: req.Limit}, User: req.User}
-	return d.query(ctx, q, req.Range, instantInterval(req.Range, 0), true)
+	lim := d.opts.Limits.Tighten(datasource.Limits{MaxRows: req.Limit})
+	return d.queryText(ctx, text, lim, req.Range, instantInterval(req.Range, 0), true)
 }
 
 func lineCount(frames []datasource.Frame) int {

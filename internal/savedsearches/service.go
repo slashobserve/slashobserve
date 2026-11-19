@@ -3,6 +3,7 @@ package savedsearches
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"time"
@@ -19,6 +20,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
+
+const maxFolderRetries = 5
+
+var errFolderMoved = errors.New("the saved search changed folders after its access was checked")
 
 type Service struct {
 	store     *store
@@ -117,6 +122,16 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		}
 		title = &cleaned
 	}
+	for range maxFolderRetries {
+		updated, err := s.updateOnce(ctx, by, id, title, in)
+		if !errors.Is(err, errFolderMoved) {
+			return updated, err
+		}
+	}
+	return SavedSearch{}, fmt.Errorf("saved search %s changed folders %d times in a row: %w", id, maxFolderRetries, errFolderMoved)
+}
+
+func (s *Service) updateOnce(ctx context.Context, by auth.Principal, id pgtype.UUID, title *string, in UpdateInput) (SavedSearch, error) {
 	current, err := s.store.get(ctx, id)
 	if err != nil {
 		return SavedSearch{}, err
@@ -136,7 +151,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	}
 	row := current
 	if changed.title != nil || changed.moveTo.Valid {
-		if row, err = s.store.update(ctx, actor.Of(by, origin.From(ctx), ""), id, changed); err != nil {
+		if row, err = s.store.update(ctx, actor.Of(by, origin.From(ctx), ""), id, current.FolderID, changed); err != nil {
 			return SavedSearch{}, err
 		}
 		s.logger.InfoContext(ctx, "saved search updated",

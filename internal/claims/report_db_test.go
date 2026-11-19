@@ -44,6 +44,29 @@ func TestReportRenewsTheLeaseOfALiveRun(t *testing.T) {
 	}
 }
 
+func TestReportWithNoRunLimitRenewsTheTokenWithTheLease(t *testing.T) {
+	f := newFixture(t)
+	f.svc.runTimeout = 0
+	queued, _ := f.claimed(t)
+	f.d.Exec(t, "UPDATE run_tokens SET expires_at = now() + interval '5 seconds' WHERE agent_request_id = $1", queued.ID)
+
+	answer, err := f.svc.Report(context.Background(), grantClaimer, reportOf(queued, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if answer.State != "running" || answer.Stop {
+		t.Fatalf("answer = %+v, want running without stop", answer)
+	}
+	var expires time.Time
+	if err := f.d.SQLDB(t).QueryRow("SELECT expires_at FROM run_tokens WHERE agent_request_id = $1", queued.ID).Scan(&expires); err != nil {
+		t.Fatal(err)
+	}
+	if left := time.Until(expires); left < 50*time.Second || left > 70*time.Second {
+		t.Fatalf("token expires in %v, want about the lease ttl", left)
+	}
+}
+
 func TestReportRecordsTheNoteAsAStep(t *testing.T) {
 	f := newFixture(t)
 	queued, _ := f.claimed(t)

@@ -299,6 +299,21 @@ func (q *Queries) PruneRunTokens(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const renewRunTokens = `-- name: RenewRunTokens :exec
+UPDATE run_tokens SET expires_at = $1 WHERE agent_request_id = $2 AND attempt = $3
+`
+
+type RenewRunTokensParams struct {
+	ExpiresAt      pgtype.Timestamptz
+	AgentRequestID pgtype.UUID
+	Attempt        int32
+}
+
+func (q *Queries) RenewRunTokens(ctx context.Context, arg RenewRunTokensParams) error {
+	_, err := q.db.Exec(ctx, renewRunTokens, arg.ExpiresAt, arg.AgentRequestID, arg.Attempt)
+	return err
+}
+
 const touchAgentWorker = `-- name: TouchAgentWorker :exec
 INSERT INTO agent_workers (id, principal_kind, principal_id, client, seen_at)
 VALUES ($1, $2, $3, $4, clock_timestamp())

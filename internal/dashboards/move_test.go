@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -112,5 +113,25 @@ func TestPublishingMovesAPrivateDashboardToASharedFolder(t *testing.T) {
 	}
 	if _, err := r.service.need(t.Context(), bob.principal, dash, folders.NeedView); err != nil {
 		t.Fatalf("another Editor's access after publishing: %v", err)
+	}
+}
+
+func TestMoveOfADashboardThatLeftTheCheckedFolderIsRefusedAndWritesNothing(t *testing.T) {
+	r := newRig(t, false)
+	ada := r.addPerson(t, "ada")
+	general := r.generalFolder(t)
+	dash := r.createAs(t, ada, general)
+
+	err := r.service.store.move(t.Context(), dash, ada.personal, general, actor.Actor{})
+
+	if !errors.Is(err, errFolderMoved) {
+		t.Fatalf("move = %v, want errFolderMoved because the dashboard is not in the folder that was checked", err)
+	}
+	var moves int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM activity WHERE type = 'dashboard.moved'`).Scan(&moves); err != nil {
+		t.Fatal(err)
+	}
+	if moves != 0 {
+		t.Fatalf("%d move events recorded for a move that did not happen", moves)
 	}
 }

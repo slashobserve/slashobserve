@@ -176,6 +176,7 @@ The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
 
 A `groupby` variable (Prometheus only) lets a viewer pick labels, up to 20, and adds them to the grouping of every aggregation in every query on its datasource, as Grafana does, so the queries need no change.
 Its `default` lists the labels selected from the start, and a query that writes `$name` gets the labels there and no automatic grouping.
+An aggregation written with `without` keeps a picked label by dropping it from its `without` list.
 
 An `adhoc` variable can start with filters: `default` is up to 20 objects, each with a `key` (1 to 200 characters), an `operator` (`=`, `!=`, `=~`, `!~`, `<` or `>`), a `value` (up to 500 characters, possibly empty), an optional `condition` (`and` or `or`) and optional chip texts `keyLabel` (up to 200 characters) and `valueLabel` (up to 500), which change only what the chip shows.
 Without a `var-<name>` parameter the dashboard uses these filters, and a link that sets the parameter replaces them.

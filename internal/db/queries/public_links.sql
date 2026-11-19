@@ -10,6 +10,12 @@ WHERE dashboard_id = @dashboard_id
 ORDER BY (expires_at IS NOT NULL AND expires_at <= @now::timestamptz), created_at DESC, id DESC
 LIMIT 100;
 
+-- name: LockDashboardForLinks :exec
+SELECT 1 FROM dashboards WHERE id = @id FOR NO KEY UPDATE;
+
+-- name: LockObservationForLinks :exec
+SELECT 1 FROM observations WHERE id = @id FOR NO KEY UPDATE;
+
 -- name: CountPublicLinks :one
 SELECT count(*)::int FROM public_links
 WHERE dashboard_id = @dashboard_id AND (expires_at IS NULL OR expires_at > @now::timestamptz);
