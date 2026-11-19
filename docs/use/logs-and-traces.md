@@ -373,7 +373,7 @@ An address with a trace id and no `ds` opens the only trace datasource when ther
 
 ### Waterfall
 
-The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge; a very short window shows three round labels, or two or one on a narrow ruler, rather than its two edges.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
@@ -401,7 +401,7 @@ On a phone each row stacks the service and operation, with the duration at the r
 
 ### Logs for a span or trace
 
-A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
+A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found; a datasource that has not answered after 15 seconds ends in an error with **Retry**, never in placeholders that stay.
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
 **Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.

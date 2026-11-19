@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { isRetryable, unwrap } from "@/api/errors"
+import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { exploreKeys, type TraceLogsParams } from "@/api/keys"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
@@ -25,30 +25,61 @@ const bodyNames = new Set(["body", "message", "msg", "line", "log"])
 const lokiSelector = '{service_name=~".+"}'
 const clickhouseTimeFilter = "WHERE $__timeFilter(Timestamp)"
 
+export const traceLogsDeadlineMs = 15_000
+const deadlineMessage =
+  "The logs datasource did not answer in time. Try again, or open the logs page and narrow the time range."
+
+export async function withDeadline<T>(
+  run: (signal: AbortSignal) => Promise<T>,
+  signal: AbortSignal | undefined,
+  deadlineMs: number
+): Promise<T> {
+  const deadline = new AbortController()
+  const timer = setTimeout(() => deadline.abort(), deadlineMs)
+  const combined = signal
+    ? AbortSignal.any([signal, deadline.signal])
+    : deadline.signal
+  try {
+    return await run(combined)
+  } catch (error) {
+    if (deadline.signal.aborted && !signal?.aborted) {
+      throw new ApiError(504, "query_timeout", deadlineMessage)
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 function traceLogsRequest(
   uid: string,
   { traceId, spanId, service, from, to, limit }: TraceLogsParams,
   signal?: AbortSignal
 ): Promise<PanelDataResponse> {
   const timezone = requestZone("browser")
-  return panelRequestLimiter.run(
-    () =>
-      api
-        .POST("/datasources/{uid}/trace-logs", {
-          params: { path: { uid } },
-          body: {
-            trace_id: traceId,
-            ...(spanId !== undefined && { span_id: spanId }),
-            ...(service !== undefined && service !== "" && { service }),
-            from,
-            to,
-            ...(timezone !== undefined && { timezone }),
-            ...(limit !== undefined && { limit }),
-          },
-          signal,
-        })
-        .then(unwrap),
-    signal
+  return withDeadline(
+    (deadlineSignal) =>
+      panelRequestLimiter.run(
+        () =>
+          api
+            .POST("/datasources/{uid}/trace-logs", {
+              params: { path: { uid } },
+              body: {
+                trace_id: traceId,
+                ...(spanId !== undefined && { span_id: spanId }),
+                ...(service !== undefined && service !== "" && { service }),
+                from,
+                to,
+                ...(timezone !== undefined && { timezone }),
+                ...(limit !== undefined && { limit }),
+              },
+              signal: deadlineSignal,
+            })
+            .then(unwrap),
+        deadlineSignal
+      ),
+    signal,
+    traceLogsDeadlineMs
   )
 }
 
