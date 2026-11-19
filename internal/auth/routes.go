@@ -11,7 +11,7 @@ import (
 func RequireRole(floor Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if p, ok := FromContext(c.Request.Context()); !ok || !p.Role.AtLeast(floor) {
-			abortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+			c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsRole(string(floor)))
 			return
 		}
 		c.Next()

@@ -47,6 +47,7 @@ func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash
 type SaveInput struct {
 	AgentRequestID  pgtype.UUID
 	DashboardID     pgtype.UUID
+	AskDashboardID  pgtype.UUID
 	FolderID        pgtype.UUID
 	Title, Markdown string
 	Evidence        []spec.Panel
@@ -57,8 +58,14 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if in.DashboardID.Valid && in.FolderID.Valid {
 		return Finding{}, false, ErrPlacement
 	}
-	if in.DashboardID.Valid {
-		if err := s.viewable(ctx, by, in.DashboardID); err != nil {
+	if in.DashboardID.Valid && in.AskDashboardID.Valid {
+		return Finding{}, false, ErrAskPlacement
+	}
+	for _, id := range []pgtype.UUID{in.DashboardID, in.AskDashboardID} {
+		if !id.Valid {
+			continue
+		}
+		if err := s.viewable(ctx, by, id); err != nil {
 			return Finding{}, false, err
 		}
 	}
@@ -84,7 +91,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 		return Finding{}, err
 	}
 	f.Folder, f.Abilities = &folder, abilities
-	return f, nil
+	return s.askOnIfViewable(ctx, by, f)
 }
 
 func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
@@ -99,7 +106,25 @@ func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID p
 	case err != nil:
 		return Finding{}, false, err
 	}
-	return f, true, nil
+	f, err = s.askOnIfViewable(ctx, by, f)
+	return f, err == nil, err
+}
+
+func (s *Service) askOnIfViewable(ctx context.Context, by auth.Principal, f Finding) (Finding, error) {
+	if f.AskOnID == "" {
+		return f, nil
+	}
+	id, err := db.ParseUUID(f.AskOnID)
+	if err != nil {
+		return Finding{}, err
+	}
+	switch err := s.viewable(ctx, by, id); {
+	case errors.Is(err, ErrNotFound):
+		f.AskOnID, f.AskOnTitle = "", ""
+	case err != nil:
+		return Finding{}, err
+	}
+	return f, nil
 }
 
 func (s *Service) EvidenceDashboard(ctx context.Context, by auth.Principal, id pgtype.UUID) (*spec.Dashboard, error) {

@@ -113,6 +113,62 @@ func panelNotes(p *spec.Panel) []string {
 	return notes
 }
 
+var noteableVariables = []spec.VariableType{spec.QueryVariable, spec.CustomVariable, spec.TextboxVariable, spec.IntervalVariable, spec.ConstantVariable}
+
+func (a *advice) noteDroppedVariables(before, after *spec.Dashboard) {
+	if before == nil || after == nil {
+		return
+	}
+	for _, v := range after.Variables {
+		if len(a.Notes) >= maxNotes {
+			return
+		}
+		if slices.Contains(noteableVariables, v.Type) && referencesVariable(before, v.Name) && !referencesVariable(after, v.Name) {
+			a.Notes = append(a.Notes, fmt.Sprintf("variable %s is no longer used by any panel or other variable after this save; remove it or use it again", clip(v.Name, maxStepNameBytes)))
+		}
+	}
+}
+
+func referencesVariable(d *spec.Dashboard, name string) bool {
+	rest := *d
+	rest.Variables = slices.DeleteFunc(slices.Clone(d.Variables), func(v spec.Variable) bool { return v.Name == name })
+	body, err := json.Marshal(rest)
+	if err != nil {
+		return true
+	}
+	quoted, err := json.Marshal(name)
+	if err != nil {
+		return true
+	}
+	text := string(body)
+	return mentionsVariable(text, "${"+name, "}", ":") ||
+		mentionsVariable(text, "[["+name, "]]", ":") ||
+		mentionsVariable(text, "$"+name, "") ||
+		strings.Contains(text, `"repeat":`+string(quoted))
+}
+
+func mentionsVariable(text, prefix string, closers ...string) bool {
+	for from := 0; from < len(text); {
+		at := strings.Index(text[from:], prefix)
+		if at < 0 {
+			return false
+		}
+		end := from + at + len(prefix)
+		switch {
+		case end == len(text):
+			return true
+		case len(closers) == 0 || closers[0] == "":
+			if !isNameByte(text[end]) {
+				return true
+			}
+		case strings.HasPrefix(text[end:], closers[0]) || (len(closers) > 1 && strings.HasPrefix(text[end:], closers[1])):
+			return true
+		}
+		from += at + 1
+	}
+	return false
+}
+
 func withAdvice(ctx context.Context, out savedOut, doc *spec.Dashboard) savedOut {
 	inventory, _ := inventories.get(ctx)
 	out.advice = adviceFor(doc, inventory)

@@ -213,7 +213,7 @@ func TestRestrictedFolderDashboardsNeverLeakThroughTools(t *testing.T) {
 				t.Fatalf("list_dashboards = %+v, want both dashboards", list)
 			}
 			get := r.call(t, by, nameGetDashboard, `{"dashboard_id":"`+hiddenID+`"}`)
-			if out, ok := get.Content.(dashboardOut); get.IsError || !ok || out.Title != hiddenTitle || out.Folder != hiddenFolder {
+			if out, ok := get.Content.(dashboardOut); get.IsError || !ok || out.Title != hiddenTitle || out.Folder != hiddenFolder || out.SavedBy != "Root" || out.Summary != "create" || out.SavedAt == "" {
 				t.Fatalf("get_dashboard = %s", textOf(t, get))
 			}
 			if folderList := r.call(t, by, nameListFolders, `{}`); !strings.Contains(textOf(t, folderList), hiddenFolder) {

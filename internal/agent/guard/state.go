@@ -23,6 +23,7 @@ type Window struct {
 	Calls    int  `json:"calls"`
 	Stalled  int  `json:"stalled"`
 	Diagnose bool `json:"diagnose,omitempty"`
+	Refused  int  `json:"refused,omitempty"`
 }
 
 type Read struct {

@@ -27,7 +27,7 @@ const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"
 const savedQuery =
   'sum(rate(http_requests_total{service="checkout"}[$__rate_interval]))'
-const newerNotice = "Version 2 was saved while you were editing."
+const newerNotice = /saved version 2 while you were editing\./i
 const newerTimeout = 10_000
 const saveVersionButton = /^Save as version \d+$/
 const expectedLint429: string[] = []
@@ -327,7 +327,7 @@ test("keeps an unsaved query when a newer version arrives", async ({
   await expect(content).toBeFocused()
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(page.getByText("Saved version 3")).toBeVisible()
   const saved = await getDashboard(request, id)
@@ -350,7 +350,7 @@ test("applying my query keeps a panel title renamed in the newer version", async
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(page.getByText("Saved version 3")).toBeVisible()
@@ -379,7 +379,7 @@ test("applying my title keeps a panel query changed in the newer version", async
   )
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(page.getByText("Saved version 3")).toBeVisible()
@@ -444,7 +444,7 @@ test("keeps an unsaved query when its panel is deleted in a newer version", asyn
   ).toBeVisible()
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(
     sheet(page).getByText("This panel no longer exists in the latest version.")
@@ -472,7 +472,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   ).toHaveCount(0)
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(page.getByText("Saved version 3")).toBeVisible()
   const rps = (await getDashboard(request, id)).spec.panels.find(
@@ -1164,7 +1164,7 @@ test("shows the clash and sends nothing when applying my changes would make the 
   )
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(

@@ -97,7 +97,7 @@ type Props = {
   draft: string
   onDraftChange: (text: string) => void
   gate: AgentGate
-  canEdit: boolean
+  canInvestigate: boolean
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
@@ -148,7 +148,7 @@ export function ActivityComposer({
   draft,
   onDraftChange,
   gate,
-  canEdit,
+  canInvestigate,
   placeholder,
   textareaRef,
   notice,
@@ -158,7 +158,7 @@ export function ActivityComposer({
   const commands = availableCommands({
     hasDashboard: true,
     surface: "activity",
-    canInvestigate: canEdit,
+    canInvestigate,
   })
   const counterId = useId()
   const textareaId = useId()

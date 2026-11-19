@@ -61,6 +61,7 @@ type dataEntry struct {
 	to        time.Time
 	step      time.Duration
 	meta      resultMeta
+	canPage   bool
 
 	executedAt time.Time
 }

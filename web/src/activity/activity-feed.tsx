@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import {
   composerMode,
+  mayInvestigate,
   readerNote,
   useLatestFolderTitle,
   useLatestPermissions,
@@ -410,7 +411,7 @@ export function ActivityFeed({
           draft={draft}
           onDraftChange={onDraftChange}
           gate={gate}
-          canEdit={permissions.edit}
+          canInvestigate={mayInvestigate(permissions, principal.role)}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"

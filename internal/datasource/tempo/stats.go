@@ -59,6 +59,9 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if !strings.HasPrefix(q, "{") || !strings.HasSuffix(q, "}") {
 		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", statsNeedsFilter)
 	}
+	if err := rangeStartsInFuture(req.Range); err != nil {
+		return datasource.TraceStats{}, err
+	}
 	lim := d.opts.Limits.Tighten(req.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
@@ -78,7 +81,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 				"end":   {strconv.FormatInt(req.Range.To.UnixNano(), 10)},
 				"step":  {strconv.FormatInt(max(int64(req.Step/time.Second), 1), 10) + "s"},
 			}
-			return d.getJSON(groupCtx, metricsPath, params, &responses[i])
+			return traceQLProblem(d.getJSON(groupCtx, metricsPath, params, &responses[i]), text, text)
 		})
 	}
 	if err := group.Wait(); err != nil {

@@ -33,6 +33,7 @@ type SummaryJSON struct {
 	UpdatedAt      string      `json:"updated_at"`
 	ClosedAt       *string     `json:"closed_at"`
 	ClosedBy       *authorJSON `json:"closed_by"`
+	CloseReason    *string     `json:"close_reason"`
 	MergedVersion  *int        `json:"merged_version"`
 	Behind         bool        `json:"behind"`
 	LatestVersion  int         `json:"latest_version"`
@@ -43,6 +44,7 @@ type ProposalJSON struct {
 	SummaryJSON
 	Spec      *spec.Dashboard   `json:"spec"`
 	Changes   []spec.UnitChange `json:"changes"`
+	Diff      []spec.Change     `json:"diff"`
 	Conflicts []spec.Conflict   `json:"conflicts"`
 }
 
@@ -99,6 +101,7 @@ func NewSummaryJSON(i Item) SummaryJSON {
 		CreatedAt:      httpapi.FormatTime(i.CreatedAt),
 		UpdatedAt:      httpapi.FormatTime(i.UpdatedAt),
 		ClosedAt:       timeText(i.ClosedAt),
+		CloseReason:    i.CloseReason,
 		MergedVersion:  i.MergedVersion,
 		Behind:         i.Behind,
 		LatestVersion:  i.LatestVersion,
@@ -112,5 +115,5 @@ func NewSummaryJSON(i Item) SummaryJSON {
 }
 
 func NewProposalJSON(p Proposal) ProposalJSON {
-	return ProposalJSON{SummaryJSON: NewSummaryJSON(p.Item), Spec: p.Spec, Changes: p.Changes, Conflicts: p.Conflicts}
+	return ProposalJSON{SummaryJSON: NewSummaryJSON(p.Item), Spec: p.Spec, Changes: p.Changes, Diff: p.Diff, Conflicts: p.Conflicts}
 }

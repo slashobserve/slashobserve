@@ -474,7 +474,7 @@ func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
 		message string
 	}{
 		{"role does not allow a revision", folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
-		{"no access to the dashboard", folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
+		{"no access to the dashboard", folders.ErrNoAccess, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"dashboard is gone", dashboards.ErrNotFound, http.StatusNotFound, "not_found", dashboards.ErrNotFound.Error()},
 		{"comment is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
 	}

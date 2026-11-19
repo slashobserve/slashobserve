@@ -341,6 +341,17 @@ components:
           type: string
         code:
           type: string
+        needed_role:
+          type: string
+          enum: [viewer, commenter, editor, admin]
+          description: On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+        needed_access:
+          type: string
+          enum: [view, comment, edit, manage]
+          description: On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+        folder_title:
+          type: string
+          description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
     Issue:
       type: object
       additionalProperties: false
@@ -2006,7 +2017,7 @@ components:
     ProposalSummary:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions]
       description: A proposed change to a dashboard, without its document.
       properties:
         id:
@@ -2022,7 +2033,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: The summary of the first revision, cut to 200 characters.
+          description: The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary.
         revision:
           type: integer
           minimum: 1
@@ -2066,6 +2077,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2090,7 +2107,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -2150,6 +2167,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2180,6 +2203,11 @@ components:
           items:
             $ref: "#/components/schemas/ProposalChange"
           description: What the head revision adds, changes, removes or moves compared with `base_version`.
+        diff:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpecChange"
+          description: The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions.
         conflicts:
           type: array
           items:
@@ -2776,6 +2804,12 @@ components:
         partial:
           type: boolean
           description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+        note:
+          type: string
+          description: >-
+            One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page:
+            read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter.
+            Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing.
         rows:
           type: integer
           minimum: 0
@@ -4176,6 +4210,17 @@ components:
           format: uuid
         name:
           type: string
+    FindingAskOn:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: The dashboard's title, for a button such as "Ask this on Checkout".
     Finding:
       type: object
       additionalProperties: false
@@ -4185,6 +4230,7 @@ components:
         - agent_request_id
         - dashboard_id
         - folder_id
+        - ask_on
         - title
         - markdown
         - evidence
@@ -4218,6 +4264,14 @@ components:
           format: uuid
           nullable: true
           description: The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
+        ask_on:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/FindingAskOn"
+          description: >-
+            The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do.
+            Start an ordinary revision with the same prompt and this `dashboard_id` to make the change.
+            Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null.
         title:
           type: string
           minLength: 1
@@ -4292,10 +4346,10 @@ components:
           maxLength: 200
         min:
           type: string
-          description: The shortest duration, such as `250ms` or `2s`.
+          description: The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long.
         max:
           type: string
-          description: The longest duration, such as `250ms` or `2s`.
+          description: The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer.
         errors:
           type: boolean
           description: Only traces with an error.
@@ -5468,7 +5522,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -5476,6 +5530,10 @@ components:
         prefix:
           type: string
           description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        label:
+          type: string
+          maxLength: 80
+          description: What the link is for, set when it was created; empty when none was given.
         variables:
           type: string
           enum: [frozen, free]
@@ -5520,6 +5578,10 @@ components:
       additionalProperties: false
       required: [variables]
       properties:
+        label:
+          type: string
+          maxLength: 80
+          description: Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for.
         variables:
           type: string
           enum: [frozen, free]
@@ -6430,7 +6492,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     NotFound:
-      description: The resource does not exist.
+      description: The resource does not exist, or the caller cannot see it; the two are never told apart.
       content:
         application/json:
           schema:

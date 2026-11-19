@@ -17,16 +17,12 @@ export type User =
 const pageSize = 100
 const maxPages = 100
 
-function activityTime(user: User): number {
-  const time = Date.parse(user.last_seen_at)
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
-}
-
-function newestFirst(a: User, b: User): number {
-  const left = activityTime(a)
-  const right = activityTime(b)
-  if (left === right) return 0
-  return left > right ? -1 : 1
+export function byNameThenId(a: User, b: User): number {
+  return (
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
+    a.email.localeCompare(b.email, undefined, { sensitivity: "base" }) ||
+    a.id.localeCompare(b.id)
+  )
 }
 
 async function fetchAllUsers(signal: AbortSignal): Promise<User[]> {
@@ -42,7 +38,7 @@ async function fetchAllUsers(signal: AbortSignal): Promise<User[]> {
     if (cursor === undefined || seen.has(cursor)) break
     seen.add(cursor)
   }
-  return users.sort(newestFirst)
+  return users.sort(byNameThenId)
 }
 
 export function usersQuery() {
