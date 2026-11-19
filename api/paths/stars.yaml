@@ -95,6 +95,8 @@ stars:
                       starred_at:
                         type: string
                         format: date-time
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":

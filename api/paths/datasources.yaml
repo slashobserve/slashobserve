@@ -12,6 +12,8 @@ datasources:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/DatasourceList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "500":

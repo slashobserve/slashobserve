@@ -37,7 +37,7 @@ func TestUnknownQueryNamesComeFromTheDocument(t *testing.T) {
 	}
 }
 
-func TestAnUnknownQueryParameterIsReportedInAHeaderAndStillServed(t *testing.T) {
+func TestAnUnknownQueryParameterOfANonListRouteIsReportedInAHeaderAndStillServed(t *testing.T) {
 	params, err := documentedQueryParams()
 	if err != nil {
 		t.Fatal(err)
@@ -46,12 +46,13 @@ func TestAnUnknownQueryParameterIsReportedInAHeaderAndStillServed(t *testing.T) 
 	engine := gin.New()
 	group := engine.Group(apiPrefix)
 	group.Use(warnUnknownQuery(params))
-	group.GET("/dashboards", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{}) })
+	group.GET("/dashboards/:id", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{}) })
+	const id = "/api/v1/dashboards/3f2b8a52-6f2e-4a54-9a3e-0d4d3a6a9b11"
 	cases := map[string]string{
-		"/api/v1/dashboards?limit=5":                  "",
-		"/api/v1/dashboards?health=x&limit=5":         "health",
-		"/api/v1/dashboards?b=1&a=1":                  "a, b",
-		"/api/v1/dashboards?x%0d%0aSet-Cookie=1&ok=1": "ok, ...",
+		id + "?version=1":                "version",
+		id:                               "",
+		id + "?b=1&a=1":                  "a, b",
+		id + "?x%0d%0aSet-Cookie=1&ok=1": "ok, ...",
 	}
 	for target, want := range cases {
 		rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil))
@@ -73,5 +74,68 @@ func TestTheContractCheckRefusesToAcceptAnUndocumentedQueryParameter(t *testing.
 	logs.Reset()
 	if rec := serve(engine, httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)); rec.Code != http.StatusNoContent {
 		t.Fatalf("status %d, logs %s", rec.Code, logs.String())
+	}
+}
+
+func listEngine(t *testing.T) *gin.Engine {
+	t.Helper()
+	params, err := documentedQueryParams()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gin.SetMode(gin.ReleaseMode)
+	engine := gin.New()
+	group := engine.Group(apiPrefix)
+	group.Use(warnUnknownQuery(params))
+	ok := func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{}) }
+	group.GET("/dashboards", ok)
+	group.GET("/observations", ok)
+	group.GET("/folders", ok)
+	return engine
+}
+
+func TestAListRouteRefusesAnUnknownQueryParameterByName(t *testing.T) {
+	engine := listEngine(t)
+	for target, want := range map[string]string{
+		"/api/v1/dashboards?health=duplicate_title&limit=200": `unknown query parameter health; this route takes `,
+		"/api/v1/observations?bogus=1":                        `unknown query parameter bogus; this route takes `,
+		"/api/v1/folders?bogus=1":                             `unknown query parameter bogus`,
+		"/api/v1/dashboards?folder_id=notauuid&sort=x":        `unknown query parameter folder_id, sort`,
+	} {
+		rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil))
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), want) || !strings.Contains(rec.Body.String(), `"code":"invalid_request"`) {
+			t.Errorf("%s: %d %s, want 400 with %q", target, rec.Code, rec.Body.String(), want)
+		}
+	}
+}
+
+func TestAListRouteRefusesABadQueryValueByName(t *testing.T) {
+	engine := listEngine(t)
+	for target, want := range map[string]string{
+		"/api/v1/observations?folder_id=notauuid": `query parameter \"folder_id\" must be a UUID`,
+		"/api/v1/dashboards?order=oldest":         `query parameter \"order\" must be one of updated, folder, views`,
+		"/api/v1/dashboards?order=;drop":          `the query string is malformed`,
+		"/api/v1/dashboards?order=":               `query parameter \"order\" must be one of updated, folder, views`,
+		"/api/v1/dashboards?limit=0":              `query parameter \"limit\" must be an integer from 1 to 200`,
+		"/api/v1/dashboards?limit=abc":            `query parameter \"limit\" must be an integer from 1 to 200`,
+		"/api/v1/dashboards?tag=Not%20A%20Tag":    `query parameter \"tag\" must be a list`,
+	} {
+		rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil))
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("%s: %d %s, want 400 with %q", target, rec.Code, rec.Body.String(), want)
+		}
+	}
+}
+
+func TestAListRouteServesDocumentedParametersAndSelections(t *testing.T) {
+	engine := listEngine(t)
+	for _, target := range []string{
+		"/api/v1/dashboards",
+		"/api/v1/dashboards?limit=200&order=views&tag=checkout&tag=prod&q=latency",
+		"/api/v1/observations?folder_id=3f2b8a52-6f2e-4a54-9a3e-0d4d3a6a9b11&state=open",
+	} {
+		if rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil)); rec.Code != http.StatusOK {
+			t.Errorf("%s: %d %s", target, rec.Code, rec.Body.String())
+		}
 	}
 }

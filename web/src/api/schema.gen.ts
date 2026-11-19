@@ -7173,6 +7173,7 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceAccountList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -7455,6 +7456,7 @@ export interface operations {
                     "application/json": components["schemas"]["OutboundDomainList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -8073,6 +8075,7 @@ export interface operations {
                     "application/json": components["schemas"]["DatasourceList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             500: components["responses"]["Internal"];
         };
@@ -8099,6 +8102,7 @@ export interface operations {
                 };
             };
             304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -8454,6 +8458,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -13854,6 +13859,7 @@ export interface operations {
                     "application/json": components["schemas"]["GrafanaConnectionList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -14391,6 +14397,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebhookList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -14819,6 +14826,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
@@ -15696,6 +15704,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentsOverview"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {

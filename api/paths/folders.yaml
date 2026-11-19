@@ -31,6 +31,8 @@ folders:
                     $ref: "../openapi.yaml#/components/schemas/Folder"
       "304":
         $ref: "../openapi.yaml#/components/responses/NotModified"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
