@@ -121,6 +121,10 @@ A dashboard the caller can see with a version number that does not exist returns
 Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
 A client that approves only non-destructive tools on its own therefore asks before any of them runs.
 
+`list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
+The schema accepts the `{code, message}` body a failed call answers with, because a client that validates results checks a failed one too.
+Every other tool publishes none.
+
 A thing's id is named `<thing>_id` and a datasource is named `datasource`, and every tool that takes one also accepts its common alias, so a guess costs no call.
 `datasource_uid` is accepted wherever `datasource` is, `id` for `dashboard_id` on a tool named for a dashboard, for `observation_id` on one named for an observation and for `run_id` on one named for a run, and `run_id` for the `id` of `get_run`, `get_run_build`, `cancel_run` and `retry_run`.
 `diff_dashboard_versions` also accepts `from_version` and `to_version` for `from` and `to`, and `get_panels` accepts `panel_ids` for `ids`.

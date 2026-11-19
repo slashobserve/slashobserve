@@ -187,6 +187,7 @@ func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 
 func toolFor(t tools.Tool) mcplib.Tool {
 	tool := mcplib.NewToolWithRawSchema(t.Name, t.Description, t.InputSchema)
+	tool.RawOutputSchema = t.OutputSchema
 	tool.Annotations.ReadOnlyHint = mcplib.ToBoolPtr(t.ReadOnly)
 	if !t.ReadOnly {
 		tool.Annotations.DestructiveHint = mcplib.ToBoolPtr(t.Destructive)

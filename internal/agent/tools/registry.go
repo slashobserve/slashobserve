@@ -109,6 +109,8 @@ type Tool struct {
 	PersonOnly  bool
 	Destructive bool
 
+	OutputSchema json.RawMessage
+
 	Answers bool
 
 	AgentDescription string
@@ -317,6 +319,7 @@ func New(d Deps) *Registry {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
 		e.tool.Destructive = destructiveTools[e.tool.Name]
+		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
 		}
@@ -350,6 +353,7 @@ func (r *Registry) List() []Tool {
 	for i, t := range r.tools {
 		t.InputSchema = bytes.Clone(t.InputSchema)
 		t.AgentInputSchema = bytes.Clone(t.AgentInputSchema)
+		t.OutputSchema = bytes.Clone(t.OutputSchema)
 		out[i] = t
 	}
 	return out
