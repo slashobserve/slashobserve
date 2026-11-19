@@ -5446,7 +5446,7 @@ export interface components {
             hint?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
             note?: string;
-            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            /** @description The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
             rows_total?: number;

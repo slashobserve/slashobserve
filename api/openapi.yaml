@@ -3295,7 +3295,7 @@ components:
         rows:
           type: integer
           minimum: 0
-          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+          description: The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0.
         rows_total:
           type: integer
           minimum: 0

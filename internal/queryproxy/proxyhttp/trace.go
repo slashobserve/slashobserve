@@ -98,7 +98,7 @@ func (h *Handler) trace(c *gin.Context) {
 		kind:       queryproxy.KindInstant,
 		from:       rng.From,
 		to:         rng.To,
-		meta:       resultMetaOf([]datasource.Frame{f}).took(elapsed),
+		meta:       resultMetaOf(queryproxy.KindInstant, []datasource.Frame{f}).took(elapsed),
 		executedAt: time.Now(),
 	}
 	writeData(c, entry, false, entry.executedAt, "")

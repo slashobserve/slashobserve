@@ -167,7 +167,7 @@ type resultMeta struct {
 	elapsed        time.Duration
 }
 
-func resultMetaOf(frames []datasource.Frame) resultMeta {
+func resultMetaOf(kind queryproxy.Kind, frames []datasource.Frame) resultMeta {
 	merged := datasource.MergeMeta(frames)
 	m := resultMeta{
 		truncated:      merged.Truncated,
@@ -181,7 +181,7 @@ func resultMetaOf(frames []datasource.Frame) resultMeta {
 		bytes:          merged.Bytes,
 	}
 	for _, f := range frames {
-		if !f.IsSeries() {
+		if kind == queryproxy.KindInstant || !f.IsSeries() {
 			m.rows += f.Rows()
 		}
 		i := slices.IndexFunc(f.Fields, func(field datasource.Field) bool { return field.Type == datasource.FieldTime })
@@ -462,7 +462,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if asked {
 		exemplars = joinFrames(exemplarParts)
 	}
-	meta := resultMetaOf(res.Frames()).took(elapsed)
+	meta := resultMetaOf(res.Kind, res.Frames()).took(elapsed)
 	if seriesTotal > seriesShown {
 		meta.seriesShown, meta.seriesTotal = seriesShown, seriesTotal
 	}
