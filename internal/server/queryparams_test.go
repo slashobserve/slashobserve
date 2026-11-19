@@ -166,7 +166,11 @@ func sampleQueryValue(t *testing.T, ref *openapi3.SchemaRef) string {
 	case s.Format == "date-time":
 		return "2026-01-02T03:04:05Z"
 	}
-	return strings.Repeat("a", max(int(s.MinLength), 1))
+	value := "a"
+	for uint64(len(value)) < s.MinLength {
+		value += "a"
+	}
+	return value
 }
 
 func TestEveryDocumentedParameterOfEveryListRouteIsAccepted(t *testing.T) {
