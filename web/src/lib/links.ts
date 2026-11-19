@@ -93,14 +93,14 @@ export function tracesLink(uid: string, search: TraceSearch = {}) {
 
 export function metricsLink(uid: string, search: MetricsSearch = {}) {
   return {
-    to: "/metrics/$datasourceUid",
+    to: "/explore/metrics/$datasourceUid",
     params: { datasourceUid: uid },
     search,
   } as const
 }
 
 export function metricsPath(uid: string): string {
-  return path("metrics", uid)
+  return path("explore", "metrics", uid)
 }
 
 export function logsPath(uid: string): string {

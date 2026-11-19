@@ -28,7 +28,7 @@ export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
   const title = phoneTitle(pathname, crumbs, pageTitle)
   const exploreKind = pathname.startsWith("/traces/")
     ? "traces"
-    : pathname.startsWith("/metrics/")
+    : pathname.startsWith("/explore/metrics/")
       ? "metrics"
       : "logs"
   const source = useRouteSource(exploreKind).current

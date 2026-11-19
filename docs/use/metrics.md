@@ -8,14 +8,14 @@ It reads from the datasources an Admin configured, as described in [Connect Prom
 
 ## Choose a source
 
-Each Prometheus datasource has its own page at `/metrics/<datasource uid>`.
-`/metrics` lists the Prometheus sources with their language and whether they answer, and a source opens on its own page.
+Each Prometheus datasource has its own page at `/explore/metrics/<datasource uid>`.
+`/explore/metrics` lists the Prometheus sources with their language and whether they answer, and a source opens on its own page.
 
 With two or more Prometheus datasources they are listed under **Metrics** in the sidebar.
 The five you used last on this browser come first and the rest follow by name, and **More** opens the Metrics list.
 The order is set when the app loads and stays fixed until you reload.
 With one source nothing is listed under **Metrics**, and **Metrics** still opens the list.
-An address that carries a query but no source, such as `/metrics?q=up`, opens the source you used last on this browser, else the first by name.
+An address that carries a query but no source, such as `/explore/metrics?q=up`, opens the source you used last on this browser, else the first by name.
 The address keeps the source, `q`, `from`, `to` and `mode`, so **Copy link** in the top bar copies a query that opens the same way.
 
 ## Run a query
@@ -72,7 +72,7 @@ The step follows the range and the width of the chart, so a longer range draws c
 **Save search** in the top bar keeps the query that ran, with the time range as written and the graph or table choice, in a folder, by default your My Dashboards.
 It stays disabled until a query has run.
 Everyone who can view the folder can open it.
-**Saved searches** in the top bar lists the saved metrics searches, and `/metrics` lists them under the sources with their folder and who saved them.
+**Saved searches** in the top bar lists the saved metrics searches, and `/explore/metrics` lists them under the sources with their folder and who saved them.
 Opening one runs it on its datasource over the saved range, and the [search](search.md) that covers saved searches finds it too.
 Only a Prometheus datasource holds a metrics search.
 On a phone the same actions sit in the **More actions** menu.

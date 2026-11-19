@@ -34,13 +34,13 @@ import {
 } from "./search"
 import { MetricsWorkspaceContext, type MetricsWorkspace } from "./workspace"
 
-const routeId = "/_authed/_shell/metrics/$datasourceUid"
+const routeId = "/_authed/_shell/explore/metrics/$datasourceUid"
 
 type Update = MetricsWorkspace["update"]
 
 function useMetricsSearch() {
   const search = useSearch({ from: routeId })
-  const navigate = useNavigate({ from: "/metrics/$datasourceUid" })
+  const navigate = useNavigate({ from: "/explore/metrics/$datasourceUid" })
   const update = useCallback<Update>(
     (next, options) =>
       void navigate({
@@ -120,7 +120,7 @@ export function MetricsPage({ uid }: { uid: string }) {
           No metric source has the uid {uid}.
         </p>
         <Link
-          to="/metrics"
+          to="/explore/metrics"
           className="mt-2 inline-block text-[13px] underline underline-offset-3"
         >
           Open Metrics

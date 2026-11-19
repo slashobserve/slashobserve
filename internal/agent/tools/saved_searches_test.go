@@ -87,7 +87,7 @@ func TestSavedSearchesRoundTripThroughSaveAndList(t *testing.T) {
 
 	metrics := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"metrics","title":"Request rate","datasource_uid":"fake","query":"sum(rate(http_requests_total[5m]))","filters":{"mode":"table"}}`)
 	savedMetrics, ok := metrics.Content.(savedsearches.SavedSearchJSON)
-	if metrics.IsError || !ok || !strings.HasPrefix(savedMetrics.URL, "/metrics/fake?") || !strings.Contains(savedMetrics.URL, "mode=table") {
+	if metrics.IsError || !ok || !strings.HasPrefix(savedMetrics.URL, "/explore/metrics/fake?") || !strings.Contains(savedMetrics.URL, "mode=table") {
 		t.Fatalf("metrics search: %#v", metrics.Content)
 	}
 

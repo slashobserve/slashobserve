@@ -325,7 +325,7 @@ export function SidebarContent({
         />
       ),
     },
-    "/metrics": {
+    "/explore/metrics": {
       rows: sourceRows("metrics", metrics.shown),
       render: (currentId) => (
         <SourceList

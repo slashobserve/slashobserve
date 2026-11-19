@@ -35,7 +35,7 @@ export const exploreText = {
     page: "Metrics",
     word: "metric",
     sources: "Metric sources",
-    path: "/metrics",
+    path: "/explore/metrics",
   },
 } as const
 

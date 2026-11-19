@@ -115,7 +115,7 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 	}
 
 	metrics := d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", `{"kind":"metrics","title":"Requests","datasource_uid":"prometheus","query":"up","filters":{"mode":"table"}}`, http.StatusCreated)
-	if !strings.Contains(metrics.Body.String(), `"url":"/metrics/prometheus?`) || !strings.Contains(metrics.Body.String(), `mode=table`) {
+	if !strings.Contains(metrics.Body.String(), `"url":"/explore/metrics/prometheus?`) || !strings.Contains(metrics.Body.String(), `mode=table`) {
 		t.Fatalf("metrics search %s", metrics.Body)
 	}
 	d.send(t, editor, http.MethodGet, "/api/v1/saved-searches?kind=metrics", "", http.StatusOK)

@@ -169,7 +169,7 @@ func TestAddressCarriesWhatReopensTheSearch(t *testing.T) {
 	if got, want := table.address().Encode(), "from=now-1h&mode=table&q=up&to=now"; got != want {
 		t.Errorf("metrics table address %q, want %q", got, want)
 	}
-	if got, want := URL(nil, table), "/metrics/prom?from=now-1h&mode=table&q=up&to=now"; got != want {
+	if got, want := URL(nil, table), "/explore/metrics/prom?from=now-1h&mode=table&q=up&to=now"; got != want {
 		t.Errorf("metrics url %q, want %q", got, want)
 	}
 }

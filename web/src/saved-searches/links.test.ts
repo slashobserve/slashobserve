@@ -92,7 +92,7 @@ describe("savedSearchLocation", () => {
         to: "now",
       })
     ).toEqual({
-      to: "/metrics/$datasourceUid",
+      to: "/explore/metrics/$datasourceUid",
       params: { datasourceUid: "prom" },
       search: { q: "up", mode: "table", from: "now-6h", to: "now" },
     })

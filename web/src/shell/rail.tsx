@@ -51,7 +51,7 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
-  "/metrics": ChartLineIcon,
+  "/explore/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
@@ -199,7 +199,9 @@ export function RailContent({ forced }: { forced: boolean }) {
     "/dashboards": <DashboardsFlyoutItems />,
     ...(logs ? { "/logs": <SourceFlyoutItems kind="logs" /> } : {}),
     ...(traces ? { "/traces": <SourceFlyoutItems kind="traces" /> } : {}),
-    ...(metrics ? { "/metrics": <SourceFlyoutItems kind="metrics" /> } : {}),
+    ...(metrics
+      ? { "/explore/metrics": <SourceFlyoutItems kind="metrics" /> }
+      : {}),
   }
 
   function renderItems(list: readonly NavItem[]) {

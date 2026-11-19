@@ -66,7 +66,7 @@ const pageIcons: Record<PagePath, LucideIcon> = {
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
-  "/metrics": ChartLineIcon,
+  "/explore/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
