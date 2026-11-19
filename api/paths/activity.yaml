@@ -52,7 +52,7 @@ activity:
         explode: true
         schema:
           type: array
-          maxItems: 44
+          maxItems: 45
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
@@ -127,7 +127,7 @@ activity-stream:
         explode: true
         schema:
           type: array
-          maxItems: 44
+          maxItems: 45
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
