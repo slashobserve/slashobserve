@@ -62,4 +62,4 @@ WHERE id = @id;
 SELECT id FROM users WHERE role = 'admin' FOR UPDATE;
 
 -- name: GetUserForRole :one
-SELECT id, email, groups, manual_role, role, role_source FROM users WHERE id = @id FOR UPDATE;
+SELECT id, email, name, groups, manual_role, role, role_source FROM users WHERE id = @id FOR UPDATE;

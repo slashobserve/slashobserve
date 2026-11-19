@@ -2,6 +2,14 @@ import { useId, useRef, useState, type FormEvent, type Ref } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,7 +42,7 @@ function TextField({
   onChange,
   placeholder,
   problem,
-  list,
+  disabled,
 }: {
   ref?: Ref<HTMLInputElement>
   id: string
@@ -43,7 +51,7 @@ function TextField({
   onChange: (value: string) => void
   placeholder?: string
   problem?: string | null
-  list?: string
+  disabled?: boolean
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -56,7 +64,7 @@ function TextField({
         value={value}
         placeholder={placeholder}
         maxLength={maxNameLength}
-        list={list}
+        disabled={disabled}
         aria-invalid={problem ? true : undefined}
         aria-describedby={problem ? `${id}-problem` : undefined}
         onChange={(event) => onChange(event.target.value)}
@@ -70,16 +78,63 @@ function TextField({
   )
 }
 
-function ServiceOptions({ id, uid }: { id: string; uid: string }) {
+const typedReasons = new Set<string>(["input-change", "input-paste", "clear"])
+
+function ServiceCombobox({
+  ref,
+  id,
+  value,
+  onChange,
+  uid,
+  disabled,
+}: {
+  ref?: Ref<HTMLInputElement>
+  id: string
+  value: string
+  onChange: (value: string) => void
+  uid: string
+  disabled: boolean
+}) {
   const services = useQuery(
     labelValuesQuery(uid, "ServiceName", { table: "otel_traces" })
   )
   return (
-    <datalist id={id}>
-      {services.data?.values.map((service) => (
-        <option key={service} value={service} />
-      ))}
-    </datalist>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-[13px]">
+        {traceFilterLabels.service}
+      </Label>
+      <Combobox<string>
+        items={services.data?.values ?? []}
+        value={null}
+        inputValue={value}
+        disabled={disabled}
+        onInputValueChange={(next, details) => {
+          if (typedReasons.has(details.reason)) onChange(next)
+        }}
+        onValueChange={(item) => {
+          if (item !== null) onChange(item)
+        }}
+      >
+        <ComboboxInput
+          ref={ref}
+          id={id}
+          maxLength={maxNameLength}
+          disabled={disabled}
+          showClear
+          className="w-full"
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No suggestions</ComboboxEmpty>
+          <ComboboxList>
+            {(item: string) => (
+              <ComboboxItem key={item} value={item}>
+                {item}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </div>
   )
 }
 
@@ -114,8 +169,15 @@ export function TraceSearchForm({
   const tempo = type === "tempo"
   const reference = languageReference("traces", type)
   const clickhouse = type === "clickhouse"
-  const minProblem = checked && durationInvalid(min) ? durationProblem : null
-  const maxProblem = checked && durationInvalid(max) ? durationProblem : null
+  const queryReplacesFields = tempo && q.trim() !== ""
+  const minProblem =
+    checked && !queryReplacesFields && durationInvalid(min)
+      ? durationProblem
+      : null
+  const maxProblem =
+    checked && !queryReplacesFields && durationInvalid(max)
+      ? durationProblem
+      : null
 
   function edited<Value>(set: (next: Value) => void) {
     return (next: Value) => {
@@ -129,6 +191,10 @@ export function TraceSearchForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setChecked(true)
+    if (queryReplacesFields) {
+      onSubmit({ q: optional(q) })
+      return
+    }
     if (durationInvalid(min) || durationInvalid(max)) return
     onSubmit({
       service: optional(service),
@@ -149,19 +215,31 @@ export function TraceSearchForm({
       className="flex flex-col gap-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <TextField
-          ref={serviceRef}
-          id={`${ids}-service`}
-          label={traceFilterLabels.service}
-          value={service}
-          onChange={edited(setService)}
-          list={clickhouse ? `${ids}-services` : undefined}
-        />
+        {clickhouse ? (
+          <ServiceCombobox
+            ref={serviceRef}
+            id={`${ids}-service`}
+            value={service}
+            onChange={edited(setService)}
+            uid={uid}
+            disabled={queryReplacesFields}
+          />
+        ) : (
+          <TextField
+            ref={serviceRef}
+            id={`${ids}-service`}
+            label={traceFilterLabels.service}
+            value={service}
+            onChange={edited(setService)}
+            disabled={queryReplacesFields}
+          />
+        )}
         <TextField
           id={`${ids}-span`}
           label={traceFilterLabels.span}
           value={span}
           onChange={edited(setSpan)}
+          disabled={queryReplacesFields}
         />
         <TextField
           id={`${ids}-min`}
@@ -170,6 +248,7 @@ export function TraceSearchForm({
           onChange={edited(setMin)}
           placeholder="250ms"
           problem={minProblem}
+          disabled={queryReplacesFields}
         />
         <TextField
           id={`${ids}-max`}
@@ -178,11 +257,15 @@ export function TraceSearchForm({
           onChange={edited(setMax)}
           placeholder="2s"
           problem={maxProblem}
+          disabled={queryReplacesFields}
         />
       </div>
-      {clickhouse ? <ServiceOptions id={`${ids}-services`} uid={uid} /> : null}
       <Label className="gap-2 text-[13px] font-normal">
-        <Checkbox checked={errors} onCheckedChange={edited(setErrors)} />
+        <Checkbox
+          checked={errors}
+          disabled={queryReplacesFields}
+          onCheckedChange={edited(setErrors)}
+        />
         {traceFilterLabels.errors}
       </Label>
       {tempo ? (
@@ -200,7 +283,9 @@ export function TraceSearchForm({
             onChange={(event) => edited(setQ)(event.target.value)}
           />
           <p id={`${ids}-q-help`} className="text-xs text-muted-foreground">
-            Leave empty to search with the fields above.{" "}
+            {queryReplacesFields
+              ? "This query replaces the fields above; clear it to use them again."
+              : "Leave empty to search with the fields above."}{" "}
             {reference === null ? null : (
               <a
                 href={reference.url}

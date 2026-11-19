@@ -33,6 +33,9 @@ var (
 	ErrNoIndex            = refine(ErrInvalidQuery)
 	ErrNoTimeField        = refine(ErrInvalidQuery)
 	ErrNoRoleField        = refine(ErrInvalidQuery)
+
+	ErrRangeInFuture = refine(ErrInvalidQuery)
+	ErrRangeTooLong  = refine(ErrLimitExceeded)
 )
 
 // refinedKind reads and matches as its parent, so it adds a distinguishable kind without changing any error text.

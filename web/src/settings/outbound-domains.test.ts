@@ -6,7 +6,60 @@ import {
   domainDraftError,
   domainProblemText,
   matchText,
+  originText,
+  removeConsequence,
+  type OutboundDomain,
 } from "./outbound-domains"
+
+function entry(overrides: Partial<OutboundDomain>): OutboundDomain {
+  return {
+    domain: "grafana.example.com",
+    added_at: "2026-11-18T10:00:00Z",
+    added_by: "Ada",
+    from_connection: false,
+    used_by: [],
+    ...overrides,
+  }
+}
+
+describe("removeConsequence", () => {
+  test("names the webhooks, connections and datasources that lose the domain", () => {
+    const text = removeConsequence(
+      entry({
+        used_by: [
+          { kind: "webhook", name: "Deploys" },
+          { kind: "grafana_connection", name: "Prod" },
+          { kind: "datasource", name: "Metrics" },
+        ],
+      })
+    )
+    expect(text).toContain("Webhook Deploys, Grafana connection Prod, Datasource Metrics")
+    expect(text).toContain("can no longer reach it")
+  })
+
+  test("warns about on-demand fetches when nothing is listed", () => {
+    expect(removeConsequence(entry({}))).toBe(
+      "Dashboard news feeds, actions and assets that fetch from it stop loading."
+    )
+  })
+})
+
+describe("originText", () => {
+  test("says a connection added the entry", () => {
+    expect(originText(entry({ from_connection: true }))).toBe(
+      "Added for a connection or datasource"
+    )
+  })
+
+  test("names the person, or none when they are gone", () => {
+    expect(originText(entry({}))).toBe("Added by Ada")
+    expect(originText(entry({ added_by: null }))).toBe("Added")
+  })
+
+  test("has no origin for an entry set by configuration", () => {
+    expect(originText(entry({ added_at: null, added_by: null }))).toBeNull()
+  })
+})
 
 describe("domainDraftError", () => {
   test.each([

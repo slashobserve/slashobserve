@@ -81,3 +81,27 @@ export function matchText(domain: string): string {
     ? `Subdomains of ${domain.slice(2)}`
     : `Only ${domain}`
 }
+
+const userKindText: Record<OutboundDomain["used_by"][number]["kind"], string> =
+  {
+    webhook: "Webhook",
+    grafana_connection: "Grafana connection",
+    datasource: "Datasource",
+  }
+
+function userText(user: OutboundDomain["used_by"][number]): string {
+  return `${userKindText[user.kind]} ${user.name}`
+}
+
+export function removeConsequence(entry: OutboundDomain): string {
+  const fetches =
+    "Dashboard news feeds, actions and assets that fetch from it stop loading."
+  if (entry.used_by.length === 0) return fetches
+  return `${entry.used_by.map(userText).join(", ")} can no longer reach it. ${fetches}`
+}
+
+export function originText(entry: OutboundDomain): string | null {
+  if (entry.added_at === null) return null
+  if (entry.from_connection) return "Added for a connection or datasource"
+  return entry.added_by === null ? "Added" : `Added by ${entry.added_by}`
+}

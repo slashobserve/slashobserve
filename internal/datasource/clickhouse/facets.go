@@ -31,7 +31,8 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 	if err := d.readOnly(ctx); err != nil {
 		return datasource.Facets{}, err
 	}
-	exp, err := macros.Expand(macros.ClickHouse, req.Query.Text, macros.Env{Range: req.Range, Interval: instantInterval(req.Range), Variables: req.Query.Variables, Dashboard: req.Query.Dashboard, User: req.Query.User})
+	env := macros.Env{Range: req.Range, Interval: instantInterval(req.Range), Variables: req.Query.Variables, Dashboard: req.Query.Dashboard, User: req.Query.User}
+	exp, err := macros.Expand(macros.ClickHouse, req.Query.Text, env)
 	if err != nil {
 		return datasource.Facets{}, err
 	}
@@ -51,6 +52,17 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 	columns, err := d.resultColumns(ctx, inner, lim)
 	if err != nil {
 		return datasource.Facets{}, mapError(ctx, err, timeout)
+	}
+	selectsTimestamp := slices.Contains(columns, timestampColumn)
+	if err := requireRange(req.Query.Text, selectsTimestamp); err != nil {
+		return datasource.Facets{}, err
+	}
+	if selectsTimestamp {
+		filter, err := timestampRange(env)
+		if err != nil {
+			return datasource.Facets{}, err
+		}
+		inner = "SELECT * FROM (\n" + inner + "\n)\nWHERE " + filter
 	}
 	fields, err := d.facetFields(ctx, inner, lim, columns, req.Fields)
 	if err != nil {

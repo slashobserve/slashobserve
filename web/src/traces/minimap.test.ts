@@ -22,6 +22,7 @@ function span(offset: number, width: number, extra: Partial<Span> = {}): Span {
     depth: 0,
     slot: 0,
     error: false,
+    statusMessage: "",
     hasChildren: false,
     attributes: [],
     kind: null,

@@ -55,6 +55,9 @@ observations:
     description: >-
       Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404.
       The items carry no blocks; read one observation for them.
+      `q` keeps the observations whose title contains it, ignoring case, and `created_by=me` keeps those the caller started.
+      `sort` orders by `updated` (the default, newest first), `created` (newest first) or `title` (A to Z), and `order` reverses or sets the direction.
+      Page with `cursor` (the default order only) or with `offset`, which also returns `total`, the number of observations that match the filters, so a client can show page numbers.
     parameters:
       - name: folder_id
         in: query
@@ -65,6 +68,29 @@ observations:
         in: query
         schema:
           $ref: "../openapi.yaml#/components/schemas/ObservationState"
+      - name: q
+        in: query
+        description: Title text to look for, at most 200 characters; `%` and `_` match themselves.
+        schema:
+          type: string
+          maxLength: 200
+      - name: created_by
+        in: query
+        schema:
+          type: string
+          enum: [me]
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum: [updated, created, title]
+          default: updated
+      - name: order
+        in: query
+        description: "`desc` by default, and `asc` when `sort` is `title`."
+        schema:
+          type: string
+          enum: [asc, desc]
       - name: limit
         in: query
         schema:
@@ -74,9 +100,16 @@ observations:
           default: 20
       - name: cursor
         in: query
-        description: The `next_cursor` of the previous page.
+        description: The `next_cursor` of the previous page. It works only with the default order and not with `offset`.
         schema:
           type: string
+      - name: offset
+        in: query
+        description: How many matching observations to skip; the response then carries `total`.
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 100000
     responses:
       "200":
         description: One page of observations.
@@ -107,7 +140,8 @@ observations-id:
       cli: [observe o show]
     summary: Read one observation with its blocks.
     description: >-
-      Anyone who can view the observation's folder reads every block, requested ones included.
+      Anyone who can view the observation's folder reads the live blocks.
+      A requested block is returned only to its author and to people who can edit the folder, and `position` stays dense in what the caller sees.
       `allowed_actions` on the observation and on each block say what the caller may do now.
       An observation the caller cannot see gives 404, never 403.
     responses:
@@ -159,6 +193,32 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteObservation
+    x-surfaces:
+      cli: [observe o delete]
+    summary: Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
+    description: >-
+      Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may.
+      The delete cannot be undone, and an RCA's public links stop working with it.
+      The activity log keeps the observation's events, ending with `observation.deleted`.
+      It is refused with 409 `run_in_progress` while an investigation on the observation is queued or running, because the run would file a new observation when it finished.
+      No MCP tool deletes anything, so an agent cannot call this.
+    responses:
+      "204":
+        description: The observation and everything that belongs to it are deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-move:
   parameters:
     - name: id
@@ -176,7 +236,6 @@ observations-id-move:
     description: >-
       Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`).
       Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing.
-      There is no delete route: moving is the way out of a folder.
     requestBody:
       required: true
       content:
@@ -430,6 +489,179 @@ blocks-id:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-pin:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: pinObservation
+    x-surfaces:
+      mcp: [pin_observation]
+      cli: [observe o pin]
+    summary: Pin an observation to a dashboard as an annotation.
+    description: >-
+      Anyone who can read the observation may call it, and the caller needs Edit on the dashboard.
+      The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none.
+      Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`.
+      Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/PinObservationRequest"
+    responses:
+      "201":
+        description: The annotation made for the observation.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationPin"
+      "200":
+        description: The observation was already pinned to that dashboard; this is its annotation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationPin"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+observations-id-dashboard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: makeDashboardFromObservation
+    x-surfaces:
+      mcp: [make_dashboard]
+      cli: [observe o dashboard]
+    summary: Make a dashboard from the live panel blocks of an observation.
+    description: >-
+      Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved.
+      The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel.
+      Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`.
+      An observation without a live panel block answers 409 `observation_has_no_panels`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MakeDashboardRequest"
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "200":
+        description: The dashboard the caller already made from this observation, with its latest version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The observation has no live panel block (`observation_has_no_panels`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+blocks-id-dashboard:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: makeDashboardFromBlock
+    x-surfaces:
+      mcp: [make_dashboard]
+      cli: [observe o dashboard]
+    summary: Make a dashboard from one panel block.
+    description: >-
+      Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404.
+      The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/MakeDashboardRequest"
+    responses:
+      "201":
+        description: The new dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "200":
+        description: The dashboard the caller already made from this block, with its latest version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 blocks-id-keep:

@@ -7,6 +7,7 @@ import {
   changeSummary,
   defaultSaveSummary,
   normalisePanel,
+  overlappingChanges,
   panelChanges,
   queryChanged,
   rebasePanel,
@@ -591,5 +592,39 @@ describe("rebasePanel", () => {
     expect(result).not.toBe(latest)
     expect(latest.title).toBe("Requests")
     expect(base.title).toBe("Requests")
+  })
+})
+
+describe("overlappingChanges", () => {
+  it("lists a field both sides changed with both values", () => {
+    const base = panel({ title: "Base" })
+    const draft = panel({ title: "Mine" })
+    const latest = panel({ title: "Theirs" })
+    expect(overlappingChanges(base, draft, latest)).toEqual([
+      { key: "title", label: "title", theirs: "Theirs", yours: "Mine" },
+    ])
+  })
+
+  it("leaves out a field only one side changed", () => {
+    const base = panel({ unit: "percent" })
+    const draft = panel({ unit: "percent", title: "Mine" })
+    const latest = panel({ unit: "bytes" })
+    expect(overlappingChanges(base, draft, latest)).toEqual([])
+  })
+
+  it("leaves out a field both sides changed to the same value", () => {
+    const base = panel({ title: "Base" })
+    const draft = panel({ title: "Same" })
+    const latest = panel({ title: "Same" })
+    expect(overlappingChanges(base, draft, latest)).toEqual([])
+  })
+
+  it("names an overlapping query without values", () => {
+    const base = panel({ queries: [{ query: "up" }] })
+    const draft = panel({ queries: [{ query: "up1" }] })
+    const latest = panel({ queries: [{ query: "up2" }] })
+    const [overlap] = overlappingChanges(base, draft, latest)
+    expect(overlap.key).toBe("queries.A.query")
+    expect(overlap.theirs).toBeUndefined()
   })
 })

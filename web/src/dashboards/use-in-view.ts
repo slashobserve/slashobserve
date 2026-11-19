@@ -1,11 +1,14 @@
 import { useEffect, useState, type RefObject } from "react"
 
+import { useExporting } from "./print/export-store"
+
 export function useInView(ref: RefObject<Element | null>): {
   seen: boolean
   inView: boolean
 } {
   const [inView, setInView] = useState(false)
   const [seen, setSeen] = useState(false)
+  const exporting = useExporting()
 
   useEffect(() => {
     const element = ref.current
@@ -23,5 +26,5 @@ export function useInView(ref: RefObject<Element | null>): {
     return () => observer.disconnect()
   }, [ref])
 
-  return { seen, inView }
+  return { seen: seen || exporting, inView: inView || exporting }
 }

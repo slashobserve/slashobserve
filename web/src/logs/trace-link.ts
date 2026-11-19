@@ -25,10 +25,7 @@ export function traceDatasourceFor(
   all: readonly DatasourceStatus[]
 ): string | null {
   if (logs.type === "clickhouse") return logs.uid
-  if (logs.type === "loki") {
-    return all.find((datasource) => datasource.type === "tempo")?.uid ?? null
-  }
-  return null
+  return all.find((datasource) => datasource.type === "tempo")?.uid ?? null
 }
 
 export function traceRangeAround(timeMs: number): { from: string; to: string } {

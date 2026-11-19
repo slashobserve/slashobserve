@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -9,19 +10,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { dashboardLink } from "@/lib/links"
+import { sentence } from "@/observe/queries"
 
 import { addBlockRowId, useFreezeBlock } from "./add-block-row"
 import { PanelBlock } from "./blocks/panel-block"
 import { RunBlock } from "./blocks/run-block"
 import { SnapshotBlock } from "./blocks/snapshot-block"
-import { blockRows, blockTitle, nextBlockId } from "./block-rows"
+import {
+  blockRows,
+  blockTitle,
+  holdsAgentOutput,
+  moveTarget,
+  nextBlockId,
+} from "./block-rows"
 import { blockWriteProblem } from "./errors"
 import {
+  useMakeDashboard,
   useRemoveBlock,
   useUpdateBlock,
   type Block,
   type Observation,
 } from "./queries"
+import { RemoveBlockDialog } from "./remove-block-dialog"
 import { RequestedBlock } from "./requested-block"
 import { TextBlock } from "./text-block"
 
@@ -69,90 +80,155 @@ function focusAfterRemoval(nextId: string | null) {
 function BlockMenu({
   observation,
   block,
+  blocks,
   canAdd,
   nextId,
   onAdded,
 }: {
   observation: Observation
   block: Block
+  blocks: readonly Block[]
   canAdd: boolean
   nextId: string | null
   onAdded: (blockId: string) => void
 }) {
   const update = useUpdateBlock(observation.id)
   const remove = useRemoveBlock(observation.id)
+  const [confirming, setConfirming] = useState(false)
   const freeze = useFreezeBlock(observation.id, {
     onAdded,
     onProblem: (text) => toast.error(text),
   })
   const canUpdate = block.allowed_actions.includes("update")
   const canRemove = block.allowed_actions.includes("remove")
-  const canFreeze = canAdd && block.kind === "panel" && block.state === "live"
-  if (!canUpdate && !canRemove && !canFreeze) return null
+  const isLivePanel = block.kind === "panel" && block.state === "live"
+  const canFreeze = canAdd && isLivePanel
+  const make = useMakeDashboard({
+    observationId: observation.id,
+    blockId: block.id,
+  })
+  const navigate = useNavigate()
+  if (!canUpdate && !canRemove && !isLivePanel) return null
 
   const half = block.width === "half"
+  const up = canUpdate ? moveTarget(blocks, block.id, "up") : null
+  const down = canUpdate ? moveTarget(blocks, block.id, "down") : null
+
+  function removeBlock() {
+    remove.mutate(
+      { blockId: block.id, version: block.version },
+      {
+        onSuccess: () => focusAfterRemoval(nextId),
+        onError: (error) => toast.error(blockWriteProblem(error).text),
+      }
+    )
+  }
+
+  function move(position: number) {
+    update.mutate(
+      { blockId: block.id, version: block.version, position },
+      {
+        onSuccess: () =>
+          requestAnimationFrame(() => focusBlock(block.id, true)),
+        onError: (error) => toast.error(blockWriteProblem(error).text),
+      }
+    )
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Block actions"
-            className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-          />
-        }
-      >
-        <MoreHorizontalIcon aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-48">
-        {canUpdate ? (
-          <DropdownMenuItem
-            onClick={() =>
-              update.mutate(
-                {
-                  blockId: block.id,
-                  version: block.version,
-                  width: half ? "full" : "half",
-                },
-                {
-                  onError: (error) =>
-                    toast.error(blockWriteProblem(error).text),
-                }
-              )
-            }
-          >
-            {half ? "Make full width" : "Make half width"}
-          </DropdownMenuItem>
-        ) : null}
-        {canFreeze ? (
-          <DropdownMenuItem onClick={() => freeze.freeze(block)}>
-            Freeze as snapshot
-          </DropdownMenuItem>
-        ) : null}
-        {canRemove ? (
-          <DropdownMenuItem
-            onClick={() =>
-              remove.mutate(
-                { blockId: block.id, version: block.version },
-                {
-                  onSuccess: () => focusAfterRemoval(nextId),
-                  onError: (error) =>
-                    toast.error(blockWriteProblem(error).text),
-                }
-              )
-            }
-          >
-            Delete block
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Block actions"
+              className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+            />
+          }
+        >
+          <MoreHorizontalIcon aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {up === null ? null : (
+            <DropdownMenuItem onClick={() => move(up)}>
+              Move up
+            </DropdownMenuItem>
+          )}
+          {down === null ? null : (
+            <DropdownMenuItem onClick={() => move(down)}>
+              Move down
+            </DropdownMenuItem>
+          )}
+          {canUpdate ? (
+            <DropdownMenuItem
+              onClick={() =>
+                update.mutate(
+                  {
+                    blockId: block.id,
+                    version: block.version,
+                    width: half ? "full" : "half",
+                  },
+                  {
+                    onError: (error) =>
+                      toast.error(blockWriteProblem(error).text),
+                  }
+                )
+              }
+            >
+              {half ? "Make full width" : "Make half width"}
+            </DropdownMenuItem>
+          ) : null}
+          {canFreeze ? (
+            <DropdownMenuItem onClick={() => freeze.freeze(block)}>
+              Freeze as snapshot
+            </DropdownMenuItem>
+          ) : null}
+          {isLivePanel ? (
+            <DropdownMenuItem
+              disabled={make.isPending}
+              onClick={() =>
+                make.mutate(undefined, {
+                  onSuccess: (saved) =>
+                    void navigate(
+                      dashboardLink(saved.dashboard.id, saved.dashboard.title)
+                    ),
+                  onError: (error) => toast.error(sentence(error.message)),
+                })
+              }
+            >
+              Make a dashboard
+            </DropdownMenuItem>
+          ) : null}
+          {canRemove ? (
+            <DropdownMenuItem
+              onClick={() =>
+                holdsAgentOutput(block) ? setConfirming(true) : removeBlock()
+              }
+            >
+              Delete block
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RemoveBlockDialog
+        title={blockTitle(block)}
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirm={removeBlock}
+      />
+    </>
   )
 }
 
-function BlockBody({ block }: { block: Block }): ReactNode {
+function BlockBody({
+  block,
+  blocks,
+}: {
+  block: Block
+  blocks: readonly Block[]
+}): ReactNode {
   const height = block.width === "half" ? halfHeight : fullHeight
   switch (block.kind) {
     case "text":
@@ -162,7 +238,13 @@ function BlockBody({ block }: { block: Block }): ReactNode {
     case "snapshot":
       return <SnapshotBlock block={block} height={height} />
     case "run":
-      return <RunBlock block={block} onCite={(id) => focusBlock(id, true)} />
+      return (
+        <RunBlock
+          block={block}
+          blocks={blocks}
+          onCite={(id) => focusBlock(id, true)}
+        />
+      )
   }
 }
 
@@ -180,7 +262,7 @@ function BlockSection({
   onAdded: (blockId: string) => void
 }) {
   const nextId = nextBlockId(blocks, block.id)
-  const body = <BlockBody block={block} />
+  const body = <BlockBody block={block} blocks={blocks} />
   return (
     <section
       id={sectionId(block.id)}
@@ -191,6 +273,7 @@ function BlockSection({
       <BlockMenu
         observation={observation}
         block={block}
+        blocks={blocks}
         canAdd={canAdd}
         nextId={nextId}
         onAdded={onAdded}

@@ -23,11 +23,11 @@ description: What SlashObserve protects and what an operator should know.
   A key matches no folder entry, so only an Admin key reaches a restricted folder.
   A My Dashboards folder is hidden from everyone but its owner, Admins included.
 - **Share links need sign-in.**
-  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
+  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "Dashboard not found" after they sign in, the same page as for an id that does not exist.
 - **Public links open one dashboard without sign-in.**
   Someone who manages a dashboard's folder can create a [public link](../use/public-links.md), the one way to show data to people with no session.
   Its token is 32 random bytes, shown once and stored only as a SHA-256 hash with a 12 character prefix, and request logs replace it with `:token`.
-  The routes under `/api/v1/public/` take no query text: they return the latest version's Spec with every query's text left out, and run only that dashboard's saved queries, under the proxy's limits, with 8 requests in flight per link.
+  The routes under `/api/v1/public/` take no query text: they return the latest version's Spec with every query's text, the dashboard's tags and its links left out, and run only that dashboard's saved queries, under the proxy's limits, with 8 requests in flight per link.
   A free link accepts a variable value only when it is one of the options the server lists for it.
   Links are refused for dashboards in My Dashboards and for dashboards whose queries read the viewer's identity, revoking deletes the link at once, and the server answers every public route with `Cache-Control: no-store`.
   A public link cannot be embedded in another site, because framing stays refused.
@@ -44,7 +44,7 @@ A query error shows the datasource's own error text, truncated and never naming 
 The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
 There are three exceptions.
 
-- The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+- The draft preview lets a signed-in user who can comment on the dashboard run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
 - The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
   Only the signed-in user who made the request, and a signed-in Admin, can call them, and for a revision only while the caller can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.

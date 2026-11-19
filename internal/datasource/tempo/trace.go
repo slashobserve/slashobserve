@@ -41,7 +41,8 @@ type span struct {
 	Events       []spanEvent     `json:"events"`
 	Links        []spanLink      `json:"links"`
 	Status       struct {
-		Code json.RawMessage `json:"code"`
+		Code    json.RawMessage `json:"code"`
+		Message string          `json:"message"`
 	} `json:"status"`
 }
 
@@ -61,7 +62,8 @@ type spanRow struct {
 	traceID, spanID, parentID, name, service string
 	start                                    time.Time
 	duration                                 int64
-	status, attributes, resource             string
+	status, statusMessage                    string
+	attributes, resource                     string
 	kind, events, links                      string
 	attrs, res                               map[string]any
 	spans, errors                            *int64
@@ -156,21 +158,22 @@ func toRow(s span, service string, resource map[string]any, resourceJSON string)
 		return spanRow{}, unreadable()
 	}
 	return spanRow{
-		traceID:    traceID,
-		spanID:     spanID,
-		parentID:   parentID,
-		name:       s.Name,
-		service:    service,
-		start:      time.Unix(0, int64(s.Start)).UTC(),
-		duration:   max(0, int64(s.End-s.Start)),
-		status:     statusName(s.Status.Code),
-		attributes: string(attributes),
-		resource:   resourceJSON,
-		kind:       kindName(s.Kind),
-		events:     events,
-		links:      links,
-		attrs:      attrs,
-		res:        resource,
+		traceID:       traceID,
+		spanID:        spanID,
+		parentID:      parentID,
+		name:          s.Name,
+		service:       service,
+		start:         time.Unix(0, int64(s.Start)).UTC(),
+		duration:      max(0, int64(s.End-s.Start)),
+		status:        statusName(s.Status.Code),
+		statusMessage: s.Status.Message,
+		attributes:    string(attributes),
+		resource:      resourceJSON,
+		kind:          kindName(s.Kind),
+		events:        events,
+		links:         links,
+		attrs:         attrs,
+		res:           resource,
 	}, nil
 }
 
@@ -275,6 +278,7 @@ func spanFrame(rows []spanRow) datasource.Frame {
 		{"StartTime", datasource.FieldTime, func(r spanRow) any { return r.start }},
 		{"Duration", datasource.FieldNumber, func(r spanRow) any { return r.duration }},
 		{"StatusCode", datasource.FieldString, func(r spanRow) any { return r.status }},
+		{"StatusMessage", datasource.FieldString, func(r spanRow) any { return r.statusMessage }},
 		{"SpanAttributes", datasource.FieldString, func(r spanRow) any { return r.attributes }},
 		{"ResourceAttributes", datasource.FieldString, func(r spanRow) any { return r.resource }},
 		{"SpanKind", datasource.FieldString, func(r spanRow) any { return r.kind }},

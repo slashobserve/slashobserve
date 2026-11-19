@@ -23,10 +23,17 @@ const (
 	managedByConfig   = "config"
 )
 
+type userJSON struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
 type entryJSON struct {
-	Domain  string  `json:"domain"`
-	AddedAt *string `json:"added_at"`
-	AddedBy *string `json:"added_by"`
+	Domain         string     `json:"domain"`
+	AddedAt        *string    `json:"added_at"`
+	AddedBy        *string    `json:"added_by"`
+	FromConnection bool       `json:"from_connection"`
+	UsedBy         []userJSON `json:"used_by"`
 }
 
 type listJSON struct {
@@ -36,7 +43,7 @@ type listJSON struct {
 
 func (s *Store) Register(api auth.Routes) {
 	g := api.Group("/outbound-domains")
-	g.GET("", auth.RoleViewer, auth.RequireUser, s.list)
+	g.GET("", auth.RoleEditor, auth.RequireUser, s.list)
 	g.POST("", auth.RoleAdmin, auth.RequireUser, s.add)
 	g.DELETE("/:domain", auth.RoleAdmin, auth.RequireUser, s.remove)
 }
@@ -61,7 +68,7 @@ func (s *Store) list(c *gin.Context) {
 	if s.lock.Locked {
 		entries := make([]entryJSON, 0, len(s.lock.Domains))
 		for _, p := range s.lock.Domains {
-			entries = append(entries, entryJSON{Domain: p.String()})
+			entries = append(entries, entryJSON{Domain: p.String(), UsedBy: []userJSON{}})
 		}
 		slices.SortFunc(entries, func(a, b entryJSON) int { return strings.Compare(a.Domain, b.Domain) })
 		c.JSON(http.StatusOK, listJSON{ManagedBy: managedByConfig, Domains: entries})
@@ -72,10 +79,21 @@ func (s *Store) list(c *gin.Context) {
 		s.fail(c, "list outbound domains", err)
 		return
 	}
+	users, err := s.db.Queries().ListOutboundUsers(c.Request.Context())
+	if err != nil {
+		s.fail(c, "list outbound users", err)
+		return
+	}
+	showUsers := httpapi.Caller(c).Role == auth.RoleAdmin
 	body := listJSON{ManagedBy: managedBySettings, Domains: make([]entryJSON, 0, len(rows))}
 	for _, r := range rows {
 		at := httpapi.FormatTime(r.CreatedAt.Time)
-		entry := entryJSON{Domain: r.Domain, AddedAt: &at}
+		entry := entryJSON{Domain: r.Domain, AddedAt: &at, FromConnection: r.ForConnection, UsedBy: []userJSON{}}
+		if p, err := domains.ParsePattern(r.Domain); err == nil && showUsers {
+			for _, u := range usersOf(users, p) {
+				entry.UsedBy = append(entry.UsedBy, userJSON(u))
+			}
+		}
 		if r.HasAuthor {
 			name := r.CreatedByName
 			entry.AddedBy = &name
@@ -108,7 +126,7 @@ func (s *Store) add(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed")
 		return
 	case errors.Is(err, ErrExists):
-		httpapi.AbortError(c, http.StatusConflict, "domain_exists", "that domain is already allowed")
+		s.claim(c, pattern)
 		return
 	case err != nil:
 		s.fail(c, "allow outbound domain", err)
@@ -117,7 +135,23 @@ func (s *Store) add(c *gin.Context) {
 	s.logger.InfoContext(ctx, "allowed an outbound domain", slog.String("actor_id", caller.ID), slog.String("domain", row.Domain))
 	at := httpapi.FormatTime(row.CreatedAt.Time)
 	by := row.CreatedByName
-	c.JSON(http.StatusCreated, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by})
+	c.JSON(http.StatusCreated, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by, FromConnection: row.ForConnection, UsedBy: []userJSON{}})
+}
+
+func (s *Store) claim(c *gin.Context, pattern domains.Pattern) {
+	ctx := c.Request.Context()
+	row, claimed, err := s.Claim(ctx, pattern)
+	switch {
+	case err != nil:
+		s.fail(c, "allow outbound domain", err)
+	case !claimed:
+		httpapi.AbortError(c, http.StatusConflict, "domain_exists", "that domain is already allowed")
+	default:
+		s.logger.InfoContext(ctx, "kept a connection's outbound domain", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("domain", row.Domain))
+		at := httpapi.FormatTime(row.CreatedAt.Time)
+		by := row.CreatedByName
+		c.JSON(http.StatusOK, entryJSON{Domain: row.Domain, AddedAt: &at, AddedBy: &by, FromConnection: row.ForConnection, UsedBy: []userJSON{}})
+	}
 }
 
 func (s *Store) remove(c *gin.Context) {
@@ -130,7 +164,7 @@ func (s *Store) remove(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	removed, err := s.Remove(ctx, pattern)
+	removed, err := s.Remove(ctx, httpapi.Caller(c), pattern)
 	if err != nil {
 		s.fail(c, "remove outbound domain", err)
 		return

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -55,7 +56,7 @@ func parseError(raw []byte) upstreamError {
 			e.text = detail.RootCause[0].Reason
 		}
 	}
-	e.text = truncateText(e.text)
+	e.text = truncateText(plainReason(e.text))
 	return e
 }
 
@@ -87,6 +88,17 @@ func statusError(status int, raw []byte) error {
 		text = fallback
 	}
 	return datasource.ErrorfStatus(kind, status, "%s", text)
+}
+
+var (
+	indexNamed = regexp.MustCompile(`\[(?:\.[\w.-]+|[\w.-]+-\d{4,}|[\w.-]*\d{4}\.\d{2}\.\d{2}[\w.-]*)\](?:\[\d+\])?\s*|\[[\w.-]+\]\[\d+\]\s*`)
+	javaClass  = regexp.MustCompile(`\b(?:[a-z][a-z0-9_]*\.)*[A-Z]\w*(?:Exception|Error)\b:?\s*`)
+)
+
+func plainReason(text string) string {
+	text = indexNamed.ReplaceAllString(text, "")
+	text = javaClass.ReplaceAllString(text, "")
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), ":"))
 }
 
 func truncateText(s string) string {

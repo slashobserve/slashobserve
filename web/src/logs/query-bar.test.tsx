@@ -30,6 +30,7 @@ function setup({
   agentAvailable = true,
   labelsOpen = false,
   runFailed = false,
+  mapped = [],
 }: {
   type?: string
   draft?: string
@@ -37,6 +38,7 @@ function setup({
   agentAvailable?: boolean
   labelsOpen?: boolean
   runFailed?: boolean
+  mapped?: string[]
 } = {}) {
   const run = vi.fn()
   const setMode = vi.fn()
@@ -71,6 +73,10 @@ function setup({
     labels: ["service_name", "level"],
     truncated: false,
   })
+  queryClient.setQueryData(
+    datasourceKeys.labels("ds", { from: "now-1h", to: "now" }),
+    { labels: mapped, truncated: false }
+  )
   const view = renderWithProviders(
     <LogsWorkspaceContext value={workspace}>
       <QueryBar.ModeSwitch />
@@ -355,6 +361,39 @@ describe("QueryBar", () => {
     expect(setDraft).toHaveBeenCalledWith("a : 1")
   })
 
+  it("offers the mapped field that ends the same way as an unknown one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          diagnostics: [
+            {
+              severity: "warning",
+              message: 'unknown field "service.name"',
+              start: 0,
+              end: 12,
+            },
+          ],
+        })
+      )
+    )
+    const { user, setDraft } = setup({
+      type: "opensearch",
+      draft: "service.name:checkout and a:1",
+      mapped: ["resource.service.name", "resource.service.name.keyword", "a"],
+    })
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Use resource.service.name" },
+        { timeout: 3000 }
+      )
+    )
+    expect(setDraft).toHaveBeenCalledWith(
+      "resource.service.name : checkout and a : 1"
+    )
+  })
+
   it("offers no removal when the clause sits inside an or", async () => {
     vi.stubGlobal(
       "fetch",
@@ -446,6 +485,18 @@ describe("QueryBar", () => {
       await paste("level:error")
       expect(setDraft).toHaveBeenCalledWith("level:errorlevel:error")
       expect(update).not.toHaveBeenCalled()
+    })
+
+    it("imports a link pasted into the Ask field and switches to the query", async () => {
+      const { run, setMode, update } = setup({ mode: "ask" })
+      const field = await screen.findByLabelText("Question")
+      fireEvent.paste(field, { clipboardData: { getData: () => link } })
+      expect(setMode).toHaveBeenCalledWith("code", false)
+      expect(run).toHaveBeenCalledWith("level:error")
+      expect(update.mock.calls[0][0]).toMatchObject({
+        q: "level:error",
+        from: "now-15m",
+      })
     })
 
     it("pastes the link as plain text on Loki", async () => {

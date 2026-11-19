@@ -43,6 +43,7 @@ function source(uid: string, type: string, name = uid): DatasourceStatus {
 let datasources: DatasourceStatus[] = []
 
 beforeEach(() => {
+  localStorage.clear()
   datasources = []
   vi.stubGlobal(
     "fetch",

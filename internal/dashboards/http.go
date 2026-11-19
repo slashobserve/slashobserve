@@ -238,8 +238,10 @@ func folderFilters(c *gin.Context, params *ListParams) bool {
 	case "updated":
 	case "folder":
 		params.ByFolder = true
+	case "views":
+		params.ByViews = true
 	default:
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be updated or folder")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be updated, folder or views")
 		return false
 	}
 	return true
@@ -473,7 +475,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrFolderNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, folders.ErrForbidden):

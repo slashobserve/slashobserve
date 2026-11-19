@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type UIEvent,
 } from "react"
+import { useQuery } from "@tanstack/react-query"
 
 import { EmptyState } from "@/components/empty-state"
 import { PageBar } from "@/components/page-bar"
@@ -32,7 +33,7 @@ import { describeRange } from "@/lib/time"
 import type { LogEntry } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
-import { typeName } from "./datasource-picker"
+import { distinctName, typeName } from "./datasource-picker"
 import { exploreErrorText, offlineText } from "./explore"
 import { ExploreFailure } from "./explore-failure"
 import {
@@ -43,8 +44,16 @@ import {
   withoutKeys,
   type TailBuffer,
 } from "./frames"
+import { logFacetsQuery } from "./facets"
 import { columnList, columnsText } from "./line-fields"
-import { LogsResults, type ResultsView } from "./logs-results"
+import {
+  LogsResults,
+  openingView,
+  usePhone,
+  type ResultsView,
+} from "./logs-results"
+import { isPlainResult, PlainTable } from "./plain-table"
+import { useUserScroll } from "./user-scroll"
 import { PatternsTabLabel, PatternsView } from "./patterns-view"
 import { isSearchFamily } from "./search"
 import {
@@ -60,9 +69,11 @@ import {
   type TailState,
 } from "./tail-state"
 import { TailVolume } from "./tail-volume"
+import { unreadableKql } from "./query-problem"
 import { traceDatasourceFor } from "./trace-link"
 import { useElementSize } from "./use-element-size"
 import { tailRows } from "./use-live-tail"
+import { firstValueClause, valueMissText } from "./value-miss"
 import { useLogsWorkspace } from "./workspace"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -99,7 +110,7 @@ function sourceText(
   const noun = isSearchFamily(type) ? "hits" : "lines"
   return [
     typeName(type),
-    name,
+    distinctName(type, name),
     index,
     rangeText(state, noun, tookText(data.meta.elapsed_ms)),
   ]
@@ -251,6 +262,8 @@ function TailBody({
   }, [toBottom])
   useEffect(follow)
 
+  const userScroll = useUserScroll()
+
   function pause() {
     following.current = false
     setFrozen(latest.current)
@@ -273,8 +286,9 @@ function TailBody({
       return
     }
     const away = element.scrollHeight - element.scrollTop - element.clientHeight
-    if (away > bottomSlackPx && following.current) pause()
-    else if (away <= bottomSlackPx && !following.current) resume()
+    if (away > bottomSlackPx && following.current) {
+      if (userScroll.recent()) pause()
+    } else if (away <= bottomSlackPx && !following.current) resume()
   }
 
   const paused = state.tail.paused
@@ -316,6 +330,7 @@ function TailBody({
         ref={regionRef}
         className="relative min-h-0 flex-1"
         onScrollCapture={onScroll}
+        {...userScroll.handlers}
       >
         {lines === 0 ? (
           <p className="p-3 text-[13px] text-muted-foreground">
@@ -371,6 +386,28 @@ export function ResultSkeleton() {
   )
 }
 
+function ValueMiss() {
+  const { datasource, effectiveQuery, range } = useLogsWorkspace()
+  const clause = firstValueClause(datasource.type, effectiveQuery)
+  const facets = useQuery({
+    ...logFacetsQuery(datasource.uid, {
+      query: "",
+      from: range.from,
+      to: range.to,
+      limit: 10,
+      fields: [clause?.field ?? ""],
+    }),
+    enabled: clause !== null,
+  })
+  if (clause === null) return null
+  const seen =
+    facets.data?.fields
+      .find((field) => field.name === clause.field)
+      ?.values.map((value) => value.value) ?? []
+  const text = valueMissText(clause, seen)
+  return text === null ? null : <p>{text}</p>
+}
+
 export function ResultsSection({ actions }: { actions: ReactNode }) {
   const {
     datasource,
@@ -385,12 +422,8 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
     paging,
   } = useLogsWorkspace()
   const allDatasources = useDatasources()
-  const [view, setView] = useState<ResultsView>({
-    order: "newest",
-    wrap: false,
-    prettify: false,
-    columnSort: null,
-  })
+  const phone = usePhone()
+  const [view, setView] = useState<ResultsView>(() => openingView(phone))
   const onViewChange = useCallback(
     (change: Partial<ResultsView>) =>
       setView((current) => ({ ...current, ...change })),
@@ -485,6 +518,14 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </EmptyState>
       )
     }
+    if (unreadableKql(q, datasource.type) !== null) {
+      return (
+        <p className="p-3 text-[13px] text-muted-foreground">
+          Nothing ran, because the query above cannot be read. Fix it and run it
+          again.
+        </p>
+      )
+    }
     if (tail.shown && tail.buffer !== undefined) {
       return (
         <TailBody
@@ -518,14 +559,27 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
         </div>
       )
     }
-    if (lines === 0) {
+    if (lines === 0 && (data?.meta.rows ?? 0) > 0) {
       return (
-        <p className="p-3 text-[13px] text-muted-foreground">
-          No lines in {lowerFirst(describeRange(range.from, range.to))}. Widen
-          the time range or loosen the query.
+        <p role="alert" className="p-3 text-[13px] text-status-critical">
+          The server returned {count(data?.meta.rows ?? 0)} rows, but none could
+          be shown here. Run the query again.
         </p>
       )
     }
+    if (lines === 0) {
+      return (
+        <div className="flex flex-col gap-1 p-3 text-[13px] text-muted-foreground">
+          <p>
+            No lines in {lowerFirst(describeRange(range.from, range.to))}. Widen
+            the time range or loosen the query.
+          </p>
+          <ValueMiss />
+        </div>
+      )
+    }
+    if (data !== undefined && isPlainResult(data))
+      return <PlainTable frame={frames[0]} />
     return height > 0 ? (
       <LogsResults frames={frames} height={height} {...resultsProps()} />
     ) : null
@@ -622,7 +676,8 @@ export function ResultsSection({ actions }: { actions: ReactNode }) {
           ) : null}
           {paging.lostPage !== null ? (
             <p role="status" className="pt-2 text-[13px] text-muted-foreground">
-              Page {paging.lostPage} could not be restored; showing page 1
+              Page {paging.lostPage} could not be restored; showing page{" "}
+              {paging.page}
             </p>
           ) : null}
           {shownData.meta.partial && isSearchFamily(datasource.type) ? (

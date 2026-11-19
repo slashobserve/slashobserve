@@ -39,6 +39,7 @@ Tell the person the proposal waits for review.
 A save that removes panels or variables is refused and names them: ask the person to remove them.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with observe --dashboard <id>.
 
 ## Review proposals
 
@@ -50,6 +51,7 @@ Merge or discard only what your person asked you to.
 ## Investigate a question
 
 Find the signal with the discovery tools and query_range, and look for causes beside it: list_annotations for deploys and other markers, list_activity for dashboard changes and agent runs.
+Read earlier observations with list_observations and get_observation first, and cite the one you used by its title and /o/<id> link.
 Save the answer in an observation: create_observation files one in a folder (list_folders gives a folder_id), and add_block adds a text block (Markdown, no HTML), a panel block whose query returns data in its range, or a snapshot that freezes a panel block.
 Put a one-sentence answer first, then the evidence.
 No tool queues an investigation on the server; you do the work with your own model.
@@ -61,6 +63,7 @@ Send a block's version to update_block or keep_block, and a stale one answers ve
 A person who can only comment gets a requested block, which an editor keeps with keep_block or discards with discard_block; it is not live until kept.
 resolve_observation closes an observation with a one-line summary of what was found.
 publish_rca freezes it as an RCA revision without query text; it never makes a public link, because a person does that in the web app.
+pin_observation pins an observation to a dashboard as an annotation, and make_dashboard turns its panel blocks into a dashboard in My Dashboards; both can be repeated safely.
 
 ## Search logs and traces
 

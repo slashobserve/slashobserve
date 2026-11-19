@@ -149,6 +149,20 @@ export const dashboardColumns = column.columns([
     meta: { cellClassName: "tabular-nums", skeletonClassName: "h-5 w-8" },
   }),
   column.display({
+    id: "views",
+    header: "Views",
+    cell: ({ row }) => (
+      <span title="People who opened it, counted once for each day, over the last 30 days">
+        {row.original.view_count}
+      </span>
+    ),
+    meta: {
+      cellClassName: "tabular-nums",
+      stackedLabel: "Views",
+      skeletonClassName: "h-5 w-8",
+    },
+  }),
+  column.display({
     id: "updated",
     header: "Updated",
     cell: ({ row }) => <RelativeTime iso={row.original.updated_at} />,
@@ -159,6 +173,15 @@ export const dashboardColumns = column.columns([
     },
   }),
 ])
+
+export const folderColumn = column.display({
+  id: "folder",
+  header: "Folder",
+  cell: ({ row }) => (
+    <span className="wrap-anywhere">{row.original.folder.title}</span>
+  ),
+  meta: { stackedLabel: "Folder", skeletonClassName: "h-5 w-24" },
+})
 
 export const actionsColumn = column.display({
   id: "actions",

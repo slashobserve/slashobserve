@@ -5,13 +5,18 @@ import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import { panelRetry } from "@/dashboards/use-panel-data"
-import { formatDate } from "@/lib/date-format"
+import { formatDate, zoneLabel } from "@/lib/date-format"
 import type { Block } from "@/observations/queries"
-import type { DataPanel, Panel } from "@/spec"
+import type { DataPanel, Panel, Variable } from "@/spec"
 
 export const blockPanelId = "block"
 
-export type PanelBlockBody = { panel: Panel; from?: string; to?: string }
+export type PanelBlockBody = {
+  panel: Panel
+  variables?: Variable[]
+  from?: string
+  to?: string
+}
 export type RunBlockBody = { runId: string; cites: string[] }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,13 +29,16 @@ function optionalString(value: unknown): string | undefined | null {
 }
 
 export function panelBlockBody(block: Block): PanelBlockBody | null {
-  const { panel, from, to } = block.body
+  const { panel, from, to, variables } = block.body
   if (!isRecord(panel) || typeof panel.type !== "string") return null
   const parsedFrom = optionalString(from)
   const parsedTo = optionalString(to)
   if (parsedFrom === null || parsedTo === null) return null
   const body: PanelBlockBody = {
     panel: { ...panel, id: blockPanelId } as unknown as Panel,
+  }
+  if (Array.isArray(variables) && variables.every(isRecord)) {
+    body.variables = variables as unknown as Variable[]
   }
   if (parsedFrom !== undefined) body.from = parsedFrom
   if (parsedTo !== undefined) body.to = parsedTo
@@ -65,7 +73,7 @@ const frozenFormat = "YYYY-MM-DD HH:mm"
 export function frozenCaption(from: string, to: string): string {
   const start = formatDate(Date.parse(from), frozenFormat)
   const end = formatDate(Date.parse(to), frozenFormat)
-  return `Frozen, ${start} to ${end}`
+  return `Frozen, ${start} to ${end} ${zoneLabel(Date.parse(to))}`
 }
 
 export function useBlockPanelData({

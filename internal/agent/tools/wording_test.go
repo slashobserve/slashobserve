@@ -176,7 +176,7 @@ func TestFolderVariant(t *testing.T) {
 		}
 		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
 		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
-		if mcp != (tool.Name == nameCreateDashboard || tool.Name == nameListObservations) || agent {
+		if mcp != (tool.Name == nameCreateDashboard || tool.Name == nameListObservations) || agent != (tool.Name == nameCreateDashboard) {
 			t.Errorf("%s offers folder_id: MCP %t, agent %t", tool.Name, mcp, agent)
 		}
 	}
@@ -377,7 +377,7 @@ const agentToolTextCap = 2000
 
 var agentToolTextAllowances = map[string]int{
 	nameCreateComment: 2100,
-	nameListActivity:  2300,
+	nameListActivity:  3250,
 	nameUpdatePanels:  3700,
 }
 

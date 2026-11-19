@@ -7,6 +7,7 @@ import {
   filterCounts,
   filterLines,
   initialFilter,
+  reportHint,
   statusLabel,
   visibleDatasources,
   type ImportReport,
@@ -241,5 +242,23 @@ describe("datasourceKindLabel", () => {
     ["other", "other"],
   ])("labels %s as %s", (kind, want) => {
     expect(datasourceKindLabel(kind)).toBe(want)
+  })
+})
+
+describe("reportHint", () => {
+  it("warns before the import that queries are checked only then", () => {
+    expect(reportHint(report, false)).toContain("before any query runs")
+  })
+
+  it("points at the agent when the import left unverified panels", () => {
+    expect(reportHint(report, true)).toContain("fix the unverified panels")
+  })
+
+  it("is silent after an import with nothing unverified", () => {
+    const clean = {
+      ...report,
+      counts: { ...report.counts, unverified: 0 },
+    }
+    expect(reportHint(clean, true)).toBeNull()
   })
 })
