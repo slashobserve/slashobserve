@@ -75,6 +75,7 @@ A link opens the dashboard at the version the proposal builds on, or at the merg
 When a change conflicts, its row says in words which panel, variable or setting changed on both sides, shows the panel's title on the dashboard and in the proposal, and asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
 A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
 Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
+
 **Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
 When you kept the dashboard's side of a conflict, the toast adds which panels, variables or settings the proposed change was dropped for, and a merge that saved nothing reads "Merged without a new version".
 The agent's merge tool says the same in its step.
