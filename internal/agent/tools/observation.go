@@ -344,6 +344,8 @@ func refusalOf(res Result) error {
 	switch content := res.Content.(type) {
 	case invalidSpecOut:
 		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case patchRejectedOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
 	case errorBody:
 		return &observations.InvalidInputError{Code: content.Code, Message: content.Message}
 	}
