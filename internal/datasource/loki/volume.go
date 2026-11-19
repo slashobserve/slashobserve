@@ -61,7 +61,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 		}
 		frames, err := d.run(win.Ctx, "/loki/api/v1/query_range", url.Values{
 			"query": {counting},
-			"start": {lokiTime(c.From.Add(req.Step))},
+			"start": {lokiTime(c.From)},
 			"end":   {lokiTime(c.To)},
 			"step":  {strconv.FormatFloat(req.Step.Seconds(), 'f', -1, 64)},
 		}, lim, 0)
@@ -81,18 +81,21 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 
 func volumeChunks(r datasource.TimeRange, step time.Duration) []datasource.TimeRange {
 	size := step * max(1, (volumeChunk+step-1)/step)
+	if r.To.Sub(r.From) <= size+step {
+		return []datasource.TimeRange{r}
+	}
 	var out []datasource.TimeRange
 	for to := r.To; to.After(r.From); to = to.Add(-size) {
-		out = append(out, datasource.TimeRange{From: maxTime(to.Add(-size), r.From), To: to})
+		out = append(out, datasource.TimeRange{From: chunkStart(r, to.Add(-size), step), To: to})
 	}
 	return out
 }
 
-func maxTime(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
+func chunkStart(r datasource.TimeRange, from time.Time, step time.Duration) time.Time {
+	if from.After(r.From) {
+		return from.Add(step)
 	}
-	return b
+	return r.From
 }
 
 func foldVolume(h *logvolume.Histogram, f datasource.Frame, step time.Duration) {

@@ -93,7 +93,7 @@ func TestAVolumeOverDaysIsCountedADayAtATimeNewestFirst(t *testing.T) {
 	want := []chunk{
 		{volumeFrom.Add(49 * h), volumeFrom.Add(72 * h)},
 		{volumeFrom.Add(25 * h), volumeFrom.Add(48 * h)},
-		{volumeFrom.Add(h), volumeFrom.Add(24 * h)},
+		{volumeFrom, volumeFrom.Add(24 * h)},
 	}
 	if got := fake.sent(); !slices.Equal(got, want) {
 		t.Fatalf("chunks = %v, want %v", got, want)
@@ -111,7 +111,7 @@ func TestAVolumeWithinADayIsOneRequest(t *testing.T) {
 	if _, err := ds.LogVolume(context.Background(), volumeOver(1, step, time.Minute)); err != nil {
 		t.Fatal(err)
 	}
-	want := []chunk{{volumeFrom.Add(step), volumeFrom.Add(24 * time.Hour)}}
+	want := []chunk{{volumeFrom, volumeFrom.Add(24 * time.Hour)}}
 	if got := fake.sent(); !slices.Equal(got, want) {
 		t.Fatalf("chunks = %v, want %v", got, want)
 	}

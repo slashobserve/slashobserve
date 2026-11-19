@@ -159,7 +159,7 @@ The chips filter the lines already loaded, not the query, so another page can ho
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
-On Loki a range longer than a day is counted one day at a time, newest first, so a week does not have to fit in one request.
+On Loki a range of a day or less is counted in one request, and a longer range one day at a time, newest first and one request after another, so a week does not have to fit in one request.
 When the next day would not finish in time, the strip shows the days it counted, shades the older bars as not counted, says "N lines since <time>" and explains that the datasource ran out of time; hovering a shaded bar says "Not counted".
 The log volume request then returns `partial: true` with `counted_from`, and `observe datasources log-volume` prints the same note, so an agent knows the older buckets read zero because they were not counted.
 When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
