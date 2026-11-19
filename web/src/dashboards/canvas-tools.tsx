@@ -34,6 +34,13 @@ type Props = {
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
+export function useCanvasToolsShown(
+  permissions: Pick<DashboardPermissions, "comment" | "edit">
+): boolean {
+  const agentAvailable = useAgentInfo().data?.available === true
+  return permissions.comment || (permissions.edit && agentAvailable)
+}
+
 export function CanvasTools({ permissions, idle, composerRef }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
@@ -47,50 +54,52 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
   if (!permissions.comment && !mayAsk) return null
 
   return (
-    <div
-      role="toolbar"
-      aria-label="Canvas tools"
-      className="fixed bottom-4 left-1/2 z-30 flex h-10 -translate-x-1/2 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground narrow:hidden"
-    >
-      <Button
-        variant="ghost"
-        size="sm"
-        className={toolClass}
-        aria-pressed={!commenting}
-        onClick={() => setTool("select")}
+    <div className="sticky bottom-0 z-30 h-0 narrow:hidden">
+      <div
+        role="toolbar"
+        aria-label="Canvas tools"
+        className="absolute bottom-4 left-1/2 flex h-10 -translate-x-1/2 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
       >
-        <MousePointer2Icon aria-hidden="true" />
-        Select
-      </Button>
-      {permissions.comment ? (
         <Button
           variant="ghost"
           size="sm"
           className={toolClass}
-          aria-pressed={commenting}
-          disabled={!idle}
-          onClick={() => setTool("comment")}
+          aria-pressed={!commenting}
+          onClick={() => setTool("select")}
         >
-          <MessageSquarePlusIcon aria-hidden="true" />
-          Comment
+          <MousePointer2Icon aria-hidden="true" />
+          Select
         </Button>
-      ) : null}
-      {mayAsk ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className={toolClass}
-          disabled={!idle}
-          onClick={() => {
-            setTool("select")
-            askAboutDashboard(setSearch)
-            requestAnimationFrame(() => composerRef.current?.focus())
-          }}
-        >
-          <AtSignIcon aria-hidden="true" />
-          Ask
-        </Button>
-      ) : null}
+        {permissions.comment ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={toolClass}
+            aria-pressed={commenting}
+            disabled={!idle}
+            onClick={() => setTool("comment")}
+          >
+            <MessageSquarePlusIcon aria-hidden="true" />
+            Comment
+          </Button>
+        ) : null}
+        {mayAsk ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={toolClass}
+            disabled={!idle}
+            onClick={() => {
+              setTool("select")
+              askAboutDashboard(setSearch)
+              requestAnimationFrame(() => composerRef.current?.focus())
+            }}
+          >
+            <AtSignIcon aria-hidden="true" />
+            Ask
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }

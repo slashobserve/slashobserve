@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deactivateUser = `-- name: DeactivateUser :exec
+UPDATE users SET deactivated_at = now(), deactivated_by_id = $1, deactivated_by_name = $2
+WHERE id = $3 AND deactivated_at IS NULL
+`
+
+type DeactivateUserParams struct {
+	ByID   pgtype.UUID
+	ByName pgtype.Text
+	ID     pgtype.UUID
+}
+
+func (q *Queries) DeactivateUser(ctx context.Context, arg DeactivateUserParams) error {
+	_, err := q.db.Exec(ctx, deactivateUser, arg.ByID, arg.ByName, arg.ID)
+	return err
+}
+
 const deleteUserSessions = `-- name: DeleteUserSessions :execrows
 DELETE FROM sessions WHERE user_id = $1
 `
@@ -26,9 +42,13 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID pgtype.UUID) (i
 const getPerson = `-- name: GetPerson :one
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -37,6 +57,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE u.id = $2
 `
 
@@ -46,19 +71,24 @@ type GetPersonParams struct {
 }
 
 type GetPersonRow struct {
-	ID               pgtype.UUID
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRoleByName pgtype.Text
-	DashboardCount   int32
-	KeyCount         int32
-	SessionCount     int32
+	ID                       pgtype.UUID
+	Email                    string
+	Name                     string
+	CreatedAt                pgtype.Timestamptz
+	LastLoginAt              pgtype.Timestamptz
+	LastSeenAt               pgtype.Timestamptz
+	Role                     string
+	RoleSource               string
+	RoleGroup                pgtype.Text
+	ManualRoleByName         pgtype.Text
+	DeactivatedAt            pgtype.Timestamptz
+	DeactivatedByName        pgtype.Text
+	DashboardCount           int32
+	KeyCount                 int32
+	SessionCount             int32
+	PersonalDashboardCount   int32
+	PersonalObservationCount int32
+	PersonalSavedSearchCount int32
 }
 
 func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPersonRow, error) {
@@ -75,25 +105,31 @@ func (q *Queries) GetPerson(ctx context.Context, arg GetPersonParams) (GetPerson
 		&i.RoleSource,
 		&i.RoleGroup,
 		&i.ManualRoleByName,
+		&i.DeactivatedAt,
+		&i.DeactivatedByName,
 		&i.DashboardCount,
 		&i.KeyCount,
 		&i.SessionCount,
+		&i.PersonalDashboardCount,
+		&i.PersonalObservationCount,
+		&i.PersonalSavedSearchCount,
 	)
 	return i, err
 }
 
 const getUserForRole = `-- name: GetUserForRole :one
-SELECT id, email, name, groups, manual_role, role, role_source FROM users WHERE id = $1 FOR UPDATE
+SELECT id, email, name, groups, manual_role, role, role_source, deactivated_at FROM users WHERE id = $1 FOR UPDATE
 `
 
 type GetUserForRoleRow struct {
-	ID         pgtype.UUID
-	Email      string
-	Name       string
-	Groups     []string
-	ManualRole pgtype.Text
-	Role       string
-	RoleSource string
+	ID            pgtype.UUID
+	Email         string
+	Name          string
+	Groups        []string
+	ManualRole    pgtype.Text
+	Role          string
+	RoleSource    string
+	DeactivatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserForRoleRow, error) {
@@ -107,12 +143,14 @@ func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserFo
 		&i.ManualRole,
 		&i.Role,
 		&i.RoleSource,
+		&i.DeactivatedAt,
 	)
 	return i, err
 }
 
 const getUserPrincipal = `-- name: GetUserPrincipal :one
-SELECT id, email, name, role, groups FROM users WHERE id = $1
+SELECT u.id, u.email, u.name, u.role, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
+FROM users u WHERE u.id = $1 AND u.deactivated_at IS NULL
 `
 
 type GetUserPrincipalRow struct {
@@ -137,23 +175,26 @@ func (q *Queries) GetUserPrincipal(ctx context.Context, id pgtype.UUID) (GetUser
 }
 
 const isFirstUser = `-- name: IsFirstUser :one
-SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
-FROM users u WHERE u.id = $1
+SELECT first_user FROM users WHERE id = $1
 `
 
 func (q *Queries) IsFirstUser(ctx context.Context, id pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, isFirstUser, id)
-	var not_exists bool
-	err := row.Scan(&not_exists)
-	return not_exists, err
+	var first_user bool
+	err := row.Scan(&first_user)
+	return first_user, err
 }
 
 const listUsers = `-- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  u.deactivated_at, u.deactivated_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
-  coalesce(sc.n, 0)::integer AS session_count
+  coalesce(sc.n, 0)::integer AS session_count,
+  coalesce(pc.dashboards, 0)::integer AS personal_dashboard_count,
+  coalesce(pc.observations, 0)::integer AS personal_observation_count,
+  coalesce(pc.saved_searches, 0)::integer AS personal_saved_search_count
 FROM users u
 LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
   JOIN dashboards d ON d.id = v.dashboard_id
@@ -162,6 +203,11 @@ LEFT JOIN (SELECT v.author_id, count(*) AS n FROM dashboard_versions v
 LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+LEFT JOIN LATERAL (SELECT
+    (SELECT count(*) FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE f.personal AND f.owner_id = u.id) AS dashboards,
+    (SELECT count(*) FROM observations o JOIN folders f ON f.id = o.folder_id WHERE f.personal AND f.owner_id = u.id) AS observations,
+    (SELECT count(*) FROM saved_searches s JOIN folders f ON f.id = s.folder_id WHERE f.personal AND f.owner_id = u.id) AS saved_searches
+  WHERE u.deactivated_at IS NOT NULL) pc ON true
 WHERE $2::timestamptz IS NULL
   OR (u.created_at, u.id) < ($2::timestamptz, $3::uuid)
 ORDER BY u.created_at DESC, u.id DESC
@@ -176,19 +222,24 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID               pgtype.UUID
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRoleByName pgtype.Text
-	DashboardCount   int32
-	KeyCount         int32
-	SessionCount     int32
+	ID                       pgtype.UUID
+	Email                    string
+	Name                     string
+	CreatedAt                pgtype.Timestamptz
+	LastLoginAt              pgtype.Timestamptz
+	LastSeenAt               pgtype.Timestamptz
+	Role                     string
+	RoleSource               string
+	RoleGroup                pgtype.Text
+	ManualRoleByName         pgtype.Text
+	DeactivatedAt            pgtype.Timestamptz
+	DeactivatedByName        pgtype.Text
+	DashboardCount           int32
+	KeyCount                 int32
+	SessionCount             int32
+	PersonalDashboardCount   int32
+	PersonalObservationCount int32
+	PersonalSavedSearchCount int32
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
@@ -216,9 +267,14 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.RoleSource,
 			&i.RoleGroup,
 			&i.ManualRoleByName,
+			&i.DeactivatedAt,
+			&i.DeactivatedByName,
 			&i.DashboardCount,
 			&i.KeyCount,
 			&i.SessionCount,
+			&i.PersonalDashboardCount,
+			&i.PersonalObservationCount,
+			&i.PersonalSavedSearchCount,
 		); err != nil {
 			return nil, err
 		}
@@ -231,7 +287,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 }
 
 const listUsersForRoles = `-- name: ListUsersForRoles :many
-SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group, first_user
 FROM users ORDER BY created_at, id
 `
 
@@ -244,6 +300,7 @@ type ListUsersForRolesRow struct {
 	Role       string
 	RoleSource string
 	RoleGroup  pgtype.Text
+	FirstUser  bool
 }
 
 func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow, error) {
@@ -264,6 +321,7 @@ func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow
 			&i.Role,
 			&i.RoleSource,
 			&i.RoleGroup,
+			&i.FirstUser,
 		); err != nil {
 			return nil, err
 		}
@@ -276,7 +334,7 @@ func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow
 }
 
 const lockAdmins = `-- name: LockAdmins :many
-SELECT id FROM users WHERE role = 'admin' FOR UPDATE
+SELECT id FROM users WHERE role = 'admin' AND deactivated_at IS NULL FOR UPDATE
 `
 
 func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
@@ -297,6 +355,27 @@ func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const reactivateUser = `-- name: ReactivateUser :exec
+UPDATE users SET deactivated_at = NULL, deactivated_by_id = NULL, deactivated_by_name = NULL
+WHERE id = $1
+`
+
+func (q *Queries) ReactivateUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, reactivateUser, id)
+	return err
+}
+
+const removeDeactivatedUser = `-- name: RemoveDeactivatedUser :one
+DELETE FROM users WHERE id = $1 AND deactivated_at IS NOT NULL RETURNING name
+`
+
+func (q *Queries) RemoveDeactivatedUser(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, removeDeactivatedUser, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const setManualRole = `-- name: SetManualRole :exec

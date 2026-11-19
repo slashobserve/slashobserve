@@ -84,6 +84,25 @@ describe("describeAuditEvent", () => {
     )
   })
 
+  test("says how an invite's role changed", () => {
+    expect(
+      describeAuditEvent(
+        event("user.invite_updated", {
+          email: "asha@example.com",
+          role: { from: "editor", to: "viewer" },
+        })
+      )
+    ).toBe("Changed the invite of asha@example.com: role editor to viewer")
+  })
+
+  test("counts what a deactivation ended", () => {
+    expect(
+      describeAuditEvent(
+        event("user.deactivated", { name: "Asha", sessions: 2, grants: 1 })
+      )
+    ).toBe("Deactivated Asha (2 sessions, 1 connected agents)")
+  })
+
   test("lists only what changed on a service account", () => {
     expect(
       describeAuditEvent(

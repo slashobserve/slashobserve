@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of Home, the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, the sidebar, and the light and dark theme.
+description: The short addresses of Home, the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with the dashboards list and a dashboard's More menu, a pointer to TV mode, the sidebar, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -77,6 +77,32 @@ The server redirects only when the id is a UUID, and the web app does the same f
 `/dashboards/by-title?title=<title>` is not an id address and keeps working as described in [ObserveSpec](../concepts/observespec.md).
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
 It resolves only for a signed-in caller who can see the dashboard: a signed-out visitor signs in first and comes back to it, and a uid nobody imported, or whose dashboard is in a folder you cannot see, opens the app's not-found page.
+
+## The dashboards list
+
+`/dashboards` lists the dashboards you can see, folder by folder.
+**Create dashboard** opens the chat at `/ask`, where you describe the dashboard you want; the page has no blank-canvas form.
+**New folder**, offered to an Editor or an Admin, asks for a name and creates a folder you own; it appears in the list as soon as it is created.
+Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
+The box above the list filters by title, and the folder and tag menus narrow it further.
+
+## The More menu of a dashboard
+
+The **More** button at the right of a dashboard's header opens:
+
+- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
+- **Add panel**, when a datasource is configured, adds a panel, see [Edit a panel](edit-panel.md).
+- **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
+- **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
+- **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
+- **Print or save as PDF** and **Download as image** lay the dashboard out for paper or draw it as one PNG, see [Print a dashboard or download it as an image](#print-a-dashboard-or-download-it-as-an-image).
+- **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
+- **TV mode**, also `d` then `k`, starts [TV mode](public-links.md#show-it-on-a-wall); **TV mode for this folder** cycles through the folder's dashboards and is left out in a personal folder.
+- **Chart hover**, also Cmd/Ctrl+O, chooses how hovering one time chart shows on the others: **This chart only**, **Shared crosshair** or **Shared tooltip**.
+  A choice that differs from the dashboard's saved `cursorSync` goes into the address as `cursor` and is not saved to the dashboard.
+- **Delete dashboard...**, when you can edit the dashboard, asks for confirmation.
+
+While you have unsaved layout moves, the items that would change the dashboard say "finish the layout first".
 
 ## Dashboards on the Ask page and pins
 
@@ -171,7 +197,8 @@ While you have unsaved moves, the actions that would change the dashboard in ano
 ## Health on a dashboard
 
 When the last health check found a problem in the dashboard, its header has a button that counts the problems, such as **2 problems**.
-A dashboard that was checked and has no problem shows a quiet **Healthy** button instead, whose popover says "No problems found" and when and on which version it was checked.
+A dashboard that was checked and has no problem shows a quiet **Queries OK** button instead, whose popover says "No problems found" and when and on which version it was checked.
+The button reports whether the queries ran, not whether the numbers look right, so read a panel's threshold state for that.
 Choose the problem button to open a popover with every problem, when and on which version the dashboard was checked, and **Repair**.
 The popover says "before the latest version" when the dashboard has been saved since the check.
 **Not opened in 90 days** is never listed here, because you just opened the dashboard.
@@ -275,11 +302,13 @@ Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.
 ## On a phone
 
 Under 900 pixels wide, every page has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
-On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name, and on a dashboard the breadcrumb and **Controls** sit under it.
+On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name, and on a dashboard the dashboard's name, its version button and **Controls** sit under it, without the folder crumbs, which the sidebar and **Dashboards** page keep.
 A page's own actions, such as **Share** on an observation or **History** on a chat, sit in a row under the bar.
 Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
+The activity pane starts closed at 900 pixels wide and below, whatever this browser saved on a wider screen, and **Activity** in the controls opens it.
+
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
 The panel editor opens as a sheet at the bottom of the screen, and the panel menu does not show keyboard shortcut letters.
 

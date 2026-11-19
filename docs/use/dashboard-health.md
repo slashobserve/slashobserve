@@ -10,7 +10,8 @@ It is the list to work through after [switching from Grafana](switch-from-grafan
 
 The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more problems" counting its other problems, and the state of its repair.
 Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
-A dashboard that was checked and has no problem shows a **Healthy** badge, whose popover says "No problems found" and when and on which version it was checked.
+A dashboard that was checked and has no problem shows a **Queries OK** badge, whose popover says "No problems found" and when and on which version it was checked.
+The badge says only that the panel and variable queries ran; it does not read the numbers, so a stat past its threshold can sit beside it.
 
 The **Problem** menu narrows the list to the dashboards with one kind of problem, or with any problem, and the address keeps the choice, as `?kind=<kind or any>&folder=<folder id>`.
 The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
@@ -74,7 +75,7 @@ It takes `folder_id`, `dashboard_id`, `kind` (one of the kinds above), `limit` (
 `dashboard_id` repeats up to 50 times and lists only those dashboards that the caller can see, whether or not they have a problem: a checked dashboard with no problem comes back with empty `problems`, and one that was never checked has `state` `unchecked` with null `checked_at` and `checked_version`.
 With `kind` as well, the list keeps only the dashboards with a problem of that kind.
 `summary` is null on every page when `dashboard_id` is given.
-The web reads a dashboard's Healthy badge this way.
+The web reads a dashboard's Queries OK badge this way.
 `GET /api/v1/dashboards?problem=<kind or any>` narrows the dashboards list to the dashboards with that problem by the same rules, keeping its order, paging and `total_count`.
 
 The list is ranked, so the dashboards most worth fixing come first:

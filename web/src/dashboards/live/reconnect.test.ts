@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 
+import { ApiError } from "@/api/errors"
+
 import { backoffDelay, shouldCheckDashboard } from "./reconnect"
+import { isGone } from "./use-dashboard-events"
 
 describe("backoffDelay", () => {
   it("spreads each attempt between half and all of the base delay", () => {
@@ -35,5 +38,18 @@ describe("shouldCheckDashboard", () => {
       shouldCheckDashboard
     )
     expect(checked).toEqual([3, 6, 9])
+  })
+})
+
+describe("isGone", () => {
+  it("treats a removed dashboard and a lost folder as gone for the open page", () => {
+    expect(isGone(new ApiError(404, "not_found", "gone"))).toBe(true)
+    expect(isGone(new ApiError(403, "forbidden_role", "no access"))).toBe(true)
+  })
+
+  it("keeps the page for a server hiccup", () => {
+    expect(isGone(new ApiError(502, "datasource_unavailable", "down"))).toBe(
+      false
+    )
   })
 })
