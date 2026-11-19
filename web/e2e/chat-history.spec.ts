@@ -55,6 +55,12 @@ function listedRequest(label: string, index: number) {
     title: prompt.slice(0, 80).trim(),
     pinned_at: null,
     status: "succeeded" as const,
+    state: "succeeded" as const,
+    result_kind: "version" as const,
+    failure_code: null,
+    build: null,
+    continued_by: null,
+    observation_title: null,
     dashboard_id: null,
     dashboard_title: null,
     panel_id: null,
@@ -187,7 +193,8 @@ for (const scheme of ["light", "dark"] as const) {
       await openHistory(page)
 
       const row = rowsOf(panel(page)).filter({ hasText: unanswerablePrompt })
-      await expect(row.first().locator('[data-status="critical"]')).toBeVisible(
+      await expect(row.first().locator('[data-status="warning"]')).toHaveText(
+        "Stopped",
         { timeout: 90_000 }
       )
     })

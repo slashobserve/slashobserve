@@ -76,9 +76,12 @@ for (const scheme of ["light", "dark"] as const) {
         .getByRole("button", { name: new RegExp(unanswerablePrompt) })
         .first()
       await expect(row).toBeVisible()
-      await expect(row.locator('[data-status="critical"]')).toBeVisible({
-        timeout: 30_000,
-      })
+      await expect(row.locator('[data-status="warning"]')).toHaveText(
+        "Stopped",
+        {
+          timeout: 30_000,
+        }
+      )
 
       await row.click()
       await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
