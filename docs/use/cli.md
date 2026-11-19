@@ -177,6 +177,8 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
 | `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when the directory cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
+| `bin/observe dashboards schema` | Prints the JSON Schema every dashboard file must satisfy, the document the `get_spec_guide` MCP tool returns; it is part of the program and needs no server. |
+| `bin/observe dashboards sample` | Prints a complete example Spec with variables, several panel types and a layout, to save as a `.json` file and edit before `apply`; it needs no server. |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
