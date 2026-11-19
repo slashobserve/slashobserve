@@ -290,6 +290,7 @@ func (a *app) reportFinding(out *output, req agentRequest) error {
 	}
 	if !a.json {
 		printFinding(out, *req.Finding)
+		printAskOn(out, req.Finding.AskOn, req.Prompt)
 	}
 	a.openLink(out, text(req.Finding.URL))
 	return nil

@@ -18,6 +18,7 @@ import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
 
+import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
@@ -275,7 +276,15 @@ export function RequestTurn({
           ) : null}
           {answers && request.status === "succeeded" ? (
             live?.finding != null ? (
-              <FindingCard finding={live.finding} showOpenLink />
+              <>
+                <FindingCard finding={live.finding} showOpenLink />
+                {live.finding.ask_on !== null ? (
+                  <AskOnDashboard
+                    askOn={live.finding.ask_on}
+                    prompt={request.prompt}
+                  />
+                ) : null}
+              </>
             ) : live !== undefined ? (
               <p className="text-[13px] text-muted-foreground">
                 {investigates
