@@ -27,6 +27,7 @@ import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
 import { RepairQueue } from "@/import/repair/repair-page"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
+import { levelLabels } from "@/folders/grants"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import {
@@ -325,6 +326,9 @@ export function DashboardList({
         : allFolders,
     [allFolders, folderLocked, folderId]
   )
+  const readOnlyFolder = folders?.find(
+    (folder) => folderLocked && !folder.permissions.edit
+  )
   const filtered = hasFilters(search)
   const loaded = query.data !== undefined
   const settled = loaded && !query.isPlaceholderData
@@ -467,7 +471,14 @@ export function DashboardList({
       )}
       {empty ? (
         <section className="flex flex-col items-center gap-2 py-16 text-center">
-          {noDashboards ? (
+          {noDashboards && readOnlyFolder !== undefined ? (
+            <>
+              <h2 className="text-lg font-semibold">No dashboards yet</h2>
+              <p className="text-sm text-muted-foreground">
+                {`Your access: ${levelLabels[readOnlyFolder.level]}. Someone with Edit on ${readOnlyFolder.title} adds dashboards here.`}
+              </p>
+            </>
+          ) : noDashboards ? (
             <>
               <h2 className="text-lg font-semibold">No dashboards yet</h2>
               <p className="text-sm text-muted-foreground">

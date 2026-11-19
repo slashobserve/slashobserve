@@ -8,6 +8,7 @@ A folder also holds the [observations](../use/observations.md) in it, the answer
 A finding is an answer written into an observation, so it follows the folder its observation is in.
 A folder's page lists its dashboards, and below them its **Observations**, with their state and when they last changed, and its **Saved searches**, which appears only when the folder has some.
 Anyone with Edit on a saved search renames, moves or deletes it from its row menu there, and moves an observation, with the finding in it, from the observation's **More actions** menu.
+An empty folder you cannot edit says "Your access" with your level and who to ask, and offers no chat or import button, because those start dashboards in your My Dashboards, not in the folder.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
 
@@ -25,13 +26,15 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
   Only the people on the list, the person who created the folder and Admins see it.
   Everyone else gets no trace of its dashboards: they are missing from lists, search, tags and datasource counts, their panel data, events and comments are refused, and the agent cannot reach them.
   Removing the last entry opens the folder to everyone again.
+  Choosing **Only the people and groups below** restricts nothing until someone is listed, and the page says so; the server stores no empty restriction.
+  An instance Admin gets suggestions from the people who have signed in as they type an address; everyone else types the address, and a group is always typed as its name.
 
 ## My Dashboards
 
 Every person has one personal folder, My Dashboards, that only they see; Admins cannot see it either.
 A dashboard there is private: nobody else can open it, find it in a list or search, or reach it through the agent.
 Every new dashboard you make starts there unless you choose a folder: dashboards from the chat, including a stopped build kept with **Save what was built**, and imports whose export names no folder.
-To share one, publish it: open its **Share** pane, choose a folder where you have Edit and choose **Publish**, or use **Publish to folder** in its row menu on the Dashboards page.
+To share one, publish it: open its **Share** pane, choose a folder where you have Edit and choose **Publish**, which names who will be able to open the dashboard and asks you to confirm, or use **Publish to folder** in its row menu on the Dashboards page.
 Publishing moves the dashboard with its versions, comments and link, and saves no version.
 Nothing moves into My Dashboards; to keep a private copy of a dashboard, duplicate it into My Dashboards.
 A move into My Dashboards answers `409 personal_folder`.
@@ -88,7 +91,8 @@ The request needs Comment on the dashboard's folder, and the server checks it wh
 A new dashboard from the chat goes to the requester's My Dashboards, or to General for a key.
 A request whose person lost access or was deleted in between fails with a message saying so.
 
-Over the API, a dashboard in a folder the caller cannot see answers `403 forbidden_role` and a folder answers `404 not_found`; MCP tools answer `not_found` for both.
+Over the API and MCP, a dashboard or a folder the caller cannot see answers `404 not_found`, the same answer as an id that does not exist, so a guessed id never confirms that a hidden dashboard exists.
+A dashboard the caller can see but not change answers `403 forbidden_role`.
 
 An entry used to give a Viewer or Commenter nothing beyond their role.
 Now an existing entry at Edit or Admin lifts them, so review the lists of restricted folders after you upgrade.

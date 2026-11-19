@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
@@ -240,6 +241,26 @@ func TestCreateRefusals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := r.service.Create(t.Context(), tc.by, tc.in); !errors.Is(err, tc.want) {
 				t.Errorf("error %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestCreateRefusalNamesWhatWouldLetItThrough(t *testing.T) {
+	r := newRig(t)
+	cases := []struct {
+		name string
+		in   CreateInput
+		want forbidden.Body
+	}{
+		{"a dashboard the caller only views", CreateInput{DashboardID: r.open, Text: "x"}, forbidden.NeedsAccess("edit", "General")},
+		{"a global annotation", CreateInput{Text: "x"}, forbidden.NeedsRole("editor")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := r.service.Create(t.Context(), viewer, tc.in)
+			if !errors.Is(err, ErrForbidden) || forbidden.BodyOf(err) != tc.want {
+				t.Fatalf("error %v answers %+v, want %+v", err, forbidden.BodyOf(err), tc.want)
 			}
 		})
 	}

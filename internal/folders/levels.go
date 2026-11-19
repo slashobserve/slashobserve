@@ -130,6 +130,18 @@ const (
 	NeedCreate
 )
 
+func (n Need) Level() string {
+	switch n {
+	case NeedView:
+		return "view"
+	case NeedComment:
+		return "comment"
+	case NeedManage:
+		return "manage"
+	}
+	return "edit"
+}
+
 func (a Abilities) Has(n Need) bool {
 	switch n {
 	case NeedView:

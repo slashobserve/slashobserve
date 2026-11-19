@@ -87,3 +87,9 @@ export function panelShareUrl(
     panel: panelId,
   })
 }
+
+export function linkHint(personal: boolean): string {
+  return personal
+    ? "Only you can open this link until you publish the dashboard."
+    : 'Links need sign-in. Someone without access to the folder sees "Dashboard not found".'
+}

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { components } from "@/api/schema.gen"
+import { roleAtLeast, type Role } from "@/lib/roles"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 
@@ -15,6 +16,10 @@ const noPermissions: DashboardPermissions = {
   manage: false,
   create: false,
 }
+export function mayInvestigate(p: DashboardPermissions, role: Role): boolean {
+  return p.edit && roleAtLeast(role, "editor")
+}
+
 export type ComposerMode = "full" | "comment-only" | "read-only"
 
 export function composerMode(p: DashboardPermissions): ComposerMode {
@@ -33,7 +38,7 @@ export function readerNote(
     case "comment-only":
       return `You can view and comment in ${folderTitle}. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges.`
     case "read-only":
-      return `You can view dashboards in ${folderTitle}. Ask an Admin if you need to comment.`
+      return `You can view dashboards in ${folderTitle}. Ask an Admin of this folder, or of this server, to give you Comment access.`
   }
 }
 
