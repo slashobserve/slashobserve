@@ -1,8 +1,10 @@
-import { useId, useState, type FormEvent } from "react"
+import { useId, useRef, useState, type FormEvent, type Ref } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { ClockIcon, RefreshCwIcon } from "lucide-react"
+import { CalendarIcon, ClockIcon, RefreshCwIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { dashboardKeys } from "@/api/keys"
+import { DateCalendar } from "@/components/date-calendar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,30 +15,42 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { pickDay, type DaySelection } from "@/lib/calendar"
 import {
   describeRange,
   displayZone,
-  isAbsoluteOrdered,
-  isRangeTooLong,
-  maxRangeDays,
-  parseUserTime,
-  userTimeProblem,
   quickRanges as defaultQuickRanges,
   type QuickRange,
   zonedTimeValue,
 } from "@/lib/time"
-
 import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
+import { loadProblemText } from "@/service-accounts/queries"
+import type { Dashboard } from "@/spec"
 
+import { useAddVersion } from "./queries"
+import { saveToast } from "./save-outcome"
 import { useSetDashboardSearch } from "./search"
+import {
+  calendarMonthOf,
+  readDraft,
+  type DraftField,
+  type DraftProblem,
+} from "./time-draft"
 
 export type TimeRangeValue = { from: string; to: string }
+
+type SaveDefault = {
+  saved: TimeRangeValue
+  pending: boolean
+  onSave: (next: TimeRangeValue) => void
+}
 
 type ControlProps = {
   value: TimeRangeValue
   onChange: (next: TimeRangeValue) => void
   quickRanges?: QuickRange[]
   zone?: string | null
+  saveDefault?: SaveDefault
 }
 
 export function TimeRangeControl({
@@ -44,6 +58,7 @@ export function TimeRangeControl({
   onChange,
   quickRanges = defaultQuickRanges,
   zone,
+  saveDefault,
 }: ControlProps) {
   const preferredTimeZone = usePreferences((state) => state.timeZone)
   const typedZone =
@@ -52,10 +67,14 @@ export function TimeRangeControl({
       : (zone ?? undefined)
   const fromId = useId()
   const toId = useId()
+  const fromRef = useRef<HTMLInputElement>(null)
+  const toRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [draftFrom, setDraftFrom] = useState("")
   const [draftTo, setDraftTo] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const [problem, setProblem] = useState<DraftProblem | null>(null)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [picked, setPicked] = useState<DaySelection>(null)
 
   function choose(nextFrom: string, nextTo: string) {
     onChange({ from: nextFrom, to: nextTo })
@@ -66,35 +85,56 @@ export function TimeRangeControl({
     if (next) {
       setDraftFrom(zonedTimeValue(value.from, typedZone))
       setDraftTo(zonedTimeValue(value.to, typedZone))
-      setError(null)
+      setProblem(null)
+      setCalendarOpen(false)
+      setPicked(null)
     }
     setOpen(next)
   }
 
+  function read(): TimeRangeValue | null {
+    const result = readDraft(draftFrom, draftTo, typedZone)
+    if (result.range === undefined) {
+      setProblem(result.problem)
+      const field = result.problem.field === "from" ? fromRef : toRef
+      field.current?.focus()
+      return null
+    }
+    return result.range
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    const parsedFrom = parseUserTime(draftFrom, typedZone)
-    const parsedTo = parseUserTime(draftTo, typedZone)
-    if (parsedFrom === null || parsedTo === null) {
-      setError(
-        userTimeProblem(draftFrom, typedZone) ??
-          userTimeProblem(draftTo, typedZone) ??
-          "Enter a time like now-6h, now/d or 2026-10-17 09:00."
-      )
-      return
-    }
-    if (!isAbsoluteOrdered(parsedFrom, parsedTo)) {
-      setError("From must be earlier than To.")
-      return
-    }
-    if (isRangeTooLong(parsedFrom, parsedTo)) {
-      setError(`The range can be at most ${maxRangeDays} days.`)
-      return
-    }
-    choose(parsedFrom, parsedTo)
+    const range = read()
+    if (range !== null) choose(range.from, range.to)
+  }
+
+  function onSaveDefault() {
+    const range = read()
+    if (range === null || saveDefault === undefined) return
+    choose(range.from, range.to)
+    saveDefault.onSave(range)
+  }
+
+  function onPickDay(day: string) {
+    const next = pickDay(picked, day)
+    setPicked(next)
+    if (next === null) return
+    setDraftFrom(`${next.start} 00:00`)
+    setDraftTo(`${next.end ?? next.start} 23:59:59`)
+    setProblem(null)
   }
 
   const rangeLabel = describeRange(value.from, value.to, quickRanges)
+  const parsed = readDraft(draftFrom, draftTo, typedZone).range
+  const alreadyDefault =
+    saveDefault !== undefined &&
+    parsed !== undefined &&
+    parsed.from === saveDefault.saved.from &&
+    parsed.to === saveDefault.saved.to
+
+  const fieldProblem = (field: DraftField) =>
+    problem?.field === field ? problem.message : null
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -112,7 +152,7 @@ export function TimeRangeControl({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[min(34rem,calc(100vw-1rem))] gap-3 p-3"
+        className="max-h-[min(40rem,calc(100svh-4rem))] w-[min(34rem,calc(100vw-1rem))] gap-3 overflow-auto p-3"
       >
         <PopoverTitle className="sr-only">Time range</PopoverTitle>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -137,41 +177,104 @@ export function TimeRangeControl({
             ))}
           </div>
           <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={fromId}>From</Label>
-              <Input
-                id={fromId}
-                value={draftFrom}
-                onChange={(event) => setDraftFrom(event.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={toId}>To</Label>
-              <Input
-                id={toId}
-                value={draftTo}
-                onChange={(event) => setDraftTo(event.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
+            <TimeField
+              id={fromId}
+              label="From"
+              value={draftFrom}
+              inputRef={fromRef}
+              problem={fieldProblem("from")}
+              onChange={setDraftFrom}
+            />
+            <TimeField
+              id={toId}
+              label="To"
+              value={draftTo}
+              inputRef={toRef}
+              problem={fieldProblem("to")}
+              onChange={setDraftTo}
+            />
             <PopoverDescription className="text-xs">
               Use now-6h, now/d or 2026-10-17 09:00
             </PopoverDescription>
-            {error ? (
-              <p role="alert" className="text-xs text-destructive">
-                {error}
-              </p>
-            ) : null}
-            <Button type="submit" className="self-start">
-              Apply
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              aria-expanded={calendarOpen}
+              onClick={() => setCalendarOpen((current) => !current)}
+            >
+              <CalendarIcon />
+              Pick dates
             </Button>
+            {calendarOpen ? (
+              <DateCalendar
+                initial={calendarMonthOf(draftFrom, typedZone)}
+                selection={picked}
+                onPick={onPickDay}
+              />
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit">Apply</Button>
+              {saveDefault === undefined ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saveDefault.pending || alreadyDefault}
+                  aria-busy={saveDefault.pending}
+                  title={
+                    alreadyDefault
+                      ? "This is already the dashboard's default range"
+                      : "Apply this range and save it as the dashboard's default in a new version"
+                  }
+                  onClick={onSaveDefault}
+                >
+                  Save as default
+                </Button>
+              )}
+            </div>
           </form>
         </div>
       </PopoverContent>
     </Popover>
+  )
+}
+
+function TimeField({
+  id,
+  label,
+  value,
+  inputRef,
+  problem,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: string
+  inputRef: Ref<HTMLInputElement>
+  problem: string | null
+  onChange: (next: string) => void
+}) {
+  const errorId = `${id}-error`
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        ref={inputRef}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={problem !== null}
+        aria-describedby={problem === null ? undefined : errorId}
+      />
+      {problem === null ? null : (
+        <p id={errorId} role="alert" className="text-xs text-destructive">
+          {problem}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -183,6 +286,7 @@ type Props = {
   quickRanges: QuickRange[]
   hidden: boolean
   timezone: string | undefined
+  defaultRange?: { spec: Dashboard; version: number } | null
 }
 
 export function TimeRangePicker({
@@ -193,9 +297,28 @@ export function TimeRangePicker({
   quickRanges,
   hidden,
   timezone,
+  defaultRange,
 }: Props) {
   const queryClient = useQueryClient()
   const setSearch = useSetDashboardSearch()
+  const save = useAddVersion(dashboardId)
+
+  function saveDefault(next: TimeRangeValue) {
+    if (!defaultRange) return
+    save.mutate(
+      {
+        spec: { ...defaultRange.spec, time: next },
+        summary: `Set the default time range to ${describeRange(next.from, next.to, quickRanges)}`,
+        parent_version: defaultRange.version,
+        propose: false,
+      },
+      {
+        onSuccess: (outcome) => toast.success(saveToast(outcome)),
+        onError: (error) =>
+          toast.error(`Could not save the default. ${loadProblemText(error)}`),
+      }
+    )
+  }
 
   return (
     <div className="flex items-center gap-1">
@@ -205,6 +328,15 @@ export function TimeRangePicker({
           onChange={(next) => setSearch((state) => ({ ...state, ...next }))}
           quickRanges={quickRanges}
           zone={displayZone(undefined, timezone) ?? null}
+          saveDefault={
+            defaultRange
+              ? {
+                  saved: defaultRange.spec.time,
+                  pending: save.isPending,
+                  onSave: saveDefault,
+                }
+              : undefined
+          }
         />
       )}
       <Button

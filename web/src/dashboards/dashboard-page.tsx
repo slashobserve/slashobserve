@@ -752,6 +752,16 @@ function DashboardView({
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
         timezone={ownZone}
+        defaultRange={
+          permissions.edit &&
+          detailsBlockReason({
+            pinned,
+            editingLayout: editing,
+            editingPanel,
+          }) === null
+            ? { spec: envelopeSpec, version: envelopeVersion }
+            : null
+        }
       />
       {spec.timePicker?.hidden ? null : (
         <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />

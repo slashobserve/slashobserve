@@ -348,4 +348,13 @@ The choice stays in this browser's local storage and never reaches the server, s
 It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
 It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
 It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+
+## The time range picker
+
+The time range button opens the quick ranges and the **From** and **To** boxes.
+**Pick dates** shows a calendar: click a day for that whole day, then click a second day for the days between them.
+The calendar fills **From** with the start of the first day and **To** with the end of the last, in the zone the boxes read, and **Apply** uses them.
+A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
+On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
+The button is hidden on an older version, while a layout or panel is being edited, and for a range that already is the default.
 The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.
