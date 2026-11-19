@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { ApiIssue } from "@/api/errors"
 
 import {
+  onlyEmptyResult,
   rejectedQueryLines,
   showsProblem,
   splitRejected,
@@ -253,5 +254,29 @@ describe("transientLines", () => {
         []
       )
     ).toEqual(["internal error"])
+  })
+})
+
+describe("onlyEmptyResult", () => {
+  it("is true when every issue is an empty result", () => {
+    expect(
+      onlyEmptyResult([
+        issue("/panels/1/queries", "query_empty"),
+        issue("/panels/1/queries", "query_empty"),
+      ])
+    ).toBe(true)
+  })
+
+  it("is false when a query failed beside the empty result", () => {
+    expect(
+      onlyEmptyResult([
+        issue("/panels/1/queries", "query_empty"),
+        issue("/panels/1/queries/0/query"),
+      ])
+    ).toBe(false)
+  })
+
+  it("is false for no issues", () => {
+    expect(onlyEmptyResult([])).toBe(false)
   })
 })

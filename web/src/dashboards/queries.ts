@@ -259,6 +259,7 @@ export function usePatchPanels(id: string) {
       summary: string
       parent_version: number
       propose?: boolean
+      acceptEmpty?: boolean
     }): Promise<SaveOutcome> =>
       api
         .POST("/dashboards/{id}/panels", {
@@ -268,6 +269,7 @@ export function usePatchPanels(id: string) {
             summary: input.summary,
             parent_version: input.parent_version,
             ...(input.propose ? { propose_if_needed: true } : {}),
+            ...(input.acceptEmpty ? { accept_empty: true } : {}),
           },
         })
         .then((result) => saveOutcomeOf(unwrap(result))),

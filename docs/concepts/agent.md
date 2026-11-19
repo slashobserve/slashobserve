@@ -252,6 +252,7 @@ The save is rejected when:
 
 - a query fails, or a datasource uid is not configured.
 - none of the queries of a panel returns data, except on an `alertlist` panel, where no firing alerts is normal.
+  A signed-in person can keep such a panel from the [panel editor](../use/edit-panel.md#save-as-a-new-version), marked "Unverified"; the agent, MCP clients and the CLI cannot.
 - the document breaks a rule of the format, such as overlapping panels or an undeclared variable.
 
 The rejection lists each problem with the path of the panel or variable and a code.

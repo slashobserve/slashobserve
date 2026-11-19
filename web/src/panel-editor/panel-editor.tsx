@@ -73,6 +73,7 @@ import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
 import {
+  onlyEmptyResult,
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
@@ -278,7 +279,8 @@ export default function PanelEditor({
   function submit(
     source: Dashboard,
     parent: number,
-    panelToSave: EditablePanel
+    panelToSave: EditablePanel,
+    acceptEmpty = false
   ) {
     if (!validate) return
     const entry = findPanel(source, panelToSave.id)
@@ -311,6 +313,7 @@ export default function PanelEditor({
           (adding ? `Add "${title}"` : defaultSaveSummary(changes, title)),
         parent_version: parent,
         propose,
+        acceptEmpty,
       },
       {
         onSuccess: (outcome) => {
@@ -351,6 +354,10 @@ export default function PanelEditor({
                     )
                   ),
                 })
+                return
+              }
+              if (onlyEmptyResult(error.issues)) {
+                setProblem({ kind: "empty", message: error.issues[0].message })
                 return
               }
               setProblem({
@@ -425,9 +432,14 @@ export default function PanelEditor({
     }
   }
 
-  function applyToLatest() {
+  function applyToLatest(acceptEmpty = false) {
     return withLatestPanel(({ spec: latestSpec, version: latestOf, panel }) =>
-      submit(latestSpec, latestOf, rebasePanel(draft.base, draft.panel, panel))
+      submit(
+        latestSpec,
+        latestOf,
+        rebasePanel(draft.base, draft.panel, panel),
+        acceptEmpty
+      )
     )
   }
 
@@ -440,6 +452,11 @@ export default function PanelEditor({
   function saveDraft() {
     if (newer > 0) void applyToLatest()
     else submit(spec, draft.baseVersion, draft.panel)
+  }
+
+  function saveAnyway() {
+    if (newer > 0) void applyToLatest(true)
+    else submit(spec, draft.baseVersion, draft.panel, true)
   }
 
   const registerJsonGuard = useCallback((guard: LeaveGuard) => {
@@ -609,6 +626,7 @@ export default function PanelEditor({
               problem={problem}
               panelId={current.id}
               onRetry={saveDraft}
+              onSaveAnyway={saveAnyway}
             />
           ) : null}
         </div>

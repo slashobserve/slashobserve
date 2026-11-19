@@ -15,6 +15,7 @@ const unknownDatasourceText =
 export type Problem =
   | { kind: "conflict"; latest: number; conflicts: MergeConflict[] }
   | { kind: "gone" }
+  | { kind: "empty"; message: string }
   | {
       kind: "rejected"
       issues: ApiIssue[]
@@ -40,6 +41,12 @@ function queryRefOf(
   const queries = `${pointer}/queries/`
   if (!issue.path.startsWith(queries)) return undefined
   return refs[Number(issue.path.slice(queries.length).split("/")[0])]
+}
+
+export function onlyEmptyResult(issues: readonly ApiIssue[]): boolean {
+  return (
+    issues.length > 0 && issues.every((issue) => issue.code === "query_empty")
+  )
 }
 
 export function splitRejected(
@@ -206,11 +213,33 @@ export function SaveProblem({
   problem,
   panelId,
   onRetry,
+  onSaveAnyway,
 }: {
   problem: Problem
   panelId: string
   onRetry: () => void
+  onSaveAnyway: () => void
 }) {
+  if (problem.kind === "empty") {
+    return (
+      <Alert>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-pretty">
+          <span className="min-w-[min(100%,16rem)] flex-1">
+            {problem.message} If that is expected, you can save it anyway; the
+            panel is then marked "Unverified".
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 text-foreground"
+            onClick={onSaveAnyway}
+          >
+            Save anyway
+          </Button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
   if (problem.kind === "transient") {
     return (
       <Alert variant="destructive">
