@@ -103,6 +103,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	if id, ok := traceIDOf(text); ok {
 		f, err := d.trace(ctx, id, r, lim.MaxRows)
 		if errors.Is(err, datasource.ErrNotFound) {

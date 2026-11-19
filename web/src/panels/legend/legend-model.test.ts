@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  capLegend,
   effectiveLegendMode,
   inlineValues,
   legendOrder,
   legendWorthShowing,
+  maxStateLegendEntries,
   type LegendOptions,
   type LegendSource,
 } from "./legend-model"
@@ -131,5 +133,18 @@ describe("legendWorthShowing", () => {
 
   it("shows nothing for no series", () => {
     expect(legendWorthShowing(0, ["lastNotNull"])).toBe(false)
+  })
+})
+
+describe("capLegend", () => {
+  it("keeps the first entries and counts the rest", () => {
+    const items = Array.from({ length: 25 }, (_, index) => index)
+    const { shown, more } = capLegend(items, maxStateLegendEntries)
+    expect(shown).toEqual(items.slice(0, maxStateLegendEntries))
+    expect(more).toBe(25 - maxStateLegendEntries)
+  })
+
+  it("leaves a short list alone", () => {
+    expect(capLegend(["a", "b"], 12)).toEqual({ shown: ["a", "b"], more: 0 })
   })
 })

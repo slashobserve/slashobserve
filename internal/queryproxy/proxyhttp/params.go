@@ -42,6 +42,7 @@ type params struct {
 	timezone      string
 	maxDataPoints int
 	selections    map[string]queryproxy.Selection
+	hideQueryText bool
 }
 
 func hasForbiddenParam(q url.Values) bool {

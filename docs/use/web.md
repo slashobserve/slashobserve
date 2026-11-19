@@ -233,6 +233,13 @@ The problems come from the last health check; see [Dashboard health](dashboard-h
 The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Back to dashboard**, `Esc` or `v` again returns to the grid.
 
+## Panels with many series
+
+A time series or trend panel draws at most 50 series per query.
+The server keeps the 50 whose highest value is largest, in their original order, and the panel header says "Top 50 of 412 series" with the full sentence on hover.
+In the data response `meta.series_shown` and `meta.series_total` carry the two numbers, `meta.partial` is true and `meta.note` says which series were kept; they are absent when nothing was dropped.
+Narrow the query or add a filter to see the series that were left out.
+
 ## Inspect
 
 **Inspect** in a panel's menu, or `i` over a panel, opens a pane in the place of the activity card.
@@ -243,10 +250,10 @@ The address carries `inspect=<panel id>` and, for the second and third tab, `ins
 The pane has three tabs:
 
 - **Data** shows the panel's results after its transforms as a table of up to 500 rows, with **Download CSV** and **Save as PNG**.
-- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text and the variables it uses with their selected values.
+- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text, the text as run (the query after variables and macros are expanded, shown when it differs from the saved text and never on a public link), and the variables it uses with their selected values.
 - **Stats** shows how long the request took, whether the server answered from its cache, when it ran, and the number of frames, series, points and rows with the first and last time; **Run again** runs the panel's queries again.
 
-**Download CSV** and **Save as PNG** are also in each panel's menu once its data has loaded.
+**Download CSV** and **Save as PNG** are always in each panel's menu and are greyed until its data has loaded.
 
 The CSV has every row, quoted as RFC 4180 describes, with times in RFC 3339 UTC.
 When every series of the panel has its own time column with no repeated times, the CSV joins them into one row per time, with one column per series.

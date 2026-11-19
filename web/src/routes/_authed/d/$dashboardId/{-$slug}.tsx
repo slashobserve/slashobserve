@@ -18,8 +18,10 @@ import {
   type DashboardSearchParams,
 } from "@/dashboards/search"
 import { useRecordRecent } from "@/home/recent"
+import { datasourcesQuery } from "@/datasources/queries"
 import { useRecordView } from "@/health/record-view"
 import { dashboardLink } from "@/lib/links"
+import { agentInfoQuery } from "@/observe/queries"
 
 export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
   validateSearch: (raw: Record<string, unknown>): DashboardSearchParams =>
@@ -37,6 +39,8 @@ export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
     version: validateDashboardSearch(search).version,
   }),
   loader: async ({ context, params, deps }) => {
+    void context.queryClient.prefetchQuery(datasourcesQuery())
+    void context.queryClient.prefetchQuery(agentInfoQuery())
     const latest = latestDashboardQuery(context.queryClient, params.dashboardId)
     if (deps.version === undefined) {
       await context.queryClient.ensureQueryData(latest)

@@ -53,6 +53,7 @@ import {
   stateScope,
   type PanelSource,
 } from "./panel-source"
+import { seriesCapLabel } from "./series-cap"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
 import { useSelectionStore } from "./selection-store"
 import { useInView } from "./use-in-view"
@@ -406,26 +407,23 @@ export const PanelContainer = memo(function PanelContainer({
   }
 
   const data = query.data
+  const downloadsReady = state === "ready"
   const onDownloadCsv = useMemo(
     () =>
-      data && state === "ready"
-        ? () => downloadCsv(prepare(data.frames), panelName)
-        : undefined,
-    [data, state, prepare, panelName]
+      dataPanel === undefined
+        ? undefined
+        : () => {
+            if (data) downloadCsv(prepare(data.frames), panelName)
+          },
+    [dataPanel, data, prepare, panelName]
   )
-  const onSavePng = useMemo(
-    () =>
-      state === "ready"
-        ? () => {
-            const element = bodyRef.current
-            if (!element) return
-            savePanelPng(element, panelName).catch(() =>
-              toast.error("Could not save the panel as PNG")
-            )
-          }
-        : undefined,
-    [state, panelName]
-  )
+  const onSavePng = useCallback(() => {
+    const element = bodyRef.current
+    if (!element) return
+    savePanelPng(element, panelName).catch(() =>
+      toast.error("Could not save the panel as PNG")
+    )
+  }, [panelName])
 
   const panelMenu = (inToolbar: boolean) => (
     <PanelMenu
@@ -436,6 +434,7 @@ export const PanelContainer = memo(function PanelContainer({
       viewing={viewing}
       onDownloadCsv={onDownloadCsv}
       onSavePng={onSavePng}
+      downloadsReady={downloadsReady}
       canComment={canComment}
       canEdit={canEdit}
       canInvestigate={canInvestigate}
@@ -477,6 +476,7 @@ export const PanelContainer = memo(function PanelContainer({
             ? panelDatasourceUids(dataPanel ?? panel, selections).join(", ")
             : undefined
         }
+        seriesCap={seriesCapLabel(query.data?.meta)}
         links={links}
         badge={
           <>

@@ -6,6 +6,7 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
   canvasModel,
+  canvasIsEmpty,
   defaultLineColor,
   foregroundColor,
   iconOutlineWidth,
@@ -963,5 +964,24 @@ describe("canvasModel styled connections", () => {
       ],
     }).lines
     expect(line.width).toBe(3)
+  })
+})
+
+describe("canvasIsEmpty", () => {
+  it("is true with no element, no connection and no background", () => {
+    expect(canvasIsEmpty(build([series("a", [1])], {}))).toBe(true)
+  })
+
+  it("is false once an element or a background image is drawn", () => {
+    expect(
+      canvasIsEmpty(build([series("a", [1])], { elements: [metric()] }))
+    ).toBe(false)
+    expect(
+      canvasIsEmpty(
+        build([series("a", [1])], {
+          backgroundImage: { url: "https://example.com/map.png" },
+        })
+      )
+    ).toBe(false)
   })
 })
