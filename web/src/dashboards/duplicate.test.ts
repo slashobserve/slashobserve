@@ -73,6 +73,12 @@ describe("duplicateTargets", () => {
     })
   })
 
+  it("falls back to the caller's own folder before General", () => {
+    const locked = folder("l", "Locked", false)
+    const mine = { ...folder("m", "My Dashboards", true), personal: true }
+    expect(duplicateTargets([mine, locked, general], "l").initial).toBe("m")
+  })
+
   it("falls back to the first choice when General is not creatable", () => {
     const locked = folder("l", "Locked", false)
     const closedGeneral = folder("g", "General", false, true)

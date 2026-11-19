@@ -11,9 +11,11 @@ import {
   formatShortRelative,
   formatTimeValue,
   isAbsoluteOrdered,
+  isRangeTooLong,
   isSubMinuteOffset,
   isTimeValue,
   parseUserTime,
+  userTimeProblem,
   refreshToMs,
   relativeTickMs,
   requestZone,
@@ -71,22 +73,80 @@ describe("isTimeValue", () => {
 
 describe("parseUserTime", () => {
   it("passes time values through trimmed", () => {
-    expect(parseUserTime("  now-6h ")).toBe("now-6h")
+    expect(parseUserTime("  now-6h ", undefined)).toBe("now-6h")
   })
 
-  it("parses local date-times to epoch milliseconds", () => {
-    expect(parseUserTime("2026-10-17 09:00")).toBe(
+  it("parses a date-time in the browser's zone when no zone is given", () => {
+    expect(parseUserTime("2026-10-17 09:00", undefined)).toBe(
       String(new Date(2026, 9, 17, 9, 0, 0).getTime())
     )
-    expect(parseUserTime("2026-10-17 09:00:30")).toBe(
+    expect(parseUserTime("2026-10-17 09:00:30", undefined)).toBe(
       String(new Date(2026, 9, 17, 9, 0, 30).getTime())
     )
   })
 
+  it("parses a date-time in the given zone", () => {
+    expect(parseUserTime("2026-10-17 09:00", "UTC")).toBe(
+      String(Date.UTC(2026, 9, 17, 9))
+    )
+    expect(parseUserTime("2026-10-17 09:00", "Asia/Kolkata")).toBe(
+      String(Date.UTC(2026, 9, 17, 3, 30))
+    )
+    expect(parseUserTime("2026-10-17 09:00", "America/New_York")).toBe(
+      String(Date.UTC(2026, 9, 17, 13))
+    )
+  })
+
+  it("rejects a time that does not exist in the zone", () => {
+    expect(parseUserTime("2026-03-08 02:30", "America/New_York")).toBeNull()
+  })
+
+  it("reads 10 digits as seconds and 13 digits as milliseconds", () => {
+    expect(parseUserTime("1760695200", "UTC")).toBe("1760695200000")
+    expect(parseUserTime("1760695200000", "UTC")).toBe("1760695200000")
+  })
+
+  it("rejects values before the year 2000", () => {
+    expect(parseUserTime("1999-12-31 23:59", "UTC")).toBeNull()
+    expect(parseUserTime("946684799000", "UTC")).toBeNull()
+    expect(parseUserTime("100000000000", "UTC")).toBeNull()
+    expect(parseUserTime("2000-01-01 00:00", "UTC")).toBe(
+      String(Date.UTC(2000, 0, 1))
+    )
+  })
+
   it("rejects invalid input", () => {
-    expect(parseUserTime("yesterday")).toBeNull()
-    expect(parseUserTime("2026-02-31 09:00")).toBeNull()
-    expect(parseUserTime("")).toBeNull()
+    expect(parseUserTime("yesterday", undefined)).toBeNull()
+    expect(parseUserTime("2026-02-31 09:00", undefined)).toBeNull()
+    expect(parseUserTime("", undefined)).toBeNull()
+  })
+})
+
+describe("userTimeProblem", () => {
+  it("is null for a readable time", () => {
+    expect(userTimeProblem("now-6h", "UTC")).toBeNull()
+  })
+
+  it("names the year 2000 limit for an early time", () => {
+    expect(userTimeProblem("1999-01-01 00:00", "UTC")).toMatch(/year 2000/)
+    expect(userTimeProblem("100000000000", "UTC")).toMatch(/year 2000/)
+  })
+
+  it("gives the format hint for anything else", () => {
+    expect(userTimeProblem("yesterday", "UTC")).toMatch(/Enter a time like/)
+  })
+})
+
+describe("epoch values in the address", () => {
+  it("reads every digit string as milliseconds, as the server does", () => {
+    expect(isTimeValue("1760695200")).toBe(true)
+    expect(resolveTime("1760695200", Date.now(), false)).toBe(1760695200)
+    expect(zonedTimeValue("1760695200", "UTC")).toBe("1970-01-21 09:04:55")
+  })
+
+  it("keeps a digit string before the year 2000 a time value", () => {
+    expect(isTimeValue("946684799000")).toBe(true)
+    expect(resolveTime("946684799000", Date.now(), false)).toBe(946684799000)
   })
 })
 
@@ -479,6 +539,29 @@ describe("zoned formatting", () => {
     expect(zonedDateTime(Date.UTC(2026, 10, 1, 6, 0, 0), zone)).toBe(
       "2026-11-01 01:00:00"
     )
+  })
+})
+
+describe("isRangeTooLong", () => {
+  const now = Date.parse("2026-11-18T12:00:00Z")
+
+  it("accepts a range of exactly 400 days and refuses a longer one", () => {
+    expect(isRangeTooLong("now-400d", "now", now)).toBe(false)
+    expect(isRangeTooLong("now-401d", "now", now)).toBe(true)
+    expect(isRangeTooLong("now-500d", "now", now)).toBe(true)
+  })
+
+  it("reads absolute times", () => {
+    expect(
+      isRangeTooLong("2024-01-01T00:00:00Z", "2026-01-01T00:00:00Z", now)
+    ).toBe(true)
+    expect(
+      isRangeTooLong("2026-11-01T00:00:00Z", "2026-11-18T00:00:00Z", now)
+    ).toBe(false)
+  })
+
+  it("leaves an unreadable time to the other checks", () => {
+    expect(isRangeTooLong("nonsense", "now", now)).toBe(false)
   })
 })
 

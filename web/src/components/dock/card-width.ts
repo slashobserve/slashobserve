@@ -41,6 +41,12 @@ export function opensByDefault(viewport: number): boolean {
   return !isNarrow(viewport)
 }
 
+const phoneBreakpoint = 900
+
+export function dashboardActivityOpens(viewport: number): boolean {
+  return viewport > phoneBreakpoint
+}
+
 export type HandleSide = "left" | "right"
 
 export function draggedWidth(

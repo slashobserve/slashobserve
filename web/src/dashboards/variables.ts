@@ -410,3 +410,35 @@ export function normalizeMultiSelection(
   if (next.includes(ALL) && !previous.includes(ALL)) return [ALL]
   return next.filter((value) => value !== ALL)
 }
+
+export type UnknownValues = { name: string; label: string; values: string[] }
+
+export function unknownValues(
+  states: {
+    variable: Variable
+    options: string[] | undefined
+    truncated: boolean
+    status: string
+    selected: string[]
+  }[]
+): UnknownValues[] {
+  const found: UnknownValues[] = []
+  for (const state of states) {
+    const { variable, options } = state
+    if (variable.type !== "query" && variable.type !== "custom") continue
+    if (state.status !== "ready" || state.truncated || options === undefined) {
+      continue
+    }
+    const values = state.selected.filter(
+      (value) => value !== ALL && value !== "" && !options.includes(value)
+    )
+    if (values.length > 0) {
+      found.push({
+        name: variable.name,
+        label: variable.label ?? variable.name,
+        values,
+      })
+    }
+  }
+  return found
+}

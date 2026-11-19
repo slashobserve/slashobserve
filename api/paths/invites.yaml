@@ -1,0 +1,117 @@
+invites:
+  get:
+    operationId: listInvites
+    x-surfaces:
+      cli: [observe people invites]
+    summary: List the pending invites, newest first.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      An invite stays pending until someone signs in with its email verified by the identity provider.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of pending invites.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InviteList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createInvite
+    x-surfaces:
+      cli: [observe people invite]
+    summary: Invite an email with the role it gets at its first sign-in.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      No email is sent: share the returned sign_in_url with the person.
+      The role applies at the first sign-in of that email, only when the identity provider says the email is verified, and it then shows as set by the Admin who invited.
+      An invite lets no one in that the sign-in rules would refuse; admin emails and identity-provider group roles still win over it.
+      Inviting an email that already has a pending invite changes its role and answers 200.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateInviteRequest"
+    responses:
+      "200":
+        description: The pending invite for this email, with the new role.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Invite"
+      "201":
+        description: The invite is created.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Invite"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: Someone with this email has already signed in (`already_member`); change their role instead.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The email's domain is not in `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` (`email_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+invites-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deleteInvite
+    x-surfaces:
+      cli: [observe people uninvite]
+    summary: Withdraw a pending invite.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      The email can still sign in when the sign-in rules allow it, with the role those rules give.
+    responses:
+      "204":
+        description: The invite is withdrawn.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

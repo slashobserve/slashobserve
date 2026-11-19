@@ -1,9 +1,11 @@
 import type { components } from "@/api/schema.gen"
 import { groupThreads, type Thread } from "@/comments/threads"
+import type { Annotation } from "@/annotations/queries"
 import type { Comment } from "@/comments/queries"
 import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import type { RequestSummary } from "@/observe/queries"
+import type { ProposalSummary } from "@/proposals/queries"
 import { isActive, type Revision } from "@/revisions/queries"
 
 type ImportRecord = components["schemas"]["ImportRecord"]
@@ -54,6 +56,21 @@ export type TimelineEntry =
       at: string
       panelId: null
       version: VersionMeta
+      proposal: ProposalSummary | null
+    }
+  | {
+      kind: "proposal"
+      key: string
+      at: string
+      panelId: null
+      proposal: ProposalSummary
+    }
+  | {
+      kind: "annotation"
+      key: string
+      at: string
+      panelId: string | null
+      annotation: Annotation
     }
   | {
       kind: "import"
@@ -100,8 +117,10 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   request: 1,
   running: 2,
   version: 3,
-  import: 4,
-  finding: 5,
+  proposal: 4,
+  annotation: 5,
+  import: 6,
+  finding: 7,
 }
 
 const sameSendWindowMs = 2000
@@ -191,6 +210,8 @@ export function buildTimeline(input: {
   imported?: ImportedDashboard | null
   investigations?: readonly RunningRequest[]
   findings?: readonly Finding[]
+  proposals?: readonly ProposalSummary[]
+  annotations?: readonly Annotation[]
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 
@@ -246,6 +267,30 @@ export function buildTimeline(input: {
     })
   }
 
+  const merged = new Map<string, ProposalSummary>()
+  for (const proposal of input.proposals ?? []) {
+    if (proposal.state === "merged") merged.set(proposal.id, proposal)
+    if (proposal.state === "open") {
+      entries.push({
+        kind: "proposal",
+        key: `proposal:${proposal.id}`,
+        at: proposal.created_at,
+        panelId: null,
+        proposal,
+      })
+    }
+  }
+
+  for (const annotation of input.annotations ?? []) {
+    entries.push({
+      kind: "annotation",
+      key: `annotation:${annotation.id}`,
+      at: annotation.created_at,
+      panelId: annotation.panel_id,
+      annotation,
+    })
+  }
+
   for (const version of input.versions) {
     entries.push({
       kind: "version",
@@ -253,6 +298,10 @@ export function buildTimeline(input: {
       at: version.created_at,
       panelId: null,
       version,
+      proposal:
+        version.merged_proposal_id === null
+          ? null
+          : (merged.get(version.merged_proposal_id) ?? null),
     })
   }
 
@@ -295,14 +344,23 @@ function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
     case "everything":
       return true
     case "open":
-      return entry.kind === "thread" && entry.thread.root.status === "open"
+      return (
+        entry.kind === "proposal" ||
+        (entry.kind === "thread" && entry.thread.root.status === "open")
+      )
     case "changes":
       return entry.kind !== "thread" || entry.request !== null
   }
 }
 
 function matchesPanel(entry: TimelineEntry, panelId: string | null): boolean {
-  if (panelId === null) return true
+  if (
+    panelId === null ||
+    entry.kind === "finding" ||
+    entry.kind === "proposal"
+  ) {
+    return true
+  }
   if (entry.kind === "import") {
     return entry.unverified.some((panel) => panel.panelId === panelId)
   }

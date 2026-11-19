@@ -22,6 +22,11 @@ Only a signed-in Admin can create service accounts and keys, and only an Admin s
 A key acts with its service account's role, which starts as Editor for a new account.
 Choosing another role for an existing account in the Create key panel changes the role of every key of that account.
 
+The **Service accounts** list under the keys shows every account, including one with no keys left, with its role and number of working keys.
+**Delete** removes the account and all its keys: every key stops working at once, and what the account made stays under its name.
+An account from the service-accounts file cannot be deleted here, and `DELETE /api/v1/service-accounts/{id}` answers 409 `provisioned` for it; remove it from the file instead.
+Like creating keys, deleting an account needs an Admin signed in to the web app; a key cannot delete an account.
+
 An account takes runs only when an Admin turns on **Takes agent runs** in the Create key panel, or sets `takes_runs` with `PATCH /api/v1/service-accounts/{id}`; the account then lists as `listening` or `working` while it asks for work.
 The switch applies to every key of the account, like the role, and is saved when you create the key.
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
