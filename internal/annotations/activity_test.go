@@ -180,3 +180,27 @@ func TestAnAnnotationOnAMissingDashboardAppendsNothing(t *testing.T) {
 		t.Errorf("activity = %v", typesOf(got))
 	}
 }
+
+func TestAnUpdateAppendsOneRowWithTheTagsAndNeverTheText(t *testing.T) {
+	r := newRig(t)
+	a := r.create(t, editor, CreateInput{DashboardID: r.open, From: at(0), Text: "deploy v1", Tags: []string{"deploy"}})
+	id := mustParse(t, a.ID)
+	text, tags := "deploy v2 secret", []string{"deploy", "checkout"}
+	if _, err := r.service.Update(t.Context(), editor, id, UpdateInput{Text: &text, Tags: &tags}); err != nil {
+		t.Fatal(err)
+	}
+	same := "deploy v2 secret"
+	if _, err := r.service.Update(t.Context(), editor, id, UpdateInput{Text: &same}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := r.activityFor(t, editor)
+	if want := []string{activity.TypeAnnotationCreated, activity.TypeAnnotationUpdated}; !slices.Equal(typesOf(got), want) {
+		t.Fatalf("editor sees %v, want %v", typesOf(got), want)
+	}
+	updated := got[1]
+	if updated.TargetID != a.ID || updated.DashboardID != r.open.String() || updated.Actor.ID != editor.ID {
+		t.Errorf("update row = %+v", updated)
+	}
+	sameJSON(t, updated.Data, `{"tags":["deploy","checkout"]}`)
+}

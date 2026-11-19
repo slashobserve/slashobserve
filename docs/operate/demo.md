@@ -55,6 +55,7 @@ The markers already posted stay until you delete them or reset the stack.
 Every request logs `request handled` and has a trace that follows it from the frontend through checkout to payments.
 Checkout answers without waiting for the order: the order waits in the pod's orders queue, and a worker processes it in a `process_order` span under the same trace.
 That span logs `order processed` with `order_id`, `queue_wait_ms` and `result`.
+About 1% of orders fail, and those log the same line at error level with `result` `failed`, so the error lines of the shop overview read `order processed (result failed)`.
 Every database query has a `db.query` span with `db.system=postgresql`, and a query slower than 200 ms logs `slow query` at warn level.
 
 ## Faults

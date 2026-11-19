@@ -77,7 +77,9 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `open`, `proposals`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`activity`, `annotate`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `o`, `observations`, `open`, `proposals`, `requests`, `retry`, `run`, `saved-searches`, `search`, `skill`, `status`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
+A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
@@ -86,7 +88,34 @@ An Admin can show anyone's request with `observe status`, read only.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 `observe status` also shows the request's trigger, what started it; in this release that is always `person`, the requester.
+It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
+
+### Your requests
+
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
+`--state` (repeatable, or comma-separated), `--source` (`observe`, `prompt`, `comment` or `investigate`), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--scope all` lists every principal's requests and needs the Admin role.
+It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
+Archived requests are left out.
+A request that failed before it had a dashboard shows only here, and `observe status <request-id>` reads it.
+
+`requests pin <id>`, `requests unpin <id>`, `requests rename <id> <title>` (`--clear` takes the title back to the start of the prompt) and `requests archive <id>` change one of your own requests.
+Each can be repeated without effect, so a retry after a dropped connection is safe.
+An archived request stays readable with `observe status`.
+
+### Discovering what a datasource holds
+
+A script or an agent with only a shell finds what to query with `bin/observe datasources`.
+`list` prints each datasource's uid, type, name and health; the uid is what `--datasource` takes.
+`metrics <uid>` lists metric names with their type and help (the OpenTelemetry metric names and their table on ClickHouse), `labels <uid>` lists label names, and `label-values <uid> <label>` lists one label's values.
+`--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
+On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
+
+`lint <uid> <query>` checks a query without running it and prints each diagnostic with the byte range it covers; it exits 1 only when a diagnostic is an error.
+`log-volume <uid> <query>` counts every line a logs query matches per bucket, by level, and `trace-stats <uid> [<filter>]` counts spans, errors and the p50, p95 and p99 durations per bucket.
+`trace-logs <uid> <trace-id>` prints the log lines that carry a trace id, or one span with `--span`.
+Each takes `--from` and `--to`, and the two counting commands take `--buckets` (1 to 200); `--json` prints the server's answer unchanged.
 
 ### Exit codes
 
@@ -96,7 +125,12 @@ The CLI exits with these codes:
 | ---- | ---- |
 | `0` | The command succeeded, including when `--open` could not open the browser and when `observe logs --tail` ends with Ctrl-C. |
 | `1` | The server refused or failed the request, the agent request failed, the waiting stopped at `--timeout` or an interrupt, `observe open` could not open the browser, an `observe doctor` check failed, an `observe grafana import` had a dashboard fail, or `observe health repair` queued no repair. |
-| `2` | The command line is wrong: an unknown command or flag, a missing argument or an invalid id. |
+| `2` | The command line is wrong: an unknown command or flag, a missing argument, an invalid id, or a file or directory named on the command line that cannot be read. |
+
+An error is one line on standard error, with the server's code in parentheses and any failing paths of an invalid Spec or panel below it.
+With `--json` it is one JSON object, `{"error": "<message>", "code": "<code>"}`, so a script can branch on the code.
+The code is the server's own (`not_found`, `forbidden_role`, `version_conflict` and the like), or `usage` for a wrong command line, `unauthenticated` for a missing or refused key, `unreachable` when the server cannot be reached, `interrupted`, `http_<status>` when the server sent no code, and `failed` for anything else.
+An address that answers with a web page instead of JSON is reported as probably not a SlashObserve server, and a version that does not exist is reported with the latest version of the dashboard.
 
 ## Cancel and continue a request
 
@@ -118,19 +152,30 @@ Only the person who made a request can cancel or continue it; anyone else gets `
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
 Continuing a revision fails when its dashboard has a newer version than the build started from.
 
+## Lists and paging
+
+Every command that lists rows takes `--limit` (a default and a maximum that its help gives, 50 rows by default for most lists and 20 for `activity` and `webhooks deliveries`), `--cursor` and `--all`.
+When more rows exist, the table is followed on standard error by `Showing 5 of 23. More: --cursor <cursor>, or --all for every page.`; the total is printed where the server counts it, as `dashboards list` does, and otherwise the line says that more exist.
+`--cursor` continues from the `next_cursor` a page ended with, which `--json` shows too, and a cursor the server does not recognise is refused with `invalid_request` and a hint to pass it exactly as printed.
+`--all` follows the cursor to the last page and prints one list; with `--json` it is one object whose list holds every row, with `next_cursor` null and any `total_count` kept.
+`--all` cannot be combined with `--cursor`, `activity --follow` cannot be combined with either, and `--limit` outside its range exits 2 before anything is sent.
+The MCP list tools take their own, smaller page sizes and the same `next_cursor`.
+
 ## Dashboards
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time; when there are more it prints the `--cursor` value for the next page. |
-| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`. |
+| `bin/observe dashboards list` | Lists dashboards, newest update first, 50 at a time, up to 200; when there are more it prints the total and the `--cursor` value for the next page, and `--all` reads every page. |
+| `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`; the folder is in the details, and a version that does not exist says what the latest one is. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
+| `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
+| `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default General for a key, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
 | `bin/observe dashboards diff <dashboard-id> [--from <n>] [--to <n>]` | Lists the changes between two versions as `OP`, `PATH`, `FROM` and `TO` columns, with values clipped to 60 characters; `--to` is by default the latest version and `--from` the one before it. |
 | `bin/observe dashboards export <folder-id-or-title> --dir <dir>` | Writes the latest version of each dashboard in a folder to `<dir>/<folder>/<name>.json`. |
-| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed (see [Dashboards as code](dashboards-as-code.md)). |
+| `bin/observe dashboards apply --dir <dir>` | Saves every `.json` file of a directory back as dashboards, never deleting one, and exits 1 when any file failed, 2 when the directory cannot be read, and prints a warning and exits 0 when it holds no `.json` file (see [Dashboards as code](dashboards-as-code.md)). |
 | `bin/observe dashboards delete <dashboard-id> --yes` | Deletes a dashboard with every version, comment and agent request, for everyone; it needs Edit on the dashboard, cannot be undone, and refuses to run without `--yes`. |
 
 It fails with `409` and the code `dashboard_being_created` while the agent request that is creating the dashboard is still queued or running.
@@ -241,7 +286,10 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-Changing or removing a live block is done in the web app or through the HTTP API.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
+Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
+A snapshot block's body cannot change, and a requested block is kept or discarded instead.
 
 ## Saved searches
 
@@ -249,6 +297,8 @@ Changing or removing a live block is done in the web app or through the HTTP API
 `--kind logs|traces` keeps one kind, `--folder <id>` one folder, and `--limit` and `--cursor` page through the result.
 
 `bin/observe saved-searches save --kind logs|traces --title <title> --datasource <uid>` files a search in your My Dashboards, or in `--folder <id>`, and prints the address that reopens it, even with `-q`.
+A service-account key has no My Dashboards, so a search saved with a key lands in the folder General, which everyone who can see General can read; pass `--folder` to file it elsewhere.
+The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
 A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only.
 A flag of the other kind is refused with exit code 2 before any request is sent.
@@ -296,7 +346,10 @@ A mention shows in the [activity log](activity.md) and starts no agent run unles
 `--start-runs` on `comments add` or `comments reply` starts a run for the one agent the text mentions, in the same transaction as the comment.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
 A dashboard thread starts a comment run, which a Commenter may start and which ends in a proposal when you cannot edit; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
-Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing.
+Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing and prints `No run started: the text mentions no agent` on stderr.
+
+An observation has one discussion, so `comments add` on an observation that has one answers `observation_thread_exists` and names the `comments reply` command for it.
+Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
@@ -341,16 +394,21 @@ bin/observe annotate "Database failover" --dashboard <dashboard-id> --at now-15m
 `--tags` takes comma-separated tags, and `--dashboard` puts the annotation on one dashboard instead of every dashboard.
 `--at` places it in the past, as `now-<N>` with `s`, `m`, `h` or `d`, or as an RFC 3339 time such as `2026-11-01T10:00:00Z`.
 It prints `Added annotation <id> at <time> on every dashboard`, which `-q` hides; a global annotation needs a key with the Editor role.
+An `--at` more than a day in the future still saves the annotation and prints a warning on standard error, because a wrong year is the usual cause.
 
 `bin/observe annotations list` prints annotations newest first as `ID`, `TIME`, `DASHBOARD`, `TAGS` and `TEXT` columns:
 
 ```sh
 bin/observe annotations list --dashboard <dashboard-id> --from 2026-11-01T00:00:00Z --tag deploy
+bin/observe annotations update <annotation-id> --text "Deploy checkout v1.4.3" --tags deploy
 bin/observe annotations delete <annotation-id>
 ```
 
 Without `--dashboard` it lists only the global annotations, and with it that dashboard's annotations and the global ones.
 `--from` and `--to` are RFC 3339 times, `--tag` can be repeated to match any of several tags, and `--limit` and `--cursor` page through the result.
+
+`bin/observe annotations update <annotation-id>` changes the text with `--text`, the tags with `--tags` (a comma-separated list that replaces the old tags, and `--tags ""` removes them) or both, prints `Updated annotation <id>`, and keeps the annotation's time, dashboard and author; only its creator or an Admin may.
+
 `bin/observe annotations delete <annotation-id>` prints `Deleted annotation <id>`.
 
 ## Dashboard health
@@ -425,7 +483,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 ## Logs
 
-`bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki or ClickHouse datasource and prints the lines oldest first:
+`bin/observe logs [<query>] --datasource <uid>` runs a log query on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and prints the lines oldest first, in the language of the datasource: LogQL, SQL, or KQL with the `lucene:` prefix and Query DSL forms of [Logs and traces](logs-and-traces.md#query-languages-on-elasticsearch-and-opensearch):
 
 ```sh
 bin/observe logs '{app="shop"} |= "error"' --datasource loki --from now-15m
@@ -454,7 +512,7 @@ bin/observe logs '{app="shop"}' --datasource loki --context 2026-11-01T10:00:00.
 Each field prints a header `<name> (<kind>, exact|sampled)`, with `bytes` added for a Loki index label, which counts bytes, then one `<count>  <value>` row per value.
 A sampled field counts the newest lines only, and `--field <name>`, which can be repeated, counts just the fields you name.
 
-`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched and sampled go to standard error.
+`--patterns` groups the lines into patterns and prints a `COUNT` and `PATTERN` table, with every variable part written `<*>`; the lines matched go to standard error, with the number sampled when the server read the lines itself and `counted by loki` when Loki's own pattern API counted them.
 `--limit` is the most patterns to print, up to 100.
 
 `--context <time>` prints the lines around one line: the lines before it oldest first, a `-- <time> --` line, then the lines after it.
@@ -584,6 +642,7 @@ bin/observe activity --follow --type run.failed --type run.canceled
 2026-11-01T10:05:09Z  Sam  saved version 12 of "Checkout"
 ```
 
+Observation events read as sentences too, such as `started the observation "Slow checkout"` and `requested a panel block on the observation "Slow checkout"`.
 `--dashboard` and `--folder` take ids, `--type` takes an event type and repeats, and `--since` takes a duration such as `24h` or an RFC 3339 time.
 `--limit` prints up to 100 events (20 by default), and `--json` prints the response of `GET /api/v1/activity` unchanged.
 You see only the events of the folders the key can see, and an empty log prints `No activity yet`.

@@ -2,7 +2,9 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
+import { useAnnotationActions } from "@/annotations/actions"
 import { AnnotationLayer } from "@/annotations/annotation-layer"
+import { annotateGesture, type AnnotateRange } from "@/annotations/gesture"
 import {
   annotationMarkersPlugin,
   type PlotPlace,
@@ -109,6 +111,7 @@ type Latest = {
   chartHeight: number
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
   annotations: readonly Annotation[]
+  annotate: ((range: AnnotateRange) => void) | undefined
 }
 
 type Model = {
@@ -331,9 +334,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
       )
     )
   }
+  const gesture = annotateGesture(() => latest.current.annotate)
   if (timed) {
     plugins.push(
-      annotationMarkersPlugin(() => latest.current.annotations, onPlace)
+      annotationMarkersPlugin(() => latest.current.annotations, onPlace),
+      gesture
     )
   }
   if (timed && !customPainted) {
@@ -512,10 +517,9 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
               if (selected >= minSelectWidth) {
                 const from = u.posToVal(left, "x") * 1000
                 const to = u.posToVal(left + selected, "x") * 1000
-                latest.current.onTimeRangeSelect(
-                  Math.round(from),
-                  Math.round(to)
-                )
+                const range = { fromMs: Math.round(from), toMs: Math.round(to) }
+                if (gesture.consumeSelect()) latest.current.annotate?.(range)
+                else latest.current.onTimeRangeSelect(range.fromMs, range.toMs)
               }
               u.setSelect(noSelect, false)
             },
@@ -641,6 +645,14 @@ export function TimeseriesChart({
   annotations = noAnnotations,
 }: ChartProps) {
   const { resolved: theme } = useTheme()
+  const actions = useAnnotationActions()
+  const annotate = useMemo(
+    () =>
+      actions?.canAdd
+        ? (range: AnnotateRange) => actions.add({ ...range, panelId: panel.id })
+        : undefined,
+    [actions, panel.id]
+  )
   const hostRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
@@ -817,6 +829,7 @@ export function TimeseriesChart({
     chartHeight,
     onTimeRangeSelect,
     annotations,
+    annotate,
   })
   useLayoutEffect(() => {
     latest.current = {
@@ -829,6 +842,7 @@ export function TimeseriesChart({
       chartHeight,
       onTimeRangeSelect,
       annotations,
+      annotate,
     }
   })
 

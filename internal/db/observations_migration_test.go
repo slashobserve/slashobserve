@@ -318,10 +318,7 @@ func TestObservationSearchVectorsMatchTheirWords(t *testing.T) {
 
 func TestObservationsDownAndUpAgain(t *testing.T) {
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, observationsVersion); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, observationsVersion)
 	f := seedObservation(t, d, "")
 	seedDashboard(t, d, obsDashboard, 1)
 	seedVersion(t, d, obsDashboard, 1, "{}")
