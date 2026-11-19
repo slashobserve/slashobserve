@@ -3389,7 +3389,7 @@ components:
         rows:
           type: integer
           minimum: 0
-          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+          description: The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0.
         rows_total:
           type: integer
           minimum: 0
@@ -3487,7 +3487,7 @@ components:
     LogVolume:
       type: object
       additionalProperties: false
-      required: [step_ms, total, buckets]
+      required: [step_ms, total, buckets, partial]
       properties:
         step_ms:
           type: integer
@@ -3500,6 +3500,13 @@ components:
           description: Every bucket of the aligned range, oldest first, empty buckets included.
           items:
             $ref: "#/components/schemas/LogVolumeBucket"
+        partial:
+          type: boolean
+          description: Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero.
+        counted_from:
+          type: string
+          format: date-time
+          description: Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
     LogVolumeBucket:
       type: object
       additionalProperties: false

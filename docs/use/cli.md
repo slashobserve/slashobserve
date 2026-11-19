@@ -122,7 +122,7 @@ ClickHouse needs `--table`; on Loki `--table` is a stream selector and leaving i
 They answer what the agent's `get_schema` and `sample_rows` tools answer.
 
 `lint <uid> <query>` checks a query without running it and prints each diagnostic with the byte range it covers; it exits 1 only when a diagnostic is an error.
-`log-volume <uid> <query>` counts every line a logs query matches per bucket, by level, and `trace-stats <uid> [<filter>]` counts spans, errors and the p50, p95 and p99 durations per bucket.
+`log-volume <uid> <query>` counts every line a logs query matches per bucket, by level, and says from when it counted when the datasource ran out of time, and `trace-stats <uid> [<filter>]` counts spans, errors and the p50, p95 and p99 durations per bucket.
 `trace-logs <uid> <trace-id>` prints the log lines that carry a trace id, or one span with `--span`.
 Each takes `--from` and `--to`, and the two counting commands take `--buckets` (1 to 200); `--json` prints the server's answer unchanged.
 

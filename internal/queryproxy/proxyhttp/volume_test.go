@@ -52,14 +52,12 @@ func (d *typedDatasource) instantCalls() []instantCall {
 	return slices.Clone(d.instants)
 }
 
-func newVolumeHarness(t *testing.T) (hn *harness, lokiDS, clickhouseDS *typedDatasource) {
+func newVolumeHarness(t *testing.T) (hn *harness, clickhouseDS *typedDatasource) {
 	t.Helper()
 	hn = newHarness(t)
-	lokiDS = &typedDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.Loki}
 	clickhouseDS = &typedDatasource{fakeDatasource: &fakeDatasource{}, kind: spec.ClickHouse}
 	registry, err := datasource.NewRegistry(hn.h.logger,
 		datasource.Instance{UID: "prom", Datasource: hn.ds},
-		datasource.Instance{UID: "logs", Datasource: lokiDS},
 		datasource.Instance{UID: "ch", Datasource: clickhouseDS},
 	)
 	if err != nil {
@@ -67,7 +65,7 @@ func newVolumeHarness(t *testing.T) (hn *harness, lokiDS, clickhouseDS *typedDat
 	}
 	hn.runner = queryproxy.NewRunner(registry, hn.h.logger)
 	hn.h.runner, hn.h.registry = hn.runner, registry
-	return hn, lokiDS, clickhouseDS
+	return hn, clickhouseDS
 }
 
 func (hn *harness) volume(uid string, body map[string]any) *httptest.ResponseRecorder {
@@ -98,22 +96,10 @@ func decodeVolume(t *testing.T, rec *httptest.ResponseRecorder) volumeJSON {
 	return body
 }
 
-func series(labels map[string]string, at []time.Time, values []float64) datasource.Frame {
-	f := datasource.Frame{Labels: labels, Fields: []datasource.Field{
-		{Name: "Time", Type: datasource.FieldTime},
-		{Name: "Value", Type: datasource.FieldNumber},
-	}}
-	for i := range at {
-		f.Fields[0].Values = append(f.Fields[0].Values, at[i])
-		f.Fields[1].Values = append(f.Fields[1].Values, datasource.Number(values[i]))
-	}
-	return f
-}
-
 func TestVolumeRejectsInvalidRequests(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
+	hn, clickhouseDS := newVolumeHarness(t)
 	with := func(edit func(map[string]any)) map[string]any {
-		body := volumeBody(`{app="shop"}`)
+		body := volumeBody("SELECT 1")
 		edit(body)
 		return body
 	}
@@ -132,16 +118,16 @@ func TestVolumeRejectsInvalidRequests(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expectError(t, hn.volume("logs", tt.body), http.StatusBadRequest, tt.code)
+			expectError(t, hn.volume("ch", tt.body), http.StatusBadRequest, tt.code)
 		})
 	}
-	if ranges, _, _, _ := lokiDS.counts(); ranges != 0 {
-		t.Fatalf("%d upstream calls for invalid requests", ranges)
+	if calls := clickhouseDS.instantCalls(); len(calls) != 0 {
+		t.Fatalf("%d upstream calls for invalid requests", len(calls))
 	}
 }
 
 func TestVolumeRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
-	hn, _, _ := newVolumeHarness(t)
+	hn, _ := newVolumeHarness(t)
 	rec := hn.volume("prom", volumeBody("up"))
 	expectError(t, rec, http.StatusBadRequest, "invalid_request")
 	if got := decodeError(t, rec).Error; got != "volume reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources" {
@@ -156,79 +142,8 @@ func TestVolumeRefusesOtherDatasourceTypesAndUnknownUIDs(t *testing.T) {
 	}
 }
 
-func TestVolumeCountsLokiSeriesByLevelOverTheAlignedRange(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
-	lokiDS.onRange = func(_ context.Context, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
-		at := []time.Time{r.From, r.From.Add(step), r.From.Add(2 * step), r.To}
-		return []datasource.Frame{
-			series(map[string]string{"level": "error"}, at, []float64{9, 2, 3, 4}),
-			series(map[string]string{"detected_level": "info"}, at, []float64{9, 10, 20, 30}),
-			series(nil, at[1:2], []float64{1}),
-		}, nil
-	}
-	body := decodeVolume(t, hn.volume("logs", volumeBody(`{app="shop"} |= "x"`)))
-	text := "sum by (level, lvl, severity_text, severity, detected_level) (count_over_time(\n{app=\"shop\"} |= \"x\"\n[60000ms]))"
-	if step := lokiDS.stepFor(text); step != time.Minute {
-		t.Fatalf("step for the derived query = %v, want 1m (saw %+v)", step, lokiDS.lastQuery())
-	}
-	lokiDS.mu.Lock()
-	rng := lokiDS.rangeRange
-	lokiDS.mu.Unlock()
-	if !rng.From.Equal(volumeStart) || !rng.To.Equal(volumeStart.Add(time.Hour)) {
-		t.Fatalf("range = %v to %v", rng.From, rng.To)
-	}
-	if lokiDS.lastQuery().Limits != queryproxy.DraftLimits {
-		t.Fatalf("limits = %+v", lokiDS.lastQuery().Limits)
-	}
-	if body.StepMS != 60000 || len(body.Buckets) != 60 {
-		t.Fatalf("step_ms = %d, %d buckets", body.StepMS, len(body.Buckets))
-	}
-	want := map[int]bucketJSON{
-		0:  {Start: "2025-10-09T08:54:00Z", Error: 2, Info: 10, Other: 1},
-		1:  {Start: "2025-10-09T08:55:00Z", Error: 3, Info: 20},
-		59: {Start: "2025-10-09T09:53:00Z", Error: 4, Info: 30},
-	}
-	for i, b := range body.Buckets {
-		w, ok := want[i]
-		if !ok {
-			w = bucketJSON{Start: volumeStart.Add(time.Duration(i) * time.Minute).Format(time.RFC3339)}
-		}
-		if b != w {
-			t.Errorf("bucket %d = %+v, want %+v", i, b, w)
-		}
-	}
-	if body.Total != 70 {
-		t.Fatalf("total = %d, want 70", body.Total)
-	}
-}
-
-func TestVolumeBucketsCapTheBucketCount(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
-	lokiDS.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
-		return nil, nil
-	}
-	body := volumeBody(`{app="shop"}`)
-	body["buckets"] = 200
-	got := decodeVolume(t, hn.volume("logs", body))
-	if got.StepMS != 18000 || len(got.Buckets) != 200 || got.Total != 0 {
-		t.Fatalf("step_ms = %d, %d buckets, total %d", got.StepMS, len(got.Buckets), got.Total)
-	}
-}
-
-func TestVolumeRefusesALokiMetricQuery(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
-	rec := hn.volume("logs", volumeBody(`rate({app="shop"}[1m])`))
-	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
-	if got := decodeError(t, rec).Error; !strings.Contains(got, "the volume needs a log query that starts with a stream selector") {
-		t.Fatalf("error = %q", got)
-	}
-	if ranges, _, _, _ := lokiDS.counts(); ranges != 0 {
-		t.Fatalf("%d upstream calls", ranges)
-	}
-}
-
 func TestVolumeFillsClickHouseBucketsFromTheGroupedTable(t *testing.T) {
-	hn, _, clickhouseDS := newVolumeHarness(t)
+	hn, clickhouseDS := newVolumeHarness(t)
 	clickhouseDS.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
 		return []datasource.Frame{{Fields: []datasource.Field{
 			{Name: "Time", Type: datasource.FieldTime, Values: []any{volumeStart, volumeStart, volumeStart.Add(2 * time.Minute), volumeStart.Add(time.Hour)}},
@@ -259,7 +174,7 @@ func TestVolumeFillsClickHouseBucketsFromTheGroupedTable(t *testing.T) {
 }
 
 func TestVolumeCountsClickHouseOverTheRequestedRangeOnly(t *testing.T) {
-	hn, _, clickhouseDS := newVolumeHarness(t)
+	hn, clickhouseDS := newVolumeHarness(t)
 	clickhouseDS.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) { return nil, nil }
 	body := volumeBody("SELECT Timestamp, SeverityText FROM otel_logs WHERE $__timeFilter(Timestamp)")
 	from, to := volumeStart.Add(20*time.Second), volumeStart.Add(time.Hour+20*time.Second)
@@ -275,45 +190,23 @@ func TestVolumeCountsClickHouseOverTheRequestedRangeOnly(t *testing.T) {
 }
 
 func TestVolumeAnswersInternalWhenTheClickHouseTableLacksItsFields(t *testing.T) {
-	hn, _, clickhouseDS := newVolumeHarness(t)
+	hn, clickhouseDS := newVolumeHarness(t)
 	clickhouseDS.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
 		return []datasource.Frame{{Fields: []datasource.Field{{Name: "Time", Type: datasource.FieldTime, Values: []any{}}}}}, nil
 	}
 	expectError(t, hn.volume("ch", volumeBody("SELECT 1")), http.StatusInternalServerError, "internal")
 }
 
-func TestVolumeJSONHasExactlyTheContractKeys(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
-	lokiDS.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
-		return nil, nil
-	}
-	rec := hn.volume("logs", volumeBody(`{app="shop"}`))
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
-		t.Fatalf("body %s: %v", rec.Body.String(), err)
-	}
-	if got := slices.Sorted(maps.Keys(raw)); !slices.Equal(got, []string{"buckets", "step_ms", "total"}) {
-		t.Fatalf("keys = %v", got)
-	}
-	var buckets []map[string]any
-	if err := json.Unmarshal(raw["buckets"], &buckets); err != nil || len(buckets) == 0 {
-		t.Fatalf("buckets %s: %v", raw["buckets"], err)
-	}
-	if got := slices.Sorted(maps.Keys(buckets[0])); !slices.Equal(got, []string{"error", "info", "other", "start", "warning"}) {
-		t.Fatalf("bucket keys = %v", got)
-	}
-}
-
 func TestVolumeAnswersTooManyRequestsWhenEverySlotIsHeld(t *testing.T) {
-	hn, lokiDS, _ := newVolumeHarness(t)
+	hn, clickhouseDS := newVolumeHarness(t)
 	holdPrincipalSlots(t, hn, "alice")
-	rec := hn.volume("logs", volumeBody(`{app="shop"}`))
+	rec := hn.volume("ch", volumeBody("SELECT 1"))
 	expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")
 	if got := rec.Header().Get("Retry-After"); got != "1" {
 		t.Fatalf("Retry-After = %q, want 1", got)
 	}
-	if ranges, _, _, _ := lokiDS.counts(); ranges != 0 {
-		t.Fatalf("%d upstream calls while every slot is held", ranges)
+	if calls := clickhouseDS.instantCalls(); len(calls) != 0 {
+		t.Fatalf("%d upstream calls while every slot is held", len(calls))
 	}
 }
 
@@ -463,6 +356,54 @@ func TestVolumeMapsCapabilityErrorsAndHoldsOneUpstreamSlot(t *testing.T) {
 	expectError(t, hn.volume("search", volumeBody(`*`)), http.StatusTooManyRequests, "too_many_requests")
 	if n := len(search.volumeRequests()); n != before {
 		t.Fatalf("%d volume calls while every slot is held", n-before)
+	}
+}
+
+func TestVolumeJSONHasExactlyTheContractKeys(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return logvolume.New(req.Range.From, req.Step, req.Buckets()), nil
+	}
+	rec := hn.volume("search", volumeBody(`*`))
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("body %s: %v", rec.Body.String(), err)
+	}
+	if got := slices.Sorted(maps.Keys(raw)); !slices.Equal(got, []string{"buckets", "partial", "step_ms", "total"}) {
+		t.Fatalf("keys = %v", got)
+	}
+	var buckets []map[string]any
+	if err := json.Unmarshal(raw["buckets"], &buckets); err != nil || len(buckets) == 0 {
+		t.Fatalf("buckets %s: %v", raw["buckets"], err)
+	}
+	if got := slices.Sorted(maps.Keys(buckets[0])); !slices.Equal(got, []string{"error", "info", "other", "start", "warning"}) {
+		t.Fatalf("bucket keys = %v", got)
+	}
+}
+
+func TestVolumeSaysWhereAPartialCountStarts(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		h := logvolume.New(req.Range.From, req.Step, req.Buckets())
+		h.Add(req.Range.From.Add(50*req.Step), logvolume.Info, 3)
+		h.CountedOnlyFrom(req.Range.From.Add(40 * req.Step))
+		return h, nil
+	}
+	body := decodeVolume(t, hn.volume("search", volumeBody(`*`)))
+	if !body.Partial || body.CountedFrom != "2025-10-09T09:34:00Z" || body.Total != 3 {
+		t.Fatalf("volume = %+v, want 3 lines counted from 09:34 and marked partial", body)
+	}
+}
+
+func TestVolumeSpeaksOfTheQueryWhenACapabilityDatasourceRejectsIt(t *testing.T) {
+	hn, search := newVolumeCapabilityHarness(t)
+	search.onVolume = func(datasource.VolumeRequest) (*logvolume.Histogram, error) {
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "pipeline error: 'JSONParserErr' for series")
+	}
+	rec := hn.volume("search", volumeBody(`*`))
+	expectError(t, rec, http.StatusUnprocessableEntity, "query_invalid")
+	if got := decodeError(t, rec).Error; !strings.Contains(got, "add | __error__=\"\" after the parser") {
+		t.Fatalf("error = %q", got)
 	}
 }
 

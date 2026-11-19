@@ -128,7 +128,7 @@ func traceLogsEntry(rng datasource.TimeRange, frames []datasource.Frame) (dataEn
 		kind:       queryproxy.KindInstant,
 		from:       rng.From,
 		to:         rng.To,
-		meta:       resultMetaOf(frames),
+		meta:       resultMetaOf(queryproxy.KindInstant, frames),
 		executedAt: time.Now(),
 	}, nil
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
-	"github.com/slashobserve/slashobserve/internal/datasource/loki"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logvolume"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -37,9 +36,11 @@ type volumeRequest struct {
 }
 
 type volumeJSON struct {
-	StepMS  int64        `json:"step_ms"`
-	Total   int64        `json:"total"`
-	Buckets []bucketJSON `json:"buckets"`
+	StepMS      int64        `json:"step_ms"`
+	Total       int64        `json:"total"`
+	Buckets     []bucketJSON `json:"buckets"`
+	Partial     bool         `json:"partial"`
+	CountedFrom string       `json:"counted_from,omitempty"`
 }
 
 type bucketJSON struct {
@@ -51,14 +52,12 @@ type bucketJSON struct {
 }
 
 type volumeSource struct {
-	kind   queryproxy.Kind
 	derive func(query string, step time.Duration) (string, error)
 	fold   func(h *logvolume.Histogram, f datasource.Frame, step time.Duration) bool
 }
 
 var volumeSources = map[string]volumeSource{
-	string(spec.Loki):       {kind: queryproxy.KindRange, derive: loki.VolumeQuery, fold: foldLokiVolume},
-	string(spec.ClickHouse): {kind: queryproxy.KindInstant, derive: clickhouse.VolumeQuery, fold: foldClickHouseVolume},
+	string(spec.ClickHouse): {derive: clickhouse.VolumeQuery, fold: foldClickHouseVolume},
 }
 
 func init() {
@@ -96,7 +95,7 @@ func (h *Handler) volume(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), "volume reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources")
 		return
 	}
-	al, ok := h.volumeWindow(c, uid, req, exploreDashboard(uid, *req.Query, source.kind))
+	al, ok := h.volumeWindow(c, uid, req, exploreDashboard(uid, *req.Query, queryproxy.KindInstant))
 	if !ok {
 		return
 	}
@@ -109,9 +108,9 @@ func (h *Handler) volume(c *gin.Context) {
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
-		Dashboard:     exploreDashboard(uid, derived, source.kind),
+		Dashboard:     exploreDashboard(uid, derived, queryproxy.KindInstant),
 		PanelID:       explorePanelID,
-		Range:         al.queried(source.kind),
+		Range:         al.counted,
 		Selections:    map[string]queryproxy.Selection{},
 		MaxDataPoints: al.maxDataPoints,
 		Limits:        queryproxy.DraftLimits,
@@ -123,11 +122,6 @@ func (h *Handler) volume(c *gin.Context) {
 	}
 	hist := logvolume.New(al.rng.From, al.step, al.maxDataPoints)
 	for _, q := range res.Queries {
-		if source.kind == queryproxy.KindRange && q.Step != al.step {
-			h.logger.ErrorContext(ctx, "log volume ran at a step other than its window", slog.String("datasource_uid", uid), slog.Duration("window", al.step), slog.Duration("step", q.Step))
-			h.fail(c, errInternal)
-			return
-		}
 		for _, f := range q.Frames {
 			if !source.fold(hist, f, al.step) {
 				h.logger.ErrorContext(ctx, "log volume frame lacks the Time, Level and Count fields", slog.String("datasource_uid", uid))
@@ -186,13 +180,6 @@ type volumeWindowAlignment struct {
 	counted datasource.TimeRange
 }
 
-func (a volumeWindowAlignment) queried(kind queryproxy.Kind) datasource.TimeRange {
-	if kind == queryproxy.KindInstant {
-		return a.counted
-	}
-	return a.rng
-}
-
 func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource.LogVolumeSource, req volumeRequest) {
 	d := exploreDashboard(uid, *req.Query, queryproxy.KindRange)
 	al, ok := h.volumeWindow(c, uid, req, d)
@@ -214,26 +201,10 @@ func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource
 		Step:    al.step,
 	})
 	if err != nil {
-		h.exploreFail(c, uid, err)
+		h.exploreFail(c, uid, volumeProblem(err))
 		return
 	}
 	c.JSON(http.StatusOK, newVolumeJSON(hist.Volume()))
-}
-
-func foldLokiVolume(h *logvolume.Histogram, f datasource.Frame, step time.Duration) bool {
-	times, values := frameField(f, "Time"), frameField(f, "Value")
-	if times == nil || values == nil {
-		return false
-	}
-	kind := logvolume.KindOf(loki.VolumeLevel(f.Labels))
-	for i, t := range times.Values {
-		at, isTime := t.(time.Time)
-		v, isNumber := values.Values[i].(float64)
-		if isTime && isNumber {
-			h.Add(at.Add(-step), kind, int64(math.Round(v)))
-		}
-	}
-	return true
 }
 
 func foldClickHouseVolume(h *logvolume.Histogram, f datasource.Frame, _ time.Duration) bool {
@@ -262,7 +233,10 @@ func frameField(f datasource.Frame, name string) *datasource.Field {
 }
 
 func newVolumeJSON(v logvolume.Volume) volumeJSON {
-	out := volumeJSON{StepMS: v.StepMS, Total: v.Total, Buckets: make([]bucketJSON, len(v.Buckets))}
+	out := volumeJSON{StepMS: v.StepMS, Total: v.Total, Buckets: make([]bucketJSON, len(v.Buckets)), Partial: v.Partial()}
+	if v.Partial() {
+		out.CountedFrom = httpapi.FormatTime(v.CountedFrom)
+	}
 	for i, b := range v.Buckets {
 		out.Buckets[i] = bucketJSON{Start: httpapi.FormatTime(b.Start), Error: b.Error, Warning: b.Warning, Info: b.Info, Other: b.Other}
 	}

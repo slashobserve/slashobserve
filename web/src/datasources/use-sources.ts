@@ -8,6 +8,7 @@ import type { TraceSearch } from "@/traces/search"
 import { useSourceMemory } from "./datasource-memory"
 import { useDatasources, type DatasourceStatus } from "./queries"
 import {
+  isSourcePage,
   listedSources,
   logsSwitchSearch,
   metricsSwitchSearch,
@@ -36,8 +37,7 @@ export function useRouteSource(kind: ExploreKind): {
     select: (state) => state.location.pathname,
   })
   const { datasourceUid } = useParams({ strict: false })
-  const onSourcePage = pathname.startsWith(`/${kind}/`)
-  const current = onSourcePage
+  const current = isSourcePage(kind, pathname)
     ? sources.find((source) => source.uid === datasourceUid)
     : undefined
   return { current, sources }

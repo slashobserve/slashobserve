@@ -64,8 +64,10 @@ type lintBody struct {
 }
 
 type volumeBody struct {
-	Total   int `json:"total"`
-	Buckets []struct {
+	Total       int    `json:"total"`
+	Partial     bool   `json:"partial"`
+	CountedFrom string `json:"counted_from"`
+	Buckets     []struct {
 		Start   string `json:"start"`
 		Error   int    `json:"error"`
 		Warning int    `json:"warning"`
@@ -416,7 +418,7 @@ func (a *app) logVolumeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log-volume <datasource-uid> <query>",
 		Short: "Count the log lines a query matches over a range, by level",
-		Long:  "log-volume counts every line a logs query matches over the range, not only the lines logs prints, and files them as error, warning, info or other per bucket.\nThe query is in the language of the datasource, as for observe logs.",
+		Long:  "log-volume counts every line a logs query matches over the range, not only the lines logs prints, and files them as error, warning, info or other per bucket.\nThe query is in the language of the datasource, as for observe logs.\nWhen the datasource cannot count the whole range in time, the output says from when it counted.",
 		Args:  minimumArgs(2, "a datasource uid and a log query"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := opts.check(); err != nil {
@@ -441,6 +443,9 @@ func (a *app) logVolumeCommand() *cobra.Command {
 			}
 			out.table([]string{"START", "ERROR", "WARNING", "INFO", "OTHER"}, rows)
 			out.line("Total %d", body.Total)
+			if body.Partial {
+				out.warn("The datasource ran out of time, so only the lines from %s on were counted; the earlier buckets read 0.", body.CountedFrom)
+			}
 			return nil
 		},
 	}

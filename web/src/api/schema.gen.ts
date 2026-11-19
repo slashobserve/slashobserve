@@ -1558,7 +1558,7 @@ export interface paths {
         put?: never;
         /**
          * Count the log lines a logs query matches over a range, by level.
-         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first. Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first. Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. Loki counts a range longer than a day one day at a time, newest first; when the next day would not finish within the query time limit, the server stops, returns the days it counted with `partial` true and `counted_from` set to where the count starts, and leaves the older buckets at zero. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logVolume"];
         delete?: never;
@@ -5524,7 +5524,7 @@ export interface components {
             hint?: string;
             /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
             note?: string;
-            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            /** @description The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
             rows_total?: number;
@@ -5587,6 +5587,13 @@ export interface components {
             total: number;
             /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
             buckets: components["schemas"]["LogVolumeBucket"][];
+            /** @description Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero. */
+            partial: boolean;
+            /**
+             * Format: date-time
+             * @description Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
+             */
+            counted_from?: string;
         };
         LogVolumeBucket: {
             /**

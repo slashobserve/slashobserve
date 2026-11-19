@@ -40,7 +40,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	}
 	fetched := len(rows)
 	rows = slices.DeleteFunc(rows, shown)
-	hasNext := len(rows) > req.PageSize || fetched >= limit
+	hasNext := len(rows) > req.PageSize || fetched >= limit || metrics.cut && len(rows) > 0
 	rows = rows[:min(len(rows), req.PageSize)]
 	info := datasource.PageInfo{Page: page, PageSize: req.PageSize, HasNext: hasNext, TotalRelation: datasource.TotalUnknown}
 	if !metrics.partial() {
@@ -51,14 +51,21 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 			return nil, datasource.PageInfo{}, err
 		}
 	}
+	return pageFrames(rows, metrics), info, nil
+}
+
+func pageFrames(rows []spanRow, metrics searchMetrics) []datasource.Frame {
+	if len(rows) == 0 && metrics.partial() {
+		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}
+	}
 	if len(rows) == 0 {
-		return []datasource.Frame{}, info, nil
+		return []datasource.Frame{}
 	}
 	f := traceFrame(rows)
 	if metrics.partial() || metrics.TotalJobs > 0 {
 		f.Meta = searchMeta(metrics, false)
 	}
-	return []datasource.Frame{f}, info, nil
+	return []datasource.Frame{f}
 }
 
 func nextCursor(rows []spanRow, page, pageSize int) (*datasource.PageCursor, error) {

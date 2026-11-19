@@ -59,10 +59,20 @@ type searchMetrics struct {
 	CompletedJobs  int64       `json:"completedJobs"`
 	TotalJobs      int64       `json:"totalJobs"`
 	InspectedBytes json.Number `json:"inspectedBytes"`
+	cut            bool
 }
 
 func (m searchMetrics) partial() bool {
-	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+	return m.cut || m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
+func (m searchMetrics) plus(o searchMetrics) searchMetrics {
+	return searchMetrics{
+		CompletedJobs:  m.CompletedJobs + o.CompletedJobs,
+		TotalJobs:      m.TotalJobs + o.TotalJobs,
+		InspectedBytes: json.Number(strconv.FormatInt(m.inspectedBytes()+o.inspectedBytes(), 10)),
+		cut:            m.cut || o.cut,
+	}
 }
 
 func (m searchMetrics) inspectedBytes() int64 {
@@ -193,6 +203,46 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 	if err := rangeStartsInFuture(r); err != nil {
 		return nil, searchMetrics{}, err
 	}
+	var (
+		rows    []spanRow
+		metrics searchMetrics
+		seen    = map[string]bool{}
+		pacer   datasource.Pacer
+	)
+	for _, w := range datasource.NewestFirst(r, firstSearchWindow) {
+		win, ok := pacer.Start(ctx, w.To.Sub(w.From))
+		if !ok {
+			metrics.cut = true
+			break
+		}
+		got, m, err := d.searchWindow(win.Ctx, text, w, limit-len(rows))
+		if ranOut := win.End(err); err != nil {
+			if !ranOut {
+				return nil, searchMetrics{}, err
+			}
+			metrics.cut = true
+			break
+		}
+		metrics = metrics.plus(m)
+		for _, row := range got {
+			if !seen[row.traceID] {
+				seen[row.traceID] = true
+				rows = append(rows, row)
+			}
+		}
+		if len(rows) >= limit {
+			break
+		}
+	}
+	slices.SortStableFunc(rows, func(a, b spanRow) int {
+		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
+	})
+	return rows, metrics, nil
+}
+
+const firstSearchWindow = time.Hour
+
+func (d *Datasource) searchWindow(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
 	sent := newestFirst(text)
 	params := url.Values{
 		"q":     {sent},
@@ -228,9 +278,6 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 		}
 		rows = append(rows, row)
 	}
-	slices.SortStableFunc(rows, func(a, b spanRow) int {
-		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
-	})
 	return rows, resp.Metrics, nil
 }
 
