@@ -236,19 +236,40 @@ func withViewCount(data []byte, views dashboardViews) ([]byte, error) {
 }
 
 func explainMissingVersion(ctx context.Context, c *client, id string, version int, cause error) error {
+	latest, err := latestOfReadable(ctx, c, id, cause)
+	if err != nil {
+		return err
+	}
+	return versionNotFound(id, version, latest)
+}
+
+func explainMissingDiffVersion(ctx context.Context, c *client, id string, from, to int, cause error) error {
+	latest, err := latestOfReadable(ctx, c, id, cause)
+	if err != nil {
+		return err
+	}
+	for _, version := range []int{to, from} {
+		if version > latest {
+			return versionNotFound(id, version, latest)
+		}
+	}
+	return cause
+}
+
+func latestOfReadable(ctx context.Context, c *client, id string, cause error) (int, error) {
 	var api *apiError
 	if !errors.As(cause, &api) || api.status != http.StatusNotFound {
-		return cause
+		return 0, cause
 	}
 	data, err := c.get(ctx, "dashboards/"+id, nil)
 	if err != nil {
-		return cause
+		return 0, cause
 	}
 	latest, err := decode[dashboardWithVersion](data)
 	if err != nil {
-		return cause
+		return 0, cause
 	}
-	return versionNotFound(id, version, latest.Version.Version)
+	return latest.Version.Version, nil
 }
 
 func versionNotFound(id string, version, latest int) *apiError {

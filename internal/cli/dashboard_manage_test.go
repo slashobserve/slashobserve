@@ -213,6 +213,24 @@ func TestDashboardDiff(t *testing.T) {
 			t.Fatalf("exit %d, stdout %q", code, stdout)
 		}
 	})
+	t.Run("names the latest version when a version does not exist", func(t *testing.T) {
+		f := newManageFake(t,
+			manageReply{http.MethodGet, diffPath, 404, `{"error":"dashboard not found","code":"not_found"}`},
+			manageReply{http.MethodGet, dashboardPrefix, 200, dashboardVersionJSON(testDashboard, "Checkout", 3)})
+		_, stderr, code := f.run("dashboards", "diff", testDashboard, "--from", "1", "--to", "60")
+		if code != 1 || !strings.Contains(stderr, "has no version 60; its latest version is 3") || !strings.Contains(stderr, "version_not_found") {
+			t.Fatalf("exit %d, stderr %q", code, stderr)
+		}
+	})
+	t.Run("keeps not found when the dashboard itself is gone", func(t *testing.T) {
+		f := newManageFake(t,
+			manageReply{http.MethodGet, diffPath, 404, `{"error":"dashboard not found","code":"not_found"}`},
+			manageReply{http.MethodGet, dashboardPrefix, 404, `{"error":"dashboard not found","code":"not_found"}`})
+		_, stderr, code := f.run("dashboards", "diff", testDashboard, "--from", "1", "--to", "60")
+		if code != 1 || !strings.Contains(stderr, "dashboard not found") || strings.Contains(stderr, "has no version") {
+			t.Fatalf("exit %d, stderr %q", code, stderr)
+		}
+	})
 	t.Run("refuses a to below one", func(t *testing.T) {
 		f := newManageFake(t)
 		if _, _, code := f.run("dashboards", "diff", testDashboard, "--to", "0"); code != 2 || len(f.got) != 0 {
