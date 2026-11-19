@@ -171,7 +171,7 @@ export function ActivityCard({
       width={layout.width}
       bounds={layout.bounds}
       onWidthChange={editing ? setEditWidth : setWidth}
-      stacked={layout.stacked}
+      stacked={editing && layout.stacked ? "sheet" : layout.stacked}
       onKeyDown={onKeyDown}
     >
       {editingId !== undefined ? (

@@ -197,18 +197,6 @@ func storedSelections(selections map[string][]string) ([]byte, error) {
 	return json.Marshal(selections)
 }
 
-func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
-	var row dbsqlc.CreatePublicLinkRow
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		var err error
-		if row, err = q.CreatePublicLink(ctx, params); err != nil {
-			return err
-		}
-		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
-	})
-	return row, err
-}
-
 func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in CreateInput) (Created, error) {
 	if !in.Mode.valid() {
 		return Created{}, ErrInvalidMode
@@ -273,6 +261,27 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	}
 	link.Usable = true
 	return Created{Link: link, Token: token, URL: links.Public(s.publicURL, token)}, nil
+}
+
+func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsqlc.CreatePublicLinkParams) (dbsqlc.CreatePublicLinkRow, error) {
+	var row dbsqlc.CreatePublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockDashboardForLinks(ctx, params.DashboardID); err != nil {
+			return err
+		}
+		count, err := q.CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: params.DashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
+		if err != nil {
+			return err
+		}
+		if count >= maxLinksPerDashboard {
+			return ErrTooManyLinks
+		}
+		if row, err = q.CreatePublicLink(ctx, params); err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	})
+	return row, err
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) ([]Link, error) {

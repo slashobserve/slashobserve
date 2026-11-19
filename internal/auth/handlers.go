@@ -186,7 +186,7 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
-	if err := s.assignRole(ctx, user, groups); err != nil {
+	if err := s.assignRole(ctx, user, groups, claims.EmailVerified); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := opaquetoken.New("")

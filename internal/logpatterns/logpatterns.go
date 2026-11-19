@@ -145,7 +145,8 @@ type groupKey struct {
 }
 
 func Cluster(lines []Line, limit int, from, to time.Time) ([]Pattern, bool) {
-	if len(lines) > MaxLines {
+	capped := len(lines) > MaxLines
+	if capped {
 		lines = lines[:MaxLines]
 	}
 	var clusters []*cluster
@@ -159,6 +160,7 @@ func Cluster(lines []Line, limit int, from, to time.Time) ([]Pattern, bool) {
 		c := firstSimilar(groups[key], tokens)
 		if c == nil && len(clusters) >= MaxClusters {
 			c = nearest(clusters, tokens)
+			capped = true
 		}
 		if c == nil {
 			c = &cluster{template: slices.Clone(tokens), trend: NewTrend(from, to), levels: map[logvolume.Kind]int64{}}
@@ -172,8 +174,9 @@ func Cluster(lines []Line, limit int, from, to time.Time) ([]Pattern, bool) {
 	slices.SortStableFunc(clusters, func(a, b *cluster) int {
 		return cmp.Or(cmp.Compare(b.count, a.count), strings.Compare(a.pattern(), b.pattern()))
 	})
-	truncated := len(clusters) > limit
-	if truncated {
+	cut := len(clusters) > limit
+	truncated := cut || capped
+	if cut {
 		clusters = clusters[:limit]
 	}
 	out := make([]Pattern, len(clusters))

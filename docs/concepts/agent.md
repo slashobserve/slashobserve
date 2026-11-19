@@ -238,6 +238,7 @@ A run that fails on its first model call has `usage` with `model_calls` 0 and `f
 
 Before it stores a version, the server runs the queries itself, whatever the model checked earlier.
 Besides validating the document, it runs queries over the dashboard's default time range and with each variable at its default, hidden queries included.
+A default range longer than 400 days is checked over its last 400 days, the longest range the query routes accept, so the save is not refused for it and no check query reads more.
 Which queries run depends on the tool:
 
 - `create_dashboard` and `update_dashboard` run every query of every panel and every query variable.
@@ -254,6 +255,7 @@ The save is rejected when:
 
 - a query fails, or a datasource uid is not configured.
 - none of the queries of a panel returns data, except on an `alertlist` panel, where no firing alerts is normal.
+  A signed-in person can keep such a panel from the [panel editor](../use/edit-panel.md#save-as-a-new-version), marked "Unverified"; the agent, MCP clients and the CLI cannot.
 - the document breaks a rule of the format, such as overlapping panels or an undeclared variable.
 
 The rejection lists each problem with the path of the panel or variable and a code.
@@ -316,7 +318,7 @@ The run names the dashboard and its version, so the agent's `update_dashboard` a
 Its saves take `finish`, `planned_panels` and `row`, its `update_panels` takes one panel, and its `create_dashboard` takes `folder_id` only on the first save of a build, which the server keeps with the build until it becomes a version.
 Inside a run `get_spec_guide` returns only the JSON Schema, because the guide and the example are already in the agent's system text; over MCP it returns the guide with the sections of the configured types, the schema and the example.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
-When a message that mentions an agent started the run, the server instead posts one status reply in that thread when the run ends, whatever the outcome, and leaves the thread as it is; the agent also reads the thread's earlier messages with the request.
+When a message that mentions an agent started the run, the server instead posts one status reply in that thread when the run ends, whatever the outcome, and leaves the thread as it is; a reply that could not be posted, because the dashboard was locked or the write failed, is tried again every minute for up to a day; the agent also reads the thread's earlier messages with the request.
 
 ### Data sent to the provider
 
@@ -327,6 +329,8 @@ The agent sends what its tools return to the LLM provider, including names, labe
 The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
+The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).
+A reverse proxy on the same host that adds none of them, such as nginx with a bare `proxy_pass`, still reaches the server from loopback, so configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 The server enforces the guards and the limits and stores the saved result.
 It looks for `observe-agent` on `PATH`, and it does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 

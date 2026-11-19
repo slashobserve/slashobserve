@@ -8,7 +8,7 @@ RETURNING *;
 -- name: GetSavedSearch :one
 SELECT * FROM saved_searches WHERE id = @id;
 
--- name: LockSavedSearchForDelete :one
+-- name: LockSavedSearch :one
 SELECT * FROM saved_searches WHERE id = @id FOR UPDATE;
 
 -- name: ListSavedSearches :many

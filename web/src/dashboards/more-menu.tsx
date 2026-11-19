@@ -1,8 +1,10 @@
 import {
+  BracesIcon,
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
   PencilIcon,
+  PlusIcon,
   TvIcon,
   TvMinimalPlayIcon,
   Trash2Icon,
@@ -32,11 +34,14 @@ import { moreMenuButtonId } from "./edit/layout-store"
 
 export function moreLabel(menu: {
   mayEdit: boolean
+  canAddPanel: boolean
   canDuplicate: boolean
   folderTv: boolean
 }): string {
   const items = [
     menu.mayEdit ? "edit details" : null,
+    menu.mayEdit && menu.canAddPanel ? "add panel" : null,
+    menu.mayEdit ? "edit Spec JSON" : null,
     "open on sign-in",
     "export",
     "print",
@@ -54,6 +59,8 @@ type Props = {
   dashboardId: string
   mayEdit: boolean
   detailsBlockedBy: string | null
+  onAddPanel: (() => void) | null
+  onEditJson: () => void
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
   exportBlockedBy: string | null
@@ -71,6 +78,8 @@ export function MoreMenu({
   dashboardId,
   mayEdit,
   detailsBlockedBy,
+  onAddPanel,
+  onEditJson,
   duplicateBlockedBy,
   deleteBlockedBy,
   exportBlockedBy,
@@ -92,6 +101,7 @@ export function MoreMenu({
             type="button"
             aria-label={moreLabel({
               mayEdit,
+              canAddPanel: onAddPanel !== null,
               canDuplicate: onDuplicate !== null,
               folderTv: onTvModeFolder !== null,
             })}
@@ -117,6 +127,28 @@ export function MoreMenu({
             {detailsBlockedBy === null
               ? "Edit details"
               : `Edit details (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit && onAddPanel !== null ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={onAddPanel}
+          >
+            <PlusIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Add panel"
+              : `Add panel (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={onEditJson}
+          >
+            <BracesIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Edit Spec JSON"
+              : `Edit Spec JSON (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
         <HomeDashboardItem dashboardId={dashboardId} />

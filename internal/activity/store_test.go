@@ -466,7 +466,7 @@ func TestAnAppendDuringAMoveReadsTheNewFolder(t *testing.T) {
 
 	moved := make(chan struct{})
 	mover := r.hold(ctx, func(q *dbsqlc.Queries) error {
-		if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
+		if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to, FromFolderID: from}); err != nil {
 			return err
 		}
 		if err := Move(ctx, q, OnDashboard(dashboard), to); err != nil {
@@ -520,7 +520,7 @@ func TestAMoveWaitsForAnOpenAppend(t *testing.T) {
 	move := make(chan error, 1)
 	go func() {
 		move <- r.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-			if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to}); err != nil {
+			if _, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: dashboard, FolderID: to, FromFolderID: from}); err != nil {
 				return err
 			}
 			return Move(ctx, q, OnDashboard(dashboard), to)

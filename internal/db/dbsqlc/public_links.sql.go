@@ -305,6 +305,24 @@ func (q *Queries) ListRCAPublicLinks(ctx context.Context, rcaID pgtype.UUID) ([]
 	return items, nil
 }
 
+const lockDashboardForLinks = `-- name: LockDashboardForLinks :exec
+SELECT 1 FROM dashboards WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockDashboardForLinks(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockDashboardForLinks, id)
+	return err
+}
+
+const lockObservationForLinks = `-- name: LockObservationForLinks :exec
+SELECT 1 FROM observations WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockObservationForLinks(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockObservationForLinks, id)
+	return err
+}
+
 const publicLinkByTokenHash = `-- name: PublicLinkByTokenHash :one
 SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version
 FROM public_links p

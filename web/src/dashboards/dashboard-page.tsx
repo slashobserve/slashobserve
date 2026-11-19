@@ -125,6 +125,9 @@ import {
   useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
+import { useAddPanel } from "./add-panel-action"
+import { SpecJsonPane } from "./spec-json/spec-json-pane"
+import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
 import { saveToast } from "./save-outcome"
@@ -390,6 +393,8 @@ function DashboardView({
     },
     [saveVersion, spec, version]
   )
+  const layoutActions = usePanelLayoutActions(dashboardId, spec, version)
+  const addPanel = useAddPanel(dashboardId, spec)
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const kiosk = search.kiosk === true
@@ -433,8 +438,15 @@ function DashboardView({
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
   const toolsShown = useCanvasToolsShown(permissions)
+  const [specOpen, setSpecOpen] = useState(false)
+  const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
-    panelInUrl || search.share === true || editing || inspecting || kiosk
+    panelInUrl ||
+    search.share === true ||
+    editing ||
+    inspecting ||
+    kiosk ||
+    specShown
       ? undefined
       : search.chat
   const threadInUrl = search.thread !== undefined
@@ -442,6 +454,7 @@ function DashboardView({
     (open || panelInUrl || search.share === true || threadInUrl) &&
     !editing &&
     !inspecting &&
+    !specShown &&
     !kiosk &&
     chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
@@ -761,6 +774,8 @@ function DashboardView({
       deleteBlockedBy={editing ? "finish the layout first" : null}
       exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
+      onAddPanel={addPanel}
+      onEditJson={() => setSpecOpen(true)}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -846,6 +861,9 @@ function DashboardView({
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }
+      layoutActions={
+        permissions.edit && !editing && !pinned ? layoutActions : undefined
+      }
       focusOnRender={
         focusesLinkedPanel && item.first && item.panel.id === linkedPanel
       }
@@ -901,7 +919,8 @@ function DashboardView({
                 pageClass(
                   (cardVisible && cardLayout.stacked) ||
                     (chatRequestId !== undefined && chatLayout.stacked) ||
-                    (inspecting && inspectLayout.stacked)
+                    (inspecting && inspectLayout.stacked) ||
+                    (specShown && inspectLayout.stacked)
                 ),
                 "@container min-w-0 @max-[1000px]:has-[[data-panel-host]>aside]:h-auto @max-[1000px]:has-[[data-panel-host]>aside]:min-h-svh @max-[1000px]:has-[[data-panel-host]>aside]:flex-wrap narrow:flex-1"
               )}
@@ -963,7 +982,10 @@ function DashboardView({
                   data-export-pane=""
                   className={cn(
                     "min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4",
-                    toolsShown && !kiosk && "pb-16 narrow:pb-2.5"
+                    toolsShown &&
+                      !kiosk &&
+                      !editingPanel &&
+                      "pb-16 narrow:pb-2.5"
                   )}
                 >
                   <ActionProvider value={actionContext}>
@@ -1004,7 +1026,7 @@ function DashboardView({
                     )}
                   </ActionProvider>
                 </main>
-                {kiosk ? null : (
+                {kiosk || editingPanel ? null : (
                   <CanvasTools
                     permissions={permissions}
                     idle={!editing}
@@ -1051,6 +1073,15 @@ function DashboardView({
                 />
               ) : null}
               <div ref={setPanelHost} data-panel-host="" className="contents" />
+              {specOpen ? (
+                <SpecJsonPane
+                  dashboardId={dashboardId}
+                  spec={envelopeSpec}
+                  version={envelopeVersion}
+                  hidden={!specShown}
+                  onClose={() => setSpecOpen(false)}
+                />
+              ) : null}
               <UnsavedBar dashboardId={dashboardId} />
               {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
               <ShortcutsDialog

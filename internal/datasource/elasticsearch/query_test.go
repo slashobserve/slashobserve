@@ -132,6 +132,18 @@ func TestBuildBodyRefusesInvalidBodiesBeforeAnyRequest(t *testing.T) {
 	for _, tc := range []struct{ name, text, message string }{
 		{"unknown key", `{"query": {}, "post_filter": {}}`, `unsupported key "post_filter" in the query body`},
 		{"unknown key after nesting", `{"query": {"bool": {"x": [1, 2]}}, "from": 3}`, `unsupported key "from" in the query body`},
+		{"script in an aggregation", `{"aggs": {"a": {"avg": {"field": "x", "script": "doc['x'].value * 2"}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script query nested in a filter", `{"query": {"bool": {"filter": [{"script": {"script": {"source": "true"}}}]}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script field", `{"script_fields": {"f": {"script": {"source": "1"}}}}`, "unsupported key"},
+		{"runtime mapping with a script", `{"runtime_mappings": {"r": {"type": "keyword", "script": {"source": "emit('x')"}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script in a terms aggregation", `{"aggs": {"a": {"terms": {"field": "host", "script": "1"}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script in a range aggregation", `{"aggs": {"a": {"range": {"script": "1", "ranges": [{"to": 5}]}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script in a multi terms source", `{"aggs": {"a": {"multi_terms": {"terms": [{"script": "1"}, {"field": "b"}]}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"script sort", `{"sort": [{"_script": {"type": "number", "script": {"source": "1"}}}]}`, `scripts are not allowed in a query body: remove "_script"`},
+		{"script in a terms set", `{"query": {"terms_set": {"tags": {"terms": ["a"], "minimum_should_match_script": {"source": "1"}}}}}`, `scripts are not allowed in a query body: remove "minimum_should_match_script"`},
+		{"script under an aggregation named script", `{"aggs": {"script": {"avg": {"script": "1"}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"document script inside a pipeline script", `{"aggs": {"a": {"bucket_script": {"buckets_path": {}, "script": {"source": "1", "params": {"runtime_mappings": {"r": {"script": "x"}}}}}}}}`, `scripts are not allowed in a query body: remove "script"`},
+		{"runtime field named script with a script", `{"runtime_mappings": {"script": {"type": "keyword", "script": {"source": "emit('x')"}}}}`, `scripts are not allowed in a query body: remove "script"`},
 		{"syntax error", `{"query": }`, "query body is not valid JSON"},
 		{"truncated", `{"query": {"match_all": {}}`, "query body is not valid JSON"},
 		{"trailing data", `{} {}`, "unexpected data after the query body"},
@@ -328,5 +340,45 @@ func TestQueryOnAnIndexWithoutTheTimeFieldAsADateIsRefused(t *testing.T) {
 	ds := serve(t, f, func(o *elasticsearch.Options) { o.TimeField = "message" })
 	if _, err := ds.QueryInstant(context.Background(), datasource.Query{}, queryRange); !errors.Is(err, datasource.ErrNoTimeField) {
 		t.Fatalf("error = %v, want ErrNoTimeField", err)
+	}
+}
+
+func TestBuildBodyAcceptsAFieldOrAggregationNamedScript(t *testing.T) {
+	for _, text := range []string{
+		`{"query": {"term": {"script": "backup.sh"}}}`,
+		`{"query": {"bool": {"filter": [{"match": {"script": {"query": "deploy"}}}, {"range": {"script": {"gte": 1}}}]}}}`,
+		`{"query": {"exists": {"field": "script"}}}`,
+		`{"aggs": {"script": {"terms": {"field": "host"}}}}`,
+		`{"aggs": {"hosts": {"terms": {"field": "host"}, "aggs": {"script": {"terms": {"field": "script"}}}}}}`,
+		`{"sort": [{"script": "asc"}, {"@timestamp": {"order": "desc"}}]}`,
+		`{"sort": {"script": "asc"}}`,
+		`{"runtime_mappings": {"script": {"type": "keyword"}}}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			f, ds := searchServer(t, hitsOf(0))
+			if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, queryRange); err != nil {
+				t.Fatalf("a body with a field or aggregation named script was refused: %v", err)
+			}
+			if n := f.count(searchPath); n != 1 {
+				t.Fatalf("%d search requests, want 1", n)
+			}
+		})
+	}
+}
+
+func TestBuildBodyAcceptsTheScriptOfAPipelineAggregation(t *testing.T) {
+	for _, text := range []string{
+		`{"aggs": {"t": {"date_histogram": {"field": "@timestamp", "fixed_interval": "1m"}, "aggs": {"c": {"value_count": {"field": "_id"}}, "m": {"moving_fn": {"buckets_path": "c", "window": 5, "script": "MovingFunctions.unweightedAvg(values)"}}}}}}`,
+		`{"aggs": {"t": {"date_histogram": {"field": "@timestamp", "fixed_interval": "1m"}, "aggs": {"c": {"value_count": {"field": "_id"}}, "r": {"bucket_script": {"buckets_path": {"c": "c"}, "script": {"source": "params.c * 2"}}}}}}}`,
+	} {
+		t.Run(text, func(t *testing.T) {
+			f, ds := searchServer(t, hitsOf(0))
+			if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, queryRange); err != nil {
+				t.Fatalf("the script of a pipeline aggregation was refused: %v", err)
+			}
+			if n := f.count(searchPath); n != 1 {
+				t.Fatalf("%d search requests, want 1", n)
+			}
+		})
 	}
 }

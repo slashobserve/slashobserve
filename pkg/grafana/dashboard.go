@@ -145,6 +145,9 @@ func (c *converter) convertHead() {
 	c.head.LiveNow = truthy(dash["liveNow"])
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
+	if len(c.src.skipped) > 0 {
+		c.note("panels", "These entries are not panels or rows, or are rows inside a collapsed row, and are not kept.", c.src.skipped...)
+	}
 	if editable, ok := dash["editable"].(bool); ok && !editable {
 		c.note("dashboard options", dashboardOptionsNote, "editable")
 	}

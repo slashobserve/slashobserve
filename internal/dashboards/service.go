@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	maxFolderRetries     = 5
 	maxSummaryLength     = 500
 	maxInt32             = math.MaxInt32
 	defaultCreateSummary = "Create dashboard"
@@ -41,6 +42,7 @@ var (
 	ErrInvalidCursor  = errors.New("invalid cursor")
 	ErrInvalidRange   = errors.New("from must be less than to")
 	ErrBeingCreated   = errors.New("the agent is still creating this dashboard")
+	errFolderMoved    = errors.New("the dashboard changed folders after its access was checked")
 )
 
 type ConflictError struct {
@@ -460,6 +462,16 @@ func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, erro
 }
 
 func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
+	for range maxFolderRetries {
+		dash, ver, err := s.moveOnce(ctx, by, id, folderID)
+		if !errors.Is(err, errFolderMoved) {
+			return dash, ver, err
+		}
+	}
+	return Dashboard{}, Version{}, fmt.Errorf("dashboard %s changed folders %d times in a row: %w", id, maxFolderRetries, errFolderMoved)
+}
+
+func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
 	source, err := s.need(ctx, by, id, folders.NeedEdit)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -605,23 +617,28 @@ func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dash
 		if err != nil {
 			return Unverified{}, err
 		}
-		if len(issues) > 0 {
-			return Unverified{}, &InvalidSpecError{Issues: issues}
+		blocking, accepted := acceptEmpty(ctx, next, issues)
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
 		}
-		return CarryUnchanged(prev, prevUnverified, next, panels, variables), nil
-	}
-	if prev == nil || prevUnverified.Empty() {
-		return Unverified{}, s.checkQueries(ctx, by, next)
+		return CarryUnchanged(prev, prevUnverified, next, panels, variables).with(accepted), nil
 	}
 	issues, err := s.runner.CheckSpec(ctx, next, time.Now(), queryproxy.UserFor(by))
 	if err != nil {
 		return Unverified{}, err
 	}
-	carried, blocking := CarryUnverified(prev, prevUnverified, next, issues)
+	blocking, accepted := acceptEmpty(ctx, next, issues)
+	if prev == nil || prevUnverified.Empty() {
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
+		}
+		return accepted, nil
+	}
+	carried, blocking := CarryUnverified(prev, prevUnverified, next, blocking)
 	if len(blocking) > 0 {
 		return Unverified{}, &InvalidSpecError{Issues: blocking}
 	}
-	return carried, nil
+	return carried.with(accepted), nil
 }
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -683,9 +700,6 @@ func parseSpec(raw []byte, previous *spec.Dashboard) (*spec.Dashboard, []byte, e
 	canonical, err := json.Marshal(parsed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return nil, nil, &InvalidSpecError{Issues: issues}
 	}
 	return parsed, canonical, nil
 }
