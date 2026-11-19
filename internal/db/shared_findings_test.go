@@ -54,10 +54,7 @@ VALUES ($1, $2, $3::uuid, nullif($4, '')::uuid, CASE WHEN $4 = '' THEN NULL ELSE
 func migrateToSharedFindings(t *testing.T) (*dbtest.Database, string) {
 	t.Helper()
 	ctx := context.Background()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(ctx, sharedFindingsVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, sharedFindingsVersion-1)
 	user := seedSharedFindingsFixtures(t, d)
 	if err := d.MigrateUpTo(ctx, sharedFindingsVersion); err != nil {
 		t.Fatalf("up: %v", err)

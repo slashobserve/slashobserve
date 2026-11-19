@@ -161,10 +161,7 @@ VALUES ('thread.replied', 'thread', $1::uuid, $2::uuid, $3::uuid, 'user', $4::uu
 
 func foMigrated(t *testing.T) (*dbtest.Database, foFixture, *sql.DB) {
 	t.Helper()
-	d := dbtest.NewUnmigrated(t)
-	if err := d.MigrateUpTo(context.Background(), findingsObservationsVersion-1); err != nil {
-		t.Fatal(err)
-	}
+	d := newMigratedTo(t, findingsObservationsVersion-1)
 	f := foSeed(t, d)
 	if err := d.MigrateUpTo(context.Background(), findingsObservationsVersion); err != nil {
 		t.Fatalf("up: %v", err)
