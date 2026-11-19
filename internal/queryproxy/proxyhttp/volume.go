@@ -100,10 +100,6 @@ func (h *Handler) volume(c *gin.Context) {
 	if !ok {
 		return
 	}
-	queried := al.rng
-	if source.kind == queryproxy.KindInstant {
-		queried = al.counted
-	}
 	derived, err := source.derive(*req.Query, al.step)
 	if err != nil {
 		h.exploreFail(c, uid, err)
@@ -115,7 +111,7 @@ func (h *Handler) volume(c *gin.Context) {
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     exploreDashboard(uid, derived, source.kind),
 		PanelID:       explorePanelID,
-		Range:         queried,
+		Range:         al.queried(source.kind),
 		Selections:    map[string]queryproxy.Selection{},
 		MaxDataPoints: al.maxDataPoints,
 		Limits:        queryproxy.DraftLimits,
@@ -188,6 +184,13 @@ func volumeAlignment(rng datasource.TimeRange, buckets int) volumeWindowAlignmen
 type volumeWindowAlignment struct {
 	alignment
 	counted datasource.TimeRange
+}
+
+func (a volumeWindowAlignment) queried(kind queryproxy.Kind) datasource.TimeRange {
+	if kind == queryproxy.KindInstant {
+		return a.counted
+	}
+	return a.rng
 }
 
 func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource.LogVolumeSource, req volumeRequest) {
