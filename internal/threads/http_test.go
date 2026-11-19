@@ -390,10 +390,10 @@ func TestABodyErrorNamesTheFirstRuleBroken(t *testing.T) {
 	cases := []struct {
 		name, body, want string
 	}{
-		{"empty", "  ", "body is empty"},
-		{"too long", strings.Repeat("a", 4001), "body is 4001 characters; the limit is 4000"},
+		{"empty", "  ", "body must not be empty"},
+		{"too long", strings.Repeat("a", 4001), "body must be at most 4000 characters"},
 		{"bidirectional override", "a\u202eb", "U+202E"},
-		{"NUL", "a\x00b", "U+0000"},
+		{"NUL", "a\x00b", "control characters"},
 	}
 	seen := map[string]bool{}
 	for _, tc := range cases {
