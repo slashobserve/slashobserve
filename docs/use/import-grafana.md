@@ -110,6 +110,7 @@ A dashboard's time settings, links and editability import as follows.
 | Links to other dashboards by tag | Links that list the matching dashboards | |
 | Links to an address | Links that keep their keep-time and include-variables options | |
 | A link's tooltip | Imported as written | It is cut to 200 characters and reported when cut. |
+| The dashboard, panel and row titles | Trimmed, with line breaks and other control characters turned into a space and zero-width and bidirectional override characters removed | A title that is empty afterwards becomes `Imported dashboard`, `Row` or no panel title. The [text rules](../reference/text-rules.md) then accept it. |
 | Link icons other than Grafana's default, and placement in the controls menu | Reported | The link is shown inline. |
 | A dashboard that is not editable in Grafana (`editable: false`) | Editable by anyone with Edit access to its folder | The report says so. |
 

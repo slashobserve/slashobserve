@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
@@ -77,9 +76,9 @@ func (s *Service) createSuggestion(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	draft, ok := draftOf(req.Panel)

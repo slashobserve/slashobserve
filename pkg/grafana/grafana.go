@@ -7,6 +7,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -237,6 +238,30 @@ func present(v any) bool {
 		return len(x) > 0
 	}
 	return true
+}
+
+func cleanTitle(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case unicode.IsControl(r):
+			b.WriteRune(' ')
+		case hiddenInTitle(r):
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func hiddenInTitle(r rune) bool {
+	switch r {
+	case '\u200c', '\u200d', '\u200e', '\u200f', '\u061c':
+		return false
+	case '\u034f', '\u115f', '\u1160', '\u2800', '\u3164', '\uffa0':
+		return true
+	}
+	return unicode.Is(unicode.Cf, r)
 }
 
 func cutRunes(s string, limit int) (string, bool) {

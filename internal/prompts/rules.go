@@ -16,7 +16,6 @@ const (
 
 const (
 	messageInvalidName     = "name must be 1 to 64 letters, numbers, spaces, - or _, starting and ending with a letter or number"
-	messageInvalidBody     = "body must be 1 to 4000 characters without control or bidirectional override characters"
 	messageOwnNameTaken    = "you already have a prompt with that name"
 	messageSharedNameTaken = "another shared prompt has that name"
 	messageTooMany         = "a person can save at most 100 prompts"
@@ -33,8 +32,8 @@ func NormalizeName(raw string) (string, bool) {
 	return name, true
 }
 
-func CleanBody(raw string) (string, bool) {
-	return revisions.CleanPrompt(raw)
+func CleanBody(raw string) (string, error) {
+	return revisions.CheckPrompt("body", raw)
 }
 
 func CanEdit(caller auth.Principal, ownerID string, shared bool) bool {

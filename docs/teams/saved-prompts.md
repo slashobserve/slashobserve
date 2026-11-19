@@ -22,7 +22,7 @@ The panel starts with the first three words of the prompt as the name and the wh
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.
 Runs of spaces collapse to one.
-The text is 1 to 4000 characters and cannot contain control characters other than newlines and tabs, or the bidirectional override characters.
+The text is 1 to 4000 characters with at least one visible character, and cannot contain control characters other than newlines and tabs, or the bidirectional override characters; see [Text rules](../reference/text-rules.md).
 A name is unique among your own prompts and among shared prompts, ignoring case, so you cannot share a prompt whose name another shared prompt already has.
 A person can keep 100 prompts.
 

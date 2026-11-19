@@ -15,6 +15,7 @@ import { HomeDashboardSection } from "@/settings/home-dashboard-section"
 import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
 import { OutboundAccessSection } from "@/settings/outbound-access-card"
 import {
+  sectionNotice,
   selectedSectionId,
   settingsGroups,
   settingsPanel,
@@ -57,6 +58,7 @@ function SettingsPage() {
   const groups = settingsGroups(principal.role)
   const selected = selectedSectionId(groups, hash)
   const panel = settingsPanel(selected, search)
+  const notice = sectionNotice(groups, hash)
 
   function onPanel(next: SettingsPanel | null) {
     void navigate({
@@ -81,6 +83,13 @@ function SettingsPage() {
         />
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SettingsSectionSelect groups={groups} selected={selected} />
+          {notice ? (
+            <p role="status" className="text-[13px] text-muted-foreground">
+              {notice.adminOnly
+                ? "Only Admins can open that section. Showing Server."
+                : `Settings has no section named "${notice.hash.slice(0, 40)}". Showing Server.`}
+            </p>
+          ) : null}
           <SelectedSection id={selected} panel={panel} onPanel={onPanel} />
         </div>
       </div>
