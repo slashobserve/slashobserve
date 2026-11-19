@@ -381,12 +381,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
     submit()
   }
 
-  function onEditorPaste(event: ClipboardEvent<HTMLDivElement>) {
-    if (!search) return
-    const text = event.clipboardData.getData("text/plain")
-    if (!isDiscoverUrl(text)) return
-    event.preventDefault()
-    event.stopPropagation()
+  function importLink(text: string) {
     if (mode === "ask") setMode("code", false)
     let imported: ReturnType<typeof importDiscoverUrl>
     try {
@@ -419,6 +414,20 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
         ? `${importSummary(imported)} ${merged.blocked}.`
         : importSummary(imported)
     )
+  }
+
+  function onEditorPaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (!search) return
+    const text = event.clipboardData.getData("text/plain")
+    if (!isDiscoverUrl(text)) return
+    event.preventDefault()
+    event.stopPropagation()
+    importLink(text)
+  }
+
+  function onAsk(question: string) {
+    if (search && isDiscoverUrl(question)) importLink(question)
+    else ask.ask(question)
   }
 
   function pickLabel(label: string, value: string) {
@@ -483,7 +492,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
               signal="logs"
               value={ask.question}
               onChange={ask.setQuestion}
-              onAsk={ask.ask}
+              onAsk={onAsk}
               pending={ask.asking}
               onCancel={ask.cancel}
               placeholder={askPlaceholder}

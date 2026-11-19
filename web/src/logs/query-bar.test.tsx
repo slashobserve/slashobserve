@@ -506,6 +506,22 @@ describe("QueryBar", () => {
       )
     })
 
+    it("imports a link typed into the Ask field instead of asking the model", async () => {
+      const ask = vi.fn()
+      vi.stubGlobal("fetch", ask)
+      const { run, setMode, user } = setup({ mode: "ask" })
+      const field = await screen.findByLabelText("Question")
+      fireEvent.change(field, { target: { value: link } })
+      await user.click(screen.getByRole("button", { name: "Ask" }))
+      expect(ask).not.toHaveBeenCalled()
+      expect(setMode).toHaveBeenCalledWith("code", false)
+      expect(run).toHaveBeenCalledWith(
+        "level:error",
+        undefined,
+        expect.objectContaining({ from: "now-15m", to: "now" })
+      )
+    })
+
     it("pastes the link as plain text on Loki", async () => {
       const { setDraft, update } = setup({ type: "loki", draft: "" })
       await paste(link, "LogQL query")
