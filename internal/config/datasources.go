@@ -46,6 +46,7 @@ var queryLanguages = []string{"kql", "lucene"}
 type Datasource struct {
 	UID, Type, Name string
 	GrafanaUIDs     []string
+	Audience        datasource.Audience
 	Prometheus      *PrometheusDatasource
 	ClickHouse      *ClickHouseDatasource
 	Loki            *LokiDatasource
@@ -113,6 +114,7 @@ type fileDatasource struct {
 	Type          string          `yaml:"type"`
 	Name          yamlString      `yaml:"name"`
 	GrafanaUIDs   []yamlString    `yaml:"grafanaUids"`
+	Audience      yamlString      `yaml:"audience"`
 	Prometheus    *filePrometheus `yaml:"prometheus"`
 	ClickHouse    *fileClickHouse `yaml:"clickhouse"`
 	Loki          *fileLoki       `yaml:"loki"`
@@ -342,6 +344,15 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 
 	if raw.Name.problem != "" {
 		fail("name", "%s", raw.Name.problem)
+	}
+
+	switch audience := datasource.Audience(raw.Audience.value); {
+	case raw.Audience.problem != "":
+		fail("audience", "%s", raw.Audience.problem)
+	case audience == "" || audience == datasource.AudienceEveryone || audience == datasource.AudienceAdmins:
+		ds.Audience = audience
+	default:
+		fail("audience", "must be %s or %s, got %q", datasource.AudienceEveryone, datasource.AudienceAdmins, raw.Audience.value)
 	}
 
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)

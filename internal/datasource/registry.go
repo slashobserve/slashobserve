@@ -44,8 +44,8 @@ type Instance struct {
 	GrafanaUIDs []string
 	Datasource  Datasource
 	Source      string
+	Audience    Audience
 
-	audience   Audience
 	generation uint64
 }
 
@@ -132,15 +132,20 @@ func normalized(in Instance) (Instance, error) {
 	if in.Source == "" {
 		in.Source = SourceFile
 	}
-	if in.audience == "" {
-		in.audience = AudienceEveryone
+	switch in.Audience {
+	case "":
+		in.Audience = AudienceEveryone
+	case AudienceEveryone, AudienceAdmins:
+	default:
+		return Instance{}, fmt.Errorf("datasource %q audience must be %s or %s", in.UID, AudienceEveryone, AudienceAdmins)
 	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
 }
 
 func (r *Registry) AddAdminsOnly(in Instance) error {
-	in.audience = AudienceAdmins
+	in.Audience = AudienceAdmins
+	in.Source = SourceFile
 	in, err := normalized(in)
 	if err != nil {
 		return err
@@ -157,7 +162,6 @@ func (r *Registry) AddAdminsOnly(in Instance) error {
 
 func (r *Registry) Put(in Instance) error {
 	in.Source = SourceApp
-	in.audience = AudienceEveryone
 	in, err := normalized(in)
 	if err != nil {
 		return err
@@ -231,7 +235,7 @@ func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
 	r.instancesMu.RUnlock()
-	if !ok || !access.reads(in.audience) {
+	if !ok || !access.reads(in.Audience) {
 		return Instance{}, ErrNotVisible
 	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
@@ -243,13 +247,13 @@ func (r *Registry) Visible(ctx context.Context) []Instance {
 	if !ok {
 		return nil
 	}
-	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.reads(in.audience) })
+	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.reads(in.Audience) })
 }
 
 func (r *Registry) AdminsOnly(uid string) bool {
 	r.instancesMu.RLock()
 	defer r.instancesMu.RUnlock()
-	return r.instances[uid].audience == AudienceAdmins
+	return r.instances[uid].Audience == AudienceAdmins
 }
 
 func (r *Registry) all() []Instance {

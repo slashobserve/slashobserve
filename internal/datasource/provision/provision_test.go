@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -205,5 +206,22 @@ func TestBuildLokiAndTempoRefuseInvalidSettings(t *testing.T) {
 		if !errors.As(err, &buildErr) || !strings.Contains(buildErr.Message, "url scheme must be http or https") {
 			t.Fatalf("%s: err = %v", src.UID, err)
 		}
+	}
+}
+
+func TestBuildKeepsTheAudienceOfTheFile(t *testing.T) {
+	audit := prom("audit", "http://audit:9090")
+	audit.Audience = datasource.AudienceAdmins
+	registry, err := Build(nil, []config.Datasource{prom("prom", "http://prom:9090"), audit})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = registry.Close() })
+	if !registry.AdminsOnly("audit") || registry.AdminsOnly("prom") {
+		t.Fatal("the file's audience did not reach the registry")
+	}
+	viewer := datasource.WithAccess(t.Context(), datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "v", Role: auth.RoleViewer}})
+	if _, err := registry.For(viewer, "audit"); !errors.Is(err, datasource.ErrNotVisible) {
+		t.Fatalf("viewer For(audit) err = %v", err)
 	}
 }

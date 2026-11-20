@@ -9,6 +9,30 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
+var adminsOnlyRegistrations = map[string]func(t *testing.T) *datasource.Registry{
+	"built in": withAdminsOnly,
+	"from the file": func(t *testing.T) *datasource.Registry {
+		registry, err := datasource.NewRegistry(nil,
+			datasource.Instance{UID: "prom", Datasource: failingHealth{}},
+			datasource.Instance{UID: "audit", Audience: datasource.AudienceAdmins, Datasource: failingHealth{}},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return registry
+	},
+	"added by an Admin": func(t *testing.T) *datasource.Registry {
+		registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "prom", Datasource: failingHealth{}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := registry.Put(datasource.Instance{UID: "audit", Audience: datasource.AudienceAdmins, Datasource: failingHealth{}}); err != nil {
+			t.Fatal(err)
+		}
+		return registry
+	},
+}
+
 func withAdminsOnly(t *testing.T) *datasource.Registry {
 	t.Helper()
 	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "prom", Datasource: failingHealth{}})
@@ -30,7 +54,12 @@ func key(role auth.Role) auth.Principal {
 }
 
 func TestAnAdminsOnlyDatasourceIsReadOnlyByAnAdminOrTheSystem(t *testing.T) {
-	registry := withAdminsOnly(t)
+	for how, register := range adminsOnlyRegistrations {
+		t.Run(how, func(t *testing.T) { checkAdminsOnlyMatrix(t, register(t)) })
+	}
+}
+
+func checkAdminsOnlyMatrix(t *testing.T, registry *datasource.Registry) {
 	cases := []struct {
 		name   string
 		access datasource.Access
@@ -125,13 +154,13 @@ func TestAnAdminsOnlyDatasourceCannotBeReplacedRemovedOrDuplicated(t *testing.T)
 	}
 }
 
-func TestPutAlwaysRegistersForEveryone(t *testing.T) {
+func TestADatasourceWithNoAudienceIsForEveryone(t *testing.T) {
 	registry := withAdminsOnly(t)
 	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
 		t.Fatal(err)
 	}
-	if registry.AdminsOnly("added") {
-		t.Fatal("an Admin-added datasource is admins only")
+	if registry.AdminsOnly("added") || registry.AdminsOnly("prom") {
+		t.Fatal("a datasource with no audience is admins only")
 	}
 	if _, err := registry.For(datasource.WithAccess(t.Context(), datasource.Access{By: user(auth.RoleViewer)}), "added"); err != nil {
 		t.Fatalf("viewer cannot read an Admin-added datasource: %v", err)
@@ -144,4 +173,24 @@ func uids(list []datasource.Instance) []string {
 		out = append(out, in.UID)
 	}
 	return out
+}
+
+func TestAnAudienceThatIsNotOneIsRefused(t *testing.T) {
+	if _, err := datasource.NewRegistry(nil, datasource.Instance{UID: "prom", Audience: "Admins", Datasource: failingHealth{}}); err == nil {
+		t.Fatal("NewRegistry accepted an unknown audience")
+	}
+	registry := withAdminsOnly(t)
+	if err := registry.Put(datasource.Instance{UID: "added", Audience: "nobody", Datasource: failingHealth{}}); err == nil {
+		t.Fatal("Put accepted an unknown audience")
+	}
+}
+
+func TestAnAdminCanOpenAnAddedDatasourceToEveryoneAgain(t *testing.T) {
+	registry := adminsOnlyRegistrations["added by an Admin"](t)
+	if err := registry.Put(datasource.Instance{UID: "audit", Audience: datasource.AudienceEveryone, Datasource: failingHealth{}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.For(datasource.WithAccess(t.Context(), datasource.Access{By: user(auth.RoleViewer)}), "audit"); err != nil {
+		t.Fatalf("viewer cannot read a reopened datasource: %v", err)
+	}
 }
