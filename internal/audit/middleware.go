@@ -32,6 +32,8 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 		return nil, fmt.Errorf("read %s declarations: %w", Extension, err)
 	}
 	return func(c *gin.Context) {
+		r.inflight.Add(1)
+		defer r.inflight.Add(-1)
 		start := time.Now()
 		template := ginToTemplate(c.FullPath())
 		method := c.Request.Method

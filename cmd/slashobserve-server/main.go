@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -95,6 +96,7 @@ const (
 	readTimeout       = 60 * time.Second
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 15 * time.Second
+	requestsCutAfter  = shutdownTimeout - 5*time.Second
 )
 
 func versionLine() string { return version + " (" + commit + ")" }
@@ -320,7 +322,8 @@ func run() error {
 	if err := recorder.PartitionJob()(ctx); err != nil {
 		logger.Warn("audit partitions not prepared", logattrs.Failure("audit_partitions_failed", err)...)
 	}
-	stopAudit := startBackground(ctx, "audit writer", recorder.Run, logger)
+	untilServed := context.WithoutCancel(ctx)
+	stopAudit := startBackground(untilServed, "audit writer", recorder.Run, logger)
 	defer stopAudit()
 	membership := fleet.New(database, serverID, version, logger)
 	serverMetrics.Fleet(membership.Live)
@@ -856,6 +859,8 @@ func newLogger(cfg config.Config) *slog.Logger {
 }
 
 func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
+	requests, cutRequests := context.WithCancel(context.Background())
+	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
 	srv := &http.Server{
 		Addr:              addr,
@@ -864,6 +869,7 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 		ReadTimeout:       readTimeout,
 		IdleTimeout:       idleTimeout,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
+		BaseContext:       func(net.Listener) context.Context { return requests },
 	}
 	for _, f := range onShutdown {
 		srv.RegisterOnShutdown(f)
@@ -883,7 +889,13 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 	}
 
 	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	return shutdown(srv, cutRequests, requestsCutAfter, shutdownTimeout)
+}
+
+func shutdown(srv *http.Server, cutRequests context.CancelFunc, cutAfter, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	cut := time.AfterFunc(cutAfter, cutRequests)
+	defer cut.Stop()
+	return srv.Shutdown(ctx)
 }

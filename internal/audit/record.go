@@ -56,6 +56,7 @@ type Recorder struct {
 	retention time.Duration
 	logger    *slog.Logger
 	writer    *Writer
+	inflight  atomic.Int64
 }
 
 var installed atomic.Pointer[Recorder]

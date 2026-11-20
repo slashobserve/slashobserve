@@ -140,5 +140,6 @@ Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest 
 ### Shutdown and leases
 
 On `SIGTERM` the server stops accepting requests, gives running requests 15 seconds, and hands a running agent request back to the queue without using up an attempt.
+After 10 seconds it ends the requests still open, such as live tails, event streams and `/mcp` streams, so each one records its audit event before the server writes its last buffered audit events and exits.
 A worker holds a 60-second lease on its request and renews it every 5 seconds while the run is in flight.
 A crash instead leaves the lease to expire, so the next process picks the request up within a minute.

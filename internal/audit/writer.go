@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"log/slog"
 	"sync/atomic"
 	"time"
 
@@ -15,6 +16,7 @@ type writerLimits struct {
 	buffer  int
 	wait    time.Duration
 	timeout time.Duration
+	settle  time.Duration
 }
 
 func (l writerLimits) orDefaults() writerLimits {
@@ -32,6 +34,9 @@ func (l writerLimits) orDefaults() writerLimits {
 	}
 	if l.timeout == 0 {
 		l.timeout = 5 * time.Second
+	}
+	if l.settle == 0 {
+		l.settle = 5 * time.Second
 	}
 	return l
 }
@@ -82,14 +87,40 @@ func (w *Writer) run(ctx context.Context) {
 		case <-ticker.C:
 			batch = w.flush(context.WithoutCancel(ctx), batch)
 		case <-ctx.Done():
-			w.drain(context.WithoutCancel(ctx), batch)
+			w.stop(context.WithoutCancel(ctx), batch)
 			return
 		}
 	}
 }
 
+func (w *Writer) stop(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) {
+	settled := time.Now().Add(w.limits.settle)
+	poll := time.NewTicker(10 * time.Millisecond)
+	defer poll.Stop()
+	for w.recorder.inflight.Load() > 0 && time.Now().Before(settled) {
+		select {
+		case row := <-w.queue:
+			batch = append(batch, row)
+			if len(batch) >= w.limits.batch {
+				batch = w.flush(ctx, batch)
+			}
+		case <-poll.C:
+		}
+	}
+	if n := w.recorder.inflight.Load(); n > 0 {
+		w.recorder.logger.WarnContext(ctx, "audit writer stopped with requests still running", slog.Int64("requests", n))
+	}
+	dctx, cancel := context.WithTimeout(ctx, w.limits.timeout)
+	defer cancel()
+	w.drain(dctx, batch)
+}
+
 func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) {
 	for {
+		if ctx.Err() != nil {
+			w.recorder.metrics.EventsDropped(DroppedWriteFailed, len(batch)+len(w.queue))
+			return
+		}
 		select {
 		case row := <-w.queue:
 			batch = append(batch, row)
