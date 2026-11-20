@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -62,5 +63,16 @@ func TestRunRecordsNoEventWhenNothingWasSent(t *testing.T) {
 	}
 	if n := len(d.AuditEvents(t, "action.run")); n != 0 {
 		t.Errorf("events = %d, want 0", n)
+	}
+}
+
+func TestRunRecordsTheEventWhenTheCallerDisconnectsAfterTheActionWasSent(t *testing.T) {
+	r, d, headers := recordedRig(t)
+	ctx, disconnect := context.WithCancel(t.Context())
+	r.sender.after = disconnect
+	r.postWithContext(ctx, validBody(), headers)
+
+	if n := len(d.AuditEvents(t, "action.run")); n != 1 {
+		t.Errorf("events = %d, want the sent action recorded although the caller left", n)
 	}
 }

@@ -381,7 +381,7 @@ func (h *Handler) record(ctx context.Context, f auditFields) {
 		event.Outcome, event.Reason = audit.OutcomeFailed, f.outcome
 	}
 	event.Duration = f.elapsed
-	if err := audit.RecordNow(ctx, event); err != nil {
+	if err := audit.RecordNow(context.WithoutCancel(ctx), event); err != nil {
 		h.logger.WarnContext(ctx, "record action run audit event", logattrs.Failure("audit_record_failed", err, slog.String("dashboard_id", f.dashboardID))...)
 	}
 }

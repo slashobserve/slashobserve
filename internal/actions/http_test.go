@@ -48,6 +48,7 @@ type fakeSender struct {
 	err     error
 	entered chan struct{}
 	release chan struct{}
+	after   func()
 }
 
 func (f *fakeSender) Send(_ context.Context, req egress.SendRequest) (egress.SendResult, error) {
@@ -57,6 +58,9 @@ func (f *fakeSender) Send(_ context.Context, req egress.SendRequest) (egress.Sen
 	if f.entered != nil {
 		f.entered <- struct{}{}
 		<-f.release
+	}
+	if f.after != nil {
+		f.after()
 	}
 	return f.result, f.err
 }
@@ -136,12 +140,16 @@ func newRig(t *testing.T) *rig {
 }
 
 func (r *rig) post(body any, headers map[string]string) *httptest.ResponseRecorder {
+	return r.postWithContext(context.Background(), body, headers)
+}
+
+func (r *rig) postWithContext(ctx context.Context, body any, headers map[string]string) *httptest.ResponseRecorder {
 	raw, ok := body.(string)
 	if !ok {
 		encoded, _ := json.Marshal(body)
 		raw = string(encoded)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/actions", bytes.NewBufferString(raw))
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/actions", bytes.NewBufferString(raw))
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range headers {
 		req.Header.Set(k, v)
