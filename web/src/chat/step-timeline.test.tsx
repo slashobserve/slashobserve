@@ -53,18 +53,18 @@ describe("StepTimeline", () => {
   })
 
   it("keeps the blank line between two messages of live text visible", () => {
+    const messages =
+      "Checking the p99 of checkout.\n\nNow reading the error rate."
     render(
       <StepTimeline
         steps={steps}
         working
         reconnecting={false}
-        liveText={"Checking the p99 of checkout.\n\nNow reading the error rate."}
+        liveText={messages}
       />
     )
     const text = screen.getByText(/Checking the p99/)
-    expect(text.textContent).toBe(
-      "Checking the p99 of checkout.\n\nNow reading the error rate."
-    )
+    expect(text.textContent).toBe(messages)
     expect(text).toHaveClass("whitespace-pre-wrap")
   })
 
