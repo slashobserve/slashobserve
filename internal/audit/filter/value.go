@@ -76,7 +76,7 @@ func (f *Field) enumValue(text string) (cond, error) {
 	if !slices.Contains(f.Values, text) {
 		hint := "use one of: " + strings.Join(f.Values, ", ")
 		if s := nearest(text, f.Values); s != "" {
-			hint = "did you mean \"" + s + "\"?"
+			hint = fmt.Sprintf("did you mean %q?", s)
 		}
 		return cond{}, f.badValue(text, hint)
 	}

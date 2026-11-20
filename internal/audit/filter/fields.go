@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -243,7 +244,7 @@ func editDistance(a, b string) int {
 
 func unknownFieldMessage(name string) string {
 	if suggestion := nearest(name, fieldNames); suggestion != "" {
-		return "unknown field \"" + name + "\"; did you mean \"" + suggestion + "\"?"
+		return fmt.Sprintf("unknown field %q; did you mean %q?", name, suggestion)
 	}
-	return "unknown field \"" + name + "\""
+	return fmt.Sprintf("unknown field %q", name)
 }

@@ -198,3 +198,27 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+func TestFieldNamesWithQuotesStayInsideTheirQuotes(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		msg  string
+	}{
+		{`{"query":{"term":{"a\"b":"x"}}}`, `unknown field "a\"b"`},
+		{`{"query":{"exists":{"field":"x\" OR \"1"}}}`, `unknown field "x\" OR \"1"`},
+		{`{"query":{"term":{"actor\"":"x"}}}`, `unknown field "actor\"`},
+		{`{"aggs":{"a":{"terms":{"field":"o\"r"}}}}`, `unknown field "o\"r"`},
+		{`lucene: a\"b:x`, `unknown field "a\"b"`},
+		{`lucene: _exists_:x\"y`, `unknown field "x\"y"`},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			_, err := Parse(tc.text)
+			if err == nil || !strings.Contains(err.Error(), tc.msg) {
+				t.Errorf("Parse(%q) error = %v, want it to contain %s", tc.text, err, tc.msg)
+			}
+		})
+	}
+	if _, err := (Query{}).Facets(testWindow, `x" OR "1`, 5); err == nil || !strings.Contains(err.Error(), `"x\" OR \"1"`) {
+		t.Errorf("Facets error = %v", err)
+	}
+}
