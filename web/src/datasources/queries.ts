@@ -57,7 +57,7 @@ const unhealthyPollMs = 15_000
 export function pollWhileUnhealthy(
   list: DatasourceList | undefined
 ): number | false {
-  return list?.datasources.some((datasource) => !datasource.healthy)
+  return list?.datasources?.some((datasource) => !datasource.healthy)
     ? unhealthyPollMs
     : false
 }
