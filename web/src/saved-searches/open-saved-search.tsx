@@ -3,45 +3,50 @@ import { BookmarkIcon, LoaderCircleIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { folderLabel } from "@/saved-searches/folder-label"
-import {
-  matchesSaved,
-  type LogsDraft,
-  type SearchDraft,
-} from "@/saved-searches/draft"
+import { loadProblemText } from "@/service-accounts/queries"
+
+import { matchesSaved, type SearchDraft } from "./draft"
+import { folderLabel } from "./folder-label"
 import {
   savedSearchesQuery,
   useUpdateSavedSearchContent,
   type SavedSearch,
-} from "@/saved-searches/queries"
-import { loadProblemText } from "@/service-accounts/queries"
+} from "./queries"
 
-import { useLogsWorkspace } from "./workspace"
-
-export function OpenSavedSearch({ savable }: { savable: LogsDraft }) {
-  const { datasource, search } = useLogsWorkspace()
-  const listed = useQuery(savedSearchesQuery({ kind: "logs" }))
+export function OpenSavedSearch({
+  kind,
+  uid,
+  savedId,
+  draft,
+  onClose,
+}: {
+  kind: SavedSearch["kind"]
+  uid: string
+  savedId: string | undefined
+  draft: SearchDraft | undefined
+  onClose: () => void
+}) {
+  const listed = useQuery(savedSearchesQuery({ kind }))
   const saved = listed.data?.saved_searches.find(
-    (candidate) =>
-      candidate.id === search.saved &&
-      candidate.datasource_uid === datasource.uid
+    (candidate) => candidate.id === savedId && candidate.datasource_uid === uid
   )
   if (saved === undefined) return null
   const changedDraft =
-    "draft" in savable && !matchesSaved(savable.draft, saved)
-      ? savable.draft
-      : undefined
-  return <OpenSaved saved={saved} changedDraft={changedDraft} />
+    draft !== undefined && !matchesSaved(draft, saved) ? draft : undefined
+  return (
+    <OpenSaved saved={saved} changedDraft={changedDraft} onClose={onClose} />
+  )
 }
 
 function OpenSaved({
   saved,
   changedDraft,
+  onClose,
 }: {
   saved: SavedSearch
   changedDraft: SearchDraft | undefined
+  onClose: () => void
 }) {
-  const { update } = useLogsWorkspace()
   const change = useUpdateSavedSearchContent(saved.id)
   const mayUpdate = saved.permissions.edit
 
@@ -91,7 +96,7 @@ function OpenSaved({
         variant="ghost"
         size="xs"
         aria-label="Close the saved search"
-        onClick={() => update({ saved: undefined }, { replace: true })}
+        onClick={onClose}
       >
         <XIcon aria-hidden="true" />
       </Button>

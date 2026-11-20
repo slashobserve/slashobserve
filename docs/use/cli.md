@@ -347,7 +347,7 @@ A logs search needs `--query` and may set `--columns a,b`; a trace search may se
 A flag of another kind is refused with exit code 2 before any request is sent.
 
 `bin/observe saved-searches update <id>` changes what a saved search runs and keeps its kind, datasource, title and folder.
-`--query` and `--from` or `--to` replace one value each, and any filter flag (`--columns`, `--service`, `--span`, `--min`, `--max`, `--errors`) replaces all the filters, so repeat the ones to keep; `--clear-filters` removes them all and `--query ""` removes the query of a Tempo trace search.
+`--query` and `--from` or `--to` replace one value each, and any filter flag (`--columns`, `--service`, `--span`, `--min`, `--max`, `--errors`, `--mode`) replaces all the filters, so repeat the ones to keep; `--clear-filters` removes them all and `--query ""` removes the query of a Tempo trace search.
 Only the flags you give change, a call with none exits 2, and the result must pass the checks a save does, so a trace filter on a logs search is refused with the server's message and exit 1.
 
 `bin/observe saved-searches rename <id> <title...>` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id.

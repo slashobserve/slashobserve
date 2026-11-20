@@ -572,9 +572,9 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The title starts as the query with all of it selected, so typing a name replaces it.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
-A logs search opened from the box, from the Logs list or from a folder shows its title and folder above the query, and the address carries its id as `saved`; **Close the saved search** removes it.
+A search opened from the box, from the Logs, Traces or Metrics list or from a folder shows its title and folder above the query, and the address carries its id as `saved`; **Close the saved search** removes it.
 
-When you edit the query, the range or the columns, the line says so and, to someone with Edit on the search, offers **Update saved search**, which replaces the saved query, columns and range with what the page shows and keeps the title and folder; **Save search** still saves a new search.
+When you edit the query, the range, the columns, the trace filters or the metrics view, the line says so and, to someone with Edit on the search, offers **Update saved search**, which replaces the saved query, filters and range with what the page shows and keeps the title and folder; **Save search** still saves a new search.
 Someone without Edit sees only that **Save search** saves a new search and the open one stays as it was saved.
 The title shows only for a search among the 100 most recently changed that the list holds.
 A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.

@@ -71,6 +71,7 @@ import { useAgentInfo } from "@/observe/queries"
 import { saveBlockedText, tracesDraft } from "@/saved-searches/draft"
 import { savedSearchLocation } from "@/saved-searches/links"
 import { savedSearchesQuery } from "@/saved-searches/queries"
+import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -230,10 +231,24 @@ export function TracesPage({ uid }: { uid: string }) {
     )
   }
 
+  const draft = tracesDraft({
+    uid: datasource.uid,
+    type: datasource.type,
+    search,
+    range,
+  })
+
   return (
     <div className="flex flex-col gap-3">
       <h1 className="sr-only">Traces in {datasource.name}</h1>
       <SourceTitle kind="traces" source={datasource} />
+      <OpenSavedSearch
+        kind="traces"
+        uid={datasource.uid}
+        savedId={search.saved}
+        draft={draft}
+        onClose={() => update({ saved: undefined }, { replace: true })}
+      />
       <TraceSearchActions
         range={range}
         onRangeChange={update}
@@ -249,12 +264,7 @@ export function TracesPage({ uid }: { uid: string }) {
         onSave={() => setSaving(true)}
       />
       <SaveSearchDialog
-        draft={tracesDraft({
-          uid: datasource.uid,
-          type: datasource.type,
-          search,
-          range,
-        })}
+        draft={draft}
         open={saving}
         onOpenChange={setSaving}
         finalFocus={() => saveTrigger.current ?? true}

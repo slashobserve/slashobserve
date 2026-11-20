@@ -6,6 +6,7 @@ import {
   validObservation,
   validQuery,
   validRange,
+  validSaved,
 } from "@/logs/search"
 
 export type MetricsMode = "graph" | "table"
@@ -17,6 +18,7 @@ export type MetricsSearch = {
   to?: string
   mode?: "table"
   observation?: string
+  saved?: string
 }
 
 export const metricsDatasourceTypes = ["prometheus"] as const
@@ -30,6 +32,7 @@ export function validateMetricsSearch(
     ...validRange(raw),
     mode: firstString(raw.mode) === "table" ? "table" : undefined,
     observation: validObservation(raw.observation),
+    saved: validSaved(raw.saved),
   }
 }
 

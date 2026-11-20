@@ -73,7 +73,7 @@ export function useUpdateSavedSearchContent(id: string) {
         .PATCH("/saved-searches/{id}", {
           params: { path: { id } },
           body: {
-            query: draft.query ?? undefined,
+            query: draft.query ?? "",
             filters: draft.filters ?? null,
             from: draft.from,
             to: draft.to,

@@ -219,6 +219,14 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantBody:   `{"filters":{"errors":true,"min":"500ms"},"to":"now-1h"}`,
 		},
 		{
+			name:       "update sends the metrics mode it was given",
+			args:       []string{"saved-searches", "update", testSavedSearch, "--mode", "table"},
+			response:   saved,
+			wantMethod: http.MethodPatch,
+			wantPath:   "/api/v1/saved-searches/" + testSavedSearch,
+			wantBody:   `{"filters":{"mode":"table"}}`,
+		},
+		{
 			name:       "update can clear the filters",
 			args:       []string{"saved-searches", "update", testSavedSearch, "--clear-filters"},
 			response:   saved,

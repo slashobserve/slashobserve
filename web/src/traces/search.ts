@@ -6,6 +6,7 @@ import {
   validDatasource,
   validQuery,
   validRange,
+  validSaved,
 } from "@/logs/search"
 
 import {
@@ -28,6 +29,7 @@ export type TraceSearch = {
   ask?: string
   from?: string
   to?: string
+  saved?: string
   page?: number
   size?: PageSize
   sort?: string
@@ -93,6 +95,7 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     q: validQuery(raw.q),
     ask: validAsk(raw.ask),
     ...validRange(raw),
+    saved: validSaved(raw.saved),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
     sort: validSort(raw.sort),

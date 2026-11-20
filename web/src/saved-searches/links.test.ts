@@ -68,6 +68,7 @@ describe("savedSearchLocation", () => {
         errors: "1",
         from: "now-1h",
         to: "now",
+        saved: "s1",
       },
     })
   })
@@ -100,7 +101,13 @@ describe("savedSearchLocation", () => {
     ).toEqual({
       to: "/explore/metrics/$datasourceUid",
       params: { datasourceUid: "prom" },
-      search: { q: "up", mode: "table", from: "now-6h", to: "now" },
+      search: {
+        q: "up",
+        mode: "table",
+        from: "now-6h",
+        to: "now",
+        saved: "s2",
+      },
     })
   })
 
