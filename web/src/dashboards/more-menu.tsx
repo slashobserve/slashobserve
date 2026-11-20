@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { docsPageUrl } from "@/lib/docs"
+import { pendingPaneHeading } from "@/components/dock/dock-focus"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
@@ -120,6 +121,7 @@ export function MoreMenu({
         align="end"
         className="min-w-max"
         finalFocus={() =>
+          pendingPaneHeading() ??
           !focusMovedOutOfMenu(document.activeElement, document.body)
         }
       >

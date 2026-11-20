@@ -101,6 +101,27 @@ describe("useOpenerFocus", () => {
     expect(screen.getByRole("button", { name: "Share" })).toHaveFocus()
   })
 
+  it("does not take an element of a menu as the opener, because the menu is gone by the time the pane closes", async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <button id="toggle">Toggle</button>
+        <div role="menu">
+          <button>Item</button>
+        </div>
+        <Harness
+          startOpen={false}
+          fallback={() => document.getElementById("toggle")}
+        />
+      </>
+    )
+    const item = screen.getByRole("button", { name: "Item" })
+    item.focus()
+    act(() => screen.getByRole("button", { name: "Share" }).click())
+    await act(() => user.keyboard("{Escape}"))
+    expect(screen.getByRole("button", { name: "Toggle" })).toHaveFocus()
+  })
+
   it("focuses the fallback when the pane was open before anything opened it", async () => {
     const user = userEvent.setup()
     render(

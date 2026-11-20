@@ -13,6 +13,7 @@ import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ActivityCard } from "@/activity/activity-card"
+import { usePageSettled } from "@/components/dock/dock-focus"
 import type { EditGuard } from "@/activity/edit-pane"
 import {
   useActivityLayout,
@@ -450,6 +451,7 @@ function DashboardView({
   const commentTool = useCanvasTool((state) => state.tool === "comment")
   const toolsShown = useCanvasToolsShown(permissions)
   const [specOpen, setSpecOpen] = useState(false)
+  const pageSettled = usePageSettled()
   const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
     panelInUrl ||
@@ -567,10 +569,7 @@ function DashboardView({
     )
   }, [layoutEditingWithPanel, setSearch])
 
-  const closeSpec = useCallback(() => {
-    findMoreMenuButton()?.focus()
-    setSpecOpen(false)
-  }, [])
+  const closeSpec = useCallback(() => setSpecOpen(false), [])
 
   const closeInspect = useCallback(
     () =>
@@ -1077,6 +1076,7 @@ function DashboardView({
                   selections={ready ? selections : null}
                   composerRef={composerRef}
                   guardRef={editGuard}
+                  takeFocus={pageSettled}
                   onSelectPanel={onSelectPanel}
                   onClose={closeCard}
                 />
@@ -1086,6 +1086,7 @@ function DashboardView({
                   requestId={chatRequestId}
                   onClose={closeCard}
                   opener={activityOpener}
+                  takeFocus={pageSettled}
                 />
               ) : null}
               {inspecting ? (
@@ -1109,6 +1110,8 @@ function DashboardView({
                   spec={envelopeSpec}
                   version={envelopeVersion}
                   hidden={!specShown}
+                  takeFocus={pageSettled}
+                  opener={findMoreMenuButton}
                   onClose={closeSpec}
                 />
               ) : null}

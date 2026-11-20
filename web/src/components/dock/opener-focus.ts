@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react"
 
+const transientLayer = '[role="menu"], [role="dialog"]'
+
 export function useOpenerFocus(
   card: RefObject<HTMLElement | null>,
   fallback?: () => HTMLElement | null
@@ -11,7 +13,8 @@ export function useOpenerFocus(
     if (
       active instanceof HTMLElement &&
       active !== document.body &&
-      !card.current?.contains(active)
+      !card.current?.contains(active) &&
+      active.closest(transientLayer) === null
     ) {
       opener.current = active
     }

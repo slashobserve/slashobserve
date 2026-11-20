@@ -13,10 +13,3 @@ export function paneOpener(pane: DockPane): HTMLElement | null {
     ) ?? document.getElementById(controlsButtonId)
   )
 }
-
-export function openPaneHeading(): HTMLElement | null {
-  const labelledBy = document
-    .getElementById(activityCardId)
-    ?.getAttribute("aria-labelledby")
-  return labelledBy ? document.getElementById(labelledBy) : null
-}

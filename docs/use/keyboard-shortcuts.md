@@ -24,8 +24,10 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
 
-Escape also closes the Share, Activity, Chat and Dashboard JSON panes of a dashboard.
-The focus returns to the button that opened the pane, and so does the pane's Close button.
+Opening the Share, Activity, Chat or Dashboard JSON pane of a dashboard moves the focus to the pane's heading, on a phone as well, so a screen reader reads it and the keys work inside it.
+A pane that was already open when the page loaded does not take the focus.
+Escape closes the pane when the focus is inside it or on the button that opened it.
+The focus returns to the button that opened the pane, which on a phone is the Controls button, and so does the pane's Close button.
 A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
 
 ## Moving around the app
