@@ -14,11 +14,10 @@ import (
 type Form string
 
 const (
-	FormKQL Form = "kql"
-	FormDSL Form = "dsl"
+	FormKQL    Form = "kql"
+	FormLucene Form = "lucene"
+	FormDSL    Form = "dsl"
 )
-
-const formLucene Form = "lucene"
 
 const (
 	whitespace    = " \t\r\n"
@@ -49,9 +48,8 @@ func Parse(text string) (Query, error) {
 	}
 	form, body, offset := classify(text)
 	switch form {
-	case formLucene:
-		start := len(text) - len(strings.TrimLeft(text, whitespace))
-		return Query{}, &Error{Pos: start, End: start + len("lucene:"), Msg: "Lucene query strings are not supported; write KQL, or a Query DSL body that starts with {"}
+	case FormLucene:
+		return parseLucene(body, offset)
 	case FormDSL:
 		return parseDSL(body, offset)
 	}
@@ -66,7 +64,7 @@ func classify(text string) (form Form, body string, offset int) {
 	case strings.HasPrefix(rest, "{"):
 		form = FormDSL
 	case hasPrefixFold(rest, "lucene:"):
-		form, offset, rest = formLucene, offset+len("lucene:"), rest[len("lucene:"):]
+		form, offset, rest = FormLucene, offset+len("lucene:"), rest[len("lucene:"):]
 	case hasPrefixFold(rest, "kql:"):
 		offset, rest = offset+len("kql:"), rest[len("kql:"):]
 	}
@@ -90,11 +88,8 @@ func parseKQL(body string, offset int) (Query, error) {
 	}
 	q := Query{Form: FormKQL}
 	if compiled.Query != nil {
-		raw, err := json.Marshal(compiled.Query)
-		if err != nil {
-			return Query{}, &Error{Pos: offset, End: offset + len(body), Msg: err.Error()}
-		}
-		if q.Clause, err = decodeObject(string(raw)); err != nil {
+		var err error
+		if q.Clause, err = normalizeClause(compiled.Query); err != nil {
 			return Query{}, &Error{Pos: offset, End: offset + len(body), Msg: err.Error()}
 		}
 	}
@@ -103,6 +98,14 @@ func parseKQL(body string, offset int) (Query, error) {
 		return Query{}, &Error{Pos: offset + start, End: offset + end, Msg: err.Error()}
 	}
 	return q, nil
+}
+
+func normalizeClause(clause map[string]any) (map[string]any, error) {
+	raw, err := json.Marshal(clause)
+	if err != nil {
+		return nil, err
+	}
+	return decodeObject(string(raw))
 }
 
 func (q Query) dryRun() error {

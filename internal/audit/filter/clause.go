@@ -601,7 +601,7 @@ func queryStringPieces(q string) ([]wildcardPiece, error) {
 			flush()
 			pieces = append(pieces, wildcardPiece{kind: pieceMany})
 		case strings.IndexByte(queryStringTerm, c) >= 0:
-			return nil, &clauseError{msg: "query_string accepts only words and * wildcards; Lucene syntax is not supported, use KQL", free: true}
+			return nil, &clauseError{msg: "query_string accepts only words and * wildcards here; operators, ? and other special characters are not supported", free: true}
 		default:
 			lit.WriteByte(c)
 		}

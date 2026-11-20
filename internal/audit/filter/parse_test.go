@@ -17,6 +17,9 @@ func TestParseClassifiesTheForm(t *testing.T) {
 		{"   ", FormKQL, false},
 		{"outcome:denied", FormKQL, true},
 		{"kql: outcome:denied", FormKQL, true},
+		{"lucene:", FormLucene, false},
+		{"lucene: outcome:denied", FormLucene, true},
+		{"  LUCENE:outcome:denied", FormLucene, true},
 		{"KQL:outcome:denied", FormKQL, true},
 		{"  \n outcome:denied", FormKQL, true},
 		{`{"query":{"term":{"outcome":"denied"}}}`, FormDSL, true},
@@ -63,8 +66,6 @@ func TestParseErrorsCarryPositions(t *testing.T) {
 		{"outcome:denied and *foo", 19, 23, "a wildcard in free text must be at the end of a word"},
 		{"outcome:", 7, 8, "expected a value"},
 		{"(outcome:denied", 0, 1, ""},
-		{"lucene: outcome:denied", 0, 7, "Lucene query strings are not supported"},
-		{"  LUCENE:foo", 2, 9, "Lucene query strings are not supported"},
 		{`{"query":`, 0, 9, "invalid JSON"},
 		{`{"query":{"match_all":{}}}x`, 0, 27, "unexpected text after the JSON body"},
 		{`{"query":{"term":{"nope":"x"}}}`, 18, 24, `unknown field "nope"`},
@@ -114,7 +115,7 @@ func TestParseRefusesWhatItDoesNotSupportByName(t *testing.T) {
 		{`{"query":{"bool":{"should":[{"match_all":{}}],"minimum_should_match":"75%"}}}`, "minimum_should_match"},
 		{`{"query":{"multi_match":{"query":"x","fields":["actor_name^2"]}}}`, "boosts are not supported"},
 		{`{"query":{"multi_match":{"query":"x","type":"cross_fields"}}}`, "best_fields and phrase"},
-		{`{"query":{"query_string":{"query":"a AND b"}}}`, "Lucene syntax is not supported"},
+		{`{"query":{"query_string":{"query":"a AND b"}}}`, "operators, ? and other special characters are not supported"},
 		{`{"query":{"term":{"outcome":"denied","status":1}}}`, "exactly one field"},
 		{`{"query":{"wildcard":{"action":{"value":"a*","boost":1}}}}`, `unsupported key "boost"`},
 		{`{"aggs":{"a":{"scripted_metric":{}}}}`, "unsupported aggregation"},
@@ -163,7 +164,7 @@ func TestParseBoundsTheQuery(t *testing.T) {
 
 func FuzzParse(f *testing.F) {
 	for _, seed := range []string{
-		"", "outcome:denied", "not actor:alice* and status >= 400", `"a b" c*`, "kql: x", "lucene: x", "act*:x", "outcome:(a or b)",
+		"", "outcome:denied", "not actor:alice* and status >= 400", `"a b" c*`, "kql: x", "lucene: x", "act*:x", "lucene: a AND (b OR -c) status:[1 TO *] x~2 y^3 /r/ \\", `lucene: actor:"a b"~2`, "outcome:(a or b)",
 		`{"query":{"term":{"outcome":"denied"}}}`, `{"query":{"bool":{"should":[{"match_all":{}}],"minimum_should_match":1}}}`,
 		`{"aggs":{"a":{"terms":{"field":"origin"},"aggs":{"m":{"max":{"field":"duration_ms"}}}}}}`, `{"size":3`, "{", `\`, "'", "\x00",
 	} {

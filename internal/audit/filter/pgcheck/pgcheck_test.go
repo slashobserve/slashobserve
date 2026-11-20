@@ -228,6 +228,38 @@ func TestRowsRunAndSelectWhatTheQuerySays(t *testing.T) {
 		{`{"query":{"query_string":{"query":"Checkout"}}}`, []int{5, 1}},
 		{`{"query":{"term":{"client_ip":"10.5.0.0/16"}}}`, []int{3, 2}},
 		{`{"query":{"bool":{"should":[{"term":{"origin":"web"}},{"term":{"outcome":"denied"}},{"term":{"category":"content"}}],"minimum_should_match":2}}}`, []int{5, 2, 1}},
+		{"lucene: outcome:denied", []int{4, 2}},
+		{"lucene: outcome:(denied OR failed) AND NOT actor:Riya", []int{4}},
+		{"lucene: +outcome:denied origin:api", []int{4, 2}},
+		{"lucene: action:dashboard.*", []int{5, 2, 1}},
+		{"lucene: action:DASHBOARD.*", nil},
+		{"lucene: actor:Ishan*", []int{3, 1}},
+		{"lucene: actor:Ish?n*", []int{3, 1}},
+		{"lucene: act*:Riya", []int{5, 2}},
+		{"lucene: *:Riya", []int{5, 2}},
+		{"lucene: status:[400 TO 499]", []int{4, 2}},
+		{"lucene: status:{401 TO 403]", []int{2}},
+		{"lucene: status:>=401", []int{4, 2}},
+		{"lucene: status:<=200", []int{5, 3, 1}},
+		{"lucene: duration_ms:[10 TO 100]", []int{2, 1}},
+		{"lucene: duration_ms:[100 TO *]", []int{3}},
+		{"lucene: _exists_:reason", []int{4, 2}},
+		{"lucene: NOT _exists_:reason", []int{5, 3, 1}},
+		{"lucene: reason:*", []int{4, 2}},
+		{"lucene: client_ip:10.4.0.0/16", []int{5, 1}},
+		{"lucene: client_ip:203.0.113.9", []int{4}},
+		{"lucene: target:dashboard/d1", []int{2, 1}},
+		{"lucene: target:dashboard", []int{5, 2, 1}},
+		{"lucene: run_id:" + runID, []int{3, 2}},
+		{"lucene: occurred_at:[2026-11-01T10:02:00Z TO 2026-11-01T10:04:00Z]", []int{4, 3, 2}},
+		{"lucene: occurred_at:[2026-11-01T10:02:00Z TO 2026-11-01T10:04:00Z}", []int{3, 2}},
+		{"lucene: Ishan", []int{3, 1}},
+		{`lucene: "Ishan Dubey"`, []int{3, 1}},
+		{"lucene: check*", []int{5, 1}},
+		{"lucene: -Ishan", []int{5, 4, 2}},
+		{`lucene: route:"x'y"`, nil},
+		{`lucene: "zz'; DROP TABLE audit_events; --"`, nil},
+		{`lucene: action:zz\'\;\ DROP`, nil},
 	} {
 		t.Run(tc.text, func(t *testing.T) {
 			c, err := parse(t, tc.text).Rows(window(), filter.Page{})
@@ -383,5 +415,36 @@ func TestFacetsRunUnderTheQuery(t *testing.T) {
 	}
 	if ips := facet("", "ip"); len(ips) != 4 || ips[0][0] != "10.5.0.1" || ips[0][1] != int64(2) {
 		t.Errorf("ip facet = %v", ips)
+	}
+}
+
+func TestOneQuestionInThreeFormsReturnsTheSameRows(t *testing.T) {
+	ctx, conn := connect(t)
+	for _, tc := range []struct {
+		forms [3]string
+		want  []int
+	}{
+		{[3]string{"outcome:denied and status:403", "lucene: outcome:denied AND status:403", `{"query":{"bool":{"filter":[{"term":{"outcome":"denied"}},{"term":{"status":403}}]}}}`}, []int{2}},
+		{[3]string{"outcome:denied or outcome:failed", "lucene: outcome:denied OR outcome:failed", `{"query":{"terms":{"outcome":["denied","failed"]}}}`}, []int{4, 2}},
+		{[3]string{"not actor:Riya", "lucene: NOT actor:Riya", `{"query":{"bool":{"must_not":[{"term":{"actor_name":"Riya"}}]}}}`}, []int{4, 3, 1}},
+		{[3]string{"status >= 400", "lucene: status:>=400", `{"query":{"range":{"status":{"gte":400}}}}`}, []int{4, 2}},
+		{[3]string{"reason:*", "lucene: _exists_:reason", `{"query":{"exists":{"field":"reason"}}}`}, []int{4, 2}},
+		{[3]string{"client_ip:10.4.0.0/16", "lucene: client_ip:10.4.0.0/16", `{"query":{"term":{"client_ip":"10.4.0.0/16"}}}`}, []int{5, 1}},
+		{[3]string{"target:dashboard/d1", "lucene: target:dashboard/d1", `{"query":{"term":{"target":"dashboard/d1"}}}`}, []int{2, 1}},
+		{[3]string{"Ishan", "lucene: Ishan", `{"query":{"multi_match":{"query":"Ishan"}}}`}, []int{3, 1}},
+		{[3]string{"check*", "lucene: check*", `{"query":{"query_string":{"query":"check*"}}}`}, []int{5, 1}},
+		{[3]string{`occurred_at >= "2026-11-01T10:03:00Z"`, `lucene: occurred_at:>="2026-11-01T10:03:00Z"`, `{"query":{"range":{"occurred_at":{"gte":"2026-11-01T10:03:00Z"}}}}`}, []int{5, 4, 3}},
+	} {
+		for _, text := range tc.forms {
+			t.Run(text, func(t *testing.T) {
+				c, err := parse(t, text).Rows(window(), filter.Page{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := rowNumbers(ctx, t, conn, c); !reflect.DeepEqual(got, tc.want) {
+					t.Errorf("rows = %v, want %v", got, tc.want)
+				}
+			})
+		}
 	}
 }

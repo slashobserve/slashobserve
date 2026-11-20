@@ -149,6 +149,14 @@ func TestInputNeverReachesTheSQLText(t *testing.T) {
 			`{"query":{"wildcard":{"tool":` + jsonText + `}}}`,
 			`{"query":{"multi_match":{"query":` + jsonText + `}}}`,
 			`{"query":{"range":{"actor_name":{"gte":` + jsonText + `}}}}`,
+			"lucene: action:" + quoted,
+			"lucene: -actor:" + quoted,
+			"lucene: " + quoted,
+			"lucene: action:" + escapeLucene(p),
+			"lucene: " + escapeLucene(p) + "*",
+			"lucene: actor_name:[" + quoted + " TO *]",
+			"lucene: actor_name:>" + quoted,
+			"lucene: outcome:denied OR actor:(" + quoted + " " + escapeLucene(p) + ")",
 		} {
 			q, err := Parse(text)
 			if err != nil {
@@ -172,6 +180,20 @@ func TestInputNeverReachesTheSQLText(t *testing.T) {
 			}
 		}
 	}
+}
+
+func escapeLucene(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 0x80 {
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte('\\')
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 func jsonString(s string) (string, error) {
@@ -285,5 +307,34 @@ func TestEveryAliasMapsToItsField(t *testing.T) {
 		if where != "("+column+" IS NOT NULL)" {
 			t.Errorf("%s:* compiled to %s", alias, where)
 		}
+	}
+}
+
+func TestLuceneQueriesFeedEveryShape(t *testing.T) {
+	q := mustParse(t, "lucene: outcome:(denied OR failed) AND NOT actor:Riya")
+	rows, err := q.Rows(testWindow, Page{Limit: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantWhere := "((COALESCE((outcome = $3), false) OR COALESCE((outcome = $4), false))) AND NOT COALESCE((actor_name = $5), false)"
+	if !strings.Contains(rows.SQL, wantWhere) || !reflect.DeepEqual(rows.Args[2:5], []any{"denied", "failed", "Riya"}) {
+		t.Errorf("rows = %s %#v", rows.SQL, rows.Args)
+	}
+	facets, err := q.Facets(testWindow, "origin", 5)
+	if err != nil || !strings.Contains(facets.SQL, wantWhere) {
+		t.Errorf("facets = %s %v", facets.SQL, err)
+	}
+	hist, err := q.Histogram(testWindow, time.Minute)
+	if err != nil || !strings.Contains(hist.SQL, wantWhere) || !hist.HasTimeBucket() {
+		t.Errorf("histogram = %s %v", hist.SQL, err)
+	}
+	for _, c := range []struct {
+		sql  string
+		args []any
+	}{{rows.SQL, rows.Args}, {facets.SQL, facets.Args}, {hist.SQL, hist.Args}} {
+		assertSafeSQL(t, c.sql, c.args)
+	}
+	if _, err := q.Aggregate(testWindow); err == nil {
+		t.Error("a Lucene query has no aggs to aggregate")
 	}
 }
