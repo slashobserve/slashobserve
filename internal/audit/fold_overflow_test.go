@@ -70,3 +70,23 @@ func TestTheOverflowBucketBelongsToNoOneActorOrTarget(t *testing.T) {
 		t.Fatalf("overflow row = %+v", *overflow)
 	}
 }
+
+func TestFoldingKeepsProviderErrorsApart(t *testing.T) {
+	f := newFolds(time.Minute, 10)
+	now := time.Now()
+	f.absorb(loginFailure(1, "access_denied"), now)
+	f.absorb(loginFailure(1, "temporarily_unavailable"), now)
+	f.absorb(loginFailure(1, "access_denied"), now)
+	rows := f.due(now.Add(time.Minute))
+	if len(rows) != 2 {
+		t.Fatalf("folded events = %d, want one per provider error", len(rows))
+	}
+	seen := map[string]float64{}
+	for _, row := range rows {
+		data := dataOf(t, row)
+		seen[data["provider_error"].(string)] = data["count"].(float64)
+	}
+	if seen["access_denied"] != 2 || seen["temporarily_unavailable"] != 1 {
+		t.Fatalf("counts = %v", seen)
+	}
+}

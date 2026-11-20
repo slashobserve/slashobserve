@@ -18,6 +18,7 @@ type foldKey struct {
 	targetID   string
 	targetName string
 	actor      pgtype.UUID
+	provider   string
 	overflow   bool
 }
 
@@ -42,8 +43,17 @@ func isFolded(action string) bool {
 	return slices.Contains(foldedActions, Action(action))
 }
 
+func providerErrorOf(row dbsqlc.InsertAuditEventParams) string {
+	var data struct {
+		ProviderError string `json:"provider_error"`
+	}
+	_ = json.Unmarshal(row.Data, &data)
+	return data.ProviderError
+}
+
 func foldKeyOf(row dbsqlc.InsertAuditEventParams) foldKey {
 	return foldKey{
+		provider:   providerErrorOf(row),
 		action:     row.Action,
 		reason:     row.Reason.String,
 		targetKind: row.TargetKind.String,
