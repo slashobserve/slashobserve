@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -32,6 +34,8 @@ const (
 	maxInFlightPerUser  = 2
 	sendTimeout         = 15 * time.Second
 	auditMessage        = "action run"
+	outcomeOK           = "ok"
+	outcomeRefused      = "refused"
 	staleVersionMessage = "The dashboard changed; reload it before running this action."
 	invalidMessage      = "The action could not be built from the current values."
 )
@@ -312,12 +316,12 @@ func hostOf(err error, fallback string) string {
 func outcomeOf(status int, err error) string {
 	switch {
 	case err == nil && status >= 200 && status < 300:
-		return "ok"
+		return outcomeOK
 	case err == nil:
 		return "remote_error"
 	case errors.Is(err, egress.ErrNotAllowed), errors.Is(err, egress.ErrInvalidURL),
 		errors.Is(err, egress.ErrTooLarge), errors.Is(err, egress.ErrBlockedAddress):
-		return "refused"
+		return outcomeRefused
 	}
 	return "failed"
 }
@@ -356,6 +360,30 @@ func (h *Handler) audit(ctx context.Context, f auditFields) {
 		slog.Int64("duration_ms", f.elapsed.Milliseconds()),
 	)
 	h.logger.InfoContext(ctx, auditMessage, attrs...)
+	h.record(ctx, f)
+}
+
+func (h *Handler) record(ctx context.Context, f auditFields) {
+	event := audit.Event{
+		Action:  "action.run",
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "dashboard", ID: f.dashboardID},
+		By:      &audit.By{Actor: auth.AuditActor(f.caller)},
+	}
+	if id, err := uuid.Parse(f.dashboardID); err == nil {
+		event.Target.DashboardID = uuid.NullUUID{UUID: id, Valid: true}
+	}
+	switch f.outcome {
+	case outcomeRefused:
+		event.Outcome, event.Reason = audit.OutcomeDenied, f.outcome
+	case outcomeOK:
+	default:
+		event.Outcome, event.Reason = audit.OutcomeFailed, f.outcome
+	}
+	event.Duration = f.elapsed
+	if err := audit.RecordNow(ctx, event); err != nil {
+		h.logger.WarnContext(ctx, "record action run audit event", logattrs.Failure("audit_record_failed", err, slog.String("dashboard_id", f.dashboardID))...)
+	}
 }
 
 func (h *Handler) respond(c *gin.Context, result egress.SendResult, err error, host string) {
