@@ -127,11 +127,12 @@ describe("MessageText", () => {
     expect(container.textContent).toBe("Cut at `checkout and more...")
   })
 
-  it("keeps the code spans of an outside agent's text literal", () => {
+  it("renders the code spans of an outside agent's comment as code and nothing else", () => {
     const mcp = { ...person, origin: "mcp" as const, client: "Codex" }
-    const { container } = show("see `checkout`", { actor: mcp })
-    expect(container.querySelector("code")).toBeNull()
-    expect(container.textContent).toBe("see `checkout`")
+    const { container } = show("see `checkout` and **bold**", { actor: mcp })
+    expect(container.querySelector("code")?.textContent).toBe("checkout")
+    expect(container.querySelector("strong")).toBeNull()
+    expect(container.textContent).toBe("see checkout and **bold**")
   })
 
   it("shows the closing chat link of the agent's own run as a real link", async () => {
@@ -158,14 +159,28 @@ describe("MessageText", () => {
 
   it("never renders an outside agent's text as Markdown", () => {
     const mcp = { ...person, origin: "mcp" as const, client: "Codex" }
-    const { container } = show("**bold**", { actor: mcp })
+    const { container } = show("**bold** [x](https://example.com)", {
+      actor: mcp,
+    })
     expect(container.querySelector("strong")).toBeNull()
+    expect(container.querySelector("a")).toBeNull()
   })
 
-  it("never renders a service account's text as Markdown", () => {
-    const account = { ...person, kind: "service_account" as const }
-    const { container } = show("**bold**", { actor: account })
+  it("renders a service account's text with code spans only", () => {
+    const account = {
+      ...person,
+      kind: "service_account" as const,
+      origin: "api" as const,
+    }
+    const { container } = show("**bold** and `code` [x](https://example.com)", {
+      actor: account,
+    })
+    expect(container.querySelector("code")?.textContent).toBe("code")
     expect(container.querySelector("strong")).toBeNull()
+    expect(container.querySelector("a")).toBeNull()
+    expect(container.textContent).toBe(
+      "**bold** and code [x](https://example.com)"
+    )
   })
 
   it("keeps a folded comment on one plain line", () => {
