@@ -35,11 +35,11 @@ func (a *answerSaves) save(_ context.Context, _ auth.Principal, requestID pgtype
 
 func TestSavingARequestsAnswerAsAnObservationMatchesTheDocument(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
-	answered, err := svc.SubmitObserve(t.Context(), user, "which logs exist?")
+	answered, err := svc.SubmitObserve(reading(t.Context()), user, "which logs exist?")
 	if err != nil {
 		t.Fatal(err)
 	}
-	unanswered, err := svc.SubmitObserve(t.Context(), user, "and the traces?")
+	unanswered, err := svc.SubmitObserve(reading(t.Context()), user, "and the traces?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestSavingARequestsAnswerAsAnObservationMatchesTheDocument(t *testing.T) {
 
 func TestAChatOnlyAnswerShowsWithoutAnObservationAsTheDocumentSays(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	row, err := svc.SubmitObserve(t.Context(), user, "which logs exist?")
+	row, err := svc.SubmitObserve(reading(t.Context()), user, "which logs exist?")
 	if err != nil {
 		t.Fatal(err)
 	}

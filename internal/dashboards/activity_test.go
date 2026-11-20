@@ -36,7 +36,7 @@ type activityRow struct {
 
 func (r *rig) activityRows(t *testing.T, types ...string) []activityRow {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `
 		SELECT type, coalesce(folder_id::text, ''), coalesce(dashboard_id::text, ''), actor_kind, actor_id::text, actor_name,
 			coalesce(origin, ''), coalesce(origin_client, ''), coalesce(run_id::text, ''), data::text
 		FROM activity ORDER BY seq`)
@@ -85,17 +85,17 @@ func onlyActivity(t *testing.T, rows []activityRow) activityRow {
 
 func TestEveryVersionOfADashboardAppendsOneActivityRow(t *testing.T) {
 	r := newRig(t, true)
-	mcp := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	mcp := origin.With(reading(t.Context()), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
 
 	dash, _, err := r.service.Create(mcp, testUser, pgtype.UUID{}, panelsSpec("Checkout", "rps"), "first draft")
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := mustUUID(t, dash.ID)
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, id, 1, panelsSpec("Checkout v2", "rps", "p99"), "add p99"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, id, 1, panelsSpec("Checkout v2", "rps", "p99"), "add p99"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := r.service.Restore(t.Context(), testUser, id, 1, 2, "back to the start"); err != nil {
+	if _, _, err := r.service.Restore(reading(t.Context()), testUser, id, 1, 2, "back to the start"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -150,11 +150,11 @@ func TestDuplicateAndImportAppendCreated(t *testing.T) {
 	r := newRig(t, true)
 	source := r.createDashboard(t)
 
-	copied, _, err := r.service.Duplicate(t.Context(), testUser, source, pgtype.UUID{}, "Copy of t")
+	copied, _, err := r.service.Duplicate(reading(t.Context()), testUser, source, pgtype.UUID{}, "Copy of t")
 	if err != nil {
 		t.Fatal(err)
 	}
-	imported, _, _, _, err := r.service.CreateImported(t.Context(), testUser, pgtype.UUID{}, panelsSpec("Imported", "rps"), "import", pgtype.UUID{}, nil)
+	imported, _, _, _, err := r.service.CreateImported(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("Imported", "rps"), "import", pgtype.UUID{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,12 +168,12 @@ func TestDuplicateAndImportAppendCreated(t *testing.T) {
 
 func TestDeleteAppendsTheTitleAndTheFolderItLeft(t *testing.T) {
 	r := newRig(t, true)
-	dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, panelsSpec("Doomed", "rps"), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("Doomed", "rps"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := mustUUID(t, dash.ID)
-	if err := r.service.Delete(origin.With(t.Context(), origin.Origin{Kind: origin.CLI}), testUser, id); err != nil {
+	if err := r.service.Delete(origin.With(reading(t.Context()), origin.Origin{Kind: origin.CLI}), testUser, id); err != nil {
 		t.Fatal(err)
 	}
 	rows := r.activityFor(t, id)
@@ -188,16 +188,16 @@ func TestDeleteAppendsTheTitleAndTheFolderItLeft(t *testing.T) {
 
 func TestDeleteOfADashboardBeingCreatedAppendsNothing(t *testing.T) {
 	r := newRig(t, true)
-	request, err := r.revisions.SubmitObserve(t.Context(), testUser, "checkout health")
+	request, err := r.revisions.SubmitObserve(reading(t.Context()), testUser, "checkout health")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash, _, _, err := r.service.CreateRequestDashboard(t.Context(), testUser, pgtype.UUID{}, panelsSpec("Being built", "rps"), "agent", request.ID)
+	dash, _, _, err := r.service.CreateRequestDashboard(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("Being built", "rps"), "agent", request.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	before := len(r.activityRows(t))
-	if err := r.service.Delete(t.Context(), testUser, mustUUID(t, dash.ID)); !errors.Is(err, ErrBeingCreated) {
+	if err := r.service.Delete(reading(t.Context()), testUser, mustUUID(t, dash.ID)); !errors.Is(err, ErrBeingCreated) {
 		t.Fatalf("delete error = %v, want ErrBeingCreated", err)
 	}
 	if after := len(r.activityRows(t)); after != before {
@@ -207,7 +207,7 @@ func TestDeleteOfADashboardBeingCreatedAppendsNothing(t *testing.T) {
 
 func TestDeleteOfAMissingDashboardIsNotFound(t *testing.T) {
 	r := newRig(t, false)
-	if err := r.store().delete(t.Context(), mustUUID(t, "0b8f6f0e-3c9a-4a43-9d0a-6f2b0c1d2e3f"), actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"}); !errors.Is(err, ErrNotFound) {
+	if err := r.store().delete(reading(t.Context()), mustUUID(t, "0b8f6f0e-3c9a-4a43-9d0a-6f2b0c1d2e3f"), actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("delete error = %v, want ErrNotFound", err)
 	}
 	if rows := r.activityRows(t); len(rows) != 0 {
@@ -234,7 +234,7 @@ func appendAnnotation(ctx context.Context, q *dbsqlc.Queries, dash pgtype.UUID) 
 
 func (r *rig) newFolder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	f, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	f, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,19 +244,19 @@ func (r *rig) newFolder(t *testing.T, title string) pgtype.UUID {
 func TestAMoveRewritesTheFolderOfEarlierActivityAndAppendsOneRow(t *testing.T) {
 	r := newRig(t, true)
 	general := r.generalFolder(t)
-	dash, _, err := r.service.Create(t.Context(), testUser, general, panelsSpec("Checkout", "rps"), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), testUser, general, panelsSpec("Checkout", "rps"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := mustUUID(t, dash.ID)
-	if err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		return appendAnnotation(t.Context(), q, id)
+	if err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+		return appendAnnotation(reading(t.Context()), q, id)
 	}); err != nil {
 		t.Fatal(err)
 	}
 	target := r.newFolder(t, "Payments")
 
-	if _, _, err := r.service.Move(origin.With(t.Context(), origin.Origin{Kind: origin.Web}), testUser, id, target); err != nil {
+	if _, _, err := r.service.Move(origin.With(reading(t.Context()), origin.Origin{Kind: origin.Web}), testUser, id, target); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,7 +278,7 @@ func TestAMoveRewritesTheFolderOfEarlierActivityAndAppendsOneRow(t *testing.T) {
 
 func TestAMoveOfAMissingDashboardAppendsNothing(t *testing.T) {
 	r := newRig(t, false)
-	err := r.store().move(t.Context(), mustUUID(t, "0b8f6f0e-3c9a-4a43-9d0a-6f2b0c1d2e3f"), r.generalFolder(t), r.newFolder(t, "Elsewhere"), actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"})
+	err := r.store().move(reading(t.Context()), mustUUID(t, "0b8f6f0e-3c9a-4a43-9d0a-6f2b0c1d2e3f"), r.generalFolder(t), r.newFolder(t, "Elsewhere"), actor.Actor{Kind: auth.KindUser, ID: testUserID, Name: "Ada"})
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("move error = %v, want ErrNotFound", err)
 	}
@@ -292,7 +292,7 @@ func (r *rig) waitForLockWaiter(t *testing.T) {
 	deadline := time.Now().Add(activityWait)
 	for time.Now().Before(deadline) {
 		var waiting int
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
 			t.Fatal(err)
 		}
 		if waiting > 0 {
@@ -306,7 +306,7 @@ func (r *rig) waitForLockWaiter(t *testing.T) {
 func TestAConcurrentAppendFollowsAMove(t *testing.T) {
 	r := newRig(t, true)
 	general := r.generalFolder(t)
-	dash, _, err := r.service.Create(t.Context(), testUser, general, panelsSpec("Checkout", "rps"), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), testUser, general, panelsSpec("Checkout", "rps"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,8 +315,8 @@ func TestAConcurrentAppendFollowsAMove(t *testing.T) {
 
 	appended, release, holderDone := make(chan struct{}), make(chan struct{}), make(chan error, 1)
 	go func() {
-		holderDone <- r.db.InTx(context.WithoutCancel(t.Context()), func(q *dbsqlc.Queries) error {
-			if err := appendAnnotation(t.Context(), q, id); err != nil {
+		holderDone <- r.db.InTx(context.WithoutCancel(reading(t.Context())), func(q *dbsqlc.Queries) error {
+			if err := appendAnnotation(reading(t.Context()), q, id); err != nil {
 				return err
 			}
 			close(appended)
@@ -332,7 +332,7 @@ func TestAConcurrentAppendFollowsAMove(t *testing.T) {
 
 	moveDone := make(chan error, 1)
 	go func() {
-		_, _, err := r.service.Move(context.WithoutCancel(t.Context()), testUser, id, target)
+		_, _, err := r.service.Move(context.WithoutCancel(reading(t.Context())), testUser, id, target)
 		moveDone <- err
 	}()
 	r.waitForLockWaiter(t)
@@ -358,7 +358,7 @@ func TestOneNotificationPerSave(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(reading(t.Context()))
 	defer cancel()
 	listening := make(chan struct{})
 	payloads := make(chan string, 16)
@@ -372,11 +372,11 @@ func TestOneNotificationPerSave(t *testing.T) {
 		t.Fatal("the listener never started")
 	}
 
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "save"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "save"); err != nil {
 		t.Fatal(err)
 	}
 	const sentinel = "end-of-save"
-	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `SELECT pg_notify($1, $2)`, events.Channel, sentinel); err != nil {
+	if _, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `SELECT pg_notify($1, $2)`, events.Channel, sentinel); err != nil {
 		t.Fatal(err)
 	}
 

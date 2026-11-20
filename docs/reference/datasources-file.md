@@ -56,7 +56,8 @@ datasources:
 
 ## Who can query a datasource
 
-Every entry is open to every signed-in person from Viewer up and to every service-account key, through the explore query and the panel editor, under the entry's limits.
+Every entry is open to every signed-in person from Viewer up and to every service-account key, through the explore query and the panel editor, under the entry's limits, unless it sets `audience: admins`.
+An `admins` entry is read only by Admins and Admin keys: every other role, key and public link gets the same answer as for a datasource that does not exist, the agent and MCP clients of other roles do not see it, and a dashboard version that queries it serves its panel data and variable values only to Admins.
 There is no per-team or per-folder datasource access; a restricted folder hides its dashboards, not the datasources they read.
 
 ## Fields common to every entry
@@ -67,9 +68,10 @@ There is no per-team or per-folder datasource access; a restricted folder hides 
 | `type`        | Required: `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`. Give only the block that matches (`prometheus:`, `clickhouse:`, `loki:`, `tempo:`, `elasticsearch:` or `opensearch:`).                                                                                                                                                                                                                      |
 | `name`        | A display name. Quote a value that looks like a number, such as `"0123"`, because an unquoted number is refused.                                                                                                                                                                                                                                                                                                                     |
 | `limits`      | Optional: `timeout` (a Go duration), `maxSeries`, `maxPoints`, `maxRows` and `maxConcurrentQueries` (whole numbers, not negative). An omitted value or `0` keeps the default. See below.                                                                                                                                                                                                                                                                                                                |
+| `audience`    | Optional: `everyone` (the default) or `admins`. See [Who can query a datasource](#who-can-query-a-datasource). |
 | `grafanaUids` | Optional: up to 20 Grafana datasource uids or names this datasource stands for when importing Grafana dashboards, each 1 to 100 bytes after trimming and listed by one datasource only. Matching is exact and case-sensitive. Entries are trimmed, control and invisible characters are refused, an entry may not be another datasource's `uid`, and a value that looks like a number, such as `"0123"` or `"1.50"`, must be quoted. |
 
-The `uid`, `name` and `grafanaUids` values must not carry a YAML tag such as `!!str`; quote the value instead.
+The `uid`, `name`, `audience` and `grafanaUids` values must not carry a YAML tag such as `!!str`; quote the value instead.
 
 The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by a Grafana datasource uid that equals one of your datasource uids (so a dashboard exported from a Grafana that already uses your uids needs no `grafanaUids`), then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
 

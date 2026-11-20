@@ -190,7 +190,7 @@ func (r *Registry) DraftQuery(ctx context.Context, in DraftInput) (Draft, error)
 	if r.deps.Provider == nil {
 		return Draft{}, ErrDraftUnavailable
 	}
-	run, question, err := r.draftRequest(in)
+	run, question, err := r.draftRequest(ctx, in)
 	if err != nil {
 		return Draft{}, err
 	}
@@ -225,7 +225,7 @@ func timedOut(caller, draftCtx context.Context, err error) error {
 	return err
 }
 
-func (r *Registry) draftRequest(in DraftInput) (draftRun, string, error) {
+func (r *Registry) draftRequest(ctx context.Context, in DraftInput) (draftRun, string, error) {
 	question, err := revisions.CheckPrompt("question", in.Question)
 	if err != nil {
 		return draftRun{}, "", invalidDraftf("%s", err)
@@ -239,8 +239,8 @@ func (r *Registry) draftRequest(in DraftInput) (draftRun, string, error) {
 	if in.DatasourceUID == "" {
 		return draftRun{}, "", invalidDraftf("datasource is required")
 	}
-	inst, found := r.deps.Datasources.Get(in.DatasourceUID)
-	if !found {
+	inst, err := r.deps.Datasources.For(ctx, in.DatasourceUID)
+	if err != nil {
 		return draftRun{}, "", ErrDraftNotFound
 	}
 	dsType := typeOf(inst)

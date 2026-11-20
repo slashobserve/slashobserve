@@ -105,7 +105,7 @@ func findingBody(markdown string, panels ...string) string {
 
 func TestFindingToolsOnlyRunWhereTheyBelong(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
+	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
 	investigate := WithRun(editor, investigateRun(time.Time{}, time.Time{}))
 	create := WithRun(editor, Run{Mode: ModeCreate})
 	revise := WithRun(editor, Run{Mode: ModeRevise})
@@ -222,7 +222,7 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := r.findings.Get(t.Context(), editorCaller, id)
+	f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestSaveFindingUsesTheShortTitleTheAgentGave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := r.findings.Get(t.Context(), editorCaller, id)
+	f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestSaveFindingShortensThePromptWhenTheAgentGaveNoTitle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := r.findings.Get(t.Context(), editorCaller, id)
+	f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,18 +285,18 @@ func (r *findingRig) investigation(t *testing.T, by auth.Principal, from, to tim
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := r.db.Queries().EnqueueInvestigateRequest(t.Context(), dbsqlc.EnqueueInvestigateRequestParams{
+	row, err := r.db.Queries().EnqueueInvestigateRequest(reading(t.Context()), dbsqlc.EnqueueInvestigateRequestParams{
 		Prompt: "why are checkout errors up\nsince the deploy", RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
 	if err != nil {
 		t.Fatalf("enqueue investigation: %v", err)
 	}
-	err = r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		id, err := r.observations.OpenForRun(t.Context(), q, observations.RunOpen{Run: row, By: by, Strict: true})
+	err = r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+		id, err := r.observations.OpenForRun(reading(t.Context()), q, observations.RunOpen{Run: row, By: by, Strict: true})
 		if err != nil {
 			return err
 		}
-		row, err = q.SetRequestObservation(t.Context(), dbsqlc.SetRequestObservationParams{ID: row.ID, ObservationID: id})
+		row, err = q.SetRequestObservation(reading(t.Context()), dbsqlc.SetRequestObservationParams{ID: row.ID, ObservationID: id})
 		return err
 	})
 	if err != nil {
@@ -317,7 +317,7 @@ func TestSaveFindingWritesTheConclusionIntoTheRunsObservation(t *testing.T) {
 	if res.IsError || !ok || saved.Replayed || saved.Evidence != 2 {
 		t.Fatalf("save: %#v", res.Content)
 	}
-	o, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	o, err := r.observations.Get(reading(t.Context()), editorCaller, row.ObservationID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestSaveFindingWritesTheConclusionIntoTheRunsObservation(t *testing.T) {
 	if replayed, ok := again.Content.(findingSavedOut); again.IsError || !ok || !replayed.Replayed || replayed.FindingID != saved.FindingID {
 		t.Fatalf("second save: %#v", again.Content)
 	}
-	after, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	after, err := r.observations.Get(reading(t.Context()), editorCaller, row.ObservationID)
 	if err != nil || len(after.Blocks) != 4 {
 		t.Errorf("a second save left %d blocks, %v", len(after.Blocks), err)
 	}
@@ -365,7 +365,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := r.db.Queries().EnqueueAgentRequest(t.Context(), dbsqlc.EnqueueAgentRequestParams{
+	row, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
 		DashboardID: dashboard, Source: "prompt", Prompt: "why is this panel flat", BaseVersion: 1,
 		RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
@@ -378,7 +378,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 
 func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservation(t *testing.T) {
 	r := newFindingRig(t)
-	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
+	board, _, err := r.dashboards.Create(reading(t.Context()), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	created, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +402,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 	if saved.URL != "/c/"+row.ID.String() {
 		t.Errorf("url = %q, want the chat", saved.URL)
 	}
-	if after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID); err != nil || after.ObservationID.Valid {
+	if after, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), row.ID); err != nil || after.ObservationID.Valid {
 		t.Fatalf("run observation %v, %v", after.ObservationID, err)
 	}
 
@@ -415,11 +415,11 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 	if res.IsError || !ok || filed.Replayed {
 		t.Fatalf("save answer: %#v", res.Content)
 	}
-	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
+	after, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), row.ID)
 	if err != nil || !after.ObservationID.Valid || filed.URL != "/o/"+after.ObservationID.String() {
 		t.Fatalf("run observation %v, url %q, %v", after.ObservationID, filed.URL, err)
 	}
-	o, err := r.observations.Get(t.Context(), adminCaller, after.ObservationID)
+	o, err := r.observations.Get(reading(t.Context()), adminCaller, after.ObservationID)
 	if err != nil || o.FolderID != folder.String() {
 		t.Fatalf("observation folder %q, %v, want %s", o.FolderID, err, folder)
 	}
@@ -440,7 +440,7 @@ func TestSaveFindingFailsWhenTheRunsObservationIsOutOfReach(t *testing.T) {
 		t.Fatalf("save: %#v", res.Content)
 	}
 	var findingRows int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM findings`).Scan(&findingRows); err != nil || findingRows != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM findings`).Scan(&findingRows); err != nil || findingRows != 0 {
 		t.Errorf("findings left behind: %d, %v", findingRows, err)
 	}
 	if strings.Contains(r.logs.String(), "checkout-0 throws") {
@@ -458,7 +458,7 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	if res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
-	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
+	after, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), row.ID)
 	if err != nil || after.ObservationID.Valid || saved.URL != "/c/"+row.ID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
 	}
@@ -496,7 +496,7 @@ func TestSaveFindingAddsTheCouldNotCheckNoteFromTheRun(t *testing.T) {
 	if err != nil || res.IsError {
 		t.Fatalf("save: %#v, %v", res.Content, err)
 	}
-	o, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	o, err := r.observations.Get(reading(t.Context()), editorCaller, row.ObservationID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -572,7 +572,7 @@ func (r *findingRig) homeRun(t *testing.T, by auth.Principal) (Run, dbsqlc.Agent
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := r.db.Queries().EnqueueObserveRequest(t.Context(), dbsqlc.EnqueueObserveRequestParams{
+	row, err := r.db.Queries().EnqueueObserveRequest(reading(t.Context()), dbsqlc.EnqueueObserveRequestParams{
 		Prompt: "change the checkout dashboard", RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
 	if err != nil {
@@ -583,7 +583,7 @@ func (r *findingRig) homeRun(t *testing.T, by auth.Principal) (Run, dbsqlc.Agent
 
 func (r *findingRig) boardOf(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	board, _, err := r.dashboards.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec(title)), "create")
+	board, _, err := r.dashboards.Create(reading(t.Context()), adminCaller, pgtype.UUID{}, []byte(boardSpec(title)), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -606,7 +606,7 @@ func TestAHomeRunsFindingCarriesTheDashboardItResolved(t *testing.T) {
 	if _, ok := res.Content.(findingSavedOut); res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
-	f, found, err := r.findings.ForRequest(t.Context(), adminCaller, row.ID)
+	f, found, err := r.findings.ForRequest(reading(t.Context()), adminCaller, row.ID)
 	if err != nil || !found {
 		t.Fatalf("finding: found %v, %v", found, err)
 	}
@@ -625,7 +625,7 @@ func TestAnAskTargetTheCallerCannotViewIsNotFoundAndSavesNothing(t *testing.T) {
 		t.Fatalf("save: %#v", res)
 	}
 	var rows int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM findings`).Scan(&rows); err != nil || rows != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM findings`).Scan(&rows); err != nil || rows != 0 {
 		t.Errorf("findings left behind: %d, %v", rows, err)
 	}
 }

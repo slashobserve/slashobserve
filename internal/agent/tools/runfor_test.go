@@ -2,6 +2,7 @@ package tools
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -39,7 +40,7 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != tc.want {
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("run = %+v, want %+v", got, tc.want)
 			}
 		})
@@ -52,7 +53,7 @@ func TestRunForMapsASuggestRunAndPinsNoVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Run{Mode: ModeSuggest, RequestID: runForRequestID, DashboardID: runForDashboardID, PanelID: "p_up"}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("run = %+v, want %+v", got, want)
 	}
 }

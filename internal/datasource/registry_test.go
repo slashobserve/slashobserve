@@ -15,6 +15,15 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
+func everything(t *testing.T) context.Context {
+	return datasource.WithAccess(t.Context(), datasource.Access{System: true})
+}
+
+func lookup(t *testing.T, registry *datasource.Registry, uid string) (datasource.Instance, bool) {
+	in, err := registry.For(everything(t), uid)
+	return in, err == nil
+}
+
 type failingHealth struct {
 	datasource.Datasource
 	err error
@@ -57,7 +66,7 @@ func TestHealthMessageNeverCarriesTheDatasourceAddress(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			statuses := registry.Health(t.Context())
+			statuses := registry.Health(everything(t))
 			if len(statuses) != 1 || statuses[0].Healthy {
 				t.Fatalf("statuses = %+v", statuses)
 			}
@@ -93,7 +102,7 @@ func TestHealthReportsACancelledRequestWithoutWaitingForTheCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(everything(t))
 	cancel()
 	statuses := registry.Health(ctx)
 	if len(statuses) != 1 || statuses[0].Healthy || statuses[0].Message != "The health check was cancelled" {
@@ -154,7 +163,7 @@ func TestStatusCarriesTheIndexOfASearchDatasource(t *testing.T) {
 		}
 		return m
 	}
-	for _, s := range registry.Health(t.Context()) {
+	for _, s := range registry.Health(everything(t)) {
 		m := keys(s)
 		switch s.UID {
 		case "es", "es-down":
@@ -177,7 +186,7 @@ func TestStatusCarriesTheIndexOfASearchDatasource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(everything(t))
 	cancel()
 	statuses := blocked.Health(ctx)
 	if len(statuses) != 1 || statuses[0].Healthy || statuses[0].Index != "logs-*" || statuses[0].TimeField != "@timestamp" {
@@ -226,7 +235,7 @@ func TestHealthDetailNamesTheCauseWithoutTheAddress(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := registry.Health(t.Context())[0]
+			got := registry.Health(everything(t))[0]
 			if got.Detail != tt.want {
 				t.Errorf("detail = %q, want %q", got.Detail, tt.want)
 			}
@@ -245,25 +254,25 @@ func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first := registry.Health(t.Context())[0]; first.Healthy {
+	if first := registry.Health(everything(t))[0]; first.Healthy {
 		t.Fatalf("first status = %+v", first)
 	}
 
 	var recovered *error
 	ds.err.Store(recovered)
-	if cached := registry.Health(t.Context())[0]; cached.Healthy {
+	if cached := registry.Health(everything(t))[0]; cached.Healthy {
 		t.Fatalf("a plain health read inside the cache window must not recheck: %+v", cached)
 	}
 	time.Sleep(2100 * time.Millisecond)
-	got, ok := registry.Recheck(t.Context(), "loki")
+	got, ok := registry.Recheck(everything(t), "loki")
 	if !ok || !got.Healthy || got.Detail != "" {
 		t.Fatalf("recheck = %+v, ok %v", got, ok)
 	}
 	calls := ds.calls.Load()
-	if again, _ := registry.Recheck(t.Context(), "loki"); !again.Healthy || ds.calls.Load() != calls {
+	if again, _ := registry.Recheck(everything(t), "loki"); !again.Healthy || ds.calls.Load() != calls {
 		t.Errorf("a recheck inside the throttle window ran another check: calls %d -> %d", calls, ds.calls.Load())
 	}
-	if _, ok := registry.Recheck(t.Context(), "missing"); ok {
+	if _, ok := registry.Recheck(everything(t), "missing"); ok {
 		t.Error("recheck of an unknown uid reported found")
 	}
 }
@@ -289,14 +298,14 @@ func TestPutAddsAndReplacesAppDatasources(t *testing.T) {
 	if err := registry.Put(datasource.Instance{UID: "added", Name: "One", Datasource: first}); err != nil {
 		t.Fatal(err)
 	}
-	in, ok := registry.Get("added")
+	in, ok := lookup(t, registry, "added")
 	if !ok || in.Source != datasource.SourceApp || in.Name != "One" {
 		t.Fatalf("instance = %+v, ok = %v", in, ok)
 	}
 	if err := registry.Put(datasource.Instance{UID: "added", Name: "Two", Datasource: second}); err != nil {
 		t.Fatal(err)
 	}
-	if in, _ := registry.Get("added"); in.Name != "Two" {
+	if in, _ := lookup(t, registry, "added"); in.Name != "Two" {
 		t.Fatalf("name after replace = %q", in.Name)
 	}
 	if first.closed.Load() != 0 {
@@ -319,7 +328,7 @@ func TestPutAndRemoveLeaveFileDatasourcesAlone(t *testing.T) {
 	if registry.Remove("file") {
 		t.Fatal("Remove took a file datasource")
 	}
-	if in, ok := registry.Get("file"); !ok || in.Source != datasource.SourceFile || in.Name != "From file" {
+	if in, ok := lookup(t, registry, "file"); !ok || in.Source != datasource.SourceFile || in.Name != "From file" {
 		t.Fatalf("instance = %+v, ok = %v", in, ok)
 	}
 }
@@ -333,13 +342,13 @@ func TestPutForgetsTheCachedHealthOfTheReplacedDatasource(t *testing.T) {
 	if err := registry.Put(broken); err != nil {
 		t.Fatal(err)
 	}
-	if got := registry.Health(t.Context()); got[0].Healthy {
+	if got := registry.Health(everything(t)); got[0].Healthy {
 		t.Fatalf("status = %+v", got[0])
 	}
 	if err := registry.Put(datasource.Instance{UID: "added", Datasource: failingHealth{}}); err != nil {
 		t.Fatal(err)
 	}
-	if got := registry.Health(t.Context()); !got[0].Healthy {
+	if got := registry.Health(everything(t)); !got[0].Healthy {
 		t.Fatalf("an edited datasource still reports the cached failure: %+v", got[0])
 	}
 }
@@ -355,7 +364,7 @@ func TestRemoveDropsAnAppDatasource(t *testing.T) {
 	if !registry.Remove("added") {
 		t.Fatal("Remove found nothing")
 	}
-	if _, ok := registry.Get("added"); ok || len(registry.Health(t.Context())) != 0 {
+	if _, ok := lookup(t, registry, "added"); ok || len(registry.Health(everything(t))) != 0 {
 		t.Fatal("a removed datasource is still listed")
 	}
 	if registry.Remove("added") {
@@ -390,7 +399,7 @@ func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		registry.Health(t.Context())
+		registry.Health(everything(t))
 	}()
 	<-old.started
 
@@ -399,7 +408,7 @@ func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T
 	}
 	rechecked := make(chan datasource.Status, 1)
 	go func() {
-		status, _ := registry.Recheck(t.Context(), "added")
+		status, _ := registry.Recheck(everything(t), "added")
 		rechecked <- status
 	}()
 	select {
@@ -412,7 +421,7 @@ func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T
 	}
 	close(old.release)
 	<-done
-	if got := registry.Health(t.Context()); !got[0].Healthy {
+	if got := registry.Health(everything(t)); !got[0].Healthy {
 		t.Fatalf("the finished check of the old definition replaced the cached status: %+v", got[0])
 	}
 }

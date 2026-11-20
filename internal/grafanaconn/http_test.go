@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
@@ -42,7 +43,7 @@ func newHTTPRig(t *testing.T, base *rig) *httpRig {
 	gin.SetMode(gin.TestMode)
 	h.engine = gin.New()
 	grafanaconn.NewHandler(base.svc).Register(auth.NewRoutes(h.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), h.caller))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.caller), datasource.Access{By: h.caller}))
 	})))
 	return h
 }
@@ -64,13 +65,13 @@ func (h *httpRig) call(t *testing.T, method, path, body string) *httptest.Respon
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	if strings.Contains(rec.Body.String(), grafanaToken) || strings.Contains(rec.Body.String(), "glsa_") {
@@ -325,7 +326,7 @@ func TestHTTPFetchesADashboardFromItsLinkAndThePreviewTakesIt(t *testing.T) {
 			t.Fatalf("grafana saw authorization %q", header)
 		}
 	}
-	preview, err := h.imports.Preview(t.Context(), h.admin, imports.Request{JSON: []byte(got.JSON)})
+	preview, err := h.imports.Preview(reading(t.Context()), h.admin, imports.Request{JSON: []byte(got.JSON)})
 	if err != nil || preview.Spec == nil || preview.Spec.Title != "Checkout" {
 		t.Fatalf("preview %+v, %v", preview, err)
 	}
@@ -364,13 +365,13 @@ func TestHTTPFetchLinkDoesNotAllowAnOutboundDomainAnAdminRemoved(t *testing.T) {
 	h := newHTTPRig(t, newRig(t))
 	h.grafana.add(&fakeDashboard{uid: "checkout", title: "Checkout", model: simpleModel("graf-prom", "prometheus"), version: 1})
 	h.connect(t)
-	if _, err := h.db.SQLDB(t).ExecContext(t.Context(), "DELETE FROM outbound_domains"); err != nil {
+	if _, err := h.db.SQLDB(t).ExecContext(reading(t.Context()), "DELETE FROM outbound_domains"); err != nil {
 		t.Fatal(err)
 	}
 
 	expect(t, h.call(t, http.MethodPost, "/api/v1/grafana/link", linkBody(grafanaURL+"/d/checkout")), http.StatusForbidden, "outbound_domain_not_allowed")
 
-	list, err := h.domains.Allowed(t.Context())
+	list, err := h.domains.Allowed(reading(t.Context()))
 	if err != nil || list.Allows(grafanaHost) {
 		t.Fatalf("the link fetch put %s back on the allowlist: %v, err %v", grafanaHost, list, err)
 	}

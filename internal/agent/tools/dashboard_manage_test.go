@@ -19,7 +19,7 @@ func TestMoveDashboardPutsItInTheOtherFolder(t *testing.T) {
 	if res.IsError || !ok || saved.DashboardID != b.open.String() || saved.Version != 1 {
 		t.Fatalf("move = %s", textOf(t, res))
 	}
-	dash, _, err := r.service.Get(t.Context(), b.open)
+	dash, _, err := r.service.Get(reading(t.Context()), b.open)
 	if err != nil || dash.Folder.Title != "Ops" {
 		t.Fatalf("folder after the move = %q, %v", dash.Folder.Title, err)
 	}
@@ -80,7 +80,7 @@ func TestDuplicateDashboardCopiesItUnderTheGivenTitle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash, ver, err := r.service.Get(t.Context(), copied)
+	dash, ver, err := r.service.Get(reading(t.Context()), copied)
 	if err != nil || dash.Title != "Copy of open" || ver.Spec.Title != "Copy of open" || dash.Folder.Title != "Ops" {
 		t.Fatalf("copy = %q in %q, %v", dash.Title, dash.Folder.Title, err)
 	}

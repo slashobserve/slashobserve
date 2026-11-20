@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
-	"github.com/slashobserve/slashobserve/internal/config"
 )
 
 type provisionedEvent struct {
@@ -40,14 +39,14 @@ func TestProvisioningFromTheFileRecordsEachAccountAndKeyChange(t *testing.T) {
 	t.Cleanup(func() { audit.Install(nil) })
 
 	account, key := fileAccount(t, "editor")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	rotated, newKey := fileAccount(t, "viewer")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{rotated}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{rotated}); err != nil {
 		t.Fatal(err)
 	}
 

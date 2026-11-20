@@ -38,7 +38,7 @@ func TestServersProvisioningTogetherCreateEachFileOnce(t *testing.T) {
 	}
 	for _, title := range titles {
 		var count int
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards WHERE title = $1`, title).Scan(&count); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM dashboards WHERE title = $1`, title).Scan(&count); err != nil {
 			t.Fatal(err)
 		}
 		if count != 1 {

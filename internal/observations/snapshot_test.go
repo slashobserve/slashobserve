@@ -17,7 +17,7 @@ import (
 
 func (r rig) addSnapshot(t *testing.T, by auth.Principal, o observations.Observation, from observations.Block) observations.Block {
 	t.Helper()
-	b, err := r.service.AddBlock(t.Context(), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, from.ID)})
+	b, err := r.service.AddBlock(reading(t.Context()), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, from.ID)})
 	if err != nil {
 		t.Fatalf("add snapshot block: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestASnapshotFreezesThePanelBlockNowAndKeepsItsQueryApart(t *testing.T) {
 		t.Errorf("freezer saw panel %q title %q range %v-%v", r.freezer.panelID, r.freezer.title, r.freezer.from, r.freezer.to)
 	}
 
-	snap, err := r.service.Snapshot(t.Context(), viewer, mustUUID(t, block.SnapshotID))
+	snap, err := r.service.Snapshot(reading(t.Context()), viewer, mustUUID(t, block.SnapshotID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,13 +82,13 @@ func TestTheFrozenRangeIsTheBlocksThenTheObservationsThenTheLastHour(t *testing.
 	r := newRig(t)
 	own := `{"panel":{"type":"stat","title":"Up","datasource":"prom","queries":[{"ref":"A","query":"up"}]},"from":"2026-10-01T00:00:00Z","to":"2026-10-01T06:00:00Z"}`
 	obsFrom, obsTo := windowTo.Add(-3*time.Hour), windowTo
-	withRange, err := r.service.Create(t.Context(), editor, observations.CreateInput{FolderID: r.shared, Title: "ranged", From: &obsFrom, To: &obsTo})
+	withRange, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{FolderID: r.shared, Title: "ranged", From: &obsFrom, To: &obsTo})
 	if err != nil {
 		t.Fatal(err)
 	}
 	bare := r.create(t, editor, r.shared)
 
-	ownBlock, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, withRange.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(own)})
+	ownBlock, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, withRange.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(own)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,13 +114,13 @@ func TestTheStoredRangeIsTheOneTheFreezerWasGivenDownToTheMicrosecond(t *testing
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
 	own := `{"panel":{"type":"stat","title":"Up","datasource":"prom","queries":[{"ref":"A","query":"up"}]},"from":"2026-10-01T00:00:00.123456789Z","to":"2026-10-01T06:00:00.987654321Z"}`
-	block, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(own)})
+	block, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(own)})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	frozen := r.addSnapshot(t, editor, o, block)
-	snap, err := r.service.Snapshot(t.Context(), viewer, mustUUID(t, frozen.SnapshotID))
+	snap, err := r.service.Snapshot(reading(t.Context()), viewer, mustUUID(t, frozen.SnapshotID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,22 +139,22 @@ func TestAFreezerErrorOrAnOversizeBodyInsertsNothing(t *testing.T) {
 	in := observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, panel.ID)}
 
 	r.freezer.err = queryproxy.ErrUpstreamBusy
-	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), in); !errors.Is(err, queryproxy.ErrUpstreamBusy) {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), in); !errors.Is(err, queryproxy.ErrUpstreamBusy) {
 		t.Errorf("freezer error: %v", err)
 	}
 	r.freezer.err = nil
 
 	r.freezer.data = json.RawMessage(`{"frames":["` + strings.Repeat("x", observations.MaxSnapshotBytes) + `"]}`)
-	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), in); !errors.Is(err, observations.ErrSnapshotTooLarge) {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), in); !errors.Is(err, observations.ErrSnapshotTooLarge) {
 		t.Errorf("oversize: %v", err)
 	}
 	var invalid *observations.InvalidInputError
-	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), in); !errors.As(err, &invalid) || invalid.Code != observations.CodeSnapshotTooLarge {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), in); !errors.As(err, &invalid) || invalid.Code != observations.CodeSnapshotTooLarge {
 		t.Errorf("oversize code: %v", err)
 	}
 
 	var snapshots int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM snapshots`).Scan(&snapshots); err != nil || snapshots != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM snapshots`).Scan(&snapshots); err != nil || snapshots != 0 {
 		t.Errorf("%d snapshots stored, %v", snapshots, err)
 	}
 	if got := r.positions(t, editor, o); len(got) != 1 {
@@ -167,13 +167,13 @@ func TestASnapshotIsReadableOnlyWhereTheObservationIs(t *testing.T) {
 	o := r.create(t, admin, r.hiddenFolder(t))
 	panel := r.addPanel(t, admin, o)
 	block := r.addSnapshot(t, admin, o, panel)
-	if _, err := r.service.Snapshot(t.Context(), admin, mustUUID(t, block.SnapshotID)); err != nil {
+	if _, err := r.service.Snapshot(reading(t.Context()), admin, mustUUID(t, block.SnapshotID)); err != nil {
 		t.Errorf("an admin: %v", err)
 	}
-	if _, err := r.service.Snapshot(t.Context(), editor, mustUUID(t, block.SnapshotID)); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Snapshot(reading(t.Context()), editor, mustUUID(t, block.SnapshotID)); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a non-viewer: %v", err)
 	}
-	if _, err := r.service.Snapshot(t.Context(), admin, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Snapshot(reading(t.Context()), admin, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a missing snapshot: %v", err)
 	}
 }
@@ -183,12 +183,12 @@ func TestRemovingASnapshotBlockKeepsItsSnapshotRowAndDeletingTheObservationDrops
 	o := r.create(t, editor, r.shared)
 	panel := r.addPanel(t, editor, o)
 	block := r.addSnapshot(t, editor, o, panel)
-	if err := r.service.RemoveBlock(t.Context(), editor, mustUUID(t, block.ID), 1, pgtype.UUID{}); err != nil {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, block.ID), 1, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	count := func() int {
 		var n int
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM snapshots`).Scan(&n); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM snapshots`).Scan(&n); err != nil {
 			t.Fatal(err)
 		}
 		return n
@@ -205,14 +205,14 @@ func TestRemovingASnapshotBlockKeepsItsSnapshotRowAndDeletingTheObservationDrops
 func TestThePanelDashboardWrapsOnePanelUnderTheBlockPanelID(t *testing.T) {
 	r := newRig(t)
 	from, to := windowTo.Add(-3*time.Hour), windowTo
-	o, err := r.service.Create(t.Context(), editor, observations.CreateInput{FolderID: r.shared, Title: "Checkout 5xx", From: &from, To: &to})
+	o, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{FolderID: r.shared, Title: "Checkout 5xx", From: &from, To: &to})
 	if err != nil {
 		t.Fatal(err)
 	}
 	panel := r.addPanel(t, editor, o)
 	text := r.addText(t, editor, o, "words")
 
-	d, gotFrom, gotTo, err := r.service.PanelDashboard(t.Context(), viewer, mustUUID(t, panel.ID))
+	d, gotFrom, gotTo, err := r.service.PanelDashboard(reading(t.Context()), viewer, mustUUID(t, panel.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,10 +222,10 @@ func TestThePanelDashboardWrapsOnePanelUnderTheBlockPanelID(t *testing.T) {
 	if !gotFrom.Equal(from) || !gotTo.Equal(to) || d.Time.From != from.Format(time.RFC3339Nano) {
 		t.Errorf("range %v-%v, dashboard time %+v", gotFrom, gotTo, d.Time)
 	}
-	if _, _, _, err := r.service.PanelDashboard(t.Context(), viewer, mustUUID(t, text.ID)); !errors.Is(err, observations.ErrNotFound) {
+	if _, _, _, err := r.service.PanelDashboard(reading(t.Context()), viewer, mustUUID(t, text.ID)); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a text block has no data: %v", err)
 	}
-	if _, _, _, err := r.service.PanelDashboard(t.Context(), viewer, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, observations.ErrNotFound) {
+	if _, _, _, err := r.service.PanelDashboard(reading(t.Context()), viewer, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a missing block: %v", err)
 	}
 }
@@ -233,15 +233,15 @@ func TestThePanelDashboardWrapsOnePanelUnderTheBlockPanelID(t *testing.T) {
 func TestACommenterRequestsAPanelButCannotFreezeOne(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
-	asked, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	asked, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
 	if err != nil || asked.State != observations.BlockRequested {
 		t.Fatalf("requested panel %+v, %v", asked, err)
 	}
-	snap, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, asked.ID)})
+	snap, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, asked.ID)})
 	if err != nil || snap.State != observations.BlockRequested {
 		t.Errorf("a requested snapshot %+v, %v", snap, err)
 	}
-	if _, err := r.service.AddBlock(t.Context(), viewer, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, asked.ID)}); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.AddBlock(reading(t.Context()), viewer, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, asked.ID)}); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer: %v", err)
 	}
 }
@@ -252,18 +252,18 @@ func TestThePanelDashboardCarriesTheVariablesBakedIntoTheBlock(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
 	body := json.RawMessage(`{"panel":` + variablePanel + `,"variable_values":{"service":["checkout"]}}`)
-	block, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: body})
+	block, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: body})
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, _, _, err := r.service.PanelDashboard(t.Context(), viewer, mustUUID(t, block.ID))
+	d, _, _, err := r.service.PanelDashboard(reading(t.Context()), viewer, mustUUID(t, block.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(d.Variables) != 1 || d.Variables[0].Name != "service" || d.Variables[0].Default == nil || d.Variables[0].Default.Values[0] != "checkout" {
 		t.Errorf("variables %+v", d.Variables)
 	}
-	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(`{"panel":` + variablePanel + `}`)}); err == nil || !strings.Contains(err.Error(), `"service"`) {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(`{"panel":` + variablePanel + `}`)}); err == nil || !strings.Contains(err.Error(), `"service"`) {
 		t.Errorf("a panel without its variable: %v", err)
 	}
 }
@@ -271,12 +271,12 @@ func TestThePanelDashboardCarriesTheVariablesBakedIntoTheBlock(t *testing.T) {
 func TestASnapshotCannotFreezeAnotherCommentersSuggestedPanel(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
-	suggested, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	suggested, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
 	if err != nil || suggested.State != observations.BlockRequested {
 		t.Fatalf("suggest: %+v %v", suggested, err)
 	}
 	snapshotOf := observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, suggested.ID)}
-	_, err = r.service.AddBlock(t.Context(), otherCommen, mustUUID(t, o.ID), snapshotOf)
+	_, err = r.service.AddBlock(reading(t.Context()), otherCommen, mustUUID(t, o.ID), snapshotOf)
 	var refused *observations.InvalidInputError
 	if !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock {
 		t.Fatalf("another commenter freezes the suggestion: %v", err)
@@ -284,10 +284,10 @@ func TestASnapshotCannotFreezeAnotherCommentersSuggestedPanel(t *testing.T) {
 	if r.freezer.panelID != "" {
 		t.Error("the suggested panel was run for a reader who cannot see it")
 	}
-	if _, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), snapshotOf); err != nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), snapshotOf); err != nil {
 		t.Errorf("the author freezes their own suggestion: %v", err)
 	}
-	if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), snapshotOf); err != nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), snapshotOf); err != nil {
 		t.Errorf("an editor freezes the suggestion: %v", err)
 	}
 }

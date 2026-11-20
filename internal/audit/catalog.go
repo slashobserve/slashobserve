@@ -64,6 +64,7 @@ var (
 	domainKeys   = []string{"domain"}
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
+	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
 	countKeys    = []string{"count"}
@@ -205,7 +206,7 @@ var catalog = map[Action]Spec{
 	"datasource.create":          change(CategoryAdmin, sourceKeys),
 	"datasource.update":          change(CategoryAdmin, sourceKeys),
 	"datasource.delete":          change(CategoryAdmin, sourceKeys),
-	"datasource.audience_change": change(CategoryAdmin),
+	"datasource.audience_change": change(CategoryAdmin, audienceKeys),
 	"public_link.create":         change(CategoryAdmin, linkKeys),
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),

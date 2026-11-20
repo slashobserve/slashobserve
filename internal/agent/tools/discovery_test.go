@@ -120,7 +120,7 @@ func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	runner := queryproxy.NewRunner(reg, logger, queryproxy.WithUpstreamWait(30*time.Millisecond))
 	r := New(Deps{Datasources: reg, Runner: runner, Logger: logger})
 	for range 32 {
-		release, err := runner.AcquireUpstream(context.Background(), fakeUID)
+		release, err := runner.AcquireUpstream(reading(context.Background()), fakeUID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -594,7 +594,7 @@ func TestListMetricsScopeOnASearchDatasourceAnswersEmptyAndKeepsTheStoredInvento
 		t.Fatal(err)
 	}
 	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: "search-inventory-user", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: "search-inventory-user", Role: auth.RoleEditor})
 	for _, tc := range []struct {
 		input    string
 		families int
@@ -708,7 +708,7 @@ func TestListMetricsScopeOnLokiKeepsTheStoredInventory(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: "loki-inventory-user", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: "loki-inventory-user", Role: auth.RoleEditor})
 	for _, tc := range []struct{ input, family string }{
 		{`{"datasource":"prom","scope":"{job=\"shop\"}"}`, "http_requests_total"},
 		{`{"datasource":"loki","scope":"{service_name=\"checkout\"}"}`, "service_name"},
@@ -787,7 +787,7 @@ func TestReadSchemaAndSampleAnswerWhatTheToolsAnswer(t *testing.T) {
 		return &datasource.Catalog{Sample: &datasource.Frame{Fields: []datasource.Field{{Name: "Body", Values: []any{"hello"}}}}}, nil
 	}}
 	r := newTestRegistry(t, ds, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleViewer})
 
 	tables, err := r.DatasourceSchema(ctx, "fake", "", nil)
 	if err != nil || tables.(tablesOut).Tables[0].Name != "otel_logs" {
@@ -809,7 +809,7 @@ func TestReadSchemaAndSampleAnswerWhatTheToolsAnswer(t *testing.T) {
 
 func TestReadSchemaRefusesWithTheToolsCode(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleViewer})
 
 	_, err := r.DatasourceSchema(ctx, "fake", "", nil)
 	var refused *ReadError

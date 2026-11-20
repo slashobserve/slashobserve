@@ -101,7 +101,7 @@ func TestACommittedCreateBuildSummarisesAllItsPanelsNotTheLastSave(t *testing.T)
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a", "b")
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,13 +113,13 @@ func TestACommittedCreateBuildSummarisesAllItsPanelsNotTheLastSave(t *testing.T)
 func TestACommittedRevisionBuildThatUndoesAVersionIsMarkedRestored(t *testing.T) {
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "rps")
-	if _, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "add p99"}); err != nil {
+	if _, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "add p99"}); err != nil {
 		t.Fatal(err)
 	}
 	id := r.runningRequest(t, dash)
 	r.saveBuild(t, id, dash, 2, "rps")
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestACommittedRevisionBuildThatChangesSomethingNewIsNotMarkedRestored(t *te
 	id := r.runningRequest(t, dash)
 	r.saveBuild(t, id, dash, 1, "rps", "p99")
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil {
 		t.Fatal(err)
 	}

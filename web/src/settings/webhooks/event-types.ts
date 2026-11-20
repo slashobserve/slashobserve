@@ -80,6 +80,7 @@ export const eventTypeLabels = {
   "grafana_connection.deleted": "Grafana connection deleted",
   "datasource.created": "Datasource added",
   "datasource.updated": "Datasource changed",
+  "datasource.audience_changed": "Datasource audience changed",
   "datasource.deleted": "Datasource deleted",
 } satisfies Record<ActivityType, string>
 

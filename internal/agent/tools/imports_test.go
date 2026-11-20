@@ -74,7 +74,7 @@ func TestUnresolvedRows(t *testing.T) {
 
 func TestImportInAgentRunNeedsGrafanaJSONFromTheRequest(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	dashboard := `{"title":"Checkout","panels":[]}`
 	prompt := "Import this please: " + dashboard
 	tests := []struct {
@@ -170,7 +170,7 @@ func TestImportedOutStaysInsideTheResultCapWithALongFolderTitle(t *testing.T) {
 
 func TestImportRefusesContradictoryOrMalformedUpdateInput(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	tests := []struct {
 		name  string
 		input map[string]any
@@ -228,7 +228,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 
 func TestAnImportRunMayNotUpdateAnExistingDashboard(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	dashboard := `{"title":"Checkout","panels":[]}`
 	input, err := json.Marshal(map[string]any{"json": dashboard, "update_dashboard": dashA})
 	if err != nil {

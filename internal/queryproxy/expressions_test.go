@@ -55,7 +55,7 @@ func TestRunPanelExpressionOverAHiddenQueryReturnsOnlyTheExpression(t *testing.T
 		mathQuery("B", "$A * 2", false),
 	)})
 
-	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), MaxDataPoints: 200})
+	res, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), MaxDataPoints: 200})
 	if err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestRunPanelDoesNotRunAHiddenQueryNoExpressionNames(t *testing.T) {
 		spec.Query{Ref: "B", Query: "b", Hide: true},
 		reduceQuery("C", "A", "sum", false),
 	)})
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	texts := []string{}
@@ -103,7 +103,7 @@ func TestRunPanelReturnsVisibleInputsAndExpressionsInPanelOrder(t *testing.T) {
 		spec.Query{Ref: "A", Query: "a"},
 		reduceQuery("B", "A", "mean", false),
 	)})
-	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	res, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
 	if err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestRunPanelEvaluatesExpressionsOnExpressionsWhateverTheirOrder(t *testing.
 		mathQuery("M", "$A * 10", true),
 		spec.Query{Ref: "A", Query: "a", Hide: true},
 	)})
-	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	res, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
 	if err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestRunPanelFailedInputFailsItsDependantsWithAnExpressionError(t *testing.T
 		mathQuery("B", "$A + 1", false),
 		mathQuery("C", "$B + 1", false),
 	)})
-	_, _, errs, err := runner.runQueries(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}, newVarState(), true)
+	_, _, errs, err := runner.runQueries(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()}, newVarState(), true)
 	if err != nil {
 		t.Fatalf("runQueries: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestRunPanelFailedInputFailsItsDependantsWithAnExpressionError(t *testing.T
 		}
 	}
 
-	_, err = runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	_, err = runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
 	var qe *QueryError
 	if !errors.As(err, &qe) || qe.Ref != "A" {
 		t.Errorf("RunPanel err = %v, want the lowest failing query, A", err)
@@ -214,7 +214,7 @@ func TestRunPanelReportsAnExpressionThatCannotEvaluate(t *testing.T) {
 		spec.Query{Ref: "A", Query: "a"},
 		mathQuery("B", "sin($A)", false),
 	)})
-	_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	_, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
 	if !errors.Is(err, expr.ErrExpression) {
 		t.Fatalf("err = %v, want an expression error (the fake's frames carry no real times, so even A feeds it badly)", err)
 	}
@@ -230,7 +230,7 @@ func TestRunPanelStopsAnExpressionCycleInsteadOfHanging(t *testing.T) {
 		reduceQuery("A", "B", "sum", false),
 		reduceQuery("B", "A", "sum", false),
 	)})
-	_, _, errs, err := runner.runQueries(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}, newVarState(), true)
+	_, _, errs, err := runner.runQueries(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()}, newVarState(), true)
 	if err != nil {
 		t.Fatalf("runQueries: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestRunPanelAdmitsVisibleExpressionsOnly(t *testing.T) {
 	)})
 	var mu sync.Mutex
 	admitted := map[int]string{}
-	_, err := runner.RunPanel(t.Context(), Request{
+	_, err := runner.RunPanel(reading(t.Context()), Request{
 		Dashboard: d, PanelID: "p1", Range: testRange(), IncludeHidden: true,
 		Admit: func(index int, q QueryResult) error {
 			mu.Lock()
@@ -281,7 +281,7 @@ func TestRunPanelAbortFromAdmittingAnExpressionEndsTheRequest(t *testing.T) {
 		mathQuery("B", "$A + 1", false),
 	)})
 	tooBig := errors.New("response too big")
-	_, err := runner.RunPanel(t.Context(), Request{
+	_, err := runner.RunPanel(reading(t.Context()), Request{
 		Dashboard: d, PanelID: "p1", Range: testRange(),
 		Admit: func(int, QueryResult) error { return &AbortError{Err: tooBig} },
 	})
@@ -299,7 +299,7 @@ func TestCheckSpecAcceptsAnExpressionOverHiddenQueries(t *testing.T) {
 		spec.Query{Ref: "B", Query: "b", Hide: true},
 		mathQuery("C", "$A / $B", false),
 	)})
-	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 	if err != nil || issues != nil {
 		t.Fatalf("CheckSpec = %+v, %v; want a clean save check", issues, err)
 	}
@@ -316,7 +316,7 @@ func TestCheckSpecRejectsAnExpressionWithNoData(t *testing.T) {
 		spec.Query{Ref: "A", Query: "a", Hide: true},
 		reduceQuery("B", "A", "sum", false),
 	)})
-	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("CheckSpec: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestCheckSpecReportsAFailedExpressionAtItsExpression(t *testing.T) {
 		spec.Query{Ref: "A", Query: "a", Hide: true},
 		mathQuery("B", "$A +", false),
 	)})
-	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("CheckSpec: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestCheckSpecSkipsAnExpressionWhoseInputCannotRun(t *testing.T) {
 		spec.Query{Ref: "A", Query: "a", Hide: true, Datasource: "missing"},
 		mathQuery("B", "$A + 1", false),
 	)})
-	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("CheckSpec: %v", err)
 	}

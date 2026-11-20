@@ -38,7 +38,7 @@ func newActivityRig(t *testing.T) activityRig {
 func (r activityRig) dashboard(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ('Checkout', 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`).Scan(&raw)
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ('Checkout', 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`).Scan(&raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func (r activityRig) dashboard(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 func (r activityRig) observation(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
 VALUES ($1::uuid, 'Checkout latency', 'user', gen_random_uuid(), 'Seed') RETURNING id::text`, folder.String()).Scan(&raw)
 	if err != nil {
 		t.Fatal(err)
@@ -70,9 +70,9 @@ VALUES ($1::uuid, 'Checkout latency', 'user', gen_random_uuid(), 'Seed') RETURNI
 func (r activityRig) appendOnObservation(t *testing.T, eventType string, observation pgtype.UUID) int64 {
 	t.Helper()
 	var seq int64
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		seq, err = activity.Append(t.Context(), q, activity.Entry{
+		seq, err = activity.Append(reading(t.Context()), q, activity.Entry{
 			Type:     eventType,
 			TargetID: observation,
 			Owner:    activity.OnObservation(observation),
@@ -90,9 +90,9 @@ func (r activityRig) appendOnObservation(t *testing.T, eventType string, observa
 func (r activityRig) append(t *testing.T, eventType string, dashboard pgtype.UUID) int64 {
 	t.Helper()
 	var seq int64
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		seq, err = activity.Append(t.Context(), q, activity.Entry{
+		seq, err = activity.Append(reading(t.Context()), q, activity.Entry{
 			Type:     eventType,
 			TargetID: dashboard,
 			Owner:    activity.OnDashboard(dashboard),
@@ -199,7 +199,7 @@ func TestListActivityNarrowsByTypeAndDashboard(t *testing.T) {
 
 func TestListActivityNarrowsToOneObservation(t *testing.T) {
 	r := newActivityRig(t)
-	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Incidents"})
+	folder, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Incidents"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,9 +237,9 @@ func TestListActivityHidesWhatTheKeyMayNotSee(t *testing.T) {
 func (r activityRig) appendAdminChange(t *testing.T, eventType string) int64 {
 	t.Helper()
 	var seq int64
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		seq, err = activity.Append(t.Context(), q, activity.Entry{
+		seq, err = activity.Append(reading(t.Context()), q, activity.Entry{
 			Type:     eventType,
 			TargetID: pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true},
 			Actor:    actor.Of(editorCaller, origin.Origin{Kind: origin.MCP, Client: "claude-code"}, ""),

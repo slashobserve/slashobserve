@@ -11,12 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
-	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
 
 const fileKeyName = "From file"
+
+type FileAccount struct {
+	Name        string
+	Role        string
+	Description string
+	TakesRuns   bool
+	Key         interface{ Reveal() string }
+}
 
 type accountAction string
 
@@ -92,7 +99,7 @@ func planProvision(current provisionedState, want provisionTarget) (provisionPla
 	return plan, nil
 }
 
-func (s *Service) EnsureProvisioned(ctx context.Context, accounts []config.ServiceAccount) error {
+func (s *Service) EnsureProvisioned(ctx context.Context, accounts []FileAccount) error {
 	for _, a := range accounts {
 		if err := s.ensureProvisioned(ctx, a); err != nil {
 			return err
@@ -101,7 +108,7 @@ func (s *Service) EnsureProvisioned(ctx context.Context, accounts []config.Servi
 	return nil
 }
 
-func (s *Service) ensureProvisioned(ctx context.Context, a config.ServiceAccount) error {
+func (s *Service) ensureProvisioned(ctx context.Context, a FileAccount) error {
 	role, ok := ParseRole(a.Role)
 	if !ok {
 		return &ProvisionRefusedError{Name: a.Name, Reason: reasonUnknownRole}

@@ -19,7 +19,7 @@ type endReply struct {
 
 func repliesOfRuns(t *testing.T, d *dbtest.Database, thread pgtype.UUID) []endReply {
 	t.Helper()
-	rows, err := d.SQLDB(t).QueryContext(context.Background(),
+	rows, err := d.SQLDB(t).QueryContext(reading(context.Background()),
 		`SELECT body, author_name, run_id::text FROM thread_messages WHERE thread_id = $1 AND run_id IS NOT NULL ORDER BY created_at, id`, thread)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func repliesOfRuns(t *testing.T, d *dbtest.Database, thread pgtype.UUID) []endRe
 func mentionRun(t *testing.T, svc *revisions.Service, d *dbtest.Database, dash pgtype.UUID, assignee string) (revisions.Revision, pgtype.UUID) {
 	t.Helper()
 	thread := openThread(t, d, dash)
-	row, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
 		DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "why", BaseVersion: 1, By: user,
 		ThreadMessageID: thread.ID, ThreadContext: "Ada: earlier",
 	})
@@ -61,7 +61,7 @@ func wantOneReply(t *testing.T, d *dbtest.Database, thread pgtype.UUID, run, bod
 	if len(got) != 1 || got[0].Body != body || got[0].Author != "Ada" || got[0].RunID != run {
 		t.Fatalf("replies = %+v, want one %q by Ada from run %s", got, body, run)
 	}
-	row, err := d.Queries().GetThread(context.Background(), thread)
+	row, err := d.Queries().GetThread(reading(context.Background()), thread)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestAConnectedAgentsRunAnswersInItsThreadWhenFinishEndsIt(t *testing.T) {
 			if tt.save {
 				saveVersionUnder(t, d, dash, claimed.Row.ID, 2)
 			}
-			if _, err := svc.End(context.Background(), claimed.Row, tt.ending); err != nil {
+			if _, err := svc.End(reading(context.Background()), claimed.Row, tt.ending); err != nil {
 				t.Fatal(err)
 			}
 			wantOneReply(t, d, thread, rev.ID, tt.want)
@@ -106,10 +106,10 @@ func TestARunExpiredAsUnclaimedAnswersInItsThread(t *testing.T) {
 	rev, thread := mentionRun(t, svc, d, seedDashboard(t, d, 1), grantA)
 	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '11 minutes' WHERE id = $1", mustUUID(t, rev.ID))
 
-	if err := svc.Sweep(context.Background()); err != nil {
+	if err := svc.Sweep(reading(context.Background())); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Sweep(context.Background()); err != nil {
+	if err := svc.Sweep(reading(context.Background())); err != nil {
 		t.Fatal(err)
 	}
 	wantOneReply(t, d, thread, rev.ID, "No agent picked this up within 10 minutes.")
@@ -120,7 +120,7 @@ func TestACanceledRunAnswersOnceItHasEnded(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 
 	queued, queuedThread := mentionRun(t, svc, d, dash, "")
-	if _, err := svc.Cancel(context.Background(), mustUUID(t, queued.ID), user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, queued.ID), user); err != nil {
 		t.Fatal(err)
 	}
 	wantOneReply(t, d, queuedThread, queued.ID, "The run was stopped before it finished.")
@@ -130,14 +130,14 @@ func TestACanceledRunAnswersOnceItHasEnded(t *testing.T) {
 	if !found || claimed.Row.ID != mustUUID(t, running.ID) {
 		t.Fatalf("claim = %+v found %v", claimed.Row, found)
 	}
-	canceling, err := svc.Cancel(context.Background(), claimed.Row.ID, user)
+	canceling, err := svc.Cancel(reading(context.Background()), claimed.Row.ID, user)
 	if err != nil || canceling.State != string(revisions.StateCanceling) {
 		t.Fatalf("cancel = state %s, err %v, want canceling", canceling.State, err)
 	}
 	if got := repliesOfRuns(t, d, runningThread); len(got) != 0 {
 		t.Fatalf("replies = %+v before the run ended", got)
 	}
-	if _, err := svc.End(context.Background(), claimed.Row, revisions.Ending{}); err != nil {
+	if _, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{}); err != nil {
 		t.Fatal(err)
 	}
 	wantOneReply(t, d, runningThread, running.ID, "The run was stopped before it finished.")
@@ -179,11 +179,11 @@ func TestARetryOfAMentionRunAnswersInTheSameThread(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 1)
 	rev, thread := mentionRun(t, svc, d, dash, "")
-	if _, err := svc.Cancel(context.Background(), mustUUID(t, rev.ID), user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
 		t.Fatal(err)
 	}
 
-	retried, err := svc.Retry(context.Background(), mustUUID(t, rev.ID), user)
+	retried, err := svc.Retry(reading(context.Background()), mustUUID(t, rev.ID), user)
 	if err != nil {
 		t.Fatal(err)
 	}

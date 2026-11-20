@@ -88,7 +88,7 @@ type handler struct {
 	metadataURL string
 	transport   http.Handler
 	slots       slots
-	types       func() []spec.DatasourceType
+	types       func(context.Context) []spec.DatasourceType
 
 	runs           RunSessions
 	runTransports  map[tools.Mode]http.Handler

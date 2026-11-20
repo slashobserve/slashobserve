@@ -27,10 +27,13 @@ const (
 	emptyPanelMessage     = "query returned no data for the dashboard's default time range and variable values"
 )
 
-func (r *Runner) CheckDatasources(d *spec.Dashboard) []spec.Issue {
-	issues, _, _ := r.checkDatasources(d)
+func (r *Runner) CheckDatasources(ctx context.Context, d *spec.Dashboard) ([]spec.Issue, error) {
+	if err := datasource.RequireAccess(ctx); err != nil {
+		return nil, err
+	}
+	issues, _, _ := r.checkDatasources(ctx, d)
 	sortIssues(issues)
-	return issues
+	return issues, nil
 }
 
 func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser) ([]spec.Issue, error) {
@@ -79,8 +82,11 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	if canceled() {
 		return nil, context.Canceled
 	}
+	if err := datasource.RequireAccess(ctx); err != nil {
+		return nil, err
+	}
 
-	issues, badVariables, badQueries := r.checkDatasources(d)
+	issues, badVariables, badQueries := r.checkDatasources(ctx, d)
 	finish := func(issues []spec.Issue) []spec.Issue {
 		if only != nil {
 			issues = slices.DeleteFunc(issues, func(i spec.Issue) bool { return !issueInPanels(i, only) })
@@ -204,7 +210,7 @@ func issueInPanels(i spec.Issue, only map[string]bool) bool {
 	return false
 }
 
-func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {
+func (r *Runner) checkDatasources(ctx context.Context, d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {
 	badVariables = make([]bool, len(d.Variables))
 	badQueries = map[string][]bool{}
 	adhoc := map[string]bool{}
@@ -214,7 +220,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		}
 	}
 	for i, v := range d.Variables {
-		found := r.checkVariableDatasource(d, i, v)
+		found := r.checkVariableDatasource(ctx, d, i, v)
 		badVariables[i] = len(found) > 0
 		issues = append(issues, found...)
 	}
@@ -229,7 +235,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 			if q.Datasource != "" {
 				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
 			}
-			found := r.checkRef(d, base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
+			found := r.checkRef(ctx, d, base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
 			bad[j] = len(found) > 0
 			if q.Datasource == "" && len(found) == 1 && found[0].Path == base {
 				if panelDatasourceReported {
@@ -244,25 +250,25 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 	return issues, badVariables, badQueries
 }
 
-func (r *Runner) checkVariableDatasource(d *spec.Dashboard, i int, v spec.Variable) []spec.Issue {
+func (r *Runner) checkVariableDatasource(ctx context.Context, d *spec.Dashboard, i int, v spec.Variable) []spec.Issue {
 	path := itemPath("variables", i)
 	switch v.Type {
 	case spec.QueryVariable:
 		if v.Datasource != "" {
-			return r.checkRef(d, path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
+			return r.checkRef(ctx, d, path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
 		}
 	case spec.AdhocVariable:
 		if _, referenced := spec.DatasourceVariableName(v.Datasource); referenced {
 			return nil
 		}
-		if _, err := r.instance(v.Datasource); err != nil {
+		if _, err := r.instance(ctx, v.Datasource); err != nil {
 			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
 		}
 	case spec.GroupByVariable:
 		if _, referenced := spec.DatasourceVariableName(v.Datasource); referenced {
 			return nil
 		}
-		inst, err := r.instance(v.Datasource)
+		inst, err := r.instance(ctx, v.Datasource)
 		switch {
 		case err != nil:
 			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
@@ -270,17 +276,17 @@ func (r *Runner) checkVariableDatasource(d *spec.Dashboard, i int, v spec.Variab
 			return []spec.Issue{issue(path+"/datasource", spec.CodeInvalidReference, "group by variable %q needs a prometheus datasource", v.Name)}
 		}
 	case spec.DatasourceVariable:
-		return r.checkDatasourceDefault(path+"/default", v)
+		return r.checkDatasourceDefault(ctx, path+"/default", v)
 	}
 	return nil
 }
 
-func (r *Runner) checkDatasourceDefault(path string, v spec.Variable) []spec.Issue {
+func (r *Runner) checkDatasourceDefault(ctx context.Context, path string, v spec.Variable) []spec.Issue {
 	uid := declaredValue(v)
 	if uid == "" {
 		return nil
 	}
-	inst, err := r.instance(uid)
+	inst, err := r.instance(ctx, uid)
 	switch {
 	case err != nil:
 		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
@@ -299,8 +305,8 @@ func regexIsStatic(regex string) bool {
 	return err == nil && !slices.ContainsFunc(refs, func(ref spec.Reference) bool { return ref.Kind == spec.VariableRef })
 }
 
-func (r *Runner) checkRef(d *spec.Dashboard, path, ref, queryAt, query string, adhoc map[string]bool) []spec.Issue {
-	typ, err := r.datasourceType(d, ref)
+func (r *Runner) checkRef(ctx context.Context, d *spec.Dashboard, path, ref, queryAt, query string, adhoc map[string]bool) []spec.Issue {
+	typ, err := r.datasourceType(ctx, d, ref)
 	if errors.Is(err, ErrUnknownDatasource) {
 		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", ref)}
 	}

@@ -21,7 +21,7 @@ func TestDiscardingAProposalPostsTheReasonInItsDiscussion(t *testing.T) {
 	id := r.createProposal(t, r.createDashboard(t))
 	tg := target(KindProposal, id)
 
-	if _, err := r.proposals.Discard(t.Context(), testUser, id, "the panel is already there"); err != nil {
+	if _, err := r.proposals.Discard(reading(t.Context()), testUser, id, "the panel is already there"); err != nil {
 		t.Fatal(err)
 	}
 	bodies := r.closedProposalBodies(t, tg)
@@ -38,7 +38,7 @@ func TestDiscardingAProposalWithoutAReasonPostsOnlyTheDiscard(t *testing.T) {
 	r.proposals.OnClosed(r.service)
 	id := r.createProposal(t, r.createDashboard(t))
 
-	if _, err := r.proposals.Discard(t.Context(), testUser, id, ""); err != nil {
+	if _, err := r.proposals.Discard(reading(t.Context()), testUser, id, ""); err != nil {
 		t.Fatal(err)
 	}
 	if bodies := r.closedProposalBodies(t, target(KindProposal, id)); len(bodies) != 1 || bodies[0] != "Discarded." {
@@ -52,7 +52,7 @@ func TestADiscardReasonThatCannotBePostedStillPostsTheDiscard(t *testing.T) {
 	id := r.createProposal(t, r.createDashboard(t))
 
 	reason := "ask @[Nobody](user:00000000-0000-4000-8000-00000000dead)"
-	if _, err := r.proposals.Discard(t.Context(), testUser, id, reason); err != nil {
+	if _, err := r.proposals.Discard(reading(t.Context()), testUser, id, reason); err != nil {
 		t.Fatal(err)
 	}
 	if bodies := r.closedProposalBodies(t, target(KindProposal, id)); len(bodies) != 1 || bodies[0] != "Discarded." {
@@ -65,7 +65,7 @@ func TestMergingAProposalPostsTheVersionItSavedInItsDiscussion(t *testing.T) {
 	r.proposals.OnClosed(r.service)
 	id := r.createProposal(t, r.createDashboard(t))
 
-	if _, err := r.proposals.Merge(t.Context(), testUser, id, 1, nil); err != nil {
+	if _, err := r.proposals.Merge(reading(t.Context()), testUser, id, 1, nil); err != nil {
 		t.Fatal(err)
 	}
 	bodies := r.closedProposalBodies(t, target(KindProposal, id))
@@ -78,7 +78,7 @@ func TestAProposalClosesWithoutADiscussionPostWhenNothingListens(t *testing.T) {
 	r := newRig(t)
 	id := r.createProposal(t, r.createDashboard(t))
 
-	if _, err := r.proposals.Discard(t.Context(), testUser, id, "no"); err != nil {
+	if _, err := r.proposals.Discard(reading(t.Context()), testUser, id, "no"); err != nil {
 		t.Fatal(err)
 	}
 	if bodies := r.closedProposalBodies(t, target(KindProposal, id)); len(bodies) != 0 {

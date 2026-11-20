@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -20,7 +21,7 @@ func (r observationRig) routerAs(who auth.Principal) *gin.Engine {
 		ObservationVisible: r.observations.Visible,
 	}
 	revisions.NewObserveHandler(r.svc, opts).Register(auth.NewRoutes(router.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})))
 	return router
 }

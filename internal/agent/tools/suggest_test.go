@@ -42,7 +42,7 @@ type suggestRig struct {
 
 func newSuggestRig(t *testing.T) *suggestRig {
 	t.Helper()
-	rig := &suggestRig{ctx: auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor})}
+	rig := &suggestRig{ctx: auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor})}
 	frames := func(text string) ([]datasource.Frame, error) {
 		rig.mu.Lock()
 		rig.queries = append(rig.queries, text)
