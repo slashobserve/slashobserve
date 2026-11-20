@@ -74,7 +74,8 @@ The step follows the range and the width of the chart, so a longer range draws c
 It stays disabled until a query has run.
 Everyone who can view the folder can open it.
 **Saved searches** in the top bar lists the saved metrics searches, and `/explore/metrics` lists them under the sources with their folder and who saved them.
-Opening one runs it on its datasource over the saved range, and the [search](search.md) that covers saved searches finds it too.
+Opening one runs it on its datasource over the saved range, shows its title and folder above the query, and the [search](search.md) that covers saved searches finds it too.
+When you change the query, the range or the graph or table choice, someone with Edit on the search gets **Update saved search**, which saves the change into it; **Save search** still saves a new search.
 Only a Prometheus datasource holds a metrics search.
 On a phone the same actions sit in the **More actions** menu.
 

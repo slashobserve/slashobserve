@@ -38,7 +38,7 @@ var (
 	ErrNotFound        = errors.New("saved search not found")
 	ErrFolderNotFound  = errors.New("folder not found")
 	ErrInvalidCursor   = errors.New("invalid cursor")
-	ErrNothingToUpdate = errors.New("give a title or a folder_id to change")
+	ErrNothingToUpdate = errors.New("give a title, folder_id, query, filters, from or to to change")
 )
 
 type InvalidInputError struct {
@@ -91,6 +91,13 @@ type CreateInput struct {
 type UpdateInput struct {
 	Title    *string
 	FolderID pgtype.UUID
+	Query    *string
+	Filters  []byte
+	From, To *string
+}
+
+func (in UpdateInput) changesContent() bool {
+	return in.Query != nil || len(in.Filters) > 0 || in.From != nil || in.To != nil
 }
 
 type ListFilter struct {

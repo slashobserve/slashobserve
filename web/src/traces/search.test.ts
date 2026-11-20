@@ -31,6 +31,12 @@ describe("validateTraceEntrySearch", () => {
 })
 
 describe("validateTraceSearch", () => {
+  it("keeps a saved search id and drops anything else", () => {
+    const id = "5f0c1e0e-0000-4000-8000-000000000001"
+    expect(validateTraceSearch({ saved: id }).saved).toBe(id)
+    expect(validateTraceSearch({ saved: "not-an-id" }).saved).toBeUndefined()
+  })
+
   it("keeps a valid search", () => {
     const search = {
       service: "checkout",

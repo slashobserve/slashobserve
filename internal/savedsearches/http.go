@@ -87,8 +87,12 @@ type createRequest struct {
 }
 
 type updateRequest struct {
-	Title    *string `json:"title"`
-	FolderID *string `json:"folder_id"`
+	Title    *string         `json:"title"`
+	FolderID *string         `json:"folder_id"`
+	Query    *string         `json:"query"`
+	Filters  json.RawMessage `json:"filters"`
+	From     *string         `json:"from"`
+	To       *string         `json:"to"`
 }
 
 type SaveGuard interface {
@@ -224,7 +228,9 @@ func (h *Handler) update(c *gin.Context) {
 	if !ok {
 		return
 	}
-	saved, err := h.service.Update(c.Request.Context(), httpapi.Caller(c), id, UpdateInput{Title: req.Title, FolderID: folderID})
+	saved, err := h.service.Update(c.Request.Context(), httpapi.Caller(c), id, UpdateInput{
+		Title: req.Title, FolderID: folderID, Query: req.Query, Filters: req.Filters, From: req.From, To: req.To,
+	})
 	if err != nil {
 		h.fail(c, "update saved search", err)
 		return

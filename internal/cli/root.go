@@ -31,37 +31,38 @@ type app struct {
 	quiet   bool
 	open    bool
 
-	prompt          promptOptions
-	status          statusOptions
-	continuing      continueOptions
-	retrying        retryOptions
-	list            pageOptions
-	listOrder       string
-	versions        pageOptions
-	show            showOptions
-	remove          deleteOptions
-	commentList     commentListOptions
-	commentAdd      commentAddOptions
-	commentReply    commentReplyOptions
-	commentResolve  commentResolveOptions
-	importing       importOptions
-	run             runOptions
-	withToken       bool
-	annotating      annotateOptions
-	logs            logsOptions
-	metricsQuery    metricsQueryOptions
-	traces          tracesOptions
-	grafanaConnect  grafanaConnectOptions
-	grafanaImport   grafanaImportOptions
-	health          healthOptions
-	investigating   investigateOptions
-	activity        activityOptions
-	webhooks        webhooksOptions
-	people          peopleOptions
-	savedSearchList savedSearchListOptions
-	savedSearchSave savedSearchSaveOptions
-	savedSearchMove savedSearchMoveOptions
-	searching       searchOptions
+	prompt            promptOptions
+	status            statusOptions
+	continuing        continueOptions
+	retrying          retryOptions
+	list              pageOptions
+	listOrder         string
+	versions          pageOptions
+	show              showOptions
+	remove            deleteOptions
+	commentList       commentListOptions
+	commentAdd        commentAddOptions
+	commentReply      commentReplyOptions
+	commentResolve    commentResolveOptions
+	importing         importOptions
+	run               runOptions
+	withToken         bool
+	annotating        annotateOptions
+	logs              logsOptions
+	metricsQuery      metricsQueryOptions
+	traces            tracesOptions
+	grafanaConnect    grafanaConnectOptions
+	grafanaImport     grafanaImportOptions
+	health            healthOptions
+	investigating     investigateOptions
+	activity          activityOptions
+	webhooks          webhooksOptions
+	people            peopleOptions
+	savedSearchList   savedSearchListOptions
+	savedSearchSave   savedSearchSaveOptions
+	savedSearchUpdate savedSearchUpdateOptions
+	savedSearchMove   savedSearchMoveOptions
+	searching         searchOptions
 }
 
 type usageError struct{ message string }

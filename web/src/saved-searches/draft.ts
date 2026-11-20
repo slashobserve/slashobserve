@@ -24,14 +24,24 @@ export function matchesSaved(
   draft: SearchDraft,
   saved: Pick<SavedSearch, "query" | "filters" | "from" | "to">
 ): boolean {
-  const columns = (columnsOf: { columns?: string[] } | null | undefined) =>
-    (columnsOf?.columns ?? []).join(",")
   return (
     (draft.query ?? null) === saved.query &&
     draft.from === saved.from &&
     draft.to === saved.to &&
-    columns(draft.filters) === columns(saved.filters)
+    filterKey(draft.filters) === filterKey(saved.filters)
   )
+}
+
+function filterKey(filters: SearchDraft["filters"] | SavedSearch["filters"]) {
+  return JSON.stringify([
+    (filters?.columns ?? []).join(","),
+    filters?.service ?? "",
+    filters?.span ?? "",
+    filters?.min ?? "",
+    filters?.max ?? "",
+    filters?.errors === true,
+    filters?.mode === "table",
+  ])
 }
 
 export function saveTargets(folders: readonly Folder[]): {

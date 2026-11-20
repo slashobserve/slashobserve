@@ -7,6 +7,7 @@ var destructiveTools = map[string]bool{
 	nameUpdateAnnotation:        true,
 	nameUpdateBlock:             true,
 	nameUpdateObservation:       true,
+	nameUpdateSavedSearch:       true,
 	nameEditComment:             true,
 	nameRenameFolder:            true,
 	nameDiscardBlock:            true,

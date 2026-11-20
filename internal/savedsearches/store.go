@@ -21,8 +21,9 @@ type store struct {
 }
 
 type eventData struct {
-	Title string `json:"title"`
-	Kind  Kind   `json:"kind"`
+	Title   string   `json:"title"`
+	Kind    Kind     `json:"kind"`
+	Changed []string `json:"changed,omitempty"`
 }
 
 type movedEventData struct {
@@ -113,8 +114,20 @@ func (s *store) list(ctx context.Context, visible []pgtype.UUID, filter ListFilt
 }
 
 type change struct {
-	title  *string
-	moveTo pgtype.UUID
+	title   *string
+	moveTo  pgtype.UUID
+	content *contentChange
+}
+
+func (c change) fields() []string {
+	var fields []string
+	if c.title != nil {
+		fields = append(fields, "title")
+	}
+	if c.content != nil {
+		fields = append(fields, c.content.parts...)
+	}
+	return fields
 }
 
 func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pgtype.UUID, c change) (dbsqlc.SavedSearch, error) {
@@ -127,30 +140,8 @@ func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pg
 		if before.FolderID != checkedFolder {
 			return errFolderMoved
 		}
-		row = before
-		if c.title != nil {
-			if row, err = q.RenameSavedSearch(ctx, dbsqlc.RenameSavedSearchParams{ID: id, Title: *c.title}); err != nil {
-				return err
-			}
-		}
-		if c.moveTo.Valid {
-			if row, err = q.MoveSavedSearch(ctx, dbsqlc.MoveSavedSearchParams{ID: id, FolderID: c.moveTo}); err != nil {
-				return err
-			}
-			if err := activity.Move(ctx, q, activity.OnSavedSearch(id), c.moveTo); err != nil {
-				return err
-			}
-		}
-		if c.title != nil {
-			if err := appendEvent(ctx, q, activity.TypeSavedSearchUpdated, by, row, eventData{Title: row.Title, Kind: Kind(row.Kind)}); err != nil {
-				return err
-			}
-		}
-		if c.moveTo.Valid {
-			data := movedEventData{eventData: eventData{Title: row.Title, Kind: Kind(row.Kind)}, FromFolderID: before.FolderID.String(), ToFolderID: c.moveTo.String()}
-			return appendEvent(ctx, q, activity.TypeSavedSearchMoved, by, row, data)
-		}
-		return nil
+		row, err = applyChange(ctx, q, by, before, c)
+		return err
 	})
 	switch {
 	case errors.Is(err, errFolderMoved):
@@ -163,6 +154,44 @@ func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pg
 		return dbsqlc.SavedSearch{}, fmt.Errorf("update saved search: %w", err)
 	}
 	return row, nil
+}
+
+func applyChange(ctx context.Context, q *dbsqlc.Queries, by actor.Actor, before dbsqlc.SavedSearch, c change) (dbsqlc.SavedSearch, error) {
+	row, err := writeChange(ctx, q, before, c)
+	if err != nil {
+		return row, err
+	}
+	if fields := c.fields(); len(fields) > 0 {
+		if err := appendEvent(ctx, q, activity.TypeSavedSearchUpdated, by, row, eventData{Title: row.Title, Kind: Kind(row.Kind), Changed: fields}); err != nil {
+			return row, err
+		}
+	}
+	if c.moveTo.Valid {
+		data := movedEventData{eventData: eventData{Title: row.Title, Kind: Kind(row.Kind)}, FromFolderID: before.FolderID.String(), ToFolderID: c.moveTo.String()}
+		return row, appendEvent(ctx, q, activity.TypeSavedSearchMoved, by, row, data)
+	}
+	return row, nil
+}
+
+func writeChange(ctx context.Context, q *dbsqlc.Queries, before dbsqlc.SavedSearch, c change) (dbsqlc.SavedSearch, error) {
+	row, err := before, error(nil)
+	if c.content != nil {
+		if row, err = q.ChangeSavedSearchContent(ctx, c.content.params(before.ID)); err != nil {
+			return row, err
+		}
+	}
+	if c.title != nil {
+		if row, err = q.RenameSavedSearch(ctx, dbsqlc.RenameSavedSearchParams{ID: before.ID, Title: *c.title}); err != nil {
+			return row, err
+		}
+	}
+	if c.moveTo.Valid {
+		if row, err = q.MoveSavedSearch(ctx, dbsqlc.MoveSavedSearchParams{ID: before.ID, FolderID: c.moveTo}); err != nil {
+			return row, err
+		}
+		err = activity.Move(ctx, q, activity.OnSavedSearch(before.ID), c.moveTo)
+	}
+	return row, err
 }
 
 func (s *store) delete(ctx context.Context, by actor.Actor, id pgtype.UUID, authorize func(folderID pgtype.UUID) error) error {
