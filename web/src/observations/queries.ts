@@ -508,12 +508,13 @@ export function useObservationLive(
     enabled: visible,
     onEvent: (event) => {
       const touched = touchesObservation(event, observation)
-      if (touched === "observation") {
+      if (touched === "observation" || touched === "both") {
         void queryClient.invalidateQueries({
           queryKey: observationKeys.one(observation.id),
           exact: true,
         })
-      } else if (touched === "discussion") {
+      }
+      if (touched === "discussion" || touched === "both") {
         void queryClient.invalidateQueries({ queryKey: discussion })
       }
     },

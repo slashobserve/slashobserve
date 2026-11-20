@@ -83,6 +83,7 @@ function LoadedObservation({
     opensByDefault(window.innerWidth)
   )
   const [moving, setMoving] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -168,6 +169,8 @@ function LoadedObservation({
             observation={observation}
             blocks={blocks}
             canEdit={permissions.edit}
+            picking={picking}
+            onPickingChange={setPicking}
             onAdded={added}
           />
         ) : null}
@@ -178,7 +181,7 @@ function LoadedObservation({
           folderTitle={envelope.folder.title}
           canAdd={canAdd}
           canEdit={permissions.edit}
-          hidden={rca.open || moving}
+          hidden={rca.open || moving || picking}
           headingRef={headingRef}
           onClose={onClosePane}
           onShowBlock={onShowBlock}
