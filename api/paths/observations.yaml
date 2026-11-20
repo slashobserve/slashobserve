@@ -1,6 +1,7 @@
 observations:
   post:
     operationId: createObservation
+    x-audit: { action: observation.create, target: { kind: observation } }
     x-surfaces:
       mcp: [create_observation]
       cli: [observe o new]
@@ -48,6 +49,7 @@ observations:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listObservations
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_observations]
       cli: [observe o list]
@@ -135,6 +137,7 @@ observations-id:
         format: uuid
   get:
     operationId: getObservation
+    x-audit: { action: observation.view, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [get_observation]
       cli: [observe o show]
@@ -161,6 +164,7 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: updateObservation
+    x-audit: { action: observation.update, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [update_observation]
       cli: [observe o edit]
@@ -197,6 +201,7 @@ observations-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteObservation
+    x-audit: { action: observation.delete, target: { kind: observation, id: path.id } }
     x-surfaces:
       cli: [observe o delete]
     summary: Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
@@ -231,6 +236,7 @@ observations-id-move:
         format: uuid
   post:
     operationId: moveObservation
+    x-audit: { action: observation.move, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [move_observation]
       cli: [observe o move]
@@ -279,6 +285,7 @@ observations-id-resolve:
         format: uuid
   post:
     operationId: resolveObservation
+    x-audit: { action: observation.resolve, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [resolve_observation]
       cli: [observe o resolve]
@@ -323,6 +330,7 @@ observations-id-reopen:
         format: uuid
   post:
     operationId: reopenObservation
+    x-audit: { action: observation.reopen, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [reopen_observation]
       cli: [observe o reopen]
@@ -357,6 +365,7 @@ observations-id-blocks:
         format: uuid
   post:
     operationId: addObservationBlock
+    x-audit: { action: observation.block_add, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [add_block]
       cli: [observe o add]
@@ -427,6 +436,7 @@ blocks-id:
         format: uuid
   patch:
     operationId: updateObservationBlock
+    x-audit: { action: observation.block_update, target: { kind: block, id: path.id } }
     x-surfaces:
       mcp: [update_block]
       cli: [observe o edit-block]
@@ -467,6 +477,7 @@ blocks-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: removeObservationBlock
+    x-audit: { action: observation.block_remove, target: { kind: block, id: path.id } }
     x-surfaces:
       cli: [observe o remove-block]
     summary: Remove a live block.
@@ -506,6 +517,7 @@ observations-id-pin:
         format: uuid
   post:
     operationId: pinObservation
+    x-audit: { action: finding.pin, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [pin_observation]
       cli: [observe o pin]
@@ -565,6 +577,7 @@ observations-id-dashboard:
         format: uuid
   post:
     operationId: makeDashboardFromObservation
+    x-audit: { action: dashboard.create, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [make_dashboard]
       cli: [observe o dashboard]
@@ -626,6 +639,7 @@ blocks-id-dashboard:
         format: uuid
   post:
     operationId: makeDashboardFromBlock
+    x-audit: { action: dashboard.create, target: { kind: block, id: path.id } }
     x-surfaces:
       mcp: [make_dashboard]
       cli: [observe o dashboard]
@@ -679,6 +693,7 @@ blocks-id-keep:
         format: uuid
   post:
     operationId: keepObservationBlock
+    x-audit: { action: observation.block_keep, target: { kind: block, id: path.id } }
     x-surfaces:
       mcp: [keep_block]
       cli: [observe o keep]
@@ -721,6 +736,7 @@ blocks-id-discard:
         format: uuid
   post:
     operationId: discardObservationBlock
+    x-audit: { action: observation.block_discard, target: { kind: block, id: path.id } }
     x-surfaces:
       mcp: [discard_block]
       cli: [observe o discard]
@@ -753,6 +769,7 @@ blocks-id-data:
         format: uuid
   get:
     operationId: observationBlockData
+    x-audit: { none: "evidence data stored with a block; the observation view is recorded" }
     summary: Run the query of a panel block and return its frames.
     description: >-
       Runs a panel block's stored queries under the draft query limits, never cached.
@@ -848,6 +865,7 @@ snapshots-id:
         format: uuid
   get:
     operationId: getSnapshot
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     summary: Read the frozen data of a snapshot block.
     description: >-
       Anyone who can view the observation's folder may read it.

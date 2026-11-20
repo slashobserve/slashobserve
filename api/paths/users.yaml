@@ -1,6 +1,7 @@
 users:
   get:
     operationId: listUsers
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe people list]
     summary: List everyone who has signed in, newest first.
@@ -52,6 +53,7 @@ users-id:
         format: uuid
   patch:
     operationId: updatePersonRole
+    x-audit: { action: user.role_change, target: { kind: user, id: path.id } }
     summary: Set or clear the role an Admin chose for a person.
     description: A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
     requestBody:
@@ -83,6 +85,7 @@ users-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: removePerson
+    x-audit: { action: user.remove, target: { kind: user, id: path.id } }
     summary: Remove a deactivated person and their My Dashboards.
     description: >-
       Admin only, from a person's session; service-account keys cannot.
@@ -115,6 +118,7 @@ users-id-sessions:
         format: uuid
   delete:
     operationId: signOutUserEverywhere
+    x-audit: { action: user.sign_out_everywhere, target: { kind: user, id: path.id } }
     summary: Delete every session of a person and disconnect their MCP clients.
     description: Admin only. Deletes every session of the person and disconnects every MCP client they connected; the person can sign in and connect again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
     responses:
@@ -140,6 +144,7 @@ users-id-deactivate:
         format: uuid
   post:
     operationId: deactivatePerson
+    x-audit: { action: user.deactivate, target: { kind: user, id: path.id } }
     summary: Stop a person from signing in or acting, and keep what they made.
     description: >-
       Admin only, from a person's session; service-account keys cannot.
@@ -177,6 +182,7 @@ users-id-reactivate:
         format: uuid
   post:
     operationId: reactivatePerson
+    x-audit: { action: user.reactivate, target: { kind: user, id: path.id } }
     summary: Let a deactivated person sign in again.
     description: >-
       Admin only, from a person's session; service-account keys cannot.

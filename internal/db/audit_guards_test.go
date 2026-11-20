@@ -1,0 +1,66 @@
+package db_test
+
+import (
+	"context"
+	"testing"
+)
+
+func TestTruncatingTheAuditTrailOrAPartitionIsRefused(t *testing.T) {
+	d := newMigratedTo(t, auditEventsVersion)
+	sqlDB := d.SQLDB(t)
+	var today string
+	if err := sqlDB.QueryRowContext(t.Context(), `SELECT 'audit_events_' || to_char(now() AT TIME ZONE 'UTC', 'YYYYMMDD')`).Scan(&today); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"audit_events", today} {
+		if _, err := sqlDB.ExecContext(t.Context(), "TRUNCATE "+table); err == nil {
+			t.Errorf("TRUNCATE %s succeeded, want it refused", table)
+		}
+	}
+	var added bool
+	if err := sqlDB.QueryRowContext(t.Context(), `SELECT audit_events_add_partition('2099-12-29')`).Scan(&added); err != nil || !added {
+		t.Fatalf("add a partition: %v %v", added, err)
+	}
+	if _, err := sqlDB.ExecContext(t.Context(), "TRUNCATE audit_events_20991229"); err == nil {
+		t.Error("TRUNCATE of a partition the job added succeeded, want it refused")
+	}
+}
+
+func TestAddingAPartitionRefusesATableItDidNotCreate(t *testing.T) {
+	d := newMigratedTo(t, auditEventsVersion)
+	sqlDB := d.SQLDB(t)
+	d.Exec(t, `CREATE TABLE audit_events_20991231 (LIKE audit_events INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING GENERATED)`)
+	d.Exec(t, `INSERT INTO audit_events_20991231 (id, occurred_at, category, action, outcome, actor_kind, initiator, origin, server_id, server_version)
+VALUES (gen_random_uuid(), '2099-12-31 12:00:00+00', 'system', 'audit.gap', 'success', 'system', 'system', 'job', 'forged', 'forged')`)
+	if _, err := sqlDB.ExecContext(t.Context(), `SELECT audit_events_add_partition('2099-12-31')`); err == nil {
+		t.Fatal("a table someone else created was attached as a partition")
+	}
+	var forged int
+	if err := sqlDB.QueryRowContext(t.Context(), `SELECT count(*) FROM audit_events WHERE server_id = 'forged'`).Scan(&forged); err != nil {
+		t.Fatal(err)
+	}
+	if forged != 0 {
+		t.Fatal("the forged rows became part of the audit trail")
+	}
+}
+
+func TestTheDownMigrationDropsDetachedPartitions(t *testing.T) {
+	ctx := context.Background()
+	d := newMigratedTo(t, auditEventsVersion)
+	d.Exec(t, `SELECT audit_events_add_partition('2099-12-30')`)
+	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_20991230`)
+	d.Exec(t, `SELECT audit_events_attach('audit_events_209811', '2098-11-01', '2098-12-01')`)
+	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_209811`)
+	d.Exec(t, `SELECT audit_events_attach('audit_events_2097', '2097-01-01', '2098-01-01')`)
+	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_2097`)
+	if err := d.MigrateDownTo(ctx, auditEventsVersion-1); err != nil {
+		t.Fatalf("down: %v", err)
+	}
+	var left int
+	if err := d.SQLDB(t).QueryRowContext(ctx, `SELECT count(*) FROM pg_catalog.pg_class WHERE relname LIKE 'audit\_events\_%'`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Fatalf("%d audit_events_* tables left after the down migration", left)
+	}
+}

@@ -8,6 +8,7 @@ oauth-requests-id:
         format: uuid
   get:
     operationId: getConnectionRequest
+    x-audit: { none: "reads a pending consent request; the decision is recorded" }
     summary: Read a pending request from an MCP client to act as the signed-in person.
     description: >-
       The consent page reads this to show what the person approves.
@@ -82,6 +83,7 @@ oauth-requests-id-approve:
         format: uuid
   post:
     operationId: approveConnectionRequest
+    x-audit: { action: mcp_client.connect, target: { kind: connection_request, id: path.id } }
     summary: Approve an MCP client so it acts as the signed-in person.
     description: >-
       Answers once and consumes the request.
@@ -124,6 +126,7 @@ oauth-requests-id-deny:
         format: uuid
   post:
     operationId: denyConnectionRequest
+    x-audit: { action: mcp_client.deny, target: { kind: connection_request, id: path.id } }
     summary: Deny an MCP client's request to act as the signed-in person.
     description: >-
       Answers once and consumes the request.

@@ -8,6 +8,7 @@ dashboards-id-proposals:
         format: uuid
   get:
     operationId: listProposals
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_proposals]
       cli: [observe proposals list]
@@ -67,6 +68,7 @@ proposals-id:
         format: uuid
   get:
     operationId: getProposal
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       mcp: [get_proposal]
       cli: [observe proposals show]
@@ -100,6 +102,7 @@ proposals-id-merge:
         format: uuid
   post:
     operationId: mergeProposal
+    x-audit: { action: proposal.merge, target: { kind: proposal, id: path.id } }
     x-surfaces:
       mcp: [merge_proposal]
       cli: [observe proposals merge]
@@ -153,6 +156,7 @@ proposals-id-discard:
         format: uuid
   post:
     operationId: discardProposal
+    x-audit: { action: proposal.discard, target: { kind: proposal, id: path.id } }
     x-surfaces:
       mcp: [discard_proposal]
       cli: [observe proposals discard]

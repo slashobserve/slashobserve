@@ -8,6 +8,7 @@ dashboards-id-suggestions:
         format: uuid
   post:
     operationId: createPanelSuggestion
+    x-audit: { action: run.queue, target: { kind: dashboard, id: path.id } }
     summary: Ask the agent to propose a change to one panel without saving anything.
     description: >-
       The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change.
@@ -109,6 +110,7 @@ dashboards-id-suggestions-suggestionid:
         format: uuid
   get:
     operationId: getPanelSuggestion
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     summary: Read one panel suggestion.
     description: >-
       Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404.

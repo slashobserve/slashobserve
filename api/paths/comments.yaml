@@ -8,6 +8,7 @@ dashboards-id-comments:
         format: uuid
   post:
     operationId: createDashboardComment
+    x-audit: { action: thread.open, target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [create_comment, reply_to_comment]
       cli: [observe comments reply]
@@ -104,6 +105,7 @@ dashboards-id-comments:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listDashboardComments
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_comments]
       cli: [observe comments list]
@@ -176,6 +178,7 @@ dashboards-id-comments-commentid:
         format: uuid
   patch:
     operationId: setDashboardCommentStatus
+    x-audit: { action: thread.resolve, target: { kind: thread, id: path.comment_id } }
     x-surfaces:
       mcp: [resolve_comment, reopen_comment]
       cli: [observe comments resolve]

@@ -14,6 +14,7 @@ datasources-uid-traces-trace-id:
         pattern: "^[0-9a-fA-F]{16}$|^[0-9a-fA-F]{32}$"
   get:
     operationId: getTrace
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [get_trace]
       cli: [observe traces]
@@ -106,6 +107,7 @@ datasources-uid-trace-stats:
         type: string
   post:
     operationId: traceStats
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [trace_stats]
       cli: [observe datasources trace-stats]

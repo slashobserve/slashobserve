@@ -1,6 +1,7 @@
 agent:
   get:
     operationId: getAgent
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe doctor]
     summary: Tell whether an agent is configured and which provider and model it uses.
@@ -21,6 +22,7 @@ agent:
 observe:
   get:
     operationId: listObserveRequests
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_runs]
       cli: [observe requests list]
@@ -129,6 +131,7 @@ observe:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createObserveRequest
+    x-audit: { action: run.queue, target: { kind: run } }
     x-surfaces:
       mcp: [start_run]
       cli: [observe, observe investigate, observe run]
@@ -246,6 +249,7 @@ observe-id:
         format: uuid
   get:
     operationId: getObserveRequest
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe status]
       mcp: [get_run]
@@ -277,6 +281,7 @@ observe-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: updateObserveRequest
+    x-audit: { action: run.update, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [pin_run, unpin_run, rename_run]
       cli: [observe requests pin, observe requests unpin, observe requests rename]
@@ -321,6 +326,7 @@ observe-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: archiveObserveRequest
+    x-audit: { action: run.archive, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [archive_run]
       cli: [observe requests archive]
@@ -351,6 +357,7 @@ observe-id-build:
         format: uuid
   get:
     operationId: getObserveRequestBuild
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       mcp: [get_run_build]
       cli: [observe]
@@ -390,6 +397,7 @@ observe-id-build-save:
         format: uuid
   post:
     operationId: saveObserveRequestBuild
+    x-audit: { action: run.keep, target: { kind: run, id: path.id } }
     summary: Save the build of a failed agent request as one version.
     description: >-
       Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404.
@@ -441,6 +449,7 @@ observe-id-observation:
         format: uuid
   post:
     operationId: saveObserveRequestAnswer
+    x-audit: { action: finding.save_as_observation, target: { kind: run, id: path.id } }
     x-surfaces:
       cli: [observe save-answer]
       mcp: [save_run_answer]
@@ -491,6 +500,7 @@ observe-id-cancel:
         format: uuid
   post:
     operationId: cancelObserveRequest
+    x-audit: { action: run.cancel, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [cancel_run]
       cli: [observe cancel]
@@ -537,6 +547,7 @@ observe-id-continue:
         format: uuid
   post:
     operationId: continueObserveRequest
+    x-audit: { action: run.continue, target: { kind: run, id: path.id } }
     x-surfaces:
       cli: [observe continue]
     summary: Continue a stopped agent request in a new request that takes over its build.
@@ -613,6 +624,7 @@ observe-id-retry:
         format: uuid
   post:
     operationId: retryObserveRequest
+    x-audit: { action: run.retry, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [retry_run]
       cli: [observe retry]
@@ -691,6 +703,7 @@ observe-id-build-panels-panel-id-data:
         type: string
   get:
     operationId: getBuildPanelData
+    x-audit: { none: "panel data of a build the agent saved; the run is recorded" }
     summary: Run the queries of one panel of an agent request's build and return their frames.
     description: >-
       The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions.
@@ -793,6 +806,7 @@ observe-id-build-variables-name-values:
         type: string
   get:
     operationId: getBuildVariableValues
+    x-audit: { none: "variable values of a build the agent saved; the run is recorded" }
     summary: List the values of one variable of an agent request's build.
     description: >-
       Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request and signed-in Admins only, 403 `user_session_required` for a key, 404 for anyone else.

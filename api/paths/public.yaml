@@ -8,6 +8,7 @@ dashboards-id-public-links:
         format: uuid
   get:
     operationId: listPublicLinks
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the public links of a dashboard.
     description: >-
       Lists at most 100 links, newest first.
@@ -46,6 +47,7 @@ dashboards-id-public-links:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createPublicLink
+    x-audit: { action: public_link.create, target: { kind: dashboard, id: path.id } }
     summary: Create a public link that opens the dashboard read-only without sign-in.
     description: >-
       Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too.
@@ -122,6 +124,7 @@ dashboards-id-public-links-link-id:
         format: uuid
   delete:
     operationId: deletePublicLink
+    x-audit: { action: public_link.revoke, target: { kind: public_link, id: path.link_id } }
     summary: Revoke a public link.
     description: >-
       Deletes the link, so its URL stops working at once.
@@ -159,6 +162,7 @@ public-token:
         type: string
   get:
     operationId: getPublicDashboard
+    x-audit: { action: public_link.view, target: { kind: public_link } }
     summary: Read the dashboard a public link shows.
     security: []
     description: >-
@@ -193,6 +197,7 @@ public-token-panels-panel-id-data:
         type: string
   get:
     operationId: getPublicPanelData
+    x-audit: { none: "saved panel data; the view is recorded by GET /public/{ token }" }
     summary: Run the saved queries of one panel of a public link's dashboard.
     security: []
     description: >-
@@ -295,6 +300,7 @@ public-token-variables-name-values:
         type: string
   get:
     operationId: getPublicVariableValues
+    x-audit: { none: "saved variable values; the view is recorded by GET /public/{ token }" }
     summary: List the values of one variable of a public link's dashboard.
     security: []
     description: >-

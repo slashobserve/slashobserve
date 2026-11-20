@@ -1,6 +1,7 @@
 threads:
   get:
     operationId: listThreads
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_comments]
       cli: [observe comments list]
@@ -65,6 +66,7 @@ threads:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: openThread
+    x-audit: { action: thread.open, target: { kind: thread } }
     x-surfaces:
       mcp: [create_comment]
       cli: [observe comments add]
@@ -177,6 +179,7 @@ threads-threadid-messages:
         format: uuid
   post:
     operationId: replyToThread
+    x-audit: { action: thread.message, target: { kind: thread, id: path.thread_id } }
     x-surfaces:
       mcp: [reply_to_comment]
       cli: [observe comments reply]
@@ -247,6 +250,7 @@ threads-threadid-resolve:
         format: uuid
   post:
     operationId: resolveThread
+    x-audit: { action: thread.resolve, target: { kind: thread, id: path.thread_id } }
     x-surfaces:
       mcp: [resolve_comment]
       cli: [observe comments resolve]
@@ -302,6 +306,7 @@ threads-threadid-reopen:
         format: uuid
   post:
     operationId: reopenThread
+    x-audit: { action: thread.reopen, target: { kind: thread, id: path.thread_id } }
     x-surfaces:
       mcp: [reopen_comment]
       cli: [observe comments reopen]
@@ -340,6 +345,7 @@ threads-threadid-read:
         format: uuid
   post:
     operationId: markThreadRead
+    x-audit: { none: "read position of the caller's own inbox" }
     summary: Mark a thread read for the caller.
     description: >-
       Clears the thread's `unread` for the caller until someone else writes in it again.
@@ -362,6 +368,7 @@ threads-threadid-read:
 threads-mentionable:
   get:
     operationId: listMentionablePeople
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_mentionable_people]
       cli: [observe comments people]
@@ -424,6 +431,7 @@ messages-messageid:
         format: uuid
   patch:
     operationId: editMessage
+    x-audit: { action: thread.message_edit, target: { kind: message, id: path.message_id } }
     x-surfaces:
       mcp: [edit_comment]
       cli: [observe comments edit]
@@ -473,6 +481,7 @@ messages-messageid:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteMessage
+    x-audit: { action: thread.message_delete, target: { kind: message, id: path.message_id } }
     x-surfaces:
       cli: [observe comments delete]
     summary: Delete a message from a thread.

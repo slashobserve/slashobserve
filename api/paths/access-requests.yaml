@@ -1,6 +1,7 @@
 access-requests:
   post:
     operationId: createAccessRequest
+    x-audit: { action: access_request.open, target: { kind: access_request } }
     x-surfaces:
       mcp: [request_comment_access]
       cli: [observe access request]
@@ -68,6 +69,7 @@ access-requests:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listAccessRequests
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_access_requests]
       cli: [observe access requests]

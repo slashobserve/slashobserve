@@ -55,6 +55,9 @@ func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event)
 	if err != nil {
 		return 0, fmt.Errorf("insert activity: %w", err)
 	}
+	if err := recordAudit(ctx, q, seq, e, columns, data); err != nil {
+		return 0, err
+	}
 	if err := events.Notify(ctx, q, seq, live); err != nil {
 		return 0, err
 	}

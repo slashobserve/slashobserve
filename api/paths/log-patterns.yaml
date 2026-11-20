@@ -7,6 +7,7 @@ datasources-uid-log-patterns:
         type: string
   post:
     operationId: logPatterns
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [log_patterns]
       cli: [observe logs]

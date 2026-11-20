@@ -329,6 +329,45 @@ func TestActivityRetentionSetting(t *testing.T) {
 	}
 }
 
+func TestAuditRetentionSetting(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     string
+		want    time.Duration
+		wantErr string
+	}{
+		{name: "default is one year", want: 8760 * time.Hour},
+		{name: "a set value", set: "2160h", want: 2160 * time.Hour},
+		{name: "at the minimum", set: "24h", want: 24 * time.Hour},
+		{name: "at the maximum", set: "87600h", want: 87600 * time.Hour},
+		{name: "below the minimum", set: "23h", wantErr: envAuditRetention + ": must be between 24h0m0s and 87600h0m0s"},
+		{name: "above the maximum", set: "87601h", wantErr: envAuditRetention + ": must be between 24h0m0s and 87600h0m0s"},
+		{name: "zero", set: "0", wantErr: envAuditRetention + ": must be between"},
+		{name: "garbage", set: "a year", wantErr: envAuditRetention + ": "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			if tt.set != "" {
+				extra[envAuditRetention] = tt.set
+			}
+			cfg, err := Load(envOf(llmEnv(extra)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.AuditRetention != tt.want {
+				t.Fatalf("AuditRetention = %s, want %s", cfg.AuditRetention, tt.want)
+			}
+		})
+	}
+}
+
 func TestDatabaseDirectURLSetting(t *testing.T) {
 	const direct = "postgres://postgres.internal:5432/app"
 	tests := []struct {

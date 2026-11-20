@@ -1,6 +1,7 @@
 auth-login:
   get:
     operationId: authLogin
+    x-audit: { none: "starts a sign-in; the outcome is recorded by the callback" }
     summary: Start the OIDC sign-in and redirect to the identity provider.
     security: []
     parameters:
@@ -21,6 +22,7 @@ auth-login:
 auth-callback:
   get:
     operationId: authCallback
+    x-audit: { action: auth.login, target: { kind: session } }
     summary: Complete the OIDC sign-in and redirect to the local return path.
     security: []
     parameters:
@@ -55,6 +57,7 @@ auth-callback:
 auth-logout:
   post:
     operationId: authLogout
+    x-audit: { action: auth.logout, target: { kind: session } }
     summary: End the current session and clear its cookie.
     security: []
     responses:
@@ -67,6 +70,7 @@ auth-logout:
 auth-session:
   get:
     operationId: authSession
+    x-audit: { none: "reads the caller's own session" }
     summary: Report whether the request carries a valid session.
     security: []
     responses:
@@ -81,6 +85,7 @@ auth-session:
 me:
   get:
     operationId: getMe
+    x-audit: { none: "reads the caller's own account" }
     x-surfaces:
       cli: [observe login, observe doctor]
     summary: Return the authenticated caller.
@@ -98,6 +103,7 @@ me:
 instance:
   get:
     operationId: getInstance
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe doctor]
     summary: Return the server's public and MCP URLs and its sign-in settings; never a secret.

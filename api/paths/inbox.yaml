@@ -1,6 +1,7 @@
 inbox:
   get:
     operationId: listInbox
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_inbox]
     summary: List what asks something of the signed-in person, newest first.
@@ -75,6 +76,7 @@ inbox:
 inbox-read:
   post:
     operationId: markInboxRead
+    x-audit: { none: "read position of the caller's own inbox" }
     summary: Mark the inbox read up to one event.
     description: >-
       Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread.
@@ -118,6 +120,7 @@ inbox-read:
 inbox-item:
   put:
     operationId: setInboxItemState
+    x-audit: { none: "read position of the caller's own inbox" }
     x-surfaces:
       mcp: [set_inbox_item_done]
     summary: Mark one inbox item read, unread or done.

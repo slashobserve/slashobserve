@@ -8,6 +8,7 @@ dashboards-id-actions:
         format: uuid
   post:
     operationId: runAction
+    x-audit: { action: action.run, target: { kind: dashboard, id: path.id } }
     summary: Run an action that is saved in the dashboard's latest version.
     description: >-
       The server builds the request from the saved action, so the caller chooses only the variable values, the time range and the clicked value, never the method, address, headers or body template.

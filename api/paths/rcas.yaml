@@ -8,6 +8,7 @@ observations-id-rcas:
         format: uuid
   post:
     operationId: publishRca
+    x-audit: { action: observation.publish, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [publish_rca]
       cli: [observe o publish]
@@ -50,6 +51,7 @@ observations-id-rcas:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listRcas
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_rcas]
       cli: [observe o rcas]
@@ -93,6 +95,7 @@ observations-id-rcas-revision:
         minimum: 1
   get:
     operationId: getRca
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       mcp: [get_rca]
       cli: [observe o rcas]
@@ -120,6 +123,7 @@ observations-id-rcas-revision:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: withdrawRca
+    x-audit: { action: observation.rca_withdraw, target: { kind: observation, id: path.id } }
     x-surfaces:
       cli: [observe o withdraw]
     summary: Withdraw one published revision of an observation's RCA.
@@ -163,6 +167,7 @@ observations-id-rcas-revision-public-links:
         minimum: 1
   get:
     operationId: listRcaPublicLinks
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the public links of one revision of an RCA.
     description: >-
       Lists the links newest first, without their tokens.
@@ -193,6 +198,7 @@ observations-id-rcas-revision-public-links:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createRcaPublicLink
+    x-audit: { action: public_link.create, target: { kind: observation, id: path.id } }
     summary: Create a public link that shows one revision of an RCA without sign-in.
     description: >-
       Needs Manage on the observation's folder, because the link widens access beyond the folder's permission list, and an observation in My Dashboards has none (403).
@@ -259,6 +265,7 @@ observations-id-public-links-link-id:
         format: uuid
   delete:
     operationId: deleteRcaPublicLink
+    x-audit: { action: public_link.revoke, target: { kind: public_link, id: path.link_id } }
     summary: Revoke a public link of an RCA.
     description: Deletes the link, so its URL stops working at once. Needs Manage on the observation's folder, like creating it.
     responses:
@@ -284,6 +291,7 @@ public-token-rca:
         type: string
   get:
     operationId: viewPublicRca
+    x-audit: { action: public_link.view, target: { kind: public_link } }
     summary: Read the RCA revision a public link shows.
     security: []
     description: >-
@@ -317,6 +325,7 @@ public-token-rca-snapshots-snapshot-id:
         format: uuid
   get:
     operationId: viewPublicRcaSnapshot
+    x-audit: { none: "stored RCA frames; the view is recorded by GET /public/{ token }/rca" }
     summary: Read the frozen data of a snapshot of the RCA a public link shows.
     security: []
     description: >-

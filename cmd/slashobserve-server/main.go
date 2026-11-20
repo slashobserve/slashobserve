@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -94,6 +96,7 @@ const (
 	readTimeout       = 60 * time.Second
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 15 * time.Second
+	requestsCutAfter  = shutdownTimeout - 5*time.Second
 )
 
 func versionLine() string { return version + " (" + commit + ")" }
@@ -312,6 +315,16 @@ func run() error {
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
 	serverID := instanceID()
+	recorder := audit.New(audit.Config{
+		DB: database, Server: serverID, Version: version, Metrics: serverMetrics.Audit(), Retention: cfg.AuditRetention, Logger: logger,
+	})
+	audit.Install(recorder)
+	if err := recorder.PartitionJob()(ctx); err != nil {
+		logger.Warn("audit partitions not prepared", logattrs.Failure("audit_partitions_failed", err)...)
+	}
+	untilServed := context.WithoutCancel(ctx)
+	stopAudit := startBackground(untilServed, "audit writer", recorder.Run, logger)
+	defer stopAudit()
 	membership := fleet.New(database, serverID, version, logger)
 	serverMetrics.Fleet(membership.Live)
 	stopFleet := startFleet(ctx, membership, logger)
@@ -434,6 +447,7 @@ func run() error {
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
+	jobs.Register("audit_partitions", 24*time.Hour, recorder.PartitionJob())
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))
@@ -552,6 +566,7 @@ func run() error {
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
 		Metrics:       serverMetrics.HTTP(),
+		Audit:         recorder,
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
@@ -844,6 +859,8 @@ func newLogger(cfg config.Config) *slog.Logger {
 }
 
 func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
+	requests, cutRequests := context.WithCancel(context.Background())
+	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
 	srv := &http.Server{
 		Addr:              addr,
@@ -852,6 +869,7 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 		ReadTimeout:       readTimeout,
 		IdleTimeout:       idleTimeout,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
+		BaseContext:       func(net.Listener) context.Context { return requests },
 	}
 	for _, f := range onShutdown {
 		srv.RegisterOnShutdown(f)
@@ -871,7 +889,13 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 	}
 
 	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	return shutdown(srv, cutRequests, requestsCutAfter, shutdownTimeout)
+}
+
+func shutdown(srv *http.Server, cutRequests context.CancelFunc, cutAfter, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	cut := time.AfterFunc(cutAfter, cutRequests)
+	defer cut.Stop()
+	return srv.Shutdown(ctx)
 }

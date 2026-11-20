@@ -1,6 +1,7 @@
 me-home-dashboard:
   get:
     operationId: getHomeDashboard
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       mcp: [get_home_dashboard]
     summary: Get the dashboard that opens for the signed-in person after sign-in.
@@ -27,6 +28,7 @@ me-home-dashboard:
         $ref: "../openapi.yaml#/components/responses/Internal"
   put:
     operationId: setHomeDashboard
+    x-audit: { none: "personal preference of the caller, not workspace state" }
     x-surfaces:
       mcp: [set_home_dashboard]
     summary: Choose the dashboard that opens after sign-in.
@@ -69,6 +71,7 @@ me-home-dashboard:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: clearHomeDashboard
+    x-audit: { none: "personal preference of the caller, not workspace state" }
     x-surfaces:
       mcp: [clear_home_dashboard]
     summary: Clear the home dashboard so Home opens after sign-in.

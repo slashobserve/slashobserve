@@ -1,6 +1,7 @@
 datasources:
   get:
     operationId: listDatasources
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_datasources]
       cli: [observe doctor, observe datasources list]
@@ -20,6 +21,7 @@ datasources:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createDatasource
+    x-audit: { action: datasource.create, target: { kind: datasource } }
     x-surfaces:
       cli: [observe datasources add]
     summary: Add a datasource in the app.
@@ -82,6 +84,7 @@ datasources-uid-recheck:
         type: string
   post:
     operationId: recheckDatasource
+    x-audit: { none: "refreshes the health status of a datasource" }
     x-surfaces:
       mcp: [recheck_datasource]
       cli: [observe datasources recheck]
@@ -106,6 +109,7 @@ datasources-uid-recheck:
 datasources-test:
   post:
     operationId: testDatasource
+    x-audit: { none: "connection test of an unsaved datasource; changes nothing" }
     x-surfaces:
       cli: [observe datasources test]
     summary: Check a datasource definition against the real datasource without saving it.
@@ -174,6 +178,7 @@ datasources-uid:
         type: string
   patch:
     operationId: updateDatasource
+    x-audit: { action: datasource.update, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe datasources edit]
     summary: Change a datasource added in the app.
@@ -230,6 +235,7 @@ datasources-uid:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteDatasource
+    x-audit: { action: datasource.delete, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe datasources remove]
     summary: Remove a datasource added in the app.
@@ -266,6 +272,7 @@ datasources-uid-config:
         type: string
   get:
     operationId: getDatasourceConfig
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe datasources get]
     summary: Read the definition of a datasource added in the app.
