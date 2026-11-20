@@ -1683,6 +1683,10 @@ components:
           type: string
           maxLength: 100
           description: The display name; the uid when empty.
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who can query the datasource, `everyone` by default. With `admins`, every other role, key and public link gets the same answer for it as for a datasource that does not exist.
         grafana_uids:
           type: array
           maxItems: 20
@@ -1729,7 +1733,7 @@ components:
     DatasourceConfig:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, address, secrets_set, created_at, updated_at]
+      required: [uid, type, name, audience, source, address, secrets_set, created_at, updated_at]
       description: A datasource added in the app, without its credentials.
       properties:
         uid:
@@ -1738,6 +1742,10 @@ components:
           type: string
         name:
           type: string
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who can query the datasource.
         source:
           type: string
           enum: [app]

@@ -158,7 +158,7 @@ func recordOf(row dbsqlc.Datasource) (Record, error) {
 	if err := json.Unmarshal(row.Config, &def); err != nil {
 		return Record{}, fmt.Errorf("stored datasource %q: %w", row.Uid, err)
 	}
-	def.UID, def.Type, def.Name = row.Uid, row.Type, row.Name
+	def.UID, def.Type, def.Name, def.Audience = row.Uid, row.Type, row.Name, datasource.Audience(row.Audience)
 	return Record{Definition: def, SecretsSet: slices.Clone(row.SecretNames), CreatedAt: row.CreatedAt.Time.UTC(), UpdatedAt: row.UpdatedAt.Time.UTC()}, nil
 }
 
@@ -201,7 +201,17 @@ func normalizeDefinition(def Definition) Definition {
 	if def.Name == "" {
 		def.Name = def.UID
 	}
+	if def.Audience == "" {
+		def.Audience = datasource.AudienceEveryone
+	}
 	return def
+}
+
+func checkAudience(audience datasource.Audience) error {
+	if audience != datasource.AudienceEveryone && audience != datasource.AudienceAdmins {
+		return invalid("audience", "must be everyone or admins")
+	}
+	return nil
 }
 
 func checkName(name string) error {
@@ -221,6 +231,9 @@ type candidate struct {
 func (s *Service) prepare(ctx context.Context, def Definition, secrets Secrets) (candidate, error) {
 	def = normalizeDefinition(def)
 	if err := checkName(def.Name); err != nil {
+		return candidate{}, err
+	}
+	if err := checkAudience(def.Audience); err != nil {
 		return candidate{}, err
 	}
 	if err := checkSecrets(secrets); err != nil {
@@ -361,7 +374,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	if err != nil {
 		return Record{}, err
 	}
-	params := dbsqlc.InsertDatasourceParams{ID: id, Uid: cand.def.UID, Type: cand.def.Type, Name: cand.def.Name, Config: config, Secrets: ciphertext, SecretNames: names}
+	params := dbsqlc.InsertDatasourceParams{ID: id, Uid: cand.def.UID, Type: cand.def.Type, Name: cand.def.Name, Audience: string(cand.def.Audience), Config: config, Secrets: ciphertext, SecretNames: names}
 	if creator, err := db.ParseUUID(by.ID); err == nil && by.Kind == auth.KindUser {
 		params.CreatedBy = creator
 	}
@@ -428,7 +441,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
-	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Secrets: row.Secrets, SecretNames: row.SecretNames}
+	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Audience: string(cand.def.Audience), Secrets: row.Secrets, SecretNames: row.SecretNames}
 	if !change.empty() {
 		if params.Secrets, params.SecretNames, err = s.seal(row.ID, secrets); err != nil {
 			return Record{}, err

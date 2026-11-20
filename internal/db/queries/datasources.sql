@@ -8,13 +8,13 @@ SELECT * FROM datasources WHERE uid = @uid;
 SELECT count(*) FROM datasources;
 
 -- name: InsertDatasource :one
-INSERT INTO datasources (id, uid, type, name, config, secrets, secret_names, created_by)
-VALUES (@id, @uid, @type, @name, @config, @secrets, @secret_names, @created_by)
+INSERT INTO datasources (id, uid, type, name, audience, config, secrets, secret_names, created_by)
+VALUES (@id, @uid, @type, @name, @audience, @config, @secrets, @secret_names, @created_by)
 RETURNING *;
 
 -- name: UpdateDatasource :one
 UPDATE datasources
-SET name = @name, config = @config, secrets = @secrets, secret_names = @secret_names, updated_at = clock_timestamp()
+SET name = @name, audience = @audience, config = @config, secrets = @secrets, secret_names = @secret_names, updated_at = clock_timestamp()
 WHERE uid = @uid
 RETURNING *;
 

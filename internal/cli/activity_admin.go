@@ -198,7 +198,7 @@ func describeIntegration(typ string, d adminData) (string, bool) {
 	case "datasource.created":
 		return "added " + quotedName("datasource", d.Name) + " at " + text(d.Host), true
 	case "datasource.updated":
-		return changedText(quotedName("datasource", d.Name), d, "name", "host"), true
+		return changedText(quotedName("datasource", d.Name), d, "name", "host", "audience"), true
 	case "datasource.deleted":
 		return "deleted " + quotedName("datasource", d.Name), true
 	}

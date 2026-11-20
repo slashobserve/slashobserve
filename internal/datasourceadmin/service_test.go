@@ -120,7 +120,7 @@ func (r *rig) insert(t *testing.T, key sealed.Key, def Definition, secrets Secre
 		t.Fatal(err)
 	}
 	row, err := r.db.Queries().InsertDatasource(reading(t.Context()), dbsqlc.InsertDatasourceParams{
-		ID: id, Uid: def.UID, Type: def.Type, Name: def.Name, Config: config,
+		ID: id, Uid: def.UID, Type: def.Type, Name: def.Name, Audience: string(normalizeDefinition(def).Audience), Config: config,
 		Secrets: sealedSecrets, SecretNames: namesOrEmpty(secrets),
 	})
 	if err != nil {
@@ -250,7 +250,7 @@ func TestReconcileAppliesChangesAndRemovals(t *testing.T) {
 	renamed.Name = "Renamed"
 	config, _ := json.Marshal(renamed)
 	if _, err := r.db.Queries().UpdateDatasource(reading(t.Context()), dbsqlc.UpdateDatasourceParams{
-		Uid: row.Uid, Name: renamed.Name, Config: config, SecretNames: []string{},
+		Uid: row.Uid, Name: renamed.Name, Audience: string(datasource.AudienceEveryone), Config: config, SecretNames: []string{},
 	}); err != nil {
 		t.Fatal(err)
 	}

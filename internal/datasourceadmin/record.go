@@ -20,8 +20,9 @@ type recordedDatasource struct {
 }
 
 type recordedChanges struct {
-	Name *activity.Change[string] `json:"name,omitempty"`
-	Host *activity.Change[string] `json:"host,omitempty"`
+	Name     *activity.Change[string] `json:"name,omitempty"`
+	Host     *activity.Change[string] `json:"host,omitempty"`
+	Audience *activity.Change[string] `json:"audience,omitempty"`
 }
 
 type recordedUpdate struct {
@@ -57,12 +58,13 @@ func recordDeleted(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id
 
 func recordUpdated(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id pgtype.UUID, before, after Definition, credentialsChanged bool) error {
 	rest := before
-	rest.Name, rest.Address = after.Name, after.Address
+	rest.Name, rest.Address, rest.Audience = after.Name, after.Address, after.Audience
 	update := recordedUpdate{
 		recordedDatasource: recordedOf(after),
 		Changes: recordedChanges{
-			Name: activity.Changed(before.Name, after.Name),
-			Host: activity.Changed(hostOf(before), hostOf(after)),
+			Name:     activity.Changed(before.Name, after.Name),
+			Host:     activity.Changed(hostOf(before), hostOf(after)),
+			Audience: activity.Changed(string(before.Audience), string(after.Audience)),
 		},
 		AddressChanged:     before.Address != after.Address,
 		SettingsChanged:    !reflect.DeepEqual(rest, after),

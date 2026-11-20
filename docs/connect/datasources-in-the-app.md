@@ -21,6 +21,14 @@ They are read once at startup and are read-only in the app.
 Datasources added in the app show as "Added in the app".
 When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
 
+## Who can query it
+
+A datasource added in the app is open to everyone from Viewer up by default.
+Set its audience to `admins` with `"audience": "admins"` on `POST /api/v1/datasources` or `PATCH /api/v1/datasources/{uid}`, or `--audience admins` on `observe datasources add` and `edit`, and only Admins and Admin keys can then list, query or health-check it.
+Every other role, key and public link gets the same answer for it as for a datasource that does not exist.
+A change that leaves the audience out keeps it, and `"audience": "everyone"` opens the datasource again.
+The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page does not show or change it yet.
+
 ## Credentials are write-only
 
 A password, bearer token, API key or request header value is stored encrypted with `SLASHOBSERVE_SECRET_KEY` and is never shown again.
@@ -63,7 +71,7 @@ Removing one deletes its stored credentials for good, so add it again with the c
 
 ## Audit log
 
-Adding, changing and deleting a datasource is recorded as `datasource.created`, `datasource.updated` and `datasource.deleted` in the [Audit log](../use/activity.md), with the name, the address's host and port and what changed.
+Adding, changing and deleting a datasource is recorded as `datasource.created`, `datasource.updated` and `datasource.deleted` in the [Audit log](../use/activity.md), with the name, the address's host and port and what changed, the audience as its value before and after.
 A credential and the address path are never recorded, only that credentials were replaced.
 Datasources from the datasources file are not recorded.
 
