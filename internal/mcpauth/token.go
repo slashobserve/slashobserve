@@ -85,12 +85,12 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
 	}
 	var denied *oauthError
 	if errors.As(err, &denied) {
-		s.refusedWith(r.Context(), audit.ActionOAuthExchange, denied, clientTarget(form.clientID, ""), map[string]any{"grant_type": form.grantType})
+		s.refusedWith(r.Context(), audit.ActionOAuthExchange, denied, s.registeredClient(r.Context(), form.clientID), map[string]any{"grant_type": form.grantType})
 		writeOAuthError(w, denied)
 		return
 	}
 	if err != nil {
-		s.refused(r.Context(), audit.ActionOAuthExchange, audit.OutcomeFailed, "oauth_token_failed", clientTarget(form.clientID, ""), map[string]any{"grant_type": form.grantType})
+		s.refused(r.Context(), audit.ActionOAuthExchange, audit.OutcomeFailed, "oauth_token_failed", s.registeredClient(r.Context(), form.clientID), map[string]any{"grant_type": form.grantType})
 		s.fail(w, r, "issue oauth tokens", "oauth_token_failed", err)
 		return
 	}

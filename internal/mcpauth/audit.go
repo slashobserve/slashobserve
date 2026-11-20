@@ -17,6 +17,14 @@ func clientTarget(id, name string) audit.Target {
 	return audit.Target{Kind: "oauth_client", ID: id, Name: origin.CleanClient(name)}
 }
 
+func (s *Server) registeredClient(ctx context.Context, id string) audit.Target {
+	client, err := s.db.Queries().GetOAuthClient(ctx, id)
+	if err != nil {
+		return audit.Target{Kind: "oauth_client"}
+	}
+	return clientTarget(client.ID, client.Name.String)
+}
+
 func (s *Server) refused(ctx context.Context, action audit.Action, outcome audit.Outcome, reason string, target audit.Target, data map[string]any) {
 	audit.Update(ctx, func(sc *audit.Scope) { sc.Origin.Client = target.Name })
 	err := audit.RecordNow(ctx, audit.Event{Action: action, Outcome: outcome, Reason: reason, Target: target, Data: data})

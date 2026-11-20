@@ -50,7 +50,7 @@ func (s *Server) revokeToken(r *http.Request, token, clientID string) error {
 		return err
 	}
 	if row.ClientID != clientID {
-		s.refused(ctx, audit.ActionOAuthRevoke, audit.OutcomeDenied, "client_mismatch", clientTarget(clientID, ""), nil)
+		s.refused(ctx, audit.ActionOAuthRevoke, audit.OutcomeDenied, "client_mismatch", s.registeredClient(ctx, clientID), nil)
 		return nil
 	}
 	revoked, err := s.revokeRecorded(ctx, row.GrantID, "client", nil, func(q *dbsqlc.Queries) (int64, error) {

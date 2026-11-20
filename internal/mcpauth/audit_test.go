@@ -298,3 +298,34 @@ func TestRevokingAnotherClientsTokenIsRecordedAsDeniedAndChangesNothing(t *testi
 	}
 	r.assertNoSecrets(t, issued.Access, issued.Refresh)
 }
+
+func TestAnUnknownClientIdIsNeverStoredAsATarget(t *testing.T) {
+	r := newAuditedRig(t)
+	const junk = "client-chosen-text-"
+	long := junk + strings.Repeat("x", 400) + "‮"
+	form := exchangeForm(long, "soc_"+strings.Repeat("a", 43))
+	if rec := r.form("/oauth/token", form); rec.Code != http.StatusBadRequest && rec.Code != http.StatusUnauthorized {
+		t.Fatalf("token = %d: %s", rec.Code, rec.Body)
+	}
+	got := r.only(t, "oauth.token")
+	if got.outcome != "denied" || got.targetKind != "oauth_client" || got.targetID != "" || got.targetName != "" {
+		t.Fatalf("event = %+v, want a denied event with no client id", got)
+	}
+	r.assertNoSecrets(t, junk)
+}
+
+func TestARevokeNamingAnUnknownClientIsNeverStoredAsATarget(t *testing.T) {
+	r := newAuditedRig(t)
+	owner := r.registered(t, "claude-code")
+	issued := r.connect(t, ada, owner)
+	const junk = "caller-chosen-client-"
+	rec := r.form("/oauth/revoke", url.Values{"token": {issued.Access}, "client_id": {junk + strings.Repeat("y", 300)}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("revoke = %d", rec.Code)
+	}
+	got := r.only(t, "oauth.revoke")
+	if got.outcome != "denied" || got.reason != "client_mismatch" || got.targetID != "" {
+		t.Fatalf("event = %+v", got)
+	}
+	r.assertNoSecrets(t, junk)
+}
