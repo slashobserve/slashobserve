@@ -23,6 +23,7 @@ describe("eventTypeGroups", () => {
       "thread",
       "run",
       "public_link",
+      "access_request",
       "user",
       "service_account",
       "webhook",
@@ -51,6 +52,7 @@ describe("eventTypeGroups", () => {
       "Comment threads",
       "Agent runs",
       "Public links",
+      "Access requests",
       "People",
       "Service accounts",
       "Webhooks",
@@ -62,7 +64,7 @@ describe("eventTypeGroups", () => {
   })
 
   test("has a label for every type", () => {
-    expect(allEventTypes).toHaveLength(76)
+    expect(allEventTypes).toHaveLength(78)
     for (const type of allEventTypes) expect(eventTypeLabels[type]).not.toBe("")
   })
 })

@@ -331,6 +331,68 @@ describe("itemText", () => {
   })
 })
 
+describe("access requests", () => {
+  const folder = "f0f0f0f0-0b5a-4c7d-9e11-2a6b8c4d5e72"
+
+  test("a request names who asked and the object", () => {
+    expect(
+      itemText(
+        item({
+          type: "access_request.opened",
+          target: { kind: "access_request", id: other },
+          reason: "access_request",
+          data: withData({
+            object: { kind: "dashboard", id },
+            title: "Checkout",
+          }),
+        })
+      )
+    ).toEqual({
+      actor: "Ada",
+      verb: "asked for comment access to",
+      object: "Checkout",
+    })
+  })
+
+  test("a request on an observation with no title names the kind", () => {
+    expect(
+      itemText(
+        item({
+          type: "access_request.opened",
+          target: { kind: "access_request", id: other },
+          data: withData({ object: { kind: "observation", id } }),
+        })
+      ).object
+    ).toBe("an observation")
+  })
+
+  test("a request on a dashboard opens its Share pane", () => {
+    expect(
+      itemLink(
+        item({
+          type: "access_request.opened",
+          target: { kind: "access_request", id: other },
+          folder_id: folder,
+          data: withData({ object: { kind: "dashboard", id } }),
+        })
+      )
+    ).toEqual({ to: `/d/${id}`, search: { share: "1" } })
+  })
+
+  test("a request on an observation opens its folder's access settings", () => {
+    expect(
+      itemLink(
+        item({
+          type: "access_request.opened",
+          target: { kind: "access_request", id: other },
+          folder_id: folder,
+          data: withData({ object: { kind: "observation", id } }),
+        })
+      )
+    ).toEqual({ to: `/f/${folder}`, search: { settings: "1" } })
+  })
+})
+
 describe("itemLink", () => {
   test.each([
     {
@@ -488,6 +550,7 @@ describe("reasonLabel", () => {
     ["reply", "Reply"],
     ["run_failed", "Run failed"],
     ["repaired", "Repaired"],
+    ["access_request", "Access request"],
   ] as const)("%s reads %s", (reason, label) => {
     expect(reasonLabel(reason)).toBe(label)
   })

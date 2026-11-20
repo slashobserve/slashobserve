@@ -195,6 +195,28 @@ describe("describeAuditEvent", () => {
     ).toBe('Created a public link to the RCA "Checkout slowdown"')
   })
 
+  test("names the object and the requester of comment access", () => {
+    expect(
+      describeAuditEvent(
+        event("access_request.opened", {
+          object: { kind: "observation", id: "o1" },
+          title: "",
+        })
+      )
+    ).toBe("Asked for comment access to an observation")
+    expect(
+      describeAuditEvent(
+        event("access_request.granted", {
+          object: { kind: "dashboard", id: "d1" },
+          title: "Checkout",
+          requested_by: { kind: "user", id: "u1", name: "Ben" },
+        })
+      )
+    ).toBe(
+      'Granted comment access to the dashboard "Checkout" asked for by Ben'
+    )
+  })
+
   test("falls back to the type for one it does not know", () => {
     expect(describeAuditEvent(event("run.failed", {}))).toBe("run.failed")
   })

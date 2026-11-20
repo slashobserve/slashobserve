@@ -1,6 +1,6 @@
 ---
 title: Inbox
-description: See what asks something of you, a proposal to merge, a block to keep, a mention, a reply, a failed run or a saved health repair, with the reason it is there and an unread count that follows you across browsers.
+description: See what asks something of you, a proposal to merge, a block to keep, a mention, a reply, a failed run, a saved health repair or a request for comment access, with the reason it is there and an unread count that follows you across browsers.
 ---
 
 The inbox is the activity you can see, filtered to what asks something of you now.
@@ -14,7 +14,7 @@ The `observe` command line signs in with a key, so it has no inbox commands.
 
 **Inbox** is in the sidebar under Home, at `/inbox`.
 A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
-The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply" or "Run failed", and "Workspace activity" for the rest, which only the Everything view shows.
+The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply", "Run failed" or "Access request", and "Workspace activity" for the rest, which only the Everything view shows.
 The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
 Under the tabs, **Open**, **Unread** and **Done** choose which items the list shows, as the [filter](#done-and-the-unread-filter) below says, and **Group by dashboard or observation** puts the items about the same dashboard, observation or proposal together under its title, newest group first.
 The list refreshes when new activity arrives.
@@ -45,6 +45,7 @@ Items are from the last 30 days, in folders you can see, and never your own acti
 | `run_failed` | A run you requested that failed and that nobody has continued. |
 | `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
 | `proposal_closed` | A proposal you opened that someone else merged or discarded. |
+| `access_request` | A request for [comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation in a folder you manage, or as an instance Admin when nobody manages it, that is still open. |
 
 An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
 A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
@@ -57,6 +58,7 @@ A closed proposal reads "merged your proposal" or "discarded your proposal" with
 A failed run opens its chat.
 A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
 An item recorded before the title and panel count were stored reads "Your repair saved version N".
+An access request reads "asked for comment access to" followed by the title, shows the note, and opens the dashboard's Share pane, or for an observation its folder's settings; marking it done declines it for every recipient.
 
 ## Views
 
@@ -72,7 +74,7 @@ An item recorded before the title and panel count were stored reads "Your repair
 `limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
 An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title` and `excerpt`.
 `target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
-`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the reason a proposal was discarded, as plain text of at most 200 characters, and is null for other items.
+`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, the reason a proposal was discarded, or the note of an access request, as plain text of at most 200 characters, and is null for other items.
 The rest of an item carries no comment, message or finding text, as in the log.
 
 ## Done and the unread filter

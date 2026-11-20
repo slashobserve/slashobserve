@@ -53,6 +53,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `import_grafana_dashboard` | Viewer |
 | `keep_block` | Viewer |
 | `lint_query` | Viewer |
+| `list_access_requests` | Viewer |
 | `list_activity` | Viewer |
 | `list_annotations` | Viewer |
 | `list_comments` | Viewer |
@@ -92,6 +93,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |
 | `report_run` | Viewer |
+| `request_comment_access` | Viewer |
 | `resolve_comment` | Viewer |
 | `resolve_observation` | Viewer |
 | `restore_dashboard_version` | Viewer |
@@ -368,6 +370,11 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 
 `set_inbox_item_done` marks one inbox item done by its `seq` from `list_inbox`, or brings it back with `done: false`.
 A done item leaves the default list, counts as read and stays done when the inbox is read, as the done button in the web app does; it answers like `PUT /api/v1/inbox/items/{seq}`, and a service-account key gets `user_session_required`.
+
+`request_comment_access` asks for [comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation the caller can view but not comment on, with `object_kind` (`dashboard` or `observation`), `object_id` and an optional one-line `note` of at most 200 characters.
+It changes no access and its answer never names who received the request; it answers what `POST /api/v1/access-requests` answers, including `request_open` with `requested_at` while a request is open, `already_can_comment` and `not_found`.
+`list_access_requests` lists the open requests on the folders the caller manages, as `GET /api/v1/access-requests` does.
+Both are over MCP only, so the built-in agent does not have them, and a service-account key may call them.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.

@@ -39,14 +39,22 @@ type unknownUserError struct {
 
 func (e *unknownUserError) Error() string { return "unknown user" }
 
+type SharingSettler func(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, folderID pgtype.UUID) error
+
 type Handler struct {
 	db     *db.DB
 	access *Access
 	logger *slog.Logger
+	settle SharingSettler
 }
 
 func NewHandler(database *db.DB, access *Access, logger *slog.Logger) *Handler {
 	return &Handler{db: database, access: access, logger: logger}
+}
+
+func (h *Handler) SettleSharingWith(settle SharingSettler) *Handler {
+	h.settle = settle
+	return h
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -270,7 +278,7 @@ func resolveGrants(ctx context.Context, q *dbsqlc.Queries, entries []entry) ([]g
 	return grants, nil
 }
 
-func (h *Handler) replacePermissions(ctx context.Context, folderID, grantedBy pgtype.UUID, entries []entry) error {
+func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, folderID, grantedBy pgtype.UUID, entries []entry) error {
 	return h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		folder, err := q.LockFolder(ctx, folderID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -297,7 +305,10 @@ func (h *Handler) replacePermissions(ctx context.Context, folderID, grantedBy pg
 				return err
 			}
 		}
-		return nil
+		if h.settle == nil {
+			return nil
+		}
+		return h.settle(ctx, q, by, folderID)
 	})
 }
 
@@ -341,7 +352,7 @@ func (h *Handler) setPermissions(c *gin.Context) {
 	if caller.Kind == auth.KindUser {
 		grantedBy, _ = db.ParseUUID(caller.ID)
 	}
-	if err := h.replacePermissions(ctx, folderID, grantedBy, entries); err != nil {
+	if err := h.replacePermissions(ctx, caller, folderID, grantedBy, entries); err != nil {
 		if !abortPermissionsRefusal(c, err) {
 			h.fail(c, "set folder permissions", err)
 		}

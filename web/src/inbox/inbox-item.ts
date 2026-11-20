@@ -4,6 +4,7 @@ import {
   chatPath,
   dashboardPath,
   findingPath,
+  folderPath,
   observationPath,
   proposalPath,
 } from "@/lib/links"
@@ -37,6 +38,7 @@ const kindWords: Record<TargetKind, string> = {
   grafana_connection: "a Grafana connection",
   datasource: "a datasource",
   public_link: "a public link",
+  access_request: "an access request",
 }
 
 const reasonLabels: Record<InboxReason, string> = {
@@ -47,6 +49,7 @@ const reasonLabels: Record<InboxReason, string> = {
   run_failed: "Run failed",
   repaired: "Repaired",
   proposal_closed: "Proposal closed",
+  access_request: "Access request",
 }
 
 function field(item: InboxItem, key: string): unknown {
@@ -169,6 +172,15 @@ export function itemText(item: InboxItem): ItemText {
       return { actor, verb: "mentioned you on", object: threadObject(item) }
     case "thread.replied":
       return { actor, verb: "replied on", object: threadObject(item) }
+    case "access_request.opened":
+      return {
+        actor,
+        verb: "asked for comment access to",
+        object:
+          textField(item, "title") ??
+          titleOf(item) ??
+          kindWords[objectRef(item)?.kind ?? "dashboard"],
+      }
     case "run.failed":
       return {
         actor: "",
@@ -189,7 +201,11 @@ export function itemText(item: InboxItem): ItemText {
 
 export type ItemLink = {
   to: string
-  search?: { thread: string } | { from?: number; to: number }
+  search?:
+    | { thread: string }
+    | { from?: number; to: number }
+    | { share: "1" }
+    | { settings: "1" }
 }
 
 function page(to: string): ItemLink {
@@ -215,6 +231,16 @@ function threadLink(item: InboxItem): ItemLink | null {
     default:
       return null
   }
+}
+
+function accessRequestLink(item: InboxItem): ItemLink | null {
+  const ref = objectRef(item)
+  if (ref?.kind === "dashboard") {
+    return { to: dashboardPath(ref.id), search: { share: "1" } }
+  }
+  return item.folder_id === null
+    ? null
+    : { to: folderPath(item.folder_id), search: { settings: "1" } }
 }
 
 function repairedLink(item: InboxItem): ItemLink | null {
@@ -245,6 +271,8 @@ export function itemLink(item: InboxItem): ItemLink | null {
       return page(dashboardPath(id, textField(item, "title") ?? undefined))
     case "thread":
       return threadLink(item)
+    case "access_request":
+      return accessRequestLink(item)
     case "annotation":
       return item.dashboard_id === null
         ? null

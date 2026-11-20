@@ -44,7 +44,7 @@ export function AuditSettings() {
   return (
     <SettingsSection
       title="Audit log"
-      description="Who changed roles, keys, webhooks, connected agents, outbound access, Grafana connections and public links, and when. Only Admins can see this."
+      description="Who changed roles, keys, webhooks, connected agents, outbound access, Grafana connections, public links and comment access, and when. Only Admins can see this."
     >
       <SettingsCard
         title="Admin changes"

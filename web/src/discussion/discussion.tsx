@@ -76,11 +76,12 @@ type DiscussionFeedProps = {
     message: Message,
     tools: { reply: (() => void) | null }
   ) => ReactNode
+  readOnlyAction?: ReactNode
 }
 
 type DiscussionProps = Omit<
   DiscussionFeedProps,
-  "changes" | "blocks" | "view"
+  "changes" | "blocks" | "view" | "readOnlyAction"
 > & {
   className?: string
 }
@@ -160,6 +161,7 @@ export function DiscussionFeed({
   blocks,
   view,
   messageActions,
+  readOnlyAction,
 }: DiscussionFeedProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const {
@@ -375,6 +377,12 @@ export function DiscussionFeed({
         {body}
       </div>
       <div className="border-t px-4 pt-3 pb-4">
+        {isPending ||
+        isError ||
+        canWrite ||
+        readOnlyAction === undefined ? null : (
+          <div className="flex flex-col pb-2">{readOnlyAction}</div>
+        )}
         {sent === null ? null : (
           <div className="pb-2">
             <RunStarted

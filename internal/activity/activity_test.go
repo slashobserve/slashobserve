@@ -53,6 +53,8 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"run.kept":                    "run",
 		"public_link.created":         "public_link",
 		"public_link.revoked":         "public_link",
+		"access_request.opened":       "access_request",
+		"access_request.granted":      "access_request",
 		"user.role_changed":           "user",
 		"user.signed_out_everywhere":  "user",
 		"user.invited":                "user",

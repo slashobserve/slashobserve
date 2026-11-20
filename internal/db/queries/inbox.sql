@@ -14,7 +14,7 @@ WHERE NOT inbox_superseded(a, @reader_id::uuid)
   AND a.created_at >= now() - interval '30 days'
   AND (a.folder_id = ANY(@folders::uuid[])
     OR (a.folder_id IS NULL AND (@admin::boolean OR (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid))))
-  AND (@everything::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded'))
+  AND (@everything::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded', 'access_request.opened'))
   AND (CASE WHEN @everything::boolean
          THEN n.reason IS NOT NULL OR NOT (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid)
          ELSE n.reason = ANY(@reasons::text[])
@@ -41,7 +41,7 @@ FROM (
     AND a.created_at >= now() - interval '30 days'
     AND (a.folder_id = ANY(@folders::uuid[])
       OR (a.folder_id IS NULL AND (@admin::boolean OR (a.actor_kind = @reader_kind::text AND a.actor_id = @reader_id::uuid))))
-    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded')
+    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded', 'access_request.opened')
     AND n.reason IS NOT NULL
     AND NOT coalesce(st.done, false)
     AND coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
@@ -91,3 +91,6 @@ SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt FROM agent_requests 
 
 -- name: InboxProposalCloseReasons :many
 SELECT p.id, p.close_reason::text AS close_reason FROM proposals p WHERE p.id = ANY(@ids::uuid[]) AND p.close_reason IS NOT NULL;
+
+-- name: InboxAccessRequestNotes :many
+SELECT r.id, r.note FROM access_requests r WHERE r.id = ANY(@ids::uuid[]);

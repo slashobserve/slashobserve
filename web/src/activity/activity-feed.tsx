@@ -16,6 +16,7 @@ import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
+import { RequestCommentAccess } from "@/access/request-comment-access"
 import { RoleNote } from "@/components/role-note"
 import {
   Select,
@@ -435,7 +436,10 @@ export function ActivityFeed({
         />
       </div>
       {mode === "read-only" ? (
-        <RoleNote className="border-t px-4 py-3">{note}</RoleNote>
+        <div className="flex flex-col gap-2 border-t px-4 py-3">
+          <RoleNote>{note}</RoleNote>
+          <RequestCommentAccess object={{ kind: "dashboard", id: apiId }} />
+        </div>
       ) : (
         <ActivityComposer
           dashboardId={dashboardId}

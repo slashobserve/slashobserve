@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { RequestCommentAccess } from "@/access/request-comment-access"
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { EntryAction } from "@/activity/entry-frame"
 import { ShowFilter } from "@/activity/show-filter"
@@ -254,6 +255,11 @@ export function DiscussionPane({
           onShow: onShowBlock,
         }}
         view={{ filter, onClear: clearFilter }}
+        readOnlyAction={
+          <RequestCommentAccess
+            object={{ kind: "observation", id: observation.id }}
+          />
+        }
         messageActions={(message, { reply }) =>
           reply === null && !canAdd ? undefined : (
             <>

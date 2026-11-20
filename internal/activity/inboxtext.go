@@ -32,7 +32,7 @@ func dataOf(e Event) inboxData {
 func subjectOf(e Event) objectRef {
 	d := dataOf(e)
 	switch e.TargetKind {
-	case "thread":
+	case "thread", "access_request":
 		if d.Object != nil && d.Object.Kind != "annotation" && d.Object.Kind != "finding" {
 			return objectRef{d.Object.Kind, d.Object.ID}
 		}
@@ -64,6 +64,7 @@ type inboxTexts struct {
 	bodies   map[string]string
 	failures map[string]string
 	closes   map[string]string
+	notes    map[string]string
 }
 
 func (t inboxTexts) excerptOf(item InboxItem) string {
@@ -74,6 +75,8 @@ func (t inboxTexts) excerptOf(item InboxItem) string {
 		return Excerpt(t.failures[item.TargetID], inboxExcerptRunes)
 	case item.Reason == ReasonProposalClosed:
 		return Excerpt(t.closes[item.TargetID], inboxExcerptRunes)
+	case item.Reason == ReasonAccessRequest:
+		return Excerpt(t.notes[item.TargetID], inboxExcerptRunes)
 	}
 	return ""
 }
@@ -96,6 +99,7 @@ type inboxRefs struct {
 	messages map[string]bool
 	runs     map[string]bool
 	closed   map[string]bool
+	requests map[string]bool
 }
 
 func inboxRefsOf(items []InboxItem) inboxRefs {
@@ -104,6 +108,7 @@ func inboxRefsOf(items []InboxItem) inboxRefs {
 		messages: map[string]bool{},
 		runs:     map[string]bool{},
 		closed:   map[string]bool{},
+		requests: map[string]bool{},
 	}
 	for _, item := range items {
 		if ref := subjectOf(item.Event); refs.byKind[ref.kind] != nil {
@@ -118,6 +123,9 @@ func inboxRefsOf(items []InboxItem) inboxRefs {
 		if item.Reason == ReasonProposalClosed {
 			refs.closed[item.TargetID] = true
 		}
+		if item.Reason == ReasonAccessRequest {
+			refs.requests[item.TargetID] = true
+		}
 	}
 	return refs
 }
@@ -126,7 +134,7 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	q := s.db.Queries()
 	refs := inboxRefsOf(items)
 	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
-	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}}
+	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
 	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
@@ -158,6 +166,13 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	}
 	for _, r := range closeRows {
 		texts.closes[r.ID.String()] = r.CloseReason
+	}
+	noteRows, err := q.InboxAccessRequestNotes(ctx, uuidsOf(refs.requests))
+	if err != nil {
+		return inboxTexts{}, fmt.Errorf("list inbox access request notes: %w", err)
+	}
+	for _, r := range noteRows {
+		texts.notes[r.ID.String()] = r.Note
 	}
 	return texts, nil
 }

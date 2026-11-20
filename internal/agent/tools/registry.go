@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -166,6 +167,7 @@ type Deps struct {
 	LiveText       LiveText
 	Search         *search.Service
 	Stars          *stars.Service
+	AccessRequests *accessrequests.Service
 	Viewers        *viewers.Service
 	Home           *homedash.Service
 	Provider       llm.Provider
