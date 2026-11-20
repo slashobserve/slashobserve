@@ -1,4 +1,11 @@
-import { Fragment, useState, useSyncExternalStore, type ReactNode } from "react"
+import {
+  Fragment,
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react"
 import { Link } from "@tanstack/react-router"
 import { SlidersHorizontalIcon } from "lucide-react"
 
@@ -14,7 +21,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { CloseControlsProvider } from "./controls-sheet"
-import { controlsButtonId } from "./pane-openers"
+import { controlsButtonId, openPaneHeading } from "./pane-openers"
 
 type Props = {
   title: string
@@ -67,6 +74,15 @@ export function DashboardTopRow({
 }: Props) {
   const narrow = useNarrow()
   const [controlsOpen, setControlsOpen] = useState(false)
+  const paneRequested = useRef(false)
+  const onControlsOpenChange = useCallback((open: boolean) => {
+    paneRequested.current = false
+    setControlsOpen(open)
+  }, [])
+  const closeForPane = useCallback(() => {
+    paneRequested.current = true
+    setControlsOpen(false)
+  }, [])
   const tools = (
     <>
       <Items nodes={controls} />
@@ -140,7 +156,7 @@ export function DashboardTopRow({
         {presence}
       </nav>
       {narrow ? (
-        <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
+        <Sheet open={controlsOpen} onOpenChange={onControlsOpenChange}>
           <SheetTrigger
             id={controlsButtonId}
             render={<Button variant="outline" size="sm" />}
@@ -148,14 +164,20 @@ export function DashboardTopRow({
             <SlidersHorizontalIcon aria-hidden="true" />
             Controls
           </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[85svh] overflow-auto">
+          <SheetContent
+            side="bottom"
+            className="max-h-[85svh] overflow-auto"
+            finalFocus={() =>
+              (paneRequested.current ? openPaneHeading() : null) ?? true
+            }
+          >
             <SheetHeader className="pb-0">
               <SheetTitle>Controls</SheetTitle>
               <SheetDescription>
                 Time range, refresh, annotations and dashboard actions.
               </SheetDescription>
             </SheetHeader>
-            <CloseControlsProvider value={() => setControlsOpen(false)}>
+            <CloseControlsProvider value={closeForPane}>
               <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
                 {tools}
               </div>

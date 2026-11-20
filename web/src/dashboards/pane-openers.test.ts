@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import {
   activityButtonId,
+  activityCardId,
   controlsButtonId,
+  openPaneHeading,
   paneOpener,
   shareButtonId,
 } from "./pane-openers"
@@ -35,5 +37,22 @@ describe("paneOpener", () => {
 
   it("returns null when neither is on the page", () => {
     expect(paneOpener("activity")).toBeNull()
+  })
+})
+
+describe("openPaneHeading", () => {
+  it("returns the heading that labels the open pane", () => {
+    const pane = document.createElement("aside")
+    pane.id = activityCardId
+    pane.setAttribute("aria-labelledby", "heading")
+    const heading = document.createElement("h2")
+    heading.id = "heading"
+    pane.append(heading)
+    document.body.append(pane)
+    expect(openPaneHeading()).toBe(heading)
+  })
+
+  it("returns null when no pane is open", () => {
+    expect(openPaneHeading()).toBeNull()
   })
 })
