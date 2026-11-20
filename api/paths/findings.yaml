@@ -1,6 +1,7 @@
 findings:
   get:
     operationId: listFindings
+    x-audit: { none: "list read; lists are not recorded" }
     deprecated: true
     summary: List the findings the caller can read, newest first.
     description: >-
@@ -60,6 +61,7 @@ findings-id:
         format: uuid
   get:
     operationId: getFinding
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     deprecated: true
     summary: Read one finding.
     description: >-
@@ -102,6 +104,7 @@ findings-id-pin:
         format: uuid
   post:
     operationId: pinFinding
+    x-audit: { action: finding.pin, target: { kind: finding, id: path.id } }
     deprecated: true
     summary: Pin a finding to its dashboard as an annotation.
     description: >-
@@ -157,6 +160,7 @@ findings-id-dashboard:
         format: uuid
   post:
     operationId: saveFindingAsDashboard
+    x-audit: { action: dashboard.create, target: { kind: finding, id: path.id } }
     deprecated: true
     summary: Save a finding's evidence panels as a new dashboard.
     description: >-
@@ -210,6 +214,7 @@ findings-id-panels-panel-id-data:
         type: string
   get:
     operationId: getFindingPanelData
+    x-audit: { none: "evidence data stored with a finding; the observation view is recorded" }
     deprecated: true
     summary: Run the queries of one evidence panel of a finding and return their frames.
     description: >-

@@ -163,6 +163,11 @@ func (d *DB) Queries() *dbsqlc.Queries {
 	return d.queries
 }
 
+func (d *DB) ExecOutsideTransaction(ctx context.Context, sql string) error {
+	_, err := d.direct.Exec(ctx, sql)
+	return err
+}
+
 func (d *DB) Stat() *pgxpool.Stat {
 	return d.pool.Stat()
 }

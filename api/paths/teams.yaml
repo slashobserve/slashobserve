@@ -1,6 +1,7 @@
 teams:
   get:
     operationId: listTeams
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe teams list]
     summary: List the teams with their members.
@@ -22,6 +23,7 @@ teams:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createTeam
+    x-audit: { action: team.create, target: { kind: team } }
     x-surfaces:
       cli: [observe teams create]
     summary: Create a team that folders can be shared with by its name.
@@ -75,6 +77,7 @@ teams-id:
         format: uuid
   delete:
     operationId: deleteTeam
+    x-audit: { action: team.delete, target: { kind: team, id: path.id } }
     x-surfaces:
       cli: [observe teams delete]
     summary: Delete a team.
@@ -110,6 +113,7 @@ teams-id-members-userid:
         format: uuid
   put:
     operationId: addTeamMember
+    x-audit: { action: team.member_add, target: { kind: team, id: path.id } }
     x-surfaces:
       cli: [observe teams add]
     summary: Add a person to a team.
@@ -135,6 +139,7 @@ teams-id-members-userid:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: removeTeamMember
+    x-audit: { action: team.member_remove, target: { kind: team, id: path.id } }
     x-surfaces:
       cli: [observe teams remove]
     summary: Remove a person from a team.

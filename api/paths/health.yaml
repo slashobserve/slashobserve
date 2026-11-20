@@ -1,6 +1,7 @@
 health:
   get:
     operationId: listDashboardHealth
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_dashboard_health]
       cli: [observe health]
@@ -75,6 +76,7 @@ health:
 health-repairs:
   post:
     operationId: requestHealthRepairs
+    x-audit: { action: run.queue, target: { kind: run } }
     x-surfaces:
       cli: [observe health repair]
     summary: Queue the agent to repair the failing panels and variables the health check found.
@@ -125,6 +127,7 @@ health-repairs:
 health-run:
   post:
     operationId: runDashboardHealth
+    x-audit: { action: job.run, target: { kind: job } }
     x-surfaces:
       mcp: [run_dashboard_health]
       cli: [observe health run]

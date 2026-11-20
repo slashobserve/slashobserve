@@ -1,6 +1,7 @@
 activity:
   get:
     operationId: listActivity
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_activity]
       cli: [observe activity]
@@ -119,6 +120,7 @@ activity:
 activity-stream:
   get:
     operationId: streamActivity
+    x-audit: { none: "event stream; each change it carries is recorded where it is made" }
     x-surfaces:
       mcp: [list_activity]
       cli: [observe activity]

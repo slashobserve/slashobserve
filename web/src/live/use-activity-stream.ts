@@ -62,11 +62,14 @@ export function useActivityStream({
   useEffect(() => {
     handlers.current = { onEvent, onGap }
   })
-  const opened = useRef(false)
+  const mayHaveMissed = useRef(false)
   const typesKey = (types ?? []).join(",")
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      mayHaveMissed.current = true
+      return
+    }
     const url = streamUrl(
       folderId,
       dashboardId,
@@ -75,8 +78,8 @@ export function useActivityStream({
     let source: EventSource | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
-    let gapPending = opened.current
-    opened.current = true
+    let gapPending = mayHaveMissed.current
+    mayHaveMissed.current = true
 
     function open() {
       const stream = new EventSource(url)

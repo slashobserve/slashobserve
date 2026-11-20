@@ -34,6 +34,10 @@ const (
 	defaultActivityRetention = 4320 * time.Hour
 	minActivityRetention     = 24 * time.Hour
 	maxActivityRetention     = 87600 * time.Hour
+
+	defaultAuditRetention = 8760 * time.Hour
+	minAuditRetention     = 24 * time.Hour
+	maxAuditRetention     = 87600 * time.Hour
 )
 
 const (
@@ -103,6 +107,7 @@ const (
 	envOIDCClientSecret   = "SLASHOBSERVE_OIDC_CLIENT_SECRET"
 	envSessionTTL         = "SLASHOBSERVE_SESSION_TTL"
 	envActivityRetention  = "SLASHOBSERVE_ACTIVITY_RETENTION"
+	envAuditRetention     = "SLASHOBSERVE_AUDIT_RETENTION"
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
 	envAuthProviderName   = "SLASHOBSERVE_AUTH_PROVIDER_NAME"
 
@@ -144,7 +149,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envDatabaseDirectURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envActivityRetention, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
+	envSessionTTL, envActivityRetention, envAuditRetention, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
@@ -193,6 +198,7 @@ type Config struct {
 	OIDCClientSecret    datasource.Secret
 	SessionTTL          time.Duration
 	ActivityRetention   time.Duration
+	AuditRetention      time.Duration
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
 	AuthProviderName    string
@@ -218,7 +224,7 @@ type Config struct {
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
-	cfg := Config{LogLevel: slog.LevelInfo, LogFormat: LogFormatJSON, SessionTTL: defaultSessionTTL, ActivityRetention: defaultActivityRetention}
+	cfg := Config{LogLevel: slog.LevelInfo, LogFormat: LogFormatJSON, SessionTTL: defaultSessionTTL, ActivityRetention: defaultActivityRetention, AuditRetention: defaultAuditRetention}
 	var errs []error
 
 	httpAddr, err := HTTPAddr(lookup)
@@ -252,6 +258,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadClient(lookup, &cfg)...)
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadActivityRetention(lookup, &cfg)...)
+	errs = append(errs, loadAuditRetention(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
 	errs = append(errs, loadProviderName(lookup, &cfg)...)
 	errs = append(errs, loadAdminEmails(lookup, &cfg)...)
@@ -362,21 +369,27 @@ func loadSessionTTL(lookup func(string) (string, bool), cfg *Config) []error {
 }
 
 func loadActivityRetention(lookup func(string) (string, bool), cfg *Config) []error {
-	var errs []error
+	return loadRetention(lookup, envActivityRetention, minActivityRetention, maxActivityRetention, &cfg.ActivityRetention)
+}
 
-	if v := get(lookup, envActivityRetention); v != "" {
-		retention, err := time.ParseDuration(v)
-		switch {
-		case err != nil:
-			errs = append(errs, fmt.Errorf("%s: %w", envActivityRetention, err))
-		case retention < minActivityRetention || retention > maxActivityRetention:
-			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envActivityRetention, minActivityRetention, maxActivityRetention, v))
-		default:
-			cfg.ActivityRetention = retention
-		}
+func loadAuditRetention(lookup func(string) (string, bool), cfg *Config) []error {
+	return loadRetention(lookup, envAuditRetention, minAuditRetention, maxAuditRetention, &cfg.AuditRetention)
+}
+
+func loadRetention(lookup func(string) (string, bool), name string, lowest, highest time.Duration, into *time.Duration) []error {
+	v := get(lookup, name)
+	if v == "" {
+		return nil
 	}
-
-	return errs
+	retention, err := time.ParseDuration(v)
+	switch {
+	case err != nil:
+		return []error{fmt.Errorf("%s: %w", name, err)}
+	case retention < lowest || retention > highest:
+		return []error{fmt.Errorf("%s: must be between %s and %s, got %q", name, lowest, highest, v)}
+	}
+	*into = retention
+	return nil
 }
 
 func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {

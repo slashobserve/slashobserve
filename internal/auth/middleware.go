@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -58,6 +61,7 @@ func (s *Service) require(c *gin.Context) {
 		abortError(c, http.StatusUnauthorized, "unauthenticated", "authentication required")
 		return
 	}
+	p := s.sessionPrincipalOf(c.Request.Context(), row)
 	if !isSafeMethod(c.Request.Method) {
 		if err := s.csrf.Check(c.Request); err != nil {
 			abortError(c, http.StatusForbidden, "csrf_rejected", "cross-origin request rejected")
@@ -65,7 +69,7 @@ func (s *Service) require(c *gin.Context) {
 		}
 	}
 	s.touchSeen(c.Request.Context(), row)
-	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), s.sessionPrincipalOf(c.Request.Context(), row)))
+	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), p))
 	c.Next()
 }
 
@@ -126,7 +130,25 @@ func (s *Service) touchSeen(ctx context.Context, row dbsqlc.GetSessionUserRow) {
 }
 
 func (s *Service) sessionPrincipalOf(ctx context.Context, row dbsqlc.GetSessionUserRow) Principal {
-	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name, Role: s.storedRole(ctx, "user_id", row.ID.String(), row.Role), Groups: row.Groups}
+	p := Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name, Role: s.storedRole(ctx, "user_id", row.ID.String(), row.Role), Groups: row.Groups}
+	authenticated(ctx, p, audit.AuthSession, row.SessionID)
+	return p
+}
+
+func authenticated(ctx context.Context, p Principal, method audit.AuthMethod, credential pgtype.UUID) {
+	audit.Update(ctx, func(s *audit.Scope) {
+		s.Actor = AuditActor(p)
+		s.Auth = audit.Auth{Method: method, CredentialID: credential.String()}
+	})
+}
+
+func AuditActor(p Principal) audit.Actor {
+	return audit.Actor{Kind: audit.ActorKind(p.Kind), ID: auditID(p.ID), Name: cmp.Or(p.Name, p.Email), Role: string(p.Role)}
+}
+
+func auditID(id string) uuid.NullUUID {
+	parsed, err := uuid.Parse(id)
+	return uuid.NullUUID{UUID: parsed, Valid: err == nil}
 }
 
 func (s *Service) storedRole(ctx context.Context, idAttr, id, stored string) Role {
@@ -166,7 +188,9 @@ func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal
 			s.logger.WarnContext(ctx, "update key last used", logattrs.Failure("key_touch_failed", err)...)
 		}
 	}
-	return Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name, Role: s.storedRole(ctx, "service_account_id", row.ServiceAccountID.String(), row.Role)}, true, nil
+	p := Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name, Role: s.storedRole(ctx, "service_account_id", row.ServiceAccountID.String(), row.Role)}
+	authenticated(ctx, p, audit.AuthAPIKey, row.KeyID)
+	return p, true, nil
 }
 
 func isSafeMethod(method string) bool {

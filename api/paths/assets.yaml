@@ -1,6 +1,7 @@
 image:
   get:
     operationId: getAssetImage
+    x-audit: { none: "image fetch through the outbound allowlist for a panel" }
     summary: Fetch a remote image through the server and return it.
     description: The image's domain must be on the outbound allowlist, and the address must be https. The image is read up to 5 MiB, must be a PNG, JPEG, GIF, WebP, AVIF or SVG whose bytes match its declared type, and is cached for 1 hour. The response forbids scripts, so an SVG opened directly never runs script. Service accounts cannot call this endpoint.
     parameters:
@@ -76,6 +77,7 @@ image:
 geojson:
   get:
     operationId: getAssetGeojson
+    x-audit: { none: "GeoJSON fetch through the outbound allowlist for a panel" }
     summary: Fetch a remote GeoJSON file through the server and return it as JSON.
     description: The file's domain must be on the outbound allowlist, and the address must be https. The file is read up to 5 MiB, may be served as `application/geo+json`, `application/json` or `text/plain`, must be a JSON object whose `type` is a GeoJSON type, and is cached for 1 hour. Service accounts cannot call this endpoint.
     parameters:

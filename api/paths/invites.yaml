@@ -1,6 +1,7 @@
 invites:
   get:
     operationId: listInvites
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe people invites]
     summary: List the pending invites, newest first.
@@ -36,6 +37,7 @@ invites:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createInvite
+    x-audit: { action: user.invite, target: { kind: invite } }
     x-surfaces:
       cli: [observe people invite]
     summary: Invite an email with the role it gets at its first sign-in.
@@ -96,6 +98,7 @@ invites-id:
         format: uuid
   delete:
     operationId: deleteInvite
+    x-audit: { action: user.invite_withdraw, target: { kind: invite, id: path.id } }
     x-surfaces:
       cli: [observe people uninvite]
     summary: Withdraw a pending invite.

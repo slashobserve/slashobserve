@@ -111,9 +111,15 @@ Like migration 43, the cost grows with the log, so when it holds millions of eve
 Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
 Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
 
+Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
+It puts events from the 24 months before the migration into one partition per UTC month and older events into one per UTC year, and leaves out an activity event dated after the migration, which it counts in a notice.
+Retention drops a partition only once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, so backfilled history older than two years is kept until the end of its year.
+During a rolling upgrade, servers still on the older version keep writing activity events without an audit event, so for 7 days after the migration the `audit_partitions` job, and every server at start, records an audit event for each activity event that has none.
+
 To go back, run `goose down-to 48` against the database before starting an older binary.
 The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
 
+- Migration 74 drops the audit table with every audit event in it, its detached partitions included.
 - Migration 73 drops access requests and deletes their activity events, and migration 70 drops each request's time zone.
 - Migration 65 deletes every finding that no observation holds, which is a chat answer nobody saved.
 - Migration 64 drops teams and their members, so folder entries that named a team match no one.
@@ -140,5 +146,6 @@ Set `SLASHOBSERVE_ADMIN_EMAILS` before that first start; otherwise the earliest 
 ### Shutdown and leases
 
 On `SIGTERM` the server stops accepting requests, gives running requests 15 seconds, and hands a running agent request back to the queue without using up an attempt.
+After 10 seconds it ends the requests still open, such as live tails, event streams and `/mcp` streams, so each one records its audit event before the server writes its last buffered audit events and exits.
 A worker holds a 60-second lease on its request and renews it every 5 seconds while the run is in flight.
 A crash instead leaves the lease to expire, so the next process picks the request up within a minute.

@@ -71,6 +71,7 @@ import { StopRequestButton } from "@/observe/request-actions"
 import { isAgentUnavailable, maxPromptLength } from "@/revisions/queries"
 
 import { useActivityStore } from "./activity-store"
+import { truncatingTriggerClass } from "./show-filter"
 import type { AgentGate } from "./agent-gate"
 
 export type Target = { kind: "dashboard" } | { kind: "panel"; panelId: string }
@@ -480,7 +481,10 @@ export function ActivityComposer({
           </p>
         ) : null}
         <div className="flex items-center gap-2 px-2 pb-2">
-          <label htmlFor={targetId} className="text-xs text-muted-foreground">
+          <label
+            htmlFor={targetId}
+            className="shrink-0 text-xs text-muted-foreground"
+          >
             On
           </label>
           <Select
@@ -499,7 +503,7 @@ export function ActivityComposer({
               id={targetId}
               size="sm"
               aria-label="On"
-              className="max-w-[240px]"
+              className={cn("max-w-[240px]", truncatingTriggerClass)}
             >
               <SelectValue />
             </SelectTrigger>
@@ -511,7 +515,7 @@ export function ActivityComposer({
               ))}
             </SelectContent>
           </Select>
-          <div className="ml-auto flex min-w-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <MentionButton
               agents={agents}
               people={noPeople}

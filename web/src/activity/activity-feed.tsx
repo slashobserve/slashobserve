@@ -52,6 +52,7 @@ import {
 import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
+import { cn } from "@/lib/utils"
 import { ExternalAgentNote } from "./external-agent-note"
 import { AnnotationEntry } from "./annotation-entry"
 import { FindingEntry } from "./finding-entry"
@@ -59,7 +60,11 @@ import { ProposalEntry } from "./proposal-entry"
 import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
-import { ShowFilter, TimelineFilters } from "./show-filter"
+import {
+  ShowFilter,
+  TimelineFilters,
+  truncatingTriggerClass,
+} from "./show-filter"
 import { ThreadEntry } from "./thread-entry"
 import {
   buildTimeline,
@@ -391,7 +396,10 @@ export function ActivityFeed({
     <div className="flex min-h-0 flex-1 flex-col">
       <TimelineFilters>
         <ShowFilter options={showOptions} value={show} onChange={setShow} />
-        <label htmlFor={scopeId} className="text-xs text-muted-foreground">
+        <label
+          htmlFor={scopeId}
+          className="shrink-0 text-xs text-muted-foreground"
+        >
           Panel
         </label>
         <Select
@@ -406,7 +414,7 @@ export function ActivityFeed({
             id={scopeId}
             size="sm"
             aria-label="Panel"
-            className="max-w-[200px]"
+            className={cn("max-w-[200px]", truncatingTriggerClass)}
           >
             <SelectValue />
           </SelectTrigger>

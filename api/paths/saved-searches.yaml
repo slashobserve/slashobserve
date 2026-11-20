@@ -1,6 +1,7 @@
 saved-searches:
   get:
     operationId: listSavedSearches
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_saved_searches]
       cli: [observe saved-searches list]
@@ -49,6 +50,7 @@ saved-searches:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createSavedSearch
+    x-audit: { action: saved_search.create, target: { kind: saved_search } }
     x-surfaces:
       mcp: [save_search]
       cli: [observe saved-searches save]
@@ -110,6 +112,7 @@ saved-searches-id:
         format: uuid
   patch:
     operationId: updateSavedSearch
+    x-audit: { action: saved_search.update, target: { kind: saved_search, id: path.id } }
     x-surfaces:
       mcp: [update_saved_search]
       cli: [observe saved-searches update, observe saved-searches rename, observe saved-searches move]
@@ -158,6 +161,7 @@ saved-searches-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteSavedSearch
+    x-audit: { action: saved_search.delete, target: { kind: saved_search, id: path.id } }
     x-surfaces:
       cli: [observe saved-searches delete]
     summary: Delete a saved search.

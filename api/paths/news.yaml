@@ -1,6 +1,7 @@
 news:
   get:
     operationId: getNewsFeed
+    x-audit: { none: "list read; lists are not recorded" }
     summary: Fetch an RSS or Atom feed through the server and return its items as plain text.
     description: The feed's domain must be on the outbound allowlist, and the address must be https. The feed is read up to 1 MiB and cached for 15 minutes. Titles and summaries are plain text, and a link is returned only when it is an absolute http or https URL. Service accounts cannot call this endpoint.
     parameters:

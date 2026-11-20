@@ -7,6 +7,7 @@ datasources-uid-draft-query:
         type: string
   post:
     operationId: draftQuery
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [draft_query]
       cli: [observe logs, observe traces, observe metrics query]

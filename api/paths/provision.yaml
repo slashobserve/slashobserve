@@ -1,6 +1,7 @@
 provision:
   get:
     operationId: getProvisionStatus
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     summary: Show what the provisioning directory became.
     description: >-
       Lists every file that became a dashboard and every file that never did, each sorted by `path` in byte order.
@@ -23,6 +24,7 @@ provision:
 provision-run:
   post:
     operationId: runProvisioning
+    x-audit: { action: provision.apply, target: { kind: dashboard } }
     summary: Provision the directory now.
     description: >-
       Reads every file of the directory once, as the server does at startup and when a file changes, and answers the status afterwards.
@@ -54,6 +56,7 @@ provision-run:
 provision-apply:
   post:
     operationId: applyDashboardFile
+    x-audit: { action: provision.apply, target: { kind: dashboard } }
     x-surfaces:
       cli: [observe dashboards apply]
     summary: Save one dashboard file from a dashboards-as-code directory.
@@ -108,6 +111,7 @@ provision-apply:
 provision-applied:
   get:
     operationId: listAppliedDashboards
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe dashboards export]
     summary: List the file paths bound to the dashboards of a folder.
