@@ -323,6 +323,7 @@ func wholeNumber(v any) (int, bool) {
 type aggPlan struct {
 	levels  []Agg
 	metrics []Agg
+	groups  int
 }
 
 func planAggs(aggs []Agg) (aggPlan, error) {
@@ -367,6 +368,7 @@ func planAggs(aggs []Agg) (aggPlan, error) {
 	case product > maxTermsSize:
 		return plan, fmt.Errorf("the terms sizes multiply to more than %d groups", maxTermsSize)
 	}
+	plan.groups = product
 	return plan, nil
 }
 
@@ -390,8 +392,15 @@ func (q Query) aggregate(w Window, aggs []Agg) (Aggregation, error) {
 		return Aggregation{}, err
 	}
 	for _, l := range plan.levels {
-		if l.Type == "date_histogram" && int64(w.To.Sub(w.From)/l.Interval)+1 > maxBuckets {
+		if l.Type != "date_histogram" {
+			continue
+		}
+		buckets := int64(w.To.Sub(w.From)/l.Interval) + 1
+		if buckets > maxBuckets {
 			return Aggregation{}, fmt.Errorf("interval too small: more than %d buckets in the window", maxBuckets)
+		}
+		if buckets*int64(plan.groups) > MaxAggRows {
+			return Aggregation{}, fmt.Errorf("the date_histogram buckets and terms sizes multiply to more than %d rows; use a larger interval, a smaller size or a shorter window", MaxAggRows)
 		}
 	}
 	b := &builder{}
@@ -416,18 +425,18 @@ func (q Query) aggregate(w Window, aggs []Agg) (Aggregation, error) {
 		selects = []string{"1 AS one"}
 	}
 	ctes := []string{"matched AS (SELECT " + strings.Join(selects, ", ") + " FROM " + tableName + " WHERE " + where + ")"}
-	last := ""
-	termKeys := []string{}
+	last, lastKeys, ranked := "", []string(nil), 0
 	for i, l := range plan.levels {
 		if l.Type != "terms" {
 			continue
 		}
-		cte := "t" + strconv.Itoa(len(termKeys)+1)
-		ctes = append(ctes, cte+" AS ("+topTerms(b, l, keys[i], termKeys, last)+")")
-		termKeys = append(termKeys, keys[i])
+		ranked++
+		cte := "t" + strconv.Itoa(ranked)
+		ctes = append(ctes, cte+" AS ("+topTerms(b, l, keys[:i], keys[i], last, lastKeys)+")")
+		lastKeys = keys[:i+1]
 		last = cte
 	}
-	out.SQL = finalSQL(b, ctes, keys, termKeys, last, metricSQL)
+	out.SQL = finalSQL(b, ctes, keys, lastKeys, last, metricSQL)
 	out.Args = b.args
 	return out, nil
 }
@@ -483,7 +492,7 @@ func countExpr(m Agg, over string) string {
 	return "count(" + over + ")::double precision"
 }
 
-func topTerms(b *builder, l Agg, key string, parents []string, previous string) string {
+func topTerms(b *builder, l Agg, parents []string, key, previous string, previousKeys []string) string {
 	partition, from := "", "matched"
 	cols := make([]string, 0, len(parents)+1)
 	for _, p := range parents {
@@ -491,7 +500,9 @@ func topTerms(b *builder, l Agg, key string, parents []string, previous string) 
 	}
 	if len(parents) > 0 {
 		partition = "PARTITION BY " + strings.Join(cols, ", ") + " "
-		from += " JOIN " + previous + " ON " + joinOn("matched", previous, parents)
+	}
+	if previous != "" {
+		from += " JOIN " + previous + " ON " + joinOn("matched", previous, previousKeys)
 	}
 	cols = append(cols, "matched."+key)
 	order := map[string]string{

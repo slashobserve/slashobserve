@@ -376,6 +376,16 @@ func TestAggregateRunsEveryShape(t *testing.T) {
 		t.Errorf("histogram, terms and percentiles = %+v", overTime)
 	}
 
+	perBucket := aggregate(ctx, t, conn, `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"2m"},"aggs":{"o":{"terms":{"field":"origin","size":1}}}}}}`)
+	if len(perBucket) != 3 || perBucket[0].keys[1] != "web" || perBucket[1].keys[1] != "mcp" || perBucket[1].count != 2 || perBucket[2].keys[1] != "api" {
+		t.Errorf("the top origin of each two minute bucket = %+v", perBucket)
+	}
+
+	aroundBuckets := aggregate(ctx, t, conn, `{"aggs":{"o":{"terms":{"field":"origin","size":1},"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"2m"},"aggs":{"a":{"terms":{"field":"actor_name","size":1}}}}}}}}`)
+	if len(aroundBuckets) != 1 || aroundBuckets[0].keys[0] != "mcp" || !aroundBuckets[0].keys[1].(time.Time).Equal(base.Add(2*time.Minute)) || aroundBuckets[0].keys[2] != "Ishan Dubey" {
+		t.Errorf("terms, histogram and terms = %+v", aroundBuckets)
+	}
+
 	totals := aggregate(ctx, t, conn, `{"query":{"term":{"category":"content"}},"aggs":{"lo":{"min":{"field":"duration_ms"}},"hi":{"max":{"field":"duration_ms"}},"sum":{"sum":{"field":"duration_ms"}},"who":{"cardinality":{"field":"actor_name"}},"p":{"percentiles":{"field":"duration_ms","percents":[50]}}}}`)
 	if len(totals) != 1 || totals[0].count != 3 || totals[0].metrics["lo"] != 8 || totals[0].metrics["hi"] != 30 || totals[0].metrics["sum"] != 50 || totals[0].metrics["who"] != 2 || totals[0].metrics["p/50"] != 12 {
 		t.Errorf("metrics over content events = %+v", totals)

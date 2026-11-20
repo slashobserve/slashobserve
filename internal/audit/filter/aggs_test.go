@@ -48,6 +48,25 @@ func TestAggregateCompilesToOneGroupByQuery(t *testing.T) {
 			levels: []Level{{Name: "o", Type: "terms", Field: "origin"}, {Name: "a", Type: "terms", Field: "client_ip"}},
 		},
 		{
+			name: "terms ranked inside each time bucket",
+			text: `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1h"},"aggs":{"o":{"terms":{"field":"origin","size":2}}}}}}`,
+			sql: "WITH matched AS (SELECT date_bin(make_interval(secs => $3::double precision), occurred_at, $4::timestamptz) AS k1, origin::text AS k2 FROM audit_events WHERE occurred_at >= $1 AND occurred_at < $2 AND origin IS NOT NULL)," +
+				" t1 AS (SELECT k1, k2 FROM (SELECT matched.k1, matched.k2, row_number() OVER (PARTITION BY matched.k1 ORDER BY count(*) DESC, matched.k2) AS rn FROM matched GROUP BY matched.k1, matched.k2) ranked WHERE rn <= $5)" +
+				" SELECT matched.k1, matched.k2, count(*)::double precision AS doc_count FROM matched JOIN t1 ON matched.k1 = t1.k1 AND matched.k2 = t1.k2 GROUP BY 1, 2 ORDER BY 1, 2 LIMIT $6",
+			args:   []any{testWindow.From, testWindow.To, 3600.0, epoch, 2, MaxAggRows + 1},
+			levels: []Level{{Name: "t", Type: "date_histogram", Field: "occurred_at"}, {Name: "o", Type: "terms", Field: "origin"}},
+		},
+		{
+			name: "terms below a time bucket below terms",
+			text: `{"aggs":{"o":{"terms":{"field":"origin","size":1},"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1h"},"aggs":{"a":{"terms":{"field":"action","size":1}}}}}}}}`,
+			sql: "WITH matched AS (SELECT origin::text AS k1, date_bin(make_interval(secs => $3::double precision), occurred_at, $4::timestamptz) AS k2, action AS k3 FROM audit_events WHERE occurred_at >= $1 AND occurred_at < $2 AND origin IS NOT NULL AND action IS NOT NULL)," +
+				" t1 AS (SELECT k1 FROM (SELECT matched.k1, row_number() OVER (ORDER BY count(*) DESC, matched.k1) AS rn FROM matched GROUP BY matched.k1) ranked WHERE rn <= $5)," +
+				" t2 AS (SELECT k1, k2, k3 FROM (SELECT matched.k1, matched.k2, matched.k3, row_number() OVER (PARTITION BY matched.k1, matched.k2 ORDER BY count(*) DESC, matched.k3) AS rn FROM matched JOIN t1 ON matched.k1 = t1.k1 GROUP BY matched.k1, matched.k2, matched.k3) ranked WHERE rn <= $6)" +
+				" SELECT matched.k1, matched.k2, matched.k3, count(*)::double precision AS doc_count FROM matched JOIN t2 ON matched.k1 = t2.k1 AND matched.k2 = t2.k2 AND matched.k3 = t2.k3 GROUP BY 1, 2, 3 ORDER BY 1, 2, 3 LIMIT $7",
+			args:   []any{testWindow.From, testWindow.To, 3600.0, epoch, 1, 1, MaxAggRows + 1},
+			levels: []Level{{Name: "o", Type: "terms", Field: "origin"}, {Name: "t", Type: "date_histogram", Field: "occurred_at"}, {Name: "a", Type: "terms", Field: "action"}},
+		},
+		{
 			name: "metrics only",
 			text: `{"aggs":{"m":{"max":{"field":"duration_ms"}}}}`,
 			sql:  "WITH matched AS (SELECT duration_ms AS m1 FROM audit_events WHERE occurred_at >= $1 AND occurred_at < $2) SELECT count(*)::double precision AS doc_count, max(matched.m1)::double precision FROM matched LIMIT $3",
@@ -193,5 +212,20 @@ func TestDateHistogramIntervalCannotWrapAround(t *testing.T) {
 		if err != nil || q.Aggs[0].Interval <= 0 {
 			t.Errorf("interval %s: %+v %v", interval, q.Aggs, err)
 		}
+	}
+}
+
+func TestTermsPerTimeBucketCountTheBucketsInTheRowLimit(t *testing.T) {
+	big := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1m"},"aggs":{"o":{"terms":{"field":"origin","size":100}}}}}}`
+	if _, err := mustParse(t, big).Aggregate(testWindow); err == nil || !strings.Contains(err.Error(), "buckets and terms sizes multiply") {
+		t.Errorf("1441 buckets of 100 terms: error = %v", err)
+	}
+	fits := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1m"},"aggs":{"o":{"terms":{"field":"origin","size":10}}}}}}`
+	if _, err := mustParse(t, fits).Aggregate(testWindow); err != nil {
+		t.Errorf("1441 buckets of 10 terms: %v", err)
+	}
+	global := `{"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}`
+	if _, err := mustParse(t, global).Aggregate(testWindow); err != nil {
+		t.Errorf("a terms level with no histogram: %v", err)
 	}
 }
