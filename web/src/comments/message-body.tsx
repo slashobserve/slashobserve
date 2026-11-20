@@ -30,14 +30,35 @@ function markdownOf(body: string, mentions: readonly Mention[]) {
   return { markdown, chips }
 }
 
+const codeSpan = /`([^`\n]+)`/g
+
+function WithCodeSpans({ text }: { text: string }) {
+  const parts = text.split(codeSpan)
+  return (
+    <>
+      {parts.map((part, index) =>
+        index % 2 === 0 ? (
+          <Fragment key={index}>{part}</Fragment>
+        ) : (
+          <code key={index} className="font-mono text-xs">
+            {part}
+          </code>
+        )
+      )}
+    </>
+  )
+}
+
 export function MessageBody({
   body,
   mentions,
   markdown = false,
+  codeSpans = false,
 }: {
   body: string
   mentions: readonly Mention[]
   markdown?: boolean
+  codeSpans?: boolean
 }) {
   if (markdown) {
     const parsed = markdownOf(body, mentions)
@@ -47,7 +68,11 @@ export function MessageBody({
     <>
       {mentionSegments(body).map((segment, index) => {
         if (segment.kind === "text") {
-          return <Fragment key={index}>{segment.text}</Fragment>
+          return codeSpans ? (
+            <WithCodeSpans key={index} text={segment.text} />
+          ) : (
+            <Fragment key={index}>{segment.text}</Fragment>
+          )
         }
         const name = mentionName(segment, mentions)
         if (name === null) return <Fragment key={index}>{segment.raw}</Fragment>

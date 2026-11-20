@@ -127,6 +127,9 @@ export function AddToObservationPanel({
             },
           })
           onClose()
+          if (target.id === defaultObservationId) {
+            void navigate(observationLink(target.id))
+          }
         },
         onError: (error) => setProblem(problemText(error)),
       }

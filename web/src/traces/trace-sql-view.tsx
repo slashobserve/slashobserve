@@ -230,7 +230,13 @@ export function TraceSqlResults({
             if (traceId === null) return null
             return (
               <Link
-                {...traceLink(traceId, datasource.uid, range)}
+                {...traceLink(
+                  traceId,
+                  datasource.uid,
+                  range,
+                  undefined,
+                  search.observation
+                )}
                 className="underline underline-offset-3"
               >
                 {traceId}

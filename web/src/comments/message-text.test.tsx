@@ -106,6 +106,34 @@ describe("MessageText", () => {
     expect(screen.getByText("**bold** [x](https://example.com)")).toBeVisible()
   })
 
+  it("renders only the code spans of a run's reply and leaves the rest literal", () => {
+    const run = { ...person, run_id: "33333333-3333-4333-8333-333333333333" }
+    const { container } = show(
+      "Wrote the answer: `checkout` is **slow** and `p99` too",
+      { actor: run }
+    )
+    const codes = [...container.querySelectorAll("code")]
+    expect(codes.map((code) => code.textContent)).toEqual(["checkout", "p99"])
+    expect(container.querySelector("strong")).toBeNull()
+    expect(container.textContent).toBe(
+      "Wrote the answer: checkout is **slow** and p99 too"
+    )
+  })
+
+  it("leaves an unpaired backtick in a run's reply as it is", () => {
+    const run = { ...person, run_id: "33333333-3333-4333-8333-333333333333" }
+    const { container } = show("Cut at `checkout and more...", { actor: run })
+    expect(container.querySelector("code")).toBeNull()
+    expect(container.textContent).toBe("Cut at `checkout and more...")
+  })
+
+  it("keeps the code spans of an outside agent's text literal", () => {
+    const mcp = { ...person, origin: "mcp" as const, client: "Codex" }
+    const { container } = show("see `checkout`", { actor: mcp })
+    expect(container.querySelector("code")).toBeNull()
+    expect(container.textContent).toBe("see `checkout`")
+  })
+
   it("shows the closing chat link of the agent's own run as a real link", async () => {
     const runId = "33333333-3333-4333-8333-333333333333"
     const run = { ...person, run_id: runId }

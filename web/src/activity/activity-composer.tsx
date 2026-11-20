@@ -227,6 +227,7 @@ export function ActivityComposer({
   )
   const cannotSubmit = trimmed === "" || over || waitingForPanels
   const cannotSend = cannotSubmit || sendBlock !== null
+  const startsInvestigation = investigating && gate.kind === "allowed"
 
   function announce(text: string) {
     setNote((current) => ({ text, count: current.count + 1 }))
@@ -345,9 +346,14 @@ export function ActivityComposer({
     )
   }
 
+  function submit() {
+    if (startsInvestigation) investigateNow()
+    else sendNow()
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault()
-    sendNow()
+    submit()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -356,7 +362,7 @@ export function ActivityComposer({
       sendsOnEnter(event, coarse)
     ) {
       event.preventDefault()
-      sendNow()
+      submit()
       return
     }
     const element = event.currentTarget
@@ -522,7 +528,7 @@ export function ActivityComposer({
             {runningRequestId !== undefined ? (
               <StopRequestButton requestId={runningRequestId} />
             ) : null}
-            {investigating && gate.kind === "allowed" ? (
+            {startsInvestigation ? (
               <Button
                 type="button"
                 size="sm"

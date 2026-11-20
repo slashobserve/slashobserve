@@ -4,6 +4,7 @@ import {
   firstString,
   validAsk,
   validDatasource,
+  validObservation,
   validQuery,
   validRange,
   validSaved,
@@ -29,6 +30,7 @@ export type TraceSearch = {
   ask?: string
   from?: string
   to?: string
+  observation?: string
   saved?: string
   page?: number
   size?: PageSize
@@ -45,6 +47,7 @@ export type TraceViewSearch = {
   span?: string
   from?: string
   to?: string
+  observation?: string
 }
 
 const traceIdPattern = /^(?:[0-9a-f]{16}|[0-9a-f]{32})$/
@@ -95,6 +98,7 @@ export function validateTraceSearch(raw: Record<string, unknown>): TraceSearch {
     q: validQuery(raw.q),
     ask: validAsk(raw.ask),
     ...validRange(raw),
+    observation: validObservation(raw.observation),
     saved: validSaved(raw.saved),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
@@ -132,6 +136,7 @@ export function validateTraceViewSearch(
     ds: validDatasource(raw.ds),
     span: validSpanId(raw.span),
     ...validRange(raw),
+    observation: validObservation(raw.observation),
   }
 }
 

@@ -212,6 +212,51 @@ describe("AddToObservationPanel", () => {
     ).toBe(true)
   })
 
+  it("returns to the observation the page was entered from once the panel is added", async () => {
+    const wanted = observation("o5", "Disk full")
+    stubServer({
+      "GET /api/v1/observations": openList(wanted),
+      "GET /api/v1/folders": foldersReply,
+      "POST /api/v1/observations/o5/blocks": {
+        status: 201,
+        body: blockReply("live"),
+      },
+    })
+    const { user, router } = render(vi.fn(), "o5")
+    await waitFor(() =>
+      expect(screen.getByRole("combobox")).toHaveValue("Disk full")
+    )
+    await user.click(screen.getByRole("button", { name: "Add" }))
+
+    await waitFor(() => expect(router?.state.location.pathname).toBe("/o/o5"))
+  })
+
+  it("stays on the page when the panel goes to another observation than the one it came from", async () => {
+    stubServer({
+      "GET /api/v1/observations": openList(
+        observation("o5", "Disk full"),
+        observation("o2", "Payments down")
+      ),
+      "GET /api/v1/folders": foldersReply,
+      "POST /api/v1/observations/o2/blocks": {
+        status: 201,
+        body: blockReply("live"),
+      },
+    })
+    const { user, onClose, router } = render(vi.fn(), "o5")
+    await waitFor(() =>
+      expect(screen.getByRole("combobox")).toHaveValue("Disk full")
+    )
+    await user.click(screen.getByRole("combobox"))
+    await user.click(
+      await screen.findByRole("option", { name: "Payments down" })
+    )
+    await user.click(screen.getByRole("button", { name: "Add" }))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(router?.state.location.pathname).toBe("/")
+  })
+
   it("says suggested when the block comes back requested", async () => {
     stubServer({
       "GET /api/v1/observations": openList(observation("o1", "Checkout slow")),
