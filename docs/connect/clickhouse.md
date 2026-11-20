@@ -15,6 +15,16 @@ A ClickHouse entry takes the fields common to every datasource, described in the
 | `passwordEnv`, `passwordFile` | Exactly one is required.                                        |
 | `tls`                         | `true` to connect over TLS (TLS 1.2 or newer). Default `false`. |
 
+## What the logs and trace pages read
+
+The logs page starts from a template over `otel_logs` and the trace search reads `otel_traces`, both in the datasource's `database`, with the column names of the OpenTelemetry Collector's ClickHouse exporter: `Timestamp`, `SeverityText`, `Body`, `ServiceName`, `TraceId`, `SpanId` and `LogAttributes` for logs, and for traces the same ids and service plus `ParentSpanId`, `SpanName`, `SpanKind`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, and the `Events` and `Links` nested columns.
+The services list reads the `ServiceName` column of whichever of the two tables the signal names.
+Metric names come from the `otel_metrics_*` tables.
+
+On the logs page, and in the SQL view of the trace search, you write the query as SQL.
+It must be one read-only `SELECT`, and it must read the time range through a macro such as `$__timeFilter(Timestamp)`, which names the table's time column, because the server never reads a table beyond the range at the top of the page.
+[Logs and traces](../use/logs-and-traces.md#write-and-run-a-query) describes the rules and the errors.
+
 ## Large numbers
 
 A result carries numbers as floating point, which holds integers exactly only up to 2^53.

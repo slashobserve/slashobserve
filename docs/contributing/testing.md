@@ -12,8 +12,9 @@ The dependency audit runs daily and on a pull request that changes a lockfile or
 
 ## Unit tests
 
-`make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, and the tests of the release, install and docs lint scripts.
-Run one part on its own with `go test -race ./...` from the repository root or `bun run test` from `web/`.
+`make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, `bun test` for `observe-agent`, and the tests of the release, install, docs lint and CI change scripts.
+Run one part on its own with `make test-go`, `make test-web`, `make test-agent` or `make test-scripts`, or with `go test -race ./...` from the repository root or `bun run test` from `web/`.
+`make lint` and `make test` together with the module tidy check and `make build` are what `make ci` runs, which is what the CI `check` job runs.
 
 A server built from source starts `observe-agent` whenever a model provider is configured, so run `make agent` first: start-up fails when it cannot find `observe-agent`.
 
@@ -114,8 +115,8 @@ A page passes when:
 
 - its front matter has a `title` and a `description`
 - no line starts with a level 1 `# ` heading
-- it has no em dash or en dash
-- every relative link to a `.md` file points at a file that exists
+- it has no em dash or en dash, anywhere in the file
+- every relative link to a `.md` file or an image points at a file that exists, and every image has alt text
 - each prose line holds one sentence
 - no paragraph runs longer than 8 prose lines without a blank line
 - a page with more than 60 non-blank lines has at least one `## ` heading

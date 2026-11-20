@@ -5,6 +5,7 @@ description: Run the agent on a model served on your own machine or network thro
 
 The agent can run on a model you serve yourself, so prompts and query results never leave your network.
 It talks to the model through the OpenAI-compatible adapter, which calls any server that implements the Chat Completions API with tool calling.
+The calls come from the `observe-agent` process the server starts, which must be able to reach the model server's address.
 Ollama, vLLM, llama.cpp's server and LM Studio are examples; the project does not vouch for any of them or for any model.
 
 ## Settings
@@ -26,11 +27,12 @@ These calls are not covered by the [outbound allowlist](../operate/outbound-acce
 ## Tool calling
 
 The model must support tool calling.
-The agent works only through tools: it reads metrics, labels and rows with them and saves every panel with one, and its plain text is discarded.
+The agent works only through tools: it reads metrics, labels and rows with them and saves every panel with one, and its plain text is only the live text shown while it works, never a saved result.
 A model that answers in text instead of calling a tool saves nothing, and the request fails with `no_tool_call` or `no_progress` (see [Read a turn](../use/chat.md#read-a-turn)).
 Check that the model you pick is listed as tool-capable by its server, and that the server is started with tool calling turned on when it has such a switch.
 
-The adapter accepts a tool call whose `type` is missing, which some servers leave out, and reads a call with empty arguments as `{}`.
+The agent calls the server's Chat Completions endpoint with streaming on and asks it to include usage in the stream.
+It sends the output cap as `max_completion_tokens`, not `max_tokens`.
 
 ## Effort
 

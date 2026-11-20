@@ -5,7 +5,7 @@ description: Mark deploys, incidents and maintenance on a moment or a range of t
 
 An annotation is a note pinned to a moment or a range of time, such as a deploy, an incident or a maintenance window.
 Annotations are stored on the server beside your dashboards and never inside a dashboard's [ObserveSpec](../concepts/observespec.md), so adding one saves no version.
-Charts draw them as markers, you add them from the dashboard, the CLI, the HTTP API or an MCP client, you list them through the HTTP API or an MCP client, you edit their text and tags from the dashboard, the CLI, the HTTP API or an MCP client, and you delete them from the dashboard, the HTTP API or the CLI.
+Charts draw them as markers, you add them from the dashboard, the CLI, the HTTP API or an MCP client, you list them through the CLI, the HTTP API or an MCP client, you edit their text and tags from the dashboard, the CLI, the HTTP API or an MCP client, and you delete them from the dashboard, the HTTP API or the CLI.
 
 ## Global and dashboard annotations
 
@@ -164,3 +164,6 @@ The change is recorded as `annotation.updated` in the [activity](activity.md) lo
 ```sh
 curl -fsS -X DELETE -H "Authorization: Bearer $OBSERVE_TOKEN" "$OBSERVE_SERVER/api/v1/annotations/<annotation id>"
 ```
+
+Only the person or key that added the annotation, or an Admin, may delete it, and it cannot be undone.
+`observe annotations delete <id>` does the same from the CLI, and `observe annotations list` lists them; see [CLI](cli.md#annotations).

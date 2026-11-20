@@ -32,6 +32,7 @@ The switch applies to every key of the account, like the role, and is saved when
 Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](../teams/folders.md)).
 A key has no My Dashboards folder.
 A service account that takes runs works under the same guards as the built-in agent, enforced by the server on every call of the run's session; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
+Creating, changing and deleting an account, and creating and revoking a key, are recorded in the Audit log, never with the key (see [Activity](../use/activity.md#admin-changes)).
 Beyond that, see [the security model](security-model.md) for what any key can do.
 
 ## Declare service accounts in a file

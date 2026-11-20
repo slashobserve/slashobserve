@@ -52,6 +52,18 @@ go run ./evals/runner --server http://localhost:28080 --suite smoke --bootstrap-
 
 `--bootstrap-dex` mints a service-account key for the run, so the runner never needs the model key.
 
+## Kubernetes dashboards
+
+To check the Kubernetes corpus dashboards, start the local Kubernetes demo with `make demo-k8s`, then boot the evals stack against it:
+
+```sh
+scripts/evals-stack.sh up --k8s replay
+go run ./evals/runner --verify-k8s --server http://localhost:28080 --bootstrap-dex
+```
+
+`--verify-k8s` imports the 29 Kubernetes corpus dashboards and compares their unverified panels with `evals/k8s-gaps.yaml`, with no scenario and no model.
+`--profile k8s` runs the live suite on those dashboards instead of the sample.
+
 ## Repeating a scenario
 
 A live model does not answer the same way every time, so measure a rate rather than one run:

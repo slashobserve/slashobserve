@@ -71,6 +71,7 @@ A dashboard changed in the web app since the last apply is overwritten by the ne
 Apply also refuses, with the code `provisioned`, a dashboard that comes from the server's provisioning directory; change that file instead.
 A file that is not JSON fails with `invalid_json` before it is sent.
 When any file fails, apply still sends the others and then exits 1 with `<n> of <total> files failed`.
+A missing `--dir`, or a directory that cannot be read, exits 2 before anything is sent, and a directory with no `.json` file prints a warning and exits 0.
 `--json` prints the results as a JSON array of objects with `path`, `outcome`, `dashboard_id`, `version`, `code` and `message`.
 
 A key saves only where its role and folder access let it edit; it matches no folder entry, so a restricted folder is out of reach unless the key's account is an Admin or created it (see [Service-account keys](../operate/service-account-keys.md)).
@@ -106,7 +107,7 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install observe
         run: curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | OBSERVE_INSTALL_DIR="$HOME/.local/bin" sh
       - name: Apply

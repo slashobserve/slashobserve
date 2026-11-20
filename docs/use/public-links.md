@@ -12,6 +12,7 @@ There is no stored-data snapshot of a past moment, and a public link cannot be f
 
 Creating, listing and revoking public links needs Manage on the dashboard's folder, the level that sets the folder's permissions (see [Folders](../teams/folders.md)), because a link lets people outside the folder's list see the dashboard.
 Service-account keys with that level can call the API too.
+A published RCA revision has its own links, described in [Share a revision](observations.md#share-a-revision).
 The agent and MCP clients cannot create or list public links: publishing a dashboard outside the team is a person's decision.
 
 Some dashboards cannot have a public link:

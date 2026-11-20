@@ -55,7 +55,7 @@ They do nothing on a dashboard that hides the time picker.
 ## When keys are ignored
 
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
-`e` also does nothing while you have unsaved layout changes.
+`v`, `e` and `i` also open nothing while you have unsaved layout changes.
 
 ## Logs page keys
 
@@ -69,7 +69,8 @@ The logs page answers keys of its own, described in [Logs and traces](logs-and-t
 | `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
 | `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
 | `Ctrl+Space` | Complete a field, label or keyword, in the query editor. |
-| `j` and `k` | Move to the next and previous line, while a line has the focus. |
+| `j` | Move to the first line when nothing has the focus, then to the next line. |
+| `k` | Move to the previous line, while a line has the focus. |
 | `Enter` | Open the line that has the focus. |
 | `Esc` | Close the open line and return to it. |
 | `?` | Show this list. |
@@ -91,6 +92,7 @@ The trace search answers keys of its own too, described in [Logs and traces](log
 | Keys | What they do |
 | --- | --- |
 | `⌘I` or `Ctrl+I` | Switch between Ask and Query, from anywhere on the page. |
+| `⌘Enter` or `Ctrl+Enter` | Run the search, from the Service, Span name and duration fields or from the SQL editor. |
 | `Enter` | Ask the question, or run the search from Service, Span name or a duration field. |
 | `Shift+Enter` | Add a line to the question. |
 

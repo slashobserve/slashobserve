@@ -27,6 +27,7 @@ Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
 
 The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
 A person appears on that page only after their first sign-in, so sign in once as each of them, then sign back in as the Admin to change their roles.
+To give a role before the first sign-in, [invite](../teams/people.md#invite-people) the email with that role.
 
 ## Send a prompt
 
@@ -68,8 +69,8 @@ On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours 
 
 ## Add Elasticsearch and OpenSearch
 
-To see the shop's logs in Elasticsearch and OpenSearch as well, run `make demo-search` instead of `make demo-build`.
-It adds Elasticsearch 8 on http://localhost:9200, OpenSearch 2 on http://localhost:9201 and a second OpenTelemetry Collector that writes the shop's logs to both, and the Elasticsearch and OpenSearch datasources of the demo then answer.
+To see the shop's logs in Elasticsearch and OpenSearch as well, run `make demo-search` instead of `make demo`.
+It builds the server and shop images from your checkout, as `make demo-build` does, and adds Elasticsearch 8 on http://localhost:9200, OpenSearch 2 on http://localhost:9201 and a second OpenTelemetry Collector that writes the shop's logs to both, and the Elasticsearch and OpenSearch datasources of the demo then answer.
 Without it those two datasources report that they are not answering, and nothing else depends on them.
 
 Each store is capped at 1 GiB of memory and the two images take about 3.5 GB on disk, so leave this for when you want to look at them.

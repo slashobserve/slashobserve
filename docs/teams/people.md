@@ -35,7 +35,7 @@ In the same moment the server:
 
 - deletes every session of the person, so their open tabs return to the sign-in page;
 - disconnects every agent they connected over MCP;
-- refuses their next sign-in with "This account was deactivated by an Admin."
+- refuses their next sign-in with "This account was deactivated by an Admin. Ask an Admin to reactivate it."
 
 Everything they made stays where it is: dashboards, versions, observations, comments, proposals and folder grants.
 Agent runs they requested that are still queued fail when an agent picks them up, and webhooks they own stop.
@@ -73,9 +73,14 @@ Under **Teams** on the People page, choose **New team**, then **Add person** on 
 A team's name works like a group from the identity provider in a folder's access list: add the name as a group entry (see [Folders and access](folders.md)), and every member gets that level.
 A change applies at each member's next request, with no new sign-in.
 A team never changes anyone's role, because roles come only from the identity provider's groups and the rules in [Roles](roles.md).
+A name is 1 to 100 characters without control characters.
 Names are unique without regard to case, but a folder entry matches the exact name; a team with the same name as an identity-provider group adds its members to that group's entries.
 Deleting a team ends what its name gave its members; folder entries for the name stay and match no one until a team or an identity-provider group of that name exists.
 Removing a person also removes them from every team.
+
+## Audit log
+
+Role changes, invites, deactivations, reactivations, removals and sign-outs everywhere are recorded in Settings, Audit log, which only Admins read; see [Activity](../use/activity.md#admin-changes).
 
 ## Over the API
 

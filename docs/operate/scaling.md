@@ -22,8 +22,10 @@ The ceiling of the agent is usually the rate limit of your model provider, not t
   It defaults to 8, and the fleet runs the replica count times this many agent requests at once.
 - Each server with a model provider runs one `observe-agent` child process that works that server's runs, so the fleet runs one per server.
   Measured on a compose stack with the replay model, an idle child holds about 50 MiB resident (`docker top`), and the whole server container, child included, shows about 48 MiB in `docker stats`; the compose server limit is 512M.
-- `limits.maxConcurrentQueries` on each datasource, as the total number of queries the datasource can take from the whole fleet.
+- `limits.maxConcurrentQueries` on each datasource, as the total number of queries the datasource can take from the whole fleet, in the datasources file or on the datasource's form in the app.
   It defaults to 32; see [the datasources file](../reference/datasources-file.md).
+- The same datasources file on every server, because each server reads it only at startup.
+  A datasource added in the app is stored in Postgres and the other servers pick it up within 10 seconds.
 - `SLASHOBSERVE_DATABASE_DIRECT_URL`, whenever `SLASHOBSERVE_DATABASE_URL` goes through a transaction pooler.
 - The same `SLASHOBSERVE_SECRET_KEY`, OIDC settings and `SLASHOBSERVE_PUBLIC_URL` on every server.
 - A load balancer with no session affinity.
@@ -33,10 +35,10 @@ The ceiling of the agent is usually the rate limit of your model provider, not t
 Each server opens a pool on `SLASHOBSERVE_DATABASE_URL`.
 The pool holds at most the largest of 16, `2 x workers + 8` and the machine's CPU count, which is 24 at the default 8 workers on a host with 24 or fewer CPUs.
 A `pool_max_conns` in the URL replaces that size.
-Each server also keeps 2 connections on the direct URL for `LISTEN`, and one more while it migrates.
+Each server also keeps 3 connections on the direct URL for `LISTEN` (events, run claims and live agent text), and one more while it migrates or runs the provisioning and service-account locks.
 
-Without a pooler, Postgres needs `max_connections` for about `replicas x (24 + 3)` connections at the defaults, plus your own headroom for backups and people.
-With a pooler, the direct connections are `replicas x 3`, and the size of the pooler's pool is yours to set.
+Without a pooler, Postgres needs `max_connections` for about `replicas x (24 + 4)` connections at the defaults, plus your own headroom for backups and people.
+With a pooler, the direct connections are `replicas x 4`, and the size of the pooler's pool is yours to set.
 `pg_stat_activity` shows what Postgres sees, and `SHOW POOLS` in the pooler's admin console shows the pooled side.
 
 ## Behind a pooler
@@ -56,7 +58,7 @@ Every other limit protects one server's own capacity or one caller, and stays pe
 | Queries running on one server, all datasources | 32 | Per server | It protects the server. |
 | OAuth registrations, authorizations, token requests and revocations | 30, 120, 1200 and 120 per minute | Fleet-wide | They cap a total over every client. |
 | OAuth token requests of one client | 120 per minute | Per server | It caps one caller. |
-| MCP requests in flight | 8 per key, 32 per server | Per server | They protect the server. |
+| MCP requests in flight | 8 per person or service account, 32 per server | Per server | They protect the server. |
 | Dashboard event streams | 20 per person, 1000 per server | Per server | They protect the server. |
 | Activity streams | 5 per person, 500 per server | Per server | They protect the server. |
 | Live tails | 5 per person, 200 per server | Per server | They protect the server. |
@@ -66,6 +68,7 @@ Every other limit protects one server's own capacity or one caller, and stays pe
 | Grafana imports | 1 per caller, 4 per server | Per server | They protect the server. |
 | Agent requests running at once | `SLASHOBSERVE_AGENT_WORKERS` | Per server | The fleet runs the replica count times this. |
 | New dashboard requests queued or running | 20 in all, 3 per person | Fleet-wide | Postgres counts them. |
+| Investigations queued or running | 10 in all, 3 per person | Fleet-wide | Postgres counts them. |
 
 A caller whose requests spread over N servers can have up to N times a per-server cap in flight.
 

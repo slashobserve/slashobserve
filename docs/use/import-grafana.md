@@ -62,6 +62,7 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 ### Unverified panels and later saves
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
+JSON that does not parse answers `422 invalid_json` with the line and column where it goes wrong, or says the file ends early and may be cut off.
 It saves the dashboard as version 1 and runs every query once.
 The preview before that runs no query, so its **Needs a look** count covers only what the importer already knows, and the page says so; panels whose queries fail show up as unverified after the import.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
