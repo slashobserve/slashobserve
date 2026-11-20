@@ -69,6 +69,9 @@ const (
 	TypePublicLinkCreated = "public_link.created"
 	TypePublicLinkRevoked = "public_link.revoked"
 
+	TypeAccessRequestOpened  = "access_request.opened"
+	TypeAccessRequestGranted = "access_request.granted"
+
 	TypeUserRoleChanged          = "user.role_changed"
 	TypeUserSignedOutEverywhere  = "user.signed_out_everywhere"
 	TypeUserInvited              = "user.invited"
@@ -101,6 +104,11 @@ const (
 var publicLinkTypes = []string{
 	TypePublicLinkCreated,
 	TypePublicLinkRevoked,
+}
+
+var accessRequestTypes = []string{
+	TypeAccessRequestOpened,
+	TypeAccessRequestGranted,
 }
 
 var adminTypes = []string{
@@ -183,9 +191,9 @@ var workspaceTypes = []string{
 	TypeRunKept,
 }
 
-var knownTypes = slices.Concat(workspaceTypes, publicLinkTypes, adminTypes)
+var knownTypes = slices.Concat(workspaceTypes, publicLinkTypes, accessRequestTypes, adminTypes)
 
-var auditTypes = slices.Concat(adminTypes, publicLinkTypes)
+var auditTypes = slices.Concat(adminTypes, publicLinkTypes, accessRequestTypes)
 
 func Types() []string { return slices.Clone(knownTypes) }
 

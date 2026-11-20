@@ -56,9 +56,10 @@ const (
 	ReasonRunFailed      Reason = "run_failed"
 	ReasonRepaired       Reason = "repaired"
 	ReasonProposalClosed Reason = "proposal_closed"
+	ReasonAccessRequest  Reason = "access_request"
 )
 
-var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed, ReasonRepaired, ReasonProposalClosed}
+var Reasons = []Reason{ReasonProposal, ReasonRequestedBlock, ReasonMention, ReasonReply, ReasonRunFailed, ReasonRepaired, ReasonProposalClosed, ReasonAccessRequest}
 
 const (
 	UnreadCap = 100

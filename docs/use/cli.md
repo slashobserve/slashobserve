@@ -245,6 +245,23 @@ bin/observe folders permissions open <folder-id> --yes
 Changing the list needs Manage on the folder, which an Admin key has on every folder except another person's personal one, and the General folder cannot be restricted.
 Each command is one read followed by one replace of the whole list, so two people changing the same folder at once can overwrite each other.
 
+### Ask for comment access
+
+`bin/observe access` asks for [comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation you can view, and lists the requests that wait for you:
+
+```sh
+bin/observe access request dashboard:<dashboard-id> --note "I am on call for checkout this week"
+bin/observe access request observation:<observation-id>
+bin/observe access requests
+```
+
+`request` takes the object as `<kind>:<id>`, with `dashboard` or `observation` as the kind, and an optional `--note` of one line, at most 200 characters.
+It prints `Asked for comment access to <kind> <title>; the people who manage its folder will see it in their inbox` and changes no access.
+A request that is still open answers `request_open`, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
+A service-account key may ask too; its request is granted by raising the service account's role.
+`requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
+Grant one with `bin/observe folders permissions grant <folder-id> --user <id> --level comment`, or by raising the role.
+
 ## Saved prompts
 
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.

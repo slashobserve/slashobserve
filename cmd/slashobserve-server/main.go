@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/actions"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -320,12 +321,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	authService.RecordChanges(database, activity.AuthChanges{})
+	folderAccess := folders.NewAccess(database)
+	accessRequests := accessrequests.New(database, folderAccess)
+	authService.RecordChanges(database, accessrequests.ChangeLog{ChangeLog: activity.AuthChanges{}, Requests: accessRequests})
 	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
 		return err
 	}
-
-	folderAccess := folders.NewAccess(database)
 
 	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
 	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
@@ -409,6 +410,7 @@ func run() error {
 		LiveText:       liveText,
 		Search:         searchService,
 		Stars:          stars.New(database, folderAccess),
+		AccessRequests: accessRequests,
 		Viewers:        viewersService,
 		Home:           homedash.New(database, folderAccess),
 		Provider:       llmProvider,
@@ -502,7 +504,8 @@ func run() error {
 		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
-			folders.NewHandler(database, folderAccess, logger),
+			folders.NewHandler(database, folderAccess, logger).SettleSharingWith(accessRequests.SettleFolder),
+			accessrequests.NewHandler(accessRequests, logger),
 			proposals.NewHandler(proposalsService, folderAccess.RequireDashboard(folders.NeedView), logger),
 			imports.NewHandler(importsService, folderAccess),
 			grafanaconn.NewHandler(grafanaService),

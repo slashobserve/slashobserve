@@ -360,6 +360,8 @@ paths:
     $ref: "./paths/inbox.yaml#/inbox-read"
   /inbox/items/{seq}:
     $ref: "./paths/inbox.yaml#/inbox-item"
+  /access-requests:
+    $ref: "./paths/access-requests.yaml#/access-requests"
 components:
   securitySchemes:
     sessionCookie:
@@ -400,6 +402,10 @@ components:
         latest_version:
           type: integer
           description: On a `version_not_found` refusal, the dashboard's latest version.
+        requested_at:
+          type: string
+          format: date-time
+          description: On a `request_open` refusal, when the caller's open access request was made.
     Issue:
       type: object
       additionalProperties: false
@@ -1988,7 +1994,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, access_request.opened, access_request.granted, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -2009,7 +2015,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link, access_request]
             id:
               type: string
               format: uuid
@@ -2045,6 +2051,48 @@ components:
         next_cursor:
           type: string
           nullable: true
+    AccessRequest:
+      type: object
+      additionalProperties: false
+      required: [id, object, requested_by, note, created_at]
+      description: A request for Comment access to a dashboard or observation.
+      properties:
+        id:
+          type: string
+          format: uuid
+        object:
+          type: object
+          additionalProperties: false
+          required: [kind, id, title]
+          properties:
+            kind:
+              type: string
+              enum: [dashboard, observation]
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+        requested_by:
+          type: object
+          additionalProperties: false
+          required: [kind, id, name]
+          properties:
+            kind:
+              type: string
+              enum: [user, service_account]
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        note:
+          type: string
+          maxLength: 200
+          description: The requester's one-line note, empty when they wrote none.
+        created_at:
+          type: string
+          format: date-time
     InboxItem:
       type: object
       additionalProperties: false
@@ -2064,7 +2112,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link, access_request]
             id:
               type: string
               format: uuid
@@ -2086,7 +2134,7 @@ components:
         reason:
           type: string
           nullable: true
-          enum: [proposal, requested_block, mention, reply, run_failed, repaired, proposal_closed]
+          enum: [proposal, requested_block, mention, reply, run_failed, repaired, proposal_closed, access_request]
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
@@ -2097,7 +2145,7 @@ components:
         excerpt:
           type: string
           nullable: true
-          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items.
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items.
     InboxList:
       type: object
       additionalProperties: false
@@ -5832,7 +5880,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 76
+          maxItems: 78
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5923,7 +5971,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 76
+          maxItems: 78
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5944,7 +5992,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 76
+          maxItems: 78
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

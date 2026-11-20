@@ -33,6 +33,8 @@ export const auditKinds = [
   { value: "datasource.deleted", label: "Datasource deleted" },
   { value: "public_link.created", label: "Public link created" },
   { value: "public_link.revoked", label: "Public link revoked" },
+  { value: "access_request.opened", label: "Comment access requested" },
+  { value: "access_request.granted", label: "Comment access granted" },
 ] as const satisfies readonly { value: ActivityType; label: string }[]
 
 export type AuditRange = "hour" | "day" | "week" | "month" | "all"
@@ -171,9 +173,28 @@ export function describeAuditEvent(event: ActivityEvent): string {
       return `Created a public link to ${linkTarget(data)}`
     case "public_link.revoked":
       return `Revoked a public link to ${linkTarget(data)}`
+    case "access_request.opened":
+      return `Asked for comment access to ${accessTarget(data)}`
+    case "access_request.granted":
+      return `Granted comment access to ${accessTarget(data)} asked for by ${requesterName(data)}`
     default:
       return event.type
   }
+}
+
+function accessTarget(data: Data): string {
+  const title = str(data, "title")
+  const object = data.object as { kind?: unknown } | undefined
+  const observation = object?.kind === "observation"
+  if (title === "") return observation ? "an observation" : "a dashboard"
+  return `the ${observation ? "observation" : "dashboard"} "${title}"`
+}
+
+function requesterName(data: Data): string {
+  const requester = data.requested_by as { name?: unknown } | undefined
+  return typeof requester?.name === "string" && requester.name !== ""
+    ? requester.name
+    : "someone"
 }
 
 function linkTarget(data: Data): string {

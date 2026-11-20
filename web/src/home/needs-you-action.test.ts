@@ -25,6 +25,22 @@ function item(
 }
 
 describe("needsYouAction", () => {
+  test("Share opens the Share pane of the dashboard someone asked about", () => {
+    expect(
+      needsYouAction(
+        item(
+          "access_request",
+          { kind: "access_request", id: requestId },
+          { object: { kind: "dashboard", id: proposalId } }
+        )
+      )
+    ).toEqual({
+      kind: "link",
+      label: "Share",
+      to: { to: `/d/${proposalId}`, search: { share: "1" } },
+    })
+  })
+
   test("Review opens a proposal", () => {
     expect(
       needsYouAction(item("proposal", { kind: "proposal", id: proposalId }))

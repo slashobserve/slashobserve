@@ -24,6 +24,9 @@ type adminData struct {
 	Object     struct {
 		Kind string `json:"kind"`
 	} `json:"object"`
+	RequestedBy struct {
+		Name string `json:"name"`
+	} `json:"requested_by"`
 	Host               string                     `json:"host"`
 	URLChanged         bool                       `json:"url_changed"`
 	TokenChanged       bool                       `json:"token_changed"`
@@ -88,6 +91,9 @@ func describeAdmin(e activityEvent) (string, bool) {
 	if line, ok := describePublicLink(e.Type, d); ok {
 		return line, true
 	}
+	if line, ok := describeAccessRequest(e.Type, d); ok {
+		return line, true
+	}
 	return describeIntegration(e.Type, d)
 }
 
@@ -145,6 +151,24 @@ func describePublicLink(typ string, d adminData) (string, bool) {
 		kind = "RCA"
 	}
 	return verb + " a public link to " + quotedName(kind, d.Title), true
+}
+
+func describeAccessRequest(typ string, d adminData) (string, bool) {
+	object := quotedName("dashboard", d.Title)
+	if d.Object.Kind == "observation" {
+		object = quotedObservation(d.Title)
+	}
+	switch typ {
+	case "access_request.opened":
+		return "asked for comment access to " + object, true
+	case "access_request.granted":
+		who := text(d.RequestedBy.Name)
+		if who == "" {
+			who = "someone"
+		}
+		return "granted comment access to " + object + " asked for by " + who, true
+	}
+	return "", false
 }
 
 func describeIntegration(typ string, d adminData) (string, bool) {

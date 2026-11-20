@@ -312,6 +312,9 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"public_link.created", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout","prefix":"pub_abcdefgh"}`, `created a public link to the dashboard "Checkout"`},
 		{"public_link.revoked", `{"object":{"kind":"observation","id":"o"},"title":"Slow checkout","prefix":"pub_abcdefgh"}`, `revoked a public link to the RCA "Slow checkout"`},
 		{"public_link.revoked", `{"object":{"kind":"dashboard","id":"d"},"prefix":"pub_abcdefgh"}`, `revoked a public link to a dashboard`},
+		{"access_request.opened", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout"}`, `asked for comment access to the dashboard "Checkout"`},
+		{"access_request.opened", `{"object":{"kind":"observation","id":"o"},"title":""}`, `asked for comment access to an observation`},
+		{"access_request.granted", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout","requested_by":{"kind":"user","id":"u","name":"Ada"}}`, `granted comment access to the dashboard "Checkout" asked for by Ada`},
 	}
 	for _, tc := range cases {
 		event, err := decode[activityEvent]([]byte(activityJSON(1, tc.kind, "Sam", "2026-11-01T10:00:00Z", tc.data)))

@@ -1,12 +1,16 @@
 import { itemLink, type InboxItem, type ItemLink } from "@/inbox/inbox-item"
 
 export type NeedsYouAction =
-  | { kind: "link"; label: "Review" | "Reply" | "Open"; to: ItemLink }
+  | {
+      kind: "link"
+      label: "Review" | "Reply" | "Open" | "Share"
+      to: ItemLink
+    }
   | { kind: "retry"; requestId: string }
 
 function linkAction(
   item: InboxItem,
-  label: "Review" | "Reply" | "Open"
+  label: "Review" | "Reply" | "Open" | "Share"
 ): NeedsYouAction | null {
   const to = itemLink(item)
   return to === null ? null : { kind: "link", label, to }
@@ -23,6 +27,8 @@ export function needsYouAction(item: InboxItem): NeedsYouAction | null {
     case "repaired":
     case "proposal_closed":
       return linkAction(item, "Open")
+    case "access_request":
+      return linkAction(item, "Share")
     case "run_failed":
       return item.target.kind === "run"
         ? { kind: "retry", requestId: item.target.id }

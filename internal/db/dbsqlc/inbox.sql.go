@@ -11,6 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const inboxAccessRequestNotes = `-- name: InboxAccessRequestNotes :many
+SELECT r.id, r.note FROM access_requests r WHERE r.id = ANY($1::uuid[])
+`
+
+type InboxAccessRequestNotesRow struct {
+	ID   pgtype.UUID
+	Note string
+}
+
+func (q *Queries) InboxAccessRequestNotes(ctx context.Context, ids []pgtype.UUID) ([]InboxAccessRequestNotesRow, error) {
+	rows, err := q.db.Query(ctx, inboxAccessRequestNotes, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InboxAccessRequestNotesRow
+	for rows.Next() {
+		var i InboxAccessRequestNotesRow
+		if err := rows.Scan(&i.ID, &i.Note); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const inboxMessageBodies = `-- name: InboxMessageBodies :many
 SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY($1::uuid[])
 `
@@ -154,7 +183,7 @@ FROM (
     AND a.created_at >= now() - interval '30 days'
     AND (a.folder_id = ANY($4::uuid[])
       OR (a.folder_id IS NULL AND ($5::boolean OR (a.actor_kind = $6::text AND a.actor_id = $1::uuid))))
-    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded')
+    AND a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded', 'access_request.opened')
     AND n.reason IS NOT NULL
     AND NOT coalesce(st.done, false)
     AND coalesce(st.unread, ic.user_id IS NULL OR (a.xid, a.seq) > (ic.read_xid, ic.read_seq))
@@ -201,7 +230,7 @@ WHERE NOT inbox_superseded(a, $1::uuid)
   AND a.created_at >= now() - interval '30 days'
   AND (a.folder_id = ANY($4::uuid[])
     OR (a.folder_id IS NULL AND ($5::boolean OR (a.actor_kind = $6::text AND a.actor_id = $1::uuid))))
-  AND ($7::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded'))
+  AND ($7::boolean OR a.type IN ('proposal.opened', 'observation.block_added', 'thread.mentioned', 'thread.replied', 'run.failed', 'run.succeeded', 'proposal.merged', 'proposal.discarded', 'access_request.opened'))
   AND (CASE WHEN $7::boolean
          THEN n.reason IS NOT NULL OR NOT (a.actor_kind = $6::text AND a.actor_id = $1::uuid)
          ELSE n.reason = ANY($8::text[])

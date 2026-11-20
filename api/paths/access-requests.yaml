@@ -1,0 +1,100 @@
+access-requests:
+  post:
+    operationId: createAccessRequest
+    x-surfaces:
+      mcp: [request_comment_access]
+      cli: [observe access request]
+    summary: Ask for Comment access to a dashboard or observation the caller can view.
+    description: >-
+      Puts a request, with the optional one-line note, in the inbox of the people who manage the sharing of the object's folder:
+      its creator while they are an Editor and anyone with Admin on it by an entry, or every Admin of the workspace when the folder has none of them.
+      It changes no access, and the answer never names who received it.
+      A person or a service-account key may ask.
+      The request closes when the requester can comment, after a folder access change or a role change, when a person who received it marks its inbox item done, or after 30 days.
+      An object the caller cannot view answers 404 `not_found`, like an unknown id.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [object]
+            properties:
+              object:
+                type: object
+                additionalProperties: false
+                required: [kind, id]
+                properties:
+                  kind:
+                    type: string
+                    enum: [dashboard, observation]
+                  id:
+                    type: string
+                    format: uuid
+              note:
+                type: string
+                maxLength: 200
+                description: Trimmed before it is stored; one line of at most 200 characters for the people who can grant access.
+    responses:
+      "201":
+        description: The request is open.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AccessRequest"
+      "400":
+        description: The body is malformed (`invalid_request`) or the note has a line break or is over 200 characters (`invalid_note`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The caller can already comment on the object (`already_can_comment`), or already has an open request on it (`request_open`, with `requested_at`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listAccessRequests
+    x-surfaces:
+      mcp: [list_access_requests]
+      cli: [observe access requests]
+    summary: List the open Comment access requests on folders the caller manages.
+    description: >-
+      Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100.
+      Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing.
+    responses:
+      "200":
+        description: The open requests.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/AccessRequest"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

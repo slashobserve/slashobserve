@@ -16,6 +16,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
 | Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a create and a delete carry a `title`, the first 80 characters of the annotation's text on one line, copied when the event is written, and a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went. |
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
+| Access request | `access_request.opened`, `access_request.granted` | A Viewer [asks for comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation, or someone changes a folder's access or a role so that the requester can comment; the event belongs to that dashboard or observation, `data` has the `object` (`kind` and `id`) and its `title`, a grant adds `requested_by` (`kind`, `id` and `name`), and the note is never recorded. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
@@ -104,7 +105,7 @@ An event appears once its own transaction and every older one have committed, so
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
 Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, `actor_id` (a person or a service account), a repeated `type`, `since` and `until` (RFC 3339 times); a parameter that does not parse answers 400.
-`scope=admin` lists only [admin changes](#admin-changes) and public link events, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
+`scope=admin` lists only [admin changes](#admin-changes), public link events and comment access requests, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
 `observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
 It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 

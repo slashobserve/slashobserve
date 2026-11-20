@@ -8,6 +8,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AccessRequest struct {
+	ID            pgtype.UUID
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	RequesterKind string
+	RequesterID   pgtype.UUID
+	RequesterName string
+	Note          string
+	Granters      []pgtype.UUID
+	ActivitySeq   pgtype.Int8
+	CreatedAt     pgtype.Timestamptz
+	GrantedAt     pgtype.Timestamptz
+	GrantedByKind pgtype.Text
+	GrantedByID   pgtype.UUID
+}
+
 type Activity struct {
 	Seq           int64
 	Xid           pgtype.Uint64

@@ -98,3 +98,38 @@ An entry used to give a Viewer or Commenter nothing beyond their role.
 Now an existing entry at Edit or Admin lifts them, so review the lists of restricted folders after you upgrade.
 
 A shared folder already titled My Dashboards keeps working but should be renamed, because an import that names My Dashboards goes to the importer's default folder.
+
+## Ask for comment access
+
+A person who can view a dashboard or an observation but not comment on it sees **Request comment access** under the note that says so, in the dashboard's activity pane or the observation's discussion.
+It opens a box for an optional note of one line, at most 200 characters, and **Send request** sends it.
+Sending it changes nobody's access.
+
+The request goes to the people who manage the object's folder: the person who created the folder while they are an Editor or Admin, and the people an entry gives Admin.
+When nobody manages the folder that way, as for General, it goes to the instance Admins.
+The person who asked is never told who received it, beyond what the Share pane already shows them.
+Each of them gets an `access_request` item in their [inbox](../use/inbox.md) that names who asked, the dashboard or observation and the note.
+Opening it goes to the dashboard's Share pane, or for an observation to its folder's settings, where an entry with Comment or higher gives the access.
+
+A person has at most one open request on each dashboard or observation.
+Asking again while it is open answers `409 request_open` with `requested_at`, the time of the open request, and the web app says the request is still open.
+A person who can already comment gets `409 already_can_comment`.
+A dashboard or observation the caller cannot see answers `404 not_found`, the same answer as an id that does not exist.
+
+A request closes in one of these ways:
+
+- The person who asked can now comment there, because a folder entry gives them Comment or higher, or because their role, or a service account's role, was raised to Commenter or higher.
+  The activity log records `access_request.granted`, with who changed the access and who had asked, beside the `access_request.opened` event of the request.
+- Someone who received it marks the inbox item done, which is how a request is declined; it then leaves every recipient's open inbox.
+- It is 30 days old.
+
+A change to a person's groups reaches folder access only at their next sign-in, so it does not close a request; mark the item done once they can comment.
+After a request closes, the person can ask again.
+
+A service-account key may ask too.
+Because keys match no entry, its request is granted by raising the service account's role.
+
+`POST /api/v1/access-requests` takes `{"object": {"kind": "dashboard", "id": "<id>"}, "note": "<note>"}`, with `observation` as the other kind, and answers the request.
+`GET /api/v1/access-requests` lists the open requests on the folders you manage.
+The `observe` command line has `observe access request dashboard:<id> --note "<note>"` and `observe access requests`, and MCP clients have `request_comment_access` and `list_access_requests`; see [the command line](../use/cli.md) and [MCP](../use/mcp.md).
+Both need the Viewer role or higher.

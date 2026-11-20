@@ -19,7 +19,7 @@ const (
 	defaultListActivity = 50
 	maxListActivity     = 100
 
-	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed by dashboard, folder, observation, types or time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor. An Admin key also sees admin changes (roles, people, keys, webhooks, connected agents, outbound domains, Grafana) and public links; scope admin lists only those."
+	descListActivity = "List what changed in the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings, comment threads and agent runs, each with the dashboard, the folder and the actor, whose label says who or what made the change. It lists only activity in folders this key may see, optionally narrowed by dashboard, folder, observation, types or time. The data of an event holds ids, numbers, titles and a version summary, never text; read the object for more. Page with next_cursor. An Admin key also sees admin changes (roles, people, keys, webhooks, connected agents, outbound domains, Grafana), public links and comment access requests; scope admin lists only those."
 )
 
 var schemaListActivity = `{"type":"object","properties":{` +
@@ -30,7 +30,7 @@ var schemaListActivity = `{"type":"object","properties":{` +
 	`"since":{"type":"string","format":"date-time","description":"Only events at or after this RFC 3339 time."},` +
 	`"until":{"type":"string","format":"date-time","description":"Only events at or before this RFC 3339 time."},` +
 	`"actor_id":{"type":"string","format":"uuid","description":"Only events made by this person or service account."},` +
-	`"scope":{"type":"string","enum":["admin"],"description":"admin: only admin changes and public links; needs an Admin key."},` +
+	`"scope":{"type":"string","enum":["admin"],"description":"admin: only admin changes, public links and comment access requests; needs an Admin key."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Events per page. Default 50."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 

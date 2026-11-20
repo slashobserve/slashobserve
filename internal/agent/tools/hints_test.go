@@ -9,7 +9,7 @@ import (
 var (
 	readVerbs      = []string{"get", "list", "search", "query", "lint", "draft", "log", "logs", "compare", "sample", "trace", "recheck", "diff"}
 	overwriteVerbs = []string{"update", "restore", "edit", "rename", "discard", "merge", "clear", "set", "cancel"}
-	additiveVerbs  = []string{"create", "add", "duplicate", "make", "keep", "move", "pin", "unpin", "publish", "reopen", "resolve", "reply", "report", "retry", "run", "save", "start", "claim", "finish", "import"}
+	additiveVerbs  = []string{"create", "add", "duplicate", "make", "keep", "move", "pin", "unpin", "publish", "reopen", "resolve", "reply", "report", "retry", "run", "save", "start", "claim", "finish", "import", "request"}
 )
 
 func TestEveryToolHintFollowsWhatItDoes(t *testing.T) {
