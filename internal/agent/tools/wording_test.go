@@ -190,7 +190,7 @@ func TestMissingSpecErrorIsTheSameOnBothSurfaces(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			base := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin})
+			base := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin})
 			ctx := WithRun(base, Run{Mode: ModeCreate})
 			if tool == nameUpdateDashboard {
 				ctx = WithRun(base, Run{Mode: ModeRevise, DashboardID: dashA, ParentVersion: 1})

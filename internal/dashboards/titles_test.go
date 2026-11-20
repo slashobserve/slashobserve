@@ -74,14 +74,14 @@ func TestAStoredPanelTitleThatBreaksTheRuleDoesNotBlockLaterSavesOrCopies(t *tes
 	if err != nil {
 		t.Fatalf("a save that leaves the stored title alone: %v", err)
 	}
-	saved, err := r.service.VersionSpec(t.Context(), dash, ver.Number)
+	saved, err := r.service.VersionSpec(reading(t.Context()), dash, ver.Number)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if saved.Panels[0].Title != "CPU\nusage\u00ad" {
 		t.Errorf("stored title became %q", saved.Panels[0].Title)
 	}
-	if _, _, err := r.service.Duplicate(t.Context(), testUser, dash, pgtype.UUID{}, "Copy"); err != nil {
+	if _, _, err := r.service.Duplicate(reading(t.Context()), testUser, dash, pgtype.UUID{}, "Copy"); err != nil {
 		t.Fatalf("duplicate: %v", err)
 	}
 	raw := r.mergedPatch(t, dash, ver.Number, upsert(1, panelDef{id: "b", query: "m3"}))

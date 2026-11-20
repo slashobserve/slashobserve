@@ -43,7 +43,7 @@ func TestAllowed(t *testing.T) {
 
 func TestCallRefusesAToolBelowTheKeysRole(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleViewer})
 	res, err := r.Call(ctx, nameSaveFinding, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestCallRefusesAToolBelowTheKeysRole(t *testing.T) {
 
 func TestCallRefusesAPersonBelowTheToolsRole(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer})
 	res, err := r.Call(ctx, nameSaveFinding, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)

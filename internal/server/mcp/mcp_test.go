@@ -165,7 +165,7 @@ func rpc(id int, method string, params any) string {
 }
 
 func (f *fixture) post(body string, headers map[string]string) *httptest.ResponseRecorder {
-	return f.postWithContext(context.Background(), body, headers)
+	return f.postWithContext(reading(context.Background()), body, headers)
 }
 
 func (f *fixture) postWithContext(ctx context.Context, body string, headers map[string]string) *httptest.ResponseRecorder {
@@ -408,7 +408,7 @@ func TestClientGoingAwayDuringAuthenticationIsNotAServerError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			ctx, cancel := context.WithCancel(t.Context())
+			ctx, cancel := context.WithCancel(reading(t.Context()))
 			defer cancel()
 			if tc.cancel {
 				cancel()
@@ -992,7 +992,7 @@ func resultText(t *testing.T, res *mcplib.CallToolResult) string {
 
 func TestClientCancellationIsLoggedAtInfo(t *testing.T) {
 	f := newFixture(t)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(reading(context.Background()))
 	cancel()
 	res := callDirect(ctx, f, func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
 		return tools.Result{}, fmt.Errorf("upstream said secret-detail: %w", ctx.Err())
@@ -1032,7 +1032,7 @@ func TestInternalToolFailureIsLoggedByCodeAndTypeOnly(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+			res := callDirect(reading(context.Background()), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
 				return tools.Result{}, tc.err
 			})
 			if got := resultText(t, res); got != internalErrorMsg {
@@ -1057,7 +1057,7 @@ func TestEncodingFailuresAreLoggedByCodeAndTypeOnly(t *testing.T) {
 		f := newFixture(t)
 		req := mcplib.CallToolRequest{}
 		req.Params.Arguments = unencodable{}
-		res := callDirectWith(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		res := callDirectWith(reading(context.Background()), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
 			return tools.Result{}, nil
 		}, req)
 		if got := resultText(t, res); got != internalErrorMsg {
@@ -1067,7 +1067,7 @@ func TestEncodingFailuresAreLoggedByCodeAndTypeOnly(t *testing.T) {
 	})
 	t.Run("result", func(t *testing.T) {
 		f := newFixture(t)
-		res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		res := callDirect(reading(context.Background()), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
 			return tools.Result{Content: unencodable{}}, nil
 		})
 		if got := resultText(t, res); got != internalErrorMsg {

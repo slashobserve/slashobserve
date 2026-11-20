@@ -66,7 +66,7 @@ func newSidecarHandler(t *testing.T) (http.Handler, *claimingService, *bytes.Buf
 }
 
 func postFrom(h http.Handler, remote, token, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(reading(context.Background()), http.MethodPost, "/mcp", strings.NewReader(body))
 	req.RemoteAddr = remote
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
@@ -119,7 +119,7 @@ func TestSidecarSessionAcceptsLoopbackPeersOfBothFamilies(t *testing.T) {
 func TestSidecarSessionIsRefusedWhenAProxyOnTheSameHostForwardedTheRequest(t *testing.T) {
 	h, service, _ := newSidecarHandler(t)
 	for _, header := range []string{"X-Forwarded-For", "Forwarded", "X-Real-Ip"} {
-		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", map[string]any{})))
+		req := httptest.NewRequestWithContext(reading(context.Background()), http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", map[string]any{})))
 		req.RemoteAddr = "127.0.0.1:50000"
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json, text/event-stream")

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/observations"
 )
 
@@ -37,7 +38,7 @@ func newBlockCall(t *testing.T, r *observationRig) *blockCall {
 	b := &blockCall{engine: gin.New(), who: scriptCaller}
 	handler := observations.NewHandler(r.service, slog.New(slog.DiscardHandler), observations.WithPanelChecker(r.registry))
 	handler.Register(auth.NewRoutes(b.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), b.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), b.who), datasource.Access{By: b.who}))
 	})))
 	return b
 }

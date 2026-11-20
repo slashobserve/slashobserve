@@ -126,7 +126,7 @@ func newAssignedRunFixture(t *testing.T, mode tools.Mode, assignee revisions.Ass
 }
 
 func (f *runFixture) post(token, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(reading(context.Background()), http.MethodPost, "/mcp", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("MCP-Protocol-Version", "2025-11-25")
@@ -514,7 +514,7 @@ func TestRunToolWithoutARunScopeIsRefused(t *testing.T) {
 		called = true
 		return tools.Result{}, nil
 	}
-	ctx := auth.WithPrincipal(context.Background(), requester)
+	ctx := auth.WithPrincipal(reading(context.Background()), requester)
 	res, _ := f.handler.callRunTool("lint_query")(ctx, mcplib.CallToolRequest{})
 	if called || res == nil || !res.IsError {
 		t.Fatalf("a run tool ran without a run scope: called %v, result %+v", called, res)
