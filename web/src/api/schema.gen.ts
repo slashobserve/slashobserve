@@ -1602,7 +1602,7 @@ export interface paths {
         put?: never;
         /**
          * Read the log lines that carry a trace id, or one span id, from a logs datasource.
-         * @description The trace view's path from a span to its logs; the datasource in the path must be Loki or ClickHouse. The server builds the query itself from the ids, so no query text crosses this call. On Loki it narrows the stream selector to `service` through the first of the `service_name`, `service`, `app` and `job` labels present in the window, or reads every stream when `service` is not given; it filters `trace_id` (and `span_id`) as structured metadata or parsed labels first and, when that answers no line, runs the same selector with a line filter on the id, so lines that only carry the id in their body still match. On ClickHouse it reads the logs page's columns from `otel_logs` where `TraceId` (and `SpanId`) match within the window, newest first. `from` and `to` are the trace's window, with the grammar of the explore query; the web passes the trace's start minus a minute to its end plus a minute. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`. Viewers and above may call it, service-account keys included. The response has the shape of panel data with one query `A` of kind `instant`, `meta.truncated` when the line limit was hit and `meta.oldest` and `meta.newest` as the time edges of the lines returned; an empty result is a 200 with no frames, never a 404.
+         * @description The trace view's path from a span to its logs; the datasource in the path must be Loki, ClickHouse, Elasticsearch or OpenSearch. The server builds the query itself from the ids, so no query text crosses this call. On Loki it narrows the stream selector to `service` through the first of the `service_name`, `service`, `app` and `job` labels present in the window, or reads every stream when `service` is not given; it filters `trace_id` (and `span_id`) as structured metadata or parsed labels first and, when that answers no line, runs the same selector with a line filter on the id, so lines that only carry the id in their body still match. On ClickHouse it reads the logs page's columns from `otel_logs` where `TraceId` (and `SpanId`) match within the window, newest first. On Elasticsearch and OpenSearch it matches the datasource's trace id field (and span id field, and service field when `service` is given) with exact terms within the window, newest first. `from` and `to` are the trace's window, with the grammar of the explore query; the web passes the trace's start minus a minute to its end plus a minute. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`. Viewers and above may call it, service-account keys included. The response has the shape of panel data with one query `A` of kind `instant`, `meta.truncated` when the line limit was hit and `meta.oldest` and `meta.newest` as the time edges of the lines returned; an empty result is a 200 with no frames, never a 404.
          */
         post: operations["traceLogs"];
         delete?: never;
@@ -6117,7 +6117,7 @@ export interface components {
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /**
-             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
+             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
@@ -6267,7 +6267,7 @@ export interface components {
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /**
-             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
+             * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
@@ -11971,7 +11971,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            /** @description The request is malformed or fails validation, or the datasource is not Loki or ClickHouse (`invalid_request`); the body carries no `ref`. */
+            /** @description The request is malformed or fails validation, or the datasource is not Loki, ClickHouse, Elasticsearch or OpenSearch (`invalid_request`); the body carries no `ref`. */
             400: {
                 headers: {
                     [name: string]: unknown;

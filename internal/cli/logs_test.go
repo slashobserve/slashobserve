@@ -26,6 +26,11 @@ const (
 		{"name":"Body","type":"string","values":["order placed"]},
 		{"name":"level","type":"string","values":["info"]}]}
 	],"meta":{}}`
+	searchFrames = `{"frames":[{"ref":"A","fields":[
+		{"name":"Time","type":"time","values":[1762000002000,1762000001000,1762000000000]},
+		{"name":"TimeNs","type":"string","values":["1762000002000000000","1762000001000000000","1762000000000000000"]},
+		{"name":"Body","type":"string","values":["payment declined","order placed","cart loaded"]},
+		{"name":"level","type":"string","values":["error","info","info"]}]}],"meta":{"page":{"page":1,"page_size":50,"has_next":false}}}`
 	clickhouseFrames = `{"frames":[{"ref":"A","fields":[
 		{"name":"Timestamp","type":"time","values":[1762000001000,1762000000000]},
 		{"name":"ServiceName","type":"string","values":["checkout","checkout"]},
@@ -49,10 +54,10 @@ func newLogsFake(t *testing.T, answers ...string) *logsFake {
 		defer f.mu.Unlock()
 		if r.URL.Path == "/api/v1/datasources" {
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"datasources":[{"uid":"loki","type":"loki","name":"L","healthy":true,"checked_at":"x","dashboard_count":0},{"uid":"ch","type":"clickhouse","name":"C","healthy":true,"checked_at":"x","dashboard_count":0}]}`)
+			_, _ = io.WriteString(w, `{"datasources":[{"uid":"loki","type":"loki","name":"L","healthy":true,"checked_at":"x","dashboard_count":0},{"uid":"ch","type":"clickhouse","name":"C","healthy":true,"checked_at":"x","dashboard_count":0},{"uid":"es","type":"elasticsearch","name":"E","healthy":true,"checked_at":"x","dashboard_count":0},{"uid":"os","type":"opensearch","name":"O","healthy":true,"checked_at":"x","dashboard_count":0}]}`)
 			return
 		}
-		if r.URL.Path != "/api/v1/datasources/loki/query" && r.URL.Path != "/api/v1/datasources/ch/query" {
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/datasources/") || !strings.HasSuffix(r.URL.Path, "/query") {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -138,6 +143,111 @@ func TestLogsOnClickHousePrintsAResultWithoutLogColumnsAsATable(t *testing.T) {
 	if code != 0 || strings.Contains(stderr, "No log lines") || !strings.Contains(stdout, "checkout") || !strings.Contains(stdout, "cart") {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
 	}
+}
+
+func TestLogsOnSearchStoresAskForAPageOfLinesLikeTheLogsPage(t *testing.T) {
+	for _, uid := range []string{"es", "os"} {
+		f := newLogsFake(t, searchFrames)
+		stdout, stderr, code := f.run("checkout", "--datasource", uid, "--limit", "20")
+		if code != 0 {
+			t.Fatalf("%s: exit %d, stderr %q", uid, code, stderr)
+		}
+		got := f.requests[0]
+		if got["kind"] != "instant" || got["page_size"] != float64(50) || got["page"] != float64(1) || got["limit"] != nil {
+			t.Fatalf("%s: request %v", uid, got)
+		}
+		want := strings.Join([]string{
+			"2025-11-01T12:26:40.000Z  info   cart loaded",
+			"2025-11-01T12:26:41.000Z  info   order placed",
+			"2025-11-01T12:26:42.000Z  error  payment declined",
+		}, "\n") + "\n"
+		if stdout != want {
+			t.Fatalf("%s: stdout\n%s\nwant\n%s", uid, stdout, want)
+		}
+	}
+}
+
+func TestLogsOnSearchStoresKeepTheNewestLinesOldestFirstInJSON(t *testing.T) {
+	f := newLogsFake(t, searchFrames)
+	stdout, _, code := f.run("checkout", "--datasource", "es", "--limit", "2", "--json")
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	body, err := decode[exploreResponse]([]byte(stdout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bodies []string
+	for _, line := range logLines(body.Frames) {
+		bodies = append(bodies, line.Body)
+	}
+	if got := strings.Join(bodies, ","); got != "order placed,payment declined" {
+		t.Fatalf("lines %q in %s", got, stdout)
+	}
+	if got := body.Frames[0].stringAt(fieldIndex(body.Frames[0], "Body"), 0); got != "order placed" {
+		t.Fatalf("first row %q", got)
+	}
+	if body.Meta.Page == nil {
+		t.Fatalf("meta lost in %s", stdout)
+	}
+}
+
+func TestLogsOnSearchStoresRefuseALimitPastTheirPageSize(t *testing.T) {
+	f := newLogsFake(t, searchFrames)
+	_, stderr, code := f.run("checkout", "--datasource", "os", "--limit", "501")
+	if code != 2 || !strings.Contains(stderr, "--limit is at most 500") || len(f.requests) != 0 {
+		t.Fatalf("exit %d, stderr %q, requests %v", code, stderr, f.requests)
+	}
+}
+
+func TestNewestRowsOldestFirstOrdersByTimeWhateverTheServerSorted(t *testing.T) {
+	data := `{"frames":[{"ref":"A","fields":[{"name":"Time","type":"time","values":[3,1,2]},{"name":"Body","type":"string","values":["c","a","b"]}]}],"meta":{"note":"n"}}`
+	got, err := newestRowsOldestFirst([]byte(data), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"frames":[{"fields":[{"name":"Time","type":"time","values":[2,3]},{"name":"Body","type":"string","values":["b","c"]}],"ref":"A"}],"meta":{"note":"n"}}`
+	if string(got) != want {
+		t.Fatalf("got %s", got)
+	}
+	empty := `{"frames":[],"meta":{}}`
+	if got, err := newestRowsOldestFirst([]byte(empty), 5); err != nil || string(got) != `{"frames":[],"meta":{}}` {
+		t.Fatalf("empty: %s, %v", got, err)
+	}
+}
+
+func TestLogsTailOnASearchStoreSendsPagedRequests(t *testing.T) {
+	f := newLogsFake(t, searchFrames)
+	c, err := (&app{version: "test"}).clientFor(mustParseURL(t, f.server.URL), "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := logRequest(t.Context(), c, logsOptions{datasource: "es", from: "now-1h", to: "now", limit: 100}, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Kind != "instant" || req.PageSize != 100 || req.Limit != 0 {
+		t.Fatalf("request %+v", req)
+	}
+	var stdout strings.Builder
+	tail := &logTail{out: &output{out: &stdout, err: io.Discard}}
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	if err := tail.follow(ctx, c, "es", req, 100, 10*time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "payment declined") {
+		t.Fatalf("tail printed %q", stdout.String())
+	}
+}
+
+func mustParseURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
 }
 
 func TestLogsTrimsToTheNewestLines(t *testing.T) {
@@ -227,7 +337,7 @@ func TestLogsTailPrintsOnlyNewLinesAndStopsCleanly(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- tail.follow(ctx, c, "loki", exploreRequest{Query: "q", Kind: "range", From: "now-1h", To: "now", Limit: 100}, 10*time.Millisecond)
+		done <- tail.follow(ctx, c, "loki", exploreRequest{Query: "q", Kind: "range", From: "now-1h", To: "now", Limit: 100}, 100, 10*time.Millisecond)
 	}()
 	deadline := time.After(5 * time.Second)
 	for {

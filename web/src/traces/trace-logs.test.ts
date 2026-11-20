@@ -10,6 +10,7 @@ import {
   logsBodyHeight,
   logsDatasourceFor,
   matchNote,
+  opensLogsPage,
   previewTime,
   rememberLogsDatasource,
   traceLogLines,
@@ -44,6 +45,14 @@ describe("logsDatasourceFor", () => {
   it("returns null without a logs datasource", () => {
     expect(logsDatasourceFor("tempo", [tempo])).toBeNull()
   })
+
+  it.each(["elasticsearch", "opensearch"])(
+    "offers a %s datasource as a logs datasource",
+    (type) => {
+      const search = datasource("search", type)
+      expect(logsDatasourceFor("tempo", [tempo, search])).toBe(search)
+    }
+  )
 
   it("returns the only logs datasource whatever its family", () => {
     expect(logsDatasourceFor("tempo", [tempo, clickhouse])).toBe(clickhouse)
@@ -200,8 +209,29 @@ describe("line text", () => {
       "Matched on TraceId and SpanId in otel_logs.",
     ],
     ["clickhouse", undefined, "Matched on TraceId in otel_logs."],
+    [
+      "elasticsearch",
+      { service: "payments" },
+      "Matched on the trace id and span id fields of the datasource.",
+    ],
+    [
+      "opensearch",
+      undefined,
+      "Matched on the trace id field of the datasource.",
+    ],
   ])("explains the %s match for %o", (type, span, note) => {
     expect(matchNote(type, span)).toBe(note)
+  })
+})
+
+describe("opensLogsPage", () => {
+  it.each([
+    ["loki", true],
+    ["clickhouse", true],
+    ["elasticsearch", false],
+    ["opensearch", false],
+  ])("%s opens the logs page: %s", (type, expected) => {
+    expect(opensLogsPage(type)).toBe(expected)
   })
 })
 

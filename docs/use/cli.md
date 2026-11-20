@@ -605,8 +605,11 @@ Each line shows its time in UTC, its level when the lines have one, the labels w
 The message is the first column named `body`, `message`, `msg`, `line` or `log`, else the first text column, as in the web app's logs panel.
 On ClickHouse the query is SQL that reads the time range with `$__timeFilter(Timestamp)` and selects `Timestamp` and `Body`; the rows come back as they are.
 A ClickHouse result with no `Timestamp` or message column prints as a table instead of log lines.
+On Elasticsearch and OpenSearch the query is KQL, `lucene:` or a Query DSL body, and the lines come from the same search the logs page runs, newest first from the server and printed oldest first here; `--limit` is at most 500 there, because a search page holds at most 500 lines.
+`--json` on these two stores lists the rows oldest first too, the newest `--limit` of them.
 
 `--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
+On Elasticsearch and OpenSearch `--tail` asks from the newest line it has printed, so a line indexed late with an older time is not printed.
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
 An invalid query exits 1 with the datasource's message.
 

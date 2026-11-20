@@ -19,6 +19,8 @@ const (
 	maxLogLimit     = 1000
 	logTimeLayout   = "2006-01-02T15:04:05.000Z07:00"
 	inlineLevel     = -1
+	searchPageMin   = 50
+	searchPageMax   = 500
 )
 
 var (
@@ -123,12 +125,11 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 	if insight != insightNone {
 		return a.logInsight(ctx, c, out, insight, query)
 	}
-	kind, err := logQueryKind(ctx, c, opts.datasource)
+	req, err := logRequest(ctx, c, opts, query)
 	if err != nil {
 		return err
 	}
-	req := exploreRequest{Query: query, Kind: kind, From: opts.from, To: opts.to, Limit: opts.limit}
-	data, body, err := explore(ctx, c, opts.datasource, req)
+	data, body, err := exploreLogs(ctx, c, opts.datasource, req, opts.limit)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 	if opts.tail {
 		tail := &logTail{out: out, json: a.json}
 		tail.print(lines)
-		return tail.follow(ctx, c, opts.datasource, req, tailInterval)
+		return tail.follow(ctx, c, opts.datasource, req, opts.limit, tailInterval)
 	}
 	if a.json {
 		out.body(data)
@@ -154,15 +155,123 @@ func printLogResult(out *output, frames []frame, lines []logLine, from, to strin
 	printLogLines(out, lines, from, to)
 }
 
-func logQueryKind(ctx context.Context, c *client, uid string) (string, error) {
-	typ, err := datasourceType(ctx, c, uid)
+func logRequest(ctx context.Context, c *client, opts logsOptions, query string) (exploreRequest, error) {
+	typ, err := datasourceType(ctx, c, opts.datasource)
 	if err != nil {
-		return "", err
+		return exploreRequest{}, err
 	}
-	if typ == "clickhouse" {
-		return "instant", nil
+	req := exploreRequest{Query: query, Kind: "range", From: opts.from, To: opts.to, Limit: opts.limit}
+	switch typ {
+	case "clickhouse":
+		req.Kind = "instant"
+	case "elasticsearch", "opensearch":
+		if opts.limit > searchPageMax {
+			return exploreRequest{}, usagef("--limit is at most %d on an Elasticsearch or OpenSearch datasource", searchPageMax)
+		}
+		req.Kind, req.Limit, req.PageSize, req.Page = "instant", 0, max(opts.limit, searchPageMin), 1
 	}
-	return "range", nil
+	return req, nil
+}
+
+func exploreLogs(ctx context.Context, c *client, uid string, req exploreRequest, keep int) ([]byte, exploreResponse, error) {
+	data, body, err := explore(ctx, c, uid, req)
+	if err != nil || req.PageSize == 0 {
+		return data, body, err
+	}
+	if data, err = newestRowsOldestFirst(data, keep); err != nil {
+		return nil, exploreResponse{}, err
+	}
+	body, err = decode[exploreResponse](data)
+	return data, body, err
+}
+
+func newestRowsOldestFirst(data []byte, keep int) ([]byte, error) {
+	var body map[string]json.RawMessage
+	if err := json.Unmarshal(data, &body); err != nil {
+		return nil, err
+	}
+	if len(body["frames"]) == 0 {
+		return data, nil
+	}
+	var frames []map[string]json.RawMessage
+	if err := json.Unmarshal(body["frames"], &frames); err != nil {
+		return nil, err
+	}
+	for _, f := range frames {
+		if err := reorderRows(f, keep); err != nil {
+			return nil, err
+		}
+	}
+	var err error
+	if body["frames"], err = json.Marshal(frames); err != nil {
+		return nil, err
+	}
+	return json.Marshal(body)
+}
+
+func reorderRows(f map[string]json.RawMessage, keep int) error {
+	if len(f["fields"]) == 0 {
+		return nil
+	}
+	var fields []map[string]json.RawMessage
+	if err := json.Unmarshal(f["fields"], &fields); err != nil {
+		return err
+	}
+	columns := make([][]json.RawMessage, len(fields))
+	for i, field := range fields {
+		if len(field["values"]) == 0 {
+			continue
+		}
+		if err := json.Unmarshal(field["values"], &columns[i]); err != nil {
+			return err
+		}
+	}
+	order := rowOrder(fields, columns)
+	order = order[max(0, len(order)-keep):]
+	for i, field := range fields {
+		picked := make([]json.RawMessage, 0, len(order))
+		for _, row := range order {
+			if row < len(columns[i]) {
+				picked = append(picked, columns[i][row])
+			}
+		}
+		var err error
+		if field["values"], err = json.Marshal(picked); err != nil {
+			return err
+		}
+	}
+	var err error
+	f["fields"], err = json.Marshal(fields)
+	return err
+}
+
+func rowOrder(fields []map[string]json.RawMessage, columns [][]json.RawMessage) []int {
+	rows := 0
+	at := -1
+	for i, field := range fields {
+		rows = max(rows, len(columns[i]))
+		if at < 0 && string(field["type"]) == `"time"` {
+			at = i
+		}
+	}
+	order := make([]int, rows)
+	for i := range order {
+		order[i] = i
+	}
+	if at >= 0 {
+		slices.SortStableFunc(order, func(a, b int) int {
+			return cmp.Compare(rowTime(columns[at], a), rowTime(columns[at], b))
+		})
+	}
+	return order
+}
+
+func rowTime(values []json.RawMessage, row int) float64 {
+	var ms float64
+	if row < len(values) {
+		_ = json.Unmarshal(values[row], &ms)
+	}
+	return ms
 }
 
 func printLogLines(out *output, lines []logLine, from, to string) {
@@ -318,7 +427,7 @@ func (t *logTail) write(line logLine) {
 	t.out.line("%s", logText(line, slices.Sorted(maps.Keys(line.Labels)), inlineLevel))
 }
 
-func (t *logTail) follow(ctx context.Context, c *client, uid string, req exploreRequest, interval time.Duration) error {
+func (t *logTail) follow(ctx context.Context, c *client, uid string, req exploreRequest, keep int, interval time.Duration) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	failures := 0
@@ -344,6 +453,6 @@ func (t *logTail) follow(ctx context.Context, c *client, uid string, req explore
 			continue
 		}
 		failures = 0
-		t.print(newestLines(logLines(body.Frames), req.Limit))
+		t.print(newestLines(logLines(body.Frames), keep))
 	}
 }

@@ -26,6 +26,7 @@ import {
   logsDatasourceCandidates,
   logsDatasourceFor,
   matchNote,
+  opensLogsPage,
   previewTime,
   rememberLogsDatasource,
   traceLogLines,
@@ -133,7 +134,8 @@ export function TraceLogsSection({
       <section className="flex flex-col gap-1.5 text-xs">
         <Heading title={title} count={null} />
         <p className="text-muted-foreground">
-          Connect a Loki or ClickHouse logs datasource to see lines.{" "}
+          Connect a Loki, ClickHouse, Elasticsearch or OpenSearch logs
+          datasource to see lines.{" "}
           <Link to="/datasources" className="text-foreground underline">
             Datasources
           </Link>
@@ -206,7 +208,7 @@ function TraceLogsBody({
   const truncated = result.data?.meta.truncated === true
   const count = result.data ? lineCountText(lines.length, truncated) : null
   const { ref, height } = useElementSize<HTMLDivElement>()
-  const open = (
+  const open = !opensLogsPage(datasource.type) ? null : (
     <Link
       {...logsLink(
         datasource.uid,

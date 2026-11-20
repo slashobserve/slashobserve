@@ -54,7 +54,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 		if exceptionCode(err) != syntaxErrorCode {
 			return lintFailure(ctx, diagnostics, err, timeout)
 		}
-		return append(diagnostics, syntaxDiagnostic(ctx, err, exp, len(text), timeout)), nil
+		return append(diagnostics, syntaxDiagnostic(ctx, err, query, exp, len(text), timeout)), nil
 	}
 	if err := d.explain(ctx, explainPlan+text, lim); err != nil {
 		return lintFailure(ctx, diagnostics, err, timeout)
@@ -67,9 +67,13 @@ func (d *Datasource) explain(ctx context.Context, sql string, lim datasource.Lim
 	return err
 }
 
-func syntaxDiagnostic(ctx context.Context, err error, exp macros.Expansion, textLen int, timeout time.Duration) datasource.Diagnostic {
-	message := messageOf(mapError(ctx, err, timeout))
-	m := positionPattern.FindStringSubmatch(message)
+func syntaxDiagnostic(ctx context.Context, err error, original string, exp macros.Expansion, textLen int, timeout time.Duration) datasource.Diagnostic {
+	message := messageOf(mapError(ctx, inPersonsText(err, original, exp), timeout))
+	_, ex, _ := syntaxFailure(err)
+	if ex == nil {
+		return errorDiagnostic(message, 0, 0)
+	}
+	m := positionPattern.FindStringSubmatch(ex.Message)
 	if m == nil {
 		return errorDiagnostic(message, 0, 0)
 	}

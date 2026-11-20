@@ -124,7 +124,7 @@ export function mentionOptions(
   agents: readonly MentionAgent[]
 ): MentionOption[] {
   const offered = new Map<string, MentionOption>()
-  for (const agent of [observeAgent, ...agents]) {
+  for (const agent of agents) {
     const option = agentOption(agent)
     offered.set(option.value, option)
   }

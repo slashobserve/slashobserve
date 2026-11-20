@@ -6,6 +6,7 @@ import { ApiError } from "@/api/errors"
 import { renderWithProviders } from "@/test/render"
 
 import { Composer } from "./composer"
+import { observeAgent } from "./mentions"
 
 const adaId = "7f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f"
 const people = [{ id: adaId, name: "Ada" }]
@@ -26,6 +27,7 @@ function setup(
       label="Reply"
       placeholder="Reply, or type @ to ask an agent"
       people={people}
+      agents={[observeAgent]}
       onSubmit={submit}
       {...props}
     />
@@ -196,7 +198,7 @@ describe("Composer", () => {
   })
 
   it("labels the send button with the agent a message asks", async () => {
-    const { user, field } = setup({ agents: [claude] })
+    const { user, field } = setup({ agents: [observeAgent, claude] })
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled()
     await user.click(field)
     await user.paste("hello @observe")
@@ -215,7 +217,7 @@ describe("Composer", () => {
   })
 
   it("asks for one agent and blocks sending when a message mentions two", async () => {
-    const { user, field, submit } = setup({ agents: [claude] })
+    const { user, field, submit } = setup({ agents: [observeAgent, claude] })
     await user.click(field)
     await user.paste(`@observe @[Claude Code](grant:${claude.id}) go`)
     expect(screen.getByText("Mention one agent per message")).toBeVisible()

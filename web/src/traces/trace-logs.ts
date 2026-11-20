@@ -10,7 +10,7 @@ import { logsUrl } from "@/lib/links"
 import { requestZone } from "@/lib/time"
 import { clickhouseLogsTemplate, lokiAllStreams } from "@/logs/context-query"
 import { rowTime } from "@/logs/frames"
-import type { LogsSearch } from "@/logs/search"
+import { isSearchFamily, type LogsSearch } from "@/logs/search"
 import { matcherInsert } from "@/panel-editor/insert-text"
 
 export type TraceLogsWindow = { from: string; to: string }
@@ -18,7 +18,7 @@ export type TraceLogsWindow = { from: string; to: string }
 export type TraceLogLine = { time: number | null; body: string }
 
 const storageKey = "slashobserve-trace-logs-datasource"
-const logsTypes = new Set(["loki", "clickhouse"])
+const logsTypes = new Set(["loki", "clickhouse", "elasticsearch", "opensearch"])
 const paddingMs = 60_000
 const lineLimit = 500
 const bodyNames = new Set(["body", "message", "msg", "line", "log"])
@@ -232,10 +232,19 @@ export function previewTime(ms: number | null): string {
   return `${seconds}.${millis}`
 }
 
+export function opensLogsPage(type: string): boolean {
+  return !isSearchFamily(type)
+}
+
 export function matchNote(
   type: string,
   span: { service: string } | undefined
 ): string {
+  if (isSearchFamily(type)) {
+    return span
+      ? "Matched on the trace id and span id fields of the datasource."
+      : "Matched on the trace id field of the datasource."
+  }
   if (type === "clickhouse") {
     return span
       ? "Matched on TraceId and SpanId in otel_logs."

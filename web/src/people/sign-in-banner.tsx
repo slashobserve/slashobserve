@@ -29,7 +29,10 @@ export function SignInBanner({ action }: { action: ReactNode }) {
         {neutral ? (
           <>Sign-in rules come from this server&apos;s settings.</>
         ) : allowAll ? (
-          <>Anyone with a verified email can sign in through {provider}.</>
+          <>
+            Anyone with an email address, verified or not, can sign in through{" "}
+            {provider}.
+          </>
         ) : (
           <>
             Anyone with a verified email at{" "}

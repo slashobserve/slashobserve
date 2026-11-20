@@ -44,6 +44,29 @@ describe("NewFolderDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it("creates the folder when Enter is pressed in the name field", async () => {
+    const bodies = stubServer(201, created)
+    const onCreated = vi.fn()
+    const { user } = renderWithProviders(
+      <NewFolderDialog open onOpenChange={vi.fn()} onCreated={onCreated} />
+    )
+    await user.type(
+      screen.getByRole("textbox", { name: "Name" }),
+      "Payments{Enter}"
+    )
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1))
+    expect(bodies).toEqual([{ title: "Payments" }])
+  })
+
+  it("does nothing when Enter is pressed on an empty name", async () => {
+    const bodies = stubServer(201, created)
+    const { user } = renderWithProviders(
+      <NewFolderDialog open onOpenChange={vi.fn()} onCreated={vi.fn()} />
+    )
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "{Enter}")
+    expect(bodies).toEqual([])
+  })
+
   it("says when the name is taken and stays open", async () => {
     stubServer(409, { error: "exists", code: "folder_exists" })
     const onCreated = vi.fn()

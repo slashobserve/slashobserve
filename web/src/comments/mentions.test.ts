@@ -249,8 +249,12 @@ describe("mentionSegments for agent tokens", () => {
 })
 
 describe("mentionOptions", () => {
-  it("offers the Observe Agent first when no one else is given", () => {
-    expect(mentionOptions([], [])).toEqual([
+  it("offers no agent when none is given, as with no model configured", () => {
+    expect(mentionOptions([], [])).toEqual([])
+  })
+
+  it("offers the Observe Agent when it is given", () => {
+    expect(mentionOptions([], [observeAgent])).toEqual([
       {
         value: "agent:observe",
         label: "Observe Agent",

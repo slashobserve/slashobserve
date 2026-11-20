@@ -44,7 +44,7 @@ func New() *Registry {
 		}, []string{"route", "method", "status"}),
 		agentRuns: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "slashobserve_agent_runs_total",
-			Help: "Agent runs that ended, by kind (create, revise or suggest) and outcome (succeeded or the failure code).",
+			Help: "Agent runs that ended, by kind (create, revise, suggest or investigate) and outcome (succeeded or the failure code).",
 		}, []string{"kind", "outcome"}),
 		agentQueueWait: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "slashobserve_agent_queue_wait_seconds",

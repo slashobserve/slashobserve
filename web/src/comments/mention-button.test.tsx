@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { MentionButton } from "./mention-button"
+import { observeAgent } from "./mentions"
 import { useInlineMention } from "./use-inline-mention"
 import { useMentionPicks } from "./use-mention-picks"
 
@@ -40,7 +41,7 @@ function Harness({
       />
       <output aria-label="Sent">{picks.wire(value)}</output>
       <MentionButton
-        agents={[]}
+        agents={[observeAgent]}
         people={people}
         target={target}
         onPick={picks.pick}
@@ -73,7 +74,7 @@ function TypedHarness() {
       />
       <output aria-label="Sent">{picks.wire(value)}</output>
       <MentionButton
-        agents={[]}
+        agents={[observeAgent]}
         people={people}
         target={null}
         onPick={picks.pick}

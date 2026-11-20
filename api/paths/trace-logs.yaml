@@ -12,10 +12,11 @@ datasources-uid-trace-logs:
       cli: [observe datasources trace-logs]
     summary: Read the log lines that carry a trace id, or one span id, from a logs datasource.
     description: >-
-      The trace view's path from a span to its logs; the datasource in the path must be Loki or ClickHouse.
+      The trace view's path from a span to its logs; the datasource in the path must be Loki, ClickHouse, Elasticsearch or OpenSearch.
       The server builds the query itself from the ids, so no query text crosses this call.
       On Loki it narrows the stream selector to `service` through the first of the `service_name`, `service`, `app` and `job` labels present in the window, or reads every stream when `service` is not given; it filters `trace_id` (and `span_id`) as structured metadata or parsed labels first and, when that answers no line, runs the same selector with a line filter on the id, so lines that only carry the id in their body still match.
       On ClickHouse it reads the logs page's columns from `otel_logs` where `TraceId` (and `SpanId`) match within the window, newest first.
+      On Elasticsearch and OpenSearch it matches the datasource's trace id field (and span id field, and service field when `service` is given) with exact terms within the window, newest first.
       `from` and `to` are the trace's window, with the grammar of the explore query; the web passes the trace's start minus a minute to its end plus a minute.
       The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`.
       Viewers and above may call it, service-account keys included.
@@ -69,7 +70,7 @@ datasources-uid-trace-logs:
               $ref: "../openapi.yaml#/components/schemas/PanelData"
       "400":
         description: >-
-          The request is malformed or fails validation, or the datasource is not Loki or ClickHouse (`invalid_request`); the body carries no `ref`.
+          The request is malformed or fails validation, or the datasource is not Loki, ClickHouse, Elasticsearch or OpenSearch (`invalid_request`); the body carries no `ref`.
         content:
           application/json:
             schema:

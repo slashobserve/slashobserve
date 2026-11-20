@@ -4486,7 +4486,7 @@ components:
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
-          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         dashboard_id:
@@ -4742,7 +4742,7 @@ components:
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
-          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API; every run is started this way in this release. The other values are reserved for runs that a mention, a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
+          description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
         status:
