@@ -15,9 +15,9 @@ import (
 func (r rig) chat(t *testing.T, by auth.Principal, follows pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id, context_from, context_to)
-VALUES ('observe', 'slowest routes in the last hour', $1, $2::uuid, $3, $4, $5::timestamptz - interval '1 hour', $5::timestamptz) RETURNING id::text`,
-		string(by.Kind), by.ID, by.Name, follows, windowTo).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
+VALUES ('observe', 'slowest routes in the last hour', $1, $2::uuid, $3, $4) RETURNING id::text`,
+		string(by.Kind), by.ID, by.Name, follows).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -131,8 +131,8 @@ func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *tes
 		t.Fatalf("a chat with two observations: %q, %v", got, err)
 	}
 
-	onDashboard := r.request(t, editor, r.open)
-	r.db.Exec(t, `UPDATE agent_requests SET source = 'observe' WHERE id = $1`, onDashboard)
+	onDashboard := r.chat(t, editor, pgtype.UUID{})
+	r.db.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, onDashboard, r.open)
 	dashboardObservation := r.savedAnswer(t, editor, onDashboard)
 	if got := r.renameObservation(t, editor, dashboardObservation, "On a dashboard"); got != "" {
 		t.Fatalf("an observation from a dashboard chat: %q", got)
