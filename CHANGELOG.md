@@ -5,6 +5,168 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can change between minor releases.
 
+## [0.1.3] - 2026-11-20
+
+This release adds features and database migrations despite its patch number.
+Migrations 49 to 73 are new, there is no migration 66, and no later migration exists.
+They add tables and columns for chats, inbox item states, webhook formats, thread read marks, dashboard viewers and view days, home dashboards, datasources added in the app, people invites and deactivation, teams, chat-only findings, observation pins, run time zones and access requests.
+Migration 62 creates the table that holds datasources added in the app, with their sealed credentials.
+Migration 65 lets a finding exist without an observation, so a chat answer stays in its chat until someone saves it.
+Migrations 59, 62 and 73 replace a check constraint on the activity log, and migrations 50 and 73 rebuild its inbox index with a plain `CREATE INDEX`, which blocks writes to the log until it finishes, so upgrade when little is changing.
+Back up Postgres before you upgrade.
+The server never runs a migration backwards, so going back to 0.1.2 means restoring the backup you took before upgrading.
+The first items under Changed can break a script or an integration.
+
+### Added
+
+- Datasources in the app.
+  An Admin adds, edits, tests and removes a datasource on the Datasources page, with `observe datasources add`, `edit`, `test`, `remove` and `recheck`, without a file edit or a restart.
+  Credentials are write-only and stored sealed with `SLASHOBSERVE_SECRET_KEY`.
+  A datasource that a saved dashboard or saved search uses cannot be removed, and the address goes through the outbound allowlist.
+  Entries of the datasources file stay read-only and win over an app datasource with the same id.
+  MCP and the built-in agent list datasources with their health and can call `recheck_datasource`, and neither adds, changes or removes one.
+- Invites, deactivation and teams.
+  An Admin invites people by email with a role and copies the sign-in link, because no email is sent.
+  An Admin deactivates a person, which ends their sessions and disconnects their agents, reactivates them, or removes them, and deletes a service account.
+  A team is a named group of people that a folder access list can name like an identity-provider group.
+  `observe people` and `observe teams` do the same with an Admin key, and no MCP tool manages people.
+- The Audit log.
+  Admin changes to roles, sessions, service accounts and keys, webhooks, outbound domains, agent connections, Grafana connections, datasources, people and public links go into the activity log and show in Settings as sentences, with filters by person, kind and time.
+  An Admin key reads the same record with `GET /api/v1/activity?scope=admin`, `observe activity --admin` and `list_activity`, and any other key gets `forbidden_role`.
+- Requests for comment access.
+  A Viewer of a dashboard or an observation asks for Comment access with an optional note, from the activity pane, the discussion, `POST /api/v1/access-requests`, `observe access request` or the MCP tool `request_comment_access`.
+  The people who manage the folder get an inbox item, or the Admins do when nobody manages it, and marking the item done declines the request.
+  `GET /api/v1/access-requests`, `observe access requests` and `list_access_requests` list the open requests on folders the caller manages.
+- A Metrics page.
+  `/explore/metrics` runs PromQL on a Prometheus datasource, asks the agent for a query, browses metric names, labels and values, saves searches, and adds the result to a dashboard or an observation.
+  `observe metrics query` and `draft_query` do the same from a terminal, and a saved search can have the kind `metrics`.
+- Panel layout editing.
+  The panel menu duplicates and removes a panel, the dashboard menu adds a panel, opens a blank dashboard and edits the Spec JSON for variables, links and time settings, and the panel editor shows the options of the panel type.
+  A query that returns no data can be saved as Unverified from the web app.
+  `POST /api/v1/dashboards/{id}/panels` and `observe dashboards panels` apply a panel patch.
+- Annotations from the dashboard.
+  A person adds an annotation with a button or by Cmd or Ctrl click on a chart, and the creator or an Admin edits or deletes it.
+  `PATCH /api/v1/annotations/{id}`, `observe annotations update` and the MCP tool `update_annotation` change its text and tags.
+- Dashboard views and the home dashboard.
+  The dashboards list and header show how many people opened a dashboard in the last 30 days, the list sorts by name or by most viewed, and a bar moves several selected dashboards to a folder.
+  A person picks a home dashboard that opens after sign-in, and `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` do it over MCP.
+  A dashboard prints, saves as a PDF or downloads as one image from the browser.
+- Mentions, deletion and a triaged inbox.
+  `@` opens the mention picker in every comment box, a person deletes a comment, and nobody edits an agent's reply.
+  The inbox names who did what, marks items done, filters by Open, Unread and Done, and groups by dashboard or observation.
+  `list_mentionable_people`, `list_dashboard_viewers`, `list_inbox` with a `filter`, `set_inbox_item_done` and `observe comments delete` cover the same work for agents.
+- Observations grow up.
+  An observation is deleted with `observe o delete --yes` or from its page, and the list searches by title, sorts, pages and resolves or deletes several at once.
+  An editor withdraws a published RCA revision, moves blocks up and down, pins an observation to a dashboard as an annotation, and makes a dashboard from its panels.
+  A panel block keeps the dashboard variables it runs with.
+  The MCP tools `pin_observation` and `make_dashboard` and the commands `observe o pin`, `dashboard`, `remove-block` and `withdraw` match.
+- Chats as runs.
+  A chat has a Save as observation button, Copy answer and Ask again, a message counter, and one row per conversation in Home, Ask and Chats.
+  The MCP tools `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` manage a person's own chats, and `save_run_answer`, `start_run`, `cancel_run`, `retry_run` and `get_run_build` start, stop and read runs.
+  `observe save-answer`, `observe --follows <run id>` and `observe requests archive <id> --delete-observation --yes` do the same from a shell.
+  Deleting a chat in the web app offers to delete the observation saved from it.
+  A chat and the observation made from it share one title.
+- Logs and traces.
+  Each source on the Logs and Traces lists shows its services and a filter box, from `GET /api/v1/datasources/{uid}/services`, `observe datasources services` and the MCP tool `list_services`.
+  The ClickHouse trace search has an SQL view over `otel_traces`, and `observe traces --query` runs it.
+  A trace search or a trace adds to a dashboard or an observation, and `observe traces` lists whole traces sorted with `--sort`.
+  A saved search updates its query, columns and range with **Update saved search**, `PATCH /api/v1/saved-searches/{id}`, `observe saved-searches update` and `update_saved_search`.
+  A Kibana Discover link pasted into the Ask box imports like one pasted into the query box.
+- Trace SQL rows as written.
+  The explore query request and the MCP tool `query_instant` take `as_written` together with `page_size` on a ClickHouse datasource, and return the rows as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns and no `TimeNs` column.
+  With it the query must read its time range through `$__timeFilter`, even when it selects `Timestamp`, because the server no longer cuts the rows to the range for you.
+  Without it, a query that selects `Timestamp` still comes back as log lines, newest first, and `as_written` without `page_size` is refused.
+  The logs page does not send it.
+  The trace SQL view and `observe traces --query` send it, so a query for the three slowest spans returns those three.
+- The CLI reaches what the web app does.
+  `observe logs` prints lines from Elasticsearch and OpenSearch and rows from ClickHouse SQL.
+  `observe folders permissions`, `observe dashboards schema` and `sample`, `observe datasources schema` and `sample`, `observe import --update` and `--as-new`, and `--all` on list commands are new.
+  Every list command prints its total and checks `--limit` before it sends a request.
+  With `--json` an error is a JSON object on standard error with a stable code.
+- Webhooks for Slack and Teams.
+  A webhook has a format, generic, Slack or Teams, and an Admin can skip the one event a failing webhook is stuck on.
+- Import fidelity.
+  A Grafana import can update the dashboard an earlier import made, a Spec exported from SlashObserve imports on the import page, and the report names annotation queries, alert rules and library panels that are not imported.
+- Time zones.
+  The time range picker has a calendar and a time zone box carried by the `tz` URL parameter, **Save as default** stores the range in the Spec, and Settings has a default time zone.
+  The built-in agent writes times in the zone the page shows.
+- Panes and first load.
+  Share, Activity, Chat and Dashboard JSON take focus on their heading when opened and return it to their button on Escape.
+  The server serves script and style files brotli-compressed to browsers that accept it.
+- More MCP tools.
+  The server has 99 tools, 27 more than 0.1.2, among them `create_folder`, `rename_folder` and `run_dashboard_health` for an Admin.
+  `create_dashboard` and `save_search` are safe to retry: the same caller with the same content gets the first result back with `replayed: true`.
+  `tools/list` hides the tools that need a person from a service-account key.
+- Query results say what ran.
+  A panel data response and the MCP results `query_instant` and `query_range` carry the query text after variables and macros as `meta.queries[].executed`, and a public link never shows it.
+  Results carry `meta.partial` and the warning text when Prometheus warns, Tempo or Loki stops at its time limit, or a series cap drops series.
+- The built-in agent.
+  It shows a short sentence of live text while it works, which `observe status` prints and `get_run` returns as `live_text`, and which is not kept once the run ends.
+  It builds a new dashboard in a folder you name, reads earlier observations as evidence, reads annotations in every run as the person who asked, and says which datasources it could not check.
+  It writes text panels in Markdown.
+
+### Changed
+
+- A plain question asked in a chat no longer saves an observation.
+  The answer stays in the chat, readable by the person who asked and by Admins, until they choose **Save as observation**, call `save_run_answer` or run `observe save-answer`.
+  `/investigate` still opens an observation, and `get_run` returns an unsaved answer with a null `observation_id`.
+- `result_kind` is `answer` for a run whose answer was never saved, in `GET /api/v1/observe`, `get_run`, `list_runs` and `observe requests list --json`.
+  A script that switches on `result_kind` must handle `answer`, and `observation_id` is null until the answer is saved.
+- The routes under `/api/v1/findings` still answer in 0.1.3, each with a `Deprecation` header, and a later release removes them.
+  The 0.1.2 notes said the next release would remove them.
+  Use the observation routes and `list_observations` instead.
+- A dashboard that the caller cannot see answers 404 `not_found` on every route, where some routes answered 403.
+  A visible one with too low a level still answers 403, and the body of every `forbidden_role` refusal now names `needed_access` and `folder_title` or `needed_role`.
+- A list route answers 400 `invalid_request` for a parameter it does not take or a value it cannot read, and names the parameter.
+  Other routes still serve a request with an unknown query parameter and add the header `X-Unknown-Query-Parameters`, and `SLASHOBSERVE_API_CONTRACT_CHECK` refuses it instead.
+- `SLASHOBSERVE_ADMIN_EMAILS` grants Admin only at a sign-in where the provider reports `email_verified`.
+  People who already hold Admin keep it, and the startup reconcile never grants it.
+- A link in a Spec may use only http, https or mailto, or be relative, and a save with another scheme fails with the issue `unsafe_link`.
+  A stored version that already holds one fails validation when it is restored.
+- `observe dashboards apply` needs `--dir`, and a file argument is refused.
+  A prompt that is one bare word, or whose first word is within one or two edits of a command name, exits 2 before any request, where it used to start a paid run.
+  Quote the words as one argument to send them.
+- Every MCP tool accepts one alias for a documented name, such as `datasource` for `datasource_uid`, and refuses a call that gives both with different values.
+  A success result no longer carries `"code":"ok"`, and a failed call carries `code` and `message` in one shape.
+  The tools that overwrite or discard what someone saved are advertised as destructive.
+- `accept_empty` on a panel save is for signed-in people, and a key, the CLI, MCP and the built-in agent get 403 `user_session_required`.
+  `observe add --panel-file` and the HTTP route behind it run the panel check of `add_block` and exit non-zero for a broken query.
+- ClickHouse SQL run through `query_instant`, `query_range` or `observe logs` without `page_size` must contain the time range macro `$__timeFilter(Timestamp)`, and a macro inside an SQL comment no longer counts.
+- A paged ClickHouse result that is not read as log lines no longer carries the `TimeNs` field, which a result gets only when it is ordered by time.
+- A Prometheus range query that sets no `interval` never runs at a step shorter than the datasource's `scrapeInterval`, 15 seconds by default, so a panel's newest point can be up to 15 seconds old.
+  The explore query API defaults `max_data_points` to 200.
+- A log volume over Elasticsearch, OpenSearch and ClickHouse counts exactly the requested range, so the first and last bars hold partial buckets.
+  A Loki volume over a week and a broad Tempo search return a partial result with `meta.partial` and, for Loki, `counted_from`, instead of timing out.
+- A Loki variable set to All expands to `.+` inside a stream selector, because Loki refuses a selector whose matchers all match the empty value.
+- Elasticsearch and OpenSearch Query DSL that carries a script is refused, except the script of `bucket_script` and `moving_fn`.
+  A ClickHouse trace filter with unbalanced parentheses or a trailing comment is refused.
+- `draft_query` allows 60 drafts per caller per clock hour, `import_grafana_dashboard` refuses a conversion that would add an HTML text panel, a placeholder panel or a panel action, and a run token stops working when its grant is revoked.
+- The Helm chart keeps `/metrics` out of the Ingress, and `ingress.exposeMetrics: true` restores it.
+  The server answers 404 to a percent-encoded spelling of `/metrics`.
+- A title, name, comment, prompt or annotation that holds only spaces or invisible characters, or text that flips the direction of its neighbours, is refused with a reason such as `text_invisible_only` or `text_bidi_override`.
+- A time series or trend panel draws at most 50 series per query, the 50 with the highest peaks, and its header says how many there are.
+- The demo stack gives Loki and Tempo 1 GB of memory instead of 512 MB and caps their Go heap at 768 MiB.
+
+### Fixed
+
+- An agent connected over OAuth was refused with 401 at `/mcp`, because the built-in agent's token shared the prefix `soa_` with OAuth access tokens, and that token now starts with `sob_`.
+- A deleted agent reply came back about three seconds later as a new message.
+- A follow-up in a chat lost the earlier turns, a stopped run could leave a chat on Running, and Try again opened a second chat.
+- A Kibana Discover link lost its time range, columns and filters on the logs page, and an exclude pill on a Loki label that the query selects with a regex replaced the matcher and was dropped.
+- The built-in agent reported a read that timed out as no data, said a metric was missing after searching only by name, and wrote times in UTC under a page that showed another zone.
+  It now names each datasource it could not check, reads deploy markers in every run, and uses the page's zone.
+- `observe cancel` and `observe continue` dropped the error code when someone other than the requester was refused, and now end the message with it.
+- The span count of a Tempo trace stats read was wrong when a sample was NaN.
+- A Prometheus answer with warnings was not marked partial, and ClickHouse integers above 2^53 lost digits in a table.
+- A live tail that polled a partial result did not fetch the lines it missed.
+- Two sessions moving one panel to different places both saved, concurrent creates could pass the public link cap, and an RCA published after the title changed while panels froze.
+- The dashboard event stream kept sending to a person whose role was lowered.
+- A Grafana import dropped more than the one query that used an unsupported variable format and did not report skipped entries, and the Spec import refused a Spec that SlashObserve exported.
+- The Metrics table reported 0 rows for an instant query.
+- Focus fell to the page body after opening a trace, closing a dashboard pane or navigating, and the trace ruler showed the window's edges as ticks after zooming.
+- A time series drew one straight line across a gap with no samples.
+- A mention typed straight through, such as `@observe add a stat panel`, lost the text after the `@`.
+
 ## [0.1.2] - 2026-11-16
 
 This release adds features and database migrations despite its patch number.
@@ -230,6 +392,7 @@ First public release.
   `make demo` and `docker compose -f deploy/compose/compose.yaml up -d --wait` start a local demo stack with Dex, Prometheus, ClickHouse, a demo shop and sample history from the published images.
   The demo is for local use only, with fixed logins and published ports bound to 127.0.0.1.
 
+[0.1.3]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.3
 [0.1.2]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.2
 [0.1.1]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.1
 [0.1.0]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.0
