@@ -74,7 +74,9 @@ The first items under Changed can break a script or an integration.
   A Kibana Discover link pasted into the Ask box imports like one pasted into the query box.
 - Trace SQL rows as written.
   The explore query request and the MCP tool `query_instant` take `as_written` together with `page_size` on a ClickHouse datasource, and return the rows as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns and no `TimeNs` column.
+  With it the query must read its time range through `$__timeFilter`, even when it selects `Timestamp`, because the server no longer cuts the rows to the range for you.
   Without it, a query that selects `Timestamp` still comes back as log lines, newest first, and `as_written` without `page_size` is refused.
+  The logs page does not send it.
   The trace SQL view and `observe traces --query` send it, so a query for the three slowest spans returns those three.
 - The CLI reaches what the web app does.
   `observe logs` prints lines from Elasticsearch and OpenSearch and rows from ClickHouse SQL.
@@ -130,6 +132,7 @@ The first items under Changed can break a script or an integration.
 - `accept_empty` on a panel save is for signed-in people, and a key, the CLI, MCP and the built-in agent get 403 `user_session_required`.
   `observe add --panel-file` and the HTTP route behind it run the panel check of `add_block` and exit non-zero for a broken query.
 - ClickHouse SQL run through `query_instant`, `query_range` or `observe logs` without `page_size` must contain the time range macro `$__timeFilter(Timestamp)`, and a macro inside an SQL comment no longer counts.
+- A paged ClickHouse result that is not read as log lines no longer carries the `TimeNs` field, which a result gets only when it is ordered by time.
 - A Prometheus range query that sets no `interval` never runs at a step shorter than the datasource's `scrapeInterval`, 15 seconds by default, so a panel's newest point can be up to 15 seconds old.
   The explore query API defaults `max_data_points` to 200.
 - A log volume over Elasticsearch, OpenSearch and ClickHouse counts exactly the requested range, so the first and last bars hold partial buckets.
