@@ -17,6 +17,12 @@ import { useAddBlock, type Block, type Observation } from "./queries"
 
 export const addBlockRowId = "add-block-row"
 
+const dataPages = [
+  { label: "Logs", to: "/logs" },
+  { label: "Traces", to: "/traces" },
+  { label: "Metrics", to: "/explore/metrics" },
+] as const
+
 export function useFreezeBlock(
   observationId: string,
   handlers: {
@@ -201,18 +207,21 @@ export function AddBlockRow({
         >
           Panel
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            void navigate({
-              to: "/logs",
-              search: { observation: observation.id },
-            })
-          }
-        >
-          Logs
-        </Button>
+        {dataPages.map((page) => (
+          <Button
+            key={page.label}
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              void navigate({
+                to: page.to,
+                search: { observation: observation.id },
+              })
+            }
+          >
+            {page.label}
+          </Button>
+        ))}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

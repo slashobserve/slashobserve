@@ -125,6 +125,17 @@ describe("logs and trace addresses", () => {
     })
   })
 
+  it("carries the observation the person came from to the trace", () => {
+    const observation = "8b1f6c1e-3f5a-4c2e-9a77-0c1d2e3f4a5b"
+    expect(
+      traceLink(traceId, "tempo", undefined, undefined, observation).search
+        .observation
+    ).toBe(observation)
+    expect(
+      traceUrl(traceId, "ch", { from: "1", to: "now" }, undefined, observation)
+    ).toBe(`/t/${traceId}?ds=ch&from=1&to=now&observation=${observation}`)
+  })
+
   it("adds the span after the range", () => {
     const span = "7f3a9c12e4b0d5a1"
     expect(traceUrl(traceId, "ch", { from: "1", to: "now" }, span)).toBe(

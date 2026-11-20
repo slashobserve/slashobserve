@@ -119,6 +119,27 @@ describe("validateTraceViewSearch", () => {
   })
 })
 
+describe("the observation a trace search was entered from", () => {
+  const observation = "8b1f6c1e-3f5a-4c2e-9a77-0c1d2e3f4a5b"
+
+  it.each([
+    ["the list", validateTraceSearch],
+    ["the entry page", validateTraceEntrySearch],
+    ["a single trace", validateTraceViewSearch],
+  ])("keeps a valid observation id on %s", (_, validate) => {
+    expect(validate({ observation }).observation).toBe(observation)
+  })
+
+  it.each([
+    ["the list", validateTraceSearch],
+    ["a single trace", validateTraceViewSearch],
+  ])("drops an observation that is not a uuid on %s", (_, validate) => {
+    expect(
+      validate({ observation: "checkout-slow" }).observation
+    ).toBeUndefined()
+  })
+})
+
 describe("normaliseTraceId", () => {
   it.each([
     ["4BF92F3577B34DA6A3CE929D0E0E4736", "4bf92f3577b34da6a3ce929d0e0e4736"],

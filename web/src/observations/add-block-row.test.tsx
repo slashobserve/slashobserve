@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -73,5 +73,18 @@ describe("AddBlockRow on a resolved observation", () => {
     renderRow("open", false)
     await screen.findByRole("button", { name: "Text" })
     expect(screen.queryByText(/This observation is resolved/)).toBeNull()
+  })
+})
+
+describe("AddBlockRow data pages", () => {
+  it.each([
+    ["Logs", "/logs"],
+    ["Traces", "/traces"],
+    ["Metrics", "/explore/metrics"],
+  ])("opens %s with the observation as the way back", async (name, path) => {
+    const { user, router } = renderRow()
+    await user.click(await screen.findByRole("button", { name }))
+    await waitFor(() => expect(router?.state.location.pathname).toBe(path))
+    expect(router?.state.location.search).toEqual({ observation: "o1" })
   })
 })

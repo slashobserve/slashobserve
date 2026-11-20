@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { traceLink } from "@/lib/links"
+import { useObservationOrigin } from "@/observations/origin"
 import { resolveTime, zonedDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { styleForSlot } from "@/panels/colors"
@@ -167,6 +168,7 @@ function TraceCell({
   datasourceUid: string
   range: TraceRange
 }) {
+  const observation = useObservationOrigin()
   switch (column.key) {
     case "service":
       return (
@@ -210,7 +212,13 @@ function TraceCell({
       return (
         <Cell className="py-1 whitespace-nowrap">
           <Link
-            {...traceLink(row.traceId, datasourceUid, range)}
+            {...traceLink(
+              row.traceId,
+              datasourceUid,
+              range,
+              undefined,
+              observation
+            )}
             aria-label={openTraceLabel(row)}
             title={
               row.start === null ? undefined : new Date(row.start).toISOString()
