@@ -23,7 +23,7 @@ func recordTeamMember(ctx context.Context, q *dbsqlc.Queries, action audit.Actio
 	if err != nil {
 		return err
 	}
-	name, err := q.GetUserDisplayName(ctx, userID)
+	name, err := q.GetUserName(ctx, userID)
 	if err != nil {
 		return err
 	}

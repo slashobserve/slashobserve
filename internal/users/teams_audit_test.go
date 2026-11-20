@@ -132,3 +132,21 @@ func TestATeamMemberChangeAndItsEventCommitAndRollBackTogether(t *testing.T) {
 		t.Fatalf("members = %d, %v; want 0", members, err)
 	}
 }
+
+func TestAMemberWithoutANameIsRecordedByIdAndNeverByEmail(t *testing.T) {
+	r := newRig(t)
+	ada := r.addUser("ada", time.Now())
+	nameless, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "nameless", Email: "nameless@example.com", Name: ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := adminCaller(ada, "Ada")
+	sre := r.createTeam("sre", admin)
+	r.do(http.MethodPut, "/api/v1/teams/"+sre.ID+"/members/"+nameless.ID.String(), admin)
+
+	got := r.teamEvents()
+	add := got[len(got)-1]
+	if add.Action != "team.member_add" || add.Data["user_id"] != nameless.ID.String() || add.Data["user_name"] != "" {
+		t.Fatalf("event = %+v, want the id and an empty name", add)
+	}
+}

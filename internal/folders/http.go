@@ -307,7 +307,7 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 		if err != nil {
 			return err
 		}
-		before, err := q.ListFolderPermissions(ctx, folderID)
+		before, err := q.ListFolderGrantsForAudit(ctx, folderID)
 		if err != nil {
 			return err
 		}
@@ -322,7 +322,7 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 				return err
 			}
 		}
-		after, err := q.ListFolderPermissions(ctx, folderID)
+		after, err := q.ListFolderGrantsForAudit(ctx, folderID)
 		if err != nil {
 			return err
 		}

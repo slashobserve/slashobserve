@@ -214,3 +214,26 @@ func TestCreatingAnImportFolderRecordsFolderCreate(t *testing.T) {
 		t.Fatalf("events = %+v, want one folder.create for Imported", events)
 	}
 }
+
+func TestAGrantToAPersonWithoutANameCarriesTheIdAndNeverTheEmail(t *testing.T) {
+	d := dbtest.New(t)
+	user, err := d.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "nameless", Email: "nameless@example.com", Name: ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := newFolder(t, d, "Locked")
+	engine := adminEngine(t, d)
+	earlier := len(storedEvents(t, d))
+
+	rec := send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", `{"entries":[{"user_id":"`+user.ID.String()+`","level":"view"}]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set = %d %s", rec.Code, rec.Body)
+	}
+	raw, err := json.Marshal(onlyEventAfter(t, d, earlier, rec).Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), user.ID.String()) || strings.Contains(string(raw), "example.com") {
+		t.Fatalf("data = %s, want the user id and no email", raw)
+	}
+}

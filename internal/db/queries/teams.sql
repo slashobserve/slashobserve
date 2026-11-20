@@ -27,5 +27,5 @@ INSERT INTO team_members (team_id, user_id) VALUES (@team_id, @user_id) ON CONFL
 -- name: RemoveTeamMember :execrows
 DELETE FROM team_members WHERE team_id = @team_id AND user_id = @user_id;
 
--- name: GetUserDisplayName :one
-SELECT coalesce(nullif(name, ''), email)::text FROM users WHERE id = @id;
+-- name: GetUserName :one
+SELECT coalesce(name, '')::text FROM users WHERE id = @id;

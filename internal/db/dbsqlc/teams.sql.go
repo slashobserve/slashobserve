@@ -90,12 +90,12 @@ func (q *Queries) GetTeam(ctx context.Context, id pgtype.UUID) (Team, error) {
 	return i, err
 }
 
-const getUserDisplayName = `-- name: GetUserDisplayName :one
-SELECT coalesce(nullif(name, ''), email)::text FROM users WHERE id = $1
+const getUserName = `-- name: GetUserName :one
+SELECT coalesce(name, '')::text FROM users WHERE id = $1
 `
 
-func (q *Queries) GetUserDisplayName(ctx context.Context, id pgtype.UUID) (string, error) {
-	row := q.db.QueryRow(ctx, getUserDisplayName, id)
+func (q *Queries) GetUserName(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getUserName, id)
 	var column_1 string
 	err := row.Scan(&column_1)
 	return column_1, err

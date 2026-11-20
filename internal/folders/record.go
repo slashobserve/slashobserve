@@ -25,7 +25,7 @@ func recordFolder(ctx context.Context, q *dbsqlc.Queries, action audit.Action, i
 	return audit.Record(ctx, q, audit.Event{Action: action, Target: folderTarget(id, title), Data: data})
 }
 
-func recordedGrants(rows []dbsqlc.ListFolderPermissionsRow) []recordedGrant {
+func recordedGrants(rows []dbsqlc.ListFolderGrantsForAuditRow) []recordedGrant {
 	grants := make([]recordedGrant, 0, len(rows))
 	for _, r := range rows {
 		if r.GroupName.Valid {
