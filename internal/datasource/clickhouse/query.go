@@ -118,6 +118,11 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	if err != nil {
 		return nil, lim, err
 	}
+	if q.Explore {
+		if err := requireRange(q.Text, false); err != nil {
+			return nil, lim, err
+		}
+	}
 	q.Expanded(text)
 	lim.Timeout = d.clampTimeout(lim.Timeout)
 	timeout := effectiveTimeout(ctx, lim.Timeout)
@@ -129,7 +134,7 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	}
 	rs, err := d.fetchWith(ctx, text, lim, nil, extra)
 	if err != nil {
-		return nil, lim, mapError(ctx, err, timeout)
+		return nil, lim, mapError(ctx, inPersonsText(err, q.Text, exp), timeout)
 	}
 	return rs, lim, nil
 }
@@ -142,7 +147,7 @@ func (d *Datasource) fetchWith(ctx context.Context, text string, lim datasource.
 	ctx = ch.Context(ctx, queryOptions(lim, params, extra)...)
 	rows, err := d.conn.Query(ctx, text)
 	if err != nil {
-		return nil, err
+		return nil, &sentError{err: err, statement: text}
 	}
 	return scanRows(rows, lim.MaxRows)
 }

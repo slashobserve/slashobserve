@@ -68,9 +68,10 @@ On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
 
-Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not; a macro inside a comment does not count, because it never runs.
+Such a query must read the time range through a macro such as `$__timeFilter(...)`, and when it does not, the server refuses it with a sentence that names the macro with the table's time column, such as `$__timeFilter(Timestamp)` on `otel_logs` and `otel_traces`; a macro inside a comment does not count, because it never runs.
 The field counts follow the same rule, except that a query selecting `Timestamp` is counted over the time range even without the macro.
 So no ClickHouse request reads a table beyond the range at the top of the page.
+A syntax error names the line and column in the query as you wrote it and the word there, such as `failed at line 2, column 32 of the query, near "GROUP"`, or says the query ends too early, and never shows the SQL the server wraps around it to page; the trace SQL view reports it the same way.
 Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.
 Ctrl+Space in the editor completes names: the columns of `otel_logs` on ClickHouse, the stream labels on Loki and the mapped fields on Elasticsearch and OpenSearch, and on ClickHouse also the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter in the editor, to run it over the time range at the top of the page.
@@ -482,11 +483,13 @@ A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name
 On ClickHouse the query card has a **Search** and **SQL** switch beside **Ask**, and Ctrl+I or Cmd+I moves through them.
 **SQL** opens an editor with the search of the fields written as SQL over `otel_traces`, so you can start from it, and Ctrl+Space completes the columns of `otel_traces` and the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter, to run it; the address keeps it as `q`, and a link or a saved search with SQL opens in the SQL view.
-It runs through the same path and checks as the SQL of the logs page: one read-only `SELECT`, the time range at the top of the page through a macro such as `$__timeFilter(Timestamp)`, the 15 second query limit and the page size; a query that breaks a rule is refused with a sentence that names it, and one ClickHouse cannot run shows the database's message with its position.
+It runs through the same path and checks as the SQL of the logs page: one read-only `SELECT`, the time range at the top of the page through a macro such as `$__timeFilter(Timestamp)`, the 15 second query limit and the page size; a query that breaks a rule is refused with a sentence that names it, and one ClickHouse cannot run shows the database's message.
 The rows show as a table with a column per selected column, paged like the search, and when the query selects a trace id column, `TraceId` or `trace_id` in any case, each id opens its trace.
 **Add to dashboard** adds a full-width table panel with the SQL as written under the last row of a dashboard you can edit, and **Add to observation** copies it into an [observation](observations.md) as the same table panel over the time range the page shows.
 The scatter, the statistics and **Compare** belong to the search, so the SQL view does not show them; switch back to **Search** and press **Search traces** to run the fields again.
 To draw the spans of one trace from your own SQL, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
+
+The label beside the source name in the top bar says **SQL** while the SQL view is open and **Search** otherwise, Ask included, because an answer fills the search fields.
 
 ### Results
 

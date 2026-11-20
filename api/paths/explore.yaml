@@ -29,6 +29,7 @@ datasources-uid-query:
       `prev` is the cursor that produced the page.
       `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk.
       The SQL views of the ClickHouse logs and trace searches both run here, with the same checks for either table: one read-only `SELECT`, the time range read through a macro such as `$__timeFilter(Timestamp)` when the query selects no `Timestamp`, and the limits above.
+      Without `page_size` a ClickHouse query must read the time range through a macro even when it selects `Timestamp`, because only a paged query is cut to the range by the server; a macro inside a comment does not count.
       With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
     requestBody:
       required: true

@@ -82,14 +82,18 @@ func tableKind(name string) string {
 	return "table"
 }
 
-func timeColumn(kind string, columns []datasource.Column) string {
-	preferred := ""
+func preferredTimeColumn(kind string) string {
 	switch {
 	case strings.HasPrefix(kind, "metrics_"):
-		preferred = "TimeUnix"
+		return "TimeUnix"
 	case kind == "logs" || kind == "traces":
-		preferred = "Timestamp"
+		return "Timestamp"
 	}
+	return ""
+}
+
+func timeColumn(kind string, columns []datasource.Column) string {
+	preferred := preferredTimeColumn(kind)
 	if preferred != "" && slices.ContainsFunc(columns, func(c datasource.Column) bool { return c.Name == preferred }) {
 		return preferred
 	}

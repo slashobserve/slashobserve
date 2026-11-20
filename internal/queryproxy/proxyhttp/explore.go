@@ -95,6 +95,7 @@ func (h *Handler) explore(c *gin.Context) {
 		Selections:    map[string]queryproxy.Selection{},
 		MaxDataPoints: al.maxDataPoints,
 		Limits:        req.limits(),
+		Explore:       true,
 		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {

@@ -237,7 +237,6 @@ export function TracesPage({ uid }: { uid: string }) {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="sr-only">Traces in {datasource.name}</h1>
-      <SourceTitle kind="traces" source={datasource} />
       <OpenSavedSearch
         kind="traces"
         uid={datasource.uid}
@@ -503,6 +502,11 @@ function TraceSearchWorkspace({
 
   return (
     <>
+      <SourceTitle
+        kind="traces"
+        source={datasource}
+        language={inputMode.language}
+      />
       <section
         aria-label="Query"
         className="flex flex-col rounded-card border bg-card"

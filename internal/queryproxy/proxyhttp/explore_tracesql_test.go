@@ -65,7 +65,7 @@ func TestExploreAnswersTheTraceSQLRefusalWithItsCode(t *testing.T) {
 		code   string
 	}{
 		{"forbidden", datasource.ErrForbiddenQuery, "SETTINGS clauses are not allowed", "query_forbidden"},
-		{"no range", datasource.ErrInvalidQuery, "a query without Timestamp must read the time range, for example WHERE $__timeFilter(EventTime)", "query_invalid"},
+		{"no range", datasource.ErrInvalidQuery, "add $__timeFilter(Timestamp) to the WHERE clause so the query reads only the selected time range", "query_invalid"},
 		{"too many rows", datasource.ErrLimitExceeded, "result exceeds 50 rows", "limit_exceeded"},
 		{"database message", datasource.ErrInvalidQuery, "Syntax error: failed at position 8 (FROM)", "query_invalid"},
 	}
@@ -81,5 +81,19 @@ func TestExploreAnswersTheTraceSQLRefusalWithItsCode(t *testing.T) {
 				t.Fatalf("body = %s, want the reason", rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestExploreWithoutAPageRunsItsTextAsAnExploreQuery(t *testing.T) {
+	for _, kind := range []string{"instant", "range"} {
+		hn, traces := newClickHouseHarness(t)
+		body := instantBody("SELECT TraceId FROM otel_traces LIMIT 3")
+		body["kind"] = kind
+		if rec := hn.explore(auth.KindServiceAccount, "ch", body); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, body = %s", kind, rec.Code, rec.Body.String())
+		}
+		if q := traces.lastQuery(); !q.Explore {
+			t.Fatalf("%s: the datasource saw %+v, want an explore query", kind, q)
+		}
 	}
 }

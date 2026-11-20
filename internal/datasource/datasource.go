@@ -82,6 +82,7 @@ type Query struct {
 	Dashboard string
 	User      QueryUser
 	TimeZone  string
+	Explore   bool
 
 	MinInterval time.Duration
 

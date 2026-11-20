@@ -47,6 +47,18 @@ describe("useTraceInputMode", () => {
     expect(result.current.shown).toBe("builder")
   })
 
+  it("names the shown ClickHouse view as the language and leaves Tempo's alone", () => {
+    const { result } = setup("clickhouse", { service: "checkout" })
+    expect(result.current.language).toBe("Search")
+    act(() => result.current.select("code"))
+    expect(result.current.language).toBe("SQL")
+    act(() => result.current.select("ask"))
+    expect(result.current.language).toBe("Search")
+    expect(
+      setup("tempo", { service: "checkout" }).result.current.language
+    ).toBe(undefined)
+  })
+
   it("switches between Search and SQL", () => {
     const { result } = setup("clickhouse", {})
     act(() => result.current.select("code"))

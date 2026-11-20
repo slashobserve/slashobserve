@@ -200,9 +200,10 @@ func (f *fakeDatasource) exemplarCount() int {
 	return f.exemplarCalls
 }
 
-func (f *fakeDatasource) QueryInstant(ctx context.Context, _ datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+func (f *fakeDatasource) QueryInstant(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
 	f.mu.Lock()
 	f.instantCalls++
+	f.seen = append(f.seen, q)
 	f.mu.Unlock()
 	if f.onInstant != nil {
 		return f.onInstant(ctx, r)
