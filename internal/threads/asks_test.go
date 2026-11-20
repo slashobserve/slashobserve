@@ -89,7 +89,7 @@ func accountToken(id pgtype.UUID) string { return "@[ci-bot](service_account:" +
 
 func (r *rig) openWithRun(t *testing.T, by auth.Principal, in OpenInput) (Thread, Message, *StartedRun, *RunRefusal) {
 	t.Helper()
-	thread, message, run, refusal, err := r.mentions.Open(t.Context(), by, in, true)
+	thread, message, run, refusal, err := r.askOpen(t.Context(), by, in, true)
 	if err != nil {
 		t.Fatalf("open %+v: %v", in, err)
 	}
@@ -98,7 +98,7 @@ func (r *rig) openWithRun(t *testing.T, by auth.Principal, in OpenInput) (Thread
 
 func (r *rig) replyWithRun(t *testing.T, by auth.Principal, thread, body string) (Message, *StartedRun, *RunRefusal) {
 	t.Helper()
-	_, message, run, refusal, err := r.mentions.Reply(t.Context(), by, mustParse(t, thread), ReplyInput{Body: body}, true)
+	_, message, run, refusal, err := r.askReply(t.Context(), by, mustParse(t, thread), ReplyInput{Body: body}, true)
 	if err != nil {
 		t.Fatalf("reply to %s: %v", thread, err)
 	}
@@ -146,11 +146,11 @@ func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
 	dash := r.createDashboard(t)
 	tg := target(KindDashboard, dash)
 
-	thread, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: "@observe look"}, false)
+	thread, _, run, refusal, err := r.askOpen(t.Context(), testUser, OpenInput{Target: tg, Body: "@observe look"}, false)
 	if err != nil || run != nil || refusal != nil {
 		t.Fatalf("open = %v, %+v, %+v", err, run, refusal)
 	}
-	if _, _, run, refusal, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe again"}, false); err != nil || run != nil || refusal != nil {
+	if _, _, run, refusal, err := r.askReply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe again"}, false); err != nil || run != nil || refusal != nil {
 		t.Fatalf("reply = %v, %+v, %+v", err, run, refusal)
 	}
 	if runs := r.queuedRuns(t); len(runs) != 0 {
@@ -237,14 +237,14 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 		accountToken(r.serviceAccount(t, "ci-bot", true)) + " and " + grantToken(grant),
 	}
 	for _, body := range bodies {
-		_, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: body}, true)
+		_, _, _, _, err := r.askOpen(t.Context(), testUser, OpenInput{Target: tg, Body: body}, true)
 		var invalid *InvalidInputError
 		if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
 			t.Fatalf("open %q: err = %v, want too_many_agents", body, err)
 		}
 	}
 	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "first"})
-	_, _, _, _, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: bodies[0]}, true)
+	_, _, _, _, err := r.askReply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: bodies[0]}, true)
 	var invalid *InvalidInputError
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
 		t.Fatalf("reply: err = %v, want too_many_agents", err)
@@ -252,8 +252,9 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 	if runs := r.queuedRuns(t); len(runs) != 0 || r.messageCount(t) != 1 {
 		t.Fatalf("%d runs, %d messages: a refused message writes nothing", len(runs), r.messageCount(t))
 	}
-	if _, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: bodies[0]}, false); err != nil {
-		t.Fatalf("two agents without start_runs are only mentions: %v", err)
+	_, _, _, _, err = r.askOpen(t.Context(), testUser, OpenInput{Target: tg, Body: bodies[0]}, false)
+	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
+		t.Fatalf("two agents sent to everyone: err = %v, want too_many_agents", err)
 	}
 }
 
@@ -385,7 +386,7 @@ func TestAnEnqueueFailureOtherThanARefusalRollsTheMessageBack(t *testing.T) {
 	dash := r.createDashboard(t)
 	r.db.Exec(t, `ALTER TABLE agent_requests ADD CONSTRAINT test_refuses_boom CHECK (prompt <> 'boom')`)
 
-	_, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe boom"}, true)
+	_, _, _, _, err := r.askOpen(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe boom"}, true)
 	if err == nil {
 		t.Fatal("open succeeded, want the enqueue failure")
 	}
@@ -508,19 +509,22 @@ func TestAnEditNeverStartsARun(t *testing.T) {
 	}
 }
 
-func TestHTTPStartRunsIsOptInAndAnswersTheRunOrTheRefusal(t *testing.T) {
+func TestHTTPAsksByMentionUnlessToIsEveryoneAndAnswersTheRunOrTheRefusal(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	note := r.createAnnotation(t, testUser, dash)
 	dashTarget := "dashboard:" + dash.String()
 
-	plain := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe without the flag"})
+	plain := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe but to everyone", "to": "everyone"})
 	plain.expect(t, http.StatusCreated, "")
-	if plain.at(t, "message", "run") != nil || plain.at(t, "message", "run_refusal") != nil {
-		t.Fatalf("a write without start_runs answered %v", plain.body)
+	if plain.at(t, "message", "run") != nil || plain.at(t, "message", "run_refusal") != nil || plain.at(t, "to") != "everyone" {
+		t.Fatalf("a write to everyone answered %v", plain.body)
 	}
 
-	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe with the flag", "start_runs": true})
+	bad := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "hi", "to": "nobody"})
+	bad.expect(t, http.StatusUnprocessableEntity, CodeInvalidTo)
+
+	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe with no flag"})
 	started.expect(t, http.StatusCreated, "")
 	queued := r.queuedRuns(t)
 	if len(queued) != 1 || started.at(t, "message", "run", "id") != queued[0].ID || started.at(t, "message", "run", "status") != "queued" ||
@@ -571,7 +575,7 @@ func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t 
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 
-	thread, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
+	thread, _, run, refusal, err := r.askOpen(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -579,7 +583,7 @@ func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t 
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
 
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
+	_, _, run, refusal, err = r.askReply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +603,7 @@ func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) 
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 	account := r.serviceAccount(t, "ci-bot", true)
 
-	_, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
+	_, _, run, refusal, err := r.askOpen(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -612,14 +616,14 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
-	thread, first, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
+	thread, first, run, refusal, err := r.askOpen(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if run == nil || refusal != nil || run.AssignedKind != "builtin" {
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
+	_, _, run, refusal, err = r.askReply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,7 +675,7 @@ func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.
 			if tt.target.Kind == KindDashboard {
 				in.Version = new(1)
 			}
-			_, _, started, refusal, err := r.mentions.Open(origin.With(t.Context(), tt.ctxOrigin), testUser, in, true)
+			_, _, started, refusal, err := r.askOpen(origin.With(t.Context(), tt.ctxOrigin), testUser, in, true)
 			if err != nil || started == nil || refusal != nil {
 				t.Fatalf("started = %+v, refusal = %+v, err = %v", started, refusal, err)
 			}

@@ -93,7 +93,7 @@ type rig struct {
 	db           *dbtest.Database
 	service      *Service
 	comments     *Comments
-	mentions     *MentionRuns
+	asks         *Asks
 	revisions    *revisions.Service
 	dashboards   *dashboards.Service
 	findings     *findings.Service
@@ -135,7 +135,7 @@ func newAgentRig(t *testing.T, agent bool) *rig {
 		db:           database,
 		service:      service,
 		comments:     NewComments(service, queue),
-		mentions:     NewMentionRuns(service, queue, agent),
+		asks:         NewAsks(service, queue, agent),
 		revisions:    queue,
 		dashboards:   dashboardService,
 		findings:     findingService,
@@ -273,4 +273,21 @@ func mustParse(t *testing.T, s string) pgtype.UUID {
 
 func target(kind Kind, id pgtype.UUID) Target {
 	return Target{Kind: kind, ID: id}
+}
+
+func deliveryFor(startRuns bool) To {
+	if startRuns {
+		return ToAuto
+	}
+	return ToEveryone
+}
+
+func (r *rig) askOpen(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Open(ctx, by, in, deliveryFor(startRuns), opts...)
+	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
+}
+
+func (r *rig) askReply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Reply(ctx, by, threadID, in, deliveryFor(startRuns), opts...)
+	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
 }

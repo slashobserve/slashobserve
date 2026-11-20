@@ -43,6 +43,10 @@ function thread(id: string, createdAt: string): Thread {
     resolved_actor: null,
     resolved_by_version: null,
     revision: null,
+    anchor: null,
+    block_id: null,
+    agent: null,
+    agent_off: false,
   }
 }
 

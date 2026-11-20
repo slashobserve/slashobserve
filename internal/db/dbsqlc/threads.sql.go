@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const agentGrantIsLive = `-- name: AgentGrantIsLive :one
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND revoked_at IS NULL AND expires_at > now())::boolean AS live
+`
+
+func (q *Queries) AgentGrantIsLive(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, agentGrantIsLive, id)
+	var live bool
+	err := row.Scan(&live)
+	return live, err
+}
+
 const countObservationMessages = `-- name: CountObservationMessages :many
 SELECT t.observation_id, count(m.id)::int AS messages
 FROM threads t

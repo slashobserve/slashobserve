@@ -3087,6 +3087,10 @@ components:
         - resolved_actor
         - resolved_by_version
         - revision
+        - anchor
+        - block_id
+        - agent
+        - agent_off
       properties:
         id:
           type: string
@@ -3166,6 +3170,100 @@ components:
             status:
               type: string
               enum: [queued, running, succeeded, failed]
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot the thread points at; null for a thread about the whole dashboard, panel or observation.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block an anchored thread points into; null otherwise, or once the block is deleted.
+        agent:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [kind, id]
+          description: The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs.
+          properties:
+            kind:
+              type: string
+              enum: [builtin, grant, service_account]
+            id:
+              type: string
+              format: uuid
+              nullable: true
+              description: The grant or service account; null for the built-in agent.
+        agent_off:
+          type: boolean
+          description: True after a message was sent to everyone; plain replies then ask no agent until a message mentions one or is sent to the agent.
+    Anchor:
+      type: object
+      additionalProperties: false
+      required: [kind, pos]
+      description: One spot on a panel or an observation block, with the fields its kind needs.
+      properties:
+        kind:
+          type: string
+          enum: [time, range, series, point, row, column, cell, bar, segment, heat_cell, slice, value, log_line, span, element, text, title, variable, position]
+        pos:
+          type: object
+          additionalProperties: false
+          required: [x, y]
+          description: Where the spot is, as fractions of the panel or block from its top left corner.
+          properties:
+            x:
+              type: number
+              minimum: 0
+              maximum: 1
+            y:
+              type: number
+              minimum: 0
+              maximum: 1
+        from:
+          type: string
+          format: date-time
+          description: The time of a time, point, heat cell or log line spot, or the start of a range.
+        to:
+          type: string
+          format: date-time
+          description: The end of a range.
+        series:
+          type: object
+          additionalProperties:
+            type: string
+          description: The labels of the series a series, point, bar, segment, value or log line spot is on.
+        row:
+          type: object
+          additionalProperties:
+            type: string
+          description: The cells that name a table row.
+        column:
+          type: string
+          description: The column of a column or cell spot.
+        category:
+          type: string
+          description: The category of a bar, segment, heat cell or slice spot.
+        id:
+          type: string
+          description: The id of a log line, span, canvas element or variable.
+        quote:
+          type: string
+          description: The quoted text of a text spot, or of a row, log line or span.
+        shown:
+          type: string
+          description: The value as the panel showed it.
+        window:
+          type: object
+          additionalProperties: false
+          required: [from, to]
+          description: The time range the panel showed.
+          properties:
+            from:
+              type: string
+            to:
+              type: string
     Message:
       type: object
       additionalProperties: false
@@ -3329,6 +3427,22 @@ components:
           $ref: "#/components/schemas/Thread"
         message:
           $ref: "#/components/schemas/Message"
+    ThreadSent:
+      type: object
+      additionalProperties: false
+      required: [thread, message, to, replayed]
+      properties:
+        thread:
+          $ref: "#/components/schemas/Thread"
+        message:
+          $ref: "#/components/schemas/Message"
+        to:
+          type: string
+          enum: [agent, everyone]
+          description: How the message was delivered; `agent` when it asked an agent, whether or not a run started.
+        replayed:
+          type: boolean
+          description: True when `client_id` named a message already posted, which is returned as it was and starts nothing.
     Field:
       type: object
       additionalProperties: false

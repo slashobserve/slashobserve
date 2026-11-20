@@ -74,6 +74,12 @@ type EnqueueParams struct {
 	Trigger         string
 	ThreadMessageID pgtype.UUID
 	ThreadContext   string
+	Point           Point
+}
+
+type Point struct {
+	Anchor  []byte
+	BlockID pgtype.UUID
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
@@ -148,6 +154,8 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		Anchor:           p.Point.Anchor,
+		BlockID:          p.Point.BlockID,
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -334,6 +342,8 @@ type InvestigateParams struct {
 	Trigger         string
 	ThreadMessageID pgtype.UUID
 	ThreadContext   string
+	Point           Point
+	Ask             bool
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -364,22 +374,10 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
-	if err := q.LockObserveRequests(ctx); err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
-	}
-	mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations of requester: %w", err)
-	}
-	if mine >= MaxActiveInvestigatePerPrincipal {
-		return dbsqlc.AgentRequest{}, ErrTooManyInvestigations
-	}
-	all, err := q.CountActiveInvestigateRequests(ctx)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations: %w", err)
-	}
-	if all >= MaxActiveInvestigate {
-		return dbsqlc.AgentRequest{}, ErrAgentBusy
+	if !p.Ask {
+		if err := checkInvestigateCaps(ctx, q, requesterID); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
 	}
 	originKind, originClient := origin.From(ctx).Columns()
 	row, err := q.EnqueueInvestigateRequest(ctx, dbsqlc.EnqueueInvestigateRequestParams{
@@ -401,6 +399,8 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		Anchor:           p.Point.Anchor,
+		BlockID:          p.Point.BlockID,
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue investigate request: %w", err)
@@ -415,6 +415,27 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
 	return row, nil
+}
+
+func checkInvestigateCaps(ctx context.Context, q *dbsqlc.Queries, requesterID pgtype.UUID) error {
+	if err := q.LockObserveRequests(ctx); err != nil {
+		return fmt.Errorf("lock observe requests: %w", err)
+	}
+	mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
+	if err != nil {
+		return fmt.Errorf("count active investigations of requester: %w", err)
+	}
+	if mine >= MaxActiveInvestigatePerPrincipal {
+		return ErrTooManyInvestigations
+	}
+	all, err := q.CountActiveInvestigateRequests(ctx)
+	if err != nil {
+		return fmt.Errorf("count active investigations: %w", err)
+	}
+	if all >= MaxActiveInvestigate {
+		return ErrAgentBusy
+	}
+	return nil
 }
 
 func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, p InvestigateParams) (dbsqlc.AgentRequest, error) {

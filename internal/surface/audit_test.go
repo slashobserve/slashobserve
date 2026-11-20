@@ -18,6 +18,7 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	audit.ActionPrune:   "the audit_partitions job, when it removes old partitions",
 	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
+	"thread.agent_set":  "the asks service, when a message changes which agent a thread asks or turns it off",
 }
 
 var pendingAuditActions = []audit.Action{
@@ -48,7 +49,6 @@ var pendingAuditActions = []audit.Action{
 	"server.start",
 	"server.stop",
 	"settings.change",
-	"thread.agent_set",
 	"webhook.deliver",
 }
 

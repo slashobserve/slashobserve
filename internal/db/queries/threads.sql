@@ -223,3 +223,6 @@ WHERE t.id = ANY(@thread_ids::uuid[])
         (SELECT u.threads_seen_since FROM users u WHERE u.id = @reader_id::uuid)
       )
   );
+
+-- name: AgentGrantIsLive :one
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = @id AND revoked_at IS NULL AND expires_at > now())::boolean AS live;

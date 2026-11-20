@@ -1194,7 +1194,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation). A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role and has no per-person cap. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation). A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1237,7 +1237,7 @@ export interface paths {
         put?: never;
         /**
          * Add a message to a thread.
-         * @description The path takes the thread's id or the id of any of its messages. A reply never reopens a resolved thread. The body rules, the mention syntax, `start_runs` and the 4000 character limit are those of starting a thread; a run started from a reply is given the thread's earlier messages as context. The reply is recorded as a `thread.replied` activity event, and on a dashboard thread it sends `comment.created` to the dashboard's event stream. `block_id` anchors the reply to one block of the thread's observation, as when starting a thread, and is refused on any other target with 422 `invalid_block`. `reply_to_id` names a message of this thread that the reply answers, and the message then carries it as `reply_to`; any other id answers 422 `invalid_reply_to`. Editing a message changes neither. Writing needs Comment on the thread's target.
+         * @description The path takes the thread's id or the id of any of its messages. A reply never reopens a resolved thread. The body rules, the mention syntax, `to`, `client_id` and the 4000 character limit are those of starting a thread; a run started from a reply is given the thread's earlier messages as context. The reply is recorded as a `thread.replied` activity event, and on a dashboard thread it sends `comment.created` to the dashboard's event stream. `block_id` anchors the reply to one block of the thread's observation, as when starting a thread, and is refused on any other target with 422 `invalid_block`. `reply_to_id` names a message of this thread that the reply answers, and the message then carries it as `reply_to`; any other id answers 422 `invalid_reply_to`. Editing a message changes neither. Writing needs Comment on the thread's target.
          */
         post: operations["replyToThread"];
         delete?: never;
@@ -5445,6 +5445,68 @@ export interface components {
                 /** @enum {string} */
                 status: "queued" | "running" | "succeeded" | "failed";
             } | null;
+            /** @description The spot the thread points at; null for a thread about the whole dashboard, panel or observation. */
+            anchor: components["schemas"]["Anchor"] | null;
+            /**
+             * Format: uuid
+             * @description The observation block an anchored thread points into; null otherwise, or once the block is deleted.
+             */
+            block_id: string | null;
+            /** @description The thread's agent, the one a plain reply asks; null until a message asks an agent, and cleared when that agent can no longer take runs. */
+            agent: {
+                /** @enum {string} */
+                kind: "builtin" | "grant" | "service_account";
+                /**
+                 * Format: uuid
+                 * @description The grant or service account; null for the built-in agent.
+                 */
+                id: string | null;
+            } | null;
+            /** @description True after a message was sent to everyone; plain replies then ask no agent until a message mentions one or is sent to the agent. */
+            agent_off: boolean;
+        };
+        /** @description One spot on a panel or an observation block, with the fields its kind needs. */
+        Anchor: {
+            /** @enum {string} */
+            kind: "time" | "range" | "series" | "point" | "row" | "column" | "cell" | "bar" | "segment" | "heat_cell" | "slice" | "value" | "log_line" | "span" | "element" | "text" | "title" | "variable" | "position";
+            /** @description Where the spot is, as fractions of the panel or block from its top left corner. */
+            pos: {
+                x: number;
+                y: number;
+            };
+            /**
+             * Format: date-time
+             * @description The time of a time, point, heat cell or log line spot, or the start of a range.
+             */
+            from?: string;
+            /**
+             * Format: date-time
+             * @description The end of a range.
+             */
+            to?: string;
+            /** @description The labels of the series a series, point, bar, segment, value or log line spot is on. */
+            series?: {
+                [key: string]: string;
+            };
+            /** @description The cells that name a table row. */
+            row?: {
+                [key: string]: string;
+            };
+            /** @description The column of a column or cell spot. */
+            column?: string;
+            /** @description The category of a bar, segment, heat cell or slice spot. */
+            category?: string;
+            /** @description The id of a log line, span, canvas element or variable. */
+            id?: string;
+            /** @description The quoted text of a text spot, or of a row, log line or span. */
+            quote?: string;
+            /** @description The value as the panel showed it. */
+            shown?: string;
+            /** @description The time range the panel showed. */
+            window?: {
+                from: string;
+                to: string;
+            };
         };
         Message: {
             /** Format: uuid */
@@ -5534,6 +5596,17 @@ export interface components {
         ThreadMessageEnvelope: {
             thread: components["schemas"]["Thread"];
             message: components["schemas"]["Message"];
+        };
+        ThreadSent: {
+            thread: components["schemas"]["Thread"];
+            message: components["schemas"]["Message"];
+            /**
+             * @description How the message was delivered; `agent` when it asked an agent, whether or not a run started.
+             * @enum {string}
+             */
+            to: "agent" | "everyone";
+            /** @description True when `client_id` named a message already posted, which is returned as it was and starts nothing. */
+            replayed: boolean;
         };
         Field: {
             name: string;
@@ -10828,9 +10901,22 @@ export interface operations {
                      * @description The block of the observation the message is about; absent or null means the whole observation. Observations only.
                      */
                     block_id?: string | null;
+                    /** @description The spot the thread points at; absent or null for the whole dashboard, panel or observation. Dashboards and observations only. */
+                    anchor?: components["schemas"]["Anchor"] | null;
                     body: string;
                     /**
-                     * @description Start a run for the agent the body mentions, in the same transaction as the message; one agent per message.
+                     * @description Who the message is for; absent decides from the mentions and the thread's agent.
+                     * @enum {string}
+                     */
+                    to?: "agent" | "everyone";
+                    /**
+                     * Format: uuid
+                     * @description A UUID the caller makes for this message, so a resend returns the message already posted.
+                     */
+                    client_id?: string | null;
+                    /**
+                     * @deprecated
+                     * @description The same as `to` agent when `to` is absent.
                      * @default false
                      */
                     start_runs?: boolean;
@@ -10838,37 +10924,28 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The new open thread and its first message, with `message.run` or `message.run_refusal` when `start_runs` was sent and the body mentions an agent. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSent"];
+                };
+            };
+            /** @description The thread and its first message, or the observation's page thread and the new message, with `message.run` or `message.run_refusal` when the message asked an agent. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ThreadMessageEnvelope"];
+                    "application/json": components["schemas"]["ThreadSent"];
                 };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has its discussion (`observation_thread_exists`). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        error: string;
-                        /** @enum {string} */
-                        code: "observation_thread_exists";
-                        /**
-                         * Format: uuid
-                         * @description The existing thread of the observation.
-                         */
-                        thread_id: string;
-                    };
-                };
-            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["ThreadRefused"];
             500: components["responses"]["Internal"];
@@ -10939,7 +11016,18 @@ export interface operations {
                      */
                     reply_to_id?: string | null;
                     /**
-                     * @description Start a run for the agent the body mentions, in the same transaction as the message; one agent per message.
+                     * @description Who the message is for; absent decides from the mentions and the thread's agent.
+                     * @enum {string}
+                     */
+                    to?: "agent" | "everyone";
+                    /**
+                     * Format: uuid
+                     * @description A UUID the caller makes for this message, so a resend returns the message already posted.
+                     */
+                    client_id?: string | null;
+                    /**
+                     * @deprecated
+                     * @description The same as `to` agent when `to` is absent.
                      * @default false
                      */
                     start_runs?: boolean;
@@ -10947,13 +11035,22 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The thread and the new message, with `message.run` or `message.run_refusal` when `start_runs` was sent and the body mentions an agent. */
+            /** @description The message `client_id` names was already posted; it is returned as it was, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSent"];
+                };
+            };
+            /** @description The thread and the new message, with `message.run` or `message.run_refusal` when the message asked an agent. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ThreadMessageEnvelope"];
+                    "application/json": components["schemas"]["ThreadSent"];
                 };
             };
             400: components["responses"]["BadRequest"];

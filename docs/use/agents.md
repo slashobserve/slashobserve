@@ -62,7 +62,7 @@ A comment that mentions an agent hands it work.
 A connected agent's `grant_id` and a service account's `id` are the ids a comment names: `@[Name](grant:<grant_id>)` and `@[Name](service_account:<id>)`, and `@observe` names the Observe Agent.
 The `@` picker of every web composer lists the Observe Agent first, then your connected agents and the service accounts that take runs from this one answer, then people.
 Everything you type after the `@` stays in the comment box and filters the list; the list closes at the first space or when nobody matches, so `@observe add a stat panel` typed straight through is a comment that asks the Observe Agent.
-A message that mentions exactly one agent starts a run for it when you send it from a composer that asks the agent, or with `start_runs` over the API, MCP or the CLI.
+A message that mentions exactly one agent starts a run for it when you send it from a composer that asks the agent, or with `to: agent` over the API, MCP or the CLI, and that agent becomes the thread's agent, which later plain replies in the web app ask too.
 [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment) describes the composer, and the run answers in the same thread when it ends.
 
 You can hand a run only to your own connected agents and to service accounts that take runs, and a service-account key can never mention a connected agent.

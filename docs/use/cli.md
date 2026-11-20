@@ -94,7 +94,7 @@ An Admin can show anyone's request with `observe status`, read only.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
-`observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a mention in a comment started, as `--start-runs` does.
+`observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
@@ -407,13 +407,14 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
   On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
   On an observation, `--block <block-id>` anchors the comment to one of its blocks, and without it the comment is about the whole observation; the server refuses `--block` on any other target.
-  Everything after the flags is the comment text, so `--on`, `--panel`, `--block`, `--version`, `--start-runs`, `--json` and `-q` must come before it.
-  A thread started this way queues no agent run unless you add `--start-runs`; see [Start a run from a mention](#start-a-run-from-a-mention).
+  `--at '<anchor JSON>'` points the thread at one spot, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, and on an observation with `--block` at a spot in that block.
+  Everything after the flags is the comment text, so `--on`, `--panel`, `--block`, `--at`, `--version`, `--to`, `--json` and `-q` must come before it.
+  A comment is for everyone and asks no agent unless you add `--to agent`; see [Ask an agent from a comment](#ask-an-agent-from-a-comment).
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.
   `bin/observe comments reply <dashboard-id> <comment-id> <text...>` does the same on a dashboard through the dashboard comment endpoint; when the first two arguments are both ids, the first is the dashboard id.
-  Everything after the ids is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--start-runs` must come before the ids.
+  Everything after the ids is the reply text, so flags such as `--json`, `-q`, `--block`, `--reply-to` or `--to` must come before the ids.
   `--block <block-id>` anchors the reply to one block of an observation, and `--reply-to <comment-id>` names the comment of the same thread the reply answers, which the web app shows quoted.
-  `--start-runs`, `--block` and `--reply-to` work only with the comment id alone, because the dashboard comment endpoint takes none of them.
+  `--to`, `--block` and `--reply-to` work only with the comment id alone, because the dashboard comment endpoint takes none of them.
   Without `--json` it always prints the thread and the new reply id, even with `-q`.
 - `bin/observe comments edit <comment-id> <text...>` replaces the text of your own comment, while you can still comment on its target; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
@@ -431,19 +432,20 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
 - `bin/observe comments reopen <comment-id>` reopens a resolved thread, and `-q` hides its confirmation.
 
 Mention a person in the text as `@[Name](user:<id>)`, the built-in agent as `@observe`, one of your own connected agents as `@[Name](grant:<id>)` and a service account that takes runs as `@[Name](service_account:<id>)`, at most 20 mentions in a comment.
-A mention shows in the [activity log](activity.md) and starts no agent run unless you add `--start-runs`.
+A mention shows in the [activity log](activity.md) and asks no agent unless you add `--to agent`.
 
-### Start a run from a mention
+### Ask an agent from a comment
 
-`--start-runs` on `comments add` or `comments reply` starts a run for the one agent the text mentions, in the same transaction as the comment.
+`--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
+Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
 A dashboard thread starts a comment run, which a Commenter may start and which ends in a proposal when you cannot edit; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
-Mentioning more than one agent with `--start-runs` is refused with `too_many_agents` and nothing is written, and a text that mentions no agent starts nothing and prints `No run started: the text mentions no agent` on stderr.
+Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
-An observation has one discussion, so `comments add` on an observation that has one answers `observation_thread_exists` and names the `comments reply` command for it.
+An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.
 Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only people who can see the target, your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
-When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider), `forbidden_role` or `too_many_runs`.
+When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider, or a thread agent that was disconnected), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
 
 When the run ends, it posts one reply in the same thread and never resolves the thread or reopens a resolved one.
