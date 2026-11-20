@@ -62,3 +62,55 @@ func TestSearchFindsAChatByTheTextOfItsVisibleAnswer(t *testing.T) {
 		t.Fatalf("an Admin's count = %+v, %v, want 1: the total must not reveal a hidden answer", count, err)
 	}
 }
+
+func answerInChat(t *testing.T, d *dbtest.Database, id pgtype.UUID, markdown string, dashboard pgtype.UUID) {
+	t.Helper()
+	d.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'none', finished_at = clock_timestamp() WHERE id = $1`, id)
+	d.Exec(t, `INSERT INTO findings (agent_request_id, dashboard_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+  VALUES ($1, $2, 'answer', $3, now() - interval '1 hour', now(), 'user', $4::uuid, 'Ada')`, id, dashboard, markdown, userID)
+}
+
+func TestSearchFindsAChatByTheTextOfAnAnswerKeptInTheChat(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'Ada', 'Ada@example.com', 'Ada')`, userID)
+
+	plain, err := svc.SubmitObserve(ctx, user, "why is checkout slow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerInChat(t, d, plain.ID, "PgBouncer saturation explains it", pgtype.UUID{})
+	private := seedDashboard(t, d, 1)
+	d.Exec(t, `UPDATE dashboards SET folder_id = (SELECT id FROM folders WHERE owner_id = $2::uuid) WHERE id = $1`, private, userID)
+	onPrivate, err := svc.SubmitObserve(ctx, user, "anything odd today")
+	if err != nil {
+		t.Fatal(err)
+	}
+	answerInChat(t, d, onPrivate.ID, "PgBouncer saturation again", private)
+
+	filter := revisions.ListFilter{Scope: revisions.ScopeMine, Query: "bouncer saturation"}
+	rows, _, err := svc.ListRequests(ctx, user, filter, 10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("the asker finds %d chats by the text of answers kept in the chat, want both", len(rows))
+	}
+	count, err := svc.CountRequests(ctx, user, filter)
+	if err != nil || count.Total != 2 {
+		t.Fatalf("count = %+v, %v, want 2", count, err)
+	}
+
+	filter.Scope = revisions.ScopeAll
+	rows, _, err = svc.ListRequests(ctx, bea, filter, 10, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ID != plain.ID {
+		t.Fatalf("an Admin finds %d chats, want only the one whose answer is on no dashboard they cannot open", len(rows))
+	}
+	count, err = svc.CountRequests(ctx, bea, filter)
+	if err != nil || count.Total != 1 {
+		t.Fatalf("an Admin's count = %+v, %v, want 1", count, err)
+	}
+}

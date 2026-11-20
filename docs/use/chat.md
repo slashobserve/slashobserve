@@ -309,13 +309,14 @@ Home's **Recent chats** lists your five newest chats, and **All chats** opens th
 A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
 Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
-An answer is searched only when its observation sits in a folder you can see.
+An answer is searched only where you could read it: one kept in the chat while you can open the dashboard it is about, and one saved as an observation while you can see that observation's folder.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
 
 Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
+
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
@@ -329,7 +330,7 @@ Each chat has a menu with these actions:
 
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
-- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
+- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
 
 Only the person who started a chat can rename, pin or delete it.
 
