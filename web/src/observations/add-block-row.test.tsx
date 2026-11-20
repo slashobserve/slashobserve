@@ -12,6 +12,8 @@ function renderRow(state = "open", canEdit = true) {
       observation={{ id: "o1", state } as Observation}
       blocks={[]}
       canEdit={canEdit}
+      picking={false}
+      onPickingChange={() => {}}
       onAdded={() => {}}
     />,
     { route: { path: "/", url: "/" } }
