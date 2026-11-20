@@ -106,19 +106,17 @@ func TestRenamingTheObservationRenamesTheChatOnlyForWhoStartedIt(t *testing.T) {
 
 func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *testing.T) {
 	r := newRig(t)
-	chat := r.chat(t, editor, pgtype.UUID{})
-	observation := r.savedAnswer(t, editor, chat)
+	chat := r.chat(t, viewer, pgtype.UUID{})
+	observation := r.savedAnswer(t, viewer, chat)
 	shared := r.folder(t, "Incidents")
 	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, observation, shared)
-	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'oncall', 'view')`, shared)
 
-	if got, err := r.observations.RenameFromChat(t.Context(), editor, chat, "Hidden"); err != nil || got != "" {
-		t.Fatalf("an observation the caller cannot see: %q, %v", got, err)
-	}
-	oncall := editor
-	oncall.Groups = []string{"oncall"}
-	if got, err := r.observations.RenameFromChat(t.Context(), oncall, chat, "View only"); err != nil || got != revisions.TitleKept {
+	if got, err := r.observations.RenameFromChat(t.Context(), viewer, chat, "View only"); err != nil || got != revisions.TitleKept {
 		t.Fatalf("an observation the caller may only view: %q, %v", got, err)
+	}
+	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'oncall', 'view')`, shared)
+	if got, err := r.observations.RenameFromChat(t.Context(), viewer, chat, "Hidden"); err != nil || got != "" {
+		t.Fatalf("an observation the caller cannot see: %q, %v", got, err)
 	}
 	if title := r.observationTitle(t, observation); title != "Slowest routes in the last hour" {
 		t.Fatalf("observation title %q", title)
