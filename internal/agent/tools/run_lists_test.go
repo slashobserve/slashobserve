@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,7 +20,7 @@ func listPage(rows []string, next string, total int) json.RawMessage {
 	if next != "" {
 		cursor = `"` + next + `"`
 	}
-	return json.RawMessage(`{"requests":[` + strings.Join(rows, ",") + `],"next_cursor":` + cursor + `,"summary":{"total":` + string(rune('0'+total)) + `,"people":null}}`)
+	return json.RawMessage(`{"requests":[` + strings.Join(rows, ",") + `],"next_cursor":` + cursor + `,"summary":{"total":` + strconv.Itoa(total) + `,"people":null}}`)
 }
 
 func TestListRunsPassesTheFilterAndAnswersACompactPage(t *testing.T) {
