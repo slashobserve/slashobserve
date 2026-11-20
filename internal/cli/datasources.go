@@ -528,7 +528,7 @@ func (a *app) traceLogsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trace-logs <datasource-uid> <trace-id>",
 		Short: "Print the log lines that carry a trace id",
-		Long:  "trace-logs reads the log lines of a Loki or ClickHouse datasource that carry a trace id, or one span id with --span.\nGive --from and --to a minute either side of the trace.\nWith --service, Loki reads only the streams of that service.",
+		Long:  "trace-logs reads the log lines of a Loki, ClickHouse, Elasticsearch or OpenSearch datasource that carry a trace id, or one span id with --span.\nGive --from and --to a minute either side of the trace.\nWith --service, Loki reads only the streams of that service and Elasticsearch and OpenSearch only the documents of that service.",
 		Args:  exactArgs(2, "a logs datasource uid and a trace id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if limit < 1 || limit > maxLogLimit {
