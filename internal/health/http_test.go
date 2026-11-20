@@ -16,8 +16,10 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -26,12 +28,14 @@ import (
 type fakeJobs struct {
 	mu    sync.Mutex
 	names []string
+	by    []*audit.By
 }
 
-func (f *fakeJobs) RunNow(_ context.Context, name string) error {
+func (f *fakeJobs) RunNow(_ context.Context, name string, by *audit.By) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.names = append(f.names, name)
+	f.by = append(f.by, by)
 	return nil
 }
 
@@ -262,5 +266,32 @@ func TestHTTPListWithDashboardIDs(t *testing.T) {
 	}
 	if status, _ := get(r.editor, idsQuery(tooMany[:50]...)); status != http.StatusOK {
 		t.Errorf("50 ids: status %d, want 200", status)
+	}
+}
+
+func TestAHealthRunStartedByAPersonCarriesThatPersonToTheJobAndAnUnscopedOneCarriesNobody(t *testing.T) {
+	jobs := &fakeJobs{}
+	r := newRig(t)
+	h := health.NewHandler(t.Context(), r.svc, r.repairs, jobs)
+	person := uuid.New()
+	scoped := audit.Open(t.Context(), audit.Scope{
+		Actor:  audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada"},
+		Origin: audit.Origin{Kind: "mcp", Client: "claude"},
+	})
+	h.StartRun(scoped)
+	h.StartRun(t.Context())
+	h.Wait()
+
+	var named, anonymous int
+	for _, by := range jobs.by {
+		switch {
+		case by == nil:
+			anonymous++
+		case by.Actor.ID.UUID == person && by.Origin.Kind == "mcp":
+			named++
+		}
+	}
+	if named != 1 || anonymous != 1 {
+		t.Errorf("jobs were started by %+v, want one by the person and one by nobody", jobs.by)
 	}
 }

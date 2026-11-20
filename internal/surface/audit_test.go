@@ -18,6 +18,7 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	audit.ActionPrune:   "the audit_partitions job, when it removes old partitions",
 	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
+	"job.run":           "the scheduler, in the transaction that finishes a job run",
 }
 
 var pendingAuditActions = []audit.Action{

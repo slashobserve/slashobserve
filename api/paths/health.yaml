@@ -127,7 +127,7 @@ health-repairs:
 health-run:
   post:
     operationId: runDashboardHealth
-    x-audit: { action: job.run, target: { kind: job } }
+    x-audit: { none: "the run is asynchronous; the job records job.run when it finishes, as the person who started it" }
     x-surfaces:
       mcp: [run_dashboard_health]
       cli: [observe health run]

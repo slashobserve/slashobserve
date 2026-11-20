@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -215,4 +216,46 @@ func urlFor(database string) string {
 
 func quietLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+type AuditEvent struct {
+	Action     string
+	Outcome    string
+	Reason     string
+	ActorKind  string
+	ActorID    string
+	Initiator  string
+	Origin     string
+	TargetKind string
+	TargetID   string
+	DataKeys   []string
+}
+
+func (d *Database) AuditEvents(t testing.TB, action string) []AuditEvent {
+	t.Helper()
+	rows, err := d.SQLDB(t).QueryContext(context.Background(), `
+		SELECT action, outcome, coalesce(reason, ''), actor_kind, coalesce(actor_id::text, ''), initiator, origin,
+		       coalesce(target_kind, ''), coalesce(target_id, ''),
+		       coalesce((SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(data) k), '')
+		FROM audit_events WHERE action = $1 ORDER BY occurred_at, seq`, action)
+	if err != nil {
+		t.Fatalf("read audit events: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []AuditEvent
+	for rows.Next() {
+		var e AuditEvent
+		var keys string
+		if err := rows.Scan(&e.Action, &e.Outcome, &e.Reason, &e.ActorKind, &e.ActorID, &e.Initiator, &e.Origin, &e.TargetKind, &e.TargetID, &keys); err != nil {
+			t.Fatalf("scan audit event: %v", err)
+		}
+		if keys != "" {
+			e.DataKeys = strings.Split(keys, ",")
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read audit events: %v", err)
+	}
+	return out
 }

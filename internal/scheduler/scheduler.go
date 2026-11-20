@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -92,7 +93,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 	}
 }
 
-func (s *Scheduler) RunNow(ctx context.Context, name string) error {
+func (s *Scheduler) RunNow(ctx context.Context, name string, by *audit.By) error {
 	j, ok := s.jobs[name]
 	if !ok {
 		return ErrUnknownJob
@@ -107,7 +108,7 @@ func (s *Scheduler) RunNow(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	s.run(ctx, j, c)
+	s.run(ctx, j, c, by)
 	return nil
 }
 
@@ -145,11 +146,11 @@ func (s *Scheduler) runDue(ctx context.Context, running *sync.WaitGroup) {
 			}
 			return
 		}
-		running.Go(func() { s.run(ctx, s.jobs[c.name], c) })
+		running.Go(func() { s.run(ctx, s.jobs[c.name], c, nil) })
 	}
 }
 
-func (s *Scheduler) run(ctx context.Context, j job, c claim) {
+func (s *Scheduler) run(ctx context.Context, j job, c claim, by *audit.By) {
 	s.metrics.JobStarted(j.name)
 	started := time.Now()
 	runCtx, cancel := context.WithDeadline(ctx, c.deadline)
@@ -164,7 +165,7 @@ func (s *Scheduler) run(ctx context.Context, j job, c claim) {
 	if outcome == OutcomeInterrupted {
 		held, recordErr = s.store.release(recordCtx, c)
 	} else {
-		held, recordErr = s.store.finish(recordCtx, c, outcome, summary(err))
+		held, recordErr = s.store.finish(recordCtx, c, outcome, summary(err), runEvent(j.name, outcome, err, by))
 	}
 	s.metrics.JobFinished(j.name, outcome)
 
@@ -183,6 +184,21 @@ func (s *Scheduler) run(ctx context.Context, j job, c claim) {
 	default:
 		s.logger.DebugContext(ctx, "scheduled job finished", attrs...)
 	}
+}
+
+func runEvent(name, outcome string, err error, by *audit.By) *audit.Event {
+	if name == HeartbeatJob {
+		return nil
+	}
+	event := audit.Event{Action: "job.run", Outcome: audit.OutcomeSuccess, Target: audit.Target{Kind: "job", ID: name}, By: by}
+	if outcome == OutcomeFailed {
+		event.Outcome, event.Reason = audit.OutcomeFailed, "job_failed"
+		var p panicError
+		if errors.As(err, &p) {
+			event.Reason = "panic"
+		}
+	}
+	return &event
 }
 
 func outcomeOf(ctx context.Context, err error) string {

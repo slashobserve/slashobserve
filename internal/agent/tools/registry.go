@@ -158,7 +158,7 @@ type Deps struct {
 	Observations   *observations.Service
 	SavedSearches  *savedsearches.Service
 	Health         *health.Service
-	StartHealthRun func()
+	StartHealthRun func(context.Context)
 	Annotations    *annotations.Service
 	Activity       *activity.Store
 	Runs           RunDesk
