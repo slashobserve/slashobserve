@@ -10,7 +10,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
-func attributed(ctx context.Context, tool string, p auth.Principal, run Run, inRun bool) context.Context {
+func attributed(ctx context.Context, tool string, run Run, inRun bool) context.Context {
+	p, ok := auth.FromContext(ctx)
+	if !ok {
+		return ctx
+	}
 	from := origin.From(ctx)
 	refine := func(s *audit.Scope) {
 		s.Actor = auth.AuditActor(p)
