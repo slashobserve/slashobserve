@@ -184,3 +184,18 @@ func TestObservationDashboard(t *testing.T) {
 		})
 	}
 }
+
+func TestObservationEditSaysWhatHappenedToTheChatTitle(t *testing.T) {
+	cases := map[string]string{
+		"renamed": "Updated Checkout 5xx, and renamed the chat it was made from\n",
+		"kept":    "Updated Checkout 5xx; the chat it was made from keeps its title because only the person who started it may rename it\n",
+	}
+	for outcome, want := range cases {
+		reply := `{"observation":{"title":"Checkout 5xx","chat_rename":"` + outcome + `"}}`
+		f := newManageFake(t, manageReply{http.MethodPatch, observationPrefix, 200, reply})
+		stdout, stderr, code := f.run("o", "edit", testObservation, "--title", "Checkout 5xx")
+		if code != 0 || stdout != want {
+			t.Fatalf("%s: exit %d, stdout %q, stderr %q", outcome, code, stdout, stderr)
+		}
+	}
+}

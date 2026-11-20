@@ -285,6 +285,7 @@ observe-id:
       Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404.
       A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt.
       `pinned` true pins the request to the top of `GET /observe`, false unpins it.
+      Renaming the first request of a chat with no dashboard also renames the one observation made from that chat when the caller may edit it, and `observation_rename` says which happened.
     requestBody:
       required: true
       content:

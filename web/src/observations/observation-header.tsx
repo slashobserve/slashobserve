@@ -38,6 +38,7 @@ import {
 } from "./queries"
 import { StateControl } from "./state-control"
 import { plainTitle } from "@/comments/plain-title"
+import { keptTitleNote } from "@/chat/shared-title"
 
 const titleType = "text-[28px] leading-9 font-semibold tracking-[-0.01em]"
 
@@ -95,7 +96,14 @@ function EditableTitle({ observation }: { observation: Observation }) {
     update.mutate(
       { title: next },
       {
-        onSuccess: () => leave(focus),
+        onSuccess: (envelope) => {
+          leave(focus)
+          const note = keptTitleNote(
+            "observation",
+            envelope.observation.chat_rename
+          )
+          if (note !== null) toast.info(note)
+        },
         onError: (error) => setProblem(blockWriteProblem(error).text),
       }
     )

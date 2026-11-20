@@ -114,6 +114,7 @@ An agent reorders blocks with `update_block` and its `position`.
 ### Rename, resolve, reopen and move
 
 A person who can edit changes the title by choosing it, typing, and pressing `Enter`, or `Esc` to leave it as it was.
+An observation that is the one observation made from a chat with no dashboard shares its title with that chat, so renaming one renames the other; see [Chat](chat.md#one-title-for-a-chat-and-its-observation).
 **Resolve** asks for a one-line summary of at most 500 characters, which then shows under the title and in the list.
 **Reopen** turns a resolved observation back into an open one.
 The summary stays stored, so the next **Resolve** starts from it, and the page and a published RCA show it only while the observation is resolved: `observe o show` prints it as `Last summary`, and over the API and MCP it is still in `summary` beside `state: open`.

@@ -45,6 +45,7 @@ type ObserveOptions struct {
 	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
 	SaveAnswer     AnswerSaver
 	LiveText       func(runID string, attempt int) (string, bool)
+	ShareTitle     TitleSharer
 }
 
 type ObserveHandler struct {
@@ -121,6 +122,8 @@ type agentRequestJSON struct {
 	ObservationID *string         `json:"observation_id"`
 	ChatID        string          `json:"chat_id"`
 	Finding       json.RawMessage `json:"finding"`
+
+	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
 }
 
 type assigneeJSON struct {
@@ -411,12 +414,13 @@ func (h *ObserveHandler) patchObserve(c *gin.Context) {
 		}
 		title = &cleaned
 	}
-	row, err := h.service.UpdateListFields(c.Request.Context(), id, httpapi.Caller(c), title, clearTitle, req.Pinned)
+	ctx, caller := c.Request.Context(), httpapi.Caller(c)
+	out, err := h.runs.update(ctx, id, caller, title, clearTitle, req.Pinned)
 	if err != nil {
 		h.failBuild(c, "update agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
-	h.replyRequest(c, http.StatusOK, row, false)
+	c.JSON(http.StatusOK, agentRequestEnvelopeJSON{Request: out})
 }
 
 func (h *ObserveHandler) archiveObserve(c *gin.Context) {

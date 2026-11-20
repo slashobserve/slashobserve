@@ -330,6 +330,7 @@ A block's `version` is checked by `update_block` and `keep_block`: a stale one a
 A transition the state does not allow, such as keeping a block that is already live, answers `invalid_transition` with the actions allowed now.
 Like every agent write, a text block with HTML is refused with `html_not_allowed`, and a panel is checked like the evidence of an investigation's answer: a panel whose query fails or returns no data in its range is refused with its issues.
 `update_observation` changes the title or range, `move_observation` moves it to another folder and `reopen_observation` reopens a resolved one.
+A new title from `update_observation` also renames the chat the observation shares its title with when you started that chat, and `chat_rename` in its result is `renamed`, or `kept` when the chat's title was left as it is; `rename_run` on that chat's first run renames the observation and answers `observation_rename` the same way ([Chat](chat.md#one-title-for-a-chat-and-its-observation)).
 
 `pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
 `make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.

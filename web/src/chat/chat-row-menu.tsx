@@ -38,6 +38,7 @@ import {
 } from "@/observe/queries"
 
 import { deleteTurnsText } from "./chat-state"
+import { keptTitleNote } from "./shared-title"
 
 const maxTitleLength = 120
 
@@ -204,7 +205,11 @@ export function ChatRenameForm({
       return
     }
     rename.mutate(title, {
-      onSuccess: finish,
+      onSuccess: (body) => {
+        finish()
+        const note = keptTitleNote("chat", body.request.observation_rename)
+        if (note !== null) toast.info(note)
+      },
       onError: (error) => toast.error(failureText(error)),
     })
   }
