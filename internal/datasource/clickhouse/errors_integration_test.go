@@ -85,3 +85,15 @@ func TestASyntaxErrorNamesThePlaceInThePersonsOwnQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestAStrayParenthesisIsLocatedOnEveryPath(t *testing.T) {
+	ctx := context.Background()
+	text := "SELECT TraceId\nFROM otel_traces WHERE ) AND $__timeFilter(Timestamp)"
+	_, _, paged := roDS(t).QueryPage(ctx, datasource.PageRequest{Query: datasource.Query{Text: text}, Range: lastHour(), Page: 1, PageSize: 50})
+	_, plain := roDS(t).QueryInstant(ctx, datasource.Query{Text: text, Explore: true}, lastHour())
+	for name, err := range map[string]error{"paged": paged, "instant": plain} {
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "failed at line 2, column 24 of the query") {
+			t.Errorf("%s: err = %v, want the stray parenthesis at line 2, column 24", name, err)
+		}
+	}
+}
