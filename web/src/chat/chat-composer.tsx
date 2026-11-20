@@ -45,7 +45,7 @@ import {
 } from "./slash-commands"
 
 const keyboardHint =
-  "Enter sends, Shift+Enter adds a line, up arrow recalls an earlier prompt, / opens commands."
+  "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
 
 const openFailedMessage = "Request created, but it could not be opened."
 
@@ -209,10 +209,9 @@ export function ChatComposer({
   if (agentOff) return <NoAgentNote />
 
   const counter = promptCounter(prompt)
-  const showHint = !coarse && matches.length === 0
   const describedBy =
     [
-      showHint ? hintId : null,
+      coarse ? null : hintId,
       counter !== null ? counterId : null,
       matches.length > 0 ? commandHintId : null,
       notice !== null ? messageId : null,
@@ -487,11 +486,6 @@ export function ChatComposer({
             </span>
           ))}
           <span>Type a space after the command to use it.</span>
-        </p>
-      ) : null}
-      {showHint ? (
-        <p id={hintId} className="pt-1.5 text-xs text-muted-foreground">
-          {keyboardHint}
         </p>
       ) : null}
       <div className="text-[13px]">

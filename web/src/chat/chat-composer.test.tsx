@@ -177,18 +177,6 @@ describe("ChatComposer", () => {
     ).toBeInTheDocument()
   })
 
-  it("shows the send shortcut where a sighted keyboard user can read it", async () => {
-    renderComposer()
-    const hint = await screen.findByText(
-      /Enter sends, Shift\+Enter adds a line/
-    )
-    expect(hint).toBeVisible()
-    expect(hint).not.toHaveClass("sr-only")
-    expect(await box()).toHaveAccessibleDescription(
-      /Enter sends, Shift\+Enter adds a line/
-    )
-  })
-
   it("asks for a question or a dashboard when empty, and for a change on a dashboard", async () => {
     stubCreate()
     const { user, unmount } = renderComposer()

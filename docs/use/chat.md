@@ -22,7 +22,7 @@ A chat is titled the same way, from your message.
 
 Type into the box labelled "Message the agent" and press Enter.
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
-Under the box a line says so ("Enter sends, Shift+Enter adds a line, up arrow recalls an earlier prompt, / opens commands"); on a touch device it is not shown.
+Inside the box a line says so ("Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."); on a touch device it is not shown.
 Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters, at least one of them visible, and cannot contain control or bidirectional-text characters; see [Text rules](../reference/text-rules.md).
 The box shows "Ask a question or describe a dashboard first." when it is empty and "Use at most 4000 characters." when it is too long.
