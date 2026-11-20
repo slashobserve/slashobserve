@@ -119,7 +119,6 @@ func answering(res tools.Result, err error) func(context.Context, string, json.R
 
 func TestAToolCallWithAnOAuthGrantIsRecordedForThePersonAndTheirClient(t *testing.T) {
 	f := newFixture(t)
-	f.handler.(*handler).call = answering(tools.Result{Content: map[string]string{"ok": "true"}}, nil)
 	a := mountAudited(t, f.handler)
 	a.call(t, oauthTakes, "get_spec_guide", map[string]any{"note": "secret-argument-value"})
 	want := mcpEvent{action: "agent.tool_call", outcome: "success", actorKind: "user", actorName: "Ada", initiator: "agent", authMethod: "oauth", credentialID: "grant-1", origin: "mcp", originClient: "Claude Code", tool: "get_spec_guide", targetKind: "tool", targetID: "get_spec_guide", data: "{}"}
@@ -155,7 +154,6 @@ func TestAToolCallWithAKeyIsRecordedForTheServiceAccount(t *testing.T) {
 
 func TestAToolCallInsideARunCarriesTheRun(t *testing.T) {
 	f := newRunFixture(t, tools.ModeCreate)
-	f.handler.call = answering(tools.Result{Content: map[string]string{"ok": "true"}}, nil)
 	a := mountAudited(t, f.handler)
 	rec := a.post(rpc(1, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}), map[string]string{"Authorization": runToken}, "")
 	if rec.Code != http.StatusOK {

@@ -69,7 +69,11 @@ func (h *handler) recordToolCall(ctx context.Context, name string, kind callKind
 			outcome = audit.OutcomeDenied
 		}
 	}
-	audit.Update(ctx, func(s *audit.Scope) { s.Origin.Tool = name })
+	audit.Update(ctx, func(s *audit.Scope) {
+		if s.Origin.Tool == "" {
+			s.Origin.Tool = name
+		}
+	})
 	recordErr := audit.RecordNow(ctx, audit.Event{
 		Action:   actionToolCall,
 		Outcome:  outcome,
