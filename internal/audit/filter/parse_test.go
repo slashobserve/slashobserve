@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseClassifiesTheForm(t *testing.T) {
@@ -167,6 +168,7 @@ func FuzzParse(f *testing.F) {
 		"", "outcome:denied", "not actor:alice* and status >= 400", `"a b" c*`, "kql: x", "lucene: x", "act*:x", "lucene: a AND (b OR -c) status:[1 TO *] x~2 y^3 /r/ \\", `lucene: actor:"a b"~2`, "outcome:(a or b)",
 		`{"query":{"term":{"outcome":"denied"}}}`, `{"query":{"bool":{"should":[{"match_all":{}}],"minimum_should_match":1}}}`,
 		`{"aggs":{"a":{"terms":{"field":"origin"},"aggs":{"m":{"max":{"field":"duration_ms"}}}}}}`, `{"size":3`, "{", `\`, "'", "\x00",
+		`{"aggs":{"h":{"date_histogram":{"fixed_interval":"288230376151711744ms"}}}}`, `{"aggs":{"h":{"date_histogram":{"fixed_interval":"9223372036854775807ms"}}}}`,
 	} {
 		f.Add(seed)
 	}
@@ -187,6 +189,11 @@ func FuzzParse(f *testing.F) {
 			t.Fatalf("Rows of %q: %v", text, err)
 		}
 		assertSafeSQL(t, rows.SQL, rows.Args)
+		hist, err := q.Histogram(testWindow, time.Minute)
+		if err != nil {
+			t.Fatalf("Histogram of %q: %v", text, err)
+		}
+		assertSafeSQL(t, hist.SQL, hist.Args)
 		if len(q.Aggs) > 0 {
 			agg, err := q.Aggregate(testWindow)
 			if err != nil && !strings.Contains(err.Error(), "interval too small") {

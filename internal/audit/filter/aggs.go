@@ -179,12 +179,13 @@ func (a *Agg) dateHistogram(obj map[string]any) error {
 	if m == nil {
 		return failOn(a.Name, "date_histogram %q needs a fixed_interval such as 30s, 5m, 1h or 1d, or a calendar_interval of minute, hour or day", truncate(a.Name))
 	}
-	n, _ := strconv.Atoi(m[1])
-	a.Field = occurredField
-	a.Interval = time.Duration(n) * intervalUnits[m[2]]
-	if a.Interval > maxInterval {
+	unit := intervalUnits[m[2]]
+	n, err := strconv.ParseInt(m[1], 10, 64)
+	if err != nil || n > int64(maxInterval/unit) {
 		return failOn(a.Name, "date_histogram interval is longer than 366 days")
 	}
+	a.Field = occurredField
+	a.Interval = time.Duration(n) * unit
 	return nil
 }
 

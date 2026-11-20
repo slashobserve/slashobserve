@@ -177,3 +177,21 @@ func TestAggregateInputNeverReachesTheSQLText(t *testing.T) {
 		}
 	}
 }
+
+func TestDateHistogramIntervalCannotWrapAround(t *testing.T) {
+	histogram := func(interval string) string {
+		return `{"aggs":{"h":{"date_histogram":{"field":"occurred_at","fixed_interval":"` + interval + `"}}}}`
+	}
+	for _, interval := range []string{"288230376151711744ms", "9223372036854775807ms", "153722867280912931s", "99999999999999999999d", "367d", "8785h"} {
+		_, err := Parse(histogram(interval))
+		if err == nil || !strings.Contains(err.Error(), "longer than 366 days") {
+			t.Errorf("interval %s: error = %v", interval, err)
+		}
+	}
+	for _, interval := range []string{"1ms", "366d", "8784h"} {
+		q, err := Parse(histogram(interval))
+		if err != nil || q.Aggs[0].Interval <= 0 {
+			t.Errorf("interval %s: %+v %v", interval, q.Aggs, err)
+		}
+	}
+}
