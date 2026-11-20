@@ -243,8 +243,9 @@ func TestCancelAndContinueErrorLines(t *testing.T) {
 		reply  string
 		want   string
 	}{
-		{"cancel forbidden", []string{"cancel", stoppedID}, 403, `{"error":"your role does not allow this","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID},
-		{"continue forbidden", []string{"continue", stoppedID}, 403, `{"error":"x","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID},
+		{"cancel forbidden", []string{"cancel", stoppedID}, 403, `{"error":"your role does not allow this","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID + " (forbidden_role)"},
+		{"continue forbidden", []string{"continue", stoppedID}, 403, `{"error":"x","code":"forbidden_role"}`, "only the requester can cancel or continue " + stoppedID + " (forbidden_role)"},
+		{"forbidden without a code", []string{"cancel", stoppedID}, 403, `{"error":"x"}`, "only the requester can cancel or continue " + stoppedID},
 		{"cancel finished", []string{"cancel", stoppedID}, 409, `{"error":"the request already finished","code":"request_finished"}`, "request " + stoppedID + " already finished"},
 		{"not continuable", []string{"continue", stoppedID}, 409, `{"error":"x","code":"not_continuable"}`, "request " + stoppedID + " has no stopped build to continue"},
 		{"version conflict", []string{"continue", stoppedID}, 409, `{"error":"x","code":"version_conflict","latest_version":7}`, "newer version (7)"},
