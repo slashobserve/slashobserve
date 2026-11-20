@@ -64,7 +64,7 @@ import {
   type TooltipView,
 } from "./plugins"
 import { scaleDistribution } from "./axis-scale"
-import { shapeNulls } from "./gaps"
+import { breakingGaps, shapeNulls } from "./gaps"
 import { zonedPlotDate } from "./plot-zone"
 import { isolatedPoints, squarePoints } from "./points"
 import { thresholdParts } from "./threshold-style"
@@ -1058,7 +1058,9 @@ const TimeseriesPanel: PanelRenderer = (props) => {
   )
   const configs = useMemo(
     () =>
-      placed.series.map(({ frame, field }) => fields.configFor(frame, field)),
+      placed.series.map(({ frame, field }) =>
+        breakingGaps(fields.configFor(frame, field))
+      ),
     [placed.series, fields]
   )
   const aligned = useMemo(

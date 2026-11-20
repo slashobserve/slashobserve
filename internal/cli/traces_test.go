@@ -362,6 +362,28 @@ func TestTracesQueryRunsTheSQLAsOnePageOfTheExploreQuery(t *testing.T) {
 	}
 }
 
+func TestTracesQueryPrintsDurationInAHumanUnitAndJSONKeepsNanoseconds(t *testing.T) {
+	rows := `{"frames":[{"ref":"A","fields":[
+	{"name":"TraceId","type":"string","values":["` + traceID + `"]},
+	{"name":"Duration","type":"number","values":[17277411]},
+	{"name":"Spans","type":"number","values":[2500000000]}
+]}],"meta":{"page":{"page":1,"page_size":100,"has_next":false,"has_prev":false,"total_relation":"unknown","plain":true}}}`
+	f := newTracesFake(t, "clickhouse")
+	f.answer = rows
+	stdout, stderr, code := f.run("--query", traceSQL, "--datasource", "traces")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[1], "17.3ms") || !strings.Contains(lines[1], "2500000000") || strings.Contains(lines[1], "17277411") {
+		t.Fatalf("stdout %q", stdout)
+	}
+	stdout, _, code = f.run("--query", traceSQL, "--datasource", "traces", "--json")
+	if code != 0 || !strings.Contains(stdout, "17277411") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
 func TestTracesQueryJSONPrintsTheResponse(t *testing.T) {
 	f := newTracesFake(t, "clickhouse")
 	f.answer = sqlRows

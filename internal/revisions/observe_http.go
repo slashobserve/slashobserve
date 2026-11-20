@@ -37,15 +37,16 @@ var (
 )
 
 type ObserveOptions struct {
-	Provider       string
-	Model          string
-	Effort         string
-	DashboardURL   func(dashboardID, title string) string
-	ObservationURL func(observationID string) string
-	Finding        func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
-	SaveAnswer     AnswerSaver
-	LiveText       func(runID string, attempt int) (string, bool)
-	ShareTitle     TitleSharer
+	Provider           string
+	Model              string
+	Effort             string
+	DashboardURL       func(dashboardID, title string) string
+	ObservationURL     func(observationID string) string
+	Finding            func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
+	SaveAnswer         AnswerSaver
+	LiveText           func(runID string, attempt int) (string, bool)
+	ShareTitle         TitleSharer
+	ObservationVisible func(ctx context.Context, by auth.Principal, id pgtype.UUID) (bool, error)
 }
 
 type ObserveHandler struct {

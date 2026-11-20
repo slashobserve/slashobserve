@@ -24,7 +24,13 @@ import { AddToObservationAction } from "./add-to-observation-action"
 import { liveRefreshMs } from "./live-refresh"
 import { rangeInFuture, tracesTimeRange, type TraceSearch } from "./search"
 import { traceSqlPanelFor } from "./trace-panel"
-import { frameRows, traceIdField, traceIdOf, traceSqlParams } from "./trace-sql"
+import {
+  frameRows,
+  readableCell,
+  traceIdField,
+  traceIdOf,
+  traceSqlParams,
+} from "./trace-sql"
 
 const skeletonRows = [0, 1, 2, 3, 4]
 const sqlReference = languageReference("logs", "clickhouse")
@@ -214,7 +220,11 @@ export function TraceSqlResults({
         <PlainTable
           frame={frame}
           note={idField === undefined ? unlinkedNote : linkedNote}
-          renderCell={(field, value) => {
+          renderCell={(field, value, type) => {
+            const readable = readableCell(field, type, value)
+            if (readable !== null) {
+              return <span title={readable.raw}>{readable.text}</span>
+            }
             if (field !== idField) return null
             const traceId = traceIdOf(value)
             if (traceId === null) return null

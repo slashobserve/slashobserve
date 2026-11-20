@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 
+import type { FieldConfig } from "../field-config"
 import type { AlignedFrames } from "./align"
 import {
+  breakingGaps,
   insertGaps,
   insertNullsThresholdMs,
   nullsAsZero,
@@ -237,5 +239,56 @@ describe("shapeNulls with insertNulls: true", () => {
     expect(shaped.xs).toEqual([0, 10, 20, 35, 50])
     expect(shaped.series[0].values).toEqual([1, 2, 3, null, 4])
     expect(shaped.series[1].values).toEqual([5, 6, 7, undefined, 8])
+  })
+})
+
+describe("breakingGaps", () => {
+  it("breaks at the query interval when nothing was asked", () => {
+    expect(breakingGaps({ spanNulls: false })).toEqual({
+      spanNulls: false,
+      insertNulls: true,
+    })
+    const joined: Pick<FieldConfig, "insertNulls" | "spanNulls"> = {
+      spanNulls: 30_000,
+    }
+    expect(breakingGaps(joined).insertNulls).toBe(true)
+  })
+
+  it("keeps an explicit insert nulls setting", () => {
+    const config = { spanNulls: false, insertNulls: 5000 }
+    expect(breakingGaps(config)).toBe(config)
+  })
+
+  it("leaves the line joined when the panel connects nulls", () => {
+    const config = { spanNulls: true }
+    expect(breakingGaps(config)).toBe(config)
+  })
+
+  it("draws no line across a series that has no samples between two points", () => {
+    const aligned: AlignedFrames = {
+      xs: [0, 10, 20, 30],
+      series: [
+        {
+          key: "A",
+          label: "A",
+          values: [1, undefined, undefined, 4],
+          frame: { ref: "A" },
+        } as AlignedFrames["series"][number],
+        {
+          key: "B",
+          label: "B",
+          values: [1, 2, 3, 4],
+          frame: { ref: "A" },
+        } as AlignedFrames["series"][number],
+      ],
+      ghosts: [],
+    }
+    const config = breakingGaps({ spanNulls: false, nullAsZero: false })
+    const shaped = shapeNulls(aligned, [config, config], {
+      step_ms: 10_000,
+      queries: [],
+    })
+    expect(shaped.series[0].values).toEqual([1, null, undefined, 4])
+    expect(shaped.series[1].values).toEqual([1, 2, 3, 4])
   })
 })

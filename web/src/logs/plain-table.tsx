@@ -27,7 +27,7 @@ export function PlainTable({
 }: {
   frame: WireFrame
   note?: string
-  renderCell?: (field: string, value: unknown) => ReactNode
+  renderCell?: (field: string, value: unknown, type: string) => ReactNode
 }) {
   const rows = frame.fields.reduce(
     (most, field) => Math.max(most, field.values.length),
@@ -49,7 +49,7 @@ export function PlainTable({
             <tr key={row}>
               {frame.fields.map((field) => (
                 <Cell key={field.name} className="font-mono">
-                  {renderCell?.(field.name, field.values[row]) ??
+                  {renderCell?.(field.name, field.values[row], field.type) ??
                     cellText(field.values[row])}
                 </Cell>
               ))}

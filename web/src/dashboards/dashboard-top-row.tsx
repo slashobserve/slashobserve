@@ -131,7 +131,7 @@ export function DashboardTopRow({
         {madeBy && !narrow ? (
           <span
             title={madeBy}
-            className="min-w-0 truncate text-xs text-muted-foreground"
+            className="min-w-0 shrink-[1000] truncate text-xs text-muted-foreground"
           >
             {madeBy}
           </span>
@@ -139,7 +139,7 @@ export function DashboardTopRow({
         {views ? (
           <span
             title={views}
-            className="min-w-0 truncate text-xs text-muted-foreground"
+            className="min-w-0 shrink-[1000] truncate text-xs text-muted-foreground"
           >
             {views}
           </span>
