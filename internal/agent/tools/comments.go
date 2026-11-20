@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -70,6 +71,7 @@ type commentOut struct {
 	AllowedActions    []string     `json:"allowed_actions"`
 	Unread            bool         `json:"unread"`
 	Author            string       `json:"author"`
+	Actor             actor.JSON   `json:"actor"`
 	RunID             string       `json:"run_id,omitempty"`
 	CreatedAt         string       `json:"created_at"`
 	EditedAt          *string      `json:"edited_at"`
@@ -143,6 +145,7 @@ func commentItem(ref commentRef) commentOut {
 		AllowedActions: t.AllowedActions,
 		Unread:         t.Unread && m.ID == t.ID,
 		Author:         authorLabel(m),
+		Actor:          m.Author.JSON(),
 		RunID:          m.Author.RunID,
 		CreatedAt:      formatCommentTime(m.CreatedAt),
 		Body:           clip(m.Body, maxCommentOutBytes),

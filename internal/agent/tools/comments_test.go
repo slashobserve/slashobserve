@@ -725,7 +725,44 @@ func TestCommentItemNamesTheRunThatWroteTheReply(t *testing.T) {
 		t.Fatalf("reply run %q, person run %q", reply.RunID, person.RunID)
 	}
 	raw, err := json.Marshal(person)
-	if err != nil || strings.Contains(string(raw), "run_id") {
-		t.Fatalf("a person's comment carries a run: %s %v", raw, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := top["run_id"]; ok {
+		t.Fatalf("a person's comment carries a top-level run: %s", raw)
+	}
+}
+
+func TestCommentItemCarriesTheSameActorAsTheRESTAPI(t *testing.T) {
+	const run = "33333333-3333-4333-8333-333333333333"
+	thread := threads.Thread{ID: dashA}
+	for name, author := range map[string]actor.Actor{
+		"agent reply": {Kind: auth.KindUser, ID: dashB, Name: "Ada", RunID: run},
+		"person":      {Kind: auth.KindUser, ID: dashB, Name: "Ada"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := commentItem(commentRef{thread, threads.Message{ID: dashA, Author: author}})
+			if out.Actor != author.JSON() {
+				t.Fatalf("actor = %+v, want %+v", out.Actor, author.JSON())
+			}
+			raw, err := json.Marshal(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Actor map[string]any `json:"actor"`
+			}
+			if err := json.Unmarshal(raw, &got); err != nil {
+				t.Fatal(err)
+			}
+			runID, ok := got.Actor["run_id"]
+			if !ok || (author.RunID == "") != (runID == nil) {
+				t.Fatalf("actor = %v", got.Actor)
+			}
+		})
 	}
 }

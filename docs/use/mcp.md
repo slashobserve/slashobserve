@@ -239,7 +239,7 @@ A dashboard made by Claude Code can then be reviewed by the team without a model
 Comments can sit on a dashboard, an annotation, an observation or a proposal.
 A `proposal:<uuid>` target is read with View and written with Comment on the proposal's dashboard, and a comment on it has no `panel_id` or `version`.
 `list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
-Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
+Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`, and an `actor` that is the same object the HTTP API returns (`kind`, `id`, `name`, `origin`, `client`, `run_id` and `label`), whose `run_id` is the run that wrote an agent reply and null for a person; `author` stays the plain name, and a top-level `run_id` appears only on an agent reply; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
 A caller with only Comment resolves only a thread they started and gets `not_starter` on any other; a caller who can edit resolves any.
