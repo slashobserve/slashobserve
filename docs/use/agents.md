@@ -22,8 +22,8 @@ The page has three parts.
 - **Service accounts that take runs** lists each account with its status, and an Admin also sees its runs and failures for the last 7 days.
   An Admin sees an **API keys** link here, which opens the page that creates keys (`/keys`).
 
-**Connect an agent** opens a side panel with the command `claude mcp add --transport http slashobserve <mcp url>`, which adds this server to Claude Code, and waits.
-The panel says "Connected" with the client's name when the approval you give in the browser window it opens is done; other clients are set up as described in [Connect your own agent](mcp.md#connect-your-own-agent).
+**Connect an agent** opens a side panel with the command `claude mcp add --transport http slashobserve <mcp url>`, which adds this server to Claude Code, and shows "Waiting for Claude Code to connect".
+When the approval you give in the browser window it opens is done, the panel says "Connected:" with the client's name and offers **Done**; other clients are set up as described in [Connect your own agent](mcp.md#connect-your-own-agent).
 Choosing an agent's name opens `/agents/<ref>`, which shows the same counts for that one agent: `observe` for the Observe Agent, `grant-<id>` for a connected agent and `sa-<id>` for a service account.
 
 ## Direct and propose mode
@@ -60,7 +60,7 @@ A connected agent also has `writes_7d`, the changes you made through MCP under i
 
 A comment that mentions an agent hands it work.
 A connected agent's `grant_id` and a service account's `id` are the ids a comment names: `@[Name](grant:<grant_id>)` and `@[Name](service_account:<id>)`, and `@observe` names the Observe Agent.
-The `@` picker of every web composer lists the Observe Agent while a model is connected, then your connected agents, then the service accounts that take runs, all from this one answer.
+The `@` picker of every web composer lists the Observe Agent first, then your connected agents and the service accounts that take runs from this one answer, then people.
 Everything you type after the `@` stays in the comment box and filters the list; the list closes at the first space or when nobody matches, so `@observe add a stat panel` typed straight through is a comment that asks the Observe Agent.
 A message that mentions exactly one agent starts a run for it when you send it from a composer that asks the agent, or with `start_runs` over the API, MCP or the CLI.
 [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment) describes the composer, and the run answers in the same thread when it ends.
@@ -91,7 +91,7 @@ Archived runs are listed, because archiving only hides a run from its requester'
 ## Working now
 
 `GET /api/v1/agents/working` lists the runs that are queued, running or canceling and that you started, together with the runs any agent is doing on dashboards and observations you created, newest first.
-It returns 20 runs by default and at most 50 with `limit`, has no cursor, and says `truncated: true` when more active runs exist.
+It returns 20 runs by default and at most 50 with `limit`, has no cursor, leaves out suggestion runs and archived runs, and says `truncated: true` when more active runs exist.
 A run someone else started names the agent and the dashboard or observation, never the request: its `title` is null and `mine` is false.
 A dashboard or observation in a folder you cannot see no longer brings someone else's run into your list, and it comes back as null on a run you started.
 An Admin gets no wider list here, because the Agents page above already shows the whole workspace.

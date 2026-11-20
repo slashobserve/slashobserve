@@ -8,7 +8,8 @@ A load generator sends it traffic all the time on a daily curve, so every chart 
 The rate is lowest at 04:00, at 0.4 times the base rate of 20 requests per second, and highest at 14:00, at 1.6 times it.
 Those hours are in the containers' local time, which is UTC unless `TZ` is set on both the `loadgen` and `prometheus` services.
 The 26 hours of history the stack writes on its first boot follow the same curve, so yesterday's chart joins today's without a step.
-Its metrics are in the `prom` datasource, and its logs and traces are in `ch`.
+Its metrics are in the `prom` datasource.
+Its logs and traces are in `ch` (ClickHouse), its logs also in `loki` and its traces also in `tempo`; the `es` and `os` datasources hold the logs only when you start the stack with `make demo-search`, as the [quick start](../get-started/quick-start.md#add-elasticsearch-and-opensearch) describes.
 
 ## Traffic
 
@@ -62,6 +63,7 @@ Every database query has a `db.query` span with `db.system=postgresql`, and a qu
 
 Each fault affects one pod, the one whose fault API you call.
 `make demo-fault TYPE=<type> PCT=N` sets a fault on `checkout-0` through http://localhost:8081/fault, and `make demo-fault-reset` clears every fault.
+Set `SLASHOBSERVE_SHOP_HOST_PORT` to move that port, and the two targets follow it.
 
 | Type | What `PCT=N` does |
 | --- | --- |
@@ -71,3 +73,11 @@ Each fault affects one pod, the one whose fault API you call.
 | `slow_db` | N% of the pod's database queries take 300 to 900 ms longer and keep their connection meanwhile, so the pool's connections in use climb and requests that query get slower. |
 
 `GET /fault` shows every fault's current percentage.
+
+## On Kubernetes
+
+`make demo-k8s` runs the same shop on a local three-node kind cluster named `slashobserve-demo`, next to kube-state-metrics, node-exporter and a Prometheus with the kube-prometheus recording rules, so the public Kubernetes dashboards you import from Grafana have data.
+Each pod name (`frontend-0`, `checkout-0`, `checkout-1` and `payments-0`) is its own Deployment and keeps its own fault state.
+Prometheus is on http://localhost:39090, and the fault APIs of `checkout-0` and `checkout-1` are on http://localhost:38081 and http://localhost:38082.
+Set a fault on `checkout-0` or `checkout-1` with `scripts/demo-k8s.sh fault <pod> <type> <pct>`, where the type is `errors` or `latency` and a percentage of 0 clears it, for example `scripts/demo-k8s.sh fault checkout-1 errors 30`.
+`make demo-k8s-down` deletes only that cluster, and the cluster runs beside the compose demo without touching it.

@@ -75,11 +75,16 @@ Saving the text unchanged does nothing.
 An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
-The **Mention** box, or typing `@` after a space, lists the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the thread is about; typing a name or an email narrows the people.
+The @ button next to a comment box, or typing `@` at the start of the box or after a space, opens a list of the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the comment is about.
+It works in the Activity box, in thread replies, in an observation's discussion and in the edit box.
+A button press opens a search field for a name or an email.
+When you type `@`, the letters you type stay in the box and narrow the list, the arrow keys move through it, Enter picks the highlighted entry in place of what you typed, and Escape closes it.
+The first entry is highlighted once you have typed a letter, so on a bare `@` the list does not take Enter, and the list closes when nothing matches.
 A picked person shows in the box as `@Name`, and the comment is stored and shown with the mention.
 Someone who cannot see the dashboard, observation or proposal is not offered, and mentioning one is refused with 422 `invalid_mention`, as is a person who does not exist.
-Choosing one inserts it at the cursor.
-The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.
+The list of people comes from the server (`GET /api/v1/threads/mentionable`), at most 20 at a time, so the form at the bottom of the card offers the people who can see the dashboard as well as the agents.
+
+An agent over MCP or the CLI lists them with `list_mentionable_people` or `observe comments people`.
 
 A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](grant:<id>)`; both show as "@Name" once the comment is saved, using the name the server has.
 A comment can contain at most 20 mentions, and a repeated mention counts each time.
@@ -98,7 +103,10 @@ Text an agent wrote, a reply from a run or a message from a connected agent or s
 
 You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
 The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
-Someone with Manage on the folder can delete any comment, including an agent's reply; nobody else can delete an agent's reply.
+Someone with Manage on the folder can delete any comment, including an agent's reply and the first comment of a thread that others have answered, which deletes the thread; nobody else can delete an agent's reply.
+The dialog reads "Delete this comment?", or "Delete this thread?" when it removes the whole thread, and says it cannot be undone.
+**Delete** is on comments in the Activity card, in an observation's discussion and in the Inbox pane.
+An agent's reply that someone deleted is not posted again when its run is retried.
 The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
 A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
@@ -120,6 +128,7 @@ When the run ends, its answer arrives as a reply in the same thread, from "Obser
 A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
+An answer kept only in the asker's chat reads "Answered in the chat of the person who asked." with the start of the text and a link to the chat, which opens for the person who asked and for Admins.
 
 A discussion entry reads "asked the agent" only when the message started a run.
 A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".

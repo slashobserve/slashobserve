@@ -4,8 +4,9 @@ description: The YAML file that lists the Prometheus, ClickHouse, Loki, Tempo, E
 ---
 
 The datasources file lists the Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers SlashObserve queries.
-It is a single YAML document with a top-level `datasources` list; unknown fields are rejected, and an empty list logs a warning at startup.
-The server reads it once at startup, and its entries show as "from file", read-only, on the Datasources page.
+`SLASHOBSERVE_DATASOURCES_FILE` names its path; with it unset the server has no file datasources.
+It is a single YAML document with a top-level `datasources` list; unknown fields are rejected, a missing `datasources` key or a second YAML document stops the server at startup, and an empty list logs a warning.
+The server reads it once at startup, and its entries show as "From file", read-only, on the Datasources page.
 An Admin can add more datasources in the app; see [Add datasources in the app](../connect/datasources-in-the-app.md).
 
 The file never holds a secret.

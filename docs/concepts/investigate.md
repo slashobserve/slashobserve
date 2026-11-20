@@ -53,7 +53,7 @@ Pinning needs Edit on the dashboard, and pinning a finding twice returns the sam
 
 ## Tools
 
-The built-in agent investigates with the same read tools it uses to build dashboards, including `list_annotations`, so it sees deploy markers beside a spike, `list_observations` and `get_observation`, so it can read earlier observations as evidence in the folders the requester can open, and `save_finding`; `save_finding` is also offered in a new-dashboard or revision request that only asks a question.
+The built-in agent investigates with the same read tools it uses to build dashboards, including `list_annotations`, so it sees deploy markers beside a spike, `list_observations` and `get_observation`, so it can read earlier observations as evidence in the folders the requester can open, and `save_finding`; `save_finding` is also offered in a new-dashboard or revision request that only asks a question, and there the answer stays on the request, where its asker and Admins can read it, until the asker files it as an observation with `POST /api/v1/observe/{id}/observation`, `observe save-answer` or `save_run_answer`.
 It does not get the dashboard save tools in an investigation.
 MCP clients investigate with their own model: they read data with the read tools, save the answer into an observation with `create_observation` and `add_block`, and read earlier ones with `list_observations` and `get_observation`.
 
