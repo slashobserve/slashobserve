@@ -232,7 +232,7 @@ func TestRowsRunAndSelectWhatTheQuerySays(t *testing.T) {
 		{"lucene: outcome:(denied OR failed) AND NOT actor:Riya", []int{4}},
 		{"lucene: +outcome:denied origin:api", []int{4, 2}},
 		{"lucene: action:dashboard.*", []int{5, 2, 1}},
-		{"lucene: action:DASHBOARD.*", nil},
+		{"lucene: action:DASHBOARD.*", []int{5, 2, 1}},
 		{"lucene: actor:Ishan*", []int{3, 1}},
 		{"lucene: actor:Ish?n*", []int{3, 1}},
 		{"lucene: act*:Riya", []int{5, 2}},

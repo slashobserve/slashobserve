@@ -613,7 +613,7 @@ func fieldTerm(field string, pieces []wildcardPiece, wild bool) map[string]any {
 	case glob:
 		return map[string]any{"multi_match": map[string]any{"query": text(pieces), "fields": []any{field}, "lenient": true}}
 	case wild:
-		return map[string]any{"wildcard": map[string]any{field: map[string]any{"value": elasticsearchPattern(pieces)}}}
+		return map[string]any{"wildcard": map[string]any{field: map[string]any{"value": elasticsearchPattern(pieces), "case_insensitive": true}}}
 	}
 	return map[string]any{"match": map[string]any{field: text(pieces)}}
 }
