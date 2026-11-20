@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import type { FieldConfig } from "../field-config"
 import type { AlignedFrames } from "./align"
 import {
   breakingGaps,
@@ -247,7 +248,10 @@ describe("breakingGaps", () => {
       spanNulls: false,
       insertNulls: true,
     })
-    expect(breakingGaps({ spanNulls: 30_000 }).insertNulls).toBe(true)
+    const joined: Pick<FieldConfig, "insertNulls" | "spanNulls"> = {
+      spanNulls: 30_000,
+    }
+    expect(breakingGaps(joined).insertNulls).toBe(true)
   })
 
   it("keeps an explicit insert nulls setting", () => {
