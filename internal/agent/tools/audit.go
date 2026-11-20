@@ -25,7 +25,7 @@ const (
 
 	auditAdminOnly = " Admin only; the call is itself recorded in the audit trail."
 
-	descSearchAuditEvents = "Search the audit trail, the record of every sign-in, read, change, agent tool call and refusal, newest first, with who did it, through what (web, cli, mcp, agent), to what and how it ended. q takes KQL by default (actor_name:alice and outcome:denied, action:dashboard.*, not origin:web), Lucene after a lucene: prefix, or a Query DSL JSON body starting with {; list_audit_fields names the fields. The window is since to until, 24 hours by default and at most 31 days. Page with next_cursor, which keeps the window and refuses another q." + auditAdminOnly
+	descSearchAuditEvents = "Search the audit trail, the record of every sign-in, read, change, agent tool call and refusal, newest first, with who did it, through what (web, cli, mcp, agent), to what and how it ended. q takes KQL by default (actor_name:alice and outcome:denied, action:dashboard.*, not origin:web), Lucene after a lucene: prefix, or a Query DSL JSON body starting with {; list_audit_fields names the fields. The window is since to until, 24 hours by default and at most 366 days. Page with next_cursor, which keeps the window and refuses another q." + auditAdminOnly
 	descGetAuditEvent     = "Read one audit event by id with the other events of its request (same_request, within an hour) and of its agent run (same_run, within a day), newest first, so one tool call can be followed to the request that made it." + auditAdminOnly
 	descListAuditFacets   = "Count the most frequent values of one field among the audit events that match q in the window, such as who made the most refused calls (field actor_name, q outcome:denied) or which actions an agent used most (field action, q initiator:agent)." + auditAdminOnly
 	descGetAuditHistogram = "Count the audit events that match q over time: the window split into at most buckets buckets of one step from 1s to 1d, empty buckets included, oldest first, to see when something started or stopped." + auditAdminOnly
@@ -74,8 +74,8 @@ type auditWindowInput struct {
 	Until string `json:"until"`
 }
 
-func (r *Registry) prepareAudit(in auditWindowInput, cursor string) (trail.Prepared, Result, bool) {
-	p, err := trail.Prepare(trail.Request{Text: in.Q, Since: in.Since, Until: in.Until, Cursor: cursor}, r.deps.Audit.Now())
+func (r *Registry) prepareAudit(ctx context.Context, in auditWindowInput, cursor string) (trail.Prepared, Result, bool) {
+	p, err := r.deps.Audit.Prepare(ctx, trail.ActionSearch, trail.Request{Text: in.Q, Since: in.Since, Until: in.Until, Cursor: cursor})
 	if err != nil {
 		res, rerr := auditFailure(err)
 		if rerr != nil {
@@ -114,7 +114,7 @@ func (r *Registry) searchAuditEvents(ctx context.Context, input json.RawMessage)
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(in.auditWindowInput, in.Cursor)
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, in.Cursor)
 	if !ok {
 		return res, nil
 	}
@@ -170,7 +170,7 @@ func (r *Registry) listAuditFacets(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(in.auditWindowInput, "")
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, "")
 	if !ok {
 		return res, nil
 	}
@@ -197,7 +197,7 @@ func (r *Registry) getAuditHistogram(ctx context.Context, input json.RawMessage)
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(in.auditWindowInput, "")
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, "")
 	if !ok {
 		return res, nil
 	}
@@ -216,7 +216,7 @@ func (r *Registry) aggregateAuditEvents(ctx context.Context, input json.RawMessa
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(in, "")
+	p, res, ok := r.prepareAudit(ctx, in, "")
 	if !ok {
 		return res, nil
 	}

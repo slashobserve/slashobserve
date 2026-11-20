@@ -118,7 +118,7 @@ func (a *app) auditCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Search the audit trail",
-		Long:  "audit reads the audit trail: every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.\n--query takes KQL by default, Lucene after a lucene: prefix, or a Query DSL JSON body that starts with {; observe audit fields lists the fields.\n--from and --to take an RFC 3339 time, epoch milliseconds or a relative time such as now-7d; the window is the last 24 hours by default and at most 31 days.\nEvery verb needs an Admin key, and every read is itself recorded in the trail.",
+		Long:  "audit reads the audit trail: every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.\n--query takes KQL by default, Lucene after a lucene: prefix, or a Query DSL JSON body that starts with {; observe audit fields lists the fields.\n--from and --to take an RFC 3339 time, epoch milliseconds or a relative time such as now-7d; the window is the last 24 hours by default and at most 366 days.\nEvery verb needs an Admin key, and every read is itself recorded in the trail.",
 		Example: "  observe audit search --query 'outcome:denied and origin:mcp' --from now-7d\n" +
 			"  observe audit facets actor_name --query 'action:dashboard.*'\n" +
 			"  observe audit export --from 2026-11-01T00:00:00Z --to 2026-11-08T00:00:00Z --format csv --file audit.csv",

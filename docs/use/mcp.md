@@ -387,7 +387,7 @@ Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types
 It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
 
 The six audit tools read the [audit trail](../reference/audit-queries.md) and need an Admin: `search_audit_events` (20 events a call by default, at most 100, paged with `next_cursor`), `get_audit_event` (one event with the events of its request and agent run), `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
-They take `q` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 31 days.
+They take `q` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 366 days.
 Each call is recorded in the trail as `audit.search`, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.

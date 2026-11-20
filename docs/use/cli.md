@@ -820,7 +820,7 @@ bin/observe audit fields
 bin/observe audit export --from now-30d --format csv --file audit.csv
 ```
 
-`--query` takes KQL, `lucene:` and a Query DSL body, and `--from` and `--to` take an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`, the last 24 hours by default and at most 31 days.
+`--query` takes KQL, `lucene:` and a Query DSL body, and `--from` and `--to` take an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`, the last 24 hours by default and at most 366 days.
 `search` prints one line per event, newest first, with the time, who, through what, the action, the outcome and the target, 50 a page by default and at most 1,000, and pages with `--cursor` or `--all`.
 `show` prints one event and the other events of its request and its agent run, `facets` the most frequent values of a field, `histogram` the counts over time, `aggregate` the rows of a Query DSL `aggs` body and `fields` what a query can name.
 `--json` prints the API response unchanged.

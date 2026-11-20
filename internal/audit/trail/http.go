@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
@@ -154,12 +155,12 @@ func FieldsOf() []FieldJSON {
 	return out
 }
 
-func (h *Handler) prepare(c *gin.Context, withCursor bool) (Prepared, bool) {
+func (h *Handler) prepare(c *gin.Context, action audit.Action, withCursor bool) (Prepared, bool) {
 	req := Request{Text: c.Query("q"), Since: c.Query("since"), Until: c.Query("until")}
 	if withCursor {
 		req.Cursor = c.Query("cursor")
 	}
-	p, err := Prepare(req, h.reader.Now())
+	p, err := h.reader.Prepare(c.Request.Context(), action, req)
 	if err != nil {
 		h.fail(c, "prepare audit read", err)
 		return Prepared{}, false
@@ -184,7 +185,7 @@ func (h *Handler) search(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, true)
+	p, ok := h.prepare(c, ActionSearch, true)
 	if !ok {
 		return
 	}
@@ -215,7 +216,7 @@ func (h *Handler) facets(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}
@@ -232,7 +233,7 @@ func (h *Handler) histogram(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}
@@ -258,7 +259,7 @@ func bucketsParam(c *gin.Context) (int, bool) {
 }
 
 func (h *Handler) aggregate(c *gin.Context) {
-	p, ok := h.prepare(c, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}
@@ -281,7 +282,7 @@ func (h *Handler) export(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, CodeInvalidRequest, "format must be ndjson or csv")
 		return
 	}
-	p, ok := h.prepare(c, false)
+	p, ok := h.prepare(c, ActionExport, false)
 	if !ok {
 		return
 	}

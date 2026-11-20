@@ -140,7 +140,7 @@ func TestBadParametersAnswer400(t *testing.T) {
 	}{
 		{"/audit/events", url.Values{"limit": {"0"}}},
 		{"/audit/events", url.Values{"limit": {"1001"}}},
-		{"/audit/events", url.Values{"since": {"now-40d"}}},
+		{"/audit/events", url.Values{"since": {"now-400d"}}},
 		{"/audit/events", url.Values{"cursor": {"x"}}},
 		{"/audit/facets", nil},
 		{"/audit/facets", url.Values{"field": {"actor_name"}, "limit": {"101"}}},
@@ -202,11 +202,12 @@ func (r *httpRig) reads(t *testing.T) []recordedRead {
 	return out
 }
 
-func TestEveryReadOfTheTrailIsRecordedWithoutItsQueryText(t *testing.T) {
+func TestEveryReadOfTheTrailIsRecordedWithItsQuery(t *testing.T) {
 	r := newHTTPRig(t)
 	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5), Actor: "secretname"}, trailtest.Event{At: r.at(-6)})
 	engine := r.engine(t, &admin)
 	const text = "actor_name:secretname"
+	aggs := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1s"},"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}}}`
 	for _, call := range []struct {
 		path  string
 		query url.Values
@@ -217,34 +218,49 @@ func TestEveryReadOfTheTrailIsRecordedWithoutItsQueryText(t *testing.T) {
 		{"/audit/events/" + ids[0], nil},
 		{"/audit/export", r.hourWindow(url.Values{"q": {text}, "format": {"ndjson"}})},
 		{"/audit/events", url.Values{"q": {"outcome:ok"}}},
+		{"/audit/export", url.Values{"q": {text}, "since": {"now-400d"}}},
+		{"/audit/aggregate", r.hourWindow(url.Values{"q": {aggs}})},
 	} {
 		r.get(t, engine, call.path, call.query)
 	}
 	reads := r.reads(t)
-	if len(reads) != 6 {
-		t.Fatalf("recorded %d reads: %+v", len(reads), reads)
-	}
 	since, until := r.base.Add(-time.Hour).Format(time.RFC3339Nano), r.base.Format(time.RFC3339Nano)
 	want := []recordedRead{
-		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "view": "events", "row_count": 1.0}},
-		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "view": "facets", "field": "origin", "row_count": 1.0}},
-		{"audit.search", "success", "", map[string]any{"form": "lucene", "since": since, "until": until, "view": "histogram", "row_count": 6.0}},
+		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "events", "row_count": 1.0}},
+		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "facets", "field": "origin", "row_count": 1.0}},
+		{"audit.search", "success", "", map[string]any{"form": "lucene", "since": since, "until": until, "query": "lucene: " + text, "view": "histogram", "row_count": 6.0}},
 		{"audit.search", "success", "audit_event", map[string]any{"view": "event", "row_count": 1.0}},
-		{"audit.export", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "format": "ndjson", "row_count": 1.0, "truncated": false}},
-		{"audit.search", "failed", "", map[string]any{}},
+		{"audit.export", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "format": "ndjson", "row_count": 1.0, "truncated": false}},
+		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
+		{"audit.export", "failed", "", map[string]any{"query": text}},
+		{"audit.search", "failed", "", map[string]any{"form": "dsl", "since": since, "until": until, "query": aggs, "view": "aggregate"}},
+	}
+	if len(reads) != len(want) {
+		t.Fatalf("recorded %d reads: %+v", len(reads), reads)
 	}
 	for i, got := range reads {
 		w := want[i]
 		gotData, _ := json.Marshal(got.data)
 		wantData, _ := json.Marshal(w.data)
-		if got.action != w.action || got.targetKind != w.targetKind || string(gotData) != string(wantData) {
+		if got.action != w.action || got.outcome != w.outcome || got.targetKind != w.targetKind || string(gotData) != string(wantData) {
 			t.Errorf("read %d = %+v, want %+v", i, got, w)
 		}
-		if strings.Contains(string(gotData), "secretname") {
-			t.Errorf("read %d carries the query text: %s", i, gotData)
-		}
 	}
-	if reads[5].outcome == "success" {
-		t.Errorf("a refused query was recorded as a success: %+v", reads[5])
+}
+
+func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
+	r := newHTTPRig(t)
+	engine := r.engine(t, &admin)
+	text := "actor_name:" + strings.Repeat("a", 2*MaxRecordedQueryBytes)
+	if rec := r.get(t, engine, "/audit/events", r.hourWindow(url.Values{"q": {text}})); rec.Code != http.StatusOK {
+		t.Fatalf("search = %d %s", rec.Code, rec.Body)
+	}
+	reads := r.reads(t)
+	if len(reads) != 1 {
+		t.Fatalf("recorded %+v", reads)
+	}
+	got, _ := reads[0].data["query"].(string)
+	if got != text[:MaxRecordedQueryBytes]+truncatedMark {
+		t.Fatalf("recorded a %d byte query ending %q", len(got), got[max(0, len(got)-20):])
 	}
 }

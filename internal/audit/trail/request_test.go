@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -40,7 +41,7 @@ func TestPrepareRefusesABadWindow(t *testing.T) {
 		{Request{Since: "yesterday"}, `since "yesterday" is not a time`},
 		{Request{Until: "soon"}, `until "soon" is not a time`},
 		{Request{Since: "now", Until: "now-1h"}, "since must be before until"},
-		{Request{Since: "now-32d"}, "longer than 31 days"},
+		{Request{Since: "now-367d"}, "longer than 366 days"},
 		{Request{Since: strings.Repeat("1", MaxTimeBytes+1)}, "longer than 128 bytes"},
 	} {
 		_, err := Prepare(tc.req, now)
@@ -49,8 +50,8 @@ func TestPrepareRefusesABadWindow(t *testing.T) {
 			t.Errorf("%+v: problem %+v (%v), want 400 with %q", tc.req, problem, err, tc.want)
 		}
 	}
-	if _, err := Prepare(Request{Since: "now-31d"}, now); err != nil {
-		t.Errorf("a 31 day window: %v", err)
+	if _, err := Prepare(Request{Since: "now-366d"}, now); err != nil {
+		t.Errorf("a 366 day window: %v", err)
 	}
 }
 
@@ -137,7 +138,9 @@ func TestStepFor(t *testing.T) {
 		{24 * time.Hour, 60, 30 * time.Minute},
 		{7 * 24 * time.Hour, 60, 3 * time.Hour},
 		{31 * 24 * time.Hour, 60, 24 * time.Hour},
-		{31 * 24 * time.Hour, 1, 24 * time.Hour},
+		{31 * 24 * time.Hour, 1, 7 * 24 * time.Hour},
+		{366 * 24 * time.Hour, 60, 7 * 24 * time.Hour},
+		{366 * 24 * time.Hour, MaxBuckets, 7 * 24 * time.Hour},
 	} {
 		w := filter.Window{From: now.Add(-tc.span), To: now}
 		if got := StepFor(w, tc.buckets); got != tc.want {
@@ -160,6 +163,26 @@ func TestTheCSVHeaderIsTheColumnOrderOfARead(t *testing.T) {
 	}
 	if got := len(Event{Data: []byte(`{}`)}.csvRecord()); got != len(csvHeader) {
 		t.Fatalf("a record has %d fields, the header %d", got, len(csvHeader))
+	}
+}
+
+func TestBucketsStartWhereTheDatabaseBinsThem(t *testing.T) {
+	if got := binStart(now, 7*24*time.Hour); got != time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC) {
+		t.Errorf("a week bucket starts %s, want the Thursday date_bin gives from the epoch", got)
+	}
+	if got := binStart(now.Add(90*time.Minute), time.Hour); got != now.Add(time.Hour) {
+		t.Errorf("an hour bucket starts %s", got)
+	}
+}
+
+func TestARecordedQueryIsCutAtARuneBoundary(t *testing.T) {
+	if got := recordedQuery("outcome:denied"); got != "outcome:denied" {
+		t.Errorf("a short query became %q", got)
+	}
+	long := strings.Repeat("a", MaxRecordedQueryBytes-1) + "é" + "tail"
+	got := recordedQuery(long)
+	if got != strings.Repeat("a", MaxRecordedQueryBytes-1)+truncatedMark || !utf8.ValidString(got) {
+		t.Errorf("a long query became %d bytes ending %q", len(got), got[len(got)-20:])
 	}
 }
 

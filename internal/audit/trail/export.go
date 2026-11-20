@@ -63,7 +63,7 @@ type Sink struct {
 func (r *Reader) Export(ctx context.Context, p Prepared, format string, limit int, sink Sink) (Export, error) {
 	result, err := r.export(ctx, p, format, limit, sink)
 	data := map[string]any{"format": format, "row_count": result.Rows, "truncated": result.Truncated}
-	e := audit.Event{Action: actionExport, Status: http.StatusOK, Data: data}
+	e := audit.Event{Action: ActionExport, Status: http.StatusOK, Data: data}
 	if err != nil {
 		e.Outcome, e.Reason = audit.OutcomeFailed, "export_failed"
 		if problem, ok := ProblemOf(err); ok {

@@ -18,7 +18,7 @@ import (
 
 const (
 	DefaultSpan    = 24 * time.Hour
-	MaxSpan        = 31 * 24 * time.Hour
+	MaxSpan        = 366 * 24 * time.Hour
 	MaxCursorBytes = 1024
 	MaxTimeBytes   = 128
 

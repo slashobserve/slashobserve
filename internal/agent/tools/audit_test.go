@@ -132,8 +132,8 @@ func TestAuditToolsNameTheBytesOfAParseError(t *testing.T) {
 			t.Errorf("%s = %+v", name, res)
 		}
 	}
-	res := r.call(t, nameSearchAuditEvents, map[string]any{"since": "now-40d"})
-	if body, ok := res.Content.(errorBody); !res.IsError || !ok || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "31 days") {
+	res := r.call(t, nameSearchAuditEvents, map[string]any{"since": "now-400d"})
+	if body, ok := res.Content.(errorBody); !res.IsError || !ok || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "366 days") {
 		t.Errorf("a long window = %+v", res)
 	}
 }

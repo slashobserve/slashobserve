@@ -102,7 +102,7 @@ func refused(err error) error {
 func (r *Reader) Search(ctx context.Context, p Prepared, limit int) (Page, error) {
 	page, err := r.events(ctx, p, limit)
 	if err != nil {
-		return Page{}, err
+		return Page{}, r.searchFailed(ctx, p, "events", err)
 	}
 	r.record(ctx, p, searched(map[string]any{"view": "events", "row_count": len(page.Events)}))
 	return page, nil
@@ -160,7 +160,7 @@ func collectEvents(ctx context.Context, tx db.Rows, c filter.Compiled) ([]Event,
 func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int) ([]Facet, error) {
 	c, err := p.Query.Facets(p.Window, field, limit)
 	if err != nil {
-		return nil, refused(err)
+		return nil, r.searchFailed(ctx, p, "facets", refused(err))
 	}
 	facets := []Facet{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -179,7 +179,7 @@ func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, err
+		return nil, r.searchFailed(ctx, p, "facets", err)
 	}
 	r.record(ctx, p, searched(map[string]any{"view": "facets", "field": field, "row_count": len(facets)}))
 	return facets, nil
@@ -188,7 +188,7 @@ func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int
 var steps = []time.Duration{
 	time.Second, 5 * time.Second, 10 * time.Second, 30 * time.Second,
 	time.Minute, 5 * time.Minute, 10 * time.Minute, 30 * time.Minute,
-	time.Hour, 3 * time.Hour, 6 * time.Hour, 12 * time.Hour, 24 * time.Hour,
+	time.Hour, 3 * time.Hour, 6 * time.Hour, 12 * time.Hour, 24 * time.Hour, 7 * 24 * time.Hour,
 }
 
 func StepFor(w filter.Window, buckets int) time.Duration {
@@ -201,11 +201,17 @@ func StepFor(w filter.Window, buckets int) time.Duration {
 	return steps[len(steps)-1]
 }
 
+var binOrigin = time.Unix(0, 0).UTC()
+
+func binStart(t time.Time, step time.Duration) time.Time {
+	return binOrigin.Add(t.Sub(binOrigin).Truncate(step))
+}
+
 func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histogram, error) {
 	step := StepFor(p.Window, buckets)
 	agg, err := p.Query.Histogram(p.Window, step)
 	if err != nil {
-		return Histogram{}, refused(err)
+		return Histogram{}, r.searchFailed(ctx, p, "histogram", refused(err))
 	}
 	counts := map[int64]int64{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -225,10 +231,10 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 		return rows.Err()
 	})
 	if err != nil {
-		return Histogram{}, err
+		return Histogram{}, r.searchFailed(ctx, p, "histogram", err)
 	}
 	h := Histogram{StepMs: step.Milliseconds(), Buckets: []Bucket{}}
-	for at := p.Window.From.Truncate(step); at.Before(p.Window.To); at = at.Add(step) {
+	for at := binStart(p.Window.From, step); at.Before(p.Window.To); at = at.Add(step) {
 		n := counts[at.UnixMilli()]
 		h.Total += n
 		h.Buckets = append(h.Buckets, Bucket{Time: at.UTC().Format(time.RFC3339), Count: n})
@@ -240,7 +246,7 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 func (r *Reader) Aggregate(ctx context.Context, p Prepared) (Aggregation, error) {
 	agg, err := p.Query.Aggregate(p.Window)
 	if err != nil {
-		return Aggregation{}, refused(err)
+		return Aggregation{}, r.searchFailed(ctx, p, "aggregate", refused(err))
 	}
 	out := Aggregation{Levels: agg.Levels, Metrics: agg.Metrics, Rows: []AggRow{}}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -263,7 +269,7 @@ func (r *Reader) Aggregate(ctx context.Context, p Prepared) (Aggregation, error)
 		return rows.Err()
 	})
 	if err != nil {
-		return Aggregation{}, err
+		return Aggregation{}, r.searchFailed(ctx, p, "aggregate", err)
 	}
 	r.record(ctx, p, searched(map[string]any{"view": "aggregate", "row_count": len(out.Rows)}))
 	return out, nil

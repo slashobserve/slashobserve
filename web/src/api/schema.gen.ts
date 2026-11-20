@@ -565,7 +565,7 @@ export interface paths {
         };
         /**
          * Search the audit trail, newest first.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise. Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages. Every call is itself recorded as `audit.search` with the query form, the window and the row count, never the query text.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise. Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages. Every call is itself recorded as `audit.search` with the query as sent (cut at 4 KiB), its form, the window and the row count, and a refused query as a failed `audit.search`.
          */
         get: operations["listAuditEvents"];
         put?: never;
@@ -687,7 +687,7 @@ export interface paths {
         };
         /**
          * Download the matching audit events as NDJSON or CSV.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Streams the events in the window that match `q`, newest first, one JSON object per line in the shape of `listAuditEvents`, or CSV with a header row and `data` as JSON text. An export stops at 1,000,000 rows, the value of the `X-Export-Row-Limit` header; narrow the window to read more. Recorded as `audit.export` with the query form, the window, the format and the row count, never the query text.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Streams the events in the window that match `q`, newest first, one JSON object per line in the shape of `listAuditEvents`, or CSV with a header row and `data` as JSON text. An export stops at 1,000,000 rows, the value of the `X-Export-Row-Limit` header; narrow the window to read more. Recorded as `audit.export` with the query as sent (cut at 4 KiB), its form, the window, the format and the row count.
          */
         get: operations["exportAuditEvents"];
         put?: never;
@@ -9405,7 +9405,7 @@ export interface operations {
                 q?: string;
                 /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
                 since?: string;
-                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days. */
                 until?: string;
                 /** @description The `next_cursor` of the previous page. It pins the window of the first page, so `since` and `until` are ignored with it, and it is refused with another `q`. */
                 cursor?: string;
@@ -9427,7 +9427,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuditEventList"];
                 };
             };
-            /** @description `since` or `until` is not a time, the window is empty or longer than 31 days, `limit` is out of range, or the cursor is unreadable or belongs to another query (`invalid_request`). */
+            /** @description `since` or `until` is not a time, the window is empty or longer than 366 days, `limit` is out of range, or the cursor is unreadable or belongs to another query (`invalid_request`). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -9516,7 +9516,7 @@ export interface operations {
                 q?: string;
                 /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
                 since?: string;
-                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days. */
                 until?: string;
                 /** @description The field to count, such as `actor_name` or `action`; `GET /audit/fields` lists them. */
                 field: string;
@@ -9576,7 +9576,7 @@ export interface operations {
                 q?: string;
                 /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
                 since?: string;
-                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days. */
                 until?: string;
                 /** @description The most buckets wanted, 1 to 200. */
                 buckets?: number;
@@ -9634,7 +9634,7 @@ export interface operations {
                 q?: string;
                 /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
                 since?: string;
-                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days. */
                 until?: string;
             };
             header?: never;
@@ -9721,7 +9721,7 @@ export interface operations {
                 q?: string;
                 /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
                 since?: string;
-                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days. */
                 until?: string;
                 format?: "ndjson" | "csv";
             };

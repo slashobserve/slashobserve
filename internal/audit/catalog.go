@@ -61,7 +61,7 @@ var (
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
-	readKeys     = []string{"form", "since", "until", "row_count"}
+	readKeys     = []string{"form", "since", "until", "query", "row_count"}
 	searchKeys   = []string{"view", "field"}
 	exportKeys   = []string{"format", "truncated"}
 )

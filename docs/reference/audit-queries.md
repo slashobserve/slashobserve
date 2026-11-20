@@ -5,7 +5,8 @@ description: The fields of an audit event, the three query forms the audit trail
 
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
-Every read of the trail is itself recorded, as `audit.search` or `audit.export`, with the query form, the window and the row count, never the query text.
+Every read of the trail is itself recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
+A query that is refused is recorded too, as a `failed` event with its reason.
 
 ## Fields
 
@@ -90,7 +91,7 @@ A query that cannot be read answers 422 `query_invalid` with the parser's messag
 
 Every read covers a window from `since`, inclusive, to `until`, exclusive.
 Each takes an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; `until` is now by default and `since` 24 hours before `until`.
-A window longer than 31 days is refused with 400 `invalid_request`; read a longer period one window at a time.
+A window longer than 366 days is refused with 400 `invalid_request`; read a longer period one window at a time.
 Each read runs in a read-only transaction with a 30 second statement timeout and answers 422 `query_timeout` past it.
 
 A search returns 100 events a page by default and at most 1,000, newest first by `occurred_at` and then `id`.
