@@ -1,7 +1,9 @@
 package main
 
 import (
+	"net"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
@@ -51,5 +53,30 @@ FROM audit_events WHERE action IN ('server.start', 'server.stop') ORDER BY occur
 	}
 	if applied != migrations || migrations == 0 {
 		t.Fatalf("migration.apply events = %d, want one for each of the %d applied migrations", applied, migrations)
+	}
+}
+
+func TestAServerThatCannotBindItsPortRecordsNoStartAndNoStop(t *testing.T) {
+	database := dbtest.NewUnmigrated(t)
+	taken, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = taken.Close() }()
+	_, exited := startServer(t, database.URL(), map[string]string{"SLASHOBSERVE_HTTP_ADDR": taken.Addr().String()})
+	select {
+	case err := <-exited:
+		if err == nil {
+			t.Fatal("the server ran on a port that was taken")
+		}
+	case <-time.After(2 * time.Minute):
+		t.Fatal("the server did not stop on a taken port")
+	}
+	var n int
+	if err := database.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM audit_events WHERE action IN ('server.start', 'server.stop')`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("%d server start or stop events for a server that never listened", n)
 	}
 }

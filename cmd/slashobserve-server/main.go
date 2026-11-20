@@ -578,8 +578,12 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
+	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", cfg.HTTPAddr)
+	if err != nil {
+		return described("http_listen_failed", err)
+	}
 	recordSystemEvent(ctx, logger, audit.Event{Action: "server.start", Target: serverTarget(serverID)})
-	served := serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close)
+	served := serve(ctx, logger, listener, handler, broker.Close)
 	recordServerStop(ctx, logger, serverID, served)
 	if served != nil {
 		return described("http_server_failed", served)
@@ -863,12 +867,11 @@ func newLogger(cfg config.Config) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 }
 
-func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
+func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
 	srv := &http.Server{
-		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
@@ -881,8 +884,8 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 	}
 	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info("listening", slog.String("addr", addr))
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Info("listening", slog.String("addr", listener.Addr().String()))
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
 	}()
