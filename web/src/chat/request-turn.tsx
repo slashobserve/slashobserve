@@ -350,7 +350,7 @@ export function RequestTurn({
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
-                {noFindingText(request)}
+                {noFindingText(detail)}
               </p>
             ) : null
           ) : null}

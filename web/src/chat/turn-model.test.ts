@@ -42,28 +42,41 @@ describe("noFindingText", () => {
       "an answer in a folder the reader cannot see",
       "observe",
       "observation",
+      "o1",
       "The answer is saved in an observation in a folder you cannot see.",
+    ],
+    [
+      "an answer kept in a chat about a dashboard the reader cannot open",
+      "prompt",
+      "observation",
+      null,
+      "The answer is about a dashboard you cannot open.",
     ],
     [
       "an investigation whose finding is hidden",
       "investigate",
       "observation",
+      "o1",
       "The answer is saved in an observation in a folder you cannot see.",
     ],
     [
       "an investigation with no finding",
       "investigate",
       "none",
+      null,
       "The run finished without a finding.",
     ],
     [
       "a request that saved nothing",
       "observe",
       "none",
+      null,
       "The request finished without a dashboard.",
     ],
-  ] as const)("%s", (_name, source, result_kind, expected) => {
-    expect(noFindingText({ source, result_kind })).toBe(expected)
+  ] as const)("%s", (_name, source, result_kind, observation_id, expected) => {
+    expect(noFindingText({ source, result_kind, observation_id })).toBe(
+      expected
+    )
   })
 })
 

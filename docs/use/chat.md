@@ -147,6 +147,7 @@ Between two messages of the agent's live text there is a blank line.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 A chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
 An Admin who opens someone else's chat whose answer sits in an observation in a folder the Admin cannot see, such as that person's My Dashboards, reads "The answer is saved in an observation in a folder you cannot see."
+An answer that was never saved as an observation is hidden the same way when the chat is about a dashboard you cannot open, and the chat reads "The answer is about a dashboard you cannot open."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 
 The build page shows the chat beside the build.
