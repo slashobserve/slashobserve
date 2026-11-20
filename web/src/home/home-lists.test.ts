@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest"
 
 import type { InboxItem } from "@/inbox/inbox-item"
-import type { RequestSummary } from "@/observe/queries"
 
 import {
   agentMark,
@@ -10,7 +9,6 @@ import {
   importMeta,
   messageCountText,
   needsYou,
-  newestChats,
   pickUp,
   runningText,
   workingPlaces,
@@ -19,22 +17,6 @@ import {
   type WorkingRun,
 } from "./home-lists"
 
-function request(
-  id: string,
-  createdAt: string,
-  state: RequestSummary["state"] = "succeeded",
-  pinnedAt: string | null = null,
-  extra: Partial<RequestSummary> = {}
-): RequestSummary {
-  return {
-    id,
-    state,
-    created_at: createdAt,
-    pinned_at: pinnedAt,
-    ...extra,
-  } as RequestSummary
-}
-
 function inboxItem(seq: number, reason: InboxItem["reason"]): InboxItem {
   return { seq, reason } as InboxItem
 }
@@ -42,72 +24,6 @@ function inboxItem(seq: number, reason: InboxItem["reason"]): InboxItem {
 function viewed(id: string, viewedAt: string) {
   return { id, title: id, viewed_at: viewedAt }
 }
-
-describe("newestChats", () => {
-  test("puts a newer unpinned chat before an older pinned one", () => {
-    const pinned = request(
-      "pinned",
-      "2026-11-01T10:00:00Z",
-      "succeeded",
-      "2026-11-02T10:00:00Z"
-    )
-    const newer = request("newer", "2026-11-10T10:00:00Z")
-    expect(newestChats([pinned, newer], 5).map((r) => r.id)).toEqual([
-      "newer",
-      "pinned",
-    ])
-  })
-
-  test("cuts the list to the limit", () => {
-    const requests = ["a", "b", "c", "d"].map((id, index) =>
-      request(id, `2026-11-0${index + 1}T10:00:00Z`)
-    )
-    expect(newestChats(requests, 2).map((r) => r.id)).toEqual(["d", "c"])
-  })
-
-  test("shows a dashboard's build, edit and question as one row", () => {
-    const dashboard = { dashboard_id: "a" }
-    const rows = newestChats(
-      [
-        request("build", "2026-11-01T10:00:00Z", "succeeded", null, {
-          ...dashboard,
-          source: "observe",
-          title: "Checkout health",
-        }),
-        request("edit", "2026-11-01T11:00:00Z", "succeeded", null, {
-          ...dashboard,
-          source: "prompt",
-          title: "Rename a panel",
-        }),
-        request("question", "2026-11-01T12:00:00Z", "succeeded", null, {
-          ...dashboard,
-          source: "prompt",
-          title: "What did you rename",
-        }),
-        request("other", "2026-10-31T12:00:00Z"),
-      ],
-      5
-    )
-    expect(rows.map((r) => [r.id, r.title])).toEqual([
-      ["question", "Checkout health"],
-      ["other", undefined],
-    ])
-  })
-
-  test("fills the limit with distinct chats after collapsing", () => {
-    const turns = ["t1", "t2", "t3"].map((id, index) =>
-      request(id, `2026-11-0${index + 1}T10:00:00Z`, "succeeded", null, {
-        source: "prompt",
-        dashboard_id: "a",
-      })
-    )
-    const other = request("o", "2026-10-01T10:00:00Z")
-    expect(newestChats([...turns, other], 2).map((r) => r.id)).toEqual([
-      "t3",
-      "o",
-    ])
-  })
-})
 
 describe("needsYou", () => {
   test("drops items with no reason and cuts to the limit", () => {
