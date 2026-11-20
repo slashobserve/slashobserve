@@ -127,11 +127,12 @@ describe("MessageText", () => {
     expect(container.textContent).toBe("Cut at `checkout and more...")
   })
 
-  it("renders the code spans of an outside agent's comment as code", () => {
+  it("renders the code spans of an outside agent's comment as code and nothing else", () => {
     const mcp = { ...person, origin: "mcp" as const, client: "Codex" }
-    const { container } = show("see `checkout`", { actor: mcp })
+    const { container } = show("see `checkout` and **bold**", { actor: mcp })
     expect(container.querySelector("code")?.textContent).toBe("checkout")
-    expect(container.textContent).toBe("see checkout")
+    expect(container.querySelector("strong")).toBeNull()
+    expect(container.textContent).toBe("see checkout and **bold**")
   })
 
   it("shows the closing chat link of the agent's own run as a real link", async () => {
@@ -156,31 +157,30 @@ describe("MessageText", () => {
     expect(container.textContent).toContain(`[the chat](/c/${other})`)
   })
 
-  it("renders an outside agent's comment as Markdown like a person's", () => {
+  it("never renders an outside agent's text as Markdown", () => {
     const mcp = { ...person, origin: "mcp" as const, client: "Codex" }
-    const { container } = show("**bold** and `code`", { actor: mcp })
-    expect(container.querySelector("strong")?.textContent).toBe("bold")
-    expect(container.querySelector("code")?.textContent).toBe("code")
+    const { container } = show("**bold** [x](https://example.com)", {
+      actor: mcp,
+    })
+    expect(container.querySelector("strong")).toBeNull()
+    expect(container.querySelector("a")).toBeNull()
   })
 
-  it("renders a service account's comment as Markdown like a person's", () => {
+  it("renders a service account's text with code spans only", () => {
     const account = {
       ...person,
       kind: "service_account" as const,
       origin: "api" as const,
     }
-    const { container } = show("**bold** and `code`", { actor: account })
-    expect(container.querySelector("strong")?.textContent).toBe("bold")
-    expect(container.querySelector("code")?.textContent).toBe("code")
-  })
-
-  it("never renders raw HTML from a service account", () => {
-    const account = { ...person, kind: "service_account" as const }
-    const { container } = show("<img src=x onerror=alert(1)><b>hi</b>", {
+    const { container } = show("**bold** and `code` [x](https://example.com)", {
       actor: account,
     })
-    expect(container.querySelector("img")).toBeNull()
-    expect(container.querySelector("b")).toBeNull()
+    expect(container.querySelector("code")?.textContent).toBe("code")
+    expect(container.querySelector("strong")).toBeNull()
+    expect(container.querySelector("a")).toBeNull()
+    expect(container.textContent).toBe(
+      "**bold** and code [x](https://example.com)"
+    )
   })
 
   it("keeps a folded comment on one plain line", () => {
