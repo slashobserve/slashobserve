@@ -3,6 +3,7 @@ import { NotebookTextIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
+import { useObservationOrigin } from "@/observations/origin"
 import type { DataPanel } from "@/spec"
 
 export function AddToObservationAction({
@@ -16,6 +17,7 @@ export function AddToObservationAction({
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
+  const observation = useObservationOrigin()
   return (
     <>
       <Button
@@ -36,6 +38,7 @@ export function AddToObservationAction({
           to={range.to}
           onClose={() => setOpen(false)}
           trigger={trigger}
+          defaultObservationId={observation}
         />
       ) : null}
     </>

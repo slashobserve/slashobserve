@@ -411,6 +411,39 @@ describe("ActivityComposer", () => {
     })
   })
 
+  it("starts the investigation on Enter when the Investigate chip is on", async () => {
+    useActivityStore.getState().setAgentKind("investigate")
+    const posts = stubServer()
+    const user = userEvent.setup()
+    const { form } = await renderComposer({ draft: "why is latency up" })
+    await user.click(
+      within(form).getByRole("textbox", { name: "Comment or request" })
+    )
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/observe")
+    expect(posts[0].body).toMatchObject({
+      kind: "investigate",
+      prompt: "why is latency up",
+    })
+  })
+
+  it("posts a comment on Enter when the chip is on but the agent is blocked", async () => {
+    useActivityStore.getState().setAgentKind("investigate")
+    const posts = stubServer()
+    const user = userEvent.setup()
+    const { form } = await renderComposer({
+      draft: "why is latency up",
+      gate: { kind: "blocked", reason: "The agent is not set up." },
+    })
+    await user.click(
+      within(form).getByRole("textbox", { name: "Comment or request" })
+    )
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).not.toBe("/api/v1/observe")
+  })
+
   it("sends rather than investigates when investigate mode is left over for someone who cannot investigate", async () => {
     useActivityStore.getState().setAgentKind("investigate")
     const { form } = await renderComposer({ canInvestigate: false })
