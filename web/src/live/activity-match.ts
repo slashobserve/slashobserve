@@ -3,12 +3,24 @@ import type { Block, Observation } from "@/observations/queries"
 
 export type ActivityEvent = components["schemas"]["ActivityEvent"]
 
+type Touch = "observation" | "discussion" | "both"
+
+function namesObservation(event: ActivityEvent, id: string): boolean {
+  const object = (event.data as { object?: { kind?: unknown; id?: unknown } })
+    .object
+  return object?.kind === "observation" && object.id === id
+}
+
+function discussionTouch(event: ActivityEvent): Touch {
+  return event.actor.run_id === null ? "discussion" : "both"
+}
+
 export function touchesObservation(
   event: ActivityEvent,
   observation: Pick<Observation, "id" | "thread_id"> & {
     blocks?: readonly Pick<Block, "run_id">[]
   }
-): "observation" | "discussion" | null {
+): Touch | null {
   const { kind, id } = event.target
   if (kind === "observation" && id === observation.id) return "observation"
   if (
@@ -17,6 +29,11 @@ export function touchesObservation(
   ) {
     return "observation"
   }
-  if (kind === "thread" && id === observation.thread_id) return "discussion"
+  if (
+    kind === "thread" &&
+    (id === observation.thread_id || namesObservation(event, observation.id))
+  ) {
+    return discussionTouch(event)
+  }
   return null
 }

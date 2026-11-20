@@ -657,6 +657,20 @@ describe("useObservationLive", () => {
     )
   })
 
+  it("refreshes the page and the discussion when a run replies in the thread", () => {
+    const queryClient = mount()
+    act(() =>
+      FakeEventSource.instances[0]?.emit("activity", {
+        ...activity("thread", "t1"),
+        actor: { ...author, kind: "user", run_id: "r9" },
+      })
+    )
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
+    expect(isInvalidated(queryClient, threadKeys.list("observation:o1"))).toBe(
+      true
+    )
+  })
+
   it("ignores events about other things and malformed frames", () => {
     const queryClient = mount()
     const source = FakeEventSource.instances[0]

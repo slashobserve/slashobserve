@@ -8,17 +8,28 @@ const observation = {
   blocks: [{ run_id: null }, { run_id: "r1" }],
 }
 
-function event(kind: ActivityEvent["target"]["kind"], id: string) {
+function event(
+  kind: ActivityEvent["target"]["kind"],
+  id: string,
+  extra: Partial<Pick<ActivityEvent, "actor" | "data">> = {}
+) {
   return {
     seq: 1,
     type: "observation.updated",
     target: { kind, id },
     dashboard_id: null,
     folder_id: null,
-    actor: {} as ActivityEvent["actor"],
+    actor: { run_id: null } as ActivityEvent["actor"],
     data: {},
+    ...extra,
     created_at: "2026-11-12T10:00:00Z",
   } satisfies ActivityEvent
+}
+
+function namesObservation(id: string) {
+  return {
+    object: { kind: "observation", id },
+  } as unknown as ActivityEvent["data"]
 }
 
 describe("touchesObservation", () => {
@@ -52,5 +63,30 @@ describe("touchesObservation", () => {
         blocks: undefined,
       })
     ).toBeNull()
+  })
+
+  it("matches a thread event by the observation it names when the page has no thread yet", () => {
+    const named = event("thread", "t9", {
+      data: namesObservation("o1"),
+    })
+    expect(
+      touchesObservation(named, { id: "o1", thread_id: null, blocks: [] })
+    ).toBe("discussion")
+  })
+
+  it("ignores a thread event that names another observation", () => {
+    const named = event("thread", "t9", {
+      data: namesObservation("o2"),
+    })
+    expect(
+      touchesObservation(named, { id: "o1", thread_id: null, blocks: [] })
+    ).toBeNull()
+  })
+
+  it("refreshes the page too when a run replies in the discussion, because the run just finished", () => {
+    const reply = event("thread", "t1", {
+      actor: { run_id: "r9" } as ActivityEvent["actor"],
+    })
+    expect(touchesObservation(reply, observation)).toBe("both")
   })
 })
