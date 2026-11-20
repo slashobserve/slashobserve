@@ -73,3 +73,14 @@ func (s *Service) RenameFromChat(ctx context.Context, by auth.Principal, chatID 
 	}
 	return revisions.TitleRenamed, nil
 }
+
+func (s *Service) Visible(ctx context.Context, by auth.Principal, id pgtype.UUID) (bool, error) {
+	_, _, _, err := s.open(ctx, by, id)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return true, nil
+}

@@ -199,6 +199,15 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	}
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
 	out.ReadOnly = readOnly
+	if out.ObservationID != nil && r.opts.ObservationVisible != nil {
+		visible, err := r.opts.ObservationVisible(ctx, caller, row.ObservationID)
+		if err != nil {
+			return agentRequestJSON{}, fmt.Errorf("check the observation a run made: %w", err)
+		}
+		if !visible {
+			out.ObservationID = nil
+		}
+	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
 	}
@@ -361,7 +370,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
 
-		ObservationID:    optionalUUID(row.ObservationID),
+		ObservationID:    visibleObservationID(row),
 		ObservationTitle: optionalText(row.ObservationTitle),
 		ChatID:           chatOf(row.ID, row.ChatID),
 		AllowedActions:   actionStrings(allowed),
@@ -384,4 +393,11 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 		out.ResultVersion = &n
 	}
 	return out
+}
+
+func visibleObservationID(row dbsqlc.ListAgentRequestsByRow) *string {
+	if !row.ObservationTitle.Valid {
+		return nil
+	}
+	return optionalUUID(row.ObservationID)
 }

@@ -359,12 +359,13 @@ func run() error {
 	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
-		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
-		ObservationURL: func(id string) string { return links.Observation(cfg.PublicURL, id) },
-		Finding:        findingOfRequest(findingsService, findingURL),
-		SaveAnswer:     saveAnswerOf(findingsService),
-		LiveText:       liveText.Text,
-		ShareTitle:     observationsService.RenameFromChat,
+		DashboardURL:       func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
+		ObservationURL:     func(id string) string { return links.Observation(cfg.PublicURL, id) },
+		Finding:            findingOfRequest(findingsService, findingURL),
+		SaveAnswer:         saveAnswerOf(findingsService),
+		LiveText:           liveText.Text,
+		ShareTitle:         observationsService.RenameFromChat,
+		ObservationVisible: observationsService.Visible,
 	}
 	revisionOpts := []revisions.Option{
 		revisions.WithPanels(dashboardsService),
