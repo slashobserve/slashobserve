@@ -147,9 +147,23 @@ func TestAnUnreachableIdentityProviderIsRecordedAsARefusedSignInStart(t *testing
 func TestAProviderErrorIsRecordedWithItsCodeAlone(t *testing.T) {
 	r := newCallbackRig(t, "ada@example.com", nil)
 	rec := httptest.NewRecorder()
-	r.engine.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback?error=access_denied&error_description="+url.QueryEscape("secret words")+"&state=x", nil))
+	r.engine.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/auth/login", nil))
+	location, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := location.Query().Get("state")
+	query := url.Values{"error": {"access_denied"}, "error_description": {"secret words"}, "state": {state}}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback?"+query.Encode(), nil)
+	req.Header.Set("Cookie", r.service.loginCookie+"="+state)
+	rec = httptest.NewRecorder()
+	r.engine.ServeHTTP(rec, req)
 	got := r.eventsOf(t, rec.Header().Get(audit.RequestIDHeader))
 	if len(got) != 1 || got[0].reason != "access_denied" || got[0].data != `{"count": 1, "provider_error": "access_denied"}` {
 		t.Fatalf("events = %+v", got)
+	}
+	var mentions int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM audit_events WHERE row_to_json(audit_events)::text LIKE '%secret words%'`).Scan(&mentions); err != nil || mentions != 0 {
+		t.Fatalf("%d audit rows carry the provider's description, %v", mentions, err)
 	}
 }
