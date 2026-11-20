@@ -138,6 +138,10 @@ func (k *keyBuilder) selections(selections map[string]queryproxy.Selection) {
 	}
 }
 
+func (k *keyBuilder) unsigned(n uint64) {
+	k.buf = binary.BigEndian.AppendUint64(k.buf, n)
+}
+
 func (k *keyBuilder) sum() cacheKey { return sha256.Sum256(k.buf) }
 
 const restrictedScope = "\x00restricted"
@@ -171,7 +175,7 @@ func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, 
 func valuesKey(generation uint64, id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("values")
-	k.number(int64(generation))
+	k.unsigned(generation)
 	k.text(string(id.Bytes[:]))
 	k.number(int64(version))
 	k.text(name)
