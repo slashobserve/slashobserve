@@ -38,7 +38,7 @@ Set `SLASHOBSERVE_LLM_MODEL` to use another, for example `claude-opus-5-5` for h
 The server does not validate the model name itself.
 `SLASHOBSERVE_LLM_EFFORT` sets the model's effort level: `low`, `medium`, `high`, `xhigh` or `max`, and `medium` when unset.
 To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOBSERVE_LLM_API_KEY_FILE` instead; set only one of the two.
-To send the calls through a gateway, set `SLASHOBSERVE_LLM_BASE_URL` to its root without `/v1`, because the agent adds that path itself.
+To send `anthropic` calls through a gateway, set `SLASHOBSERVE_LLM_BASE_URL` to its root without `/v1`, because the agent adds that path itself; for `openai` the URL is used as written, so include `/v1` as in the examples below.
 
 ## OpenAI-compatible
 
