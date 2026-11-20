@@ -50,3 +50,18 @@ func (r *Runner) CheckPanelAccess(ctx context.Context, d *spec.Dashboard, panelI
 	}
 	return nil
 }
+
+func (r *Runner) CheckVariableAccess(ctx context.Context, d *spec.Dashboard, name string, selections map[string]Selection) error {
+	i := variableIndex(d, name)
+	if i < 0 || d.Variables[i].Datasource == "" {
+		return nil
+	}
+	ref := d.Variables[i].Datasource
+	if picker, ok := referencedVariable(d, ref); ok {
+		if _, selected := selections[picker]; !selected {
+			return nil
+		}
+	}
+	_, err := r.resolveDatasource(ctx, d, ref, selections)
+	return err
+}

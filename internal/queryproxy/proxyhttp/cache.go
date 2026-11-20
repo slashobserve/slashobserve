@@ -41,10 +41,8 @@ type specKey struct {
 }
 
 type loadedVersion struct {
-	dashboard       *spec.Dashboard
-	usesUser        bool
-	restricted      bool
-	picksDatasource bool
+	dashboard *spec.Dashboard
+	usesUser  bool
 }
 
 type queryMeta struct {
@@ -170,9 +168,10 @@ func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, 
 	return k.sum()
 }
 
-func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection, principal string) cacheKey {
+func valuesKey(generation uint64, id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("values")
+	k.number(int64(generation))
 	k.text(string(id.Bytes[:]))
 	k.number(int64(version))
 	k.text(name)

@@ -273,7 +273,7 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	v, err := h.dashboard(ctx, id, version)
-	if err == nil && !readable(ctx, v) {
+	if err == nil && !h.readable(ctx, v) {
 		err = fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, c.Param("panel_id"))
 	}
 	if err != nil {
@@ -489,7 +489,7 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 	if v.usesUser {
 		scope = principalScope(principal.Kind, user)
 	}
-	if v.picksDatasource && datasource.ReadsRestricted(ctx) {
+	if datasource.ReadsRestricted(ctx) {
 		scope += restrictedScope
 	}
 	return user, scope
@@ -565,7 +565,7 @@ func (h *Handler) values(c *gin.Context) {
 		return
 	}
 	v, err := h.dashboard(ctx, id, version)
-	if err == nil && !readable(ctx, v) {
+	if err == nil && !h.readable(ctx, v) {
 		err = dashboards.ErrNotFound
 	}
 	if err != nil {
@@ -607,7 +607,10 @@ func (h *Handler) variableOptions(ctx context.Context, v loadedVersion, cached *
 		options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, selections, user)
 		return newValuesEntry(options, truncated), false, err
 	}
-	key := valuesKey(cached.id, cached.version, name, rng.From, rng.To, selections, scope)
+	if err := h.runner.CheckVariableAccess(ctx, d, name, selections); err != nil {
+		return valuesEntry{}, false, err
+	}
+	key := valuesKey(h.registry.Generation(), cached.id, cached.version, name, rng.From, rng.To, selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		return entry, true, nil
 	}
@@ -743,15 +746,11 @@ func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (l
 }
 
 func (h *Handler) loaded(d *spec.Dashboard) loadedVersion {
-	return loadedVersion{dashboard: d, usesUser: queryproxy.DashboardUsesUser(d), restricted: h.runner.UsesRestricted(d), picksDatasource: picksDatasource(d)}
+	return loadedVersion{dashboard: d, usesUser: queryproxy.DashboardUsesUser(d)}
 }
 
-func picksDatasource(d *spec.Dashboard) bool {
-	return slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Type == spec.DatasourceVariable })
-}
-
-func readable(ctx context.Context, v loadedVersion) bool {
-	return !v.restricted || datasource.ReadsRestricted(ctx)
+func (h *Handler) readable(ctx context.Context, v loadedVersion) bool {
+	return datasource.ReadsRestricted(ctx) || !h.runner.UsesRestricted(v.dashboard)
 }
 
 func failureAttrs(err error) []any {

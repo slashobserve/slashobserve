@@ -187,6 +187,12 @@ func (r *Registry) nextGenerationLocked() uint64 {
 	return r.generations
 }
 
+func (r *Registry) Generation() uint64 {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
+	return r.generations
+}
+
 func (r *Registry) current(in Instance) bool {
 	r.instancesMu.RLock()
 	defer r.instancesMu.RUnlock()

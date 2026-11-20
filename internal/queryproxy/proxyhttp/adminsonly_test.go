@@ -189,3 +189,88 @@ func TestAPublicLinkToAVersionThatReadsAnAdminsOnlyDatasourceIsNotFound(t *testi
 		t.Fatal("a public link reached the admins only datasource")
 	}
 }
+
+const (
+	flipVersion       = 4
+	flipPickedVersion = 5
+)
+
+func flippingHarness(t *testing.T) (*harness, func(datasource.Audience)) {
+	t.Helper()
+	hn := newHarness(t)
+	flip := datasource.Instance{UID: "flip", Datasource: &fakeDatasource{valuesFor: func(datasource.Query) []string { return []string{"secret"} }}}
+	set := func(audience datasource.Audience) {
+		t.Helper()
+		flip.Audience = audience
+		if err := hn.h.registry.Put(flip); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set(datasource.AudienceEveryone)
+	d := testDashboard()
+	d.Variables = append(d.Variables, spec.Variable{Name: "fj", Type: spec.QueryVariable, Datasource: "flip", Query: "label_values(up, job)"})
+	d.Panels = append(d.Panels, spec.Panel{ID: "p_flip", Type: spec.Table, Title: "flip", Datasource: "flip", Queries: []spec.Query{{Query: "count(up)"}}})
+	hn.specs.known[specKey{id: hn.id, version: flipVersion}] = d
+	hn.specs.known[specKey{id: hn.id, version: flipPickedVersion}] = &spec.Dashboard{
+		SpecVersion: spec.Version,
+		Title:       "flip picked",
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
+		Variables: []spec.Variable{
+			{Name: "fds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus, Regex: "/^flip$/"},
+			{Name: "fdj", Type: spec.QueryVariable, Datasource: "${fds}", Query: "label_values(up, job)"},
+		},
+	}
+	return hn, set
+}
+
+func TestADatasourceSwitchedToAdminsIsClosedToEveryoneElseAtOnceThoughItsVersionWasCached(t *testing.T) {
+	admin, viewer := readers[3], readers[0]
+	hn, set := flippingHarness(t)
+	values := hn.versionPath(flipVersion, "/variables/fj/values?"+window)
+	paths := []string{values, hn.versionPath(flipVersion, "/panels/p_flip/data?"+window+"&var-job=api"), hn.versionPath(flipVersion, "/panels/p_ts/data?"+window+"&var-job=api")}
+	for _, path := range paths {
+		if rec := hn.getAs(viewer, path); rec.Code != http.StatusOK {
+			t.Fatalf("viewer before the switch %s: status %d %s", path, rec.Code, rec.Body)
+		}
+	}
+	set(datasource.AudienceAdmins)
+	if rec := hn.getAs(admin, values); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "secret") {
+		t.Fatalf("admin after the switch: status %d %s", rec.Code, rec.Body)
+	}
+	for _, path := range paths {
+		if rec := hn.getAs(viewer, path); rec.Code != http.StatusNotFound {
+			t.Fatalf("viewer after the switch %s: status %d %s", path, rec.Code, rec.Body)
+		}
+	}
+	router := hn.publicRouter(fakePublicLinks{"flip": hn.publicLink(public.ModeFrozen, flipVersion, nil)})
+	for _, path := range []string{"/api/v1/public/flip/variables/fj/values?" + window, "/api/v1/public/flip/panels/p_flip/data?" + window, "/api/v1/public/flip/panels/p_ts/data?" + window} {
+		expectError(t, publicGet(router, path), http.StatusNotFound, "not_found")
+	}
+}
+
+func TestValuesWarmedThroughADefaultPickedDatasourceAreNotServedOnceItBecomesAdminsOnly(t *testing.T) {
+	viewer := readers[0]
+	hn, set := flippingHarness(t)
+	values := hn.versionPath(flipPickedVersion, "/variables/fdj/values?"+window)
+	if rec := hn.getAs(viewer, values); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "secret") {
+		t.Fatalf("viewer before the switch: status %d %s", rec.Code, rec.Body)
+	}
+	set(datasource.AudienceAdmins)
+	if rec := hn.getAs(viewer, values); strings.Contains(rec.Body.String(), "secret") {
+		t.Fatalf("viewer after the switch: status %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestAnAdminsValuesAreNeverServedFromTheCacheToANonAdminWhoMayReadTheVariable(t *testing.T) {
+	admin, viewer := readers[3], readers[0]
+	hn, set := flippingHarness(t)
+	set(datasource.AudienceAdmins)
+	values := hn.versionPath(flipVersion, "/variables/fj/values?"+window)
+	if rec := hn.getAs(admin, values); rec.Code != http.StatusOK {
+		t.Fatalf("admin: status %d %s", rec.Code, rec.Body)
+	}
+	set(datasource.AudienceEveryone)
+	if rec := hn.getAs(viewer, values); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `"cached":true`) {
+		t.Fatalf("viewer got what the Admin cached: status %d %s", rec.Code, rec.Body)
+	}
+}

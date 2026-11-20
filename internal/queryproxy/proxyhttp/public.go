@@ -49,7 +49,7 @@ func (h *Handler) VariableOptions(ctx context.Context, dashboardID pgtype.UUID, 
 	}
 	defer release()
 	v := h.loaded(d)
-	if !readable(ctx, v) {
+	if !h.readable(ctx, v) {
 		return nil, dashboards.ErrNotFound
 	}
 	entry, _, err := h.variableOptions(ctx, v, &cachedVersion{id: dashboardID, version: version}, name, valuesRange(rng), selectionsOf(earlier))
@@ -127,7 +127,7 @@ func (d *PublicData) load(c *gin.Context, query url.Values, link public.Resolved
 	}
 	v, err := d.h.dashboard(c.Request.Context(), link.DashboardID, link.Version)
 	switch {
-	case errors.Is(err, dashboards.ErrNotFound), err == nil && (v.usesUser || v.restricted):
+	case errors.Is(err, dashboards.ErrNotFound), err == nil && (v.usesUser || !d.h.readable(c.Request.Context(), v)):
 		linkNotFound(c)
 		return loadedVersion{}, params{}, false
 	case err != nil:
