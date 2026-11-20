@@ -62,7 +62,7 @@ On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
 
-Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not.
+Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not; a macro inside a comment does not count, because it never runs.
 The field counts follow the same rule, except that a query selecting `Timestamp` is counted over the time range even without the macro.
 So no ClickHouse request reads a table beyond the range at the top of the page.
 Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.

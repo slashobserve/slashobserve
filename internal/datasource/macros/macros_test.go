@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -768,6 +769,21 @@ func TestLocate(t *testing.T) {
 			t.Fatalf("Locate = (%d, %d, %v)", s, e, inVar)
 		}
 	})
+}
+
+func TestExpandedReferencesLeaveOutTheOnesInComments(t *testing.T) {
+	query := "SELECT ServiceName, '${__from:date}' FROM otel_traces -- $__timeFilter(Timestamp)\n/* $__fromTime */ WHERE $__dateFilter(EventDate) # $__toTime\n"
+	refs, err := macros.ExpandedReferences(macros.ClickHouse, query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, ref := range refs {
+		names = append(names, ref.Name)
+	}
+	if want := []string{"__from", "__dateFilter"}; !slices.Equal(names, want) {
+		t.Fatalf("names = %q, want %q", names, want)
+	}
 }
 
 func TestExpandForLint(t *testing.T) {
