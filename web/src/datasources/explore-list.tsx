@@ -1,5 +1,6 @@
-import { useId } from "react"
+import { useId, useState } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
+import { SearchIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/empty-state"
 import { LoadProblem } from "@/components/load-problem"
@@ -7,6 +8,7 @@ import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
@@ -15,6 +17,9 @@ import { SavedSearchTable } from "@/saved-searches/saved-search-table"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { statusOf } from "./format"
+import { useSourceServices } from "./service-queries"
+import { filterSources, serviceSignal } from "./services"
+import { SourceServices } from "./source-services"
 import {
   exploreLink,
   exploreText,
@@ -38,15 +43,17 @@ const emptyText = {
 } as const
 
 const tableWidth = 480
+const servicesTableWidth = 720
 const skeletonRows = 2
 
-function SourceColumns() {
+function SourceColumns({ withServices }: { withServices: boolean }) {
   return (
     <thead>
       <tr>
         <HeaderCell>Name</HeaderCell>
         <HeaderCell>Language</HeaderCell>
         <HeaderCell>Status</HeaderCell>
+        {withServices ? <HeaderCell>Services</HeaderCell> : null}
       </tr>
     </thead>
   )
@@ -55,7 +62,7 @@ function SourceColumns() {
 function SourceSkeleton({ headingId }: { headingId: string }) {
   return (
     <TableCard labelledBy={headingId} minWidth={tableWidth} stackOnNarrow>
-      <SourceColumns />
+      <SourceColumns withServices={false} />
       <tbody aria-busy="true">
         {Array.from({ length: skeletonRows }, (_, index) => (
           <tr key={index}>
@@ -82,6 +89,10 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const { sources, isPending, isError, error, refetch } =
     useExploreSources(kind)
+  const signal = serviceSignal(kind)
+  const services = useSourceServices(sources, signal)
+  const [filter, setFilter] = useState("")
+  const shown = filterSources(sources, services, filter)
 
   const adminLink = roleAtLeast(principal.role, "admin") ? (
     <Link
@@ -96,9 +107,29 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
     <>
       <PageHeader title={name} />
       <section aria-labelledby={sourcesId}>
-        <h2 id={sourcesId} className="mb-2 text-sm font-semibold">
-          Sources
-        </h2>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 id={sourcesId} className="text-sm font-semibold">
+            Sources
+          </h2>
+          {signal !== null && sources.length > 0 ? (
+            <div className="relative max-w-xs min-w-[200px] flex-1">
+              <SearchIcon
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="search"
+                aria-label="Filter sources and services"
+                placeholder="Filter sources and services"
+                autoComplete="off"
+                maxLength={200}
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                className="pl-8"
+              />
+            </div>
+          ) : null}
+        </div>
         {isPending ? (
           <SourceSkeleton headingId={sourcesId} />
         ) : isError ? (
@@ -115,10 +146,21 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
             </EmptyState>
           </div>
         ) : (
-          <TableCard labelledBy={sourcesId} minWidth={tableWidth} stackOnNarrow>
-            <SourceColumns />
+          <TableCard
+            labelledBy={sourcesId}
+            minWidth={signal === null ? tableWidth : servicesTableWidth}
+            stackOnNarrow
+          >
+            <SourceColumns withServices={signal !== null} />
             <tbody>
-              {sources.map((source) => {
+              {shown.length === 0 ? (
+                <tr>
+                  <Cell colSpan={4} className="text-muted-foreground">
+                    No source or service matches the filter.
+                  </Cell>
+                </tr>
+              ) : null}
+              {shown.map((source) => {
                 const { tone, text } = statusOf(source)
                 return (
                   <tr key={source.uid}>
@@ -140,6 +182,15 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
                         </StatusLabel>
                       </div>
                     </Cell>
+                    {signal !== null ? (
+                      <Cell data-label="Services" className="max-w-[420px]">
+                        <SourceServices
+                          kind={signal}
+                          uid={source.uid}
+                          state={services.get(source.uid)}
+                        />
+                      </Cell>
+                    ) : null}
                   </tr>
                 )
               })}
