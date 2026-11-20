@@ -14,8 +14,9 @@ import (
 )
 
 var nonHTTPAuditSources = map[audit.Action]string{
-	audit.ActionGap:   "the access event writer, when its buffer drops events",
-	audit.ActionPrune: "the audit_partitions job, when it removes old partitions",
+	audit.ActionGap:    "the access event writer, when its buffer drops events",
+	audit.ActionPrune:  "the audit_partitions job, when it removes old partitions",
+	audit.ActionRefuse: "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 }
 
 var pendingAuditActions = []audit.Action{

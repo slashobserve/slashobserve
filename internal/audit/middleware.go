@@ -83,7 +83,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		return
 	}
 	action := o.declared.Action
-	outcome := outcomeForStatus(o.status)
+	outcome := outcomeFor(o.status, o.declared)
 	reason := o.code
 	if len(inTx) > 0 {
 		recorded, err := r.anyCommitted(ctx, inTx)
@@ -103,7 +103,10 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		}
 	}
 	if action == "" {
-		return
+		if !refused(o.status) {
+			return
+		}
+		action = ActionRefuse
 	}
 	row, err := r.row(ctx, Event{
 		Action:   action,
@@ -142,14 +145,19 @@ func (d Declaration) target(params gin.Params) Target {
 	return t
 }
 
-func outcomeForStatus(status int) Outcome {
+func outcomeFor(status int, declared Declaration) Outcome {
+	_, namesTarget := declared.Target.PathParam()
 	switch {
 	case status < http.StatusBadRequest:
 		return OutcomeSuccess
-	case status == http.StatusUnauthorized, status == http.StatusForbidden, status == http.StatusNotFound, status == http.StatusTooManyRequests:
+	case refused(status), status == http.StatusNotFound && namesTarget:
 		return OutcomeDenied
 	}
 	return OutcomeFailed
+}
+
+func refused(status int) bool {
+	return status == http.StatusUnauthorized || status == http.StatusForbidden || status == http.StatusTooManyRequests
 }
 
 func unauthenticatedOrigin(r *http.Request) string {

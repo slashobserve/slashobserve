@@ -31,6 +31,7 @@ func (s storeRig) engine(t *testing.T, handler gin.HandlerFunc) *gin.Engine {
 	api.POST("/dashboards/:id/versions", handler)
 	api.GET("/dashboards/:id", handler)
 	api.GET("/dashboards", handler)
+	api.POST("/dashboards", handler)
 	return engine
 }
 
@@ -143,5 +144,38 @@ func TestARouteDeclaredNoneRecordsNothing(t *testing.T) {
 	s.run(t)()
 	if got := s.eventsOf(t, request); len(got) != 0 {
 		t.Fatalf("events = %+v, want none", got)
+	}
+}
+
+func TestARefusalOnARouteWithoutAnActionRecordsRequestRefuse(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	engine := s.engine(t, func(c *gin.Context) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "slow down", "code": "rate_limited"})
+	})
+	_, request := serve(t, engine, http.MethodGet, "/api/v1/dashboards")
+	s.run(t)()
+	want := requestEvent{action: string(ActionRefuse), outcome: "denied", reason: "rate_limited", route: "/api/v1/dashboards", method: "GET", status: 429}
+	if got := s.eventsOf(t, request); len(got) != 1 || got[0] != want {
+		t.Fatalf("events = %+v, want %+v", got, want)
+	}
+}
+
+func TestANotFoundIsDeniedOnlyOnARouteWithATarget(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	engine := s.engine(t, func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "code": "not_found"})
+	})
+	_, onTarget := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	_, onKind := serve(t, engine, http.MethodPost, "/api/v1/dashboards")
+	_, onNone := serve(t, engine, http.MethodGet, "/api/v1/dashboards")
+	s.run(t)()
+	if got := s.eventsOf(t, onTarget); len(got) != 1 || got[0].action != "dashboard.view" || got[0].outcome != "denied" {
+		t.Errorf("404 on a dashboard id: %+v, want dashboard.view denied", got)
+	}
+	if got := s.eventsOf(t, onKind); len(got) != 1 || got[0].action != "dashboard.create" || got[0].outcome != "failed" {
+		t.Errorf("404 on a create: %+v, want dashboard.create failed", got)
+	}
+	if got := s.eventsOf(t, onNone); len(got) != 0 {
+		t.Errorf("404 on a route declared none: %+v, want nothing", got)
 	}
 }

@@ -70,14 +70,26 @@ func TestTheEmbeddedDocumentDeclaresRoutesByTemplate(t *testing.T) {
 	}
 }
 
-func TestOutcomeForStatus(t *testing.T) {
-	for status, want := range map[int]Outcome{
-		200: OutcomeSuccess, 201: OutcomeSuccess, 204: OutcomeSuccess, 302: OutcomeSuccess, 304: OutcomeSuccess,
-		401: OutcomeDenied, 403: OutcomeDenied, 404: OutcomeDenied, 429: OutcomeDenied,
-		400: OutcomeFailed, 409: OutcomeFailed, 422: OutcomeFailed, 500: OutcomeFailed, 503: OutcomeFailed,
-	} {
-		if got := outcomeForStatus(status); got != want {
-			t.Errorf("status %d = %s, want %s", status, got, want)
+func TestOutcomeFor(t *testing.T) {
+	onTarget := Declaration{Action: "dashboard.view", Target: &TargetRule{Kind: "dashboard", ID: "path.id"}}
+	onKind := Declaration{Action: "dashboard.create", Target: &TargetRule{Kind: "dashboard"}}
+	for _, d := range []Declaration{onTarget, onKind, {}} {
+		for status, want := range map[int]Outcome{
+			200: OutcomeSuccess, 201: OutcomeSuccess, 204: OutcomeSuccess, 302: OutcomeSuccess, 304: OutcomeSuccess,
+			401: OutcomeDenied, 403: OutcomeDenied, 429: OutcomeDenied,
+			400: OutcomeFailed, 409: OutcomeFailed, 422: OutcomeFailed, 500: OutcomeFailed, 503: OutcomeFailed,
+		} {
+			if got := outcomeFor(status, d); got != want {
+				t.Errorf("status %d on %+v = %s, want %s", status, d, got, want)
+			}
+		}
+	}
+	if got := outcomeFor(404, onTarget); got != OutcomeDenied {
+		t.Errorf("404 on a route with a target id = %s, want denied", got)
+	}
+	for _, d := range []Declaration{onKind, {}} {
+		if got := outcomeFor(404, d); got != OutcomeFailed {
+			t.Errorf("404 on %+v = %s, want failed", d, got)
 		}
 	}
 }

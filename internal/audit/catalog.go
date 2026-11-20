@@ -34,8 +34,9 @@ type Spec struct {
 }
 
 const (
-	ActionGap   Action = "audit.gap"
-	ActionPrune Action = "audit.prune"
+	ActionGap    Action = "audit.gap"
+	ActionPrune  Action = "audit.prune"
+	ActionRefuse Action = "request.refuse"
 )
 
 var (
@@ -80,6 +81,7 @@ var catalog = map[Action]Spec{
 	"auth.login_failed":        access(CategoryAuth),
 	"auth.credential_rejected": access(CategoryAuth),
 	"auth.csrf_rejected":       access(CategoryAuth),
+	"request.refuse":           access(CategoryAccess),
 
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
