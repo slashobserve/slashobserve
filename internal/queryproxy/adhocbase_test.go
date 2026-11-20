@@ -60,7 +60,7 @@ func TestBaseFiltersAreAppliedAlongsideTheSelectedFilters(t *testing.T) {
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
 			panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "prom", Queries: []spec.Query{{Query: "up"}}}
 			d := dashboardOf([]spec.Panel{panel}, tt.variable)
-			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
+			if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
 			}
 			if calls := prom.callsTo("instant"); len(calls) != 1 || !reflect.DeepEqual(calls[0].query.Filters, tt.wantFilter) {
@@ -103,7 +103,7 @@ func TestOrInSelectedFiltersStaysInsideItsOwnScope(t *testing.T) {
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": ch})
 			panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: "SELECT 1"}}}
 			d := dashboardOf([]spec.Panel{panel}, tt.variables...)
-			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
+			if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
 			}
 			if got := filtersByQuery(t, ch)["SELECT 1"]; !reflect.DeepEqual(got, tt.want) {
@@ -116,7 +116,7 @@ func TestOrInSelectedFiltersStaysInsideItsOwnScope(t *testing.T) {
 func TestADefaultFilterWithOrIsSelectedAsAPrefixedText(t *testing.T) {
 	saved := []spec.AdhocFilter{{Key: "a", Operator: "=", Value: "1"}, {Key: "b", Operator: "<", Value: "5", Condition: "or"}}
 	runner := newTypesRunner(t)
-	defaults, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocWithDefault("f", "ch", saved...)), testRange(), nil, datasource.QueryUser{})
+	defaults, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, adhocWithDefault("f", "ch", saved...)), testRange(), nil, datasource.QueryUser{})
 	want := Selection{Values: []string{"a|=|1", "|b|<|5"}}
 	if err != nil || !reflect.DeepEqual(defaults["f"], want) {
 		t.Fatalf("Defaults = %+v, %v, want %+v", defaults["f"], err, want)
@@ -130,7 +130,7 @@ func TestAnExplicitReferenceReceivesBaseAndSelectedFilters(t *testing.T) {
 	panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: "SELECT 1 WHERE $f"}}}
 	d := dashboardOf([]spec.Panel{panel}, withBase(adhocVariable("f", "ch"), base...))
 	selections := map[string]Selection{"f": {Values: []string{"a|=|1", "|b|>|2"}}}
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	calls := ch.callsTo("instant")
@@ -162,7 +162,7 @@ func TestBaseFiltersAreCheckedLikeSelectedOnes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			runner := newTypesRunner(t)
 			d := dashboardOf(nil, withBase(adhocVariable("f", tt.ds), tt.base))
-			if _, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
+			if _, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
 				t.Fatalf("err = %v, want ErrInvalidRequest", err)
 			}
 		})

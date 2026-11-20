@@ -45,7 +45,7 @@ func (r *Registry) logFacets(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}

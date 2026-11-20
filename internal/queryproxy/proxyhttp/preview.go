@@ -135,8 +135,7 @@ func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgt
 		return "", false
 	}
 	uid := c.Param("uid")
-	if _, found := h.registry.Get(uid); !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+	if _, found := h.datasourceFor(c); !found {
 		return "", false
 	}
 	return uid, true

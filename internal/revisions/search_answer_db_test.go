@@ -22,7 +22,7 @@ UPDATE agent_requests SET observation_id = (SELECT observation_id FROM f) WHERE 
 
 func TestSearchFindsAChatByTheTextOfItsVisibleAnswer(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'Ada', 'Ada@example.com', 'Ada')`, userID)
 
 	shared, err := svc.SubmitObserve(ctx, user, "why is checkout slow")
@@ -72,7 +72,7 @@ func answerInChat(t *testing.T, d *dbtest.Database, id pgtype.UUID, markdown str
 
 func TestSearchFindsAChatByTheTextOfAnAnswerKeptInTheChat(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'Ada', 'Ada@example.com', 'Ada')`, userID)
 
 	plain, err := svc.SubmitObserve(ctx, user, "why is checkout slow")

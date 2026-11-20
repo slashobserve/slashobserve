@@ -38,7 +38,7 @@ type panelsRig struct {
 
 func newPanelsRig(t *testing.T) *panelsRig {
 	t.Helper()
-	rig := &panelsRig{database: dbtest.New(t), ctx: auth.WithPrincipal(context.Background(), placeholderUser)}
+	rig := &panelsRig{database: dbtest.New(t), ctx: auth.WithPrincipal(reading(context.Background()), placeholderUser)}
 	logger := slog.New(slog.DiscardHandler)
 	frames := func(text string, tr datasource.TimeRange) ([]datasource.Frame, error) {
 		rig.mu.Lock()
@@ -668,7 +668,7 @@ func TestUpdatePanelsInputRules(t *testing.T) {
 func TestPanelToolsFollowFolderAccess(t *testing.T) {
 	rig := newPanelsRig(t)
 	id := rig.seedStats(t)
-	viewer := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindServiceAccount, ID: dashB, Name: "viewer-key", Role: auth.RoleViewer})
+	viewer := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindServiceAccount, ID: dashB, Name: "viewer-key", Role: auth.RoleViewer})
 
 	res, _ := rig.as(viewer).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+suggestStat("p1", "Hacked", "count(up)", 0)+`]`))
 	if got := errorCodeOf(t, res); got != codeForbiddenRole {
@@ -796,7 +796,7 @@ func TestConflictStepCountsEveryUnit(t *testing.T) {
 
 func TestSavesBecomeProposalsWhenTheCallerCannotEditDirectly(t *testing.T) {
 	rig := newPanelsRig(t)
-	as := func(p auth.Principal) context.Context { return auth.WithPrincipal(context.Background(), p) }
+	as := func(p auth.Principal) context.Context { return auth.WithPrincipal(reading(context.Background()), p) }
 	propose := func(ctx context.Context) context.Context { return grantmode.With(ctx, grantmode.Propose) }
 	patch := func(id string) string {
 		return panelPatch(id, 1, `[`+suggestStat("p1", "Proposed", "count(up)", 0)+`]`)
@@ -845,7 +845,7 @@ func TestSavesBecomeProposalsWhenTheCallerCannotEditDirectly(t *testing.T) {
 
 func TestAProposeModeSaveThatRemovesAPanelAnswersProposalRequiredAndWritesNothing(t *testing.T) {
 	rig := newPanelsRig(t)
-	ctx := grantmode.With(auth.WithPrincipal(context.Background(), editorCaller), grantmode.Propose)
+	ctx := grantmode.With(auth.WithPrincipal(reading(context.Background()), editorCaller), grantmode.Propose)
 	deleting := func(id string) string {
 		return fmt.Sprintf(`{"dashboard_id":%q,"parent_version":1,"summary":"Remove","delete":["p2"]}`, id)
 	}
@@ -889,7 +889,7 @@ func TestAProposeModeSaveThatRemovesAPanelAnswersProposalRequiredAndWritesNothin
 
 	t.Run("a commenter outside propose mode may still propose a removal", func(t *testing.T) {
 		id := rig.seedStats(t)
-		res, _ := rig.as(auth.WithPrincipal(context.Background(), commenterCaller)).run(t, nameUpdatePanels, deleting(id))
+		res, _ := rig.as(auth.WithPrincipal(reading(context.Background()), commenterCaller)).run(t, nameUpdatePanels, deleting(id))
 		if out, ok := res.Content.(proposedOut); res.IsError || !ok || out.Code != codeProposed {
 			t.Fatalf("res = %#v", res.Content)
 		}
@@ -936,7 +936,7 @@ func TestAViewerIsRefusedByRoleBeforeThePatchIsValidated(t *testing.T) {
 	rig := newPanelsRig(t)
 	id := rig.seedStats(t)
 	noGridPos := `{"id":"p9","type":"stat","title":"No place","queries":[{"datasource":"` + fakeUID + `","query":"count(up)"}]}`
-	viewer := auth.WithPrincipal(context.Background(), viewerCaller)
+	viewer := auth.WithPrincipal(reading(context.Background()), viewerCaller)
 
 	res, _ := rig.as(viewer).run(t, nameUpdatePanels, panelPatch(id, 1, `[`+noGridPos+`]`))
 	if got := errorCodeOf(t, res); got != codeForbiddenRole {

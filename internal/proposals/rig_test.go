@@ -111,7 +111,7 @@ func specOf(title string, panels ...panel) []byte {
 
 func (r *rig) createDashboard(t *testing.T, panels ...panel) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.dashboards.Create(t.Context(), editor, pgtype.UUID{}, specOf("t", panels...), "create")
+	dash, _, err := r.dashboards.Create(reading(t.Context()), editor, pgtype.UUID{}, specOf("t", panels...), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func (r *rig) createDashboard(t *testing.T, panels ...panel) pgtype.UUID {
 
 func (r *rig) addVersion(t *testing.T, id pgtype.UUID, parent int, panels ...panel) {
 	t.Helper()
-	if _, _, _, err := r.dashboards.AddVersion(t.Context(), editor, id, parent, specOf("t", panels...), "next"); err != nil {
+	if _, _, _, err := r.dashboards.AddVersion(reading(t.Context()), editor, id, parent, specOf("t", panels...), "next"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -137,7 +137,7 @@ func (r *rig) save(ctx context.Context, by auth.Principal, id pgtype.UUID, base 
 
 func (r *rig) propose(t *testing.T, by auth.Principal, id pgtype.UUID, base int, panels ...panel) dashboards.ProposalRef {
 	t.Helper()
-	res, err := r.save(t.Context(), by, id, base, panels...)
+	res, err := r.save(reading(t.Context()), by, id, base, panels...)
 	if err != nil {
 		t.Fatalf("propose: %v", err)
 	}
@@ -149,7 +149,7 @@ func (r *rig) propose(t *testing.T, by auth.Principal, id pgtype.UUID, base int,
 
 func (r *rig) latest(t *testing.T, id pgtype.UUID) int {
 	t.Helper()
-	n, err := r.dashboards.LatestVersion(t.Context(), id)
+	n, err := r.dashboards.LatestVersion(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func (r *rig) latest(t *testing.T, id pgtype.UUID) int {
 
 func (r *rig) activity(t *testing.T) []string {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type FROM activity WHERE target_kind = 'proposal' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type FROM activity WHERE target_kind = 'proposal' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func (r *rig) activity(t *testing.T) []string {
 func (r *rig) activityData(t *testing.T, typ string) map[string]any {
 	t.Helper()
 	var raw []byte
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT data FROM activity WHERE type = $1 ORDER BY seq DESC LIMIT 1`, typ).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT data FROM activity WHERE type = $1 ORDER BY seq DESC LIMIT 1`, typ).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	var data map[string]any
@@ -217,7 +217,7 @@ func (r *rig) moveInto(t *testing.T, dashboard, folder pgtype.UUID) {
 func (r *rig) generalFolder(t *testing.T) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT general_folder_id()::text`).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT general_folder_id()::text`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustParse(t, raw)

@@ -68,14 +68,14 @@ func TestRecordStepFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(1), quietLogger())
-	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
+	row, err := svc.SubmitObserve(reading(context.Background()), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
 	}
 	steps := revisions.NewSteps(d.DB, logger)
 	d.Close()
 
-	steps.RecordStep(context.Background(), revisions.Request{ID: row.ID.String(), Attempt: 1}, revisions.Step{
+	steps.RecordStep(reading(context.Background()), revisions.Request{ID: row.ID.String(), Attempt: 1}, revisions.Step{
 		At: time.Now(), Phase: "query", Tool: "query_range", Status: "ok", Message: leakedDetail,
 	})
 
@@ -111,7 +111,7 @@ func TestInternalObserveFailureLogsTheAgentRequestId(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), logger)
-	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
+	row, err := svc.SubmitObserve(reading(context.Background()), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestUndecodableStoredStepsAndUsageLogOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), logger)
-	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
+	row, err := svc.SubmitObserve(reading(context.Background()), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, nil, logger)
 	dash := seedDashboard(t, d, 1)
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(reading(t.Context()))
 	cancel()
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, revisionsPath(dash), nil)
 

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -140,6 +141,7 @@ func (s *Service) holdLease(ctx context.Context, h held, cancel context.CancelCa
 }
 
 func (s *Service) work(ctx context.Context, h held, client grafanaClient, cancel context.CancelCauseFunc) error {
+	ctx = datasource.WithAccess(ctx, datasource.Access{By: h.by})
 	p, err := s.plan(ctx, h.by, client, h.req)
 	if err != nil {
 		return err
@@ -271,7 +273,8 @@ func (s *Service) resume(ctx context.Context, row dbsqlc.GrafanaSync) {
 		s.logResumeFailure(ctx, "read grafana sync starter", "grafana_sync_starter_failed", err, row)
 		return
 	}
-	if err := s.checkMapping(req.Mapping); err != nil {
+	ctx = datasource.WithAccess(ctx, datasource.Access{By: by})
+	if err := s.checkMapping(ctx, req.Mapping); err != nil {
 		s.failHeld(row, describe(err))
 		return
 	}

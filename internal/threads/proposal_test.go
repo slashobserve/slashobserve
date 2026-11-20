@@ -16,7 +16,7 @@ import (
 
 func (r *rig) createProposal(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	res, err := r.dashboards.Save(t.Context(), commenter, dashboards.SaveInput{
+	res, err := r.dashboards.Save(reading(t.Context()), commenter, dashboards.SaveInput{
 		DashboardID:     dash,
 		Parent:          1,
 		Spec:            panelsSpec("t", "rps", "errors"),
@@ -32,7 +32,7 @@ func (r *rig) createProposal(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 func (r *rig) count(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -48,11 +48,11 @@ func TestAProposalTakesCommentsFromThoseWhoCanCommentOnItsDashboard(t *testing.T
 		t.Fatalf("thread %+v", thread)
 	}
 	r.reply(t, testUser, first.ID, "it was unused")
-	resolved, changed, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, thread.ID), StatusResolved, nil)
+	resolved, changed, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, nil)
 	if err != nil || !changed || resolved.Status != StatusResolved {
 		t.Fatalf("resolve = %+v, %v, %v", resolved, changed, err)
 	}
-	reopened, changed, err := r.service.SetStatus(t.Context(), commenter, mustParse(t, thread.ID), StatusOpen, nil)
+	reopened, changed, err := r.service.SetStatus(reading(t.Context()), commenter, mustParse(t, thread.ID), StatusOpen, nil)
 	if err != nil || !changed || reopened.Status != StatusOpen {
 		t.Fatalf("reopen = %+v, %v, %v", reopened, changed, err)
 	}
@@ -74,10 +74,10 @@ func TestAViewerReadsAProposalThreadButCannotWriteToIt(t *testing.T) {
 	tg := target(KindProposal, r.createProposal(t, r.createDashboard(t)))
 	thread, _ := r.open(t, commenter, OpenInput{Target: tg, Body: "hello"})
 
-	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Open(reading(t.Context()), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("open: %v", err)
 	}
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Reply(reading(t.Context()), viewer, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("reply: %v", err)
 	}
 	denied := r.call(t, viewer, http.MethodPost, "/threads", map[string]any{"target": tg.String(), "body": "hi"})
@@ -91,18 +91,18 @@ func TestAProposalOnADashboardTheCallerCannotSeeIsNotFound(t *testing.T) {
 	thread, _ := r.open(t, commenter, OpenInput{Target: tg, Body: "private"})
 	foldertest.Move(t, r.db, dash, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 
-	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
+	if _, _, err := r.service.Open(reading(t.Context()), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("open: %v", err)
 	}
-	if _, err := r.service.List(t.Context(), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+	if _, err := r.service.List(reading(t.Context()), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list: %v", err)
 	}
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(reading(t.Context()), viewer, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply: %v", err)
 	}
 	r.call(t, viewer, http.MethodGet, "/threads?target="+tg.String(), nil).expect(t, http.StatusNotFound, "")
 	r.call(t, viewer, http.MethodPost, "/threads", map[string]any{"target": tg.String(), "body": "hi"}).expect(t, http.StatusNotFound, "")
-	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
+	if _, err := r.service.List(reading(t.Context()), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
 		t.Errorf("the admin: %v", err)
 	}
 }
@@ -110,10 +110,10 @@ func TestAProposalOnADashboardTheCallerCannotSeeIsNotFound(t *testing.T) {
 func TestAMissingProposalIsNotFound(t *testing.T) {
 	r := newRig(t)
 	missing := target(KindProposal, mustParse(t, "00000000-0000-4000-8000-000000000000"))
-	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: missing, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: missing, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list: %v", err)
 	}
-	if _, _, err := r.service.Open(t.Context(), testUser, OpenInput{Target: missing, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
+	if _, _, err := r.service.Open(reading(t.Context()), testUser, OpenInput{Target: missing, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("open: %v", err)
 	}
 }
@@ -123,7 +123,7 @@ func TestAProposalThreadIsAnAnchorlessTarget(t *testing.T) {
 	tg := target(KindProposal, r.createProposal(t, r.createDashboard(t)))
 	version, panel := 1, "rps"
 	for name, in := range map[string]OpenInput{"a version": {Target: tg, Body: "x", Version: &version}, "a panel": {Target: tg, Body: "x", PanelID: &panel}} {
-		_, _, err := r.service.Open(t.Context(), commenter, in, nil)
+		_, _, err := r.service.Open(reading(t.Context()), commenter, in, nil)
 		var invalid *InvalidInputError
 		if !errors.As(err, &invalid) || invalid.Code != CodeInvalidTarget {
 			t.Errorf("%s: %v", name, err)
@@ -131,7 +131,7 @@ func TestAProposalThreadIsAnAnchorlessTarget(t *testing.T) {
 	}
 	thread, _ := r.open(t, commenter, OpenInput{Target: tg, Body: "x"})
 	one := 1
-	_, _, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, thread.ID), StatusResolved, &one)
+	_, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, &one)
 	var invalid *InvalidInputError
 	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidVersion {
 		t.Errorf("resolved_by_version: %v", err)
@@ -168,7 +168,7 @@ func TestThreadEventsOnAProposalBelongToItsDashboardAndStartNoRun(t *testing.T) 
 	bo := r.createUser(t, "Bo Baker", "bo@example.com")
 	thread, first := r.open(t, commenter, OpenInput{Target: target(KindProposal, r.createProposal(t, dash)), Body: "ping @[x](user:" + bo.String() + ") and @observe"})
 	r.reply(t, testUser, first.ID, "more")
-	if _, _, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, thread.ID), StatusResolved, nil); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,7 +198,7 @@ func TestDeletingADashboardDeletesItsProposalsAndTheirThreads(t *testing.T) {
 		t.Fatalf("threads before = %d", n)
 	}
 
-	if err := r.dashboards.Delete(t.Context(), testUser, dash); err != nil {
+	if err := r.dashboards.Delete(reading(t.Context()), testUser, dash); err != nil {
 		t.Fatal(err)
 	}
 	if n := r.count(t, `SELECT (SELECT count(*) FROM proposals) + (SELECT count(*) FROM threads)`); n != 0 {

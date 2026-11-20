@@ -92,7 +92,7 @@ func newTestRegistry(t *testing.T, ds *fakeDS, logger *slog.Logger) *Registry {
 
 func call(t *testing.T, r *Registry, name, input string) (Result, error) {
 	t.Helper()
-	return r.Call(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin}), name, []byte(input))
+	return r.Call(auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin}), name, []byte(input))
 }
 
 func errorCode(t *testing.T, res Result) string {

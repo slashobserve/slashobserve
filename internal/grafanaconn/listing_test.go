@@ -25,7 +25,7 @@ func TestFoldersNestTitlesAndCountDashboards(t *testing.T) {
 	}
 	conn := r.connect(t)
 
-	got, err := r.svc.Folders(t.Context(), uuidOf(t, conn.ID))
+	got, err := r.svc.Folders(reading(t.Context()), uuidOf(t, conn.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestFoldersOfAGrafanaThatRefusesTheToken(t *testing.T) {
 	r := newRig(t)
 	r.grafana.token = "glsa_rotated"
 	conn := r.connect(t)
-	_, err := r.svc.Folders(t.Context(), uuidOf(t, conn.ID))
+	_, err := r.svc.Folders(reading(t.Context()), uuidOf(t, conn.ID))
 	var status *egress.StatusError
 	if !errors.As(err, &status) || status.Status != 401 {
 		t.Fatalf("error %v, want a 401 status error", err)
@@ -54,7 +54,7 @@ func TestFoldersOfAGrafanaThatRefusesTheToken(t *testing.T) {
 func TestDatasourcesShowTheAutomaticMatch(t *testing.T) {
 	r := newRig(t)
 	conn := r.connect(t)
-	got, err := r.svc.Datasources(t.Context(), uuidOf(t, conn.ID))
+	got, err := r.svc.Datasources(reading(t.Context()), uuidOf(t, conn.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestDatasourcesShowTheAutomaticMatch(t *testing.T) {
 
 func TestDatasourcesOfAnUnknownConnection(t *testing.T) {
 	r := newRig(t)
-	if _, err := r.svc.Datasources(t.Context(), uuidOf(t, "6d2c1b9e-6a55-4f3e-9f2b-6a8d2f1e0c11")); !errors.Is(err, grafanaconn.ErrNotFound) {
+	if _, err := r.svc.Datasources(reading(t.Context()), uuidOf(t, "6d2c1b9e-6a55-4f3e-9f2b-6a8d2f1e0c11")); !errors.Is(err, grafanaconn.ErrNotFound) {
 		t.Fatalf("error %v, want ErrNotFound", err)
 	}
 }

@@ -15,7 +15,7 @@ import (
 func (r rig) chat(t *testing.T, by auth.Principal, follows pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
 VALUES ('observe', 'slowest routes in the last hour', $1, $2::uuid, $3, $4) RETURNING id::text`,
 		string(by.Kind), by.ID, by.Name, follows).Scan(&raw); err != nil {
 		t.Fatal(err)
@@ -26,7 +26,7 @@ VALUES ('observe', 'slowest routes in the last hour', $1, $2::uuid, $3, $4) RETU
 func (r rig) savedAnswer(t *testing.T, by auth.Principal, request pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	r.save(t, by, findings.SaveInput{AgentRequestID: request, Title: "Slowest routes in the last hour"})
-	saved, _, err := r.service.SaveAsObservation(t.Context(), by, request)
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), by, request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func (r rig) savedAnswer(t *testing.T, by auth.Principal, request pgtype.UUID) p
 
 func (r rig) chatTitle(t *testing.T, chat pgtype.UUID) string {
 	t.Helper()
-	row, err := r.db.Queries().GetAgentRequestByID(t.Context(), chat)
+	row, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), chat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func (r rig) chatTitle(t *testing.T, chat pgtype.UUID) string {
 func (r rig) observationTitle(t *testing.T, id pgtype.UUID) string {
 	t.Helper()
 	var title string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT title FROM observations WHERE id = $1`, id).Scan(&title); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT title FROM observations WHERE id = $1`, id).Scan(&title); err != nil {
 		t.Fatal(err)
 	}
 	return title
@@ -53,7 +53,7 @@ func (r rig) observationTitle(t *testing.T, id pgtype.UUID) string {
 
 func (r rig) renameObservation(t *testing.T, by auth.Principal, id pgtype.UUID, title string) revisions.SharedTitle {
 	t.Helper()
-	o, err := r.observations.Update(t.Context(), by, id, observations.UpdateInput{Title: &title})
+	o, err := r.observations.Update(reading(t.Context()), by, id, observations.UpdateInput{Title: &title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestRenamingAChatRenamesTheObservationSavedFromIt(t *testing.T) {
 	follow := r.chat(t, editor, chat)
 	observation := r.savedAnswer(t, editor, follow)
 
-	got, err := r.observations.RenameFromChat(t.Context(), editor, chat, "Routes chat")
+	got, err := r.observations.RenameFromChat(reading(t.Context()), editor, chat, "Routes chat")
 	if err != nil || got != revisions.TitleRenamed {
 		t.Fatalf("rename from the chat: %q, %v", got, err)
 	}
@@ -76,7 +76,7 @@ func TestRenamingAChatRenamesTheObservationSavedFromIt(t *testing.T) {
 	if n := r.count(t, `SELECT count(*) FROM activity WHERE type = 'observation.updated' AND data ->> 'from_title' = 'Slowest routes in the last hour'`); n != 1 {
 		t.Fatalf("%d rename events", n)
 	}
-	if got, err := r.observations.RenameFromChat(t.Context(), editor, follow, "A later turn"); err != nil || got != "" {
+	if got, err := r.observations.RenameFromChat(reading(t.Context()), editor, follow, "A later turn"); err != nil || got != "" {
 		t.Fatalf("rename from a later turn: %q, %v", got, err)
 	}
 }
@@ -112,11 +112,11 @@ func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *tes
 	shared := r.folder(t, "Incidents")
 	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, observation, shared)
 
-	if got, err := r.observations.RenameFromChat(t.Context(), viewer, chat, "View only"); err != nil || got != revisions.TitleKept {
+	if got, err := r.observations.RenameFromChat(reading(t.Context()), viewer, chat, "View only"); err != nil || got != revisions.TitleKept {
 		t.Fatalf("an observation the caller may only view: %q, %v", got, err)
 	}
 	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'oncall', 'view')`, shared)
-	if got, err := r.observations.RenameFromChat(t.Context(), viewer, chat, "Hidden"); err != nil || got != "" {
+	if got, err := r.observations.RenameFromChat(reading(t.Context()), viewer, chat, "Hidden"); err != nil || got != "" {
 		t.Fatalf("an observation the caller cannot see: %q, %v", got, err)
 	}
 	if title := r.observationTitle(t, observation); title != "Slowest routes in the last hour" {
@@ -126,7 +126,7 @@ func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *tes
 	two := r.chat(t, editor, pgtype.UUID{})
 	r.savedAnswer(t, editor, two)
 	r.savedAnswer(t, editor, r.chat(t, editor, two))
-	if got, err := r.observations.RenameFromChat(t.Context(), editor, two, "Two"); err != nil || got != "" {
+	if got, err := r.observations.RenameFromChat(reading(t.Context()), editor, two, "Two"); err != nil || got != "" {
 		t.Fatalf("a chat with two observations: %q, %v", got, err)
 	}
 
@@ -137,7 +137,7 @@ func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *tes
 		t.Fatalf("an observation from a dashboard chat: %q", got)
 	}
 
-	other, err := r.observations.Create(t.Context(), editor, observations.CreateInput{Title: "Written by hand", FolderID: r.general(t)})
+	other, err := r.observations.Create(reading(t.Context()), editor, observations.CreateInput{Title: "Written by hand", FolderID: r.general(t)})
 	if err != nil {
 		t.Fatal(err)
 	}

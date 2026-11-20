@@ -109,11 +109,16 @@ func lines(offsets ...int64) response {
 type fakeSessions struct {
 	valid atomic.Bool
 	calls atomic.Int32
+	role  atomic.Value
 }
 
-func (f *fakeSessions) Valid(*http.Request) (bool, error) {
+func (f *fakeSessions) RequestPrincipal(r *http.Request) (auth.Principal, bool, error) {
 	f.calls.Add(1)
-	return f.valid.Load(), nil
+	p, _ := auth.FromContext(r.Context())
+	if role, ok := f.role.Load().(auth.Role); ok {
+		p.Role = role
+	}
+	return p, f.valid.Load(), nil
 }
 
 type fixture struct {
@@ -159,7 +164,12 @@ func newFixtureWith(t *testing.T, wrap func(*fakeLines) datasource.Datasource, r
 		if id == "" {
 			id = "u1"
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleViewer}))
+		role := auth.Role(c.GetHeader("X-Role"))
+		if role == "" {
+			role = auth.RoleViewer
+		}
+		p := auth.Principal{Kind: auth.KindUser, ID: id, Role: role}
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), p), datasource.Access{By: p}))
 	})
 	h.Register(auth.NewRoutes(api))
 	server := httptest.NewServer(engine)
@@ -181,11 +191,17 @@ type openStream struct {
 
 func (f *fixture) open(principal, query string) *openStream {
 	f.t.Helper()
-	req, err := http.NewRequest(http.MethodGet, f.server.URL+"/api/v1/datasources/logs/tail?"+query, nil)
+	return f.openOn("logs", principal, "", query)
+}
+
+func (f *fixture) openOn(uid, principal string, role auth.Role, query string) *openStream {
+	f.t.Helper()
+	req, err := http.NewRequest(http.MethodGet, f.server.URL+"/api/v1/datasources/"+uid+"/tail?"+query, nil)
 	if err != nil {
 		f.t.Fatal(err)
 	}
 	req.Header.Set("X-Principal", principal)
+	req.Header.Set("X-Role", string(role))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		f.t.Fatal(err)

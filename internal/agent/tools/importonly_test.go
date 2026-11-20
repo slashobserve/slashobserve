@@ -53,7 +53,7 @@ func newPlaceholderRig(t *testing.T) *placeholderRig {
 	runner := queryproxy.NewRunner(datasources, logger)
 	service := dashboards.New(database.DB, runner, folders.NewAccess(database.DB), logger)
 	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Logger: logger})
-	return &placeholderRig{registry: registry, service: service, ctx: auth.WithPrincipal(context.Background(), placeholderUser)}
+	return &placeholderRig{registry: registry, service: service, ctx: auth.WithPrincipal(reading(context.Background()), placeholderUser)}
 }
 
 func statPanel(id string, y int) string {

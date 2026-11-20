@@ -28,6 +28,8 @@ type adminData struct {
 		Name string `json:"name"`
 	} `json:"requested_by"`
 	Host               string                     `json:"host"`
+	From               string                     `json:"from"`
+	To                 string                     `json:"to"`
 	URLChanged         bool                       `json:"url_changed"`
 	TokenChanged       bool                       `json:"token_changed"`
 	AddressChanged     bool                       `json:"address_changed"`
@@ -195,10 +197,18 @@ func describeIntegration(typ string, d adminData) (string, bool) {
 		return changedText(quotedName("Grafana connection", d.Name), d, "name", "host"), true
 	case "grafana_connection.deleted":
 		return "removed " + quotedName("Grafana connection", d.Name), true
+	}
+	return describeDatasource(typ, d)
+}
+
+func describeDatasource(typ string, d adminData) (string, bool) {
+	switch typ {
 	case "datasource.created":
 		return "added " + quotedName("datasource", d.Name) + " at " + text(d.Host), true
 	case "datasource.updated":
 		return changedText(quotedName("datasource", d.Name), d, "name", "host"), true
+	case "datasource.audience_changed":
+		return "changed the audience of " + quotedName("datasource", d.Name) + " from " + text(d.From) + " to " + text(d.To), true
 	case "datasource.deleted":
 		return "deleted " + quotedName("datasource", d.Name), true
 	}

@@ -89,25 +89,25 @@ func (w *world) openable(t *testing.T, by auth.Principal, f fixture, savedByRead
 	id := mustUUID(t, f.id)
 	switch f.kind {
 	case KindDashboard:
-		got, err := w.access.Dashboard(t.Context(), by, id)
+		got, err := w.access.Dashboard(reading(t.Context()), by, id)
 		if err != nil && !isHidden(err) {
 			t.Fatalf("%s: %v", f.name, err)
 		}
 		return err == nil && got.Abilities.View
 	case KindObservation:
-		_, err := w.observations.Get(t.Context(), by, id)
+		_, err := w.observations.Get(reading(t.Context()), by, id)
 		if err != nil && !isHidden(err) {
 			t.Fatalf("%s: %v", f.name, err)
 		}
 		return err == nil
 	case KindAnnotation:
-		_, abilities, err := w.annotations.Access(t.Context(), by, id)
+		_, abilities, err := w.annotations.Access(reading(t.Context()), by, id)
 		if err != nil && !isHidden(err) {
 			t.Fatalf("%s: %v", f.name, err)
 		}
 		return err == nil && abilities.View
 	case KindComment:
-		abilities, err := w.threads.Abilities(t.Context(), by, f.target)
+		abilities, err := w.threads.Abilities(reading(t.Context()), by, f.target)
 		if err != nil && !isHidden(err) {
 			t.Fatalf("%s: %v", f.name, err)
 		}
@@ -119,7 +119,7 @@ func (w *world) openable(t *testing.T, by auth.Principal, f fixture, savedByRead
 func (w *world) savedSearchesOf(t *testing.T, by auth.Principal) map[string]bool {
 	t.Helper()
 	out := map[string]bool{}
-	rows, _, err := w.saved.List(t.Context(), by, savedsearches.ListFilter{}, 100, "")
+	rows, _, err := w.saved.List(reading(t.Context()), by, savedsearches.ListFilter{}, 100, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestSearchShowsOnlyWhatTheReaderCanOpen(t *testing.T) {
 
 func TestSearchRefusesAPrincipalWithoutAUsableID(t *testing.T) {
 	r := newRig(t)
-	_, err := r.service.Search(t.Context(), auth.Principal{Kind: auth.KindUser, ID: "not-a-uuid", Role: auth.RoleAdmin}, Request{Q: "zebra"})
+	_, err := r.service.Search(reading(t.Context()), auth.Principal{Kind: auth.KindUser, ID: "not-a-uuid", Role: auth.RoleAdmin}, Request{Q: "zebra"})
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("got %v, want folders.ErrForbidden", err)
 	}

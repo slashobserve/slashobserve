@@ -26,12 +26,12 @@ func TestResolveFindsTheImportedDashboard(t *testing.T) {
 		if who == "viewer" {
 			by = r.viewer
 		}
-		got, err := r.svc.Resolve(t.Context(), by, "checkout")
+		got, err := r.svc.Resolve(reading(t.Context()), by, "checkout")
 		if err != nil || got.String() != dashboardID {
 			t.Fatalf("%s resolves %v, err %v; want %s", who, got, err, dashboardID)
 		}
 	}
-	if _, err := r.svc.Resolve(t.Context(), r.viewer, "never-imported"); !errors.Is(err, grafanaconn.ErrUnknownUID) {
+	if _, err := r.svc.Resolve(reading(t.Context()), r.viewer, "never-imported"); !errors.Is(err, grafanaconn.ErrUnknownUID) {
 		t.Fatalf("unknown uid: %v", err)
 	}
 }
@@ -41,10 +41,10 @@ func TestResolveHidesADashboardInAFolderTheCallerCannotSee(t *testing.T) {
 	dashboardID := importedFromGrafana(t, r)
 	r.db.Exec(t, "INSERT INTO folder_permissions (folder_id, group_name, level) SELECT folder_id, 'secret-team', 'view' FROM dashboards WHERE id = $1", dashboardID)
 
-	if _, err := r.svc.Resolve(t.Context(), r.viewer, "checkout"); !errors.Is(err, grafanaconn.ErrUnknownUID) {
+	if _, err := r.svc.Resolve(reading(t.Context()), r.viewer, "checkout"); !errors.Is(err, grafanaconn.ErrUnknownUID) {
 		t.Fatalf("viewer outside the folder: %v, want ErrUnknownUID", err)
 	}
-	if got, err := r.svc.Resolve(t.Context(), r.admin, "checkout"); err != nil || got.String() != dashboardID {
+	if got, err := r.svc.Resolve(reading(t.Context()), r.admin, "checkout"); err != nil || got.String() != dashboardID {
 		t.Fatalf("the folder's creator resolves %v, err %v", got, err)
 	}
 }

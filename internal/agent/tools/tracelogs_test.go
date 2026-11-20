@@ -52,7 +52,7 @@ func traceLogRegistry(t *testing.T, logs *traceLogFake) *Registry {
 func TestLogsForTraceReadsTheLinesOfATraceOrSpan(t *testing.T) {
 	logs := &traceLogFake{fakeDS: &fakeDS{typ: "loki"}}
 	r := traceLogRegistry(t, logs)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "u1", Name: "Alice", Email: "alice@example.com", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{ID: "u1", Name: "Alice", Email: "alice@example.com", Role: auth.RoleEditor})
 	before := time.Now()
 	res, err := r.Call(ctx, nameLogsForTrace, []byte(`{"datasource":"logs","trace_id":"`+traceID+`","span_id":"`+spanID+`","service":"checkout","from":"now-30m","to":"now","limit":120}`))
 	if err != nil || res.IsError {

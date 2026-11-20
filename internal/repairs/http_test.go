@@ -18,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 )
 
@@ -40,7 +41,7 @@ func newHTTPRig(t *testing.T, base *rig, svc *repairs.Service) *httpRig {
 	gin.SetMode(gin.TestMode)
 	h.engine = gin.New()
 	repairs.NewHandler(svc).Register(auth.NewRoutes(h.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), h.caller))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.caller), datasource.Access{By: h.caller}))
 	})))
 	return h
 }
@@ -62,13 +63,13 @@ func (h *httpRig) call(t *testing.T, method, path, body string) *httptest.Respon
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	return rec

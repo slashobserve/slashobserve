@@ -75,7 +75,7 @@ func (r *Registry) listServices(ctx context.Context, input json.RawMessage) (Res
 		}
 		window = parsed
 	}
-	targets, res, ok := r.serviceTargets(in.Datasource, in.Signal)
+	targets, res, ok := r.serviceTargets(ctx, in.Datasource, in.Signal)
 	if !ok {
 		return res, nil
 	}
@@ -100,9 +100,9 @@ func (r *Registry) listServices(ctx context.Context, input json.RawMessage) (Res
 
 type serviceTarget struct{ uid, dsType, signal string }
 
-func (r *Registry) serviceTargets(uid, signal string) ([]serviceTarget, Result, bool) {
+func (r *Registry) serviceTargets(ctx context.Context, uid, signal string) ([]serviceTarget, Result, bool) {
 	if uid != "" {
-		inst, res, ok := r.instance(uid)
+		inst, res, ok := r.instance(ctx, uid)
 		if !ok {
 			return nil, res, false
 		}
@@ -116,7 +116,7 @@ func (r *Registry) serviceTargets(uid, signal string) ([]serviceTarget, Result, 
 		return []serviceTarget{{uid: inst.UID, dsType: dsType, signal: signal}}, Result{}, true
 	}
 	var targets []serviceTarget
-	for _, inst := range r.deps.Datasources.List() {
+	for _, inst := range r.deps.Datasources.Visible(ctx) {
 		targets = append(targets, targetsOf(inst, signal)...)
 	}
 	return targets, Result{}, true

@@ -14,7 +14,7 @@ import (
 
 func (r activityRig) mentionOf(t *testing.T, person auth.Principal) {
 	t.Helper()
-	_, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO activity (type, target_kind, target_id, folder_id, actor_kind, actor_id, actor_name, data)
+	_, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `INSERT INTO activity (type, target_kind, target_id, folder_id, actor_kind, actor_id, actor_name, data)
 		VALUES ('thread.mentioned', 'thread', $1::uuid, general_folder_id(), 'user', $2::uuid, 'Ola', jsonb_build_object('mentioned', jsonb_build_object('kind', 'user', 'id', $3::text)))`,
 		uuid.NewString(), uuid.NewString(), person.ID)
 	if err != nil {

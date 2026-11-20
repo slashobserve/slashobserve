@@ -16,11 +16,11 @@ import (
 func (r rig) activityFor(t *testing.T, by auth.Principal) []activity.Event {
 	t.Helper()
 	store := activity.NewStore(r.db.DB, folders.NewAccess(r.db.DB))
-	audience, err := store.Audience(t.Context(), by)
+	audience, err := store.Audience(reading(t.Context()), by)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, _, _, err := store.Next(t.Context(), audience, activity.Filter{}, activity.Position{}, 100)
+	got, _, _, err := store.Next(reading(t.Context()), audience, activity.Filter{}, activity.Position{}, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestAFindingOnADashboardLandsInItsFolderWithItsTitleAndRun(t *testing.T) {
 		t.Errorf("event = %+v", e)
 	}
 	var folder string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id::text FROM dashboards WHERE id = $1`, r.open).Scan(&folder); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT folder_id::text FROM dashboards WHERE id = $1`, r.open).Scan(&folder); err != nil {
 		t.Fatal(err)
 	}
 	if e.FolderID != folder {
@@ -113,7 +113,7 @@ func TestAFindingEventCarriesTheObservationAndTheFindingColumns(t *testing.T) {
 	type columns struct{ observation, finding, dashboard string }
 	read := func(target string) columns {
 		var c columns
-		err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT COALESCE(observation_id::text, ''), COALESCE(finding_id::text, ''), COALESCE(dashboard_id::text, '') FROM activity WHERE type = $1 AND target_id = $2::uuid`, activity.TypeFindingCreated, target).Scan(&c.observation, &c.finding, &c.dashboard)
+		err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT COALESCE(observation_id::text, ''), COALESCE(finding_id::text, ''), COALESCE(dashboard_id::text, '') FROM activity WHERE type = $1 AND target_id = $2::uuid`, activity.TypeFindingCreated, target).Scan(&c.observation, &c.finding, &c.dashboard)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -168,7 +168,7 @@ func TestAReplayedFindingAppendsOnce(t *testing.T) {
 	r := newRig(t)
 	request := r.investigation(t, editor, r.open)
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
-	_, replayed, err := r.service.Save(t.Context(), editor, findings.SaveInput{
+	_, replayed, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{
 		AgentRequestID: request, DashboardID: r.open, Title: "again", Markdown: "second", From: windowTo.Add(-time.Hour), To: windowTo,
 	})
 	if err != nil || !replayed {
@@ -182,11 +182,11 @@ func TestAReplayedFindingAppendsOnce(t *testing.T) {
 func TestAPinAppendsTheAnnotationAndThePin(t *testing.T) {
 	r := newRig(t)
 	f := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	a, created, err := r.service.Pin(t.Context(), editor, mustUUID(t, f.ID))
+	a, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, f.ID))
 	if err != nil || !created {
 		t.Fatalf("pin: created %v, %v", created, err)
 	}
-	if _, created, err := r.service.Pin(t.Context(), editor, mustUUID(t, f.ID)); err != nil || created {
+	if _, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, f.ID)); err != nil || created {
 		t.Fatalf("second pin: created %v, %v", created, err)
 	}
 
@@ -209,15 +209,15 @@ func TestALostPinRaceCleansUpWithoutPinningTwice(t *testing.T) {
 	f := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
 	id := mustUUID(t, f.ID)
 	var winner string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO annotations (dashboard_id, time_from, text, created_by) VALUES ($1, now(), 'the winner', $2::uuid) RETURNING id::text`, r.open, otherEditor.ID).Scan(&winner); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO annotations (dashboard_id, time_from, text, created_by) VALUES ($1, now(), 'the winner', $2::uuid) RETURNING id::text`, r.open, otherEditor.ID).Scan(&winner); err != nil {
 		t.Fatal(err)
 	}
-	holder, err := r.db.SQLDB(t).BeginTx(t.Context(), nil)
+	holder, err := r.db.SQLDB(t).BeginTx(reading(t.Context()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = holder.Rollback() }()
-	if _, err := holder.ExecContext(t.Context(), `UPDATE findings SET annotation_id = $1 WHERE id = $2`, winner, id); err != nil {
+	if _, err := holder.ExecContext(reading(t.Context()), `UPDATE findings SET annotation_id = $1 WHERE id = $2`, winner, id); err != nil {
 		t.Fatal(err)
 	}
 
@@ -228,7 +228,7 @@ func TestALostPinRaceCleansUpWithoutPinningTwice(t *testing.T) {
 	}
 	done := make(chan outcome, 1)
 	go func() {
-		a, created, err := r.service.Pin(t.Context(), editor, id)
+		a, created, err := r.service.Pin(reading(t.Context()), editor, id)
 		done <- outcome{a.ID, created, err}
 	}()
 	waitForALockWait(t, r)
@@ -259,7 +259,7 @@ func waitForALockWait(t *testing.T, r rig) {
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		var waiting int
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()`).Scan(&waiting); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()`).Scan(&waiting); err != nil {
 			t.Fatal(err)
 		}
 		if waiting > 0 {

@@ -21,7 +21,7 @@ type linkEvent struct {
 
 func linkEvents(t *testing.T, r rig) []linkEvent {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type, actor_id::text, COALESCE(dashboard_id::text, observation_id::text, ''), data FROM activity WHERE type LIKE 'public_link.%' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type, actor_id::text, COALESCE(dashboard_id::text, observation_id::text, ''), data FROM activity WHERE type LIKE 'public_link.%' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,10 +48,10 @@ func TestDashboardLinkCreateAndRevokeRecordEventsOnTheDashboardWithoutTheToken(t
 	r := newRig(t)
 	created := r.create(t, CreateInput{Mode: ModeFree})
 	linkID, _ := db.ParseUUID(created.Link.ID)
-	if err := r.service.Delete(t.Context(), admin, r.shared, linkID); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, r.shared, linkID); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.Delete(t.Context(), admin, r.shared, linkID); err == nil {
+	if err := r.service.Delete(reading(t.Context()), admin, r.shared, linkID); err == nil {
 		t.Fatal("a second revoke succeeded")
 	}
 
@@ -75,7 +75,7 @@ func TestRCALinkCreateAndRevokeRecordEventsOnTheObservation(t *testing.T) {
 	id := r.published(t)
 	created := r.createLink(t, id, 1, CreateRCAInput{})
 	linkID, _ := db.ParseUUID(created.Link.ID)
-	if err := r.service.DeleteRCALink(t.Context(), admin, id, linkID); err != nil {
+	if err := r.service.DeleteRCALink(reading(t.Context()), admin, id, linkID); err != nil {
 		t.Fatal(err)
 	}
 

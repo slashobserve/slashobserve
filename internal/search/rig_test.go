@@ -76,7 +76,7 @@ func newRig(t *testing.T) *rig {
 func (r *rig) text(t *testing.T, query string, args ...any) string {
 	t.Helper()
 	var out string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&out); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&out); err != nil {
 		t.Fatal(err)
 	}
 	return out
@@ -183,7 +183,7 @@ func (r *rig) search(t *testing.T, by auth.Principal, q string, kinds ...Kind) [
 	var all []Result
 	cursor := ""
 	for {
-		page, err := r.service.Search(t.Context(), by, Request{Q: q, Kinds: kinds, Limit: 7, Cursor: cursor})
+		page, err := r.service.Search(reading(t.Context()), by, Request{Q: q, Kinds: kinds, Limit: 7, Cursor: cursor})
 		if err != nil {
 			t.Fatalf("search %q: %v", q, err)
 		}

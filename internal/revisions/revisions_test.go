@@ -80,7 +80,7 @@ func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *d
 
 func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 	t.Helper()
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	author, err := db.ParseUUID(userID)
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +111,7 @@ func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 
 func submit(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, prompt string) revisions.Revision {
 	t.Helper()
-	row, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
 		DashboardID: dashboard, Source: revisions.SourcePrompt, Prompt: prompt, BaseVersion: 1, By: user,
 	})
 	if err != nil {
@@ -131,7 +131,7 @@ func mustUUID(t *testing.T, s string) pgtype.UUID {
 
 func get(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, id string) revisions.Revision {
 	t.Helper()
-	rev, err := svc.Get(context.Background(), dashboard, mustUUID(t, id))
+	rev, err := svc.Get(reading(context.Background()), dashboard, mustUUID(t, id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func startWorkerLogged(t *testing.T, svc *revisions.Service, d *dbtest.Database,
 	if reviser, ok := revisers.Load(svc); ok {
 		opts.Reviser = reviser.(revisions.Reviser)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(reading(context.Background()))
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -223,7 +223,7 @@ func waitForStatus(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, 
 
 func failureCodeOf(t *testing.T, svc *revisions.Service, id string) (code string, set bool) {
 	t.Helper()
-	row, err := svc.GetByID(context.Background(), mustUUID(t, id))
+	row, err := svc.GetByID(reading(context.Background()), mustUUID(t, id))
 	if err != nil {
 		t.Fatalf("GetByID(%s): %v", id, err)
 	}
@@ -325,7 +325,7 @@ func TestRunIsReleasedWhenTheRequesterCannotBeLoaded(t *testing.T) {
 	id := mustUUID(t, rev.ID)
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1, Poll: 2 * time.Second})
 	waitFor(t, "the release after the failed load", func() bool {
-		row, err := d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		row, err := d.Queries().GetAgentRequest(reading(context.Background()), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
 		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures >= 1
 	})
 	if calls.Load() != 0 {
@@ -356,7 +356,7 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 	var mu sync.Mutex
 	var payloads []events.Event
 	listening := make(chan struct{})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(reading(context.Background()))
 	defer cancel()
 	go func() {
 		_ = d.Listen(ctx, events.Channel, func() { close(listening) }, func(payload string) {
@@ -381,7 +381,7 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 		return out
 	}
 
-	observe, err := svc.SubmitObserve(context.Background(), user, "build a dashboard")
+	observe, err := svc.SubmitObserve(reading(context.Background()), user, "build a dashboard")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -397,7 +397,7 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 
 	close(releaseObserve)
 	waitFor(t, "the observe request to succeed", func() bool {
-		row, err := svc.GetByID(context.Background(), observe.ID)
+		row, err := svc.GetByID(reading(context.Background()), observe.ID)
 		return err == nil && row.Status == string(revisions.StatusSucceeded)
 	})
 	waitFor(t, "the observe request's revision.updated event", func() bool { return len(eventsOf(observe.ID.String())) == 1 })
@@ -526,7 +526,7 @@ func TestTransientFailureToCheckTheSavedVersionAfterAFailedRunStillRecordsSucces
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1, Poll: 2 * time.Second})
 
 	waitFor(t, "the release after the failed check", func() bool {
-		row, err := d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		row, err := d.Queries().GetAgentRequest(reading(context.Background()), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
 		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == 1
 	})
 	d.Exec(t, "ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id_broken TO agent_request_id")
@@ -565,7 +565,7 @@ func TestPersistentFailureToCheckTheSavedVersionReleasesThenFailsTheRequest(t *t
 		var row dbsqlc.AgentRequest
 		waitFor(t, fmt.Sprintf("release number %d", released), func() bool {
 			var err error
-			row, err = d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+			row, err = d.Queries().GetAgentRequest(reading(context.Background()), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
 			return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == released
 		})
 		if row.Attempts != 0 || row.FinishedAt.Valid {
@@ -593,7 +593,7 @@ func TestCheckFailedReleaseKeepsTheRecordedSteps(t *testing.T) {
 	var row dbsqlc.AgentRequest
 	waitFor(t, "the check-failed release", func() bool {
 		var err error
-		row, err = d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		row, err = d.Queries().GetAgentRequest(reading(context.Background()), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
 		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == 1
 	})
 	var stored []revisions.Step
@@ -667,7 +667,7 @@ func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
 
 func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) {
 	svc, d := newService(t, succeedWith(9))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 2)
 	root := openThread(t, d, dash)
 	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
@@ -707,7 +707,7 @@ func openThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID) dbsqlc.Threa
 
 func newThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID, panelID string) dbsqlc.Thread {
 	t.Helper()
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	thread, err := d.Queries().CreateThread(ctx, dbsqlc.CreateThreadParams{
 		DashboardID:      dash,
 		DashboardVersion: pgtype.Int4{Int32: 1, Valid: true},
@@ -722,7 +722,7 @@ func newThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID, panelID strin
 
 func newMessage(t *testing.T, d *dbtest.Database, id, threadID pgtype.UUID) dbsqlc.ThreadMessage {
 	t.Helper()
-	message, err := d.Queries().CreateMessage(context.Background(), dbsqlc.CreateMessageParams{
+	message, err := d.Queries().CreateMessage(reading(context.Background()), dbsqlc.CreateMessageParams{
 		ID: id, ThreadID: threadID, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
 	})
 	if err != nil {
@@ -733,7 +733,7 @@ func newMessage(t *testing.T, d *dbtest.Database, id, threadID pgtype.UUID) dbsq
 
 func assertThreadOpen(t *testing.T, d *dbtest.Database, dash, id pgtype.UUID) {
 	t.Helper()
-	got, err := d.Queries().GetThread(context.Background(), id)
+	got, err := d.Queries().GetThread(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -759,7 +759,7 @@ func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaime
 		calls.Add(1)
 		return revisions.Result{Version: 2}, nil
 	}), logger)
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	swept := seedDashboard(t, d, 2)
 	other := seedDashboard(t, d, 2)
 	root := openThread(t, d, swept)
@@ -789,7 +789,7 @@ func TestFailedThreadResolutionStillRecordsTheSuccessfulRun(t *testing.T) {
 		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}), logger)
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 2)
 	root := openThread(t, d, dash)
 	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
@@ -1013,7 +1013,7 @@ func TestActiveRequestsPerDashboardAreCapped(t *testing.T) {
 			first = rev
 		}
 	}
-	_, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth submit: %v", err)
 	}
@@ -1032,7 +1032,7 @@ func TestConcurrentSubmitsNeverExceedTheCap(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
 				DashboardID: dash, Source: revisions.SourcePrompt, Prompt: fmt.Sprintf("p%d", i), BaseVersion: 1, By: user,
 			})
 			switch {
@@ -1049,7 +1049,7 @@ func TestConcurrentSubmitsNeverExceedTheCap(t *testing.T) {
 	if accepted.Load() != revisions.MaxActive || rejected.Load() != 24-revisions.MaxActive {
 		t.Fatalf("accepted %d and rejected %d", accepted.Load(), rejected.Load())
 	}
-	items, _, err := svc.List(context.Background(), dash, 100, "")
+	items, _, err := svc.List(reading(context.Background()), dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("stored %d requests, err %v", len(items), err)
 	}
@@ -1061,11 +1061,11 @@ func TestSubmitWithoutAnAgentIsRefused(t *testing.T) {
 	if svc.Available() {
 		t.Fatal("a service without a reviser reports itself available")
 	}
-	_, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "x", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "x", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
-	items, _, err := svc.List(context.Background(), dash, 10, "")
+	items, _, err := svc.List(reading(context.Background()), dash, 10, "")
 	if err != nil || len(items) != 0 {
 		t.Fatalf("nothing may be queued without an agent: %v, %v", items, err)
 	}
@@ -1078,11 +1078,11 @@ func TestListPagesNewestFirst(t *testing.T) {
 	for i := range 4 {
 		ids = append([]string{submit(t, svc, dash, fmt.Sprintf("p%d", i)).ID}, ids...)
 	}
-	first, next, err := svc.List(context.Background(), dash, 3, "")
+	first, next, err := svc.List(reading(context.Background()), dash, 3, "")
 	if err != nil || next == "" || len(first) != 3 {
 		t.Fatalf("first page: %v, next %q, %v", len(first), next, err)
 	}
-	second, end, err := svc.List(context.Background(), dash, 3, next)
+	second, end, err := svc.List(reading(context.Background()), dash, 3, next)
 	if err != nil || end != "" || len(second) != 1 {
 		t.Fatalf("second page: %v, next %q, %v", len(second), end, err)
 	}
@@ -1093,7 +1093,7 @@ func TestListPagesNewestFirst(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(ids, ",") {
 		t.Fatalf("order = %v, want %v", got, ids)
 	}
-	if _, _, err := svc.List(context.Background(), dash, 3, "!!!"); !errors.Is(err, revisions.ErrInvalidCursor) {
+	if _, _, err := svc.List(reading(context.Background()), dash, 3, "!!!"); !errors.Is(err, revisions.ErrInvalidCursor) {
 		t.Fatalf("bad cursor: %v", err)
 	}
 }
@@ -1138,7 +1138,7 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 3)
 	author := mustUUID(t, userID)
 	thread := func(id pgtype.UUID) dbsqlc.Thread {
@@ -1223,7 +1223,7 @@ func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
 				DashboardID: tc.dashboard, Source: revisions.SourcePrompt, Prompt: "go", BaseVersion: 1, By: tc.by,
 			})
 			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
@@ -1233,7 +1233,7 @@ func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	}
 
 	follow := func(dashboard pgtype.UUID, by auth.Principal) error {
-		_, err := svc.SubmitFollowUp(context.Background(), dashboard, nil, "", "again", by)
+		_, err := svc.SubmitFollowUp(reading(context.Background()), dashboard, nil, "", "again", by)
 		return err
 	}
 	if err := follow(hidden, asRole(auth.RoleEditor)); !errors.Is(err, revisions.ErrDashboardNotFound) {
@@ -1244,7 +1244,7 @@ func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	}
 
 	for role, want := range map[auth.Role]error{auth.RoleViewer: revisions.ErrForbidden, auth.RoleCommenter: revisions.ErrForbidden, auth.RoleEditor: nil} {
-		if _, err := svc.SubmitObserve(context.Background(), asRole(role), "new dashboard"); !errors.Is(err, want) || (want == nil && err != nil) {
+		if _, err := svc.SubmitObserve(reading(context.Background()), asRole(role), "new dashboard"); !errors.Is(err, want) || (want == nil && err != nil) {
 			t.Errorf("observe by %s: err = %v, want %v", role, err, want)
 		}
 	}
@@ -1263,7 +1263,7 @@ func TestRunFailsWhenTheRequesterNoLongerHasAccessAtClaim(t *testing.T) {
 	})))
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "go")
-	observe, err := svc.SubmitObserve(context.Background(), user, "new dashboard")
+	observe, err := svc.SubmitObserve(reading(context.Background()), user, "new dashboard")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1276,7 +1276,7 @@ func TestRunFailsWhenTheRequesterNoLongerHasAccessAtClaim(t *testing.T) {
 		t.Fatalf("revision error = %q, want %q", failed.Error, message)
 	}
 	waitFor(t, "the observe request to fail", func() bool {
-		row, err := svc.GetByID(context.Background(), observe.ID)
+		row, err := svc.GetByID(reading(context.Background()), observe.ID)
 		return err == nil && row.Status == string(revisions.StatusFailed) && row.Error.String == message
 	})
 	assertFailureCode(t, svc, rev.ID, revisions.FailureRequesterForbidden)
@@ -1300,7 +1300,7 @@ func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
 	failedID := observeFor(t, svc, user, "limited")
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 	waitFor(t, "the limited observe request to fail", func() bool {
-		row, err := svc.GetByID(context.Background(), mustUUID(t, failedID))
+		row, err := svc.GetByID(reading(context.Background()), mustUUID(t, failedID))
 		return err == nil && row.Status == string(revisions.StatusFailed)
 	})
 

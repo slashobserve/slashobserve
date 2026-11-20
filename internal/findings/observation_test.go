@@ -30,7 +30,7 @@ func (f failingAfterConclusion) WriteConclusion(ctx context.Context, q *dbsqlc.Q
 func (r rig) count(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -45,18 +45,18 @@ func (r rig) investigation(t *testing.T, by auth.Principal, dashboardID pgtype.U
 
 func (r rig) openRunObservation(t *testing.T, by auth.Principal, request pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	run, err := r.db.Queries().GetAgentRequestByID(t.Context(), request)
+	run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var id pgtype.UUID
-	err = r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err = r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		id, err = r.observations.OpenForRun(t.Context(), q, observations.RunOpen{Run: run, By: by, Strict: true})
+		id, err = r.observations.OpenForRun(reading(t.Context()), q, observations.RunOpen{Run: run, By: by, Strict: true})
 		if err != nil {
 			return err
 		}
-		_, err = q.SetRequestObservation(t.Context(), dbsqlc.SetRequestObservationParams{ID: request, ObservationID: id})
+		_, err = q.SetRequestObservation(reading(t.Context()), dbsqlc.SetRequestObservationParams{ID: request, ObservationID: id})
 		return err
 	})
 	if err != nil {
@@ -96,7 +96,7 @@ func TestAFindingFromARunWritesIntoTheRunsObservationOnceAndGetsItsOwnId(t *test
 	if first.ObservationID != observation.String() || first.ID == first.ObservationID {
 		t.Fatalf("finding %s in observation %s, want a new id in %s", first.ID, first.ObservationID, observation)
 	}
-	again, replayed, err := r.service.Save(t.Context(), editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: "why", Markdown: "second", From: windowTo.Add(-1), To: windowTo})
+	again, replayed, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: "why", Markdown: "second", From: windowTo.Add(-1), To: windowTo})
 	if err != nil || !replayed || again.ID != first.ID {
 		t.Fatalf("second save: %+v replayed %v, %v", again, replayed, err)
 	}
@@ -112,7 +112,7 @@ func TestAFailureAfterTheConclusionLeavesNeitherObservationNorFinding(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = service.Save(t.Context(), editor, findings.SaveInput{Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
+	_, _, err = service.Save(reading(t.Context()), editor, findings.SaveInput{Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
 	if !errors.Is(err, errAfterConclusion) {
 		t.Fatalf("save: %v", err)
 	}
@@ -125,14 +125,14 @@ func TestMovingTheObservationMovesWhereTheFindingLists(t *testing.T) {
 	r := newRig(t)
 	shared := r.folder(t, "Incidents")
 	saved := r.save(t, editor, findings.SaveInput{})
-	if _, err := r.observations.Move(t.Context(), editor, mustUUID(t, saved.ObservationID), shared); err != nil {
+	if _, err := r.observations.Move(reading(t.Context()), editor, mustUUID(t, saved.ObservationID), shared); err != nil {
 		t.Fatal(err)
 	}
-	rows, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{FolderID: shared}, 10, "")
+	rows, _, err := r.service.List(reading(t.Context()), viewer, findings.ListFilter{FolderID: shared}, 10, "")
 	if err != nil || len(rows) != 1 || rows[0].ID != saved.ID || rows[0].FolderID != shared.String() {
 		t.Fatalf("folder list: %+v, %v", rows, err)
 	}
-	got, err := r.service.Get(t.Context(), viewer, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), viewer, mustUUID(t, saved.ID))
 	if err != nil || got.Folder == nil || got.Folder.ID != shared {
 		t.Fatalf("read: %+v, %v", got.Folder, err)
 	}

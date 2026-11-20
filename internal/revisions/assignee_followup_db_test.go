@@ -17,7 +17,7 @@ func connectedGrant(t *testing.T, d *dbtest.Database) string {
 	t.Helper()
 	d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'issuer', $1, 'ada@example.com', 'Ada') ON CONFLICT (id) DO NOTHING`, userID)
 	var id string
-	err := d.SQLDB(t).QueryRowContext(context.Background(), `WITH c AS (INSERT INTO oauth_clients (name, redirect_uris) VALUES ('Codex', ARRAY['http://127.0.0.1:1/cb']) RETURNING id)
+	err := d.SQLDB(t).QueryRowContext(reading(context.Background()), `WITH c AS (INSERT INTO oauth_clients (name, redirect_uris) VALUES ('Codex', ARRAY['http://127.0.0.1:1/cb']) RETURNING id)
 		INSERT INTO oauth_grants (client_id, user_id, resource, expires_at) SELECT id, $1::uuid, 'http://localhost:8080/mcp', now() + interval '1 day' FROM c RETURNING id::text`, userID).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func connectedGrant(t *testing.T, d *dbtest.Database) string {
 func runTaker(t *testing.T, d *dbtest.Database, takesRuns bool) string {
 	t.Helper()
 	var id string
-	if err := d.SQLDB(t).QueryRowContext(context.Background(), `INSERT INTO service_accounts (name, takes_runs) VALUES ('ci-bot', $1) RETURNING id::text`, takesRuns).Scan(&id); err != nil {
+	if err := d.SQLDB(t).QueryRowContext(reading(context.Background()), `INSERT INTO service_accounts (name, takes_runs) VALUES ('ci-bot', $1) RETURNING id::text`, takesRuns).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -72,14 +72,14 @@ func TestRetryKeepsTheAssigneeAndRefusesOneThatCannotTakeRuns(t *testing.T) {
 			assignee := tt.setup(t, d)
 			first := submit(t, svc, dash, "look again")
 			assignTo(t, d, first.ID, tt.kind, assignee)
-			if _, err := svc.Cancel(context.Background(), mustUUID(t, first.ID), user); err != nil {
+			if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, first.ID), user); err != nil {
 				t.Fatal(err)
 			}
 			if tt.change != nil {
 				tt.change(t, d, assignee)
 			}
 
-			next, err := svc.Retry(context.Background(), mustUUID(t, first.ID), tt.by)
+			next, err := svc.Retry(reading(context.Background()), mustUUID(t, first.ID), tt.by)
 			var runs int
 			if countErr := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests").Scan(&runs); countErr != nil {
 				t.Fatal(countErr)
@@ -107,13 +107,13 @@ func TestRetryOfAnOutsideAgentsRunDoesNotNeedTheBuiltInAgent(t *testing.T) {
 	grant := connectedGrant(t, d)
 	for _, source := range []string{"prompt", "investigate"} {
 		first := insertCanceledRun(t, d, dash, source, "grant", grant)
-		next, err := svc.Retry(context.Background(), first, user)
+		next, err := svc.Retry(reading(context.Background()), first, user)
 		if err != nil || next.AssignedKind != "grant" || next.AssignedID.String() != grant || next.Source != source {
 			t.Fatalf("retry of a %s run = %+v, %v, want a %s run for the grant", source, next, err, source)
 		}
 	}
 	builtin := insertCanceledRun(t, d, dash, "prompt", "builtin", "")
-	if _, err := svc.Retry(context.Background(), builtin, user); !errors.Is(err, revisions.ErrUnavailable) {
+	if _, err := svc.Retry(reading(context.Background()), builtin, user); !errors.Is(err, revisions.ErrUnavailable) {
 		t.Fatalf("retry of a built-in run = %v, want ErrUnavailable", err)
 	}
 }
@@ -121,7 +121,7 @@ func TestRetryOfAnOutsideAgentsRunDoesNotNeedTheBuiltInAgent(t *testing.T) {
 func insertCanceledRun(t *testing.T, d *dbtest.Database, dash pgtype.UUID, source, kind, assignee string) pgtype.UUID {
 	t.Helper()
 	var id pgtype.UUID
-	row := d.SQLDB(t).QueryRowContext(context.Background(), `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, state, status, failure_code, finished_at)
+	row := d.SQLDB(t).QueryRowContext(reading(context.Background()), `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, state, status, failure_code, finished_at)
 		VALUES ($1, $5::text, 'look again', CASE WHEN $5::text = 'investigate' THEN NULL ELSE 1 END, 'user', $2::uuid, 'Ada', $3, NULLIF($4, '')::uuid, 'canceled', 'failed', 'canceled', now()) RETURNING id`, dash, userID, kind, assignee, source)
 	if err := row.Scan(&id); err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestContinueKeepsTheAssigneeAndRefusesOneThatCannotTakeRuns(t *testing.T) {
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			svc, d := newService(t, succeedWith(2))
-			ctx := context.Background()
+			ctx := reading(context.Background())
 			dash := seedDashboard(t, d, 1)
 			assignee := tt.setup(t, d)
 			rev := submit(t, svc, dash, "add a panel")

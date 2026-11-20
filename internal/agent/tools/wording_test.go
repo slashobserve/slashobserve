@@ -190,7 +190,7 @@ func TestMissingSpecErrorIsTheSameOnBothSurfaces(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			base := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin})
+			base := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin})
 			ctx := WithRun(base, Run{Mode: ModeCreate})
 			if tool == nameUpdateDashboard {
 				ctx = WithRun(base, Run{Mode: ModeRevise, DashboardID: dashA, ParentVersion: 1})
@@ -377,7 +377,7 @@ const agentToolTextCap = 2000
 
 var agentToolTextAllowances = map[string]int{
 	nameCreateComment: 2100,
-	nameListActivity:  3550,
+	nameListActivity:  3600,
 	nameQueryInstant:  2300,
 	nameUpdatePanels:  3700,
 }

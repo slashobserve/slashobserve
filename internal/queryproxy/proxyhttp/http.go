@@ -273,6 +273,9 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	v, err := h.dashboard(ctx, id, version)
+	if err == nil && !h.readable(ctx, v) {
+		err = fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, c.Param("panel_id"))
+	}
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -343,6 +346,10 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 			return
 		}
 		write(entry, false, entry.executedAt)
+		return
+	}
+	if err := h.runner.CheckPanelAccess(ctx, d, panelID, selections); err != nil {
+		h.fail(c, err)
 		return
 	}
 	key := dataKey(cached.id, cached.version, panelID, kind, al, selections, scope)
@@ -482,6 +489,9 @@ func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser
 	if v.usesUser {
 		scope = principalScope(principal.Kind, user)
 	}
+	if datasource.ReadsRestricted(ctx) {
+		scope += restrictedScope
+	}
 	return user, scope
 }
 
@@ -555,6 +565,9 @@ func (h *Handler) values(c *gin.Context) {
 		return
 	}
 	v, err := h.dashboard(ctx, id, version)
+	if err == nil && !h.readable(ctx, v) {
+		err = dashboards.ErrNotFound
+	}
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -594,7 +607,10 @@ func (h *Handler) variableOptions(ctx context.Context, v loadedVersion, cached *
 		options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, selections, user)
 		return newValuesEntry(options, truncated), false, err
 	}
-	key := valuesKey(cached.id, cached.version, name, rng.From, rng.To, selections, scope)
+	if err := h.runner.CheckVariableAccess(ctx, d, name, selections); err != nil {
+		return valuesEntry{}, false, err
+	}
+	key := valuesKey(h.registry.Generation(), cached.id, cached.version, name, rng.From, rng.To, selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		return entry, true, nil
 	}
@@ -617,9 +633,8 @@ func (h *Handler) lint(c *gin.Context) {
 		return
 	}
 	defer release()
-	inst, found := h.registry.Get(c.Param("uid"))
-	if !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+	inst, ok := h.datasourceFor(c)
+	if !ok {
 		return
 	}
 	var req lintRequest
@@ -647,6 +662,15 @@ func (h *Handler) lint(c *gin.Context) {
 		diagnostics = []datasource.Diagnostic{}
 	}
 	c.JSON(http.StatusOK, lintResponse{Diagnostics: diagnostics})
+}
+
+func (h *Handler) datasourceFor(c *gin.Context) (datasource.Instance, bool) {
+	inst, err := h.registry.For(c.Request.Context(), c.Param("uid"))
+	if err != nil {
+		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+		return datasource.Instance{}, false
+	}
+	return inst, true
 }
 
 func (h *Handler) acquireUpstream(c *gin.Context, datasourceUID string) (release func(), ok bool) {
@@ -710,7 +734,7 @@ func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (l
 	d, err := h.specs.VersionSpec(ctx, id, version)
 	switch {
 	case err == nil:
-		v := loadedVersion{dashboard: d, usesUser: queryproxy.DashboardUsesUser(d)}
+		v := h.loaded(d)
 		h.caches.specs.Put(key, v, 1)
 		return v, nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
@@ -719,6 +743,14 @@ func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (l
 		h.logger.ErrorContext(ctx, "load dashboard version", failureAttrs(err)...)
 		return loadedVersion{}, errInternal
 	}
+}
+
+func (h *Handler) loaded(d *spec.Dashboard) loadedVersion {
+	return loadedVersion{dashboard: d, usesUser: queryproxy.DashboardUsesUser(d)}
+}
+
+func (h *Handler) readable(ctx context.Context, v loadedVersion) bool {
+	return datasource.ReadsRestricted(ctx) || !h.runner.UsesRestricted(v.dashboard)
 }
 
 func failureAttrs(err error) []any {

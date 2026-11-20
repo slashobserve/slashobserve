@@ -15,7 +15,7 @@ import (
 
 func (r *rig) open(t *testing.T, by auth.Principal, in OpenInput) (Thread, Message) {
 	t.Helper()
-	thread, message, err := r.service.Open(t.Context(), by, in, nil)
+	thread, message, err := r.service.Open(reading(t.Context()), by, in, nil)
 	if err != nil {
 		t.Fatalf("open %+v: %v", in, err)
 	}
@@ -24,7 +24,7 @@ func (r *rig) open(t *testing.T, by auth.Principal, in OpenInput) (Thread, Messa
 
 func (r *rig) reply(t *testing.T, by auth.Principal, id, body string) (Thread, Message) {
 	t.Helper()
-	thread, message, err := r.service.Reply(t.Context(), by, mustParse(t, id), ReplyInput{Body: body}, nil)
+	thread, message, err := r.service.Reply(reading(t.Context()), by, mustParse(t, id), ReplyInput{Body: body}, nil)
 	if err != nil {
 		t.Fatalf("reply to %s: %v", id, err)
 	}
@@ -33,7 +33,7 @@ func (r *rig) reply(t *testing.T, by auth.Principal, id, body string) (Thread, M
 
 func (r *rig) list(t *testing.T, by auth.Principal, tg Target) Page {
 	t.Helper()
-	page, err := r.service.List(t.Context(), by, ListQuery{Target: tg, Status: StatusAll, Limit: 50})
+	page, err := r.service.List(reading(t.Context()), by, ListQuery{Target: tg, Status: StatusAll, Limit: 50})
 	if err != nil {
 		t.Fatalf("list %s: %v", tg, err)
 	}
@@ -79,7 +79,7 @@ func TestEveryTargetOpensRepliesAndLists(t *testing.T) {
 			}
 
 			for _, id := range []string{thread.ID, second.ID, third.ID} {
-				row, err := r.db.Queries().GetThreadOfMessage(t.Context(), mustParse(t, id))
+				row, err := r.db.Queries().GetThreadOfMessage(reading(t.Context()), mustParse(t, id))
 				if err != nil || row.ID.String() != thread.ID {
 					t.Errorf("GetThreadOfMessage(%s) = %v, %v", id, row.ID, err)
 				}
@@ -138,7 +138,7 @@ func TestOpenOnADashboardAnchorsTheVersionAndPanel(t *testing.T) {
 		{"a body with a control character", OpenInput{Target: target(KindDashboard, dash), Body: "a\x07b"}, func(err error) bool { return invalid(err, CodeInvalidBody) }},
 	}
 	for _, tt := range tests {
-		if _, _, err := r.service.Open(t.Context(), testUser, tt.in, nil); !tt.want(err) {
+		if _, _, err := r.service.Open(reading(t.Context()), testUser, tt.in, nil); !tt.want(err) {
 			t.Errorf("%s: err = %v", tt.name, err)
 		}
 	}
@@ -157,29 +157,29 @@ func TestAHiddenTargetAnswersNotFoundEverywhere(t *testing.T) {
 	finding := r.filedObservationIn(t, admin, restricted)
 
 	for _, tg := range []Target{target(KindDashboard, hidden), target(KindObservation, finding), target(KindAnnotation, annotation)} {
-		if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
+		if _, _, err := r.service.Open(reading(t.Context()), viewer, OpenInput{Target: tg, Body: "hi"}, nil); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("open on hidden %s: err = %v", tg, err)
 		}
-		if _, err := r.service.List(t.Context(), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+		if _, err := r.service.List(reading(t.Context()), viewer, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("list of hidden %s: err = %v", tg, err)
 		}
-		if _, err := r.service.Abilities(t.Context(), viewer, tg); !errors.Is(err, ErrTargetNotFound) {
+		if _, err := r.service.Abilities(reading(t.Context()), viewer, tg); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("abilities of hidden %s: err = %v", tg, err)
 		}
 	}
 	missing := target(KindObservation, mustParse(t, "00000000-0000-4000-8000-000000000000"))
-	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: missing, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: missing, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("list of a missing finding: err = %v", err)
 	}
 
 	id := mustParse(t, thread.ID)
-	if _, _, err := r.service.Reply(t.Context(), viewer, id, ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(reading(t.Context()), viewer, id, ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply on a hidden thread: err = %v", err)
 	}
-	if _, _, _, err := r.service.Edit(t.Context(), viewer, mustParse(t, message.ID), "hi"); !errors.Is(err, ErrNotFound) {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), viewer, mustParse(t, message.ID), "hi"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("edit in a hidden thread: err = %v", err)
 	}
-	if _, _, err := r.service.SetStatus(t.Context(), viewer, id, StatusResolved, nil); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), viewer, id, StatusResolved, nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("resolve of a hidden thread: err = %v", err)
 	}
 }
@@ -190,19 +190,19 @@ func TestAFindingInARestrictedFolderIsPrivateToThatFoldersGroupAndAdmins(t *test
 	tg := target(KindObservation, r.filedObservationIn(t, admin, restricted))
 
 	thread, _ := r.open(t, admin, OpenInput{Target: tg, Body: "mine"})
-	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
+	if _, err := r.service.List(reading(t.Context()), admin, ListQuery{Target: tg, Limit: 10}); err != nil {
 		t.Errorf("admin list: %v", err)
 	}
 	for _, by := range []auth.Principal{testUser, commenter, viewer, {Kind: auth.KindUser, ID: "66666666-6666-4666-8666-666666666666", Name: "Ed", Role: auth.RoleEditor}} {
-		if _, err := r.service.List(t.Context(), by, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+		if _, err := r.service.List(reading(t.Context()), by, ListQuery{Target: tg, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 			t.Errorf("%s list: err = %v, want ErrTargetNotFound", by.Name, err)
 		}
-		if _, _, err := r.service.Reply(t.Context(), by, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
+		if _, _, err := r.service.Reply(reading(t.Context()), by, mustParse(t, thread.ID), ReplyInput{Body: "hi"}, nil); !errors.Is(err, ErrNotFound) {
 			t.Errorf("%s reply: err = %v, want ErrNotFound", by.Name, err)
 		}
 	}
 
-	abilities, err := r.service.Abilities(t.Context(), admin, tg)
+	abilities, err := r.service.Abilities(reading(t.Context()), admin, tg)
 	if err != nil || !abilities.View || !abilities.Comment {
 		t.Errorf("an admin's abilities = %+v, err %v, want view and comment", abilities, err)
 	}
@@ -215,17 +215,17 @@ func TestAFindingFiledInAFolderFollowsThatFoldersAccess(t *testing.T) {
 	mine := target(KindObservation, r.filedObservation(t, commenter, pgtype.UUID{}))
 
 	r.open(t, commenter, OpenInput{Target: filed, Body: "a commenter of General may comment"})
-	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: filed, Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Open(reading(t.Context()), viewer, OpenInput{Target: filed, Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer of General opening: err = %v, want folders.ErrForbidden", err)
 	}
-	if page, err := r.service.List(t.Context(), viewer, ListQuery{Target: filed, Limit: 10}); err != nil || len(page.Messages) != 1 || page.CanComment {
+	if page, err := r.service.List(reading(t.Context()), viewer, ListQuery{Target: filed, Limit: 10}); err != nil || len(page.Messages) != 1 || page.CanComment {
 		t.Errorf("a viewer of General reads without commenting: %+v, err %v", page, err)
 	}
 
-	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("a finding in someone's My Dashboards: err = %v, want ErrTargetNotFound", err)
 	}
-	if _, err := r.service.List(t.Context(), admin, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
+	if _, err := r.service.List(reading(t.Context()), admin, ListQuery{Target: mine, Limit: 10}); !errors.Is(err, ErrTargetNotFound) {
 		t.Errorf("an admin reading a finding in someone's My Dashboards: err = %v, want ErrTargetNotFound", err)
 	}
 	r.open(t, commenter, OpenInput{Target: mine, Body: "mine"})
@@ -235,22 +235,22 @@ func TestAGlobalAnnotationFollowsTheGeneralFolder(t *testing.T) {
 	r := newRig(t)
 	global := target(KindAnnotation, r.createAnnotation(t, testUser, pgtype.UUID{}))
 
-	viewerAbilities, err := r.service.Abilities(t.Context(), viewer, global)
+	viewerAbilities, err := r.service.Abilities(reading(t.Context()), viewer, global)
 	if err != nil || !viewerAbilities.View || viewerAbilities.Comment {
 		t.Errorf("viewer abilities = %+v, err %v", viewerAbilities, err)
 	}
-	if _, _, err := r.service.Open(t.Context(), viewer, OpenInput{Target: global, Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Open(reading(t.Context()), viewer, OpenInput{Target: global, Body: "hi"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer opening: err = %v, want folders.ErrForbidden", err)
 	}
-	if page, err := r.service.List(t.Context(), viewer, ListQuery{Target: global, Limit: 10}); err != nil || page.CanComment {
+	if page, err := r.service.List(reading(t.Context()), viewer, ListQuery{Target: global, Limit: 10}); err != nil || page.CanComment {
 		t.Errorf("viewer list: %+v, err %v", page, err)
 	}
 
 	thread, _ := r.open(t, commenter, OpenInput{Target: global, Body: "from a commenter"})
-	if _, _, err := r.service.Reply(t.Context(), viewer, mustParse(t, thread.ID), ReplyInput{Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.Reply(reading(t.Context()), viewer, mustParse(t, thread.ID), ReplyInput{Body: "no"}, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer replying: err = %v, want folders.ErrForbidden", err)
 	}
-	if _, _, err := r.service.SetStatus(t.Context(), viewer, mustParse(t, thread.ID), StatusResolved, nil); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), viewer, mustParse(t, thread.ID), StatusResolved, nil); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer resolving: err = %v, want folders.ErrForbidden", err)
 	}
 
@@ -266,17 +266,17 @@ func TestEditIsForTheAuthorOnly(t *testing.T) {
 	thread, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "draft"})
 	_, other := r.reply(t, commenter, thread.ID, "mine")
 
-	if _, _, _, err := r.service.Edit(t.Context(), commenter, mustParse(t, first.ID), "hijack"); !errors.Is(err, ErrNotAuthor) {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), commenter, mustParse(t, first.ID), "hijack"); !errors.Is(err, ErrNotAuthor) {
 		t.Fatalf("a non-author edit: err = %v, want ErrNotAuthor", err)
 	}
-	if _, _, _, err := r.service.Edit(t.Context(), testUser, mustParse(t, other.ID), "hijack"); !errors.Is(err, ErrNotAuthor) {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, other.ID), "hijack"); !errors.Is(err, ErrNotAuthor) {
 		t.Fatalf("an editor editing a commenter's message: err = %v, want ErrNotAuthor", err)
 	}
-	if _, _, _, err := r.service.Edit(t.Context(), testUser, mustParse(t, "00000000-0000-4000-8000-000000000000"), "x"); !errors.Is(err, ErrNotFound) {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, "00000000-0000-4000-8000-000000000000"), "x"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("an unknown message: err = %v, want ErrNotFound", err)
 	}
 
-	_, edited, changed, err := r.service.Edit(t.Context(), testUser, mustParse(t, first.ID), "final")
+	_, edited, changed, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, first.ID), "final")
 	if err != nil || !changed || edited.Body != "final" || edited.EditedAt == nil || !edited.CanEdit {
 		t.Fatalf("edit = %+v, changed %v, err %v", edited, changed, err)
 	}
@@ -294,7 +294,7 @@ func TestEditNeedsCommentAbilityToStillHold(t *testing.T) {
 	thread, message := r.open(t, commenter, OpenInput{Target: target(KindDashboard, dash), Body: "draft"})
 	demoted := commenter
 	demoted.Role = auth.RoleViewer
-	if _, _, _, err := r.service.Edit(t.Context(), demoted, mustParse(t, message.ID), "later"); !errors.Is(err, folders.ErrForbidden) {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), demoted, mustParse(t, message.ID), "later"); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("err = %v, want folders.ErrForbidden", err)
 	}
 	if got := r.list(t, demoted, target(KindDashboard, dash)).Messages[0]; got.CanEdit || got.Body != "draft" || got.ThreadID != thread.ID {
@@ -308,7 +308,7 @@ func TestAnUnchangedEditChangesAndAppendsNothing(t *testing.T) {
 	_, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "same"})
 	before := len(r.activity(t))
 
-	_, got, changed, err := r.service.Edit(t.Context(), testUser, mustParse(t, first.ID), "  same\n")
+	_, got, changed, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, first.ID), "  same\n")
 	if err != nil || changed || got.EditedAt != nil || !got.UpdatedAt.Equal(first.UpdatedAt) {
 		t.Fatalf("edit = %+v, changed %v, err %v", got, changed, err)
 	}
@@ -333,7 +333,7 @@ func TestEditRecordsMentionsAgainAndAppendsOnlyAnEditedEvent(t *testing.T) {
 		t.Fatalf("activity after open = %v", got)
 	}
 
-	_, edited, changed, err := r.service.Edit(t.Context(), testUser, mustParse(t, first.ID), "now "+token("x", cy)+" only")
+	_, edited, changed, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, first.ID), "now "+token("x", cy)+" only")
 	if err != nil || !changed {
 		t.Fatalf("edit: changed %v, err %v", changed, err)
 	}
@@ -363,11 +363,11 @@ func TestOnlyRealPeopleWhoCanSeeTheTargetCanBeMentioned(t *testing.T) {
 		t.Errorf("activity = %v, want one mention event for the real user", got)
 	}
 	var invalid *InvalidInputError
-	_, _, err := r.service.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "hi " + ghost}, nil)
+	_, _, err := r.service.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "hi " + ghost}, nil)
 	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention {
 		t.Errorf("a user that does not exist: err = %v, want invalid_mention", err)
 	}
-	_, _, err = r.service.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: strings.Repeat("@observe ", 3) + manyTokens(21)}, nil)
+	_, _, err = r.service.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: strings.Repeat("@observe ", 3) + manyTokens(21)}, nil)
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyMentions {
 		t.Errorf("21 mentions: err = %v", err)
 	}
@@ -391,7 +391,7 @@ func TestAReplyNeverReopensAResolvedThread(t *testing.T) {
 	dash := r.createDashboard(t)
 	thread, _ := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "root"})
 	id := mustParse(t, thread.ID)
-	if _, changed, err := r.service.SetStatus(t.Context(), testUser, id, StatusResolved, nil); err != nil || !changed {
+	if _, changed, err := r.service.SetStatus(reading(t.Context()), testUser, id, StatusResolved, nil); err != nil || !changed {
 		t.Fatalf("resolve: changed %v, err %v", changed, err)
 	}
 	got, _ := r.reply(t, commenter, thread.ID, "late reply")
@@ -410,16 +410,16 @@ func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 	thread, first := r.open(t, commenter, OpenInput{Target: target(KindDashboard, dash), Version: new(1), Body: "root"})
 	id := mustParse(t, first.ID)
 
-	resolved, changed, err := r.service.SetStatus(t.Context(), commenter, id, StatusResolved, new(2))
+	resolved, changed, err := r.service.SetStatus(reading(t.Context()), commenter, id, StatusResolved, new(2))
 	if err != nil || !changed || resolved.ID != thread.ID || resolved.Status != StatusResolved || resolved.ResolvedAt == nil ||
 		resolved.ResolvedByVersion == nil || *resolved.ResolvedByVersion != 2 || resolved.ResolvedBy == nil || resolved.ResolvedBy.ID != commenterID {
 		t.Fatalf("resolved = %+v, changed %v, err %v", resolved, changed, err)
 	}
-	again, changed, err := r.service.SetStatus(t.Context(), testUser, id, StatusResolved, nil)
+	again, changed, err := r.service.SetStatus(reading(t.Context()), testUser, id, StatusResolved, nil)
 	if err != nil || changed || again.ResolvedBy.ID != commenterID || !again.UpdatedAt.Equal(resolved.UpdatedAt) {
 		t.Fatalf("a repeat resolve = %+v, changed %v, err %v", again, changed, err)
 	}
-	reopened, changed, err := r.service.SetStatus(t.Context(), testUser, id, StatusOpen, nil)
+	reopened, changed, err := r.service.SetStatus(reading(t.Context()), testUser, id, StatusOpen, nil)
 	if err != nil || !changed || reopened.Status != StatusOpen || reopened.ResolvedAt != nil || reopened.ResolvedBy != nil || reopened.ResolvedByVersion != nil {
 		t.Fatalf("reopened = %+v, changed %v, err %v", reopened, changed, err)
 	}
@@ -446,7 +446,7 @@ func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 			ft, _ := r.open(t, testUser, OpenInput{Target: Target{Kind: KindObservation, ID: finding}, Body: "x"})
 			target = mustParse(t, ft.ID)
 		}
-		_, _, err := r.service.SetStatus(t.Context(), testUser, target, tt.status, tt.version)
+		_, _, err := r.service.SetStatus(reading(t.Context()), testUser, target, tt.status, tt.version)
 		if tt.want != nil && !errors.Is(err, tt.want) || tt.want == nil && !errors.As(err, &invalid) {
 			t.Errorf("%s: err = %v", name, err)
 		}
@@ -461,13 +461,13 @@ func TestEveryEventTypeAppendsItsDataWithoutBodyText(t *testing.T) {
 
 	thread, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), PanelID: new("rps"), Body: secret + " @[Bo](user:" + bo.String() + ")"})
 	_, second := r.reply(t, commenter, thread.ID, secret+" again")
-	if _, _, _, err := r.service.Edit(t.Context(), commenter, mustParse(t, second.ID), secret+" edited"); err != nil {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), commenter, mustParse(t, second.ID), secret+" edited"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, thread.ID), StatusResolved, new(1)); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, thread.ID), StatusOpen, nil); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, thread.ID), StatusOpen, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -504,7 +504,7 @@ func TestEveryEventTypeAppendsItsDataWithoutBodyText(t *testing.T) {
 		t.Errorf("resolved = %+v", rows[4])
 	}
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT string_agg(data::text, ' ') FROM activity WHERE target_kind = 'thread'`).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT string_agg(data::text, ' ') FROM activity WHERE target_kind = 'thread'`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(raw, "distinctive") {
@@ -518,17 +518,17 @@ func TestDeletingTheTargetDeletesItsThreads(t *testing.T) {
 	thread, _ := r.open(t, testUser, OpenInput{Target: target(KindAnnotation, annotation), Body: "gone soon"})
 	r.reply(t, testUser, thread.ID, "reply")
 
-	if err := r.annotations.Delete(t.Context(), testUser, annotation); err != nil {
+	if err := r.annotations.Delete(reading(t.Context()), testUser, annotation); err != nil {
 		t.Fatal(err)
 	}
 	var threads, messages int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT (SELECT count(*) FROM threads), (SELECT count(*) FROM thread_messages)`).Scan(&threads, &messages); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT (SELECT count(*) FROM threads), (SELECT count(*) FROM thread_messages)`).Scan(&threads, &messages); err != nil {
 		t.Fatal(err)
 	}
 	if threads != 0 || messages != 0 {
 		t.Errorf("%d threads and %d messages survived their annotation", threads, messages)
 	}
-	if _, _, err := r.service.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "late"}, nil); !errors.Is(err, ErrNotFound) {
+	if _, _, err := r.service.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "late"}, nil); !errors.Is(err, ErrNotFound) {
 		t.Errorf("reply on a deleted target: err = %v, want ErrNotFound", err)
 	}
 }
@@ -540,14 +540,14 @@ func TestListPagesByMessageAndFilters(t *testing.T) {
 	a, _ := r.open(t, testUser, OpenInput{Target: tg, PanelID: new("rps"), Body: "a"})
 	r.reply(t, testUser, a.ID, "a2")
 	b, _ := r.open(t, testUser, OpenInput{Target: tg, PanelID: new("errors"), Body: "b"})
-	if _, _, err := r.service.SetStatus(t.Context(), testUser, mustParse(t, b.ID), StatusResolved, nil); err != nil {
+	if _, _, err := r.service.SetStatus(reading(t.Context()), testUser, mustParse(t, b.ID), StatusResolved, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	var bodies []string
 	cursor := ""
 	for pages := 0; pages < 5; pages++ {
-		page, err := r.service.List(t.Context(), testUser, ListQuery{Target: tg, Limit: 2, Cursor: cursor})
+		page, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: tg, Limit: 2, Cursor: cursor})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -571,15 +571,15 @@ func TestListPagesByMessageAndFilters(t *testing.T) {
 		"resolved only": {ListQuery{Target: tg, Status: StatusResolved, Limit: 10}, 1},
 		"one panel":     {ListQuery{Target: tg, Status: StatusAll, PanelID: "errors", Limit: 10}, 1},
 	} {
-		page, err := r.service.List(t.Context(), testUser, tt.query)
+		page, err := r.service.List(reading(t.Context()), testUser, tt.query)
 		if err != nil || len(page.Messages) != tt.want {
 			t.Errorf("%s: %d messages, err %v, want %d", name, len(page.Messages), err, tt.want)
 		}
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: tg, Status: "bogus", Limit: 10}); err == nil {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: tg, Status: "bogus", Limit: 10}); err == nil {
 		t.Error("an unknown status was accepted")
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListQuery{Target: tg, Limit: 10, Cursor: "!!"}); err == nil {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListQuery{Target: tg, Limit: 10, Cursor: "!!"}); err == nil {
 		t.Error("a malformed cursor was accepted")
 	}
 }
@@ -591,7 +591,7 @@ func TestAThreadMessageOnAFindingIsOwnedByItsObservationNotItsDashboard(t *testi
 	r.open(t, testUser, OpenInput{Target: target(KindObservation, detached), Body: "who owns this"})
 	r.open(t, testUser, OpenInput{Target: target(KindObservation, onDashboard), Body: "and this"})
 
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(observation_id::text, ''), coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT coalesce(observation_id::text, ''), coalesce(finding_id::text, ''), coalesce(dashboard_id::text, '') FROM activity WHERE type = 'thread.opened' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}

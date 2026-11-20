@@ -82,8 +82,7 @@ func (h *Handler) names(c *gin.Context, kind datasource.DiscoverKind, allowed []
 	}
 	defer release()
 	uid := c.Param("uid")
-	if _, found := h.registry.Get(uid); !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+	if _, found := h.datasourceFor(c); !found {
 		return queryproxy.Names{}, false
 	}
 	req, err := namesRequest(c.Request.URL.RawQuery, allowed)

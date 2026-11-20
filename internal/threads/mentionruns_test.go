@@ -33,7 +33,7 @@ type queuedRun struct {
 
 func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT id::text, source, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, source, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
 		coalesce(observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
 		thread_context, prompt, requested_by_id::text FROM agent_requests ORDER BY created_at, id`)
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 func (r *rig) messageCount(t *testing.T) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM thread_messages`).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM thread_messages`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -67,7 +67,7 @@ func (r *rig) connectedAgent(t *testing.T, person auth.Principal) pgtype.UUID {
 	t.Helper()
 	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'issuer', $2, $2, $3) ON CONFLICT (id) DO NOTHING`, person.ID, person.ID+"@example.com", person.Name)
 	var id string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `WITH c AS (INSERT INTO oauth_clients (name, redirect_uris) VALUES ('Codex', ARRAY['http://127.0.0.1:1/cb']) RETURNING id)
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `WITH c AS (INSERT INTO oauth_clients (name, redirect_uris) VALUES ('Codex', ARRAY['http://127.0.0.1:1/cb']) RETURNING id)
 		INSERT INTO oauth_grants (client_id, user_id, resource, expires_at) SELECT id, $1::uuid, 'http://localhost:8080/mcp', now() + interval '1 day' FROM c RETURNING id::text`, person.ID).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func (r *rig) connectedAgent(t *testing.T, person auth.Principal) pgtype.UUID {
 func (r *rig) serviceAccount(t *testing.T, name string, takesRuns bool) pgtype.UUID {
 	t.Helper()
 	var id string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO service_accounts (name, takes_runs) VALUES ($1, $2) RETURNING id::text`, name, takesRuns).Scan(&id); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO service_accounts (name, takes_runs) VALUES ($1, $2) RETURNING id::text`, name, takesRuns).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	return mustParse(t, id)
@@ -89,7 +89,7 @@ func accountToken(id pgtype.UUID) string { return "@[ci-bot](service_account:" +
 
 func (r *rig) openWithRun(t *testing.T, by auth.Principal, in OpenInput) (Thread, Message, *StartedRun, *RunRefusal) {
 	t.Helper()
-	thread, message, run, refusal, err := r.mentions.Open(t.Context(), by, in, true)
+	thread, message, run, refusal, err := r.mentions.Open(reading(t.Context()), by, in, true)
 	if err != nil {
 		t.Fatalf("open %+v: %v", in, err)
 	}
@@ -98,7 +98,7 @@ func (r *rig) openWithRun(t *testing.T, by auth.Principal, in OpenInput) (Thread
 
 func (r *rig) replyWithRun(t *testing.T, by auth.Principal, thread, body string) (Message, *StartedRun, *RunRefusal) {
 	t.Helper()
-	_, message, run, refusal, err := r.mentions.Reply(t.Context(), by, mustParse(t, thread), ReplyInput{Body: body}, true)
+	_, message, run, refusal, err := r.mentions.Reply(reading(t.Context()), by, mustParse(t, thread), ReplyInput{Body: body}, true)
 	if err != nil {
 		t.Fatalf("reply to %s: %v", thread, err)
 	}
@@ -146,11 +146,11 @@ func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
 	dash := r.createDashboard(t)
 	tg := target(KindDashboard, dash)
 
-	thread, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: "@observe look"}, false)
+	thread, _, run, refusal, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: tg, Body: "@observe look"}, false)
 	if err != nil || run != nil || refusal != nil {
 		t.Fatalf("open = %v, %+v, %+v", err, run, refusal)
 	}
-	if _, _, run, refusal, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe again"}, false); err != nil || run != nil || refusal != nil {
+	if _, _, run, refusal, err := r.mentions.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe again"}, false); err != nil || run != nil || refusal != nil {
 		t.Fatalf("reply = %v, %+v, %+v", err, run, refusal)
 	}
 	if runs := r.queuedRuns(t); len(runs) != 0 {
@@ -237,14 +237,14 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 		accountToken(r.serviceAccount(t, "ci-bot", true)) + " and " + grantToken(grant),
 	}
 	for _, body := range bodies {
-		_, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: body}, true)
+		_, _, _, _, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: tg, Body: body}, true)
 		var invalid *InvalidInputError
 		if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
 			t.Fatalf("open %q: err = %v, want too_many_agents", body, err)
 		}
 	}
 	thread, _ := r.open(t, testUser, OpenInput{Target: tg, Body: "first"})
-	_, _, _, _, err := r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: bodies[0]}, true)
+	_, _, _, _, err := r.mentions.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: bodies[0]}, true)
 	var invalid *InvalidInputError
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyAgents {
 		t.Fatalf("reply: err = %v, want too_many_agents", err)
@@ -252,7 +252,7 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 	if runs := r.queuedRuns(t); len(runs) != 0 || r.messageCount(t) != 1 {
 		t.Fatalf("%d runs, %d messages: a refused message writes nothing", len(runs), r.messageCount(t))
 	}
-	if _, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: tg, Body: bodies[0]}, false); err != nil {
+	if _, _, _, _, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: tg, Body: bodies[0]}, false); err != nil {
 		t.Fatalf("two agents without start_runs are only mentions: %v", err)
 	}
 }
@@ -385,7 +385,7 @@ func TestAnEnqueueFailureOtherThanARefusalRollsTheMessageBack(t *testing.T) {
 	dash := r.createDashboard(t)
 	r.db.Exec(t, `ALTER TABLE agent_requests ADD CONSTRAINT test_refuses_boom CHECK (prompt <> 'boom')`)
 
-	_, _, _, _, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe boom"}, true)
+	_, _, _, _, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe boom"}, true)
 	if err == nil {
 		t.Fatal("open succeeded, want the enqueue failure")
 	}
@@ -433,7 +433,7 @@ func TestOnlyOwnConnectedAgentsAndServiceAccountsThatTakeRunsCanBeMentioned(t *t
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, message, err := r.service.Open(t.Context(), tt.by, OpenInput{Target: tg, Body: tt.body}, nil)
+			_, message, err := r.service.Open(reading(t.Context()), tt.by, OpenInput{Target: tg, Body: tt.body}, nil)
 			if !tt.ok {
 				var invalid *InvalidInputError
 				if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention || invalid.Message != "you can mention only your own connected agents and service accounts that take runs" {
@@ -486,7 +486,7 @@ func TestAnEditCanNotAddAnAgentMentionThatCouldNotBePosted(t *testing.T) {
 	theirs := r.connectedAgent(t, commenter)
 	_, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "draft"})
 
-	_, _, _, err := r.service.Edit(t.Context(), testUser, mustParse(t, first.ID), "now with "+grantToken(theirs))
+	_, _, _, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, first.ID), "now with "+grantToken(theirs))
 	var invalid *InvalidInputError
 	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention {
 		t.Fatalf("err = %v, want invalid_mention", err)
@@ -500,7 +500,7 @@ func TestAnEditNeverStartsARun(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	_, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "draft"})
-	if _, _, _, err := r.service.Edit(t.Context(), testUser, mustParse(t, first.ID), "@observe now"); err != nil {
+	if _, _, _, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, first.ID), "@observe now"); err != nil {
 		t.Fatal(err)
 	}
 	if runs := r.queuedRuns(t); len(runs) != 0 {
@@ -571,7 +571,7 @@ func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t 
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 
-	thread, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
+	thread, _, run, refusal, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -579,7 +579,7 @@ func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t 
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
 
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
+	_, _, run, refusal, err = r.mentions.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +599,7 @@ func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) 
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 	account := r.serviceAccount(t, "ci-bot", true)
 
-	_, _, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
+	_, _, run, refusal, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -612,14 +612,14 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
-	thread, first, run, refusal, err := r.mentions.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
+	thread, first, run, refusal, err := r.mentions.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if run == nil || refusal != nil || run.AssignedKind != "builtin" {
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
-	_, _, run, refusal, err = r.mentions.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
+	_, _, run, refusal, err = r.mentions.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -671,11 +671,11 @@ func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.
 			if tt.target.Kind == KindDashboard {
 				in.Version = new(1)
 			}
-			_, _, started, refusal, err := r.mentions.Open(origin.With(t.Context(), tt.ctxOrigin), testUser, in, true)
+			_, _, started, refusal, err := r.mentions.Open(origin.With(reading(t.Context()), tt.ctxOrigin), testUser, in, true)
 			if err != nil || started == nil || refusal != nil {
 				t.Fatalf("started = %+v, refusal = %+v, err = %v", started, refusal, err)
 			}
-			row, err := r.db.Queries().GetAgentRequestByID(t.Context(), mustParse(t, started.ID))
+			row, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), mustParse(t, started.ID))
 			if err != nil {
 				t.Fatal(err)
 			}

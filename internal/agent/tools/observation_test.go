@@ -67,7 +67,7 @@ func newObservationRig(t *testing.T) *observationRig {
 	service := observations.New(database.DB, access, snapshotFreezer{}, nil, logger, observations.WithOutputs(dashboards.New(database.DB, runner, access, logger), annotations.New(database.DB, access)))
 	registry := New(Deps{Datasources: datasources, Runner: runner, Folders: access, Observations: service, Logger: logger})
 	r := &observationRig{registry: registry, service: service, db: database}
-	if err := database.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&r.folder); err != nil {
+	if err := database.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&r.folder); err != nil {
 		t.Fatal(err)
 	}
 	return r

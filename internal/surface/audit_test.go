@@ -29,7 +29,6 @@ var pendingAuditActions = []audit.Action{
 	"chat.create",
 	"chat.delete",
 	"chat.turn",
-	"datasource.audience_change",
 	"finding.apply",
 	"migration.apply",
 	"oauth.authorize",

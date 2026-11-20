@@ -28,7 +28,7 @@ func newProposalsRig(t *testing.T) *proposalsRig {
 }
 
 func asUser(p auth.Principal) context.Context {
-	return auth.WithPrincipal(context.Background(), p)
+	return auth.WithPrincipal(reading(context.Background()), p)
 }
 
 func (r *proposalsRig) propose(by context.Context, t *testing.T, p1Title string) string {

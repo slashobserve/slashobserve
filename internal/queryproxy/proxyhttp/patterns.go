@@ -54,9 +54,8 @@ func (h *Handler) patterns(c *gin.Context) {
 		return
 	}
 	uid := c.Param("uid")
-	inst, found := h.registry.Get(uid)
+	inst, found := h.datasourceFor(c)
 	if !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return
 	}
 	if _, supported := inst.Datasource.(datasource.LineSource); !supported {

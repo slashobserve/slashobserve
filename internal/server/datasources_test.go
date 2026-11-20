@@ -29,7 +29,7 @@ func datasourceEngine(t *testing.T, role auth.Role, registry *datasource.Registr
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: role}))
-	})
+	}, principalAccess)
 	registerDatasourceRoutes(auth.NewRoutes(api), registry, fakeUsage{}, logger)
 	return engine
 }

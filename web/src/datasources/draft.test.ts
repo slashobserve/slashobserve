@@ -193,6 +193,7 @@ describe("formOf and savedCredentials", () => {
       uid: "prom",
       type: "prometheus",
       name: "prom",
+      audience: "everyone",
       source: "app",
       address: "https://prom.example.com",
       limits: { max_rows: 0, timeout: "20s" },

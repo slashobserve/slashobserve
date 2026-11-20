@@ -17,7 +17,7 @@ func proposeFor(t *testing.T, d *dbtest.Database, dash, run pgtype.UUID) {
 
 func assertSucceededWithProposal(t *testing.T, svc *revisions.Service, id pgtype.UUID) {
 	t.Helper()
-	stored, err := svc.GetByID(context.Background(), id)
+	stored, err := svc.GetByID(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestARunThatProposedSucceedsWithAProposalAndLeavesItsCommentThreadOpen(t *t
 	}))
 	dash := seedDashboard(t, d, 1)
 	root := newThread(t, d, dash, "p1")
-	row, err := svc.SubmitForThread(context.Background(), dash, root.ID, nil, "go", user)
+	row, err := svc.SubmitForThread(reading(context.Background()), dash, root.ID, nil, "go", user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestARunThatProposedSucceedsWithAProposalAndLeavesItsCommentThreadOpen(t *t
 	waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
 
 	assertSucceededWithProposal(t, svc, row.ID)
-	thread, err := d.Queries().GetThread(context.Background(), root.ID)
+	thread, err := d.Queries().GetThread(reading(context.Background()), root.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestARunThatProposedSucceedsWithAProposalAndLeavesItsCommentThreadOpen(t *t
 func TestACanceledRunThatHadProposedSettlesAsSucceededWithAProposal(t *testing.T) {
 	cases := map[string]func(t *testing.T, svc *revisions.Service, d *dbtest.Database, id pgtype.UUID){
 		"canceled with a live lease, then swept": func(t *testing.T, svc *revisions.Service, d *dbtest.Database, id pgtype.UUID) {
-			if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+			if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 				t.Fatal(err)
 			}
 			expireLease(t, d, id)
@@ -66,7 +66,7 @@ func TestACanceledRunThatHadProposedSettlesAsSucceededWithAProposal(t *testing.T
 		},
 		"canceled after its lease expired": func(t *testing.T, svc *revisions.Service, d *dbtest.Database, id pgtype.UUID) {
 			expireLease(t, d, id)
-			if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+			if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 				t.Fatal(err)
 			}
 		},
