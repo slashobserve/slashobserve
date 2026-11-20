@@ -142,9 +142,10 @@ func (p *luceneParser) orExpr(field string) (map[string]any, error) {
 			should = append(should, item)
 		}
 		if w, ok := p.take("OR", "||"); ok {
+			at := p.pos - len(w)
 			p.skipSpace()
 			if p.done() || p.peek() == ')' {
-				return nil, p.fail(p.pos-len(w), p.pos, "%s needs a clause after it", w)
+				return nil, p.fail(at, at+len(w), "%s needs a clause after it", w)
 			}
 		}
 	}
@@ -191,9 +192,10 @@ func (p *luceneParser) andGroup(field string) (map[string]any, modifier, error) 
 		if !ok {
 			break
 		}
+		at := p.pos - len(w)
 		p.skipSpace()
 		if p.done() || p.peek() == ')' {
-			return nil, modNone, p.fail(p.pos-len(w), p.pos, "%s needs a clause after it", w)
+			return nil, modNone, p.fail(at, at+len(w), "%s needs a clause after it", w)
 		}
 		c, m, err := p.unary(field)
 		if err != nil {
