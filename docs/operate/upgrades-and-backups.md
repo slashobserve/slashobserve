@@ -110,6 +110,7 @@ Migrations 50 and 73 rebuild `activity_inbox_idx` with a plain `CREATE INDEX`, w
 Like migration 43, the cost grows with the log, so when it holds millions of events, upgrade when little is changing.
 Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
 Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
+
 Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
 It puts events from the 24 months before the migration into one partition per UTC month and older events into one per UTC year, and leaves out an activity event dated after the migration, which it counts in a notice.
 Retention drops a partition only once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, so backfilled history older than two years is kept until the end of its year.
