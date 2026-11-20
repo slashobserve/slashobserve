@@ -116,8 +116,8 @@ func checkAdminsOnlyMatrix(t *testing.T, registry *datasource.Registry) {
 
 func TestALookupWithoutAccessFails(t *testing.T) {
 	registry := withAdminsOnly(t)
-	if _, err := registry.For(t.Context(), "prom"); !errors.Is(err, datasource.ErrNotVisible) {
-		t.Fatalf("For without access err = %v, want ErrNotVisible", err)
+	if _, err := registry.For(t.Context(), "prom"); !errors.Is(err, datasource.ErrNoAccess) || errors.Is(err, datasource.ErrNotVisible) {
+		t.Fatalf("For without access err = %v, want ErrNoAccess", err)
 	}
 	if got := registry.Visible(t.Context()); got != nil {
 		t.Fatalf("Visible without access = %v", uids(got))

@@ -27,10 +27,13 @@ const (
 	emptyPanelMessage     = "query returned no data for the dashboard's default time range and variable values"
 )
 
-func (r *Runner) CheckDatasources(ctx context.Context, d *spec.Dashboard) []spec.Issue {
+func (r *Runner) CheckDatasources(ctx context.Context, d *spec.Dashboard) ([]spec.Issue, error) {
+	if err := datasource.RequireAccess(ctx); err != nil {
+		return nil, err
+	}
 	issues, _, _ := r.checkDatasources(ctx, d)
 	sortIssues(issues)
-	return issues
+	return issues, nil
 }
 
 func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser) ([]spec.Issue, error) {
@@ -78,6 +81,9 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	canceled := func() bool { return errors.Is(ctx.Err(), context.Canceled) }
 	if canceled() {
 		return nil, context.Canceled
+	}
+	if err := datasource.RequireAccess(ctx); err != nil {
+		return nil, err
 	}
 
 	issues, badVariables, badQueries := r.checkDatasources(ctx, d)

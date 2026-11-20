@@ -842,6 +842,26 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 	})
 }
 
+func datasourceIssues(t *testing.T, runner *Runner, d *spec.Dashboard) []spec.Issue {
+	t.Helper()
+	issues, err := runner.CheckDatasources(reading(t.Context()), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return issues
+}
+
+func TestChecksWithoutDatasourceAccessFailWithTheCauseNotAsAnInvalidSpec(t *testing.T) {
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
+	d := dashboardOf([]spec.Panel{panelOf("ok", spec.Stat, "prom", "up")})
+	if issues, err := runner.CheckDatasources(t.Context(), d); !errors.Is(err, datasource.ErrNoAccess) || issues != nil {
+		t.Fatalf("CheckDatasources = %v, %v", issues, err)
+	}
+	if issues, err := runner.CheckSpec(t.Context(), d, time.Now(), datasource.QueryUser{}); !errors.Is(err, datasource.ErrNoAccess) || issues != nil {
+		t.Fatalf("CheckSpec = %v, %v", issues, err)
+	}
+}
+
 func TestCheckDatasources(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
@@ -855,7 +875,7 @@ func TestCheckDatasources(t *testing.T) {
 		spec.Variable{Name: "noDatasource", Type: spec.QueryVariable, Query: "x"},
 		spec.Variable{Name: "qv", Type: spec.QueryVariable, Datasource: "missing", Query: "x"},
 	)
-	assertIssues(t, runner.CheckDatasources(reading(t.Context()), d), []wantIssue{
+	assertIssues(t, datasourceIssues(t, runner, d), []wantIssue{
 		{"/panels/1/queries/0/query", spec.CodeUnknownMacro, ""},
 		{"/panels/2/datasource", CodeUnknownDatasource, ""},
 		{"/variables/2/datasource", CodeUnknownDatasource, ""},
@@ -863,7 +883,7 @@ func TestCheckDatasources(t *testing.T) {
 	if fake.callCount() != 0 {
 		t.Fatalf("CheckDatasources called upstream %d times", fake.callCount())
 	}
-	if got := runner.CheckDatasources(reading(t.Context()), dashboardOf([]spec.Panel{panelOf("ok", spec.Stat, "prom", "up")})); got != nil {
+	if got := datasourceIssues(t, runner, dashboardOf([]spec.Panel{panelOf("ok", spec.Stat, "prom", "up")})); got != nil {
 		t.Fatalf("clean dashboard issues = %+v", got)
 	}
 }
@@ -1088,7 +1108,7 @@ func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
 			[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x > $__range, $svc)")},
 			customVariable("svc", "a"),
 		)
-		assertIssues(t, runner.CheckDatasources(reading(t.Context()), d), []wantIssue{
+		assertIssues(t, datasourceIssues(t, runner, d), []wantIssue{
 			{"/panels/0/queries/0/query", spec.CodeUnknownMacro, "macro $__range is not available for clickhouse queries"},
 		})
 	})

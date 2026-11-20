@@ -49,7 +49,11 @@ func (s *Service) Duplicate(ctx context.Context, by auth.Principal, id, folderID
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	if issues := s.runner.CheckDatasources(ctx, parsed); len(issues) > 0 {
+	issues, err := s.runner.CheckDatasources(ctx, parsed)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	if len(issues) > 0 {
 		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
 	}
 	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: source.Unverified, folder: target.folder})

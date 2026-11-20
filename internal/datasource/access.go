@@ -17,6 +17,15 @@ const (
 
 var ErrNotVisible = errors.New("datasource not visible")
 
+var ErrNoAccess = errors.New("no datasource access in the context: the entry point did not call datasource.WithAccess")
+
+func RequireAccess(ctx context.Context) error {
+	if _, ok := AccessFrom(ctx); !ok {
+		return ErrNoAccess
+	}
+	return nil
+}
+
 type Access struct {
 	By       auth.Principal
 	Audience Audience

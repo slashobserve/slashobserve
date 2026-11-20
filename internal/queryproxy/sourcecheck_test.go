@@ -79,7 +79,7 @@ func TestCheckPanelsOfADependentChecksItsSource(t *testing.T) {
 func TestCheckDatasourcesIgnoresAPanelThatReusesAnother(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
 
-	if got := runner.CheckDatasources(reading(t.Context()), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up"))); got != nil {
+	if got := datasourceIssues(t, runner, reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up"))); got != nil {
 		t.Fatalf("issues = %+v, want none", got)
 	}
 }

@@ -230,7 +230,7 @@ func (r *Registry) retire(ds Datasource) {
 func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	access, ok := AccessFrom(ctx)
 	if !ok {
-		return Instance{}, fmt.Errorf("%w: no datasource access in the context", ErrNotVisible)
+		return Instance{}, ErrNoAccess
 	}
 	r.instancesMu.RLock()
 	in, ok := r.instances[uid]

@@ -606,6 +606,9 @@ func invalidRangeError(err error) error {
 
 func (r *Runner) instance(ctx context.Context, uid string) (datasource.Instance, error) {
 	inst, err := r.reg.For(ctx, uid)
+	if errors.Is(err, datasource.ErrNoAccess) {
+		return datasource.Instance{}, err
+	}
 	if err != nil {
 		return datasource.Instance{}, fmt.Errorf("%w: %q: %w", ErrUnknownDatasource, uid, err)
 	}
