@@ -52,6 +52,22 @@ describe("StepTimeline", () => {
     expect(text).toHaveAttribute("aria-live", "off")
   })
 
+  it("keeps the blank line between two messages of live text visible", () => {
+    render(
+      <StepTimeline
+        steps={steps}
+        working
+        reconnecting={false}
+        liveText={"Checking the p99 of checkout.\n\nNow reading the error rate."}
+      />
+    )
+    const text = screen.getByText(/Checking the p99/)
+    expect(text.textContent).toBe(
+      "Checking the p99 of checkout.\n\nNow reading the error rate."
+    )
+    expect(text).toHaveClass("whitespace-pre-wrap")
+  })
+
   it("hides the live text when the run is not working or has none", () => {
     const { rerender } = render(
       <StepTimeline
