@@ -140,6 +140,9 @@ func (r *Registry) getAuditEvent(ctx context.Context, input json.RawMessage) (Re
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if in.ID == "" {
+		return invalid("id is required; search_audit_events gives each event's id"), nil
+	}
 	d, err := r.deps.Audit.Event(ctx, in.ID)
 	if err != nil {
 		return auditFailure(err)
@@ -215,6 +218,9 @@ func (r *Registry) aggregateAuditEvents(ctx context.Context, input json.RawMessa
 	var in auditWindowInput
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	if in.Q == "" {
+		return invalid("q is required: a Query DSL body with aggs, such as {\"aggs\":{\"by\":{\"terms\":{\"field\":\"origin\"}}}}"), nil
 	}
 	p, res, ok := r.prepareAudit(ctx, in, "")
 	if !ok {
