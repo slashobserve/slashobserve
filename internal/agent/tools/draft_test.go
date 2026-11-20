@@ -181,7 +181,7 @@ func replayProvider(t *testing.T) *countingProvider {
 }
 
 func viewerContext() context.Context {
-	return auth.WithPrincipal(context.Background(), draftViewer)
+	return auth.WithPrincipal(reading(context.Background()), draftViewer)
 }
 
 type fixtureTurn struct {
@@ -530,7 +530,7 @@ func TestDraftLimitsDraftsInFlight(t *testing.T) {
 	provider := &scriptedDraft{release: make(chan struct{}), entered: make(chan struct{}, maxDraftsInFlight)}
 	r := draftRegistry(t, provider, draftFakes())
 	as := func(id string) context.Context {
-		return auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleViewer})
+		return auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleViewer})
 	}
 	ask := func(ctx context.Context) error {
 		_, err := r.DraftQuery(ctx, DraftInput{DatasourceUID: "loki", Question: "errors"})
@@ -566,20 +566,20 @@ func TestDraftLimitsDraftsInFlight(t *testing.T) {
 }
 
 func TestDraftTimeoutMapsOnlyItsOwnDeadline(t *testing.T) {
-	expired, cancel := context.WithTimeout(context.Background(), 0)
+	expired, cancel := context.WithTimeout(reading(context.Background()), 0)
 	defer cancel()
 	<-expired.Done()
 	failed := errors.New("query_timeout")
-	if err := timedOut(context.Background(), expired, failed); !errors.Is(err, ErrDraftTimeout) {
+	if err := timedOut(reading(context.Background()), expired, failed); !errors.Is(err, ErrDraftTimeout) {
 		t.Errorf("own deadline: %v", err)
 	}
 	if err := timedOut(expired, expired, failed); !errors.Is(err, failed) {
 		t.Errorf("caller's deadline: %v", err)
 	}
-	if err := timedOut(context.Background(), expired, nil); err != nil {
+	if err := timedOut(reading(context.Background()), expired, nil); err != nil {
 		t.Errorf("success after the deadline: %v", err)
 	}
-	if err := timedOut(context.Background(), context.Background(), failed); !errors.Is(err, failed) {
+	if err := timedOut(reading(context.Background()), reading(context.Background()), failed); !errors.Is(err, failed) {
 		t.Errorf("no deadline: %v", err)
 	}
 }

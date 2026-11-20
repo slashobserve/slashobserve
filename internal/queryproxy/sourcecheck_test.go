@@ -20,7 +20,7 @@ func TestCheckSpecRunsASourcePanelOnceForItsDependent(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 
-	issues, err := runner.CheckSpec(t.Context(), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up")), testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up")), testNow, datasource.QueryUser{})
 
 	if err != nil || issues != nil {
 		t.Fatalf("CheckSpec = %+v, %v; want a clean check", issues, err)
@@ -35,7 +35,7 @@ func TestCheckSpecFailsTheDependentWhenItsSourceFails(t *testing.T) {
 	fake.onRange = failWith(errors.New("boom"))
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 
-	issues, err := runner.CheckSpec(t.Context(), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up")), testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up")), testNow, datasource.QueryUser{})
 
 	if err != nil {
 		t.Fatalf("CheckSpec error: %v", err)
@@ -50,7 +50,7 @@ func TestCheckSpecFailsTheDependentWhenItsSourceDatasourceIsUnknown(t *testing.T
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 
-	issues, err := runner.CheckSpec(t.Context(), reusingDashboard(panelOf("src", spec.Timeseries, "missing", "up")), testNow, datasource.QueryUser{})
+	issues, err := runner.CheckSpec(reading(t.Context()), reusingDashboard(panelOf("src", spec.Timeseries, "missing", "up")), testNow, datasource.QueryUser{})
 
 	if err != nil {
 		t.Fatalf("CheckSpec error: %v", err)
@@ -66,7 +66,7 @@ func TestCheckPanelsOfADependentChecksItsSource(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	d := reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up"))
 
-	issues, err := runner.CheckPanels(t.Context(), d, testNow, datasource.QueryUser{}, []string{"reuse"})
+	issues, err := runner.CheckPanels(reading(t.Context()), d, testNow, datasource.QueryUser{}, []string{"reuse"})
 
 	if err != nil || issues != nil {
 		t.Fatalf("CheckPanels = %+v, %v; want a clean check", issues, err)
@@ -79,7 +79,7 @@ func TestCheckPanelsOfADependentChecksItsSource(t *testing.T) {
 func TestCheckDatasourcesIgnoresAPanelThatReusesAnother(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
 
-	if got := runner.CheckDatasources(reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up"))); got != nil {
+	if got := runner.CheckDatasources(reading(t.Context()), reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up"))); got != nil {
 		t.Fatalf("issues = %+v, want none", got)
 	}
 }
@@ -88,7 +88,7 @@ func TestRunPanelRefusesAPanelThatReusesAnother(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 
-	_, err := runner.RunPanel(t.Context(), Request{
+	_, err := runner.RunPanel(reading(t.Context()), Request{
 		Dashboard: reusingDashboard(panelOf("src", spec.Timeseries, "prom", "up")),
 		PanelID:   "reuse",
 		Range:     testRange(),

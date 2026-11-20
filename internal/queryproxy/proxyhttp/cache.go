@@ -41,8 +41,10 @@ type specKey struct {
 }
 
 type loadedVersion struct {
-	dashboard *spec.Dashboard
-	usesUser  bool
+	dashboard       *spec.Dashboard
+	usesUser        bool
+	restricted      bool
+	picksDatasource bool
 }
 
 type queryMeta struct {
@@ -139,6 +141,8 @@ func (k *keyBuilder) selections(selections map[string]queryproxy.Selection) {
 }
 
 func (k *keyBuilder) sum() cacheKey { return sha256.Sum256(k.buf) }
+
+const restrictedScope = "\x00restricted"
 
 func principalScope(kind auth.PrincipalKind, user datasource.QueryUser) string {
 	var k keyBuilder

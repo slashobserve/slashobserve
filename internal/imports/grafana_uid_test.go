@@ -140,17 +140,17 @@ func TestMappingForKeepsOnlyTheEntriesADashboardCanUse(t *testing.T) {
 	svc := imports.New(nil, nil, nil, registry, logger)
 	shared := map[string]string{"old-prom": "prom2", "other": "prom", "typo": "missing"}
 
-	got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), shared)
+	got := svc.MappingFor(datasource.WithAccess(t.Context(), datasource.Access{System: true}), grafanaJSON("Shop", "old-prom", 1), shared)
 	if len(got) != 1 || got["old-prom"] != "prom2" {
 		t.Fatalf("mapping %v, want only old-prom to prom2", got)
 	}
-	if got := svc.MappingFor(grafanaJSON("Shop", "typo", 1), shared); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(t.Context(), datasource.Access{System: true}), grafanaJSON("Shop", "typo", 1), shared); len(got) != 0 {
 		t.Fatalf("mapping %v, want no entry for a target that is not a candidate", got)
 	}
-	if got := svc.MappingFor([]byte("not json"), shared); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(t.Context(), datasource.Access{System: true}), []byte("not json"), shared); len(got) != 0 {
 		t.Fatalf("mapping %v for unreadable JSON, want empty", got)
 	}
-	if got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), nil); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(t.Context(), datasource.Access{System: true}), grafanaJSON("Shop", "old-prom", 1), nil); len(got) != 0 {
 		t.Fatalf("mapping %v with no shared mapping, want empty", got)
 	}
 }

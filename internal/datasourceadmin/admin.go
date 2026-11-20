@@ -165,7 +165,7 @@ func recordOf(row dbsqlc.Datasource) (Record, error) {
 func (s *Service) row(ctx context.Context, uid string) (dbsqlc.Datasource, error) {
 	row, err := s.db.Queries().GetDatasource(ctx, uid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if in, ok := s.registry.Get(uid); ok && in.Source == datasource.SourceFile {
+		if in, err := s.registry.For(ctx, uid); err == nil && in.Source == datasource.SourceFile {
 			return dbsqlc.Datasource{}, ErrReadOnly
 		}
 		return dbsqlc.Datasource{}, ErrNotFound
@@ -218,7 +218,7 @@ type candidate struct {
 	host    endpoint
 }
 
-func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
+func (s *Service) prepare(ctx context.Context, def Definition, secrets Secrets) (candidate, error) {
 	def = normalizeDefinition(def)
 	if err := checkName(def.Name); err != nil {
 		return candidate{}, err
@@ -227,7 +227,7 @@ func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
 		return candidate{}, err
 	}
 	cfg, problems := def.Config(secrets)
-	problems = append(problems, s.aliasConflicts(def)...)
+	problems = append(problems, s.aliasConflicts(ctx, def)...)
 	host, addressProblem := endpointOf(def)
 	if addressProblem != nil && !slices.ContainsFunc(problems, func(p config.FieldError) bool { return p.Field == "address" }) {
 		problems = append(problems, *addressProblem)
@@ -247,9 +247,9 @@ func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
 	return candidate{def: def, cfg: cfg, secrets: secrets, host: host}, nil
 }
 
-func (s *Service) aliasConflicts(def Definition) []config.FieldError {
+func (s *Service) aliasConflicts(ctx context.Context, def Definition) []config.FieldError {
 	var problems []config.FieldError
-	for _, other := range s.registry.List() {
+	for _, other := range s.registry.Visible(ctx) {
 		if other.UID == def.UID {
 			continue
 		}
@@ -338,11 +338,11 @@ func (s *Service) seal(id pgtype.UUID, secrets Secrets) ([]byte, []string, error
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition, secrets Secrets) (Record, error) {
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return Record{}, err
 	}
-	if _, taken := s.registry.Get(cand.def.UID); taken {
+	if _, err := s.registry.For(ctx, cand.def.UID); err == nil {
 		return Record{}, ErrUIDTaken
 	}
 	count, err := s.db.Queries().CountDatasources(ctx)
@@ -420,7 +420,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return Record{}, err
 	}
@@ -560,7 +560,7 @@ func (s *Service) Test(ctx context.Context, baseUID string, def Definition, chan
 	if err != nil {
 		return TestResult{}, err
 	}
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return TestResult{}, err
 	}

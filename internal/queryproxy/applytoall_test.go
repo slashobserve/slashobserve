@@ -72,7 +72,7 @@ func TestApplyToAllFiltersEveryClickHouseQueryThatDoesNotUseTheVariable(t *testi
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": ch, "ch2": ch2})
 			panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: "SELECT 1"}, {Query: "SELECT 2 WHERE $f"}}}
 			d := dashboardOf([]spec.Panel{panel}, tt.variables...)
-			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
+			if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
 			}
 			if got := filtersByQuery(t, ch); !reflect.DeepEqual(got, tt.want) {
@@ -91,7 +91,7 @@ func TestApplyToAllDoesNotReachQueriesOnAnotherDatasource(t *testing.T) {
 	panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: "SELECT 1"}, {Query: "SELECT 3", Datasource: "other"}}}
 	d := dashboardOf([]spec.Panel{panel}, applyToAll(adhocVariable("f", "ch")))
 	selections := map[string]Selection{"f": {Values: []string{"ServiceName|=|cart"}}}
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	want := []datasource.AdhocFilter{{Key: "ServiceName", Op: "=", Value: "cart"}}
@@ -109,7 +109,7 @@ func TestApplyToAllIsInertOnPrometheus(t *testing.T) {
 	panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "prom", Queries: []spec.Query{{Query: "up"}}}
 	d := dashboardOf([]spec.Panel{panel}, applyToAll(adhocVariable("f", "prom")))
 	selections := map[string]Selection{"f": {Values: []string{"job|=|api"}}}
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	want := []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}}

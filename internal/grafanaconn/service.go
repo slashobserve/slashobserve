@@ -506,7 +506,7 @@ func (s *Service) Datasources(ctx context.Context, id pgtype.UUID) ([]Datasource
 	if err != nil {
 		return nil, err
 	}
-	ours := s.imports.Datasources()
+	ours := s.imports.Datasources(ctx)
 	out := make([]DatasourceMatch, 0, len(list))
 	for _, d := range list {
 		choice := grafana.ChooseDatasource(d.UID, d.Name, d.Type, ours)

@@ -282,7 +282,7 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	if !ok {
 		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
-	health := s.statuses.Health(ctx)
+	health := s.statuses.Health(datasource.WithAccess(ctx, tools.RunAccess(req)))
 	var answer tools.BriefAnswer
 	ended := false
 	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {

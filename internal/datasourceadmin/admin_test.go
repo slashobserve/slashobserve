@@ -158,7 +158,7 @@ func TestUpdateKeepsCredentialsItIsNotToldToChange(t *testing.T) {
 	if record.Definition.Name != "Renamed" || len(record.SecretsSet) != 2 {
 		t.Fatalf("record = %+v", record)
 	}
-	if in, _ := r.registry.Get("added"); in.Name != "Renamed" {
+	if in, _ := registered(t, r.registry, "added"); in.Name != "Renamed" {
 		t.Fatalf("registered name = %q", in.Name)
 	}
 	health(t, r, "added")
@@ -224,7 +224,7 @@ func TestDeleteRefusesADatasourceThatADashboardUses(t *testing.T) {
 	if !errors.As(err, &inUse) || len(inUse.Users) != 1 || inUse.Users[0].Title != "Checkout" || inUse.Users[0].Kind != "dashboard" {
 		t.Fatalf("error = %v, want the dashboard named in an InUseError", err)
 	}
-	if _, ok := r.registry.Get("added"); !ok {
+	if _, ok := registered(t, r.registry, "added"); !ok {
 		t.Fatal("a refused removal dropped the datasource")
 	}
 }
@@ -239,7 +239,7 @@ func TestDeleteRemovesAnUnusedDatasourceAtOnce(t *testing.T) {
 	if err := svc.Delete(t.Context(), r.admin, "added"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := r.registry.Get("added"); ok {
+	if _, ok := registered(t, r.registry, "added"); ok {
 		t.Fatal("the removed datasource is still registered")
 	}
 	if n, _ := r.db.Queries().CountDatasources(t.Context()); n != 0 {

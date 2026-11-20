@@ -17,6 +17,10 @@ func prom(uid, url string) config.Datasource {
 	return config.Datasource{UID: uid, Type: "prometheus", Name: uid, Prometheus: &config.PrometheusDatasource{URL: url}}
 }
 
+func everything(t *testing.T) context.Context {
+	return datasource.WithAccess(t.Context(), datasource.Access{System: true})
+}
+
 func TestBuildCopiesGrafanaUIDs(t *testing.T) {
 	src := prom("prom", "http://prom:9090")
 	src.GrafanaUIDs = []string{"prometheus", "Main"}
@@ -25,11 +29,11 @@ func TestBuildCopiesGrafanaUIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = registry.Close() })
-	in, ok := registry.Get("prom")
-	if !ok || !slices.Equal(in.GrafanaUIDs, []string{"prometheus", "Main"}) {
+	in, err := registry.For(everything(t), "prom")
+	if err != nil || !slices.Equal(in.GrafanaUIDs, []string{"prometheus", "Main"}) {
 		t.Fatalf("instance = %+v", in)
 	}
-	if other, _ := registry.Get("other"); len(other.GrafanaUIDs) != 0 {
+	if other, _ := registry.For(everything(t), "other"); len(other.GrafanaUIDs) != 0 {
 		t.Fatalf("other = %+v", other)
 	}
 }
@@ -42,14 +46,14 @@ func TestRegistryHandsOutCopiesOfGrafanaUIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = registry.Close() })
-	listed := registry.List()
+	listed := registry.Visible(everything(t))
 	listed[0].GrafanaUIDs[0] = "changed"
-	got, _ := registry.Get("prom")
+	got, _ := registry.For(everything(t), "prom")
 	got.GrafanaUIDs[0] = "changed again"
-	if again, _ := registry.Get("prom"); !slices.Equal(again.GrafanaUIDs, []string{"prometheus"}) {
+	if again, _ := registry.For(everything(t), "prom"); !slices.Equal(again.GrafanaUIDs, []string{"prometheus"}) {
 		t.Fatalf("registry changed: %q", again.GrafanaUIDs)
 	}
-	if again := registry.List(); !slices.Equal(again[0].GrafanaUIDs, []string{"prometheus"}) {
+	if again := registry.Visible(everything(t)); !slices.Equal(again[0].GrafanaUIDs, []string{"prometheus"}) {
 		t.Fatalf("registry changed: %q", again[0].GrafanaUIDs)
 	}
 }
@@ -64,7 +68,7 @@ func TestRegistryIsNotChangedByMutatingItsInput(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = registry.Close() })
 	sources[0].GrafanaUIDs[0] = "changed"
-	if got, _ := registry.Get("prom"); !slices.Equal(got.GrafanaUIDs, []string{"prometheus"}) {
+	if got, _ := registry.For(everything(t), "prom"); !slices.Equal(got.GrafanaUIDs, []string{"prometheus"}) {
 		t.Fatalf("registry changed: %q", got.GrafanaUIDs)
 	}
 }
@@ -74,7 +78,7 @@ func TestBuildEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(registry.List()) != 0 {
+	if len(registry.Visible(everything(t))) != 0 {
 		t.Fatal("expected an empty registry")
 	}
 	if err := registry.Close(); err != nil {
@@ -129,7 +133,7 @@ func TestBuildSendsSecretAndPlainHeaders(t *testing.T) {
 	}
 	defer func() { _ = registry.Close() }()
 
-	in, _ := registry.Get("p")
+	in, _ := registry.For(everything(t), "p")
 	_ = in.Datasource.CheckHealth(context.Background())
 	if got.Get("X-Plain") != "plain" || got.Get("X-Api-Key") != "key-value" {
 		t.Fatalf("upstream saw headers %v", got)
@@ -175,7 +179,7 @@ func TestBuildLokiAndTempoSendTheirConnectionSettings(t *testing.T) {
 	}
 	defer func() { _ = registry.Close() }()
 	for uid, typ := range map[string]string{"logs": "loki", "traces": "tempo"} {
-		in, _ := registry.Get(uid)
+		in, _ := registry.For(everything(t), uid)
 		if in.Datasource.Type() != typ {
 			t.Fatalf("%s type = %s, want %s", uid, in.Datasource.Type(), typ)
 		}

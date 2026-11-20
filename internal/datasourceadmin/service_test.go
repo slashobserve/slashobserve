@@ -175,7 +175,7 @@ func TestLoadRegistersStoredDatasourcesAsAppSources(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	in, ok := r.registry.Get("added")
+	in, ok := registered(t, r.registry, "added")
 	if !ok || in.Source != datasource.SourceApp || in.Name != "Metrics added" || len(in.GrafanaUIDs) != 1 {
 		t.Fatalf("instance = %+v, registered = %v", in, ok)
 	}
@@ -257,7 +257,7 @@ func TestReconcileAppliesChangesAndRemovals(t *testing.T) {
 	if err := svc.Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if in, _ := r.registry.Get("added"); in.Name != "Renamed" {
+	if in, _ := registered(t, r.registry, "added"); in.Name != "Renamed" {
 		t.Fatalf("name after an edit by another server = %q", in.Name)
 	}
 
@@ -267,7 +267,7 @@ func TestReconcileAppliesChangesAndRemovals(t *testing.T) {
 	if err := svc.Reconcile(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := r.registry.Get("added"); ok {
+	if _, ok := registered(t, r.registry, "added"); ok {
 		t.Fatal("a row deleted by another server is still registered")
 	}
 }
@@ -282,7 +282,7 @@ func TestReconcileNeverReplacesAFileDatasource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	in, _ := r.registry.Get("prom")
+	in, _ := registered(t, r.registry, "prom")
 	if in.Source != datasource.SourceFile || in.Name != "From file" {
 		t.Fatalf("instance = %+v, the file datasource must win", in)
 	}
@@ -361,7 +361,7 @@ func TestAPollThatReadTheRowsBeforeACreateDoesNotUndoIt(t *testing.T) {
 		}
 	}
 
-	if _, ok := r.registry.Get("added"); !ok {
+	if _, ok := registered(t, r.registry, "added"); !ok {
 		t.Fatal("the poll's older snapshot removed the datasource that was just added")
 	}
 }

@@ -221,7 +221,7 @@ func (s *Service) restore(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if err != nil {
 		return Dashboard{}, Version{}, asInvalidSpec(err)
 	}
-	if issues := s.runner.CheckDatasources(parsed); len(issues) > 0 {
+	if issues := s.runner.CheckDatasources(ctx, parsed); len(issues) > 0 {
 		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
 	}
 	unverified, err := s.store.unverified(ctx, id, from)

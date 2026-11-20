@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -47,7 +48,11 @@ func (h *Handler) VariableOptions(ctx context.Context, dashboardID pgtype.UUID, 
 		return nil, errTooManyInFlight
 	}
 	defer release()
-	entry, _, err := h.variableOptions(ctx, loadedVersion{dashboard: d}, &cachedVersion{id: dashboardID, version: version}, name, valuesRange(rng), selectionsOf(earlier))
+	v := h.loaded(d)
+	if !readable(ctx, v) {
+		return nil, dashboards.ErrNotFound
+	}
+	entry, _, err := h.variableOptions(ctx, v, &cachedVersion{id: dashboardID, version: version}, name, valuesRange(rng), selectionsOf(earlier))
 	return entry.values, err
 }
 
@@ -87,6 +92,7 @@ func (d *PublicData) values(c *gin.Context) {
 }
 
 func (d *PublicData) open(c *gin.Context, allowMaxDataPoints bool) (link public.Resolved, v loadedVersion, p params, release func(), ok bool) {
+	c.Request = c.Request.WithContext(datasource.WithAccess(c.Request.Context(), datasource.Access{}))
 	ctx := c.Request.Context()
 	query, ok := d.h.readQuery(c)
 	if !ok {
@@ -121,7 +127,7 @@ func (d *PublicData) load(c *gin.Context, query url.Values, link public.Resolved
 	}
 	v, err := d.h.dashboard(c.Request.Context(), link.DashboardID, link.Version)
 	switch {
-	case errors.Is(err, dashboards.ErrNotFound), err == nil && v.usesUser:
+	case errors.Is(err, dashboards.ErrNotFound), err == nil && (v.usesUser || v.restricted):
 		linkNotFound(c)
 		return loadedVersion{}, params{}, false
 	case err != nil:

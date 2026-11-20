@@ -51,7 +51,7 @@ const (
 )
 
 type Sessions interface {
-	Valid(r *http.Request) (bool, error)
+	RequestPrincipal(r *http.Request) (auth.Principal, bool, error)
 }
 
 type Handler struct {
@@ -79,13 +79,14 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type tailRequest struct {
-	uid    string
-	query  string
-	from   time.Time
-	limit  int
-	user   datasource.QueryUser
-	source datasource.LineSource
-	lag    time.Duration
+	uid        string
+	query      string
+	from       time.Time
+	limit      int
+	user       datasource.QueryUser
+	source     datasource.LineSource
+	lag        time.Duration
+	adminsOnly bool
 }
 
 type readyData struct {
@@ -178,8 +179,8 @@ func (h *Handler) parse(c *gin.Context) (tailRequest, bool) {
 		return invalid(err.Error())
 	}
 	req.from = from
-	inst, found := h.registry.Get(req.uid)
-	if !found {
+	inst, err := h.registry.For(c.Request.Context(), req.uid)
+	if err != nil {
 		abort(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return tailRequest{}, false
 	}
@@ -188,6 +189,7 @@ func (h *Handler) parse(c *gin.Context) (tailRequest, bool) {
 		return invalid(notLineSource)
 	}
 	req.source = source
+	req.adminsOnly = h.registry.AdminsOnly(req.uid)
 	if lagged, ok := inst.Datasource.(datasource.LagSource); ok {
 		req.lag = lagged.TailLag()
 	}
@@ -400,7 +402,7 @@ func (t *tail) step(transient *int) (immediate, alive bool) {
 }
 
 func (t *tail) ping(failedChecks *int) bool {
-	valid, failed := t.h.credentialsValid(t.c)
+	valid, failed := t.h.credentialsValid(t.c, t.req)
 	if failed {
 		*failedChecks++
 	} else {
@@ -442,17 +444,25 @@ func (h *Handler) failBeforeStream(c *gin.Context, uid string, err error) {
 	abort(c, status, code, message)
 }
 
-func (h *Handler) credentialsValid(c *gin.Context) (valid, failed bool) {
+func (h *Handler) credentialsValid(c *gin.Context, req tailRequest) (valid, failed bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
 	defer cancel()
-	ok, err := h.sessions.Valid(c.Request.WithContext(ctx))
+	principal, ok, err := h.sessions.RequestPrincipal(c.Request.WithContext(ctx))
 	if err != nil {
 		if c.Request.Context().Err() == nil {
 			h.logger.WarnContext(c.Request.Context(), "re-check tail credentials", logattrs.Failure("tail_auth_check_failed", err)...)
 		}
 		return c.Request.Context().Err() == nil, true
 	}
-	return ok, false
+	return ok && h.stillReadable(ctx, principal, req), false
+}
+
+func (h *Handler) stillReadable(ctx context.Context, principal auth.Principal, req tailRequest) bool {
+	if !req.adminsOnly {
+		return true
+	}
+	_, err := h.registry.For(datasource.WithAccess(ctx, datasource.Access{By: principal}), req.uid)
+	return err == nil
 }
 
 func (h *Handler) acquire(key string) (int, string) {

@@ -259,7 +259,7 @@ func (r *Runner) resolveOptions(ctx context.Context, d *spec.Dashboard, idx int,
 func (r *Runner) datasourceValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) ([]string, error) {
 	v := d.Variables[idx]
 	uids := []string{}
-	for _, inst := range r.reg.List() {
+	for _, inst := range r.reg.Visible(ctx) {
 		if inst.Datasource.Type() == string(v.DatasourceType) {
 			uids = append(uids, inst.UID)
 		}
@@ -421,7 +421,7 @@ func (r *Runner) variableFor(ctx context.Context, d *spec.Dashboard, idx int, rn
 	variable := datasource.Variable{Name: v.Name, Values: slices.Clone(sel.Values), All: sel.All}
 	switch {
 	case v.Type == spec.AdhocVariable:
-		filters, err := r.adhocFilters(st, d, v, sel)
+		filters, err := r.adhocFilters(ctx, st, d, v, sel)
 		return datasource.Variable{Name: v.Name, Adhoc: true, Filters: filters}, err
 	case v.Type == spec.IntervalVariable && slices.Contains(sel.Values, spec.SelectAuto):
 		variable.Values = []string{spec.FormatInterval(autoInterval(rng, v))}
@@ -473,14 +473,14 @@ func autoInterval(rng datasource.TimeRange, v spec.Variable) time.Duration {
 	return max(floor, rounded)
 }
 
-func (r *Runner) adhocFilters(st *varState, d *spec.Dashboard, v spec.Variable, sel Selection) ([]datasource.AdhocFilter, error) {
+func (r *Runner) adhocFilters(ctx context.Context, st *varState, d *spec.Dashboard, v spec.Variable, sel Selection) ([]datasource.AdhocFilter, error) {
 	if len(sel.Values) == 0 && len(v.BaseFilters) == 0 {
 		return nil, nil
 	}
 	if filters, ok := st.parsed.cachedFilters(v.Name, sel.Values); ok {
 		return filters, nil
 	}
-	typ, err := r.datasourceType(d, v.Datasource)
+	typ, err := r.datasourceType(ctx, d, v.Datasource)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +531,7 @@ func implicitScope(dsType string, use queryUse) func(spec.Variable) bool {
 	return nil
 }
 
-func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map[string]Selection, uid string, applies func(spec.Variable) bool) ([]datasource.AdhocFilter, error) {
+func (r *Runner) implicitFilters(ctx context.Context, st *varState, d *spec.Dashboard, selections map[string]Selection, uid string, applies func(spec.Variable) bool) ([]datasource.AdhocFilter, error) {
 	var lists [][]datasource.AdhocFilter
 	for _, v := range d.Variables {
 		sel := selections[v.Name]
@@ -545,7 +545,7 @@ func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map
 		if resolved != uid {
 			continue
 		}
-		filters, err := r.adhocFilters(st, d, v, sel)
+		filters, err := r.adhocFilters(ctx, st, d, v, sel)
 		if err != nil {
 			return nil, err
 		}
@@ -727,7 +727,7 @@ func (r *Runner) checkSelectionUncached(ctx context.Context, d *spec.Dashboard, 
 		if len(sel.Values) > maxAdhocFilters {
 			return fmt.Errorf("%w: variable %q has more than %d filters", ErrInvalidRequest, v.Name, maxAdhocFilters)
 		}
-		_, err := r.adhocFilters(st, d, v, sel)
+		_, err := r.adhocFilters(ctx, st, d, v, sel)
 		return err
 	case v.Type == spec.GroupByVariable:
 		return checkGroupByKeys(v, sel)
