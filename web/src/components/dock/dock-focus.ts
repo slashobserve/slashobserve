@@ -4,6 +4,7 @@ import { useOpenerFocus } from "./opener-focus"
 
 const pendingAttribute = "data-focus-pending"
 const pendingMs = 2000
+const announceMs = 1500
 
 export function pendingPaneHeading(): HTMLElement | null {
   const labelledBy = document
@@ -12,12 +13,16 @@ export function pendingPaneHeading(): HTMLElement | null {
   return labelledBy ? document.getElementById(labelledBy) : null
 }
 
-export function usePageSettled(): () => boolean {
-  const settled = useRef(false)
-  useEffect(() => {
-    settled.current = true
-  }, [])
-  return useCallback(() => settled.current, [])
+let openingAnnouncedAt = Number.NEGATIVE_INFINITY
+
+export function announcePaneOpening(): void {
+  openingAnnouncedAt = performance.now()
+}
+
+function consumeOpening(): boolean {
+  const announced = performance.now() - openingAnnouncedAt < announceMs
+  openingAnnouncedAt = Number.NEGATIVE_INFINITY
+  return announced
 }
 
 type Options = {
@@ -26,7 +31,6 @@ type Options = {
   opener?: () => HTMLElement | null
   onClose?: () => void
   holdClose?: () => boolean
-  takeFocus?: () => boolean
   active?: boolean
   closeOnEscape?: boolean
   modeKey?: string
@@ -38,7 +42,6 @@ export function useDockFocus({
   opener,
   onClose,
   holdClose,
-  takeFocus,
   active = true,
   closeOnEscape = true,
   modeKey = "",
@@ -61,7 +64,7 @@ export function useDockFocus({
     }
     const element = pane.current
     const before = handled.current
-    wantsFocus.current ??= takeFocus?.() ?? false
+    wantsFocus.current ??= consumeOpening()
     if (before !== modeKey) {
       handled.current = modeKey
       takes.current =
@@ -81,7 +84,7 @@ export function useDockFocus({
       window.clearTimeout(timer)
       element.removeAttribute(pendingAttribute)
     }
-  }, [active, modeKey, pane, heading, remember, takeFocus])
+  }, [active, modeKey, pane, heading, remember])
 
   useEffect(() => {
     if (!active || !closeOnEscape || onClose === undefined) return

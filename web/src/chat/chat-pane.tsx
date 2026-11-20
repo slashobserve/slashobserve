@@ -16,19 +16,17 @@ export function ChatPane({
   requestId,
   onClose,
   opener,
-  takeFocus,
 }: {
   requestId: string
   onClose?: () => void
   opener?: () => HTMLElement | null
-  takeFocus?: () => boolean
 }) {
   const { bounds, width, stacked } = useChatPaneLayout()
   const setChatWidth = useActivityStore((state) => state.setChatWidth)
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const pane = useRef<HTMLElement>(null)
-  const { close } = useDockFocus({ pane, heading, opener, onClose, takeFocus })
+  const { close } = useDockFocus({ pane, heading, opener, onClose })
   const request = useObserveRequest(requestId).data
   const dashboardId = request?.dashboard_id ?? null
   const revisions = useQuery({

@@ -3,15 +3,17 @@ import userEvent from "@testing-library/user-event"
 import { StrictMode, useRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { pendingPaneHeading, useDockFocus } from "./dock-focus"
+import {
+  announcePaneOpening,
+  pendingPaneHeading,
+  useDockFocus,
+} from "./dock-focus"
 
 function Pane({
-  takeFocus,
   onClose,
   holdClose,
   modeKey,
 }: {
-  takeFocus: () => boolean
   onClose: () => void
   holdClose?: () => boolean
   modeKey?: string
@@ -24,7 +26,6 @@ function Pane({
     opener: () => document.getElementById("opener"),
     onClose,
     holdClose,
-    takeFocus,
     modeKey,
   })
   return (
@@ -39,24 +40,28 @@ function Pane({
 
 function Page({
   startOpen = false,
-  settle = true,
   holdClose,
 }: {
   startOpen?: boolean
-  settle?: boolean
   holdClose?: () => boolean
 }) {
   const [open, setOpen] = useState(startOpen)
   const [mode, setMode] = useState("a")
   return (
     <>
-      <button id="opener" onClick={() => setOpen(true)}>
+      <button
+        id="opener"
+        onClick={() => {
+          announcePaneOpening()
+          setOpen(true)
+        }}
+      >
         Open
       </button>
+      <button onClick={() => setOpen((current) => !current)}>Remount</button>
       <button onClick={() => setMode("b")}>Switch</button>
       {open ? (
         <Pane
-          takeFocus={() => settle}
           modeKey={mode}
           holdClose={holdClose}
           onClose={() => setOpen(false)}
@@ -80,7 +85,7 @@ describe("useDockFocus", () => {
   })
 
   it("leaves focus alone for a pane that was open when the page loaded", () => {
-    render(<Page startOpen settle={false} />)
+    render(<Page startOpen />)
     expect(document.body).toHaveFocus()
     expect(screen.getByRole("heading")).not.toHaveFocus()
   })
@@ -88,15 +93,27 @@ describe("useDockFocus", () => {
   it("leaves focus alone for a pane that was open at load when effects run twice", () => {
     render(
       <StrictMode>
-        <Page startOpen settle={false} />
+        <Page startOpen />
       </StrictMode>
     )
     expect(document.body).toHaveFocus()
   })
 
+  it("does not move focus when the pane remounts without a person opening it, as when a save ends layout editing", async () => {
+    const user = userEvent.setup()
+    render(<Page startOpen />)
+    await user.click(screen.getByRole("button", { name: "Remount" }))
+    expect(screen.queryByRole("heading")).toBeNull()
+    screen.getByRole("button", { name: "Switch" }).focus()
+    await user.click(screen.getByRole("button", { name: "Remount" }))
+    expect(screen.getByRole("heading")).toBeInTheDocument()
+    expect(screen.getByRole("heading")).not.toHaveFocus()
+    expect(pendingPaneHeading()).toBeNull()
+  })
+
   it("moves focus to the heading when the pane switches mode with focus outside it", async () => {
     const user = userEvent.setup()
-    render(<Page startOpen settle={false} />)
+    render(<Page startOpen />)
     await user.click(screen.getByRole("button", { name: "Switch" }))
     expect(screen.getByRole("heading")).toHaveFocus()
   })
@@ -112,7 +129,7 @@ describe("useDockFocus", () => {
 
   it("closes on Escape while focus is on the opener button", async () => {
     const user = userEvent.setup()
-    render(<Page startOpen settle={false} />)
+    render(<Page startOpen />)
     screen.getByRole("button", { name: "Open" }).focus()
     await user.keyboard("{Escape}")
     expect(screen.queryByRole("heading")).toBeNull()
@@ -121,7 +138,7 @@ describe("useDockFocus", () => {
 
   it("ignores Escape pressed elsewhere on the page", async () => {
     const user = userEvent.setup()
-    render(<Page startOpen settle={false} />)
+    render(<Page startOpen />)
     screen.getByRole("button", { name: "Switch" }).focus()
     await user.keyboard("{Escape}")
     expect(screen.getByRole("heading")).toBeInTheDocument()
@@ -168,7 +185,7 @@ describe("pendingPaneHeading", () => {
   })
 
   it("is null for a pane that was open when the page loaded", () => {
-    render(<Page startOpen settle={false} />)
+    render(<Page startOpen />)
     expect(pendingPaneHeading()).toBeNull()
   })
 })

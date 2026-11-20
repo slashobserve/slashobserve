@@ -33,7 +33,6 @@ type Props = {
   selections: Selections | null
   composerRef: RefObject<HTMLTextAreaElement | null>
   guardRef: Ref<EditGuard>
-  takeFocus: () => boolean
   onSelectPanel: (panelId: string) => void
   onClose: () => void
 }
@@ -54,7 +53,6 @@ export function ActivityCard({
   selections,
   composerRef,
   guardRef,
-  takeFocus,
   onSelectPanel,
   onClose,
 }: Props) {
@@ -84,7 +82,6 @@ export function ActivityCard({
     heading,
     opener: openerOfPane,
     onClose,
-    takeFocus,
     closeOnEscape: !editing,
     modeKey: `${panelId}|${editing}|${sharing}`,
   })

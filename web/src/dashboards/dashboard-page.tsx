@@ -13,7 +13,7 @@ import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ActivityCard } from "@/activity/activity-card"
-import { usePageSettled } from "@/components/dock/dock-focus"
+import { announcePaneOpening } from "@/components/dock/dock-focus"
 import type { EditGuard } from "@/activity/edit-pane"
 import {
   useActivityLayout,
@@ -451,7 +451,6 @@ function DashboardView({
   const commentTool = useCanvasTool((state) => state.tool === "comment")
   const toolsShown = useCanvasToolsShown(permissions)
   const [specOpen, setSpecOpen] = useState(false)
-  const pageSettled = usePageSettled()
   const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
     panelInUrl ||
@@ -701,6 +700,7 @@ function DashboardView({
       closeCard()
       return
     }
+    announcePaneOpening()
     setOpen(true)
     if (search.chat !== undefined) {
       setSearch((state) => ({ ...state, chat: undefined }))
@@ -718,6 +718,7 @@ function DashboardView({
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
     const apply = () => {
+      if (!sharing) announcePaneOpening()
       setSearch((state) => ({ ...state, edit: undefined, share: !sharing }))
       if (!sharing && cardLayout.stacked) scrollPaneIntoView(activityCardId)
     }
@@ -798,7 +799,10 @@ function DashboardView({
       exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
       onAddPanel={addPanel}
-      onEditJson={() => setSpecOpen(true)}
+      onEditJson={() => {
+        announcePaneOpening()
+        setSpecOpen(true)
+      }}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -1076,7 +1080,6 @@ function DashboardView({
                   selections={ready ? selections : null}
                   composerRef={composerRef}
                   guardRef={editGuard}
-                  takeFocus={pageSettled}
                   onSelectPanel={onSelectPanel}
                   onClose={closeCard}
                 />
@@ -1086,7 +1089,6 @@ function DashboardView({
                   requestId={chatRequestId}
                   onClose={closeCard}
                   opener={activityOpener}
-                  takeFocus={pageSettled}
                 />
               ) : null}
               {inspecting ? (
@@ -1110,7 +1112,6 @@ function DashboardView({
                   spec={envelopeSpec}
                   version={envelopeVersion}
                   hidden={!specShown}
-                  takeFocus={pageSettled}
                   opener={findMoreMenuButton}
                   onClose={closeSpec}
                 />

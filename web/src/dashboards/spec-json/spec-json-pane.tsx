@@ -26,7 +26,6 @@ type Props = {
   spec: Dashboard
   version: number
   hidden: boolean
-  takeFocus: () => boolean
   opener: () => HTMLElement | null
   onClose: () => void
 }
@@ -36,7 +35,6 @@ export function SpecJsonPane({
   spec,
   version,
   hidden,
-  takeFocus,
   opener,
   onClose,
 }: Props) {
@@ -62,7 +60,6 @@ export function SpecJsonPane({
     opener,
     onClose,
     holdClose,
-    takeFocus,
     active: !hidden,
   })
 
