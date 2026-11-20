@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -746,7 +747,7 @@ func TestCommentItemCarriesTheSameActorAsTheRESTAPI(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			out := commentItem(commentRef{thread, threads.Message{ID: dashA, Author: author}})
-			if out.Actor != author.JSON() {
+			if !reflect.DeepEqual(out.Actor, author.JSON()) {
 				t.Fatalf("actor = %+v, want %+v", out.Actor, author.JSON())
 			}
 			raw, err := json.Marshal(out)
