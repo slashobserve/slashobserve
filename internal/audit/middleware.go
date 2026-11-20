@@ -106,10 +106,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	target := o.declared.target(o.params)
 	if concluded != nil {
 		action = cmp.Or(concluded.Action, action)
-		outcome, reason = concluded.Outcome, concluded.Reason
-		if concluded.Target.Kind != "" {
-			target = concluded.Target
-		}
+		outcome, reason, target = concluded.Outcome, concluded.Reason, concluded.Target
 	}
 	if o.panicked {
 		outcome, reason = OutcomeFailed, "panic"
