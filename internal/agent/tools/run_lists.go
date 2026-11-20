@@ -23,10 +23,10 @@ const (
 	maxListRuns     = 50
 
 	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, source, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, state, source, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
-	descRenameRun  = "Give one of your runs a title, 1 to 120 characters on one line, as the Rename action of a chat does; null takes the title back to the start of the prompt. Only the person or key that started the run can rename it (forbidden). Safe to repeat."
-	descPinRun     = "Pin one of your runs to the top of list_runs. Only the person or key that started the run can pin it (forbidden). Safe to repeat."
-	descUnpinRun   = "Unpin one of your runs so list_runs puts it back by date. Only the person or key that started the run can unpin it (forbidden). Safe to repeat."
-	descArchiveRun = "Archive one of your runs so it leaves list_runs, as Delete does for a chat in the web app; the run stays readable with get_run and nothing it saved is deleted. Only the person or key that started the run can archive it (forbidden). Safe to repeat."
+	descRenameRun  = "Give one of your runs a title, 1 to 120 characters on one line, as the Rename action of a chat does; null takes the title back to the start of the prompt. Only the person or key that started the run can rename it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
+	descPinRun     = "Pin one of your runs to the top of list_runs. Only the person or key that started the run can pin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
+	descUnpinRun   = "Unpin one of your runs so list_runs puts it back by date. Only the person or key that started the run can unpin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
+	descArchiveRun = "Archive one of your runs so it leaves list_runs, as Delete does for a chat in the web app; the run stays readable with get_run and nothing it saved is deleted. Only the person or key that started the run can archive it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
 
 	schemaListRuns = `{"type":"object","properties":{` +
 		`"scope":{"type":"string","enum":["mine","all"],"description":"mine (default) lists your own runs; all lists everyone's and needs the Admin role."},` +

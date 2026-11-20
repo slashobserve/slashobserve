@@ -403,7 +403,7 @@ Investigations are a person's decision, so `start_run` has no way to ask for one
 It takes `state` (a list), `source` (`observe`, `prompt`, `comment` or `investigate`), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
-Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` or, for a run they cannot see, `not_found`; each is safe to repeat.
+Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` on a run they can see on a dashboard and `not_found` on any other, so a chat that only its requester can read never shows it exists; each is safe to repeat.
 `run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 
 `save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).

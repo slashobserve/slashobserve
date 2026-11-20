@@ -229,3 +229,17 @@ func TestRunListToolsAreMCPOnlyAndNeedAViewer(t *testing.T) {
 		}
 	}
 }
+
+func TestRunChangeDescriptionsNameBothRefusals(t *testing.T) {
+	for name, desc := range map[string]string{
+		nameRenameRun:  descRenameRun,
+		namePinRun:     descPinRun,
+		nameUnpinRun:   descUnpinRun,
+		nameArchiveRun: descArchiveRun,
+		nameCancelRun:  descCancelRun,
+	} {
+		if !strings.Contains(desc, "forbidden on a run they can see on a dashboard and not_found on any other") {
+			t.Errorf("%s does not say when it answers forbidden and when not_found: %s", name, desc)
+		}
+	}
+}
