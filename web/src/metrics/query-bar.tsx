@@ -103,6 +103,7 @@ export function QueryBar() {
       return
     }
     setBlocked(null)
+    editorRef.current?.closeCompletions()
     run()
   }
 

@@ -138,6 +138,7 @@ export function QueryRow({
     editorRef,
     () => ({
       focusAt: (from) => editor.current?.focusAt(from),
+      closeCompletions: () => editor.current?.closeCompletions(),
       insertAtCursor: (text) => editor.current?.insertAtCursor(text),
     }),
     []

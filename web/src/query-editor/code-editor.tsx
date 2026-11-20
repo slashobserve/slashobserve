@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
+import { closeCompletion, completionStatus } from "@codemirror/autocomplete"
 import { Compartment, EditorState, Prec } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 
@@ -11,6 +12,7 @@ import "./query-editor.css"
 
 export type CodeEditorHandle = {
   focusAt: (from: number) => void
+  closeCompletions: () => void
   insertAtCursor: (text: string) => void
 }
 
@@ -107,6 +109,12 @@ export function CodeEditor({
             },
           }),
           EditorView.updateListener.of((update) => {
+            if (!update.view.hasFocus && completionStatus(update.state)) {
+              queueMicrotask(() => {
+                if (viewRef.current === update.view)
+                  closeCompletion(update.view)
+              })
+            }
             if (update.docChanged) {
               latest.current.onChange(update.state.doc.toString())
             }
@@ -153,6 +161,10 @@ export function CodeEditor({
   }, [value])
 
   useImperativeHandle(editorRef, () => ({
+    closeCompletions() {
+      const view = viewRef.current
+      if (view) closeCompletion(view)
+    },
     focusAt(from) {
       const view = viewRef.current
       if (!view) return
