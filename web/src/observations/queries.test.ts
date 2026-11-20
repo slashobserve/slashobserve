@@ -732,4 +732,18 @@ describe("useObservationLive", () => {
     act(() => FakeEventSource.instances[1]?.emit("ready"))
     expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
   })
+
+  it("opens no stream in a tab opened hidden and refreshes once it becomes visible", () => {
+    setHidden(true)
+    const queryClient = mount()
+    expect(FakeEventSource.instances).toHaveLength(0)
+    act(() => setHidden(false))
+    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(false)
+    act(() => FakeEventSource.instances[0]?.emit("ready"))
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
+    expect(isInvalidated(queryClient, threadKeys.list("observation:o1"))).toBe(
+      true
+    )
+  })
 })
