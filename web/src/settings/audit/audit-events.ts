@@ -160,7 +160,7 @@ export function describeAuditEvent(event: ActivityEvent): string {
       return `Added ${quoted("datasource", name)} at ${str(data, "host")}`
     case "datasource.updated": {
       const parts = [
-        changes(data, ["name", "host"]),
+        changes(data, ["name", "host", "audience"]),
         data.address_changed === true ? "address changed" : "",
         data.settings_changed === true ? "settings changed" : "",
         data.credentials_changed === true ? "credentials replaced" : "",

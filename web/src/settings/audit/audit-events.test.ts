@@ -173,6 +173,15 @@ describe("describeAuditEvent", () => {
     )
     expect(
       describeAuditEvent(
+        event("datasource.updated", {
+          name: "Metrics",
+          host: "prom.example.com",
+          changes: { audience: { from: "everyone", to: "admins" } },
+        })
+      )
+    ).toBe('Changed the datasource "Metrics": audience everyone to admins')
+    expect(
+      describeAuditEvent(
         event("datasource.created", {
           name: "Metrics",
           host: "prom.example.com",
