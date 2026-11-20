@@ -11,19 +11,21 @@ import { ArrowUpIcon } from "lucide-react"
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { isModEnter } from "@/lib/shortcuts"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { cleanText } from "@/lib/user-text"
 import { sentence } from "@/observe/queries"
 import { maxPromptLength } from "@/revisions/queries"
 
+import { SendHint } from "./send-hint"
 import { MentionButton } from "./mention-button"
 import {
   mentionedAgents,
-  mentionOptions,
-  mentionTriggerAt,
   type MentionAgent,
   type MentionPerson,
 } from "./mentions"
+import { useInlineMention } from "./use-inline-mention"
+import { useMentionPicks } from "./use-mention-picks"
 
 type ComposerProps = {
   label: string
@@ -32,6 +34,7 @@ type ComposerProps = {
   hint?: ReactNode
   leading?: ReactNode
   people: readonly MentionPerson[]
+  target?: string | null
   agents?: readonly MentionAgent[]
   agentsBlocked?: string | null
   onSubmit: (body: string) => Promise<unknown>
@@ -96,6 +99,7 @@ export function Composer({
   hint,
   leading,
   people,
+  target = null,
   agents = [],
   agentsBlocked,
   onSubmit,
@@ -107,12 +111,14 @@ export function Composer({
   const [body, setBody] = useState(defaultValue)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [mentioning, setMentioning] = useState(false)
-  const [replaceFrom, setReplaceFrom] = useState<number | null>(null)
+  const mention = useInlineMention()
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const coarse = useCoarsePointer()
+  const picks = useMentionPicks()
   const text = cleanText(body)
+  const wire = picks.wire(text)
   const unavailable = typeof disabledReason === "string"
-  const sendBlock = agentSendBlock(body, agentsBlocked)
+  const sendBlock = agentSendBlock(wire, agentsBlocked)
   const sendBlockId = useId()
 
   async function submit() {
@@ -120,7 +126,7 @@ export function Composer({
     setBusy(true)
     setError(null)
     try {
-      await onSubmit(text)
+      await onSubmit(wire)
       setBody("")
     } catch (failure) {
       setError(describeSendError(failure))
@@ -134,7 +140,10 @@ export function Composer({
       event.preventDefault()
       event.stopPropagation()
       onCancel()
-    } else if (isModEnter(event) && !event.nativeEvent.isComposing) {
+    } else if (
+      (isModEnter(event) && !event.nativeEvent.isComposing) ||
+      (event.target === textarea.current && sendsOnEnter(event, coarse))
+    ) {
       event.preventDefault()
       void submit()
     }
@@ -142,12 +151,8 @@ export function Composer({
 
   function onChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const { value, selectionStart } = event.target
-    const typed = value.length > body.length
+    mention.typed(body, value, selectionStart)
     setBody(value)
-    const trigger = typed ? mentionTriggerAt(value, selectionStart) : null
-    if (trigger === null) return
-    setReplaceFrom(trigger)
-    setMentioning(true)
   }
 
   return (
@@ -189,23 +194,30 @@ export function Composer({
       )}
       <div className="flex items-center gap-1 pt-1 pr-1.5 pb-1.5 pl-3">
         <div className="mr-auto min-w-0 text-xs text-muted-foreground">
-          {unavailable ? disabledReason : hint}
+          {unavailable ? (
+            disabledReason
+          ) : (
+            <>
+              {hint}
+              <SendHint />
+            </>
+          )}
         </div>
         <MentionButton
-          options={mentionOptions(people, agents)}
+          agents={agents}
+          people={people}
+          target={target}
+          onPick={picks.pick}
           field={textarea}
           value={body}
           onChange={setBody}
-          open={mentioning}
-          onOpenChange={(next) => {
-            setMentioning(next)
-            if (!next) setReplaceFrom(null)
-          }}
-          replaceFrom={replaceFrom}
+          open={mention.open}
+          onOpenChange={mention.onOpenChange}
+          replaceFrom={mention.replaceFrom}
           disabled={busy || unavailable}
         />
         <SendButton
-          body={body}
+          body={wire}
           disabled={text === "" || unavailable || sendBlock !== null}
           busy={busy}
         />

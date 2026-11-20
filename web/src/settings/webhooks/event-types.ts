@@ -38,6 +38,7 @@ export const eventTypeLabels = {
   "thread.opened": "Thread opened",
   "thread.replied": "Thread replied to",
   "thread.edited": "Message edited",
+  "thread.deleted": "Message deleted",
   "thread.resolved": "Thread resolved",
   "thread.reopened": "Thread reopened",
   "thread.mentioned": "Mention",

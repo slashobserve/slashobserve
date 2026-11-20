@@ -34,7 +34,8 @@ Times on the page are in the time zone of your browser, and a range between two 
 The page starts as soon as it opens.
 On ClickHouse it runs a template that reads `otel_logs` and shows the newest lines of the time range at once.
 On Elasticsearch and OpenSearch it runs `*`, which matches every document, and shows the newest lines of the time range, so you can see which services the source holds in the Fields column before you narrow the query.
-On Loki it opens the label browser, which the **Builder** segment of the mode switch toggles, and waits for a stream selector.
+On Loki it runs `{service_name=~".+"}`, which reads every stream that has a `service_name` label and shows the newest lines of the time range; a Loki whose streams carry no `service_name` answers no lines until you pick a label.
+The **Builder** segment of the mode switch opens the label browser.
 The label browser lists the labels of the datasource and their values, and a click on a value puts that matcher into the stream selector the query already holds, replacing the value of the same label, so the rest of the query stays as it is.
 On ClickHouse, or when the query has no selector yet, the click inserts the matcher at the cursor.
 With a model configured on the server, the query box opens in Ask mode, as [Ask on the logs page](#ask-on-the-logs-page) describes.
@@ -108,6 +109,7 @@ Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cl
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
 KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines and a field in any of its clauses holds `ERROR` where the query says `error`, the empty result says no document has that value and lists the values the field does hold in the range.
+The server writes that sentence, as `meta.hint` of the query response, so the HTTP API and the MCP tool `query_instant` give the same words: an agent reads it in the step text and in the result's `hint`.
 
 ### Share a search
 
@@ -157,6 +159,10 @@ The chips filter the lines already loaded, not the query, so another page can ho
 Drag across the strip to select a time, then **Zoom to selection** narrows the time range to it, and **Clear** drops the selection.
 Move either edge of the selection with the arrow keys on its handle, or hold Shift while walking the strip to extend it.
 On a touch screen the strip shows counts but does not select, because a drag there scrolls the page.
+On Loki a range of a day or less is counted in one request, and a longer range one day at a time, newest first and one request after another, so a week does not have to fit in one request.
+A bar wider than 30 minutes is counted as the sum of equal windows of at most 30 minutes, because Loki reads a wider window far more slowly.
+When the next day would not finish in time, the strip shows the days it counted, shades the older bars as not counted, says "N lines since <time>" and explains that the datasource ran out of time; hovering a shaded bar says "Not counted".
+The log volume request then returns `partial: true` with `counted_from`, and `observe datasources log-volume` prints the same note, so an agent knows the older buckets read zero because they were not counted.
 When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped, and says the lines below are complete only when they loaded, **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
 
 - On Loki a line's level is the first of its `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, including a `level` that a `| json` or `| logfmt` stage extracts.
@@ -171,6 +177,9 @@ Levels such as `err`, `fatal` and `critical` count as errors, `warn` as warnings
 The column on the left of the results lists the fields of the datasource: the mapped fields of the index on Elasticsearch and OpenSearch, the stream labels and the fields the query shows on Loki, and the columns of the query on ClickHouse.
 The note under **Fields** says where the list comes from, and the search box narrows it by name.
 The counts are read after the lines have arrived, so a wide range shows the lines first and the value counts a moment later.
+On a range wider than six hours the counts also wait for the volume strip to answer, so the two heaviest requests on a busy source do not run together, and the label names are asked for after the lines have arrived.
+When the count times out, the column says so with **Retry** and suggests a shorter range.
+
 A query that matches no lines on Loki shows an empty list, not an error.
 Columns you chose for the results come first under **Selected**; the rest are under **Available**.
 On Elasticsearch and OpenSearch a `.keyword` subfield is not listed beside the text field it belongs to, and a field filter replaces a query that is only `*` instead of appending to it.
@@ -200,6 +209,9 @@ Facets count the top values of each label, field or column the query matches ove
 Each field says whether its counts are exact or come from a sample of the newest lines.
 
 - On Loki the index labels of the matched streams are counted exactly from the index volume API, in bytes rather than lines, so those fields carry `unit: bytes`; parsed fields (`kind: field`) and structured-metadata fields (`kind: metadata`, the detected fields that no parser produced) are counted from the newest 1,000 lines by default, up to 5,000.
+  Those lines are read from the newest five minutes first and then from windows twice as wide further back, until the sample is full, and Loki's detected fields are asked for over only the time the sample covers, so a week does not have to be read whole.
+  When time runs short, the fields are counted over the lines read so far, and `lines_sampled` and the note under each field say how many.
+  The sample starts at once, beside the index label counts rather than after them, and an index label whose count does not finish in time is counted over the sample instead, with `exact: false` and no unit, and its note says "Counted over the newest N lines", so a slow index still leaves every field with counts.
 - On ClickHouse every field is counted exactly with one `GROUP BY` per field: each result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the 20 most frequent `LogAttributes` keys as `LogAttributes.<key>`.
 - On Elasticsearch and OpenSearch one aggregation request counts every field exactly over the whole range, with `sampled: false` and `lines_sampled: 0`, and `sample` is ignored.
 
@@ -336,7 +348,7 @@ The block stays live on the page, so it runs the query when the page is open.
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource, or type it into **Ask** and press Ask (the address is never sent to the model), and the page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 The note under the box says what was filled and how many filters from the address were not applied: range, exists and custom filters are left out.
 A Lucene query gets the `lucene:` prefix, the source you are on stays selected, and nothing is sent to the server: the browser reads the address itself.
 On a Loki datasource or a ClickHouse datasource the address is pasted as plain text.
@@ -373,7 +385,7 @@ An address with a trace id and no `ds` opens the only trace datasource when ther
 
 ### Waterfall
 
-The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge.
+The view draws the spans as a waterfall under a ruler that steps by 1, 2, 2.5 or 5 times a power of ten, so its labels are round numbers, also after you zoom, when the first label is then not at the left edge; a very short window shows three round labels, or two or one on a narrow ruler, rather than its two edges.
 The view fills the window, and the waterfall scrolls inside it.
 Each row is 32 pixels high with the service and operation on the left, the bar in the middle and the span's duration at the right, and a dashboard's traces panel draws the same rows.
 When the query returns more than one trace, the panel shows one at a time with **Previous trace** and **Next trace** buttons and a count such as "Trace 2 of 8", and **Open trace** opens it in the trace view over the dashboard's time range.
@@ -401,7 +413,7 @@ On a phone each row stacks the service and operation, with the duration at the r
 
 ### Logs for a span or trace
 
-A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found.
+A span's details end with **Logs for this span**: the first lines that carry its trace id and span id, read from the Loki or ClickHouse logs datasource, with the count of lines found; a datasource that has not answered after 15 seconds ends in an error with **Retry**, never in placeholders that stay.
 **Open in Logs** continues with those lines on the logs page, filtered on the trace id and span id over the span's window plus a minute on each side.
 When a span logged nothing, **Try the whole trace** opens the trace's logs instead.
 **Logs for this trace** in the top bar opens a side panel with every line of the trace, oldest first, up to the newest 500, and the same **Open in Logs** link.
@@ -480,6 +492,9 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
+On a long range the server searches Tempo newest first in growing windows, the last hour, then the two hours before it, then four, and so on, and stops once the page is full, so a broad search costs about as much as the newest window that fills it.
+When the 15 second query limit comes before the range is covered, the server returns the traces it found as a partial result instead of a timeout: the note says these are the newest matches it found and **Next** searches further back, and when it found none the page says Tempo stopped at its time limit before it found a trace, rather than that nothing matched.
+The explore query and `query_instant` return the same result with `meta.partial` set and the note that some matches may be missing, which `observe traces --ask` prints under the table.
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 
@@ -531,14 +546,15 @@ On Loki it writes LogQL, on ClickHouse logs it writes ClickHouse SQL, and on Ela
 It writes a `lucene:` query only when KQL cannot say what the question needs.
 For traces it fills the trace search fields: service, span name, minimum and maximum duration, and errors only.
 On Tempo it writes TraceQL instead when the question needs more than those fields.
+On a Prometheus datasource it writes PromQL, as the [Metrics](metrics.md#ask-in-plain-language) page describes.
 
-The server first reads the datasource's labels, attributes or columns and some of their values, so the query names real ones.
+The server first reads the datasource's metric names, labels, attributes or columns and some of their values, so the query names real ones.
 On Loki it also offers the values of `detected_level`, the structured metadata level that Loki adds, when no level label is listed, so a question about errors filters after the selector with `| detected_level="error"`.
 Then it asks the model once.
 It checks the answer with the query lint and one sample run over the last 15 minutes of the time range, and never runs the full query.
 When that check fails, it asks the model once more to fix the query, so a question costs at most two model calls.
 
-The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches.
+The answer comes with a one-sentence explanation and warnings, such as a query that reads every stream or every document, a Lucene query that the explorer's Builder cannot edit, a KQL field the mapping does not have, a ClickHouse query without `$__timeFilter` or `LIMIT`, or a sample with no matches or, on Prometheus, no series.
 When the model cannot write a query for the question, or the fixed query still fails its check, the answer says it could not turn that into a query and why.
 
 Each person can have 3 questions in flight and ask 60 questions per clock hour, and each question stops after 60 seconds.

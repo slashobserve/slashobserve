@@ -7,7 +7,7 @@ type DraftQuery = components["schemas"]["DraftQuery"]
 
 type TraceFilters = components["schemas"]["TraceFilters"]
 
-export type DraftSignal = "logs" | "traces"
+export type DraftSignal = "logs" | "traces" | "metrics"
 
 export type DraftAnswer = {
   query: string

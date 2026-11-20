@@ -52,11 +52,22 @@ export function useRecheckDatasource() {
   })
 }
 
+const unhealthyPollMs = 15_000
+
+export function pollWhileUnhealthy(
+  list: DatasourceList | undefined
+): number | false {
+  return list?.datasources?.some((datasource) => !datasource.healthy)
+    ? unhealthyPollMs
+    : false
+}
+
 export function useDatasources() {
   const provided = useContext(ProvidedDatasources)
   const query = useQuery({
     ...datasourcesQuery(),
     staleTime: 60_000,
+    refetchInterval: (current) => pollWhileUnhealthy(current.state.data),
     enabled: provided === undefined,
   })
   const listed = useMemo(() => provided?.map(listedOnly), [provided])

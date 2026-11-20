@@ -22,6 +22,7 @@ import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
 
+import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
@@ -76,6 +77,7 @@ type Props = {
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
+  latest?: boolean
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -150,6 +152,7 @@ export function RequestTurn({
   onRetried,
   buildOnScreen = false,
   opensRunsIn = "chat",
+  latest = true,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -324,15 +327,23 @@ export function RequestTurn({
           ) : null}
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
-              <FindingCard
-                finding={detail.finding}
-                showOpenLink
-                saveAnswerOf={
-                  request.requested_by.id === principal.id
-                    ? request.id
-                    : undefined
-                }
-              />
+              <>
+                <FindingCard
+                  finding={detail.finding}
+                  showOpenLink
+                  saveAnswerOf={
+                    request.requested_by.id === principal.id
+                      ? request.id
+                      : undefined
+                  }
+                />
+                {detail.finding.ask_on !== null ? (
+                  <AskOnDashboard
+                    askOn={detail.finding.ask_on}
+                    prompt={request.prompt}
+                  />
+                ) : null}
+              </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
@@ -352,6 +363,7 @@ export function RequestTurn({
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
               partial={savedBuild ? { prompt: request.prompt } : undefined}
+              addMissing={latest}
             />
           ) : null}
           {request.status === "failed" && !savedBuild ? (

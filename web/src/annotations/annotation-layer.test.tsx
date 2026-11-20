@@ -52,6 +52,39 @@ function layer(annotations: Annotation[]) {
 }
 
 describe("AnnotationLayer", () => {
+  it("explains the markers with a key naming what they are", () => {
+    const { container, rerender } = layer([annotation({ id: "a" })])
+    expect(container.querySelector("[data-annotation-key]")).toHaveTextContent(
+      "Annotation"
+    )
+    rerender(
+      <AnnotationLayer
+        annotations={[
+          annotation({ id: "a" }),
+          annotation({
+            id: "c",
+            time_from: new Date(t0 + 80 * minute).toISOString(),
+          }),
+        ]}
+        fromMs={t0}
+        toMs={t0 + 100 * minute}
+        left={40}
+        top={10}
+        width={1000}
+        height={200}
+        zone="UTC"
+      />
+    )
+    expect(container.querySelector("[data-annotation-key]")).toHaveTextContent(
+      "Annotations"
+    )
+  })
+
+  it("draws no key when no marker is in range", () => {
+    const { container } = layer([])
+    expect(container.querySelector("[data-annotation-key]")).toBeNull()
+  })
+
   it("draws one labelled flag per cluster", () => {
     layer([
       annotation({ id: "a" }),

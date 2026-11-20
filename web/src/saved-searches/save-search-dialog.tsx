@@ -30,6 +30,12 @@ import { useSaveSearch } from "./queries"
 
 const maxTitleLength = 120
 
+const searchNoun = {
+  logs: "logs search",
+  traces: "trace search",
+  metrics: "metrics search",
+} as const
+
 type Props = {
   draft: SearchDraft
   open: boolean
@@ -58,7 +64,7 @@ export function SaveSearchDialog({
     value: choice.id,
     label: choice.title,
   }))
-  const noun = draft.kind === "logs" ? "logs search" : "trace search"
+  const noun = searchNoun[draft.kind]
 
   function close() {
     onOpenChange(false)

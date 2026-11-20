@@ -24,7 +24,7 @@ export type DashboardListFilters = {
   problem?: NonNullable<
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
-  order?: "views"
+  order?: "updated" | "name" | "views"
 }
 
 export const dashboardKeys = {
@@ -61,6 +61,7 @@ export const dashboardKeys = {
   diff: (id: string, from: number, to: number) =>
     ["dashboards", id, "diff", from, to] as const,
   comments: (id: string) => ["dashboards", id, "comments"] as const,
+  viewers: (id: string) => ["dashboards", id, "viewers"] as const,
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
   revision: (id: string, revisionId: string) =>
     ["dashboards", id, "revision", revisionId] as const,
@@ -320,7 +321,7 @@ export const findingKeys = {
 }
 
 export type SavedSearchListParams = {
-  kind?: "logs" | "traces"
+  kind?: "logs" | "traces" | "metrics"
   folderId?: string
 }
 
@@ -446,9 +447,12 @@ export const proposalKeys = {
 
 export type InboxView = "for_you" | "everything" | "proposals" | "mentions"
 
+export type InboxFilter = "open" | "unread" | "done"
+
 export const inboxKeys = {
   all: ["inbox"] as const,
-  list: (view: InboxView) => ["inbox", "list", view] as const,
+  list: (view: InboxView, filter: InboxFilter = "open") =>
+    ["inbox", "list", view, filter] as const,
 }
 
 export const agentKeys = {

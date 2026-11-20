@@ -158,7 +158,7 @@ func TestOfferedInSplitsTheToolsByMode(t *testing.T) {
 		{nameUpdatePanels, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
 		{nameImportGrafana, []Mode{ModeCreate, ModeRevise, ModeSuggest}},
 		{nameSaveFinding, []Mode{ModeCreate, ModeRevise, ModeInvestigate}},
-		{nameListAnnotations, []Mode{ModeInvestigate}},
+		{nameListAnnotations, modes},
 		{nameListComments, nil},
 	}
 	for _, c := range cases {
@@ -200,8 +200,8 @@ func TestSaveFindingRefusesWhatAFindingCannotHold(t *testing.T) {
 		}
 	}
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout failed", evidencePanel("Errors", "up"), evidencePanel("Nothing", "empty")))
-	rejected, ok := res.Content.(invalidSpecOut)
-	if !res.IsError || !ok || rejected.Code != codeInvalidSpec || len(rejected.Issues) != 1 || !strings.HasPrefix(rejected.Issues[0].Path, "/panels/1") {
+	rejected, ok := res.Content.(patchRejectedOut)
+	if !res.IsError || !ok || rejected.Code != codeInvalidSpec || len(rejected.Issues) != 1 || !strings.HasPrefix(rejected.Issues[0].Path, "/panels/1") || !slices.Equal(rejected.FailingPanels, []string{"evidence-2"}) {
 		t.Fatalf("a panel without data: %#v", res.Content)
 	}
 }
@@ -212,7 +212,7 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	run := investigateRun(from, findingWindowTo)
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx since 09:12", evidencePanel("Errors", "sum(rate(errors[5m]))"), evidencePanel("Latency", "histogram_quantile(0.99, x)")))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" || saved.FindingID == "" || saved.Evidence != 2 || saved.URL == "" {
+	if res.IsError || !ok || saved.FindingID == "" || saved.Evidence != 2 || saved.URL == "" {
 		t.Fatalf("save: %#v", res.Content)
 	}
 	if res.Step != "Saved finding "+saved.FindingID {
@@ -396,7 +396,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 
 	res := r.callIn(t, &run, adminCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx", evidencePanel("Errors", "sum(rate(errors[5m]))")))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" {
+	if res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	if saved.URL != "/c/"+row.ID.String() {
@@ -412,7 +412,7 @@ func TestAnAnswerRunKeepsItsFindingInTheChatUntilItsRequesterSavesItAsAnObservat
 	}
 	res = r.callIn(t, nil, adminCaller, nameSaveRunAnswer, `{"run_id":"`+row.ID.String()+`"}`)
 	filed, ok := res.Content.(runAnswerSavedOut)
-	if res.IsError || !ok || filed.Code != "saved" || filed.Replayed {
+	if res.IsError || !ok || filed.Replayed {
 		t.Fatalf("save answer: %#v", res.Content)
 	}
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
@@ -455,7 +455,7 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	r.db.Exec(t, `DELETE FROM observations WHERE id = $1`, row.ObservationID)
 	res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx"))
 	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok || saved.Code != "saved" {
+	if res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	after, err := r.db.Queries().GetAgentRequestByID(t.Context(), row.ID)
@@ -465,20 +465,64 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 }
 
 func TestAFindingSavedAfterRefusedReadsSaysReadingStoppedEarly(t *testing.T) {
-	if got, _, ok := findingMarkdown("checkout is slow", 0); !ok || got != "checkout is slow" {
+	if got, _, ok := findingMarkdown("checkout is slow", 0, nil); !ok || got != "checkout is slow" {
 		t.Fatalf("no refused read changed the text: %q", got)
 	}
-	one, _, _ := findingMarkdown("checkout is slow", 1)
+	one, _, _ := findingMarkdown("checkout is slow", 1, nil)
 	if !strings.HasPrefix(one, "checkout is slow\n\n_Reading stopped early: 1 read was refused") || !strings.Contains(one, "counts above may be partial") {
 		t.Fatalf("one refused read: %q", one)
 	}
-	if many, _, _ := findingMarkdown("checkout is slow", 3); !strings.Contains(many, "3 reads were refused") {
+	if many, _, _ := findingMarkdown("checkout is slow", 3, nil); !strings.Contains(many, "3 reads were refused") {
 		t.Fatalf("three refused reads: %q", many)
 	}
 }
 
+func TestAFindingSaysWhichDatasourcesCouldNotBeChecked(t *testing.T) {
+	got, _, ok := findingMarkdown("Prometheus shows checkout errors at 2%.", 0, []Unchecked{{Datasource: "loki", Code: "query_timeout"}, {Datasource: "tempo", Code: "datasource_unavailable"}})
+	want := "Prometheus shows checkout errors at 2%.\n\n_Could not check loki (a read timed out), tempo (the datasource did not answer): those reads did not finish, so this answer does not show that their data is missing._"
+	if !ok || got != want {
+		t.Fatalf("finding = %q, want %q", got, want)
+	}
+	if _, res, ok := findingMarkdown(strings.Repeat("word ", 390), 0, []Unchecked{{Datasource: "loki", Code: "query_timeout"}}); ok || errorCode(t, res) != codeTooLong {
+		t.Fatalf("390 words with the could-not-check note: ok %v, res %#v", ok, res.Content)
+	}
+}
+
+func TestSaveFindingAddsTheCouldNotCheckNoteFromTheRun(t *testing.T) {
+	r := newFindingRig(t)
+	run, row := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
+	ctx := WithUnchecked(WithRun(auth.WithPrincipal(t.Context(), editorCaller), run), []Unchecked{{Datasource: "loki", Code: "query_timeout"}})
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(findingBody("Checkout errors rose after the deploy.")))
+	if err != nil || res.IsError {
+		t.Fatalf("save: %#v, %v", res.Content, err)
+	}
+	o, err := r.observations.Get(t.Context(), editorCaller, row.ObservationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var text observations.TextBody
+	if err := json.Unmarshal(o.Blocks[1].Body, &text); err != nil || !strings.HasSuffix(text.Markdown, "Checkout errors rose after the deploy.\n\n_Could not check loki (a read timed out): those reads did not finish, so this answer does not show that their data is missing._") {
+		t.Fatalf("text %q, %v", text.Markdown, err)
+	}
+}
+
+func TestSaveFindingWantsTimesInThePersonsZone(t *testing.T) {
+	r := newFindingRig(t)
+	run, _ := r.investigation(t, editorCaller, findingWindowTo.Add(-time.Hour), findingWindowTo)
+	run.TimeZone = "Asia/Kolkata"
+	ctx := WithRun(auth.WithPrincipal(t.Context(), editorCaller), run)
+	res, err := r.registry.Call(ctx, nameSaveFinding, []byte(findingBody("Checkout errors rose at 14:22 UTC.")))
+	if err != nil || !res.IsError || errorCode(t, res) != codeWrongZone {
+		t.Fatalf("a UTC finding for a person in Kolkata: %#v, %v", res.Content, err)
+	}
+	res, err = r.registry.Call(ctx, nameSaveFinding, []byte(findingBody("Checkout errors rose at 19:52 IST.")))
+	if err != nil || res.IsError {
+		t.Fatalf("a finding in IST: %#v, %v", res.Content, err)
+	}
+}
+
 func TestATooLongFindingStepSaysWhatToDoInWords(t *testing.T) {
-	_, res, ok := findingMarkdown(strings.Repeat("word ", 401), 0)
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 401), 0, nil)
 	if ok || res.Step != "Finding was 401 words, over the 400 word limit; the agent must shorten it" {
 		t.Fatalf("ok %v, step %q", ok, res.Step)
 	}
@@ -504,11 +548,11 @@ func TestAFindingThatFitsOnlyWithoutTheReadsNoteIsSentBackNotLost(t *testing.T) 
 }
 
 func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
-	_, res, ok := findingMarkdown(strings.Repeat("word ", 390), 2)
+	_, res, ok := findingMarkdown(strings.Repeat("word ", 390), 2, nil)
 	if ok || errorCode(t, res) != codeTooLong {
 		t.Fatalf("390 words with a 34 word note: ok %v, res %#v", ok, res.Content)
 	}
-	if got, _, ok := findingMarkdown(strings.Repeat("word ", 300), 2); !ok || !strings.Contains(got, "Reading stopped early") {
+	if got, _, ok := findingMarkdown(strings.Repeat("word ", 300), 2, nil); !ok || !strings.Contains(got, "Reading stopped early") {
 		t.Fatalf("300 words with the note: ok %v, got %q", ok, got)
 	}
 }
@@ -559,7 +603,7 @@ func TestAHomeRunsFindingCarriesTheDashboardItResolved(t *testing.T) {
 	board := r.boardOf(t, "Checkout")
 	run, row := r.homeRun(t, adminCaller)
 	res := r.callIn(t, &run, adminCaller, nameSaveFinding, askOnBody("Checkout is the dashboard you mean; changing it is asked for there.", board.String()))
-	if saved, ok := res.Content.(findingSavedOut); res.IsError || !ok || saved.Code != "saved" {
+	if _, ok := res.Content.(findingSavedOut); res.IsError || !ok {
 		t.Fatalf("save: %#v", res)
 	}
 	f, found, err := r.findings.ForRequest(t.Context(), adminCaller, row.ID)

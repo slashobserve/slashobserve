@@ -102,6 +102,10 @@ func TestLogVolumeAndTraceStatsPostTheRange(t *testing.T) {
 	if code != 0 || seenStats.path != "/api/v1/datasources/tempo/trace-stats" || !strings.Contains(seenStats.body, `"query":"{}"`) || !strings.Contains(stdout, "12.5ms") || !strings.Contains(stdout, "Spans 9, errors 1") || !strings.Contains(stderr, "lower bound") {
 		t.Fatalf("exit %d, call %+v, stdout %q, stderr %q", code, seenStats, stdout, stderr)
 	}
+	cut, _ := recordingServer(t, `{"step_ms":3600000,"total":4,"partial":true,"counted_from":"2026-01-06T00:00:00Z","buckets":[{"start":"2026-01-06T00:00:00Z","error":0,"warning":0,"info":4,"other":0}]}`)
+	if _, stderr, code := runWith(cut, "datasources", "log-volume", "lk", `{app="shop"}`, "--from", "now-7d"); code != 0 || !strings.Contains(stderr, "from 2026-01-06T00:00:00Z on were counted") {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
 	if _, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, "datasources", "log-volume", "lk", "x", "--buckets", "201"); code != 2 || stderr == "" {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}

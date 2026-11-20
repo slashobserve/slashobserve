@@ -18,6 +18,7 @@ import { useDeletedDashboards } from "./deleted-store"
 import { parseEvent, type DashboardEvent } from "./events"
 import {
   backoffDelay,
+  goneOutcome,
   reconnectingGraceMs,
   shouldCheckDashboard,
 } from "./reconnect"
@@ -49,10 +50,6 @@ function cachedLatestVersion(
   return queryClient.getQueryData<DashboardEnvelope>(
     dashboardKeys.latest(dashboardId)
   )?.version.version
-}
-
-export function isGone(error: ApiError): boolean {
-  return error.status === 404 || error.status === 403
 }
 
 function describeVersion(event: { summary: string; authorName: string }) {
@@ -225,7 +222,7 @@ export function useDashboardEvents(
               : "This dashboard was deleted",
             { id: `deleted-${dashboardId}` }
           )
-          void checkDashboard(event.authorName)
+          void checkDashboard({ deletedBy: event.authorName })
           return
         case "comment.created":
         case "comment.updated":
@@ -240,7 +237,7 @@ export function useDashboardEvents(
       }
     }
 
-    async function checkDashboard(by = "") {
+    async function checkDashboard(announced?: { deletedBy: string }) {
       try {
         await queryClient.fetchQuery({
           ...latestDashboardQuery(queryClient, dashboardId),
@@ -249,9 +246,13 @@ export function useDashboardEvents(
         })
       } catch (error) {
         if (disposed) return
-        if (!(error instanceof ApiError) || !isGone(error)) return
-        if (error.status === 404) {
-          useDeletedDashboards.getState().markDeleted(dashboardId, by)
+        if (!(error instanceof ApiError)) return
+        const outcome = goneOutcome(error, announced !== undefined)
+        if (outcome === "keep") return
+        if (outcome === "deleted") {
+          useDeletedDashboards
+            .getState()
+            .markDeleted(dashboardId, announced?.deletedBy ?? "")
           return
         }
         queryClient.removeQueries({

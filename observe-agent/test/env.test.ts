@@ -3,7 +3,7 @@ import { mcpUrl, parseEnv } from "../src/env"
 
 const valid = {
   OBSERVE_AGENT_SERVER_URL: "http://127.0.0.1:8080",
-  OBSERVE_AGENT_TOKEN: "soa_secret",
+  OBSERVE_AGENT_TOKEN: "sob_secret",
   OBSERVE_AGENT_SLOTS: "4",
   OBSERVE_AGENT_LOG_LEVEL: "debug",
 }
@@ -16,7 +16,7 @@ describe("env", () => {
       return
     }
     expect(result.env.serverUrl.href).toBe("http://127.0.0.1:8080/")
-    expect(result.env.token).toBe("soa_secret")
+    expect(result.env.token).toBe("sob_secret")
     expect(result.env.slots).toBe(4)
     expect(result.env.logLevel).toBe("debug")
   })
@@ -69,7 +69,7 @@ describe("env", () => {
 
   test("an error message never repeats the token", () => {
     const result = parseEnv({ ...valid, OBSERVE_AGENT_SLOTS: "0" })
-    expect(!result.ok && result.message).not.toContain("soa_secret")
+    expect(!result.ok && result.message).not.toContain("sob_secret")
   })
 
   test("the endpoint is the server url plus /mcp", () => {

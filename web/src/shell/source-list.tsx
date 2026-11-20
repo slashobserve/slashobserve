@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 
 import { SourceLink } from "@/datasources/source-menu"
 import type { DatasourceStatus } from "@/datasources/queries"
-import type { ExploreKind } from "@/datasources/sources"
+import { exploreText, type ExploreKind } from "@/datasources/sources"
 import { cn } from "@/lib/utils"
 
 import {
@@ -28,11 +28,10 @@ export function SourceList({
   currentId: string | null
   onNavigate?: () => void
 }) {
-  const label = kind === "logs" ? "Log sources" : "Trace sources"
+  const { word, sources: label, path } = exploreText[kind]
   const reserved = useReservedRows(kind, pending, shown.length + (more ? 1 : 0))
   if (pending) return <SubNavSkeleton label={label} rows={reserved} />
   if (shown.length === 0) return null
-  const word = kind === "logs" ? "log" : "trace"
 
   return (
     <SubNavList label={label}>
@@ -50,7 +49,7 @@ export function SourceList({
       {more ? (
         <li>
           <Link
-            to={kind === "logs" ? "/logs" : "/traces"}
+            to={path}
             onClick={onNavigate}
             aria-label={`More ${word} sources`}
             className={subNavMoreClass}

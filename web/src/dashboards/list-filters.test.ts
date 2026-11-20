@@ -64,12 +64,14 @@ describe("validateListSearch", () => {
     }
   })
 
-  it("keeps the views sort and drops any other sort", () => {
-    expect(validateListSearch({ sort: "views" })).toEqual({ sort: "views" })
+  it("keeps the views, name and updated sorts and drops any other sort", () => {
+    for (const sort of ["views", "name", "updated"]) {
+      expect(validateListSearch({ sort })).toEqual({ sort })
+    }
     expect(validateListSearch({ sort: ["views", "x"] })).toEqual({
       sort: "views",
     })
-    for (const sort of ["", "folder", "VIEWS", 7, null]) {
+    for (const sort of ["", "folder", "VIEWS", "Name", 7, null]) {
       expect(validateListSearch({ sort })).toEqual({})
     }
   })
@@ -337,8 +339,10 @@ describe("toFilters and hasFilters", () => {
     expect(toFilters({}).problem).toBeUndefined()
   })
 
-  it("asks the server for the views order only when the sort is views", () => {
+  it("asks the server for an order only when a sort is chosen", () => {
     expect(toFilters({ sort: "views" }).order).toBe("views")
+    expect(toFilters({ sort: "name" }).order).toBe("name")
+    expect(toFilters({ sort: "updated" }).order).toBe("updated")
     expect(toFilters({}).order).toBeUndefined()
   })
 
@@ -354,6 +358,7 @@ describe("toFilters and hasFilters", () => {
     expect(hasFilters({ tag: undefined })).toBe(false)
     expect(hasFilters({ page: 3 })).toBe(false)
     expect(hasFilters({ sort: "views" })).toBe(false)
+    expect(hasFilters({ sort: "name" })).toBe(false)
   })
 })
 

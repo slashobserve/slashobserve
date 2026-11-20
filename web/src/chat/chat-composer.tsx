@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { roleAtLeast } from "@/lib/roles"
-import { isEditableTarget } from "@/lib/shortcuts"
+import { isEditableTarget, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -335,12 +335,7 @@ export function ChatComposer({
       clearCommand()
       return
     }
-    if (
-      !coarse &&
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (sendsOnEnter(event, coarse)) {
       event.preventDefault()
       void submit()
     }
@@ -375,11 +370,6 @@ export function ChatComposer({
           <label htmlFor={inputId} className="sr-only">
             Message the agent
           </label>
-          {coarse ? null : (
-            <p id={hintId} className="sr-only">
-              {keyboardHint}
-            </p>
-          )}
           {chips.length > 0 ? (
             <div className="px-4 pt-3">
               <ContextChips chips={chips} />
@@ -408,6 +398,11 @@ export function ChatComposer({
             onBlur={picker.dismiss}
             onKeyDown={onKeyDown}
           />
+          {coarse ? null : (
+            <p id={hintId} className="px-4 pb-1 text-xs text-muted-foreground">
+              {keyboardHint}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 pr-2 pb-2 pl-4">
             <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted-foreground">
               {healthy.map((datasource) => (

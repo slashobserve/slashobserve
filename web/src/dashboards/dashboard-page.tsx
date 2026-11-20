@@ -12,7 +12,8 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ActivityCard, activityCardId } from "@/activity/activity-card"
+import { ActivityCard } from "@/activity/activity-card"
+import { announcePaneOpening } from "@/components/dock/dock-focus"
 import type { EditGuard } from "@/activity/edit-pane"
 import {
   useActivityLayout,
@@ -56,7 +57,8 @@ import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 import { PanelHostContext } from "@/shell/side-panel"
-import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
   useDashboardShortcuts,
@@ -72,6 +74,8 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
+import { focusComment } from "./panel-actions"
+import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
   cursorSyncLabel,
@@ -156,6 +160,11 @@ import { ExportView } from "./print/export-view"
 import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
+import { activityCardId, paneOpener } from "./pane-openers"
+
+function activityOpener() {
+  return paneOpener("activity")
+}
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -465,7 +474,7 @@ function DashboardView({
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const setShortcutsOpen = useShortcutsStore((state) => state.setOpen)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
@@ -559,6 +568,8 @@ function DashboardView({
     )
   }, [layoutEditingWithPanel, setSearch])
 
+  const closeSpec = useCallback(() => setSpecOpen(false), [])
+
   const closeInspect = useCallback(
     () =>
       setSearch((state) => ({
@@ -611,6 +622,7 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
+    comment: () => focusComment(composerRef),
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -688,6 +700,7 @@ function DashboardView({
       closeCard()
       return
     }
+    announcePaneOpening()
     setOpen(true)
     if (search.chat !== undefined) {
       setSearch((state) => ({ ...state, chat: undefined }))
@@ -705,6 +718,7 @@ function DashboardView({
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
     const apply = () => {
+      if (!sharing) announcePaneOpening()
       setSearch((state) => ({ ...state, edit: undefined, share: !sharing }))
       if (!sharing && cardLayout.stacked) scrollPaneIntoView(activityCardId)
     }
@@ -739,6 +753,16 @@ function DashboardView({
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
         timezone={ownZone}
+        defaultRange={
+          permissions.edit &&
+          detailsBlockReason({
+            pinned,
+            editingLayout: editing,
+            editingPanel,
+          }) === null
+            ? { spec: envelopeSpec, version: envelopeVersion }
+            : null
+        }
       />
       {spec.timePicker?.hidden ? null : (
         <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
@@ -775,7 +799,10 @@ function DashboardView({
       exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
       onAddPanel={addPanel}
-      onEditJson={() => setSpecOpen(true)}
+      onEditJson={() => {
+        announcePaneOpening()
+        setSpecOpen(true)
+      }}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -944,6 +971,7 @@ function DashboardView({
                         back={backFromSearch(search)}
                       />
                     }
+                    presence={<ViewerNames dashboardId={dashboardId} />}
                     controls={controls}
                     actions={actions}
                   />
@@ -1057,7 +1085,11 @@ function DashboardView({
                 />
               ) : null}
               {chatRequestId !== undefined ? (
-                <ChatPane requestId={chatRequestId} onClose={closeCard} />
+                <ChatPane
+                  requestId={chatRequestId}
+                  onClose={closeCard}
+                  opener={activityOpener}
+                />
               ) : null}
               {inspecting ? (
                 <InspectPane
@@ -1080,19 +1112,19 @@ function DashboardView({
                   spec={envelopeSpec}
                   version={envelopeVersion}
                   hidden={!specShown}
-                  onClose={() => setSpecOpen(false)}
+                  opener={findMoreMenuButton}
+                  onClose={closeSpec}
                 />
               ) : null}
+              {kiosk ? <ShortcutsHost /> : null}
               <UnsavedBar dashboardId={dashboardId} />
               {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
-              <ShortcutsDialog
-                open={shortcutsOpen}
-                onOpenChange={setShortcutsOpen}
-              />
               <DetailsDialog
                 dashboardId={dashboardId}
                 spec={envelopeSpec}
                 version={envelopeVersion}
+                folder={envelope.dashboard.folder}
+                folders={folders}
                 open={detailsOpen}
                 onOpenChange={setDetailsOpen}
                 finalFocus={() => findMoreMenuButton() ?? true}

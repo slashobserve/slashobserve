@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useId, useRef, useState } from "react"
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { EditorBoundary } from "@/activity/editor-boundary"
 import { DockHeader } from "@/components/dock/dock-header"
+import { useDockFocus } from "@/components/dock/dock-focus"
 import { DockPanel } from "@/components/dock/dock-panel"
 import {
   AlertDialog,
@@ -25,6 +26,7 @@ type Props = {
   spec: Dashboard
   version: number
   hidden: boolean
+  opener: () => HTMLElement | null
   onClose: () => void
 }
 
@@ -33,6 +35,7 @@ export function SpecJsonPane({
   spec,
   version,
   hidden,
+  opener,
   onClose,
 }: Props) {
   const headingId = useId()
@@ -45,31 +48,37 @@ export function SpecJsonPane({
     dirty.current = next
   }, [])
 
-  function requestClose() {
-    if (dirty.current) setAsking(true)
-    else onClose()
-  }
+  const pane = useRef<HTMLElement>(null)
+  const holdClose = useCallback(() => {
+    if (!dirty.current) return false
+    setAsking(true)
+    return true
+  }, [])
+  const { close } = useDockFocus({
+    pane,
+    heading,
+    opener,
+    onClose,
+    holdClose,
+    active: !hidden,
+  })
 
   return (
     <DockPanel
+      ref={pane}
       labelledBy={headingId}
       width={layout.width}
       bounds={layout.bounds}
       onWidthChange={setWidth}
       stacked={layout.stacked}
       hidden={hidden}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape" || event.defaultPrevented) return
-        event.preventDefault()
-        requestClose()
-      }}
     >
       <DockHeader
         headingId={headingId}
         headingRef={heading}
         title="Dashboard JSON"
         description={`${spec.title}, version ${version}`}
-        onClose={requestClose}
+        onClose={close}
         closeLabel="Close dashboard JSON"
       />
       <EditorBoundary>
@@ -86,7 +95,7 @@ export function SpecJsonPane({
             spec={spec}
             version={version}
             onDirtyChange={onDirtyChange}
-            onSaved={onClose}
+            onSaved={close}
           />
         </Suspense>
       </EditorBoundary>
@@ -103,7 +112,8 @@ export function SpecJsonPane({
             <AlertDialogAction
               onClick={() => {
                 setAsking(false)
-                onClose()
+                dirty.current = false
+                close()
               }}
             >
               Discard

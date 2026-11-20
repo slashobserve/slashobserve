@@ -12,7 +12,7 @@ describe("moreLabel", () => {
         folderTv: true,
       })
     ).toBe(
-      "More: edit details, add panel, edit Spec JSON, open on sign-in, export, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+      "More: edit details, add panel, edit Spec JSON, open on sign-in, export, dashboards as code, print, image, duplicate, TV mode, TV mode for this folder, chart hover, delete"
     )
   })
 
@@ -47,7 +47,7 @@ describe("moreLabel", () => {
         folderTv: true,
       })
     ).toBe(
-      "More: open on sign-in, export, print, image, TV mode, TV mode for this folder, chart hover"
+      "More: open on sign-in, export, dashboards as code, print, image, TV mode, TV mode for this folder, chart hover"
     )
   })
 })

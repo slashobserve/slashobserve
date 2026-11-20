@@ -165,7 +165,7 @@ export function InviteButton() {
           ) : (
             <div className="grid gap-4">
               <DialogHeader>
-                <DialogTitle className="wrap-anywhere">
+                <DialogTitle className="pr-8 leading-snug wrap-anywhere">
                   {saved.email} is invited as {roleLabels[saved.role]}
                 </DialogTitle>
                 <DialogDescription>

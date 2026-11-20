@@ -139,6 +139,17 @@ export type CanvasModel = {
   lines: CanvasLine[]
 }
 
+export function canvasIsEmpty(model: CanvasModel): boolean {
+  return (
+    model.elements.length === 0 &&
+    model.lines.length === 0 &&
+    model.root.background === null
+  )
+}
+
+export const emptyCanvasReason =
+  "This canvas has no elements. Add elements, such as metrics, text or shapes, to the panel's display in the Spec."
+
 const noDataText = "No data"
 export const defaultLineColor = "var(--muted-foreground)"
 export const foregroundColor = "var(--foreground)"

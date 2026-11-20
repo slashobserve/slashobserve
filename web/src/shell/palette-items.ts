@@ -1,8 +1,13 @@
 import type { components } from "@/api/schema.gen"
-import { sourceLanguage, type ExploreKind } from "@/datasources/sources"
+import {
+  exploreText,
+  sourceLanguage,
+  type ExploreKind,
+} from "@/datasources/sources"
 import {
   dashboardPath,
   logsPath,
+  metricsPath,
   observationPath,
   tracesPath,
 } from "@/lib/links"
@@ -50,6 +55,7 @@ type ActionId =
   | "action:sign-out"
   | "action:theme"
   | "action:docs"
+  | "action:shortcuts"
   | "action:search-all"
 type ActionEntry = {
   kind: "action"
@@ -93,6 +99,12 @@ const docsEntry: ActionEntry = {
   kind: "action",
   id: "action:docs",
   label: "Help and docs",
+}
+
+const shortcutsEntry: ActionEntry = {
+  kind: "action",
+  id: "action:shortcuts",
+  label: "Keyboard shortcuts",
 }
 
 const themeEntry: ActionEntry = {
@@ -194,8 +206,10 @@ function sourceEntries(
       kind: "source",
       id: `source:${explore}:${uid}`,
       label: name,
-      secondary: `${explore === "logs" ? "Logs" : "Traces"}, ${sourceLanguage(explore, type)}`,
-      path: explore === "logs" ? logsPath(uid) : tracesPath(uid),
+      secondary: `${exploreText[explore].page}, ${sourceLanguage(explore, type)}`,
+      path: { logs: logsPath, traces: tracesPath, metrics: metricsPath }[
+        explore
+      ](uid),
       explore,
     }))
 }
@@ -266,7 +280,7 @@ export function paletteGroups(
     },
     {
       value: "Help",
-      items: [docsEntry].filter((e) => matches(e.label)),
+      items: [docsEntry, shortcutsEntry].filter((e) => matches(e.label)),
     },
     {
       value: "Account",

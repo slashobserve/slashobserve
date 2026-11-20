@@ -70,6 +70,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	if steps > maxStepPoints {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "step too small: %d steps, max %d", steps, maxStepPoints)
 	}
@@ -97,6 +98,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	form := url.Values{
 		"query":   {text},
 		"time":    {unixSeconds(r.To)},

@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -89,14 +88,14 @@ func readPanelPatch(path string) (panelPatchFile, error) {
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return patch, fmt.Errorf("read the patch file: %w", err)
+		return patch, usagef("cannot read %s: %v", text(path), err)
 	}
 	if info.Size() > maxPatchFileBytes {
 		return patch, usagef("%s is larger than %d MiB", path, maxPatchFileBytes>>20)
 	}
 	raw, err := os.ReadFile(path) //nolint:gosec // reading the file the user named is the command's purpose
 	if err != nil {
-		return patch, fmt.Errorf("read the patch file: %w", err)
+		return patch, usagef("cannot read %s: %v", text(path), err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()

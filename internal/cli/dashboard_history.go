@@ -116,6 +116,51 @@ func printRevision(out *output, r revisionRow) {
 	})
 }
 
+type viewerListBody struct {
+	Viewers []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"viewers"`
+}
+
+func (a *app) dashboardViewersCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "viewers <dashboard-id>",
+		Short: "List the people who have a dashboard open now",
+		Long:  "viewers lists, by name, the other people whose open dashboard page reported in during the last 45 seconds.\nYou need to be able to view the dashboard, and the list is empty when nobody is looking.",
+		Args:  exactArgs(1, "a dashboard id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			c, err := a.newClient()
+			if err != nil {
+				return err
+			}
+			data, err := c.get(cmd.Context(), "dashboards/"+id+"/viewers", nil)
+			if err != nil {
+				return err
+			}
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			list, err := decode[viewerListBody](data)
+			if err != nil {
+				return err
+			}
+			rows := make([][]string, 0, len(list.Viewers))
+			for _, v := range list.Viewers {
+				rows = append(rows, []string{text(v.Name)})
+			}
+			out.table([]string{"NAME"}, rows)
+			return nil
+		},
+	}
+}
+
 func (a *app) dashboardTagsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "tags",

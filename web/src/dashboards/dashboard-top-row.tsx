@@ -1,7 +1,14 @@
-import { Fragment, useSyncExternalStore, type ReactNode } from "react"
+import {
+  Fragment,
+  useCallback,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react"
 import { Link } from "@tanstack/react-router"
 import { SlidersHorizontalIcon } from "lucide-react"
 
+import { pendingPaneHeading } from "@/components/dock/dock-focus"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -13,12 +20,16 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
+import { CloseControlsProvider } from "./controls-sheet"
+import { controlsButtonId } from "./pane-openers"
+
 type Props = {
   title: string
   folder?: { id: string; title: string } | null
   madeBy: string | null
   views?: string | null
   versionControl: ReactNode
+  presence?: ReactNode
   controls: ReactNode[]
   actions: ReactNode[]
 }
@@ -57,10 +68,13 @@ export function DashboardTopRow({
   madeBy,
   views,
   versionControl,
+  presence,
   controls,
   actions,
 }: Props) {
   const narrow = useNarrow()
+  const [controlsOpen, setControlsOpen] = useState(false)
+  const closeControls = useCallback(() => setControlsOpen(false), [])
   const tools = (
     <>
       <Items nodes={controls} />
@@ -73,12 +87,15 @@ export function DashboardTopRow({
         "relative flex pt-3 pr-2.5 pb-2.5 pl-4",
         narrow
           ? "items-center justify-between gap-x-4"
-          : "flex-col gap-y-2 @min-[900px]/dash:flex-row @min-[900px]/dash:items-center @min-[900px]/dash:justify-between @min-[900px]/dash:gap-x-4"
+          : "flex-wrap items-center justify-between gap-x-4 gap-y-2"
       )}
     >
       <nav
         aria-label="Breadcrumb"
-        className="flex min-w-0 flex-nowrap items-center gap-2 text-[13px]"
+        className={cn(
+          "flex min-w-0 flex-nowrap items-center gap-2 text-[13px]",
+          !narrow && "flex-[1_1_22rem]"
+        )}
       >
         {narrow ? null : (
           <>
@@ -112,37 +129,53 @@ export function DashboardTopRow({
           {title}
         </h1>
         {madeBy && !narrow ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span
+            title={madeBy}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
             {madeBy}
           </span>
         ) : null}
         {views ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span
+            title={views}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
             {views}
           </span>
         ) : null}
         {versionControl}
+        {presence}
       </nav>
       {narrow ? (
-        <Sheet>
-          <SheetTrigger render={<Button variant="outline" size="sm" />}>
+        <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
+          <SheetTrigger
+            id={controlsButtonId}
+            render={<Button variant="outline" size="sm" />}
+          >
             <SlidersHorizontalIcon aria-hidden="true" />
             Controls
           </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[85svh] overflow-auto">
+          <SheetContent
+            side="bottom"
+            className="max-h-[85svh] overflow-auto"
+            finalFocus={() => pendingPaneHeading() ?? true}
+          >
             <SheetHeader className="pb-0">
               <SheetTitle>Controls</SheetTitle>
               <SheetDescription>
                 Time range, refresh, annotations and dashboard actions.
               </SheetDescription>
             </SheetHeader>
-            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
-              {tools}
-            </div>
+            <CloseControlsProvider value={closeControls}>
+              <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
+                {tools}
+              </div>
+            </CloseControlsProvider>
           </SheetContent>
         </Sheet>
       ) : (
-        <div className="flex flex-wrap items-center gap-1.5 @min-[900px]/dash:flex-none">
+        <div className="flex max-w-full flex-none flex-wrap items-center gap-1.5">
           {tools}
         </div>
       )}

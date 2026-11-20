@@ -23,7 +23,7 @@ const (
 	defaultListAnnotations = 50
 	maxListAnnotations     = 100
 
-	descListAnnotations  = "List annotations, such as deploy markers, newest first: those on every dashboard, plus with dashboard_id that dashboard's own, optionally only those within from and to or carrying any of tags. An investigation can read them to see a deploy or change beside a spike. Page with next_cursor."
+	descListAnnotations  = "List annotations, such as deploy markers, newest first: those on every dashboard, plus with dashboard_id that dashboard's own, optionally only those within from and to or carrying any of tags. Read them to see a deploy or change beside a spike. Page with next_cursor."
 	descCreateAnnotation = "Add an annotation, such as a deploy marker: text and tags at a time or a range, on one dashboard (or one of its panels) or, without dashboard_id, on every dashboard. Returns the annotation with its id."
 
 	descUpdateAnnotation = "Change the text, the tags or both of an annotation you added, or any annotation as an Admin, by its id from list_annotations or create_annotation. A given tags list replaces the old tags, and an empty list removes them. The time, the dashboard and the author do not change. Giving neither text nor tags is an error."
@@ -59,7 +59,7 @@ func init() { registerEntries((*Registry).annotationEntries) }
 
 func (r *Registry) annotationEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},
+		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},
 		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createAnnotation},
 		{Tool{Name: nameUpdateAnnotation, Description: descUpdateAnnotation, InputSchema: json.RawMessage(schemaUpdateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateAnnotation},
 	}

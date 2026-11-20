@@ -26,7 +26,6 @@ const (
 	maxVariables       = 20
 	defaultFrom        = "now-1h"
 	defaultTo          = "now"
-	defaultDataPoints  = 200
 	minDataPoints      = 10
 	maxDataPoints      = 1000
 	maxTimeExprBytes   = 64
@@ -162,7 +161,7 @@ func (r *Registry) queryRange(ctx context.Context, input json.RawMessage) (Resul
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	points, res, ok := boundedInt(in.MaxDataPoints, defaultDataPoints, minDataPoints, maxDataPoints, "max_data_points")
+	points, res, ok := boundedInt(in.MaxDataPoints, queryproxy.AgentMaxDataPoints, minDataPoints, maxDataPoints, "max_data_points")
 	if !ok {
 		return res, nil
 	}
@@ -417,11 +416,28 @@ type querySummary struct {
 	MoreRows  bool            `json:"more_rows,omitempty"`
 	Partial   bool            `json:"partial,omitempty"`
 	Warning   string          `json:"warning,omitempty"`
+	Hint      string          `json:"hint,omitempty"`
 	Note      string          `json:"note,omitempty"`
+	Executed  []executedQuery `json:"executed,omitempty"`
 	Series    []seriesOut     `json:"series,omitempty"`
 	Table     *tableOut       `json:"table,omitempty"`
 	Page      *pageOut        `json:"page,omitempty"`
 	canPage   bool
+}
+
+type executedQuery struct {
+	Ref  string `json:"ref"`
+	Text string `json:"text"`
+}
+
+func executedOf(queries []queryproxy.QueryResult) []executedQuery {
+	var out []executedQuery
+	for _, q := range queries {
+		if q.Executed != "" {
+			out = append(out, executedQuery{Ref: q.Ref, Text: q.Executed})
+		}
+	}
+	return out
 }
 
 func (s querySummary) describe() string {
@@ -430,6 +446,8 @@ func (s querySummary) describe() string {
 
 func (s querySummary) describeData() string {
 	switch {
+	case s.Empty && s.Hint != "":
+		return "no data (" + s.Hint + ")"
 	case s.Empty:
 		return "no data"
 	case len(s.Series) > 0 && s.Table != nil:
@@ -483,7 +501,9 @@ func summarize(res queryproxy.Result) querySummary {
 		MoreRows: meta.Truncated,
 		Partial:  meta.Partial,
 		Warning:  meta.Warning,
+		Hint:     meta.Hint,
 		Note:     queryproxy.LimitNote(meta.Truncated, meta.Partial, false, false),
+		Executed: executedOf(res.Queries),
 	}
 	if s.Empty {
 		return s

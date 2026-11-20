@@ -34,8 +34,8 @@ export function DashboardPageSkeleton() {
       />
       <div className={cn(pageClass(open && layout.stacked), "min-w-0 flex-1")}>
         <div className="@container/dash flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-          <div className="flex flex-col gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4 @min-[900px]/dash:flex-row @min-[900px]/dash:items-center @min-[900px]/dash:justify-between @min-[900px]/dash:gap-x-4 narrow:flex-row narrow:items-center narrow:justify-between narrow:gap-x-4">
-            <Skeleton className="h-[26px] w-64 animate-none motion-safe:animate-pulse" />
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4 narrow:flex-nowrap">
+            <Skeleton className="h-[26px] w-64 flex-[0_1_22rem] animate-none motion-safe:animate-pulse" />
             <Skeleton className="h-8 w-[575px] max-w-full animate-none motion-safe:animate-pulse narrow:w-24" />
           </div>
           <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">

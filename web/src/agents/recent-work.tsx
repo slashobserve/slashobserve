@@ -15,6 +15,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import type { AgentRef } from "./agent-ref"
 import { costText } from "./stats"
+import { plainTitle } from "@/comments/plain-title"
 
 type AgentRun = components["schemas"]["AgentRun"]
 
@@ -95,7 +96,7 @@ function RunRow({ run, showPerson }: { run: AgentRun; showPerson: boolean }) {
             {...observationLink(run.observation.id)}
             className="underline underline-offset-4"
           >
-            {run.observation.title}
+            {plainTitle(run.observation.title)}
           </Link>
         ) : null}
       </p>

@@ -9,7 +9,10 @@ The server exposes its tools to MCP clients over Streamable HTTP at `<public url
 Requests must carry `Authorization: Bearer <token>`, where the token is either a person's OAuth access token (the default for people, see [Connect your own agent](#connect-your-own-agent)) or a [service-account key](../operate/service-account-keys.md) (for headless bots, see [Keys for bots](#keys-for-bots)).
 Browser sessions are not accepted on `/mcp`, and an OAuth access token is accepted nowhere else.
 A request without a token, or with one the server refuses, gets `401` with `WWW-Authenticate: Bearer realm="slashobserve", resource_metadata="<public url>/.well-known/oauth-protected-resource/mcp"`, which is how an MCP client finds the sign-in; a refused token adds `error="invalid_token"`.
+
 The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key or person and `503` above 32 across all callers.
+Those three, and a refused JSON-RPC batch (one request per POST), come back as JSON-RPC error bodies with the short code in `error.data.code`, so a client SDK backs off on `Retry-After` instead of reporting a broken transport.
+`tools/list` has no pages: a `cursor` is ignored.
 For a key, `initialize` returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 For an OAuth client, the name it registered under is used and `clientInfo` is ignored.
 Each version, agent request, finding and annotation records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name, and the web app, the CLI and the API show the author as `<name> (via <client>)`.
@@ -19,12 +22,14 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | Tool | Lowest role |
 | ---- | ----------- |
 | `add_block` | Viewer |
+| `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
 | `compare_traces` | Viewer |
 | `create_annotation` | Viewer |
 | `create_comment` | Viewer |
 | `create_dashboard` | Viewer |
+| `create_folder` | Viewer |
 | `create_observation` | Viewer |
 | `diff_dashboard_versions` | Viewer |
 | `discard_block` | Viewer |
@@ -41,6 +46,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `get_rca` | Viewer |
 | `get_run` | Viewer |
 | `get_run_brief` | Viewer |
+| `get_run_build` | Viewer |
 | `get_schema` | Viewer |
 | `get_spec_guide` | Viewer |
 | `get_trace` | Viewer |
@@ -52,12 +58,14 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
+| `list_dashboard_viewers` | Viewer |
 | `list_dashboards` | Viewer |
 | `list_datasources` | Viewer |
 | `list_folders` | Viewer |
 | `list_inbox` | Viewer |
 | `list_label_values` | Viewer |
 | `list_labels` | Viewer |
+| `list_mentionable_people` | Viewer |
 | `list_metrics` | Viewer |
 | `list_observations` | Viewer |
 | `list_pinned_dashboards` | Viewer |
@@ -78,6 +86,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
 | `recheck_datasource` | Viewer |
+| `rename_folder` | Viewer |
 | `reopen_comment` | Viewer |
 | `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |
@@ -85,11 +94,15 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `resolve_comment` | Viewer |
 | `resolve_observation` | Viewer |
 | `restore_dashboard_version` | Viewer |
+| `retry_run` | Viewer |
+| `run_dashboard_health` | Admin |
 | `sample_rows` | Viewer |
 | `save_run_answer` | Viewer |
 | `save_search` | Viewer |
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
+| `set_inbox_item_done` | Viewer |
+| `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `update_annotation` | Viewer |
@@ -103,7 +116,23 @@ The lowest role is the one the web app needs for the same work, and folder acces
 A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
 A key has no My Dashboards and is never on a folder's list, so below Editor it can read and query but not save directly; a save from a Commenter becomes a [proposal](../concepts/proposals.md).
 
+Every refused tool call returns one shape: `code`, a stable word to branch on, and `message`, what to change, plus fields specific to the refusal such as `issues`, `latest_version` or `allowed_actions`.
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
+A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
+
+Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
+A client that approves only non-destructive tools on its own therefore asks before any of them runs.
+
+`list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
+The schema accepts the `{code, message}` body a failed call answers with, because a client that validates results checks a failed one too.
+Every other tool publishes none.
+
+A thing's id is named `<thing>_id` and a datasource is named `datasource`, and every tool that takes one also accepts its common alias, so a guess costs no call.
+`datasource_uid` is accepted wherever `datasource` is, `id` for `dashboard_id` on a tool named for a dashboard, for `observation_id` on one named for an observation and for `run_id` on one named for a run, and `run_id` for the `id` of `get_run`, `get_run_build`, `cancel_run` and `retry_run`.
+`diff_dashboard_versions` also accepts `from_version` and `to_version` for `from` and `to`, and `get_panels` accepts `panel_ids` for `ids`.
+A call that sends both names with the same value works, and one that sends them with different values is refused with `invalid_request`.
+The names in `tools/list` are the documented ones; a run of the built-in agent takes only those.
+
 A call with a field the tool does not take is refused with `invalid_request` and the list of fields it takes, and a field of the wrong JSON type is refused with the type it needs.
 On `initialize` the server sends instructions with the order of work: read `get_spec_guide` once before the first save, find real names with the discovery tools, check each query with `lint_query` and `query_range` or `query_instant`, then save, sending changes with `update_panels`.
 Each tool's description and input schema are the text the built-in agent reads, except that MCP clients get the full guide from `get_spec_guide`, `folder_id` on `create_dashboard`, and `dashboard_id` and `parent_version` on `update_dashboard` and `update_panels`.
@@ -119,7 +148,7 @@ A Viewer still gets `forbidden_role`.
 `get_dashboard` returns the Spec at the latest version or at `version`, with `saved_by`, `origin`, `saved_at` and `summary` of that version, and returns `too_large` for a Spec over 128 KiB.
 
 `get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `window_days`.
-`list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default) or `views` for the most viewed first; pass a `next_cursor` back with the order that produced it.
+`list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default), `views` for the most viewed first or `name` for A to Z by title; pass a `next_cursor` back with the order that produced it.
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -148,6 +177,8 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
+`query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.
+
 `list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
 `get_proposal` returns a proposal with its `spec`, its `changes`, the `conflicts` a merge would hit while it is open and behind the dashboard, the `allowed_actions` of the caller and the field-by-field `diff`, which is left out, with the step saying so, when it would take the result over 128 KiB; a result over 128 KiB without it answers `too_large`.
 `merge_proposal` takes the `proposal_id`, the `revision` read with `get_proposal` and, for each conflict, a choice `{ "kind": "panel", "id": "p1", "take": "theirs" }` where `ours` keeps the dashboard's unit and `theirs` takes the proposal's; it needs Edit on the dashboard, runs the queries of the panels it changes like any save, and saves a new version.
@@ -169,7 +200,9 @@ Each datasource type answers these discovery tools:
 - Loki: `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`; `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`; and `list_metrics` with a stream selector as `scope`.
 - Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
 - Elasticsearch and OpenSearch: `list_labels` for the fields you can group or filter by, `list_label_values` for a field's top values over the range, `get_schema` for the concrete indices of the index pattern, or with `table` set to an index name every mapped field with its kind, and `sample_rows` for up to 20 of the newest documents of the index pattern with no `table`.
-  `list_metrics` answers an empty list there, with or without `scope`.
+  `list_metrics` with a `scope` answers an empty inventory there.
+
+`list_metrics` without a `scope` on Loki, Tempo, Elasticsearch or OpenSearch, and `get_schema` on Prometheus or Loki, answer `invalid_request` and name the datasource types they read, instead of an empty list or the datasource's own wording.
 
 On Loki each family of a scoped `list_metrics` is a stream label key, and its `series` counts the streams that carry it.
 That inventory, and the empty one of Elasticsearch and OpenSearch, never replaces the one `uncovered` reads.
@@ -182,14 +215,19 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 
 `list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
+`create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
+
+`rename_folder` takes a `folder_id` and a `title` and needs the Manage permission on the folder.
+Both answer `folder_exists` for a taken title and `rename_folder` answers `general_folder` for the General folder; no tool deletes a folder or changes who may see one, because people do that in the web app or with `observe folders`.
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
+A retry is safe: when the same caller already saved a dashboard with that title and an identical spec in that folder, `create_dashboard` returns it with `replayed` true instead of making a second one.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
 `list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it.
 No tool deletes a dashboard: people do that in the web app, through the HTTP API or with `observe dashboards delete`.
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
 `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
-They work only over a person's OAuth connection: a service-account key answers `user_session_required`.
+They work only over a person's OAuth connection: a service-account key does not see them in `tools/list`, as it does not see `list_inbox`, and answers `user_session_required` if it calls one.
 
 `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` manage the dashboard that opens for the person after sign-in in place of Home; the HTTP API calls it `/me/home-dashboard`.
 `get_home_dashboard` returns `status` (`none`, `ok`, `gone` or `unreadable`) and, when it is `ok`, the dashboard.
@@ -202,14 +240,19 @@ A dashboard made by Claude Code can then be reviewed by the team without a model
 Comments can sit on a dashboard, an annotation, an observation or a proposal.
 A `proposal:<uuid>` target is read with View and written with Comment on the proposal's dashboard, and a comment on it has no `panel_id` or `version`.
 `list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
-Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`; a result listed by `target` also names that `target`.
+Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`, and an `actor` that is the same object the HTTP API returns (`kind`, `id`, `name`, `origin`, `client`, `run_id` and `label`), whose `run_id` is the run that wrote an agent reply and null for a person; `author` stays the plain name, and a top-level `run_id` appears only on an agent reply; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
+A caller with only Comment resolves only a thread they started and gets `not_starter` on any other; a caller who can edit resolves any.
 A comment id is the id of any message of the thread, and the first message's id is the thread's.
 
 On an observation, `create_comment` and `reply_to_comment` take `block_id`, the block the message is about from `get_observation`, and omit it for the whole observation; a block of another observation, or a `block_id` on any other target, answers `invalid_request`.
 `reply_to_comment` also takes `reply_to_id`, a message of the same thread that the reply answers, which the web app shows quoted.
 Every comment the comment tools return carries `block_id` (null for the whole observation and on every other target) and `reply_to` (null when it quotes nothing, else the quoted message's `id`, its `author` as the web app labels it, and an `excerpt` of its first 200 characters).
+
+`list_mentionable_people` takes a `target` and an optional `query` and returns the people who can see it, with the `id` to put in `@[Name](user:<id>)`; it returns at most 20, and `more` is true when others match, so narrow with `query`.
+Mentioning a person who does not exist or cannot see the target answers `invalid_mention`, and a mentioned person gets it in their Inbox.
+An observation has one discussion, so `create_comment` on an observation that has one answers `observation_thread_exists` and names the `comment_id` to give `reply_to_comment`.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
 `create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
@@ -220,15 +263,22 @@ The refusal codes are `mention_target_unsupported`, `investigation_person_only`,
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message; a reply that could not be posted when the run ended is tried again every minute for up to a day.
+When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did (an answer kept in its asker's chat ends with `[the chat](/c/<run id>)`, a chat only the person who asked and Admins can open); a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
-`save_search` saves a logs or trace search with a title, outside an agent run, so people can open it from the logs or traces page.
-It takes `kind` (`logs` or `traces`), `title` and `datasource_uid`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
-A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`.
+`save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
+It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
+The query is linted as `lint_query` does it, and one with a lint error is refused with `invalid_request` and the lint message, so a saved search never opens on a query that cannot run.
+When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved anyway.
+A repeat of a search you already saved, with the same title, datasource, query, filters, range and folder, returns that search with `replayed` true and saves no second copy.
+`POST /api/v1/saved-searches` and `observe saved-searches save` apply the same two checks to a service-account key, and refuse a lint error with 422 `query_invalid` and answer a repeat with 200 and `replayed` true; a person's browser session saves as before.
+A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
+
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
 A `folder_id` the key cannot save in returns `forbidden_role`, and an unknown one `not_found`; a datasource that does not exist or does not fit the kind returns `invalid_request`.
 Check the query with `lint_query` or `draft_query` first, because saving runs no query.
+Saving the same search again as the same caller (same kind, title, datasource, query, filters and range) returns the one already saved with `replayed: true`, so a retry makes no duplicate.
+No MCP tool renames or deletes a saved search, so people do that in the web app or with the CLI.
 
 `list_saved_searches` lists the saved searches in the folders the key can see, most recently changed first, optionally of one `kind` or in one `folder_id`, with each one's datasource, query, filters, range, folder and `url`.
 `update_saved_search` changes what a saved search runs, outside an agent run: pass its `id` from `list_saved_searches` and any of `query`, `filters`, `from` and `to`.
@@ -239,7 +289,7 @@ No tool renames, moves or deletes a saved search: people do that on the web or w
 
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
 `create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the blocks are added in order after the observation exists, and the first refused one stops the rest and answers `block_refused` with its `block_index` and the `observation_id` that was created.
-`get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel's `title`, `type` and datasources, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit.
+`get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources and its full `panel`, in the shape `update_block` takes, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit, and a block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 `list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id`, one `state` (`open` or `resolved`) or a `title` that contains the given text, and pages with `next_cursor`.
 
 `add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel`, optionally `variables` (an object of variable name to a list of values, for each variable the panel's queries use) and its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
@@ -247,9 +297,9 @@ A panel that uses a variable with no value in `variables` is refused with `varia
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
 `resolve_observation` closes an observation with a one-line `summary`.
-Every write answers `code: ok` with the ids, the `state` of what it changed, the block `version` and the `url`.
+Every write answers with the ids, the `state` of what it changed, the block `version` and the `url`.
 
-`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering `code: ok` with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
+`publish_rca` takes `observation_id` and publishes it as the next immutable RCA revision (see [Observations](observations.md#publish-as-rca)), answering with the `revision`, the number of `blocks` and `snapshots` it holds and the `observation_url`; a failing panel answers `panel_failed` with the block it names, and the other refusals are `rca_limit`, `rca_unchanged`, `observation_changed`, `snapshot_too_large` and `personal_folder`.
 It never creates a public link: a person does that, and no tool lists or revokes one either.
 `list_rcas` lists an observation's published revisions and `get_rca` reads one, as `GET /api/v1/observations/{id}/rcas` does.
 No tool withdraws a revision: people do that in the web app, through the HTTP API or with `observe o withdraw`.
@@ -270,13 +320,18 @@ No tool removes a block: people do that in the web app or through the HTTP API.
 
 No tool queues an investigation on the server: an MCP client investigates with its own model, using the discovery and query tools, and saves the answer into an observation with `create_observation` and `add_block`.
 
+`list_dashboard_viewers` is available over MCP only.
+It lists, by name, the other people who have the dashboard open in the web app now, so a client can see who is looking before it changes the dashboard; it needs View, and the list is empty when nobody is looking.
+
 `list_dashboard_health` is available over MCP only.
 It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
 `folder_id` and `kind` narrow the list, and `next_cursor` pages on.
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
 `draft_query` is available over MCP only.
-It turns a question into a checked LogQL, ClickHouse SQL, KQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+It turns a question into a checked LogQL, ClickHouse SQL, KQL, PromQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+`signal` is `logs`, `traces` or `metrics`; it defaults to the one the datasource holds, and a ClickHouse datasource needs it.
+A Prometheus datasource answers with `language` `promql`, evaluated at the end of the range.
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.
 A question it cannot turn into a query returns the tool error `cannot_translate` with the reason, and a server with no model returns `agent_unavailable`.
 
@@ -297,8 +352,11 @@ Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types
 It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
-Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
+Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter` (`open` by default, `unread` for the open items that are unread, `done` for the items marked done), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
 It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a service-account key gets `user_session_required`, and it is over MCP only, so the built-in agent does not have it.
+
+`set_inbox_item_done` marks one inbox item done by its `seq` from `list_inbox`, or brings it back with `done: false`.
+A done item leaves the default list, counts as read and stays done when the inbox is read, as the done button in the web app does; it answers like `PUT /api/v1/inbox/items/{seq}`, and a service-account key gets `user_session_required`.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
@@ -307,7 +365,16 @@ An Admin can read any run; the answer then has `read_only: true` and no allowed 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.
 When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
-No MCP tool starts a run: make the change with `update_panels` on that dashboard, or ask the built-in agent there with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
+To make that change, use `update_panels` on that dashboard yourself, or ask the built-in agent there with `start_run`, sending the finding's `ask_on.dashboard_id` as `dashboard_id` and the run's prompt, or with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
+
+`get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
+`start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, or a `follows_id`, an earlier run of yours with no dashboard whose chat the new run continues (not together with `dashboard_id`); it queues a run and answers with it at once, and you follow it with `get_run`.
+Every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
+`cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
+`retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
+Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+`run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 
 `save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
 It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
@@ -318,7 +385,7 @@ Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, th
 It finds only what the key may read, and it is over MCP only, so the built-in agent does not have it.
 
 `list_annotations` lists [annotations](annotations.md), such as deploy markers, newest first: the global ones, plus one dashboard's own with `dashboard_id`, narrowed by `from` and `to` (RFC 3339) and `tags`, 50 per page by default and at most 100.
-It is the one annotation tool the built-in agent also has, and only in investigate runs, so an investigation can see a deploy beside a spike.
+It is the one annotation tool the built-in agent also has, in every run and as the person who asked, so it can see a deploy beside a spike.
 `create_annotation` is available over MCP only and adds one, with the fields of `POST /api/v1/annotations`: `text`, `tags`, `time_from` and `time_to`, and `dashboard_id` and `panel_id` to place it on one dashboard or panel.
 Without `dashboard_id` the annotation shows on every dashboard.
 It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id` needs the Editor role.

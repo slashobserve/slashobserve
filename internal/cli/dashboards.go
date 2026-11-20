@@ -36,7 +36,7 @@ type dashboardViews struct {
 	WindowDays int `json:"window_days"`
 }
 
-var dashboardOrders = []string{"updated", "views"}
+var dashboardOrders = []string{"updated", "views", "name"}
 
 type actorLabel struct {
 	Label string `json:"label"`
@@ -97,7 +97,7 @@ func (a *app) dashboardsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand(), a.dashboardMoveCommand(), a.dashboardDuplicateCommand(), a.dashboardRestoreCommand(), a.dashboardDiffCommand(), a.dashboardRevisionsCommand(), a.dashboardTagsCommand(), a.dashboardPanelsCommand())
+	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand(), a.deleteCommand(), a.exportCommand(), a.applyCommand(), a.dashboardMoveCommand(), a.dashboardDuplicateCommand(), a.dashboardRestoreCommand(), a.dashboardDiffCommand(), a.dashboardRevisionsCommand(), a.dashboardTagsCommand(), a.dashboardPanelsCommand(), a.dashboardViewersCommand(), a.schemaCommand(), a.sampleCommand())
 	return cmd
 }
 
@@ -109,7 +109,7 @@ func (a *app) listCommand() *cobra.Command {
 		RunE:  a.runList,
 	}
 	addPageFlags(cmd, &a.list, maxDashboardPage)
-	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default) or views, most opened in the last 30 days first")
+	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default), views (most opened in the last 30 days first) or name (by title)")
 	return cmd
 }
 
@@ -236,19 +236,40 @@ func withViewCount(data []byte, views dashboardViews) ([]byte, error) {
 }
 
 func explainMissingVersion(ctx context.Context, c *client, id string, version int, cause error) error {
+	latest, err := latestOfReadable(ctx, c, id, cause)
+	if err != nil {
+		return err
+	}
+	return versionNotFound(id, version, latest)
+}
+
+func explainMissingDiffVersion(ctx context.Context, c *client, id string, from, to int, cause error) error {
+	latest, err := latestOfReadable(ctx, c, id, cause)
+	if err != nil {
+		return err
+	}
+	for _, version := range []int{to, from} {
+		if version > latest {
+			return versionNotFound(id, version, latest)
+		}
+	}
+	return cause
+}
+
+func latestOfReadable(ctx context.Context, c *client, id string, cause error) (int, error) {
 	var api *apiError
 	if !errors.As(cause, &api) || api.status != http.StatusNotFound {
-		return cause
+		return 0, cause
 	}
 	data, err := c.get(ctx, "dashboards/"+id, nil)
 	if err != nil {
-		return cause
+		return 0, cause
 	}
 	latest, err := decode[dashboardWithVersion](data)
 	if err != nil {
-		return cause
+		return 0, cause
 	}
-	return versionNotFound(id, version, latest.Version.Version)
+	return latest.Version.Version, nil
 }
 
 func versionNotFound(id string, version, latest int) *apiError {

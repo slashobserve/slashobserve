@@ -22,7 +22,7 @@ A block is one of these kinds:
 Each block is `full` width or `half` width, and blocks keep the order of their `position`.
 A person who can only comment sees positions that count only the blocks they can see, and a suggestion they place at one of those positions lands there once an editor keeps it.
 A page holds at most 100 blocks, of which at most 24 are panel and snapshot blocks together.
-A panel must be a valid data panel, and one that an agent or MCP client adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.
+A panel must be a valid data panel, and one that an agent, an MCP client or a service-account key (the [CLI](cli.md) and scripts) adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.
 Frozen data is limited to 2 MiB, and a larger result is refused with `snapshot_too_large`.
 An agent or MCP client never writes HTML into a text block, as everywhere else.
 
@@ -164,8 +164,8 @@ A block that belongs to another observation answers 422 `invalid_block`, and a q
 Editing a message changes neither.
 
 A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, starts an investigation for that agent that writes into this observation, and it needs the Editor role.
-The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>."
-The line is not the model's text, and it never resolves the discussion.
+The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>." and the first paragraph of the finding
+The line is not the model's text, and the paragraph is shown as plain text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Add to an observation from a panel or from Logs
@@ -186,6 +186,7 @@ The block takes the time range in the dashboard's address as absolute times, and
 A panel's `repeat` setting is dropped.
 
 **Add to observation** on the [logs page](logs-and-traces.md#add-to-an-observation) works the same way for the search you ran, as a logs panel named Logs over the range you are viewing.
+**Add to observation** on the [metrics page](metrics.md#add-to-a-dashboard-or-an-observation) does the same with a time series panel named Metrics, or a table panel in the table mode.
 
 **Add to observation** on the [trace search](logs-and-traces.md#trace-search) and in the [trace view](logs-and-traces.md#trace-view) does the same with a traces panel: the search you ran, or the trace you are looking at, over the time range the page shows.
 

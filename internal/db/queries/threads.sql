@@ -54,10 +54,17 @@ INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_nam
 SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text
 WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
+  AND EXISTS (SELECT 1 FROM agent_requests WHERE id = @run_id::uuid AND thread_replied_at IS NULL)
 RETURNING *;
+
+-- name: MarkRunReplied :exec
+UPDATE agent_requests SET thread_replied_at = clock_timestamp() WHERE id = @id AND thread_replied_at IS NULL;
 
 -- name: GetRunProposalTitle :one
 SELECT title FROM proposals WHERE run_id = @run_id ORDER BY created_at DESC, id LIMIT 1;
+
+-- name: ListMessagesByID :many
+SELECT * FROM thread_messages WHERE id = ANY(@ids::uuid[]);
 
 -- name: GetMessage :one
 SELECT * FROM thread_messages WHERE id = @id;
@@ -137,7 +144,15 @@ VALUES (@message_id::uuid, sqlc.narg('user_id')::uuid, sqlc.narg('agent')::text,
 SELECT * FROM thread_mentions WHERE message_id = ANY(@message_ids::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id, agent_grant_id, agent_service_account_id;
 
 -- name: UserMentionNames :many
-SELECT id, name, email FROM users WHERE id = ANY(@ids::uuid[]);
+SELECT id, name, email, role, groups FROM users WHERE id = ANY(@ids::uuid[]);
+
+-- name: MentionCandidates :many
+SELECT id, name, email, role, groups, lower(coalesce(nullif(name, ''), email))::text AS sort_key FROM users
+WHERE id <> @self::uuid
+  AND (name ILIKE @pattern::text ESCAPE '\' OR email ILIKE @pattern::text ESCAPE '\')
+  AND (lower(coalesce(nullif(name, ''), email)), id) > (@after_key::text, @after_id::uuid)
+ORDER BY lower(coalesce(nullif(name, ''), email)), id
+LIMIT @row_limit;
 
 -- name: MentionableGrant :one
 SELECT coalesce(c.name, '')::text AS name
@@ -162,3 +177,39 @@ FROM threads t
 JOIN thread_messages m ON m.thread_id = t.id
 WHERE t.observation_id = ANY(@observation_ids::uuid[])
 GROUP BY t.observation_id;
+
+-- name: DeleteMessage :exec
+DELETE FROM thread_messages WHERE id = @id;
+
+-- name: DeleteThread :exec
+DELETE FROM threads WHERE id = @id;
+
+-- name: ThreadsWithOtherAuthors :many
+SELECT DISTINCT thread_id FROM thread_messages
+WHERE thread_id = ANY(@thread_ids::uuid[])
+  AND NOT (author_kind = @author_kind::text AND author_id = @author_id::uuid);
+
+-- name: RunsOfMessages :many
+SELECT DISTINCT ON (thread_message_id) thread_message_id, id, status, assigned_kind
+FROM agent_requests
+WHERE thread_message_id = ANY(@message_ids::uuid[])
+ORDER BY thread_message_id, created_at DESC, id DESC;
+
+-- name: MarkThreadRead :exec
+INSERT INTO thread_reads (user_id, thread_id, read_at)
+SELECT u.id, @thread_id::uuid, clock_timestamp() FROM users u WHERE u.id = @user_id::uuid
+ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = EXCLUDED.read_at;
+
+-- name: UnreadThreads :many
+SELECT t.id
+FROM threads t
+WHERE t.id = ANY(@thread_ids::uuid[])
+  AND EXISTS (
+    SELECT 1 FROM thread_messages m
+    WHERE m.thread_id = t.id
+      AND NOT (m.run_id IS NULL AND m.author_kind = @reader_kind::text AND m.author_id = @reader_id::uuid)
+      AND m.created_at > greatest(
+        coalesce((SELECT r.read_at FROM thread_reads r WHERE r.user_id = @reader_id::uuid AND r.thread_id = t.id), '-infinity'::timestamptz),
+        (SELECT u.threads_seen_since FROM users u WHERE u.id = @reader_id::uuid)
+      )
+  );

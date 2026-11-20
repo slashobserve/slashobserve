@@ -107,6 +107,12 @@ func (e emitter) edited(ctx context.Context, q *dbsqlc.Queries, message dbsqlc.T
 	return e.append(ctx, q, activity.TypeThreadEdited, data, e.live(events.TypeCommentUpdated, message.ID, parent, e.thread.Status))
 }
 
+func (e emitter) deleted(ctx context.Context, q *dbsqlc.Queries, messageID pgtype.UUID) error {
+	data := e.data()
+	data.MessageID = messageID.String()
+	return e.append(ctx, q, activity.TypeThreadDeleted, data, e.live(events.TypeCommentUpdated, e.thread.ID, pgtype.UUID{}, e.thread.Status))
+}
+
 func (e emitter) statusChanged(ctx context.Context, q *dbsqlc.Queries) error {
 	data := e.data()
 	typ := activity.TypeThreadReopened

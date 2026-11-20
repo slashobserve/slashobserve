@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-import type { ExploreKind } from "./sources"
+import { exploreKinds, type ExploreKind } from "./sources"
 
 const storageKey = "slashobserve-explore-datasource"
 const rememberedCap = 20
@@ -15,16 +15,23 @@ function uidList(value: unknown): string[] {
     .slice(0, rememberedCap)
 }
 
+function emptyMemory(): Memory {
+  return { logs: [], traces: [], metrics: [] }
+}
+
 export function parseMemory(raw: string | null): Memory {
   try {
     const parsed: unknown = JSON.parse(raw ?? "")
-    if (typeof parsed !== "object" || parsed === null) {
-      return { logs: [], traces: [] }
-    }
+    if (typeof parsed !== "object" || parsed === null) return emptyMemory()
     const stored = parsed as Record<string, unknown>
-    return { logs: uidList(stored.logs), traces: uidList(stored.traces) }
+    return {
+      ...emptyMemory(),
+      ...Object.fromEntries(
+        exploreKinds.map((kind) => [kind, uidList(stored[kind])])
+      ),
+    }
   } catch {
-    return { logs: [], traces: [] }
+    return emptyMemory()
   }
 }
 
@@ -59,8 +66,13 @@ export const useSourceMemory = create<MemoryState>((set, get) => {
     ...stored,
     atLoad: stored,
     remember: (kind, uid) => {
-      const { logs, traces } = get()
-      const next = { logs, traces, [kind]: rememberIn(get()[kind], uid) }
+      const { logs, traces, metrics } = get()
+      const next = {
+        logs,
+        traces,
+        metrics,
+        [kind]: rememberIn(get()[kind], uid),
+      }
       write(next)
       set(next)
     },

@@ -121,6 +121,21 @@ describe("the results body", () => {
     renderSection(value)
     expect(screen.getByText(/^No lines in/)).toBeTruthy()
   })
+
+  it("shows the server's hint under an empty result", () => {
+    const hint =
+      "No document has log.level = error in this range, but it has ERROR; values are case sensitive, so seen: INFO, ERROR."
+    const value = workspace({ q: "log.level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 0, hint } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByText(hint)).toBeTruthy()
+  })
 })
 
 describe("an unreadable query", () => {

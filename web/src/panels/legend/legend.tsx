@@ -88,6 +88,7 @@ type Props = {
   width: number
   onToggle: (key: string) => void
   onHover?: LegendHover
+  more?: number
 }
 
 export function Legend({
@@ -102,6 +103,7 @@ export function Legend({
   width,
   onToggle,
   onHover,
+  more = 0,
 }: Props) {
   const bottom = placement === "bottom"
   return (
@@ -147,6 +149,11 @@ export function Legend({
           </button>
         )
       })}
+      {more > 0 ? (
+        <span className="px-1.5 py-0.5 text-xs text-muted-foreground">
+          +{more} more
+        </span>
+      ) : null}
     </div>
   )
 }

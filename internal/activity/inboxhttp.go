@@ -20,8 +20,10 @@ const (
 
 type InboxItemJSON struct {
 	EventJSON
-	Reason *string `json:"reason"`
-	Unread bool    `json:"unread"`
+	Reason      *string `json:"reason"`
+	Unread      bool    `json:"unread"`
+	TargetTitle *string `json:"target_title"`
+	Excerpt     *string `json:"excerpt"`
 }
 
 type InboxJSON struct {
@@ -34,9 +36,11 @@ func InboxJSONOf(page InboxPage) InboxJSON {
 	body := InboxJSON{Items: make([]InboxItemJSON, 0, len(page.Items)), UnreadCount: page.UnreadCount}
 	for _, item := range page.Items {
 		body.Items = append(body.Items, InboxItemJSON{
-			EventJSON: JSONOf(item.Event),
-			Reason:    httpapi.OptionalString(string(item.Reason)),
-			Unread:    item.Unread,
+			EventJSON:   JSONOf(item.Event),
+			Reason:      httpapi.OptionalString(string(item.Reason)),
+			Unread:      item.Unread,
+			TargetTitle: httpapi.OptionalString(item.TargetTitle),
+			Excerpt:     httpapi.OptionalString(item.Excerpt),
 		})
 	}
 	if page.Next != "" {
@@ -52,6 +56,7 @@ type markReadRequest struct {
 func (h *Handler) registerInbox(api auth.Routes) {
 	api.GET("/inbox", auth.RoleViewer, requireSession, h.inbox)
 	api.POST("/inbox/read", auth.RoleViewer, requireSession, h.markRead)
+	api.PUT("/inbox/items/:seq", auth.RoleViewer, requireSession, h.setItemUnread)
 }
 
 func requireSession(c *gin.Context) {
@@ -85,6 +90,15 @@ func (h *Handler) inbox(c *gin.Context) {
 		}
 		view = parsed
 	}
+	triage := TriageOpen
+	if raw, present := c.GetQuery("filter"); present {
+		parsed, ok := ParseTriage(raw)
+		if !ok {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_filter", "filter must be open, unread or done")
+			return
+		}
+		triage = parsed
+	}
 	limit, ok := inboxLimit(c)
 	if !ok {
 		return
@@ -96,7 +110,7 @@ func (h *Handler) inbox(c *gin.Context) {
 			return
 		}
 	}
-	page, err := h.store.Inbox(c.Request.Context(), httpapi.Caller(c), view, cursor, limit)
+	page, err := h.store.Inbox(c.Request.Context(), httpapi.Caller(c), view, triage, cursor, limit)
 	if err != nil {
 		h.fail(c, "list inbox", err)
 		return
@@ -121,6 +135,41 @@ func (h *Handler) markRead(c *gin.Context) {
 	}
 	if err != nil {
 		h.fail(c, "mark inbox read", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+type itemStateRequest struct {
+	Unread *bool `json:"unread"`
+	Done   *bool `json:"done"`
+}
+
+func (h *Handler) setItemUnread(c *gin.Context) {
+	seq, err := strconv.ParseInt(c.Param("seq"), 10, 64)
+	if err != nil || seq < 1 {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "seq must be a positive integer")
+		return
+	}
+	var body itemStateRequest
+	if !httpapi.DecodeBody(c, &body, maxReadBodyBytes) {
+		return
+	}
+	if (body.Unread == nil) == (body.Done == nil) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "send exactly one of unread and done, each true or false")
+		return
+	}
+	if body.Done != nil {
+		err = h.store.SetItemDone(c.Request.Context(), httpapi.Caller(c), seq, *body.Done)
+	} else {
+		err = h.store.SetItemUnread(c.Request.Context(), httpapi.Caller(c), seq, *body.Unread)
+	}
+	if errors.Is(err, ErrUnknownSeq) {
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_seq", "no activity has that seq")
+		return
+	}
+	if err != nil {
+		h.fail(c, "set inbox item state", err)
 		return
 	}
 	c.Status(http.StatusNoContent)

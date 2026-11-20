@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useCloseControls } from "@/dashboards/controls-sheet"
+import { shareButtonId } from "@/dashboards/pane-openers"
 import { searchFromState, type DashboardSearch } from "@/dashboards/search"
 import { describeRange } from "@/lib/time"
 import { PublicLinksSection } from "@/public/public-links-section"
@@ -20,6 +22,7 @@ import type { Dashboard } from "@/spec"
 import {
   dashboardShareUrl,
   linkHint,
+  offersVariables,
   panelChoices,
   panelShareUrl,
   type ShareOptions,
@@ -50,10 +53,15 @@ export function SharePane({
   const linkId = useId()
   const panelId = useId()
   const whoId = useId()
-  const [options, setOptions] = useState<ShareOptions>({
+  const [chosenOptions, setOptions] = useState<ShareOptions>({
     time: true,
     variables: true,
   })
+  const hasVariables = offersVariables(spec)
+  const options = {
+    ...chosenOptions,
+    variables: chosenOptions.variables && hasVariables,
+  }
   const [chosen, setChosen] = useState<string>()
 
   const from = search.from ?? spec.time.from
@@ -84,14 +92,16 @@ export function SharePane({
           checked={options.time}
           onChange={(time) => setOptions((prev) => ({ ...prev, time }))}
         />
-        <OptionCheckbox
-          label="Include variable values"
-          hint={variableNames.join(", ")}
-          checked={options.variables}
-          onChange={(variables) =>
-            setOptions((prev) => ({ ...prev, variables }))
-          }
-        />
+        {hasVariables ? (
+          <OptionCheckbox
+            label="Include variable values"
+            hint={variableNames.join(", ")}
+            checked={options.variables}
+            onChange={(variables) =>
+              setOptions((prev) => ({ ...prev, variables }))
+            }
+          />
+        ) : null}
         <LinkRow url={dashboardShareUrl(origin, dashboard, current, options)} />
         <p className="text-xs text-muted-foreground">
           {linkHint(folder.personal)}
@@ -212,12 +222,17 @@ export function ShareToggle({
   disabled?: boolean
   onToggle: () => void
 }) {
+  const closeControls = useCloseControls()
   return (
     <button
+      id={shareButtonId}
       type="button"
       aria-pressed={pressed}
       disabled={disabled}
-      onClick={onToggle}
+      onClick={() => {
+        closeControls()
+        onToggle()
+      }}
       className="flex h-[30px] items-center gap-1.5 rounded-control px-2 text-[13px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 aria-pressed:bg-muted"
     >
       <Share2Icon aria-hidden="true" className="size-4" />

@@ -19,7 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-const sidecarToken = "Bearer soa_child"
+const sidecarToken = "Bearer sob_child"
 
 var builtIn = claims.Claimer{Kind: revisions.AssignBuiltin, ID: "server-1"}
 

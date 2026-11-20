@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	signalLogs   = "logs"
-	signalTraces = "traces"
+	signalLogs    = "logs"
+	signalTraces  = "traces"
+	signalMetrics = "metrics"
 )
 
 type draftRequest struct {

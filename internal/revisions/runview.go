@@ -15,16 +15,16 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
-type RunReader struct {
+type RunDesk struct {
 	service *Service
 	opts    ObserveOptions
 }
 
-func NewRunReader(service *Service, opts ObserveOptions) *RunReader {
-	return &RunReader{service: service, opts: opts}
+func NewRunDesk(service *Service, opts ObserveOptions) *RunDesk {
+	return &RunDesk{service: service, opts: opts}
 }
 
-func (r *RunReader) Run(ctx context.Context, id pgtype.UUID, caller auth.Principal, maxSteps int) (json.RawMessage, error) {
+func (r *RunDesk) Run(ctx context.Context, id pgtype.UUID, caller auth.Principal, maxSteps int) (json.RawMessage, error) {
 	row, readOnly, err := r.service.ReadObserve(ctx, id, caller)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,53 @@ func (r *RunReader) Run(ctx context.Context, id pgtype.UUID, caller auth.Princip
 	return raw, nil
 }
 
-func (r *RunReader) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+func (r *RunDesk) Start(ctx context.Context, caller auth.Principal, req StartRequest) (json.RawMessage, error) {
+	row, err := r.service.Start(ctx, caller, req)
+	return r.answer(ctx, row, caller, err)
+}
+
+func (r *RunDesk) Cancel(ctx context.Context, id pgtype.UUID, caller auth.Principal) (json.RawMessage, error) {
+	row, err := r.service.Cancel(ctx, id, caller)
+	return r.answer(ctx, row, caller, err)
+}
+
+func (r *RunDesk) Retry(ctx context.Context, id pgtype.UUID, caller auth.Principal) (json.RawMessage, error) {
+	row, err := r.service.Retry(ctx, id, caller)
+	return r.answer(ctx, row, caller, err)
+}
+
+func (r *RunDesk) Build(ctx context.Context, id pgtype.UUID, caller auth.Principal) (json.RawMessage, error) {
+	row, _, err := r.service.ReadObserve(ctx, id, caller)
+	if err != nil {
+		return nil, err
+	}
+	view, err := r.service.builds.ViewBuild(ctx, caller, row.ID)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(newBuildJSON(view))
+	if err != nil {
+		return nil, fmt.Errorf("encode build: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, err error) (json.RawMessage, error) {
+	if err != nil {
+		return nil, err
+	}
+	out, err := r.render(ctx, row, caller, false)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("encode agent request: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -90,7 +136,7 @@ func mayHaveFinding(row dbsqlc.AgentRequest) bool {
 	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
 }
 
-func (r *RunReader) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
+func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
 	raw, found, err := r.opts.Finding(ctx, caller, row.ID)
 	if err != nil || !found {
 		return err
@@ -104,7 +150,7 @@ func (r *RunReader) attachFinding(ctx context.Context, caller auth.Principal, ro
 	return nil
 }
 
-func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
+func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
 	out := agentRequestJSON{
 		ID:          row.ID.String(),
 		Kind:        Kind(Source(row.Source)),
@@ -185,7 +231,7 @@ func (r *RunReader) view(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	return out
 }
 
-func (r *RunReader) liveText(row dbsqlc.AgentRequest) *string {
+func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 	if State(row.State) != StateRunning || r.opts.LiveText == nil {
 		return nil
 	}

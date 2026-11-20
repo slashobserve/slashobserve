@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -23,6 +24,7 @@ const (
 	maxFacetLabels     = 20
 	maxDetectedFields  = 50
 	facetConcurrency   = 4
+	firstSampleWindow  = 5 * time.Minute
 )
 
 var _ datasource.LogFacetSource = (*Datasource)(nil)
@@ -55,65 +57,165 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		return datasource.Facets{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", facetsNeedLogQuery)
 	}
 	selector := selectorOf(text)
-	window := url.Values{"start": {lokiTime(req.Range.From)}, "end": {lokiTime(req.Range.To)}}
-	indexLabels, err := d.getStrings(ctx, "/loki/api/v1/labels", withQuery(window, selector))
-	if err != nil {
-		return datasource.Facets{}, err
+	window := windowOf(req.Range)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(facetConcurrency)
+	var sample newestSample
+	takeSample := func() {
+		sample.taken = true
+		group.Go(func() error { return sample.read(groupCtx, d, text, req, lim) })
 	}
-	indexLabels = slices.DeleteFunc(slices.Sorted(slices.Values(indexLabels)), func(name string) bool { return strings.HasPrefix(name, "__") })
-	indexLabels = slices.Compact(indexLabels)
+	if req.Fields == nil {
+		takeSample()
+	}
+	indexLabels, err := d.indexLabelsInTime(groupCtx, withQuery(window, selector))
+	if err != nil {
+		return datasource.Facets{}, firstFailure(groupCtx, err, cancel, group)
+	}
 	labels, requestedFields := splitFacetFields(indexLabels, req.Fields)
 	out := datasource.Facets{Fields: []datasource.FacetField{}}
 	if len(labels) > maxFacetLabels {
 		labels, out.Truncated = labels[:maxFacetLabels], true
 	}
-	needSample := req.Fields == nil || len(requestedFields) > 0
-
+	if len(requestedFields) > 0 {
+		takeSample()
+	}
 	labelFields := make([]datasource.FacetField, len(labels))
-	var (
-		detected   []detectedField
-		noDetected bool
-		frames     []datasource.Frame
-	)
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(facetConcurrency)
+	counted := make([]bool, len(labels))
 	for i, name := range labels {
 		group.Go(func() error {
-			field, err := d.labelFacet(groupCtx, selector, window, name, req.Limit)
-			labelFields[i] = field
-			return err
-		})
-	}
-	if needSample {
-		group.Go(func() error {
-			var err error
-			detected, noDetected, err = d.detectedFields(groupCtx, text, window)
-			return err
-		})
-		group.Go(func() error {
-			var err error
-			frames, err = d.run(groupCtx, "/loki/api/v1/query_range", sampleParams(text, window, req.Sample), lim, req.Sample)
+			field, ok, err := d.labelFacetInTime(groupCtx, selector, window, name, req.Limit)
+			labelFields[i], counted[i] = field, ok
 			return err
 		})
 	}
 	if err := group.Wait(); err != nil {
 		return datasource.Facets{}, err
 	}
+	for i, name := range labels {
+		if !counted[i] {
+			labelFields[i] = sampleFacet(sample.frames, name, datasource.FacetKindLabel, 0, req.Limit)
+		}
+	}
 	out.Fields = append(out.Fields, labelFields...)
-	if !needSample {
+	if !sample.taken {
 		return out, nil
 	}
 	out.Sampled = true
-	out.LinesSampled = lineCount(frames)
-	names, byName := sampledFieldNames(detected, noDetected, frames, indexLabels, requestedFields)
-	if len(detected) >= maxDetectedFields {
-		out.Truncated = true
-	}
+	out.LinesSampled = lineCount(sample.frames)
+	out.Fields = append(out.Fields, sample.fields(indexLabels, requestedFields, req.Limit)...)
+	out.Truncated = out.Truncated || len(sample.detected) >= maxDetectedFields
+	return out, nil
+}
+
+func (s *newestSample) fields(indexLabels, requested []string, limit int) []datasource.FacetField {
+	names, byName := sampledFieldNames(s.detected, s.noDetected, s.frames, indexLabels, requested)
+	out := make([]datasource.FacetField, 0, len(names))
 	for _, name := range names {
 		field, known := byName[name]
-		out.Fields = append(out.Fields, sampleFacet(frames, name, facetKind(field, known), field.Cardinality, req.Limit))
+		out = append(out, sampleFacet(s.frames, name, facetKind(field, known), field.Cardinality, limit))
 	}
-	return out, nil
+	return out
+}
+
+func firstFailure(groupCtx context.Context, err error, cancel context.CancelFunc, group *errgroup.Group) error {
+	groupFailedFirst := groupCtx.Err() != nil
+	cancel()
+	if groupErr := group.Wait(); groupFailedFirst && groupErr != nil {
+		return groupErr
+	}
+	return err
+}
+
+type newestSample struct {
+	taken      bool
+	frames     []datasource.Frame
+	detected   []detectedField
+	noDetected bool
+}
+
+func (s *newestSample) read(ctx context.Context, d *Datasource, text string, req datasource.FacetRequest, lim datasource.Limits) error {
+	frames, sampled, err := d.sampleNewest(ctx, text, req.Range, req.Sample, lim)
+	if err != nil {
+		return err
+	}
+	s.frames = frames
+	s.detected, s.noDetected, err = d.detectedFieldsInTime(ctx, text, sampled)
+	return err
+}
+
+func (d *Datasource) indexLabelsInTime(ctx context.Context, params url.Values) ([]string, error) {
+	win, ok := (&datasource.Pacer{}).Start(ctx, 0)
+	if !ok {
+		return nil, nil
+	}
+	names, err := d.getStrings(win.Ctx, "/loki/api/v1/labels", params)
+	if ranOut := win.End(err); ranOut {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	names = slices.DeleteFunc(slices.Sorted(slices.Values(names)), func(name string) bool { return strings.HasPrefix(name, "__") })
+	return slices.Compact(names), nil
+}
+
+func (d *Datasource) labelFacetInTime(ctx context.Context, selector string, window url.Values, name string, limit int) (datasource.FacetField, bool, error) {
+	win, ok := (&datasource.Pacer{}).Start(ctx, 0)
+	if !ok {
+		return datasource.FacetField{}, false, nil
+	}
+	field, err := d.labelFacet(win.Ctx, selector, window, name, limit)
+	if ranOut := win.End(err); ranOut {
+		return datasource.FacetField{}, false, nil
+	}
+	return field, err == nil, err
+}
+
+func windowOf(r datasource.TimeRange) url.Values {
+	return url.Values{"start": {lokiTime(r.From)}, "end": {lokiTime(r.To)}}
+}
+
+func (d *Datasource) sampleNewest(ctx context.Context, text string, r datasource.TimeRange, sample int, lim datasource.Limits) ([]datasource.Frame, datasource.TimeRange, error) {
+	var (
+		frames []datasource.Frame
+		pacer  datasource.Pacer
+	)
+	sampled := datasource.TimeRange{From: r.To, To: r.To}
+	for _, w := range datasource.NewestFirst(r, firstSampleWindow) {
+		win, ok := pacer.Start(ctx, w.To.Sub(w.From))
+		if !ok {
+			break
+		}
+		wanted := sample - lineCount(frames)
+		got, err := d.run(win.Ctx, "/loki/api/v1/query_range", sampleParams(text, windowOf(w), wanted), lim, wanted)
+		if ranOut := win.End(err); err != nil {
+			if !ranOut {
+				return nil, datasource.TimeRange{}, err
+			}
+			break
+		}
+		frames, sampled.From = append(frames, got...), w.From
+		if lineCount(frames) >= sample {
+			break
+		}
+	}
+	return frames, sampled, nil
+}
+
+func (d *Datasource) detectedFieldsInTime(ctx context.Context, text string, sampled datasource.TimeRange) ([]detectedField, bool, error) {
+	if !sampled.From.Before(sampled.To) {
+		return nil, true, nil
+	}
+	win, ok := (&datasource.Pacer{}).Start(ctx, sampled.To.Sub(sampled.From))
+	if !ok {
+		return nil, true, nil
+	}
+	detected, noDetected, err := d.detectedFields(win.Ctx, text, windowOf(sampled))
+	if ranOut := win.End(err); ranOut {
+		return nil, true, nil
+	}
+	return detected, noDetected, err
 }
 
 func withQuery(window url.Values, query string) url.Values {

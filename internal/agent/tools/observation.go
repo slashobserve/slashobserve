@@ -35,6 +35,7 @@ const (
 
 	codeInvalidTransition = "invalid_transition"
 	codeBlockRefused      = "block_refused"
+	blockRefusedMessage   = "the block was refused and the observation was not changed; the reason is in refused, so fix it and send the call again"
 
 	defaultListObservations = 20
 	maxListObservations     = 50
@@ -45,7 +46,7 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id)."
+	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. A stale version answers version_conflict."
@@ -172,7 +173,6 @@ func parseWindow(from, to string) (window, Result, bool) {
 }
 
 type observationWrittenOut struct {
-	Code          string `json:"code"`
 	ObservationID string `json:"observation_id,omitempty"`
 	BlockID       string `json:"block_id,omitempty"`
 	State         string `json:"state"`
@@ -183,6 +183,7 @@ type observationWrittenOut struct {
 
 type blockRefusedOut struct {
 	Code          string `json:"code"`
+	Message       string `json:"message"`
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	BlockIndex    int    `json:"block_index"`
@@ -208,6 +209,7 @@ type blockViewOut struct {
 	Title             string              `json:"title,omitempty"`
 	Type              string              `json:"type,omitempty"`
 	Datasources       []string            `json:"datasources,omitempty"`
+	Panel             json.RawMessage     `json:"panel,omitempty"`
 	Variables         map[string][]string `json:"variables,omitempty"`
 	From              string              `json:"from,omitempty"`
 	To                string              `json:"to,omitempty"`
@@ -329,6 +331,26 @@ func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, pan
 	return res, ok, err
 }
 
+func (r *Registry) CheckPanel(ctx context.Context, by auth.Principal, body observations.PanelBody, fallbackFrom, fallbackTo *time.Time) error {
+	res, ok, err := r.checkPanel(ctx, by, body.Panel, body.VariableValues, window{body.From, body.To}, window{fallbackFrom, fallbackTo})
+	if err != nil || ok {
+		return err
+	}
+	return refusalOf(res)
+}
+
+func refusalOf(res Result) error {
+	switch content := res.Content.(type) {
+	case invalidSpecOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case patchRejectedOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case errorBody:
+		return &observations.InvalidInputError{Code: content.Code, Message: content.Message}
+	}
+	return errors.New("a panel check failed in a way a caller cannot read")
+}
+
 func checkKind(kind observations.Kind) (Result, bool) {
 	if kind == "" {
 		return invalid("kind is required: text, panel or snapshot"), false
@@ -379,7 +401,7 @@ func (r *Registry) blockInput(ctx context.Context, principal auth.Principal, b b
 }
 
 func (r *Registry) addedBlock(b observations.Block) Result {
-	out := observationWrittenOut{Code: "ok", ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
+	out := observationWrittenOut{ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
 	if b.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -445,10 +467,10 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 		}
 		if !ok {
 			step := fmt.Sprintf("Created observation %s, but block %d was refused", o.ID, i)
-			return failure(step, blockRefusedOut{Code: codeBlockRefused, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
+			return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
 		}
 	}
-	return success("Created observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: url}), nil
+	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: url}), nil
 }
 
 func (r *Registry) addBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -514,7 +536,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return r.observationFailure("Updated a block", err)
 	}
-	out := observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
+	out := observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
 	if block.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -605,7 +627,7 @@ func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage
 	if err != nil {
 		return r.observationFailure("Resolved an observation", err)
 	}
-	return success("Resolved observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
+	return success("Resolved observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
 }
 
 func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -635,7 +657,7 @@ func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result
 	if err != nil {
 		return r.observationFailure("Kept a block", err)
 	}
-	return success("Kept block "+block.ID, observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
+	return success("Kept block "+block.ID, observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
 }
 
 func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -660,7 +682,7 @@ func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Res
 	if err := r.deps.Observations.DiscardBlock(ctx, principal, id, runID); err != nil {
 		return r.observationFailure("Discarded a block", err)
 	}
-	return success("Discarded block "+id.String(), observationWrittenOut{Code: "ok", BlockID: id.String(), State: "discarded"}), nil
+	return success("Discarded block "+id.String(), observationWrittenOut{BlockID: id.String(), State: "discarded"}), nil
 }
 
 func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -698,7 +720,7 @@ func blockView(b observations.Block) blockViewOut {
 	base := observations.BlockOf(b)
 	out := blockViewOut{
 		ID: base.ID, Kind: base.Kind, State: base.State, Position: base.Position, Width: base.Width, Version: base.Version,
-		AllowedActions: base.AllowedActions, SnapshotID: b.SnapshotID, RunID: b.RunID,
+		AllowedActions: withoutRemove(base.AllowedActions), SnapshotID: b.SnapshotID, RunID: b.RunID,
 	}
 	switch b.Kind {
 	case observations.KindText:
@@ -711,6 +733,7 @@ func blockView(b observations.Block) blockViewOut {
 		if json.Unmarshal(b.Body, &body) != nil {
 			break
 		}
+		out.Panel = body.Panel
 		var panel spec.Panel
 		if json.Unmarshal(body.Panel, &panel) == nil {
 			out.Title, out.Type, out.Datasources = panel.Title, string(panel.Type), panelDatasources(panel)
@@ -721,6 +744,10 @@ func blockView(b observations.Block) blockViewOut {
 		}
 	}
 	return out
+}
+
+func withoutRemove(actions []string) []string {
+	return slices.DeleteFunc(slices.Clone(actions), func(a string) bool { return a == string(observations.BlockRemove) })
 }
 
 func bakedValues(variables []spec.Variable) map[string][]string {

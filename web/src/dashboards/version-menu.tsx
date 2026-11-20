@@ -163,7 +163,7 @@ export function VersionMenu({
               ref={button}
               type="button"
               aria-label={versionButtonLabel(state)}
-              className="ml-0.5 flex h-[26px] items-center gap-1.5 rounded-control border border-transparent px-2 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-expanded:border-border"
+              className="ml-0.5 flex h-[26px] shrink-0 items-center gap-1.5 rounded-control border border-transparent px-2 text-xs whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-expanded:border-border"
             />
           }
         >

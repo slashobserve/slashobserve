@@ -9,27 +9,32 @@ import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentTitle } from "@/lib/document-title"
-import { logsLink, tracesLink } from "@/lib/links"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { SavedSearchTable } from "@/saved-searches/saved-search-table"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { statusOf } from "./format"
-import { sourceLanguage, type ExploreKind } from "./sources"
+import {
+  exploreLink,
+  exploreText,
+  sourceLanguage,
+  type ExploreKind,
+} from "./sources"
 import { useExploreSources } from "./use-sources"
-
-const pageNames = { logs: "Logs", traces: "Traces" } as const
 
 const emptyTitles = {
   logs: "No log sources",
   traces: "No trace sources",
+  metrics: "No metric sources",
 } as const
 
 const emptyText = {
   logs: "No logs datasource is configured. An Admin adds an Elasticsearch, OpenSearch, Loki or ClickHouse datasource on the Datasources page.",
   traces:
     "No traces datasource is configured. An Admin adds a Tempo or ClickHouse datasource on the Datasources page.",
+  metrics:
+    "No metrics datasource is configured. An Admin adds a Prometheus datasource on the Datasources page.",
 } as const
 
 const tableWidth = 480
@@ -71,7 +76,7 @@ function SourceSkeleton({ headingId }: { headingId: string }) {
 }
 
 export function ExploreList({ kind }: { kind: ExploreKind }) {
-  const name = pageNames[kind]
+  const name = exploreText[kind].page
   useDocumentTitle(`${name} - SlashObserve`)
   const sourcesId = useId()
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -119,9 +124,7 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
                   <tr key={source.uid}>
                     <Cell className="wrap-anywhere">
                       <Link
-                        {...(kind === "logs"
-                          ? logsLink(source.uid)
-                          : tracesLink(source.uid))}
+                        {...exploreLink(kind, source.uid, {})}
                         className="rounded-sm font-medium underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {source.name}

@@ -29,6 +29,7 @@ import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { panelProblem } from "./panel-problem"
+import type { SeriesCap } from "./series-cap"
 import { timeOverrideLabel } from "./time-override"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
@@ -81,6 +82,7 @@ type Props = {
   links?: ResolvedLink[]
   menu?: ReactNode
   datasourceLabel?: string
+  seriesCap?: SeriesCap | null
   editing?: boolean
   highlighted?: boolean
   selected?: boolean
@@ -101,6 +103,7 @@ export function PanelChrome({
   links = [],
   menu,
   datasourceLabel,
+  seriesCap,
   editing = false,
   highlighted = false,
   selected = false,
@@ -148,6 +151,7 @@ export function PanelChrome({
         <h2
           id={titleId}
           title={title}
+          aria-label={selectable ? title : undefined}
           className={cn(
             "min-w-0 text-[13px] font-semibold",
             !selectable && "truncate",
@@ -159,6 +163,7 @@ export function PanelChrome({
               type="button"
               data-panel-title=""
               aria-pressed={selected}
+              aria-label={`Select panel: ${title}`}
               className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={onSelect}
             >
@@ -196,6 +201,14 @@ export function PanelChrome({
           >
             <ClockIcon aria-hidden="true" className="size-3 shrink-0" />
             <span className="truncate">{timeOverride.text}</span>
+          </span>
+        ) : null}
+        {seriesCap ? (
+          <span
+            title={seriesCap.title}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {seriesCap.text}
           </span>
         ) : null}
         {editing ? (

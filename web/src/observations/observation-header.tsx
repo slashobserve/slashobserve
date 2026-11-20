@@ -37,6 +37,7 @@ import {
   type ObservationEnvelope,
 } from "./queries"
 import { StateControl } from "./state-control"
+import { plainTitle } from "@/comments/plain-title"
 
 const titleType = "text-[28px] leading-9 font-semibold tracking-[-0.01em]"
 
@@ -111,7 +112,8 @@ function EditableTitle({ observation }: { observation: Observation }) {
     }
   }
 
-  if (!canEdit) return <h1 className={titleType}>{observation.title}</h1>
+  if (!canEdit)
+    return <h1 className={titleType}>{plainTitle(observation.title)}</h1>
 
   if (editing) {
     return (
@@ -147,7 +149,7 @@ function EditableTitle({ observation }: { observation: Observation }) {
         className="-mx-2 w-[calc(100%+1rem)] rounded-control px-2 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
         onClick={begin}
       >
-        {observation.title}
+        {plainTitle(observation.title)}
       </button>
     </h1>
   )

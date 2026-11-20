@@ -110,7 +110,7 @@
         "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
         "datasource": "prom_tight",
         "queries": [
-          { "query": "up{job=\"prometheus\"}" }
+          { "query": "up{job=\"prometheus\"}", "interval": "1s" }
         ]
       },
       {

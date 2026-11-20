@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +17,11 @@ import (
 //go:embed all:webdist
 var webFiles embed.FS
 
+const (
+	assetsDir = "assets/"
+	brotliExt = ".br"
+)
+
 const webNotBuilt = "SlashObserve web UI is not built into this binary; run make build.\n"
 
 func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
@@ -22,6 +29,10 @@ func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 	if err != nil {
 		panic(fmt.Sprintf("embedded web assets: %v", err))
 	}
+	registerWebFiles(engine, redirects, dist)
+}
+
+func registerWebFiles(engine *gin.Engine, redirects Redirects, dist fs.FS) {
 	index, indexErr := fs.ReadFile(dist, "index.html")
 
 	engine.NoRoute(func(c *gin.Context) {
@@ -40,7 +51,7 @@ func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 		name := strings.TrimPrefix(path.Clean("/"+urlPath), "/")
 		if isServableFile(dist, name) {
 			cacheControl := "no-cache"
-			if strings.HasPrefix(name, "assets/") {
+			if strings.HasPrefix(name, assetsDir) {
 				cacheControl = "public, max-age=31536000, immutable"
 			}
 			if err := serveFile(c, dist, name, cacheControl); err != nil {
@@ -48,7 +59,7 @@ func registerWebRoutes(engine *gin.Engine, redirects Redirects) {
 			}
 			return
 		}
-		if strings.HasPrefix(name, "assets/") || isTopLevelFileName(name) {
+		if strings.HasPrefix(name, assetsDir) || isTopLevelFileName(name) {
 			c.String(http.StatusNotFound, "not found\n")
 			return
 		}
@@ -73,9 +84,12 @@ func isServerPath(urlPath string) bool {
 }
 
 func serveFile(c *gin.Context, fsys fs.FS, name, cacheControl string) error {
-	file, err := fsys.Open(name)
-	if err != nil {
-		return err
+	file, encoded := openForRequest(c.Request, fsys, name)
+	if file == nil {
+		var err error
+		if file, err = fsys.Open(name); err != nil {
+			return err
+		}
 	}
 	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
@@ -87,12 +101,47 @@ func serveFile(c *gin.Context, fsys fs.FS, name, cacheControl string) error {
 		return fmt.Errorf("embedded file %q is not seekable", name)
 	}
 	c.Header("Cache-Control", cacheControl)
+	if strings.HasPrefix(name, assetsDir) {
+		c.Header("Vary", "Accept-Encoding")
+	}
+	if encoded {
+		c.Header("Content-Encoding", "br")
+		c.Header("Content-Type", mime.TypeByExtension(path.Ext(name)))
+	}
 	http.ServeContent(c.Writer, c.Request, name, info.ModTime(), content)
 	return nil
 }
 
+func openForRequest(r *http.Request, fsys fs.FS, name string) (fs.File, bool) {
+	if !strings.HasPrefix(name, assetsDir) || !acceptsBrotli(r.Header.Values("Accept-Encoding")) {
+		return nil, false
+	}
+	file, err := fsys.Open(name + brotliExt)
+	if err != nil {
+		return nil, false
+	}
+	return file, true
+}
+
+func acceptsBrotli(values []string) bool {
+	for _, value := range values {
+		for _, item := range strings.Split(value, ",") {
+			coding, params, _ := strings.Cut(item, ";")
+			if strings.TrimSpace(coding) != "br" {
+				continue
+			}
+			_, quality, _ := strings.Cut(params, "=")
+			if q, err := strconv.ParseFloat(strings.TrimSpace(quality), 64); err == nil && q == 0 {
+				return false
+			}
+			return true
+		}
+	}
+	return false
+}
+
 func isServableFile(fsys fs.FS, name string) bool {
-	if name == "" || name == "." || name == "index.html" {
+	if name == "" || name == "." || name == "index.html" || path.Ext(name) == brotliExt {
 		return false
 	}
 	for _, part := range strings.Split(name, "/") {

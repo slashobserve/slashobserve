@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useRouter } from "@tanstack/react-router"
 
 const headingWaitMs = 1500
+const holdMs = 5000
 
 function focusIsLost(doc: Document): boolean {
   return doc.activeElement === null || doc.activeElement === doc.body
@@ -22,34 +23,33 @@ export function focusPage(doc: Document) {
 
 export function moveFocusToPage(doc: Document): () => void {
   const departing = focusIsLost(doc) ? null : doc.activeElement
-  if (departing === null) return waitForHeading(doc, () => true)
-  return waitForHeading(doc, () => !departing.isConnected)
-}
-
-function waitForHeading(doc: Document, mayMove: () => boolean): () => void {
-  const heading = () => doc.querySelector<HTMLElement>("main h1")
-  const ready = () => mayMove() && focusIsLost(doc)
-  const found = heading()
-  if (found && ready()) {
-    focusElement(found)
-    return () => undefined
+  let placed: HTMLElement | null = null
+  const left = (element: Element | null) =>
+    element === null || !element.isConnected
+  const mayMove = () => focusIsLost(doc) && left(placed ?? departing)
+  const place = (element: HTMLElement) => {
+    focusElement(element)
+    placed = element
   }
-  const observer = new MutationObserver(() => {
-    const next = heading()
-    if (!next || !ready()) return
-    stop()
-    focusElement(next)
-  })
-  const timer = setTimeout(() => {
-    stop()
+  const tryHeading = () => {
+    const heading = doc.querySelector<HTMLElement>("main h1")
+    if (heading && mayMove()) place(heading)
+  }
+  const observer = new MutationObserver(tryHeading)
+  const fallback = setTimeout(() => {
     const main = doc.querySelector<HTMLElement>("main")
-    if (main && ready()) focusElement(main)
+    if (main && mayMove()) place(main)
   }, headingWaitMs)
+  const hold = setTimeout(stop, holdMs)
   function stop() {
     observer.disconnect()
-    clearTimeout(timer)
+    clearTimeout(fallback)
+    clearTimeout(hold)
+    doc.removeEventListener("pointerdown", stop, true)
   }
+  doc.addEventListener("pointerdown", stop, true)
   observer.observe(doc.body, { childList: true, subtree: true })
+  tryHeading()
   return stop
 }
 

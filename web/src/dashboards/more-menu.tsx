@@ -1,4 +1,5 @@
 import {
+  BookOpenIcon,
   BracesIcon,
   CopyIcon,
   DownloadIcon,
@@ -22,10 +23,13 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { docsPageUrl } from "@/lib/docs"
+import { pendingPaneHeading } from "@/components/dock/dock-focus"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 
+import { useCloseControls } from "./controls-sheet"
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 import { HomeDashboardItem } from "./home-dashboard-item"
 import { ExportItems } from "./print/export-items"
@@ -44,6 +48,7 @@ export function moreLabel(menu: {
     menu.mayEdit ? "edit Spec JSON" : null,
     "open on sign-in",
     "export",
+    "dashboards as code",
     "print",
     "image",
     menu.canDuplicate ? "duplicate" : null,
@@ -92,6 +97,7 @@ export function MoreMenu({
   cursorSync,
   onCursorSyncChange,
 }: Props) {
+  const closeControls = useCloseControls()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -115,6 +121,7 @@ export function MoreMenu({
         align="end"
         className="min-w-max"
         finalFocus={() =>
+          pendingPaneHeading() ??
           !focusMovedOutOfMenu(document.activeElement, document.body)
         }
       >
@@ -132,7 +139,10 @@ export function MoreMenu({
         {mayEdit && onAddPanel !== null ? (
           <DropdownMenuItem
             disabled={detailsBlockedBy !== null}
-            onClick={onAddPanel}
+            onClick={() => {
+              closeControls()
+              onAddPanel()
+            }}
           >
             <PlusIcon aria-hidden="true" />
             {detailsBlockedBy === null
@@ -143,7 +153,10 @@ export function MoreMenu({
         {mayEdit ? (
           <DropdownMenuItem
             disabled={detailsBlockedBy !== null}
-            onClick={onEditJson}
+            onClick={() => {
+              closeControls()
+              onEditJson()
+            }}
           >
             <BracesIcon aria-hidden="true" />
             {detailsBlockedBy === null
@@ -155,6 +168,18 @@ export function MoreMenu({
         <DropdownMenuItem onClick={onExport}>
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={
+            <a
+              href={docsPageUrl("use/dashboards-as-code")}
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
+        >
+          <BookOpenIcon aria-hidden="true" />
+          Dashboards as code
         </DropdownMenuItem>
         <ExportItems blockedBy={exportBlockedBy} />
         {onDuplicate !== null ? (

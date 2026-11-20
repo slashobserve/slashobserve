@@ -80,6 +80,8 @@ type AgentRequest struct {
 	ThreadContext     pgtype.Text
 	ChatID            pgtype.UUID
 	RetriesID         pgtype.UUID
+	TimeZone          pgtype.Text
+	ThreadRepliedAt   pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -232,6 +234,12 @@ type DashboardViewDay struct {
 	Day         pgtype.Date
 }
 
+type DashboardViewer struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	SeenAt      pgtype.Timestamptz
+}
+
 type Datasource struct {
 	ID          pgtype.UUID
 	Uid         string
@@ -371,6 +379,14 @@ type InboxCursor struct {
 	ReadXid   pgtype.Uint64
 	ReadSeq   int64
 	UpdatedAt pgtype.Timestamptz
+}
+
+type InboxItemState struct {
+	UserID    pgtype.UUID
+	Seq       int64
+	Unread    bool
+	UpdatedAt pgtype.Timestamptz
+	Done      bool
 }
 
 type Instance struct {
@@ -757,6 +773,12 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 }
 
+type ThreadRead struct {
+	UserID   pgtype.UUID
+	ThreadID pgtype.UUID
+	ReadAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID                pgtype.UUID
 	OidcIssuer        string
@@ -773,6 +795,7 @@ type User struct {
 	ManualRoleByID    pgtype.UUID
 	ManualRoleByName  pgtype.Text
 	Groups            []string
+	ThreadsSeenSince  pgtype.Timestamptz
 	DeactivatedAt     pgtype.Timestamptz
 	DeactivatedByID   pgtype.UUID
 	DeactivatedByName pgtype.Text

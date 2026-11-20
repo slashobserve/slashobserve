@@ -123,7 +123,7 @@ func TestACanceledRunAnswersOnceItHasEnded(t *testing.T) {
 	if _, err := svc.Cancel(context.Background(), mustUUID(t, queued.ID), user); err != nil {
 		t.Fatal(err)
 	}
-	wantOneReply(t, d, queuedThread, queued.ID, "The run was canceled.")
+	wantOneReply(t, d, queuedThread, queued.ID, "The run was stopped before it finished.")
 
 	running, runningThread := mentionRun(t, svc, d, dash, "")
 	claimed, found := claimAs(t, svc, builtinClaimant)
@@ -140,7 +140,7 @@ func TestACanceledRunAnswersOnceItHasEnded(t *testing.T) {
 	if _, err := svc.End(context.Background(), claimed.Row, revisions.Ending{}); err != nil {
 		t.Fatal(err)
 	}
-	wantOneReply(t, d, runningThread, running.ID, "The run was canceled.")
+	wantOneReply(t, d, runningThread, running.ID, "The run was stopped before it finished.")
 }
 
 func TestARunTheGoLoopFailsAnswersInItsThread(t *testing.T) {

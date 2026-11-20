@@ -11,6 +11,7 @@ import { modChordLabel } from "@/lib/shortcuts"
 import { sidebarChordKey } from "@/shell/sidebar-shortcut"
 
 import { dashboardShortcuts, keyLabel } from "./chords"
+import { useShortcutsStore } from "./shortcuts-store"
 
 type Row = { keys: readonly string[]; description: string }
 
@@ -76,4 +77,10 @@ export function ShortcutsDialog({
       </DialogContent>
     </Dialog>
   )
+}
+
+export function ShortcutsHost() {
+  const open = useShortcutsStore((state) => state.open)
+  const setOpen = useShortcutsStore((state) => state.setOpen)
+  return <ShortcutsDialog open={open} onOpenChange={setOpen} />
 }

@@ -23,13 +23,14 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to` and `mode` in the query string reopen a query. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
-`/logs` and `/traces` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
+`/logs`, `/traces` and `/explore/metrics` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
-[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
+[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view, and [Metrics](metrics.md) describes the metrics page.
 
 The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
 
@@ -85,11 +86,17 @@ It resolves only for a signed-in caller who can see the dashboard: a signed-out 
 Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
 The box above the list filters by title, and the folder and tag menus narrow it further.
 
+Where you may edit dashboards and there is a shared folder you can move into, every row you may move has a checkbox, and the checkbox in the header selects all of them on the page.
+A bar above the list then shows how many are selected, a **Move to folder** menu of the shared folders you can edit, **Move** and **Clear selection**.
+**Move** moves each selected dashboard with one request, as a row's **Move to folder** does, skips the ones already in that folder and says how many moved and which failed and why; the ones that failed stay selected.
+The selection is kept for the page and filters you are on and cleared when you change either.
+An agent does the same with one `move_dashboard` call for each dashboard.
+
 ## The More menu of a dashboard
 
 The **More** button at the right of a dashboard's header opens:
 
-- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version.
+- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version, and has a **Folder** menu of the shared folders you can edit: choosing another one moves the dashboard, after the new version when you changed both, and a move alone saves no version.
 - **Add panel**, when a datasource is configured, adds a panel, see [Edit a panel](edit-panel.md).
 - **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
 - **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
@@ -126,9 +133,12 @@ A view is one person opening the dashboard on one UTC day, so three people who e
 Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
 `GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
 `order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
-The **Sort** menu on the list switches between **By folder** and **Most viewed**; most viewed drops the folder headers and shows the folder as a column, because the order crosses folders.
+`order=name` sorts every visible dashboard by lower-case title and then by id, across folders, and pages the same way.
+
+The **Sort** menu on the list switches between **By folder**, **Last updated**, **Name** and **Most viewed**; every order except by folder drops the folder headers and shows the folder as a column, because the order crosses folders.
+The choice is kept in the address as `sort=updated`, `sort=name` or `sort=views`, and the list asks the server for the same `order`.
 The daily records are kept for 90 days.
-`list_dashboards` takes `order` (`updated` or `views`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+`list_dashboards` takes `order` (`updated`, `views` or `name`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
 
 ## Home dashboard
 
@@ -223,6 +233,13 @@ The problems come from the last health check; see [Dashboard health](dashboard-h
 The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Back to dashboard**, `Esc` or `v` again returns to the grid.
 
+## Panels with many series
+
+A time series or trend panel draws at most 50 series per query.
+The server keeps the 50 whose highest value is largest, in their original order, and the panel header says "Top 50 of 412 series" with the full sentence on hover.
+In the data response `meta.series_shown` and `meta.series_total` carry the two numbers, `meta.partial` is true and `meta.note` says which series were kept; they are absent when nothing was dropped.
+Narrow the query or add a filter to see the series that were left out.
+
 ## Inspect
 
 **Inspect** in a panel's menu, or `i` over a panel, opens a pane in the place of the activity card.
@@ -233,10 +250,10 @@ The address carries `inspect=<panel id>` and, for the second and third tab, `ins
 The pane has three tabs:
 
 - **Data** shows the panel's results after its transforms as a table of up to 500 rows, with **Download CSV** and **Save as PNG**.
-- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text and the variables it uses with their selected values.
+- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text, the text as run (the query after variables and macros are expanded, shown when it differs from the saved text and never on a public link), and the variables it uses with their selected values.
 - **Stats** shows how long the request took, whether the server answered from its cache, when it ran, and the number of frames, series, points and rows with the first and last time; **Run again** runs the panel's queries again.
 
-**Download CSV** and **Save as PNG** are also in each panel's menu once its data has loaded.
+**Download CSV** and **Save as PNG** are always in each panel's menu and are greyed until its data has loaded.
 
 The CSV has every row, quoted as RFC 4180 describes, with times in RFC 3339 UTC.
 When every series of the panel has its own time column with no repeated times, the CSV joins them into one row per time, with one column per series.
@@ -253,6 +270,7 @@ The item is greyed, with the reason after it, when the panel has several queries
 
 An Editor's panel menu has **Duplicate** and **Remove** on the latest version, while no layout change is unsaved.
 **Duplicate** saves a new version with a copy titled "<title> copy" right under the panel, moving the panels below it down, and runs only the copy's queries.
+A copy of a panel whose query returns no data, such as one you saved with **Save anyway**, is kept as it is and marked "Unverified" like the original.
 **Remove** asks to confirm with the panel's title, then saves a new version without the panel and runs no query.
 Restoring the version before it from History brings a removed panel back.
 Agents and scripts make the same changes with the `update_panels` MCP tool or `observe dashboards panels`, both on `POST /api/v1/dashboards/{id}/panels`.
@@ -283,6 +301,7 @@ Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the
 The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
+**Keyboard shortcuts** in the palette opens the list of keys on any page.
 A comment opens the page of what it is on, and an annotation that is on no dashboard is left out of the palette, because it has no page.
 
 Snippets show plain text, with Markdown links and emphasis flattened.
@@ -307,6 +326,7 @@ Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
 The activity pane starts closed at 900 pixels wide and below, whatever this browser saved on a wider screen, and **Activity** in the controls opens it.
+Choosing **Activity**, **Share**, **Add panel** or **Edit Spec JSON** in the sheet closes the sheet first, and closing the pane puts focus back on **Controls**.
 
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
 The panel editor opens as a sheet at the bottom of the screen, and the panel menu does not show keyboard shortcut letters.
@@ -315,6 +335,7 @@ The panel editor opens as a sheet at the bottom of the screen, and the panel men
 
 On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
 The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+On a dashboard, the title and the controls share one row while they fit, and the controls drop to a second row under the title when they do not, for example with the Activity pane open on a 1440 pixel screen.
 Browser zoom scales the whole app if the text is small on a large display.
 
 ## Connected agents
@@ -346,4 +367,13 @@ The choice stays in this browser's local storage and never reaches the server, s
 It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
 It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
 It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+
+## The time range picker
+
+The time range button opens the quick ranges and the **From** and **To** boxes.
+**Pick dates** shows a calendar: click a day for that whole day, then click a second day for the days between them.
+The calendar fills **From** with the start of the first day and **To** with the end of the last, in the zone the boxes read, and **Apply** uses them.
+A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
+On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
+The button is missing on an older version and while a layout or panel is being edited, and it is disabled for a range that already is the default.
 The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

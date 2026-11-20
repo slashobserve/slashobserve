@@ -2,6 +2,7 @@ export type ShortcutAction =
   | "view"
   | "edit"
   | "inspect"
+  | "comment"
   | "close"
   | "zoomOut"
   | "shiftBack"
@@ -32,6 +33,11 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     action: "inspect",
     keys: ["i"],
     description: "Inspect the panel under the pointer",
+  },
+  {
+    action: "comment",
+    keys: ["c"],
+    description: "Write a comment: open the activity pane and focus its box",
   },
   {
     action: "close",

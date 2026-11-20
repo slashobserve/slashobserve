@@ -34,7 +34,14 @@ import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
 import { Sparkline } from "./sparkline"
 import { sparklineHasArea, sparklinePoints } from "./sparkline-points"
-import { isWideTile, tileGap, tilesAcross, tileSize } from "./stat-grid"
+import {
+  fittedValueSize,
+  isWideTile,
+  rowMinHeight,
+  tileGap,
+  tilesAcross,
+  tileSize,
+} from "./stat-grid"
 import {
   changeTone,
   statScope,
@@ -58,23 +65,28 @@ const changeColors: Record<Exclude<ChangeTone, "value" | "none">, string> = {
   critical: "var(--threshold-critical)",
 }
 
-function gridFor(orientation: string, across: number): CSSProperties {
+function gridFor(
+  orientation: string,
+  across: number,
+  rowMin: number
+): CSSProperties {
+  const rows = `minmax(${rowMin}px, 1fr)`
   switch (orientation) {
     case "horizontal":
       return {
         gridAutoFlow: "column",
         gridAutoColumns: "minmax(120px, 1fr)",
-        gridTemplateRows: "minmax(72px, 1fr)",
+        gridTemplateRows: rows,
       }
     case "vertical":
       return {
         gridTemplateColumns: "minmax(0, 1fr)",
-        gridAutoRows: "minmax(72px, 1fr)",
+        gridAutoRows: rows,
       }
     default:
       return {
         gridTemplateColumns: `repeat(${across}, minmax(0, 1fr))`,
-        gridAutoRows: "minmax(72px, 1fr)",
+        gridAutoRows: rows,
       }
   }
 }
@@ -106,10 +118,15 @@ const StatPanel: PanelRenderer = ({
     tiles.length
   )
   const columns = Math.ceil(width / across)
-  const wide = isWideTile(
-    display.wideLayout,
-    tileSize(width, height, across, tiles.length)
-  )
+  const size = tileSize(width, height, across, tiles.length)
+  const wide = isWideTile(display.wideLayout, size)
+  const rowCount =
+    display.orientation === "horizontal"
+      ? 1
+      : display.orientation === "vertical"
+        ? tiles.length
+        : Math.ceil(tiles.length / across)
+  const rowMin = rowMinHeight(height, rowCount)
   const centered = display.justify === "center"
   const lines = useMemo(
     () =>
@@ -137,15 +154,23 @@ const StatPanel: PanelRenderer = ({
     textMode === "valueAndName" || (textMode === undefined && tiles.length > 1)
   const sideBySide = wide && showName && showText
   const pad = sideBySide ? "" : "px-3"
-  const valueStyle = display.valueSize
-    ? { fontSize: display.valueSize }
-    : undefined
+  const valueStyleFor = (text: string, unit: string) => {
+    if (display.valueSize) return { fontSize: display.valueSize }
+    if (sideBySide) return undefined
+    const room = size.width - 24 - (unit ? unit.length * 8 + 6 : 0)
+    const fitted = fittedValueSize(text, room)
+    return fitted < 28 ? { fontSize: fitted } : undefined
+  }
 
   return (
     <>
       <div
         className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
-        style={{ width, height, ...gridFor(display.orientation, across) }}
+        style={{
+          width,
+          height,
+          ...gridFor(display.orientation, across, rowMin),
+        }}
       >
         {tiles.map((tile, index) => {
           const filled = background && tile.color !== null
@@ -154,6 +179,7 @@ const StatPanel: PanelRenderer = ({
           const drawn = line.length > 0
           const primary = nameAsValue ? tile.name : tile.amount
           const unit = nameAsValue ? "" : tile.unit
+          const valueStyle = valueStyleFor(primary, unit)
           const scope = statScope(tile, links)
           const dataLinks = tile.config.links
             .filter(isDataLink)

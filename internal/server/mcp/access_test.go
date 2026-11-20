@@ -376,8 +376,11 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 		if res := f.as(t, commenterKey, "reply_to_comment", reply); res.IsError {
 			t.Errorf("Commenter reply = %s", text(res))
 		}
-		if res := f.as(t, commenterKey, "resolve_comment", map[string]any{"comment_id": comment.ID}); res.IsError {
-			t.Errorf("Commenter resolve = %s", text(res))
+		if res := f.as(t, commenterKey, "resolve_comment", map[string]any{"comment_id": comment.ID}); !res.IsError || res.StructuredContent["code"] != "not_starter" {
+			t.Errorf("Commenter resolve of another's thread = %s, want not_starter", text(res))
+		}
+		if res := f.as(t, editorKey, "resolve_comment", map[string]any{"comment_id": comment.ID}); res.IsError {
+			t.Errorf("Editor resolve = %s", text(res))
 		}
 		if res := f.as(t, viewerKey, "reopen_comment", map[string]any{"comment_id": comment.ID}); !res.IsError || res.StructuredContent["code"] != forbidden {
 			t.Errorf("Viewer reopen = %s, want %s", text(res), forbidden)
@@ -399,6 +402,9 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 		}
 		if err := json.Unmarshal([]byte(text(created)), &made); err != nil {
 			t.Fatal(err)
+		}
+		if res := f.as(t, commenterKey, "resolve_comment", map[string]any{"comment_id": made.Comment.ID}); res.IsError {
+			t.Errorf("Commenter resolve of its own thread = %s", text(res))
 		}
 		if res := f.as(t, commenterKey, "edit_comment", map[string]any{"comment_id": made.Comment.ID, "body": "my own, edited"}); res.IsError {
 			t.Errorf("Commenter edit_comment = %s", text(res))

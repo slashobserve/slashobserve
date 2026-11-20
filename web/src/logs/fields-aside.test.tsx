@@ -84,7 +84,9 @@ function setup({
   linesRerunning = false,
   linesTimedOut = false,
   seedFacets = true,
+  window = range,
 }: {
+  window?: { from: string; to: string }
   seedFacets?: boolean
   linesTimedOut?: boolean
   linesLoading?: boolean
@@ -111,7 +113,7 @@ function setup({
     },
     search,
     effectiveQuery,
-    range,
+    range: window,
     run,
     setDraft,
     results: {
@@ -124,16 +126,17 @@ function setup({
         ? new ApiError(504, "query_timeout", "query timed out after 15s")
         : null,
     },
+    tail: { shown: false },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
-  queryClient.setQueryData(datasourceKeys.labels("ds", range), {
+  queryClient.setQueryData(datasourceKeys.labels("ds", window), {
     labels: names,
     truncated: false,
   })
   if (effectiveQuery !== undefined && seedFacets) {
     queryClient.setQueryData(
-      exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
+      exploreKeys.facets("ds", { query: effectiveQuery, ...window, limit: 5 }),
       facets
     )
   }
@@ -144,7 +147,7 @@ function setup({
     </LogsWorkspaceContext>,
     { queryClient }
   )
-  return { ...view, run, setDraft }
+  return { ...view, run, setDraft, queryClient }
 }
 
 function stubNarrow() {
@@ -180,6 +183,20 @@ describe("FieldsAside", () => {
     setup({ linesLoading: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts a wide range as soon as the lines are in, without waiting for the volume", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ window: { from: "now-7d", to: "now" }, seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+  })
+
+  it("counts a narrow range at once without waiting for the volume", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
   })
 
   it("does not count the values when the lines timed out, and says the source is slow", async () => {

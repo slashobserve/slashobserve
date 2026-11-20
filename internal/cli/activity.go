@@ -407,8 +407,11 @@ func describeSavedSearch(e activityEvent) (string, bool) {
 	title := `"` + text(d.Title) + `"`
 	switch e.Type {
 	case "saved_search.created":
-		if d.Kind == "traces" {
+		switch d.Kind {
+		case "traces":
 			return "saved the trace search " + title, true
+		case "metrics":
+			return "saved the metrics search " + title, true
 		}
 		return "saved the logs search " + title, true
 	case "saved_search.updated":
@@ -492,6 +495,8 @@ func describeThread(e activityEvent) (string, bool) {
 		return "replied to a thread", true
 	case "thread.edited":
 		return "edited a comment", true
+	case "thread.deleted":
+		return "deleted a comment", true
 	case "thread.resolved":
 		if d.ResolvedByVersion > 0 {
 			return fmt.Sprintf("resolved a thread (fixed by version %d)", d.ResolvedByVersion), true

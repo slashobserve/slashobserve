@@ -42,3 +42,29 @@ func TestApplyOfAnEmptyOrUnreadableDirectory(t *testing.T) {
 		t.Fatalf("missing: exit %d, stderr %q", code, stderr)
 	}
 }
+
+func TestAFileThatCannotBeReadExitsTwoEverywhere(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.json")
+	for _, args := range [][]string{
+		{"import", missing},
+		{"o", "add", testObservation, "--panel-file", missing},
+		{"dashboards", "apply", "--dir", missing},
+		{"dashboards", "panels", testDashboard, "--summary", "x", "--file", missing},
+	} {
+		call, _, stderr, code := runAgainst(t, 200, `{}`, args...)
+		if code != 2 || call.method != "" || !strings.Contains(stderr, "missing.json") {
+			t.Errorf("%v: exit %d, stderr %q, call %+v", args, code, stderr, call)
+		}
+	}
+}
+
+func TestApplyNeedsADirectoryAndNeverScansTheCurrentOne(t *testing.T) {
+	call, _, stderr, code := runAgainst(t, 200, `{}`, "dashboards", "apply")
+	if code != 2 || call.method != "" || !strings.Contains(stderr, "--dir") {
+		t.Fatalf("exit %d, stderr %q, call %+v", code, stderr, call)
+	}
+	call, _, stderr, code = runAgainst(t, 200, `{}`, "dashboards", "apply", "some-file.json")
+	if code != 2 || call.method != "" || !strings.Contains(stderr, "--dir") {
+		t.Fatalf("a file argument: exit %d, stderr %q, call %+v", code, stderr, call)
+	}
+}

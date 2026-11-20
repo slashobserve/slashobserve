@@ -35,6 +35,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/discoveryhttp"
 	"github.com/slashobserve/slashobserve/internal/draftbudget"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
@@ -77,6 +78,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/users"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -350,8 +352,10 @@ func run() error {
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
+	viewersService := viewers.New(database)
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
+	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
@@ -382,32 +386,35 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
+	var startHealthRun func()
 	toolRegistry := tools.New(tools.Deps{
-		Datasources:   registry,
-		Runner:        runner,
-		Dashboards:    dashboardsService,
-		Threads:       threadsService,
-		Mentions:      mentionRuns,
-		Proposals:     proposalsService,
-		Imports:       importsService,
-		Folders:       folderAccess,
-		Findings:      findingsService,
-		Observations:  observationsService,
-		SavedSearches: savedSearchesService,
-		Health:        healthService,
-		Annotations:   annotationsService,
-		Activity:      activityStore,
-		Runs:          revisions.NewRunReader(queue, observeOpts),
-		Claims:        claimsService,
-		RunSessions:   runSessions,
-		LiveText:      liveText,
-		Search:        searchService,
-		Stars:         stars.New(database, folderAccess),
-		Home:          homedash.New(database, folderAccess),
-		Provider:      llmProvider,
-		DraftBudget:   draftbudget.New(database),
-		PublicURL:     cfg.PublicURL,
-		Logger:        logger,
+		StartHealthRun: func() { startHealthRun() },
+		Datasources:    registry,
+		Runner:         runner,
+		Dashboards:     dashboardsService,
+		Threads:        threadsService,
+		Mentions:       mentionRuns,
+		Proposals:      proposalsService,
+		Imports:        importsService,
+		Folders:        folderAccess,
+		Findings:       findingsService,
+		Observations:   observationsService,
+		SavedSearches:  savedSearchesService,
+		Health:         healthService,
+		Annotations:    annotationsService,
+		Activity:       activityStore,
+		Runs:           revisions.NewRunDesk(queue, observeOpts),
+		Claims:         claimsService,
+		RunSessions:    runSessions,
+		LiveText:       liveText,
+		Search:         searchService,
+		Stars:          stars.New(database, folderAccess),
+		Viewers:        viewersService,
+		Home:           homedash.New(database, folderAccess),
+		Provider:       llmProvider,
+		DraftBudget:    draftbudget.New(database),
+		PublicURL:      cfg.PublicURL,
+		Logger:         logger,
 	})
 
 	if llmProvider != nil {
@@ -437,6 +444,7 @@ func run() error {
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
 	healthHandler := health.NewHandler(healthCtx, healthService, health.NewRepairs(healthService, revisionsService), jobs)
+	startHealthRun = healthHandler.StartRun
 	defer func() {
 		stopHealthRuns()
 		healthHandler.Wait()
@@ -511,9 +519,9 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
-			observations.NewHandler(observationsService, logger),
+			observations.NewHandler(observationsService, logger, observations.WithPanelChecker(toolRegistry)),
 			observations.NewRCAHandler(observationsService, logger),
-			savedsearches.NewHandler(savedSearchesService, logger),
+			savedsearches.NewHandler(savedSearchesService, logger, savedsearches.WithSaveGuard(toolRegistry)),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
@@ -525,11 +533,13 @@ func run() error {
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
 			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
+			viewers.NewHandler(viewersService, folderAccess, logger),
 			homedash.NewHandler(homedash.New(database, folderAccess), logger),
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,

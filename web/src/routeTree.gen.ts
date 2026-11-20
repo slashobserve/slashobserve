@@ -54,6 +54,8 @@ import { Route as AuthedDDashboardIdChar123SlugChar125RouteImport } from './rout
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
 import { Route as AuthedShellChatCRequestIdRouteImport } from './routes/_authed/_shell/_chat/c/$requestId'
+import { Route as AuthedShellExploreMetricsIndexRouteImport } from './routes/_authed/_shell/explore/metrics/index'
+import { Route as AuthedShellExploreMetricsDatasourceUidRouteImport } from './routes/_authed/_shell/explore/metrics/$datasourceUid'
 import { Route as AuthedShellOObservationIdRcaRevisionRouteImport } from './routes/_authed/_shell/o/$observationId_.rca.$revision'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -293,6 +295,18 @@ const AuthedShellChatCRequestIdRoute =
     path: '/c/$requestId',
     getParentRoute: () => AuthedShellChatRoute,
   } as any)
+const AuthedShellExploreMetricsIndexRoute =
+  AuthedShellExploreMetricsIndexRouteImport.update({
+    id: '/explore/metrics/',
+    path: '/explore/metrics/',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellExploreMetricsDatasourceUidRoute =
+  AuthedShellExploreMetricsDatasourceUidRouteImport.update({
+    id: '/explore/metrics/$datasourceUid',
+    path: '/explore/metrics/$datasourceUid',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellOObservationIdRcaRevisionRoute =
   AuthedShellOObservationIdRcaRevisionRouteImport.update({
     id: '/o/$observationId_/rca/$revision',
@@ -343,6 +357,8 @@ export interface FileRoutesByFullPath {
   '/traces/': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/explore/metrics/': typeof AuthedShellExploreMetricsIndexRoute
   '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesByTo {
@@ -388,6 +404,8 @@ export interface FileRoutesByTo {
   '/traces': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/explore/metrics': typeof AuthedShellExploreMetricsIndexRoute
   '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesById {
@@ -437,6 +455,8 @@ export interface FileRoutesById {
   '/_authed/_shell/traces/': typeof AuthedShellTracesIndexRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/_authed/_shell/_chat/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/_authed/_shell/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/_authed/_shell/explore/metrics/': typeof AuthedShellExploreMetricsIndexRoute
   '/_authed/_shell/o/$observationId_/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRouteTypes {
@@ -484,6 +504,8 @@ export interface FileRouteTypes {
     | '/traces/'
     | '/dashboards/$dashboardId/'
     | '/c/$requestId'
+    | '/explore/metrics/$datasourceUid'
+    | '/explore/metrics/'
     | '/o/$observationId/rca/$revision'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -529,6 +551,8 @@ export interface FileRouteTypes {
     | '/traces'
     | '/dashboards/$dashboardId'
     | '/c/$requestId'
+    | '/explore/metrics/$datasourceUid'
+    | '/explore/metrics'
     | '/o/$observationId/rca/$revision'
   id:
     | '__root__'
@@ -577,6 +601,8 @@ export interface FileRouteTypes {
     | '/_authed/_shell/traces/'
     | '/_authed/dashboards/$dashboardId/'
     | '/_authed/_shell/_chat/c/$requestId'
+    | '/_authed/_shell/explore/metrics/$datasourceUid'
+    | '/_authed/_shell/explore/metrics/'
     | '/_authed/_shell/o/$observationId_/rca/$revision'
   fileRoutesById: FileRoutesById
 }
@@ -904,6 +930,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellChatCRequestIdRouteImport
       parentRoute: typeof AuthedShellChatRoute
     }
+    '/_authed/_shell/explore/metrics/': {
+      id: '/_authed/_shell/explore/metrics/'
+      path: '/explore/metrics'
+      fullPath: '/explore/metrics/'
+      preLoaderRoute: typeof AuthedShellExploreMetricsIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/explore/metrics/$datasourceUid': {
+      id: '/_authed/_shell/explore/metrics/$datasourceUid'
+      path: '/explore/metrics/$datasourceUid'
+      fullPath: '/explore/metrics/$datasourceUid'
+      preLoaderRoute: typeof AuthedShellExploreMetricsDatasourceUidRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/o/$observationId_/rca/$revision': {
       id: '/_authed/_shell/o/$observationId_/rca/$revision'
       path: '/o/$observationId/rca/$revision'
@@ -958,6 +998,8 @@ interface AuthedShellRouteChildren {
   AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
   AuthedShellTracesIndexRoute: typeof AuthedShellTracesIndexRoute
+  AuthedShellExploreMetricsDatasourceUidRoute: typeof AuthedShellExploreMetricsDatasourceUidRoute
+  AuthedShellExploreMetricsIndexRoute: typeof AuthedShellExploreMetricsIndexRoute
   AuthedShellOObservationIdRcaRevisionRoute: typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 
@@ -989,6 +1031,9 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
   AuthedShellTracesIndexRoute: AuthedShellTracesIndexRoute,
+  AuthedShellExploreMetricsDatasourceUidRoute:
+    AuthedShellExploreMetricsDatasourceUidRoute,
+  AuthedShellExploreMetricsIndexRoute: AuthedShellExploreMetricsIndexRoute,
   AuthedShellOObservationIdRcaRevisionRoute:
     AuthedShellOObservationIdRcaRevisionRoute,
 }

@@ -18,7 +18,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
-| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, changed (its query, filters or range), moved to another folder or deleted. |
+| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, changed (its query, filters or range), moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
@@ -33,7 +33,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Run | `run.kept` | The requester kept the build of a stopped run as a version. |
-| Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
+| Thread | `thread.opened`, `thread.replied`, `thread.edited`, `thread.deleted` | A comment thread is started, answered, a message in it is edited, or a message or a whole thread is deleted. |
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
 
@@ -66,7 +66,7 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 ## What data holds
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
-A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
+A saved search event adds its `kind`, `logs`, `traces` or `metrics`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`, with the block's `state` (`live` or `requested`) on `observation.block_added`; block text, summaries and snapshot data are never in an event.
 It never holds a prompt, a comment, a finding's text, a query or Spec JSON, and an annotation event holds only the 80-character `title`, never the full text.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.

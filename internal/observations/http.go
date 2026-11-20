@@ -2,6 +2,7 @@ package observations
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -201,13 +202,51 @@ func SnapshotOf(s Snapshot) SnapshotJSON {
 	}
 }
 
+type PanelChecker interface {
+	CheckPanel(ctx context.Context, by auth.Principal, body PanelBody, fallbackFrom, fallbackTo *time.Time) error
+}
+
 type Handler struct {
 	service *Service
 	logger  *slog.Logger
+	panels  PanelChecker
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+type HandlerOption func(*Handler)
+
+func WithPanelChecker(checker PanelChecker) HandlerOption {
+	return func(h *Handler) { h.panels = checker }
+}
+
+func NewHandler(service *Service, logger *slog.Logger, options ...HandlerOption) *Handler {
+	h := &Handler{service: service, logger: logger}
+	for _, option := range options {
+		option(h)
+	}
+	return h
+}
+
+func (h *Handler) panelRuns(c *gin.Context, raw json.RawMessage, window func(by auth.Principal) (*time.Time, *time.Time, error)) bool {
+	by := httpapi.Caller(c)
+	if h.panels == nil || by.Kind != auth.KindServiceAccount {
+		return true
+	}
+	var body PanelBody
+	if json.Unmarshal(raw, &body) != nil || len(body.Panel) == 0 {
+		return true
+	}
+	from, to, err := window(by)
+	if errors.Is(err, ErrNotFound) {
+		return true
+	}
+	if err == nil {
+		err = h.panels.CheckPanel(c.Request.Context(), by, body, from, to)
+	}
+	if err != nil {
+		h.fail(c, "check observation panel", err)
+		return false
+	}
+	return true
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -625,6 +664,12 @@ func (h *Handler) addBlock(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if Kind(req.Kind) == KindPanel && !h.panelRuns(c, req.Body, func(by auth.Principal) (*time.Time, *time.Time, error) {
+		o, err := h.service.Get(c.Request.Context(), by, id)
+		return o.From, o.To, err
+	}) {
+		return
+	}
 	b, err := h.service.AddBlock(c.Request.Context(), httpapi.Caller(c), id, BlockInput{
 		Kind: Kind(req.Kind), Body: req.Body, Width: Width(req.Width), Position: req.Position, FromBlockID: from,
 	})
@@ -653,6 +698,12 @@ func (h *Handler) updateBlock(c *gin.Context) {
 	}
 	if req.Version == nil {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "version is required")
+		return
+	}
+	if !h.panelRuns(c, req.Body, func(by auth.Principal) (*time.Time, *time.Time, error) {
+		_, from, to, err := h.service.PanelDashboard(c.Request.Context(), by, id)
+		return &from, &to, err
+	}) {
 		return
 	}
 	change := BlockChange{Version: *req.Version, Body: req.Body, Position: req.Position}

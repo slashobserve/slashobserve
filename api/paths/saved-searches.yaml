@@ -4,17 +4,17 @@ saved-searches:
     x-surfaces:
       mcp: [list_saved_searches]
       cli: [observe saved-searches list]
-    summary: List the saved logs and trace searches the caller can view, most recently changed first.
+    summary: List the saved logs, trace and metrics searches the caller can view, most recently changed first.
     description: >-
       Lists every saved search in the folders the caller can view, newest `updated_at` first.
-      `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404.
-      Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+      `kind` keeps only one kind of search, and `folder_id` keeps one folder; a folder the caller cannot view gives 404.
+      Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs, traces or metrics page that reopens it.
     parameters:
       - name: kind
         in: query
         schema:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
       - name: folder_id
         in: query
         schema:
@@ -52,14 +52,15 @@ saved-searches:
     x-surfaces:
       mcp: [save_search]
       cli: [observe saved-searches save]
-    summary: Save a logs or trace search in a folder.
+    summary: Save a logs, trace or metrics search in a folder.
     description: >-
-      Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written.
+      Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written.
       It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General.
       Everyone who can view that folder can read it.
-      The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse.
-      A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none.
+      The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus.
+      A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none.
       A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`.
+      A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy.
       The kind and the datasource never change afterwards: save a new search instead.
       The query, filters and range can be changed with a PATCH.
     requestBody:
@@ -69,6 +70,12 @@ saved-searches:
           schema:
             $ref: "../openapi.yaml#/components/schemas/CreateSavedSearchRequest"
     responses:
+      "200":
+        description: The search this key had already saved, with `replayed` true.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedSearchReplayed"
       "201":
         description: The saved search.
         content:
@@ -86,7 +93,7 @@ saved-searches:
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
-        description: A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`).
+        description: A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`).
         content:
           application/json:
             schema:

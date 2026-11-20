@@ -1,17 +1,12 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  type KeyboardEvent,
-  type Ref,
-  type RefObject,
-} from "react"
+import { useCallback, useId, useRef, type Ref, type RefObject } from "react"
 
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
+import { useDockFocus } from "@/components/dock/dock-focus"
+import { activityCardId, paneOpener } from "@/dashboards/pane-openers"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
+import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
@@ -21,8 +16,6 @@ import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { EditPane, type EditGuard } from "./edit-pane"
-
-export const activityCardId = "activity-card"
 
 type Props = {
   dashboardId: string
@@ -80,44 +73,18 @@ export function ActivityCard({
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
-  const opener = useRef<Element | null>(null)
-  useEffect(() => {
-    opener.current = document.activeElement
-  }, [])
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLElement>) => {
-      if (event.key !== "Escape" || event.defaultPrevented || editing) return
-      if (!card.current?.contains(event.target as Node)) return
-      onClose()
-      const from = opener.current
-      if (from instanceof HTMLElement && from !== document.body) {
-        requestAnimationFrame(() => {
-          if (from.isConnected) from.focus()
-        })
-      }
-    },
-    [editing, onClose]
+  const openerOfPane = useCallback(
+    () => paneOpener(sharing ? "share" : "activity"),
+    [sharing]
   )
-
-  const shown = useRef<{
-    panelId: string | undefined
-    editing: boolean
-    sharing: boolean
-  }>({ panelId: undefined, editing: false, sharing: false })
-  useEffect(() => {
-    const before = shown.current
-    shown.current = { panelId, editing, sharing }
-    if (
-      before.panelId === panelId &&
-      before.editing === editing &&
-      before.sharing === sharing
-    ) {
-      return
-    }
-    if (card.current?.contains(document.activeElement)) return
-    heading.current?.focus()
-  }, [panelId, editing, sharing])
+  const { close } = useDockFocus({
+    pane: card,
+    heading,
+    opener: openerOfPane,
+    onClose,
+    closeOnEscape: !editing,
+    modeKey: `${panelId}|${editing}|${sharing}`,
+  })
 
   const onScopeChange = useCallback(
     (next: string | null) =>
@@ -172,7 +139,6 @@ export function ActivityCard({
       bounds={layout.bounds}
       onWidthChange={editing ? setEditWidth : setWidth}
       stacked={editing && layout.stacked ? "sheet" : layout.stacked}
-      onKeyDown={onKeyDown}
     >
       {editingId !== undefined ? (
         <EditPane
@@ -201,7 +167,7 @@ export function ActivityCard({
             headingRef={heading}
             title="Share"
             description="Copy a link for people on this server."
-            onClose={onClose}
+            onClose={close}
             closeLabel="Close panel"
           />
           <SharePane
@@ -219,7 +185,7 @@ export function ActivityCard({
             headingRef={heading}
             title="Activity"
             description={description}
-            onClose={onClose}
+            onClose={close}
             closeLabel="Close panel"
           />
           <ActivityFeed
@@ -240,6 +206,7 @@ export function ActivityCard({
               from: timeRange.from ?? spec.time.from,
               to: timeRange.to ?? spec.time.to,
             }}
+            timeZone={agentZone(search.tz ?? spec.timezone)}
           />
         </>
       )}

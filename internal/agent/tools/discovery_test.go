@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -136,7 +137,7 @@ func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 	if got, want := res.Content.(errorBody).Message, "the server is making too many datasource calls right now; try again shortly"; got != want {
 		t.Fatalf("message = %q, want %q", got, want)
 	}
-	if want := "Listing metrics on fake: too_many_requests"; res.Step != want {
+	if want := "Listing metrics on fake: could not check, too_many_requests"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
@@ -218,6 +219,25 @@ func TestListMetricsPagesWithOffset(t *testing.T) {
 	}
 }
 
+func TestAnEmptyMetricSearchSaysAServiceIsALabelValue(t *testing.T) {
+	r := newTestRegistry(t, metricsFake(0), nil)
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake","search":"checkout"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	out := res.Content.(metricsOut)
+	if len(out.Metrics) != 0 || !strings.Contains(out.Note, `no metric name contains "checkout", which does not mean no metric has it`) || !strings.Contains(out.Note, `{service="checkout"}`) {
+		t.Fatalf("out = %+v", out)
+	}
+	for _, input := range []string{`{"datasource":"fake"}`, `{"datasource":"fake","search":"m0"}`} {
+		r := newTestRegistry(t, metricsFake(3), nil)
+		res, err := call(t, r, nameListMetrics, input)
+		if err != nil || res.IsError || res.Content.(metricsOut).Note != "" {
+			t.Fatalf("%s: res = %#v err = %v", input, res.Content, err)
+		}
+	}
+}
+
 func TestListToolsRejectAnOffsetOutOfRange(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	for _, offset := range []string{"-1", "500"} {
@@ -247,7 +267,7 @@ func TestGetSchemaPagesItsTables(t *testing.T) {
 	for i := range longNames {
 		longNames[i] = fmt.Sprintf("table_%03d_%s", i, strings.Repeat("x", 40))
 	}
-	ds := &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	ds := &fakeDS{typ: "clickhouse", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		cat := &datasource.Catalog{}
 		for _, name := range longNames[:min(len(longNames), req.Limit)] {
 			cat.Tables = append(cat.Tables, datasource.Table{Name: name})
@@ -279,7 +299,7 @@ func TestGetSchemaPagesItsTables(t *testing.T) {
 }
 
 func TestDiscoveryToolsReportTheNamesTheyReturned(t *testing.T) {
-	ds := &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	catalog := func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		return &datasource.Catalog{
 			Metrics: []datasource.Metric{{Name: "up", Help: "is up"}, {Name: "down"}},
 			Labels:  []string{"job", "instance"},
@@ -287,8 +307,9 @@ func TestDiscoveryToolsReportTheNamesTheyReturned(t *testing.T) {
 			Tables:  []datasource.Table{{Name: "otel_logs"}, {Name: "otel_traces"}},
 			Columns: []datasource.Column{{Name: "Body"}, {Name: "Timestamp"}},
 		}, nil
-	}}
-	r := newTestRegistry(t, ds, nil)
+	}
+	r := newTestRegistry(t, &fakeDS{discoverFn: catalog}, nil)
+	schemas := newTestRegistry(t, &fakeDS{typ: "clickhouse", discoverFn: catalog}, nil)
 	tests := []struct {
 		name  string
 		tool  string
@@ -308,7 +329,11 @@ func TestDiscoveryToolsReportTheNamesTheyReturned(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := call(t, r, tt.tool, tt.input)
+			registry := r
+			if tt.tool == nameGetSchema {
+				registry = schemas
+			}
+			res, err := call(t, registry, tt.tool, tt.input)
 			if err != nil || res.IsError {
 				t.Fatalf("res = %#v err = %v", res, err)
 			}
@@ -701,6 +726,29 @@ func TestListMetricsScopeOnLokiKeepsTheStoredInventory(t *testing.T) {
 	}
 }
 
+func TestDiscoveryToolsNameTheDatasourceTypesThatFitInsteadOfAnsweringEmpty(t *testing.T) {
+	tests := []struct {
+		name, typ, tool, input, want string
+	}{
+		{"metrics on loki", "loki", nameListMetrics, `{"datasource":"fake"}`, "list_metrics works on Prometheus and ClickHouse datasources; fake is a loki datasource"},
+		{"metrics on tempo", "tempo", nameListMetrics, `{"datasource":"fake"}`, "fake is a tempo datasource"},
+		{"schema on prometheus", "prometheus", nameGetSchema, `{"datasource":"fake"}`, "get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; fake is a prometheus datasource"},
+		{"schema on loki", "loki", nameGetSchema, `{"datasource":"fake","table":"x"}`, "fake is a loki datasource"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := &fakeDS{typ: tt.typ, discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+				t.Fatal("the datasource was asked")
+				return nil, nil
+			}}
+			res, err := call(t, newTestRegistry(t, ds, nil), tt.tool, tt.input)
+			if err != nil || errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, tt.want) {
+				t.Fatalf("res = %#v err = %v", res.Content, err)
+			}
+		})
+	}
+}
+
 func TestRecheckDatasourceReportsTheCauseOfAnUnhealthySource(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{healthErr: datasource.ErrorfStatus(datasource.ErrUnavailable, 503, "Ingester not ready")}, nil)
 	res, err := call(t, r, nameRecheckDatasource, `{"datasource":"fake"}`)
@@ -725,5 +773,51 @@ func TestRecheckDatasourceRefusesAnUnknownUID(t *testing.T) {
 	res, _ = call(t, r, nameRecheckDatasource, `{}`)
 	if got := errorCode(t, res); got != codeInvalidRequest {
 		t.Errorf("code = %q", got)
+	}
+}
+
+func TestReadSchemaAndSampleAnswerWhatTheToolsAnswer(t *testing.T) {
+	ds := &fakeDS{typ: "clickhouse", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch req.Kind {
+		case datasource.DiscoverTables:
+			return &datasource.Catalog{Tables: []datasource.Table{{Name: "otel_logs"}}}, nil
+		case datasource.DiscoverColumns:
+			return &datasource.Catalog{Columns: []datasource.Column{{Name: "Body", Type: "String"}}}, nil
+		}
+		return &datasource.Catalog{Sample: &datasource.Frame{Fields: []datasource.Field{{Name: "Body", Values: []any{"hello"}}}}}, nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+
+	tables, err := r.DatasourceSchema(ctx, "fake", "", nil)
+	if err != nil || tables.(tablesOut).Tables[0].Name != "otel_logs" {
+		t.Fatalf("tables = %#v, err = %v", tables, err)
+	}
+	columns, err := r.DatasourceSchema(ctx, "fake", "otel_logs", nil)
+	if err != nil || columns.(columnsOut).Columns[0].Type != "String" {
+		t.Fatalf("columns = %#v, err = %v", columns, err)
+	}
+	limit := 3
+	sample, err := r.DatasourceSample(ctx, "fake", "otel_logs", &limit)
+	if err != nil || sample.(sampleOut).Rows[0][0] != "hello" {
+		t.Fatalf("sample = %#v, err = %v", sample, err)
+	}
+	if got := ds.lastRequest(); got.Kind != datasource.DiscoverSampleRows || got.Limit != 3 || got.Table != "otel_logs" {
+		t.Fatalf("discovery request = %+v", got)
+	}
+}
+
+func TestReadSchemaRefusesWithTheToolsCode(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+
+	_, err := r.DatasourceSchema(ctx, "fake", "", nil)
+	var refused *ReadError
+	if !errors.As(err, &refused) || refused.Code != codeInvalidRequest || !strings.Contains(refused.Message, "list_labels") {
+		t.Fatalf("err = %v", err)
+	}
+	_, err = r.DatasourceSchema(ctx, "nope", "", nil)
+	if !errors.As(err, &refused) || refused.Code != string(queryproxy.CodeUnknownDatasource) {
+		t.Fatalf("err = %v", err)
 	}
 }

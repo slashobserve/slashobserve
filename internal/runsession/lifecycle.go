@@ -48,7 +48,7 @@ func (sess *session) end(ctx context.Context, e endSpec) error {
 	if e.message == "" {
 		e.message = revisions.FailureMessage(e.failure, sess.req.Source)
 		if e.failure == revisions.FailureValidationExhausted {
-			e.message += revisions.FailingPanelsSuffix(sess.state.Failing, sess.state.FailingOther) + revisions.IssuesSuffix(sess.state.IssueCodes)
+			e.message = revisions.ValidationExhaustedMessage(sess.req.Source, sess.state.rejection())
 		}
 	}
 	row, err := sess.currentRow(ctx)
@@ -273,6 +273,7 @@ func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 	return brief.Task{
 		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
 		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
+		TimeZone: req.TimeZone,
 	}
 }
 

@@ -296,6 +296,7 @@ type ListParams struct {
 	Folder     pgtype.UUID
 	ByFolder   bool
 	ByViews    bool
+	ByName     bool
 }
 
 type ListItem struct {
@@ -305,6 +306,7 @@ type ListItem struct {
 	OpenComments   int
 	ViewCount      int
 	sortTitle      string
+	titleSort      string
 }
 
 type ListPage struct {
@@ -360,6 +362,8 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 		items, err = s.listByFolder(ctx, p, filter)
 	case p.ByViews:
 		items, err = s.listByViews(ctx, p, filter)
+	case p.ByName:
+		items, err = s.listByName(ctx, p, filter)
 	default:
 		items, err = s.listByRecency(ctx, p, filter)
 	}
@@ -414,12 +418,26 @@ func (s *Service) listByViews(ctx context.Context, p ListParams, filter dbsqlc.C
 	return s.store.listByViews(ctx, after, p.Limit+1, p.Offset, filter)
 }
 
+func (s *Service) listByName(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	var after *nameCursor
+	if p.Cursor != "" {
+		decoded, err := decodeNameCursor(p.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		after = &decoded
+	}
+	return s.store.listByName(ctx, after, p.Limit+1, p.Offset, filter)
+}
+
 func nextCursor(last ListItem, p ListParams) string {
 	switch {
 	case p.ByFolder:
 		return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
 	case p.ByViews:
 		return encodeViewsCursor(last.ViewCount, last.UpdatedAt, last.ID)
+	case p.ByName:
+		return encodeNameCursor(last.titleSort, last.ID)
 	}
 	return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
 }

@@ -27,11 +27,20 @@ function main(...children: Spec[]) {
   return element
 }
 
+const started: Array<() => void> = []
+
+function start() {
+  const stop = moveFocusToPage(document)
+  started.push(stop)
+  return stop
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
 })
 
 afterEach(() => {
+  for (const stop of started.splice(0)) stop()
   vi.useRealTimers()
   document.body.replaceChildren()
 })
@@ -40,7 +49,7 @@ describe("moveFocusToPage", () => {
   it("focuses the page heading when focus fell to the body", () => {
     page(["nav"])
     main(["h1", "Slow pods"])
-    moveFocusToPage(document)
+    start()
     expect(document.activeElement?.textContent).toBe("Slow pods")
     expect(document.activeElement?.getAttribute("tabindex")).toBe("-1")
   })
@@ -49,7 +58,7 @@ describe("moveFocusToPage", () => {
     page()
     main(["h1", "Slow pods"], ["input"])
     document.querySelector("input")?.focus()
-    moveFocusToPage(document)
+    start()
     expect(document.activeElement?.tagName).toBe("INPUT")
   })
 
@@ -60,7 +69,7 @@ describe("moveFocusToPage", () => {
     document.body.append(link)
     link.focus()
     const target = main(["h1", "Trace"])
-    moveFocusToPage(document)
+    start()
     expect(document.activeElement).toBe(link)
     link.remove()
     await vi.advanceTimersByTimeAsync(0)
@@ -74,7 +83,7 @@ describe("moveFocusToPage", () => {
     document.body.append(link)
     link.focus()
     const target = main()
-    moveFocusToPage(document)
+    start()
     link.remove()
     await vi.advanceTimersByTimeAsync(0)
     const heading = document.createElement("h1")
@@ -87,7 +96,7 @@ describe("moveFocusToPage", () => {
   it("waits for a heading that renders later", async () => {
     page()
     const target = main()
-    moveFocusToPage(document)
+    start()
     const heading = document.createElement("h1")
     heading.textContent = "Loaded"
     target.append(heading)
@@ -98,7 +107,7 @@ describe("moveFocusToPage", () => {
   it("falls back to main when no heading appears", () => {
     page()
     main(["p", "Empty"])
-    moveFocusToPage(document)
+    start()
     expect(document.activeElement).toBe(document.body)
     vi.advanceTimersByTime(1500)
     expect(document.activeElement?.tagName).toBe("MAIN")
@@ -108,16 +117,48 @@ describe("moveFocusToPage", () => {
     page()
     main(["p", "Empty"])
     document.body.append(document.createElement("button"))
-    moveFocusToPage(document)
+    start()
     document.querySelector("button")?.focus()
     vi.advanceTimersByTime(1500)
     expect(document.activeElement?.tagName).toBe("BUTTON")
   })
 
+  it("focuses the new heading when the focused one is replaced while the page loads", async () => {
+    page()
+    const target = main(["h1", "Trace"])
+    start()
+    expect(document.activeElement?.tagName).toBe("H1")
+    const replacement = document.createElement("h1")
+    replacement.textContent = "checkout GET /pay"
+    target.replaceChildren(replacement)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(document.activeElement).toBe(replacement)
+  })
+
+  it("keeps the replaced heading's focus only for a few seconds", async () => {
+    page()
+    const target = main(["h1", "Trace"])
+    start()
+    await vi.advanceTimersByTimeAsync(6000)
+    target.replaceChildren(document.createElement("h1"))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it("leaves focus alone once the person clicked the page", async () => {
+    page()
+    const target = main(["h1", "Trace"])
+    start()
+    document.dispatchEvent(new Event("pointerdown"))
+    target.replaceChildren(document.createElement("h1"))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(document.activeElement).toBe(document.body)
+  })
+
   it("stops waiting when cancelled", () => {
     page()
     main(["p", "Empty"])
-    const stop = moveFocusToPage(document)
+    const stop = start()
     stop()
     vi.advanceTimersByTime(1500)
     expect(document.activeElement).toBe(document.body)

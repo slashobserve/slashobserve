@@ -3,6 +3,7 @@ package queryproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,6 +28,10 @@ const (
 	FullPageNote = "the page is full and more rows exist; " + PageWalkSentence
 	PartialNote  = "the datasource stopped before it searched everything, so some matches may be missing; narrow from and to or add a filter, then repeat"
 )
+
+func SeriesCapNote(shown, total int) string {
+	return fmt.Sprintf("showing the %d of %d series with the highest peaks; narrow the query or add a filter to see the rest", shown, total)
+}
 
 func LimitNote(truncated, partial, hasNext, canPage bool) string {
 	var notes []string

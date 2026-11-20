@@ -326,13 +326,13 @@ function FieldsPanel({
   const uid = datasource.uid
   const type = datasource.type
   const q = search.q
-  const { ready, slow } = useAfterMainQuery(
+  const { ready: linesAnswered, slow } = useAfterMainQuery(
     results,
     JSON.stringify([uid, effectiveQuery, range.from, range.to])
   )
   const names = useQuery({
     ...labelNamesQuery(uid, { from: range.from, to: range.to }),
-    enabled: type !== "clickhouse" && ready,
+    enabled: type !== "clickhouse" && linesAnswered,
   })
   const facets = useQuery({
     ...logFacetsQuery(uid, {
@@ -341,7 +341,7 @@ function FieldsPanel({
       to: range.to,
       limit: topValues,
     }),
-    enabled: q !== undefined && ready,
+    enabled: q !== undefined && linesAnswered,
   })
   const base: Base = {
     data: facets.data,

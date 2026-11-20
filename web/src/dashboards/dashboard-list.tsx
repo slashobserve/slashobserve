@@ -21,6 +21,7 @@ import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FolderHeaderRow } from "@/folders/folder-header-row"
+import { moveChoices } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
 import { importedFilter } from "@/health/health-labels"
 import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
@@ -60,7 +61,9 @@ import {
   withoutPage,
   type ListSearch,
 } from "./list-filters"
+import { BulkMoveBar } from "./bulk-move-bar"
 import { useDashboardListLive } from "./live/use-dashboards-live"
+import { ListSelectionProvider, type ListSelection } from "./list-selection"
 import { ListPagination } from "./list-pagination"
 import {
   listOffset,
@@ -351,7 +354,7 @@ export function DashboardList({
   )
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
-  const flat = search.sort === "views"
+  const flat = search.sort !== undefined
   const table = useListTable(dashboards, flat)
   const allFolders = folderResult.data
   const folders = useMemo(
@@ -384,6 +387,52 @@ export function DashboardList({
     : sections !== null
   const rowCount = flat ? dashboards.length : (sections?.length ?? 0)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const selectionScope = JSON.stringify([search, page, folderId])
+  const [chosen, setChosen] = useState<{
+    scope: string
+    ids: ReadonlySet<string>
+  }>({ scope: selectionScope, ids: new Set() })
+  const canMoveInBulk =
+    folders !== undefined && moveChoices(folders, null).length > 0
+  const selectable = useMemo(
+    () =>
+      canMoveInBulk && !query.isPlaceholderData
+        ? dashboards
+            .filter((dashboard) => dashboard.permissions.edit)
+            .map((dashboard) => dashboard.id)
+        : [],
+    [canMoveInBulk, query.isPlaceholderData, dashboards]
+  )
+  const selected = useMemo(
+    () =>
+      chosen.scope === selectionScope
+        ? new Set(selectable.filter((id) => chosen.ids.has(id)))
+        : new Set<string>(),
+    [chosen, selectionScope, selectable]
+  )
+  const selection: ListSelection | null =
+    selectable.length === 0
+      ? null
+      : {
+          selectable,
+          selected,
+          toggle: (id) => {
+            const ids = new Set(selected)
+            if (!ids.delete(id)) ids.add(id)
+            setChosen({ scope: selectionScope, ids })
+          },
+          togglePage: () =>
+            setChosen({
+              scope: selectionScope,
+              ids:
+                selected.size === selectable.length
+                  ? new Set()
+                  : new Set(selectable),
+            }),
+        }
+  const selectedDashboards = dashboards.filter((dashboard) =>
+    selected.has(dashboard.id)
+  )
   const noDashboards =
     folders !== undefined &&
     loaded &&
@@ -570,8 +619,21 @@ export function DashboardList({
             )}
           </section>
         ) : null}
+        {selectedDashboards.length > 0 && folders !== undefined ? (
+          <BulkMoveBar
+            selected={selectedDashboards}
+            folders={folders}
+            onClear={() => setChosen({ scope: selectionScope, ids: new Set() })}
+            onMoved={(moved) => {
+              const left = new Set(selected)
+              for (const id of moved) left.delete(id)
+              setChosen({ scope: selectionScope, ids: left })
+              regionRef.current?.focus({ preventScroll: true })
+            }}
+          />
+        ) : null}
         {showTable ? (
-          <>
+          <ListSelectionProvider value={selection}>
             <TableCard
               minWidth={700}
               labelledBy={labelledBy}
@@ -629,7 +691,7 @@ export function DashboardList({
                 />
               </div>
             ) : null}
-          </>
+          </ListSelectionProvider>
         ) : null}
       </>
     </ListHealthProvider>

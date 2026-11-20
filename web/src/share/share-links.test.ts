@@ -7,6 +7,7 @@ import type { Panel } from "@/spec"
 import {
   dashboardShareUrl,
   linkHint,
+  offersVariables,
   panelChoices,
   panelShareUrl,
 } from "./share-links"
@@ -183,5 +184,17 @@ describe("linkHint", () => {
     expect(linkHint(true)).toBe(
       "Only you can open this link until you publish the dashboard."
     )
+  })
+})
+
+describe("offersVariables", () => {
+  it("offers the option only when the dashboard declares a variable", () => {
+    expect(offersVariables({})).toBe(false)
+    expect(offersVariables({ variables: [] })).toBe(false)
+    expect(
+      offersVariables({
+        variables: [{ name: "env", type: "custom", options: ["a"] }],
+      })
+    ).toBe(true)
   })
 })

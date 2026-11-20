@@ -36,6 +36,18 @@ export function previewBlocksSave(error: unknown): boolean {
   return error instanceof ApiError && queryFaultCodes.has(error.code)
 }
 
+export function previewErrorShownInline(
+  error: unknown,
+  inlineRefs: ReadonlySet<string>
+): boolean {
+  return (
+    error instanceof ApiError &&
+    error.code === "query_invalid" &&
+    error.ref !== undefined &&
+    inlineRefs.has(error.ref)
+  )
+}
+
 export function previewErrorText(error: unknown): string {
   if (!(error instanceof ApiError)) return "The preview could not run."
   switch (error.code) {

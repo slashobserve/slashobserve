@@ -23,6 +23,7 @@ import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText, type Rgb } from "../contrast"
 import { CursorLine, useCursorLine } from "../cursor-line"
 import { Legend, type LegendItem } from "../legend/legend"
+import { capLegend, maxStateLegendEntries } from "../legend/legend-model"
 import { LegendTable } from "../legend/legend-table"
 import { rightLegendWidth } from "../legend/legend-width"
 import type { SharedCursor } from "../shared-cursor"
@@ -448,11 +449,13 @@ export function TimelineChart({
     line: "solid",
     style: "bars",
   }))
+  const capped = capLegend(items, maxStateLegendEntries)
   const legendProps = {
     ref: legendRef,
-    items,
+    items: capped.shown,
+    more: capped.more,
     reducers: [],
-    cells: items.map(() => []),
+    cells: capped.shown.map(() => []),
     hidden: hiddenStates,
     placement: rightLegend ? ("right" as const) : ("bottom" as const),
     available: height * legendShare,

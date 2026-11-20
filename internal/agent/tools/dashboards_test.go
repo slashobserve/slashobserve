@@ -218,12 +218,12 @@ func TestListDashboardsRejectsAnOrderItDoesNotOffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := refusal(t, res), "order must be updated or views"; got != want {
+	if got, want := refusal(t, res), "order must be updated, views or name"; got != want {
 		t.Errorf("message = %q, want %q", got, want)
 	}
 }
 
-func TestListDashboardsSchemaOffersBothOrders(t *testing.T) {
+func TestListDashboardsSchemaOffersEveryOrder(t *testing.T) {
 	var schema struct {
 		Properties struct {
 			Order struct {
@@ -234,8 +234,8 @@ func TestListDashboardsSchemaOffersBothOrders(t *testing.T) {
 	if err := json.Unmarshal([]byte(schemaListDashboards), &schema); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(schema.Properties.Order.Enum, ","); got != "updated,views" {
-		t.Errorf("order enum = %q, want updated,views", got)
+	if got := strings.Join(schema.Properties.Order.Enum, ","); got != "updated,views,name" {
+		t.Errorf("order enum = %q, want updated,views,name", got)
 	}
 	for _, text := range []string{descListDashboards, descGetDashboard} {
 		if !strings.Contains(text, "view") {

@@ -4,13 +4,14 @@ description: The keys that view, edit and inspect a panel, move the time range, 
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
-Press `?` on a dashboard to see them all in the app.
+Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortcuts** in the command palette on any page.
 
 | Keys | What they do |
 | --- | --- |
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
+| `c` | Open the activity pane and put the cursor in its comment box. |
 | `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
@@ -22,6 +23,12 @@ Press `?` on a dashboard to see them all in the app.
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
 | `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
+
+Opening the Share, Activity, Chat or Dashboard JSON pane of a dashboard moves the focus to the pane's heading, on a phone as well, so a screen reader reads it and the keys work inside it.
+A pane that was already open when the page loaded does not take the focus.
+Escape closes the pane when the focus is inside it or on the button that opened it.
+The focus returns to the button that opened the pane, which on a phone is the Controls button, and so does the pane's Close button.
+A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
 
 ## Moving around the app
 
@@ -66,6 +73,16 @@ The logs page answers keys of its own, described in [Logs and traces](logs-and-t
 | `Enter` | Open the line that has the focus. |
 | `Esc` | Close the open line and return to it. |
 | `?` | Show this list. |
+
+## Metrics page keys
+
+The metrics page answers three keys, described in [Metrics](metrics.md).
+
+| Keys | What they do |
+| --- | --- |
+| `/` | Focus the query. |
+| `⌘Enter` or `Ctrl+Enter` | Run the query, from the query editor. |
+| `⌘I` or `Ctrl+I` | Switch between Ask and PromQL, from anywhere on the page. |
 
 ## Trace search keys
 

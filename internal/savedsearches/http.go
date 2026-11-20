@@ -1,6 +1,7 @@
 package savedsearches
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -94,13 +95,33 @@ type updateRequest struct {
 	To       *string         `json:"to"`
 }
 
+type SaveGuard interface {
+	GuardSavedSearch(ctx context.Context, by auth.Principal, in CreateInput) (*SavedSearch, error)
+}
+
 type Handler struct {
 	service *Service
 	logger  *slog.Logger
+	guard   SaveGuard
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+type HandlerOption func(*Handler)
+
+func WithSaveGuard(guard SaveGuard) HandlerOption {
+	return func(h *Handler) { h.guard = guard }
+}
+
+func NewHandler(service *Service, logger *slog.Logger, options ...HandlerOption) *Handler {
+	h := &Handler{service: service, logger: logger}
+	for _, option := range options {
+		option(h)
+	}
+	return h
+}
+
+type replayedJSON struct {
+	SavedSearchJSON
+	Replayed bool `json:"replayed"`
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -129,8 +150,8 @@ func (h *Handler) list(c *gin.Context) {
 	}
 	var filter ListFilter
 	if kind, present := c.GetQuery("kind"); present {
-		if filter.Kind = Kind(kind); filter.Kind != KindLogs && filter.Kind != KindTraces {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be logs or traces")
+		if filter.Kind = Kind(kind); !filter.Kind.Valid() {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "kind must be logs, traces or metrics")
 			return
 		}
 	}
@@ -164,7 +185,8 @@ func (h *Handler) create(c *gin.Context) {
 	if !ok {
 		return
 	}
-	saved, err := h.service.Create(c.Request.Context(), httpapi.Caller(c), CreateInput{
+	by := httpapi.Caller(c)
+	input := CreateInput{
 		Kind:          Kind(req.Kind),
 		Title:         req.Title,
 		DatasourceUID: req.DatasourceUID,
@@ -173,7 +195,19 @@ func (h *Handler) create(c *gin.Context) {
 		From:          req.From,
 		To:            req.To,
 		FolderID:      folderID,
-	})
+	}
+	if h.guard != nil && by.Kind == auth.KindServiceAccount {
+		existing, err := h.guard.GuardSavedSearch(c.Request.Context(), by, input)
+		if err != nil {
+			h.fail(c, "check saved search", err)
+			return
+		}
+		if existing != nil {
+			c.JSON(http.StatusOK, replayedJSON{SavedSearchJSON: JSONOf(*existing), Replayed: true})
+			return
+		}
+	}
+	saved, err := h.service.Create(c.Request.Context(), by, input)
 	if err != nil {
 		h.fail(c, "create saved search", err)
 		return

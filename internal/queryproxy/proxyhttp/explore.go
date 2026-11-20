@@ -213,7 +213,7 @@ func (h *Handler) explorePage(c *gin.Context, inst datasource.Instance, rng data
 		h.fail(c, errTooLarge)
 		return
 	}
-	meta := resultMetaOf(res.Frames).took(time.Since(started))
+	meta := resultMetaOf(queryproxy.KindInstant, res.Frames).took(time.Since(started))
 	meta.truncated, meta.rowsTotal = false, 0
 	meta.page = pageMetaOf(res)
 	entry := dataEntry{frames: frames, queries: []queryMeta{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant}}, kind: queryproxy.KindInstant, from: res.Range.From, to: res.Range.To, meta: meta, executedAt: time.Now()}
@@ -246,9 +246,11 @@ func (r exploreRequest) values() url.Values {
 	if r.Timezone != nil {
 		q.Set(paramTimezone, *r.Timezone)
 	}
+	points := queryproxy.AgentMaxDataPoints
 	if r.MaxDataPoints != nil {
-		q.Set(paramMaxDataPoints, strconv.Itoa(*r.MaxDataPoints))
+		points = *r.MaxDataPoints
 	}
+	q.Set(paramMaxDataPoints, strconv.Itoa(points))
 	return q
 }
 

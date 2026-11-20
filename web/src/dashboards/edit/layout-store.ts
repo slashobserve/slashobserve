@@ -11,6 +11,7 @@ import {
   settle,
   type Membership,
 } from "./layout"
+import { controlsButtonId } from "../pane-openers"
 
 type LayoutSession = {
   dashboardId: string
@@ -197,7 +198,10 @@ export function findMoveHandle(): HTMLElement | null {
 }
 
 export function findMoreMenuButton(): HTMLElement | null {
-  return document.getElementById(moreMenuButtonId)
+  return (
+    document.getElementById(moreMenuButtonId) ??
+    document.getElementById(controlsButtonId)
+  )
 }
 
 export function focusAfterLayoutChange() {

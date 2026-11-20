@@ -91,6 +91,7 @@ type Props = {
   composerRef: RefObject<HTMLTextAreaElement | null>
   focusedThreadId?: string
   range: { from: string; to: string }
+  timeZone: string
 }
 
 type PanelRef = { id: string; title: string }
@@ -184,6 +185,7 @@ export function ActivityFeed({
   composerRef,
   focusedThreadId,
   range,
+  timeZone,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const comments = useComments(dashboardId)
@@ -448,11 +450,12 @@ export function ActivityFeed({
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
-              : "Write a comment, or tell the agent what to change"
+              : "Write a comment, or type @ to ask the agent"
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}
           range={range}
+          timeZone={timeZone}
           notice={
             mode === "comment-only" ? (
               <RoleNote>{note}</RoleNote>
