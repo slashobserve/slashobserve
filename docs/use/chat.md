@@ -146,6 +146,7 @@ While the agent keeps the message box disabled, the note under it says to wait f
 While the agent works, the Working row shows what it is writing, one short sentence before a group of tool calls saying what it is about to do and why.
 That text is live only: it is not kept once the run ends, and only the saved dashboard or finding stays.
 Between two messages of the agent's live text there is a blank line.
+
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 A chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
 An Admin who opens someone else's chat whose answer sits in an observation in a folder the Admin cannot see, such as that person's My Dashboards, reads "The answer is saved in an observation in a folder you cannot see."
