@@ -245,10 +245,17 @@ func (h *Handler) deleteTeamRecorded(ctx context.Context, id pgtype.UUID) (int64
 func (h *Handler) changeMember(ctx context.Context, action audit.Action, teamID, userID pgtype.UUID, change func(*dbsqlc.Queries) (int64, error)) error {
 	return h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		n, err := change(q)
-		if err != nil || n == 0 {
+		if err != nil {
 			return err
 		}
-		return recordTeamMember(ctx, q, action, teamID, userID)
+		if n > 0 {
+			return recordTeamMember(ctx, q, action, teamID, userID, "")
+		}
+		err = recordTeamMember(ctx, q, action, teamID, userID, audit.ReasonNoChange)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
 	})
 }
 

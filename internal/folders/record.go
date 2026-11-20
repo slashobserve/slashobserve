@@ -28,8 +28,8 @@ func folderTarget(id pgtype.UUID, title string) audit.Target {
 	return audit.Target{Kind: "folder", ID: id.String(), Name: title, FolderID: uuid.NullUUID{UUID: id.Bytes, Valid: true}}
 }
 
-func recordFolder(ctx context.Context, q *dbsqlc.Queries, action audit.Action, id pgtype.UUID, title string, data map[string]any) error {
-	return audit.Record(ctx, q, audit.Event{Action: action, Target: folderTarget(id, title), Data: data})
+func recordFolder(ctx context.Context, q *dbsqlc.Queries, action audit.Action, id pgtype.UUID, title, reason string, data map[string]any) error {
+	return audit.Record(ctx, q, audit.Event{Action: action, Reason: reason, Target: folderTarget(id, title), Data: data})
 }
 
 type grantRow = dbsqlc.ListFolderGrantsForAuditRow
@@ -54,7 +54,7 @@ func capped[T any](list []T, room *int) []T {
 	return list[:n]
 }
 
-func permissionChange(before, after []grantRow) map[string]any {
+func permissionChange(before, after []grantRow) (data map[string]any, unchanged bool) {
 	was := make(map[string]grantRow, len(before))
 	for _, r := range before {
 		was[grantKey(r)] = r
@@ -77,7 +77,7 @@ func permissionChange(before, after []grantRow) map[string]any {
 			removed = append(removed, recordedGrantOf(r))
 		}
 	}
-	truncated := len(added)+len(removed)+len(changed) > maxRecordedGrants
+	total := len(added) + len(removed) + len(changed)
 	room := maxRecordedGrants
 	return map[string]any{
 		"added":        capped(added, &room),
@@ -85,6 +85,13 @@ func permissionChange(before, after []grantRow) map[string]any {
 		"changed":      capped(changed, &room),
 		"count_before": len(before),
 		"count_after":  len(after),
-		"truncated":    truncated,
+		"truncated":    total > maxRecordedGrants,
+	}, total == 0
+}
+
+func noChangeReason(unchanged bool) string {
+	if unchanged {
+		return audit.ReasonNoChange
 	}
+	return ""
 }

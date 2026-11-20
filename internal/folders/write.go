@@ -82,7 +82,7 @@ func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtyp
 		if err != nil {
 			return err
 		}
-		return recordFolder(ctx, q, "folder.create", row.ID, row.Title, nil)
+		return recordFolder(ctx, q, "folder.create", row.ID, row.Title, "", nil)
 	})
 	return row, err
 }
@@ -127,7 +127,7 @@ func (a *Access) renameInTx(ctx context.Context, id pgtype.UUID, title string) (
 		if err != nil {
 			return err
 		}
-		return recordFolder(ctx, q, "folder.rename", row.ID, row.Title, map[string]any{"from_title": before.Title, "title": row.Title})
+		return recordFolder(ctx, q, "folder.rename", row.ID, row.Title, noChangeReason(before.Title == row.Title), map[string]any{"from_title": before.Title, "title": row.Title})
 	})
 	return row, err
 }

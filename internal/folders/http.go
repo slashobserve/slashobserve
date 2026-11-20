@@ -222,7 +222,7 @@ func (h *Handler) deleteEmpty(ctx context.Context, id pgtype.UUID) (int64, error
 		if err != nil || n == 0 {
 			return err
 		}
-		return recordFolder(ctx, q, "folder.delete", id, folder.Title, nil)
+		return recordFolder(ctx, q, "folder.delete", id, folder.Title, "", nil)
 	})
 	return n, err
 }
@@ -332,7 +332,8 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 		if err != nil {
 			return err
 		}
-		if err := recordFolder(ctx, q, "folder.permissions_change", folderID, folder.Title, permissionChange(before, after)); err != nil {
+		data, unchanged := permissionChange(before, after)
+		if err := recordFolder(ctx, q, "folder.permissions_change", folderID, folder.Title, noChangeReason(unchanged), data); err != nil {
 			return err
 		}
 		if h.settle == nil {

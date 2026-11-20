@@ -18,7 +18,7 @@ func recordTeam(ctx context.Context, q *dbsqlc.Queries, action audit.Action, id 
 	return audit.Record(ctx, q, audit.Event{Action: action, Target: teamTarget(id, name)})
 }
 
-func recordTeamMember(ctx context.Context, q *dbsqlc.Queries, action audit.Action, teamID, userID pgtype.UUID) error {
+func recordTeamMember(ctx context.Context, q *dbsqlc.Queries, action audit.Action, teamID, userID pgtype.UUID, reason string) error {
 	team, err := q.GetTeam(ctx, teamID)
 	if err != nil {
 		return err
@@ -28,5 +28,5 @@ func recordTeamMember(ctx context.Context, q *dbsqlc.Queries, action audit.Actio
 		return err
 	}
 	data := map[string]any{"user_id": uuid.UUID(userID.Bytes).String(), "user_name": name}
-	return audit.Record(ctx, q, audit.Event{Action: action, Target: teamTarget(teamID, team.Name), Data: data})
+	return audit.Record(ctx, q, audit.Event{Action: action, Reason: reason, Target: teamTarget(teamID, team.Name), Data: data})
 }

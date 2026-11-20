@@ -22,13 +22,14 @@ import (
 type storedEvent struct {
 	Action, Outcome, ActorKind, ActorID, ActorName, ActorRole string
 	TargetKind, TargetID, TargetName, FolderID, RequestID     string
+	Reason                                                    string
 	Data                                                      map[string]any
 }
 
 func storedEvents(t *testing.T, d *dbtest.Database) []storedEvent {
 	t.Helper()
 	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT action, outcome, actor_kind, coalesce(actor_id::text, ''), coalesce(actor_name, ''), coalesce(actor_role, ''),
-  coalesce(target_kind, ''), coalesce(target_id, ''), coalesce(target_name, ''), coalesce(folder_id::text, ''), coalesce(request_id::text, ''), data::text
+  coalesce(target_kind, ''), coalesce(target_id, ''), coalesce(target_name, ''), coalesce(folder_id::text, ''), coalesce(request_id::text, ''), coalesce(reason, ''), data::text
 FROM audit_events ORDER BY occurred_at, id`)
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +39,7 @@ FROM audit_events ORDER BY occurred_at, id`)
 	for rows.Next() {
 		var e storedEvent
 		var data string
-		if err := rows.Scan(&e.Action, &e.Outcome, &e.ActorKind, &e.ActorID, &e.ActorName, &e.ActorRole, &e.TargetKind, &e.TargetID, &e.TargetName, &e.FolderID, &e.RequestID, &data); err != nil {
+		if err := rows.Scan(&e.Action, &e.Outcome, &e.ActorKind, &e.ActorID, &e.ActorName, &e.ActorRole, &e.TargetKind, &e.TargetID, &e.TargetName, &e.FolderID, &e.RequestID, &e.Reason, &data); err != nil {
 			t.Fatal(err)
 		}
 		if err := json.Unmarshal([]byte(data), &e.Data); err != nil {
@@ -271,5 +272,37 @@ func TestDeletingAFolderRecordsTheTitleItHasWhenItIsDeleted(t *testing.T) {
 	events := storedEvents(t, d)
 	if got := events[len(events)-1]; got.Action != "folder.delete" || got.TargetName != "New name" {
 		t.Fatalf("event = %+v, want folder.delete of New name", got)
+	}
+}
+
+func TestAChangeThatChangesNothingStillRecordsOneEventWithTheReasonNoChange(t *testing.T) {
+	d := dbtest.New(t)
+	id := newFolder(t, d, "Steady")
+	engine := adminEngine(t, d)
+	set := `{"entries":[{"group":"sre","level":"edit"}]}`
+	if rec := send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", set); rec.Code != http.StatusOK {
+		t.Fatalf("set = %d %s", rec.Code, rec.Body)
+	}
+
+	earlier := len(storedEvents(t, d))
+	rec := send(t, engine, http.MethodPatch, "/api/v1/folders/"+id, `{"title":"Steady"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rename = %d %s", rec.Code, rec.Body)
+	}
+	rename := onlyEventAfter(t, d, earlier, rec)
+	wantFolderEvent(t, rename, "folder.rename", id, "Steady", "from_title", "title")
+	if rename.Reason != "no_change" {
+		t.Errorf("rename reason = %q, want no_change", rename.Reason)
+	}
+
+	earlier = len(storedEvents(t, d))
+	rec = send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", set)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set = %d %s", rec.Code, rec.Body)
+	}
+	permissions := onlyEventAfter(t, d, earlier, rec)
+	wantFolderEvent(t, permissions, "folder.permissions_change", id, "Steady", "added", "changed", "count_after", "count_before", "removed", "truncated")
+	if permissions.Reason != "no_change" {
+		t.Errorf("permissions reason = %q, want no_change", permissions.Reason)
 	}
 }

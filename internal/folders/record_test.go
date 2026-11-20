@@ -18,7 +18,7 @@ func TestAPermissionChangeNamesWhatWasAddedRemovedAndChanged(t *testing.T) {
 	before := []dbsqlc.ListFolderGrantsForAuditRow{groupGrant("sre", "view"), groupGrant("ops", "edit"), groupGrant("qa", "view")}
 	after := []dbsqlc.ListFolderGrantsForAuditRow{groupGrant("sre", "edit"), groupGrant("ops", "edit"), groupGrant("dev", "view")}
 
-	got := permissionChange(before, after)
+	got, unchanged := permissionChange(before, after)
 
 	want := map[string]any{
 		"added":        []recordedGrant{{Kind: "group", Name: "dev", Level: "view"}},
@@ -28,7 +28,7 @@ func TestAPermissionChangeNamesWhatWasAddedRemovedAndChanged(t *testing.T) {
 		"count_after":  3,
 		"truncated":    false,
 	}
-	if !reflect.DeepEqual(got, want) {
+	if unchanged || !reflect.DeepEqual(got, want) {
 		t.Fatalf("change = %+v, want %+v", got, want)
 	}
 }
@@ -36,9 +36,9 @@ func TestAPermissionChangeNamesWhatWasAddedRemovedAndChanged(t *testing.T) {
 func TestAnIdenticalPermissionListChangesNothing(t *testing.T) {
 	list := []dbsqlc.ListFolderGrantsForAuditRow{groupGrant("sre", "view")}
 
-	got := permissionChange(list, list)
+	got, unchanged := permissionChange(list, list)
 
-	if len(got["added"].([]recordedGrant))+len(got["removed"].([]recordedGrant))+len(got["changed"].([]changedGrant)) != 0 {
+	if !unchanged || len(got["added"].([]recordedGrant))+len(got["removed"].([]recordedGrant))+len(got["changed"].([]changedGrant)) != 0 {
 		t.Fatalf("change = %+v, want no entries", got)
 	}
 }
@@ -49,7 +49,7 @@ func TestAPermissionChangeStoresAtMostTwoHundredEntriesAndSaysSo(t *testing.T) {
 		after = append(after, groupGrant(fmt.Sprintf("team-%03d", i), "view"))
 	}
 
-	got := permissionChange(nil, after)
+	got, _ := permissionChange(nil, after)
 
 	if n := len(got["added"].([]recordedGrant)); n != maxRecordedGrants {
 		t.Fatalf("stored %d entries, want %d", n, maxRecordedGrants)
