@@ -241,8 +241,10 @@ test("shows allow-all sign-in", async ({ page }) => {
   const banner = page.locator('[data-status="warning"]')
   await expect(banner).toBeVisible()
   await expect(
-    page.getByText("Anyone with a verified email can sign in through")
-  ).toHaveText("Anyone with a verified email can sign in through Dex.")
+    page.getByText("Anyone with an email address, verified or not")
+  ).toHaveText(
+    "Anyone with an email address, verified or not, can sign in through Dex."
+  )
 })
 
 test("works with the keyboard", async ({ page }) => {
