@@ -1,10 +1,10 @@
 package accessrequests
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -424,6 +424,17 @@ func TestARoleChangeGrantsTheRequestsOfThatPerson(t *testing.T) {
 	}
 }
 
+func markedGeneral(t *testing.T, item activity.InboxItem) bool {
+	t.Helper()
+	var data struct {
+		General bool `json:"general"`
+	}
+	if err := json.Unmarshal(item.Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	return data.General
+}
+
 func TestARequestInGeneralSaysSoInItsRowAndItsListing(t *testing.T) {
 	r := newRig(t)
 	payments := r.folderBy(t, "Payments", ben)
@@ -434,11 +445,11 @@ func TestARequestInGeneralSaysSoInItsRowAndItsListing(t *testing.T) {
 	}
 
 	items := accessItems(r.inbox(t, root, activity.TriageOpen))
-	if len(items) != 1 || !strings.Contains(string(items[0].Data), `"general":true`) {
+	if len(items) != 1 || !markedGeneral(t, items[0]) {
 		t.Fatalf("the Admin's access items = %+v, want one marked general", items)
 	}
 	items = accessItems(r.inbox(t, ben, activity.TriageOpen))
-	if len(items) != 1 || strings.Contains(string(items[0].Data), "general") {
+	if len(items) != 1 || markedGeneral(t, items[0]) {
 		t.Fatalf("the folder creator's access items = %+v, want one not marked general", items)
 	}
 
