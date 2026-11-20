@@ -20,6 +20,7 @@ const (
 	partitionPrefix      = "audit_events_"
 	partitionDayLayout   = "20060102"
 	partitionMonthLayout = "200601"
+	partitionYearLayout  = "2006"
 	attachLockTimeout    = "2s"
 )
 
@@ -164,6 +165,9 @@ func partitionSpan(name string) (starts, ends time.Time, ok bool) {
 	}
 	if month, err := time.Parse(partitionMonthLayout, suffix); err == nil && len(suffix) == len(partitionMonthLayout) {
 		return month, month.AddDate(0, 1, 0), true
+	}
+	if year, err := time.Parse(partitionYearLayout, suffix); err == nil && len(suffix) == len(partitionYearLayout) {
+		return year, year.AddDate(1, 0, 0), true
 	}
 	return time.Time{}, time.Time{}, false
 }

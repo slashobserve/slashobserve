@@ -18,7 +18,8 @@ import (
 const (
 	historyYears       = 10
 	futureTarget       = "99999999-9999-4999-8999-999999999999"
-	maxHistoryMonthly  = historyYears*12 + 1
+	monthlyHistory     = 24
+	maxMigrationLocks  = 1500
 	auditMigrationFile = "migrations/00074_audit_events.sql"
 )
 
@@ -39,19 +40,20 @@ func TestTheAuditBackfillPutsYearsOfHistoryInMonthlyPartitions(t *testing.T) {
 	if err := d.MigrateUpTo(ctx, auditEventsVersion); err != nil {
 		t.Fatalf("up: %v", err)
 	}
-	var monthly, daily, wantDaily, backfilled, future, historic int
+	var yearly, monthly, daily, wantDaily, backfilled, future, historic int
 	err := d.SQLDB(t).QueryRowContext(ctx, `SELECT
+  (SELECT count(*) FROM pg_catalog.pg_inherits i JOIN pg_catalog.pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'audit_events'::regclass AND c.relname ~ '^audit_events_[0-9]{4}$'),
   (SELECT count(*) FROM pg_catalog.pg_inherits i JOIN pg_catalog.pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'audit_events'::regclass AND c.relname ~ '^audit_events_[0-9]{6}$'),
   (SELECT count(*) FROM pg_catalog.pg_inherits i JOIN pg_catalog.pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = 'audit_events'::regclass AND c.relname ~ '^audit_events_[0-9]{8}$'),
   ((now() AT TIME ZONE 'UTC')::date + 14) - ((now() - interval '1 hour') AT TIME ZONE 'UTC')::date + 1,
   (SELECT count(*) FROM audit_events WHERE server_id = 'backfill'),
   (SELECT count(*) FROM audit_events WHERE target_id = $1),
-  (SELECT count(*) FROM activity WHERE target_id <> $1::uuid)`, futureTarget).Scan(&monthly, &daily, &wantDaily, &backfilled, &future, &historic)
+  (SELECT count(*) FROM activity WHERE target_id <> $1::uuid)`, futureTarget).Scan(&yearly, &monthly, &daily, &wantDaily, &backfilled, &future, &historic)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if monthly == 0 || monthly > maxHistoryMonthly || daily != wantDaily || wantDaily < audit.DaysAhead+1 {
-		t.Errorf("partitions: %d monthly, %d daily; want at most %d monthly and %d daily", monthly, daily, maxHistoryMonthly, wantDaily)
+	if yearly == 0 || yearly > historyYears-1 || monthly < monthlyHistory || monthly > monthlyHistory+1 || daily != wantDaily || wantDaily < audit.DaysAhead+1 {
+		t.Errorf("partitions: %d yearly, %d monthly, %d daily; want 1 to %d yearly, %d or %d monthly and %d daily", yearly, monthly, daily, historyYears-1, monthlyHistory, monthlyHistory+1, wantDaily)
 	}
 	if backfilled != historic || future != 0 {
 		t.Errorf("backfilled %d of %d historic rows and %d future-dated rows, want all historic and no future one", backfilled, historic, future)
@@ -90,8 +92,8 @@ func TestTheAuditMigrationHoldsFewLocksOverYearsOfHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("migration over %d years of daily activity: %d locks held at commit of a lock table of %d, %s", historyYears, locks, lockTable, took.Round(time.Millisecond))
-	if leftForOthers := lockTable / 3; locks > lockTable-leftForOthers {
-		t.Fatalf("the migration holds %d locks, leaving less than a third of the lock table of %d to other sessions", locks, lockTable)
+	if locks >= maxMigrationLocks {
+		t.Fatalf("the migration holds %d locks, want fewer than %d", locks, maxMigrationLocks)
 	}
 	if !slices.ContainsFunc(notices, func(m string) bool { return strings.HasPrefix(m, "1 activity rows dated after ") }) {
 		t.Errorf("notices = %q, want one counting the future-dated activity row", notices)

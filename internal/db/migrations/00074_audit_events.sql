@@ -111,11 +111,18 @@ DO $$
 DECLARE
   daily_from DATE := ((now() - interval '1 hour') AT TIME ZONE 'UTC')::date;
   first DATE := coalesce((SELECT (min(created_at) AT TIME ZONE 'UTC')::date FROM activity), daily_from);
+  monthly_from DATE := (date_trunc('month', daily_from::timestamp) - interval '24 months')::date;
+  year DATE;
   month DATE;
   day DATE;
 BEGIN
+  IF first < monthly_from THEN
+    FOR year IN SELECT generate_series(date_trunc('year', first::timestamp), date_trunc('year', (monthly_from - 1)::timestamp), interval '1 year')::date LOOP
+      PERFORM audit_events_attach('audit_events_' || to_char(year, 'YYYY'), year, least((year + interval '1 year')::date, monthly_from));
+    END LOOP;
+  END IF;
   IF first < daily_from THEN
-    FOR month IN SELECT generate_series(date_trunc('month', first::timestamp), date_trunc('month', (daily_from - 1)::timestamp), interval '1 month')::date LOOP
+    FOR month IN SELECT generate_series(date_trunc('month', greatest(first, monthly_from)::timestamp), date_trunc('month', (daily_from - 1)::timestamp), interval '1 month')::date LOOP
       PERFORM audit_events_attach('audit_events_' || to_char(month, 'YYYYMM'), month, least((month + interval '1 month')::date, daily_from));
     END LOOP;
   END IF;
@@ -263,7 +270,7 @@ DECLARE
   detached TEXT;
 BEGIN
   FOR detached IN SELECT c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_events_([0-9]{6}|[0-9]{8})$'
+    WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_events_([0-9]{4}|[0-9]{6}|[0-9]{8})$'
       AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid) LOOP
     EXECUTE format('DROP TABLE %I', detached);
   END LOOP;

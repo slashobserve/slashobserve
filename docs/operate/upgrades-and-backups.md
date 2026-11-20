@@ -111,7 +111,8 @@ Like migration 43, the cost grows with the log, so when it holds millions of eve
 Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
 Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
 Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
-It puts events from before the migration day into one partition per UTC month, and leaves out an activity event dated after the migration, which it counts in a notice.
+It puts events from the 24 months before the migration into one partition per UTC month and older events into one per UTC year, and leaves out an activity event dated after the migration, which it counts in a notice.
+Retention drops a partition only once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, so backfilled history older than two years is kept until the end of its year.
 During a rolling upgrade, servers still on the older version keep writing activity events without an audit event, so for 7 days after the migration the `audit_partitions` job, and every server at start, records an audit event for each activity event that has none.
 
 To go back, run `goose down-to 48` against the database before starting an older binary.

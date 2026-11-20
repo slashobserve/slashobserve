@@ -35,7 +35,7 @@ ORDER BY c.relname;
 -- name: ListDetachedAuditPartitions :many
 SELECT c.relname::text AS name
 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_events_([0-9]{6}|[0-9]{8})$'
+WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_events_([0-9]{4}|[0-9]{6}|[0-9]{8})$'
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid)
 ORDER BY c.relname;
 

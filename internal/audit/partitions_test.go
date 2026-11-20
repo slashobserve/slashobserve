@@ -129,7 +129,9 @@ func TestAPartitionEndsAtItsUpperBound(t *testing.T) {
 		"audit_events_202603":   false,
 		"audit_events_20260228": true,
 		"audit_events_20260301": false,
+		"audit_events_2025":     true,
 		"audit_events_2026":     false,
+		"audit_events_202":      false,
 		"audit_events_2026022":  false,
 		"audit_activity_202601": false,
 	} {
@@ -139,8 +141,9 @@ func TestAPartitionEndsAtItsUpperBound(t *testing.T) {
 	}
 }
 
-func TestTheRetentionDropsAMonthlyPartitionOnceItsMonthHasPassed(t *testing.T) {
+func TestTheRetentionDropsAYearlyOrMonthlyPartitionOnceItHasPassed(t *testing.T) {
 	s := newStoreRig(t, writerLimits{}, 72*time.Hour)
+	s.db.Exec(t, `SELECT audit_events_attach('audit_events_2019', '2019-01-01', '2020-01-01')`)
 	s.db.Exec(t, `SELECT audit_events_attach('audit_events_202001', '2020-01-01', '2020-02-01')`)
 	s.db.Exec(t, `SELECT audit_events_attach('audit_events_202002', '2020-02-01', '2020-03-01')`)
 	s.db.Exec(t, "ALTER TABLE audit_events DETACH PARTITION audit_events_202002")
@@ -148,10 +151,10 @@ func TestTheRetentionDropsAMonthlyPartitionOnceItsMonthHasPassed(t *testing.T) {
 		t.Fatal(err)
 	}
 	var left int
-	if err := s.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM pg_catalog.pg_class WHERE relname IN ('audit_events_202001', 'audit_events_202002')").Scan(&left); err != nil {
+	if err := s.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM pg_catalog.pg_class WHERE relname IN ('audit_events_2019', 'audit_events_202001', 'audit_events_202002')").Scan(&left); err != nil {
 		t.Fatal(err)
 	}
 	if left != 0 {
-		t.Fatalf("%d monthly partitions from 2020 are left, want both dropped", left)
+		t.Fatalf("%d of the 2019 and 2020 partitions are left, want all dropped", left)
 	}
 }

@@ -49,6 +49,10 @@ func TestTheDownMigrationDropsDetachedPartitions(t *testing.T) {
 	d := newMigratedTo(t, auditEventsVersion)
 	d.Exec(t, `SELECT audit_events_add_partition('2099-12-30')`)
 	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_20991230`)
+	d.Exec(t, `SELECT audit_events_attach('audit_events_209811', '2098-11-01', '2098-12-01')`)
+	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_209811`)
+	d.Exec(t, `SELECT audit_events_attach('audit_events_2097', '2097-01-01', '2098-01-01')`)
+	d.Exec(t, `ALTER TABLE audit_events DETACH PARTITION audit_events_2097`)
 	if err := d.MigrateDownTo(ctx, auditEventsVersion-1); err != nil {
 		t.Fatalf("down: %v", err)
 	}
