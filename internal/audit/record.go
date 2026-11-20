@@ -32,7 +32,6 @@ const (
 )
 
 type Metrics interface {
-	EventRecorded(category, action, outcome, origin, initiator string)
 	EventsDropped(reason string, n int)
 	BatchWritten(took time.Duration)
 	BufferedEvents(n int)
@@ -117,7 +116,6 @@ func (r *Recorder) Record(ctx context.Context, q *dbsqlc.Queries, e Event) error
 	if st := stateOf(ctx); st != nil {
 		st.wroteInTx(written{at: row.OccurredAt.Time, id: row.ID.Bytes, action: e.Action})
 	}
-	r.counted(row)
 	return nil
 }
 
@@ -139,16 +137,11 @@ func (r *Recorder) RecordNow(ctx context.Context, e Event) error {
 		if err := r.db.Queries().InsertAuditEvent(ctx, row); err != nil {
 			return fmt.Errorf("insert audit event: %w", err)
 		}
-		r.counted(row)
 	}
 	if st := stateOf(ctx); st != nil {
 		st.markCommitted()
 	}
 	return nil
-}
-
-func (r *Recorder) counted(row dbsqlc.InsertAuditEventParams) {
-	r.metrics.EventRecorded(row.Category, row.Action, row.Outcome, row.Origin, row.Initiator)
 }
 
 func (r *Recorder) row(ctx context.Context, e Event) (dbsqlc.InsertAuditEventParams, error) {
@@ -292,8 +285,7 @@ func nullUUID(u uuid.NullUUID) pgtype.UUID {
 
 type nopMetrics struct{}
 
-func (nopMetrics) EventRecorded(string, string, string, string, string) {}
-func (nopMetrics) EventsDropped(string, int)                            {}
-func (nopMetrics) BatchWritten(time.Duration)                           {}
-func (nopMetrics) BufferedEvents(int)                                   {}
-func (nopMetrics) PartitionsAhead(int)                                  {}
+func (nopMetrics) EventsDropped(string, int)  {}
+func (nopMetrics) BatchWritten(time.Duration) {}
+func (nopMetrics) BufferedEvents(int)         {}
+func (nopMetrics) PartitionsAhead(int)        {}

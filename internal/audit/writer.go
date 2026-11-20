@@ -130,8 +130,5 @@ func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 		w.lost.Add(lost + int64(events))
 		return batch[:0]
 	}
-	for _, row := range batch {
-		w.recorder.counted(row)
-	}
 	return batch[:0]
 }

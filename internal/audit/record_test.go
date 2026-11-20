@@ -13,7 +13,6 @@ import (
 
 type countingMetrics struct {
 	mu       sync.Mutex
-	recorded map[string]int
 	dropped  map[string]int
 	buffered int
 	ahead    int
@@ -21,13 +20,7 @@ type countingMetrics struct {
 }
 
 func newCountingMetrics() *countingMetrics {
-	return &countingMetrics{recorded: map[string]int{}, dropped: map[string]int{}, batches: make(chan time.Duration, 64)}
-}
-
-func (m *countingMetrics) EventRecorded(category, action, outcome, origin, initiator string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.recorded[action+" "+outcome]++
+	return &countingMetrics{dropped: map[string]int{}, batches: make(chan time.Duration, 64)}
 }
 
 func (m *countingMetrics) EventsDropped(reason string, n int) {
