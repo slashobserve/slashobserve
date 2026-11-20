@@ -253,3 +253,22 @@ func TestAnMCPRequestWithoutACredentialIsRecordedAsRefusedFromMCP(t *testing.T) 
 		t.Fatalf("event = %+v", got)
 	}
 }
+
+func TestAnMCPCallRefusedForTooManyRequestsIsRecordedWithTheMCPOriginAndItsKey(t *testing.T) {
+	f := newFixture(t)
+	h := f.handler.(*handler)
+	h.authn = keyScopingAuth{inner: f.authn}
+	key := principalKey(auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1"})
+	h.slots.mu.Lock()
+	h.slots.held[key] = maxInFlight
+	h.slots.mu.Unlock()
+	a := mountAudited(t, h)
+	rec := a.post(rpc(1, "tools/list", map[string]any{}), map[string]string{"Authorization": goodKey}, "")
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	got := a.only(t, "request.refuse")
+	if got.outcome != "denied" || got.status != 429 || got.origin != "mcp" || got.authMethod != "api_key" || got.actorKind != "service_account" || got.credentialID != "key-1" {
+		t.Fatalf("event = %+v", got)
+	}
+}
