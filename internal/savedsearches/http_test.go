@@ -136,8 +136,14 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 	if !strings.Contains(renamed.Body.String(), `"title":"Checkout errors"`) {
 		t.Fatalf("rename %s", renamed.Body)
 	}
+	changed := d.send(t, editor, http.MethodPatch, "/api/v1/saved-searches/"+id, `{"query":"{app=\"y\"}","filters":{"columns":["line"]},"from":"now-24h","to":"now-1h"}`, http.StatusOK)
+	if !strings.Contains(changed.Body.String(), `"query":"{app=\"y\"}"`) || !strings.Contains(changed.Body.String(), `"from":"now-24h"`) || !strings.Contains(changed.Body.String(), `"columns":["line"]`) {
+		t.Fatalf("content update %s", changed.Body)
+	}
 	d.send(t, editor, http.MethodPatch, "/api/v1/saved-searches/"+id, `{"folder_id":"`+shared.String()+`"}`, http.StatusOK)
 	d.send(t, editor, http.MethodDelete, "/api/v1/saved-searches/"+id, "", http.StatusNoContent)
+
+	liveID := idOf(t, d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", logsBody, http.StatusCreated))
 
 	refusals := []struct {
 		name, method, path, body string
@@ -162,6 +168,10 @@ func TestSavedSearchRoutesMatchTheDocument(t *testing.T) {
 		{"an update with nothing in it", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{}`, editor, http.StatusBadRequest, "invalid_request"},
 		{"an update of another person's search", http.MethodPatch, "/api/v1/saved-searches/" + id, `{"title":"x"}`, otherEditor, http.StatusNotFound, "not_found"},
 		{"an update by someone who can only view", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{"title":"x"}`, viewer, http.StatusForbidden, "forbidden_role"},
+		{"an update with an empty query", http.MethodPatch, "/api/v1/saved-searches/" + liveID, `{"query":""}`, editor, http.StatusUnprocessableEntity, "invalid_saved_search"},
+		{"an update with a trace filter on a logs search", http.MethodPatch, "/api/v1/saved-searches/" + liveID, `{"filters":{"errors":true}}`, editor, http.StatusUnprocessableEntity, "invalid_saved_search"},
+		{"an update of the datasource", http.MethodPatch, "/api/v1/saved-searches/" + liveID, `{"datasource_uid":"tempo"}`, editor, http.StatusBadRequest, "invalid_request"},
+		{"a content update by someone who can only view", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{"from":"now-2h"}`, viewer, http.StatusForbidden, "forbidden_role"},
 		{"an update with an empty title", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{"title":" "}`, editor, http.StatusUnprocessableEntity, "invalid_saved_search"},
 		{"a move into My Dashboards", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{"folder_id":"` + d.personal(t, editor).String() + `"}`, editor, http.StatusConflict, "personal_folder"},
 		{"a move into a folder that does not exist", http.MethodPatch, "/api/v1/saved-searches/" + idOf(t, traces), `{"folder_id":"5f3c1a52-8a0e-4b8c-9a55-0a6f3e4b7d10"}`, editor, http.StatusNotFound, "not_found"},

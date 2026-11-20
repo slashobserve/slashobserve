@@ -9,6 +9,12 @@ import {
 } from "./search"
 
 describe("validateMetricsSearch", () => {
+  it("keeps a saved search id and drops anything else", () => {
+    const id = "5f0c1e0e-0000-4000-8000-000000000001"
+    expect(validateMetricsSearch({ saved: id }).saved).toBe(id)
+    expect(validateMetricsSearch({ saved: "not-an-id" }).saved).toBeUndefined()
+  })
+
   it("keeps a valid search", () => {
     const search = {
       q: "sum(rate(http_requests_total[5m]))",
@@ -21,7 +27,7 @@ describe("validateMetricsSearch", () => {
 
   it("lists every key so a dropped one overrides the raw URL", () => {
     expect(Object.keys(validateMetricsSearch({})).sort()).toEqual(
-      ["ask", "from", "mode", "observation", "q", "to"].sort()
+      ["ask", "from", "mode", "observation", "q", "saved", "to"].sort()
     )
   })
 

@@ -139,7 +139,7 @@ export function validObservation(value: unknown): string | undefined {
   return id !== undefined && uuidPattern.test(id) ? id : undefined
 }
 
-function validSaved(value: unknown): string | undefined {
+export function validSaved(value: unknown): string | undefined {
   return validObservation(value)
 }
 

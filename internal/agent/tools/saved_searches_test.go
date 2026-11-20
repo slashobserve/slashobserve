@@ -83,6 +83,7 @@ func TestSavedSearchToolsOnlyRunOutsideAgentRuns(t *testing.T) {
 	for name, input := range map[string]string{
 		nameSaveSearch:        `{"kind":"logs","title":"Errors","datasource_uid":"logs","query":"{app=\"x\"}"}`,
 		nameListSavedSearches: `{}`,
+		nameUpdateSavedSearch: `{"id":"99999999-9999-4999-8999-999999999999","from":"now-2h"}`,
 	} {
 		res := r.call(t, &Run{Mode: ModeCreate}, keyCaller, name, input)
 		body, ok := res.Content.(errorBody)
@@ -203,6 +204,62 @@ func TestSaveSearchRefusesWhatCannotBeSaved(t *testing.T) {
 	}
 	if res := r.call(t, nil, keyCaller, nameListSavedSearches, `{"folder_id":"`+restricted+`"}`); errorCode(t, res) != codeNotFound {
 		t.Errorf("listing a folder the key cannot see: %#v", res.Content)
+	}
+}
+
+func TestUpdateSavedSearchReplacesWhatItRunsAndKeepsTheRest(t *testing.T) {
+	r := newSearchRig(t)
+	saved, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource_uid":"logs","query":"{a=\"b\"}","filters":{"columns":["level"]}}`).Content.(savedsearches.SavedSearchJSON)
+	if !ok {
+		t.Fatal("save failed")
+	}
+
+	res := r.call(t, nil, keyCaller, nameUpdateSavedSearch, `{"id":"`+saved.ID+`","query":"{a=\"c\"}","filters":{"columns":["timestamp","line"]},"from":"now-6h","to":"now-1h"}`)
+	got, ok := res.Content.(savedsearches.SavedSearchJSON)
+	if res.IsError || !ok || got.Query == nil || *got.Query != `{a="c"}` || got.From != "now-6h" || got.To != "now-1h" || len(got.Filters.Columns) != 2 {
+		t.Fatalf("update: %#v", res.Content)
+	}
+	if got.Title != "Errors" || got.DatasourceUID != "logs" || got.Folder.ID != saved.Folder.ID || !strings.Contains(got.URL, "cols=timestamp%2Cline") {
+		t.Errorf("title, datasource, folder or url after the update: %#v", got)
+	}
+
+	listed, ok := r.call(t, nil, keyCaller, nameListSavedSearches, `{}`).Content.(savedSearchListOut)
+	if !ok || len(listed.SavedSearches) != 1 || listed.SavedSearches[0].From != "now-6h" {
+		t.Errorf("list after the update: %#v", listed)
+	}
+
+	cleared, ok := r.call(t, nil, keyCaller, nameUpdateSavedSearch, `{"id":"`+saved.ID+`","filters":null}`).Content.(savedsearches.SavedSearchJSON)
+	if !ok || len(cleared.Filters.Columns) != 0 {
+		t.Errorf("clearing filters: %#v", cleared)
+	}
+}
+
+func TestUpdateSavedSearchRefusesWhatCannotBeChanged(t *testing.T) {
+	r := newSearchRig(t)
+	saved, ok := r.call(t, nil, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource_uid":"logs","query":"{a=\"b\"}"}`).Content.(savedsearches.SavedSearchJSON)
+	if !ok {
+		t.Fatal("save failed")
+	}
+	missing := "99999999-9999-4999-8999-999999999999"
+	cases := []struct {
+		name  string
+		by    auth.Principal
+		input string
+		code  string
+	}{
+		{"an id that is not a uuid", keyCaller, `{"id":"nope","from":"now-2h"}`, codeInvalidRequest},
+		{"nothing to change", keyCaller, `{"id":"` + saved.ID + `"}`, codeInvalidRequest},
+		{"a search that does not exist", keyCaller, `{"id":"` + missing + `","from":"now-2h"}`, codeNotFound},
+		{"a blank query", keyCaller, `{"id":"` + saved.ID + `","query":" "}`, codeInvalidRequest},
+		{"a trace filter on a logs search", keyCaller, `{"id":"` + saved.ID + `","filters":{"service":"checkout"}}`, codeInvalidRequest},
+		{"a range that does not resolve", keyCaller, `{"id":"` + saved.ID + `","to":"yesterday-ish"}`, codeInvalidRequest},
+		{"a title, which this tool does not change", keyCaller, `{"id":"` + saved.ID + `","title":"x"}`, codeInvalidRequest},
+		{"a caller who can view the folder but not edit in it", groupCaller, `{"id":"` + saved.ID + `","from":"now-2h"}`, codeForbiddenRole},
+	}
+	for _, c := range cases {
+		if res := r.call(t, nil, c.by, nameUpdateSavedSearch, c.input); errorCode(t, res) != c.code {
+			t.Errorf("%s: %#v, want %s", c.name, res.Content, c.code)
+		}
 	}
 }
 

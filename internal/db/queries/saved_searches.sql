@@ -24,6 +24,11 @@ LIMIT @row_limit;
 -- name: RenameSavedSearch :one
 UPDATE saved_searches SET title = @title, updated_at = clock_timestamp() WHERE id = @id RETURNING *;
 
+-- name: ChangeSavedSearchContent :one
+UPDATE saved_searches
+SET query = sqlc.narg('query')::text, filters = @filters::jsonb, time_from = @time_from, time_to = @time_to, updated_at = clock_timestamp()
+WHERE id = @id RETURNING *;
+
 -- name: MoveSavedSearch :one
 UPDATE saved_searches SET folder_id = @folder_id, updated_at = clock_timestamp() WHERE id = @id RETURNING *;
 

@@ -5135,6 +5135,23 @@ components:
         folder_id:
           type: string
           format: uuid
+        query:
+          type: string
+          description: The new query, 1 to 8000 characters; an empty string clears the query of a trace search and is refused for a logs search.
+        filters:
+          allOf:
+            - $ref: "#/components/schemas/SavedSearchFilters"
+          nullable: true
+          description: Replaces all the filters, so send every one the search should keep; null clears them.
+        from:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: A time expression the time range accepts.
+        to:
+          type: string
+          minLength: 1
+          maxLength: 64
     FindingList:
       type: object
       additionalProperties: false

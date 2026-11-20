@@ -17,7 +17,6 @@ type fakeServiceDS struct {
 	values   []string
 	failWith error
 	calls    atomic.Int32
-	signals  []string
 }
 
 func (f *fakeServiceDS) Services(_ context.Context, req datasource.ServiceRequest) (datasource.ServiceList, error) {
@@ -29,7 +28,6 @@ func (f *fakeServiceDS) Services(_ context.Context, req datasource.ServiceReques
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	f.signals = append(f.signals, signal)
 	return datasource.ServiceList{Signal: signal, Field: f.field, Values: f.values}, nil
 }
 

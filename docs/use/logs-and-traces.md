@@ -591,8 +591,10 @@ A trace search takes a Tempo or ClickHouse datasource, and its query is optional
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The title starts as the query with all of it selected, so typing a name replaces it.
 The logs page saves the query that runs, so the filter pills are folded into the query text and reopening the search shows them as query text, not as pills.
-A logs search opened from the box, from the Logs list or from a folder shows its title and folder above the query, and the address carries its id as `saved`; **Close the saved search** removes it.
-A saved search never changes what it holds, so when you edit the query, the range or the columns the line says that **Save search** saves a new search and the open one stays as it was saved.
+A search opened from the box, from the Logs, Traces or Metrics list or from a folder shows its title and folder above the query, and the address carries its id as `saved`; **Close the saved search** removes it.
+
+When you edit the query, the range, the columns, the trace filters or the metrics view, the line says so and, to someone with Edit on the search, offers **Update saved search**, which replaces the saved query, filters and range with what the page shows and keeps the title and folder; **Save search** still saves a new search.
+Someone without Edit sees only that **Save search** saves a new search and the open one stays as it was saved.
 The title shows only for a search among the 100 most recently changed that the list holds.
 A trace search on a ClickHouse datasource saves its SQL while the SQL view shows a result, and reopens in the SQL view; otherwise it saves the fields of the search.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
@@ -606,11 +608,11 @@ On the trace search, **Save search** is disabled and says why when you cannot cr
 A search is saved in a folder, which needs the Create permission there.
 Without a folder it goes to your My Dashboards, and a service account saves it in General.
 Everyone who can view the folder can open the search, and the folder's permissions decide who may change it, as [Folders](../teams/folders.md) describes.
-Renaming, moving and deleting a saved search need Edit on it, and a move needs Edit on the target folder too.
+Renaming, moving, changing what it searches and deleting a saved search need Edit on it, and a move needs Edit on the target folder too.
 A search cannot move into a personal folder, because that would make it private without asking: save it there instead.
-The kind, datasource, query, filters and range never change, so save a new search to change one of them.
+The kind and the datasource never change, so save a new search to change either; the query, filters and range can be replaced, and the result must pass the same rules as a save.
 
-`POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one and `DELETE` removes it.
+`POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one, or replaces its `query`, `filters`, `from` and `to`, and `DELETE` removes it.
 Each saved search carries the `url` of the page that reopens it, and each change is recorded in [Activity](activity.md).
 Deleting a folder that still holds a saved search is refused, and deleting a user deletes the searches in their personal folder.
 

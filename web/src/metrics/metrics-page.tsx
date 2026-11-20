@@ -19,6 +19,7 @@ import { useAgentInfo } from "@/observe/queries"
 import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
 import { roleAtLeast } from "@/lib/roles"
 import { metricsDraft } from "@/saved-searches/draft"
+import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -218,6 +219,13 @@ function MetricsWorkspaceView({
       <div className="flex h-full min-h-0 flex-col gap-3">
         <h1 className="sr-only">Metrics in {datasource.name}</h1>
         <SourceTitle kind="metrics" source={datasource} />
+        <OpenSavedSearch
+          kind="metrics"
+          uid={uid}
+          savedId={search.saved}
+          draft={"draft" in savable ? savable.draft : undefined}
+          onClose={() => update({ saved: undefined }, { replace: true })}
+        />
         <section
           aria-label="Query"
           className="flex flex-col rounded-card border bg-card"
