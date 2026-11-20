@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -67,4 +68,24 @@ func (d *DB) InTxWithSavepoints(ctx context.Context, fn func(*dbsqlc.Queries, Sa
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+type Rows interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+func (d *DB) ReadWithin(ctx context.Context, timeout time.Duration, fn func(Rows) error) error {
+	tx, err := d.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return fmt.Errorf("begin read: %w", err)
+	}
+	defer func() {
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+		defer cancel()
+		_ = tx.Rollback(rctx)
+	}()
+	if _, err := tx.Exec(ctx, "SELECT set_config('statement_timeout', $1, true)", strconv.FormatInt(timeout.Milliseconds(), 10)); err != nil {
+		return fmt.Errorf("set statement timeout: %w", err)
+	}
+	return fn(tx)
 }
