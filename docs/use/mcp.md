@@ -72,6 +72,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_proposals` | Viewer |
 | `list_rcas` | Viewer |
 | `list_saved_searches` | Viewer |
+| `list_services` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
@@ -174,6 +175,13 @@ An overlap is reported at the panel the patch upserted or moved, with both panel
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
+
+`list_services` lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
+With `datasource` it reads that one source; without it, it asks every Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
+`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now, and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
+Each source answers its `field`, the label, column or attribute that holds the service, so a query can filter on it, and a source that does not answer in time says why under `unavailable` while the others still answer.
+Answers are cached for about a minute and a source lists at most 200 services, with `truncated` set when there were more.
+
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.

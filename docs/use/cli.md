@@ -115,6 +115,10 @@ A script or an agent with only a shell finds what to query with `bin/observe dat
 `--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
 On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
 
+`services [uid]` lists the services a Loki, Tempo, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour, with the label, column or attribute that holds them; `--window` takes a duration such as 15m, up to 6h, and `--signal` picks `logs` or `traces`.
+Without a uid it asks every such datasource and prints one row per source and signal, and a source that cannot answer in time says so while the others still answer.
+`--service checkout` keeps only the sources that hold a service whose name contains the text, case-insensitive, which answers which source holds a service.
+
 `schema <uid>` lists the tables of a ClickHouse, Elasticsearch or OpenSearch datasource, and `--table` lists one table's columns with their types.
 A cut list names the `--offset` that reads the next page; a Tempo datasource has no tables, so `schema` lists its services, span names and attribute names.
 `sample <uid>` prints up to 20 recent rows or log lines (5 by default, `--limit` sets it), cut to 300 bytes a cell, so the real values show before a query is written.

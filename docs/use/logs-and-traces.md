@@ -14,6 +14,12 @@ Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, ha
 
 `/logs` lists the log sources, each with its query language and whether it answers, and under them the saved logs searches you can view, most recently changed first, with their source, folder, who saved them and when; a source or a search opens on its own page.
 
+Each source in the list also shows the services it has seen in the last hour, the first few names and then "+N more", and a click on "+N more" shows the rest.
+A service name opens that source with the service filter applied: a pill on the field that holds the service for logs, such as `service_name` on Loki, and the service filter for traces.
+The box above the list filters the sources by the text in a source name or in a service name, so typing `checkout` leaves the sources that hold a checkout service.
+Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
+The services come from `GET /api/v1/datasources/{uid}/services`, as [Scripts and the CLI](#scripts-and-the-cli) describes, and are cached on the server for about a minute.
+
 With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
 The five you used last on this browser come first and the rest follow by name, and **More** opens the Logs list.
 The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
@@ -452,7 +458,7 @@ With two or more trace sources they are listed under **Traces** in the sidebar w
 As for logs, the order is set when the app loads and stays fixed until you reload.
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
-`/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
+`/traces` lists the trace sources and the saved trace searches like `/logs`, including the services each source has seen and the box that filters sources by source or service name, and a service opens the trace search on that source with the service filter set; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
 The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live tail**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
 **Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
@@ -621,6 +627,21 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
   -H "Content-Type: application/json" \
   -d '{"query":"{service_name=\"checkout\"}","kind":"instant","from":"now-15m","to":"now","limit":100}'
 ```
+
+`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, ClickHouse, Elasticsearch or OpenSearch datasource has seen over a recent window, with the label, column or attribute that holds them:
+
+```sh
+curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=logs&window=1h" \
+  -H "Authorization: Bearer $OBSERVE_TOKEN"
+```
+
+The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
+`signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
+`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
+The server asks the source once, with a short timeout, over that window only, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept.
+It lists at most 200 services and sets `truncated` when more exist.
+Every signed-in role from Viewer can read it, because any Viewer can already query any datasource.
+In the CLI, `observe datasources services <uid>` lists them, and `observe datasources services --service checkout` asks every source and prints the ones that hold a service whose name contains `checkout`; the MCP tool `list_services` does the same for an agent.
 
 `limit` lowers the row limit and never raises it above 1,000.
 With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
