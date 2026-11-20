@@ -70,8 +70,48 @@ function succeededOutcome(request: RequestSummary): string {
   }
 }
 
-export function deleteChatText(request: RequestSummary): string {
+export type SavedObservation = { id: string; title: string }
+
+export function savedObservations(
+  turns: readonly RequestSummary[]
+): SavedObservation[] {
+  const found = new Map<string, string>()
+  for (const turn of turns) {
+    if (
+      turn.result_kind === "observation" &&
+      turn.observation_id !== null &&
+      turn.observation_title !== null
+    ) {
+      found.set(turn.observation_id, turn.observation_title)
+    }
+  }
+  return [...found].map(([id, title]) => ({ id, title }))
+}
+
+export function deleteObservationLabel(observation: SavedObservation): string {
+  return `Also delete the observation "${observation.title}"`
+}
+
+function removedText(observations: readonly SavedObservation[]): string {
+  const names = joinThings(
+    observations.map((observation) => `"${observation.title}"`)
+  )
+  const [subject, their] =
+    observations.length === 1
+      ? [`The observation ${names} is`, "its"]
+      : [`The observations ${names} are`, "their"]
+  return `${subject} deleted for everyone, with ${their} blocks, discussion and published RCA revisions, and this cannot be undone.`
+}
+
+export function deleteChatText(
+  request: RequestSummary,
+  removing: ReadonlySet<string> = new Set()
+): string {
   const left = "It leaves your chat lists and cannot be added back."
+  const removed = savedObservations([request]).filter((observation) =>
+    removing.has(observation.id)
+  )
+  if (removed.length > 0) return `${left} ${removedText(removed)}`
   switch (request.result_kind) {
     case "version":
     case "partial_version":
@@ -92,7 +132,10 @@ export function deleteChatText(request: RequestSummary): string {
   }
 }
 
-function savedThings(turns: readonly RequestSummary[]): string[] {
+function savedThings(
+  turns: readonly RequestSummary[],
+  removing: ReadonlySet<string>
+): string[] {
   const dashboards = new Map<string, string>()
   const observations = new Map<string, string>()
   let unsavedAnswers = 0
@@ -112,7 +155,7 @@ function savedThings(turns: readonly RequestSummary[]): string[] {
       case "observation":
         if (turn.observation_id === null) {
           unsavedAnswers += 1
-        } else {
+        } else if (!removing.has(turn.observation_id)) {
           observations.set(
             turn.observation_id,
             turn.observation_title === null
@@ -151,13 +194,25 @@ function joinThings(things: readonly string[]): string {
   return `${things.slice(0, -1).join(", ")} and ${things[things.length - 1]}`
 }
 
-export function deleteTurnsText(turns: readonly RequestSummary[]): string {
-  if (turns.length === 1) return deleteChatText(turns[0])
+export function deleteTurnsText(
+  turns: readonly RequestSummary[],
+  removing: ReadonlySet<string> = new Set()
+): string {
+  if (turns.length === 1) return deleteChatText(turns[0], removing)
   const left = `All ${turns.length} messages in this chat leave your chat lists and cannot be added back.`
-  const things = savedThings(turns)
-  return things.length === 0
-    ? `${left} Nothing else is removed.`
-    : `${left} What they saved stays: ${joinThings(things)}.`
+  const things = savedThings(turns, removing)
+  const removed = savedObservations(turns).filter((observation) =>
+    removing.has(observation.id)
+  )
+  const stays =
+    things.length > 0
+      ? ` What they saved stays: ${joinThings(things)}.`
+      : removed.length === 0
+        ? " Nothing else is removed."
+        : ""
+  return removed.length === 0
+    ? `${left}${stays}`
+    : `${left}${stays} ${removedText(removed)}`
 }
 
 export function chatOutcome(request: RequestSummary): string {
