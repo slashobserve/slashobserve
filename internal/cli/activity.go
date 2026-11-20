@@ -108,7 +108,7 @@ func (a *app) activityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity",
 		Short: "List and follow what changed in the workspace",
-		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, keys, webhooks, connected agents, outbound domains and Grafana connections.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
+		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, people invites, deactivation and removal, keys, webhooks, connected agents, outbound domains, Grafana connections, datasources, public links and access requests.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
 		Example: "  observe activity\n" +
 			"  observe activity --dashboard <id> --since 24h\n" +
 			"  observe activity --follow --type run.failed --type run.canceled\n" +
@@ -124,7 +124,7 @@ func (a *app) activityCommand() *cobra.Command {
 	flags.StringVar(&a.activity.since, "since", "", "only events since a duration ago such as 24h, or since an RFC 3339 time")
 	flags.StringVar(&a.activity.until, "until", "", "only events until a duration ago such as 1h, or until an RFC 3339 time")
 	flags.StringVar(&a.activity.actor, "actor", "", "only events made by this person or service account id")
-	flags.BoolVar(&a.activity.admin, "admin", false, "only admin changes: roles, keys, webhooks, connected agents, outbound domains and Grafana connections; needs an Admin")
+	flags.BoolVar(&a.activity.admin, "admin", false, "only admin changes: roles, people invites, deactivation and removal, keys, webhooks, connected agents, outbound domains, Grafana connections, datasources, public links and access requests; needs an Admin")
 	flags.IntVar(&a.activity.limit, "limit", defaultActivityLimit, "the newest events to print, 1 to 100")
 	flags.StringVar(&a.activity.cursor, "cursor", "", "continue from the next_cursor a page ended with")
 	flags.BoolVar(&a.activity.all, "all", false, "read every page and print them as one list")
