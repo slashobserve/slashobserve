@@ -17,6 +17,7 @@ import { parseSearch, stringifySearch } from "@/lib/search"
 import { testQueryClient } from "@/test/render"
 
 import { ActivityToggle } from "./activity-toggle"
+import { activityCardId } from "./pane-openers"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { MoreMenu } from "./more-menu"
 
@@ -32,6 +33,7 @@ function setNarrow(matches: boolean) {
 
 beforeAll(() => setNarrow(false))
 afterEach(() => {
+  document.getElementById(activityCardId)?.remove()
   setNarrow(false)
   vi.unstubAllGlobals()
 })
@@ -183,6 +185,47 @@ describe("DashboardTopRow", () => {
     )
     expect(onEditJson).toHaveBeenCalledOnce()
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+  })
+
+  it("moves focus into the pane that a Controls action opened when the open sheet refused it, not back to the Controls button", async () => {
+    setNarrow(true)
+    const user = userEvent.setup()
+    const openPane = () => {
+      const pane = document.createElement("aside")
+      pane.id = activityCardId
+      pane.setAttribute("aria-labelledby", "pane-heading")
+      const heading = document.createElement("h2")
+      heading.id = "pane-heading"
+      heading.tabIndex = -1
+      heading.textContent = "Activity pane"
+      pane.append(heading)
+      document.body.append(pane)
+    }
+    await renderRow([], null, [
+      <ActivityToggle
+        key="activity"
+        pressed={false}
+        openCount={0}
+        onToggle={openPane}
+      />,
+    ])
+    await user.click(screen.getByRole("button", { name: "Controls" }))
+    await user.click(await screen.findByRole("button", { name: "Activity" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: "Activity pane" })
+    )
+  })
+
+  it("returns focus to the Controls button when the sheet closes with no pane opened", async () => {
+    setNarrow(true)
+    const user = userEvent.setup()
+    await renderRow([])
+    const opener = screen.getByRole("button", { name: "Controls" })
+    await user.click(opener)
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(document.activeElement).toBe(opener)
   })
 
   it("keeps the Controls opener findable for the panes to return focus to", async () => {

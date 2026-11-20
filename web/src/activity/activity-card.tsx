@@ -12,7 +12,7 @@ import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useOpenerFocus } from "@/components/dock/opener-focus"
-import { paneOpener } from "@/dashboards/pane-openers"
+import { activityCardId, paneOpener } from "@/dashboards/pane-openers"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
@@ -24,8 +24,6 @@ import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { EditPane, type EditGuard } from "./edit-pane"
-
-export const activityCardId = "activity-card"
 
 type Props = {
   dashboardId: string

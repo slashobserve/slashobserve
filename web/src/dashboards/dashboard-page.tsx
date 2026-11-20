@@ -12,7 +12,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ActivityCard, activityCardId } from "@/activity/activity-card"
+import { ActivityCard } from "@/activity/activity-card"
 import type { EditGuard } from "@/activity/edit-pane"
 import {
   useActivityLayout,
@@ -159,7 +159,7 @@ import { ExportView } from "./print/export-view"
 import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
-import { paneOpener } from "./pane-openers"
+import { activityCardId, paneOpener } from "./pane-openers"
 
 function activityOpener() {
   return paneOpener("activity")
