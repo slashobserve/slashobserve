@@ -33,6 +33,7 @@ type agentRequest struct {
 	URL         *string       `json:"url"`
 	Error       *string       `json:"error"`
 	Steps       []agentStep   `json:"steps"`
+	LiveText    *string       `json:"live_text"`
 	Usage       *requestUsage `json:"usage"`
 
 	QueuePosition *int            `json:"queue_position"`
@@ -253,6 +254,13 @@ func printRequest(out *output, req agentRequest) {
 		out.line("")
 		for _, step := range req.Steps {
 			out.line("  %s  %s", text(step.Phase), text(step.Message))
+		}
+	}
+	if req.LiveText != nil && *req.LiveText != "" {
+		out.line("")
+		out.line("Live text")
+		for _, line := range strings.Split(*req.LiveText, "\n") {
+			out.line("  %s", text(line))
 		}
 	}
 }
