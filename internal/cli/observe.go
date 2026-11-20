@@ -43,6 +43,7 @@ type agentRequest struct {
 	ContinuedBy   *string         `json:"continued_by"`
 	RetriedBy     *string         `json:"retried_by"`
 	Finding       *findingSummary `json:"finding"`
+	ObservationID *string         `json:"observation_id"`
 
 	AllowedActions []string `json:"allowed_actions"`
 }

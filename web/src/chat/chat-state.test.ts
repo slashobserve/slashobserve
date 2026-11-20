@@ -6,7 +6,9 @@ import {
   chatOutcome,
   chatState,
   deleteChatText,
+  deleteObservationLabel,
   deleteTurnsText,
+  savedObservations,
   statesFor,
 } from "./chat-state"
 
@@ -361,5 +363,93 @@ describe("deleteTurnsText", () => {
         )
       )
     ).toBe(`${left} What they saved stays: an answer on its chat page.`)
+  })
+
+  test("says the observation chosen for removal is deleted, not kept", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          {
+            result_kind: "version",
+            dashboard_id: "d1",
+            dashboard_title: "Checkout health",
+          },
+          {
+            result_kind: "observation",
+            observation_id: "o1",
+            observation_title: "Slowest routes",
+          },
+          { result_kind: "none" }
+        ),
+        new Set(["o1"])
+      )
+    ).toBe(
+      `${left} What they saved stays: the dashboard "Checkout health". The observation "Slowest routes" is deleted for everyone, with its blocks, discussion and published RCA revisions, and this cannot be undone.`
+    )
+  })
+
+  test("names every removed observation when nothing else stays", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          {
+            result_kind: "observation",
+            observation_id: "o1",
+            observation_title: "Slowest routes",
+          },
+          {
+            result_kind: "observation",
+            observation_id: "o2",
+            observation_title: "Error spike",
+          },
+          { result_kind: "none" }
+        ),
+        new Set(["o1", "o2"])
+      )
+    ).toBe(
+      `${left} The observations "Slowest routes" and "Error spike" are deleted for everyone, with their blocks, discussion and published RCA revisions, and this cannot be undone.`
+    )
+  })
+})
+
+describe("deleting the saved observation with the chat", () => {
+  const answer = summary({
+    result_kind: "observation",
+    observation_id: "o1",
+    observation_title: "Slowest routes",
+  })
+
+  test("keeps today's wording while the observation is not chosen", () => {
+    expect(deleteChatText(answer, new Set())).toBe(
+      'It leaves your chat lists and cannot be added back. The answer stays in the observation "Slowest routes", which is not deleted.'
+    )
+  })
+
+  test("says a single chat's observation is deleted when chosen", () => {
+    expect(deleteTurnsText([answer], new Set(["o1"]))).toBe(
+      'It leaves your chat lists and cannot be added back. The observation "Slowest routes" is deleted for everyone, with its blocks, discussion and published RCA revisions, and this cannot be undone.'
+    )
+  })
+
+  test("offers only observations the reader can see, once each", () => {
+    expect(
+      savedObservations([
+        answer,
+        answer,
+        summary({
+          result_kind: "observation",
+          observation_id: "o2",
+          observation_title: null,
+        }),
+        summary({ result_kind: "observation", observation_id: null }),
+        summary({ result_kind: "version", observation_id: "o3" }),
+      ])
+    ).toEqual([{ id: "o1", title: "Slowest routes" }])
+  })
+
+  test("names the observation on the checkbox", () => {
+    expect(deleteObservationLabel({ id: "o1", title: "Slowest routes" })).toBe(
+      'Also delete the observation "Slowest routes"'
+    )
   })
 })
