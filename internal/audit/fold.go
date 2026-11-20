@@ -1,0 +1,104 @@
+package audit
+
+import (
+	"encoding/json"
+	"slices"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+)
+
+type foldKey struct {
+	action     string
+	reason     string
+	targetKind string
+	targetID   string
+	targetName string
+	actor      pgtype.UUID
+}
+
+type fold struct {
+	row    dbsqlc.InsertAuditEventParams
+	count  int64
+	opened time.Time
+}
+
+type folds struct {
+	mu     sync.Mutex
+	window time.Duration
+	limit  int
+	open   map[foldKey]*fold
+}
+
+func newFolds(window time.Duration, limit int) *folds {
+	return &folds{window: window, limit: limit, open: map[foldKey]*fold{}}
+}
+
+func isFolded(action string) bool {
+	return slices.Contains(foldedActions, Action(action))
+}
+
+func foldKeyOf(row dbsqlc.InsertAuditEventParams) foldKey {
+	return foldKey{
+		action:     row.Action,
+		reason:     row.Reason.String,
+		targetKind: row.TargetKind.String,
+		targetID:   row.TargetID.String,
+		targetName: row.TargetName.String,
+		actor:      row.ActorID,
+	}
+}
+
+func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) bool {
+	if !isFolded(row.Action) {
+		return false
+	}
+	key := foldKeyOf(row)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, found := f.open[key]; !found && len(f.open) >= f.limit {
+		key = foldKey{action: row.Action, reason: row.Reason.String}
+	}
+	if open, found := f.open[key]; found {
+		open.count++
+		return true
+	}
+	f.open[key] = &fold{row: row, count: 1, opened: now}
+	return true
+}
+
+func (f *folds) due(now time.Time) []dbsqlc.InsertAuditEventParams {
+	return f.take(func(open *fold) bool { return now.Sub(open.opened) >= f.window })
+}
+
+func (f *folds) drain() []dbsqlc.InsertAuditEventParams {
+	return f.take(func(*fold) bool { return true })
+}
+
+func (f *folds) take(ready func(*fold) bool) []dbsqlc.InsertAuditEventParams {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var rows []dbsqlc.InsertAuditEventParams
+	for key, open := range f.open {
+		if !ready(open) {
+			continue
+		}
+		delete(f.open, key)
+		rows = append(rows, withCount(open.row, open.count))
+	}
+	slices.SortFunc(rows, func(a, b dbsqlc.InsertAuditEventParams) int { return a.OccurredAt.Time.Compare(b.OccurredAt.Time) })
+	return rows
+}
+
+func withCount(row dbsqlc.InsertAuditEventParams, count int64) dbsqlc.InsertAuditEventParams {
+	data := map[string]any{}
+	if err := json.Unmarshal(row.Data, &data); err != nil {
+		data = map[string]any{}
+	}
+	data["count"] = count
+	row.Data, _ = json.Marshal(data)
+	return row
+}
