@@ -434,11 +434,11 @@ func TestARequestInGeneralSaysSoInItsRowAndItsListing(t *testing.T) {
 	}
 
 	items := accessItems(r.inbox(t, root, activity.TriageOpen))
-	if len(items) != 1 || !strings.Contains(string(items[0].Event.Data), `"general":true`) {
+	if len(items) != 1 || !strings.Contains(string(items[0].Data), `"general":true`) {
 		t.Fatalf("the Admin's access items = %+v, want one marked general", items)
 	}
 	items = accessItems(r.inbox(t, ben, activity.TriageOpen))
-	if len(items) != 1 || strings.Contains(string(items[0].Event.Data), "general") {
+	if len(items) != 1 || strings.Contains(string(items[0].Data), "general") {
 		t.Fatalf("the folder creator's access items = %+v, want one not marked general", items)
 	}
 

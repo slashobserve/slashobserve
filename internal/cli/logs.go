@@ -142,12 +142,16 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	if headers, rows := resultTable(body.Frames); len(lines) == 0 && len(rows) > 0 {
-		out.table(headers, rows)
-		return nil
-	}
-	printLogLines(out, lines, opts.from, opts.to)
+	printLogResult(out, body.Frames, lines, opts.from, opts.to)
 	return nil
+}
+
+func printLogResult(out *output, frames []frame, lines []logLine, from, to string) {
+	if headers, rows := resultTable(frames); len(lines) == 0 && len(rows) > 0 {
+		out.table(headers, rows)
+		return
+	}
+	printLogLines(out, lines, from, to)
 }
 
 func logQueryKind(ctx context.Context, c *client, uid string) (string, error) {
