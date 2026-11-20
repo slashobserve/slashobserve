@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -44,6 +45,15 @@ type loginFailure struct {
 	reason string
 	err    error
 	attrs  []any
+	target audit.Target
+}
+
+func (f *loginFailure) outcome() audit.Outcome {
+	switch f.code {
+	case "internal", "unavailable", "exchange_failed":
+		return audit.OutcomeFailed
+	}
+	return audit.OutcomeDenied
 }
 
 func (s *Service) login(c *gin.Context) {
@@ -133,6 +143,7 @@ func (s *Service) callback(c *gin.Context) {
 		s.refuse(c, failure)
 		return
 	}
+	s.concludeSignIn(ctx, token)
 	if old, err := c.Request.Cookie(s.sessionCookie); err == nil && old.Value != "" {
 		if err := s.queries.DeleteSession(ctx, opaquetoken.Hash(old.Value)); err != nil {
 			s.logger.WarnContext(ctx, "delete previous session", logattrs.Failure("session_cleanup_failed", err)...)
@@ -140,6 +151,16 @@ func (s *Service) callback(c *gin.Context) {
 	}
 	s.setCookie(c, s.sessionCookie, token, int(s.cfg.SessionTTL.Seconds()))
 	c.Redirect(http.StatusFound, stored.ReturnTo)
+}
+
+func (s *Service) concludeSignIn(ctx context.Context, token string) {
+	row, err := s.queries.GetSessionUser(ctx, opaquetoken.Hash(token))
+	if err != nil {
+		s.logger.WarnContext(ctx, "read the new session for the audit trail", logattrs.Failure("session_lookup_failed", err)...)
+		return
+	}
+	s.sessionPrincipalOf(ctx, row)
+	audit.Conclude(ctx, audit.Result{Action: "auth.login", Outcome: audit.OutcomeSuccess, Target: audit.Target{Kind: "session", ID: row.SessionID.String()}})
 }
 
 func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateRow) (string, *loginFailure) {
@@ -208,7 +229,7 @@ func (s *Service) signIn(ctx context.Context, id identity) (string, *loginFailur
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	if user.DeactivatedAt.Valid {
-		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}}
+		return "", &loginFailure{code: "account_deactivated", attrs: []any{slog.String("user_id", user.ID.String())}, target: audit.Target{Kind: "user", ID: user.ID.String()}}
 	}
 	if user.Inserted && id.EmailVerified {
 		manual, err := s.queries.AcceptInvite(ctx, dbsqlc.AcceptInviteParams{ID: user.ID, Email: id.Email})
@@ -286,6 +307,7 @@ func truncateRunes(s string, limit int) string {
 }
 
 func (s *Service) refuse(c *gin.Context, f *loginFailure) {
+	audit.Conclude(c.Request.Context(), audit.Result{Action: "auth.login_failed", Outcome: f.outcome(), Reason: f.code, Target: f.target})
 	if f.err != nil && clientgone.Handle(c, s.logger, "sign-in", f.err) {
 		return
 	}

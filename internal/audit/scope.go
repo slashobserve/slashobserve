@@ -19,6 +19,7 @@ type state struct {
 	scope     Scope
 	inTx      []written
 	committed bool
+	result    *Result
 }
 
 type scopeKey struct{}
@@ -52,6 +53,16 @@ func Update(ctx context.Context, fn func(*Scope)) {
 	fn(&st.scope)
 }
 
+func Conclude(ctx context.Context, r Result) {
+	st := stateOf(ctx)
+	if st == nil {
+		return
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.result = &r
+}
+
 func (st *state) wroteInTx(w written) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -64,8 +75,8 @@ func (st *state) markCommitted() {
 	st.committed = true
 }
 
-func (st *state) unsettled() (bool, []written) {
+func (st *state) unsettled() (bool, []written, *Result) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	return st.committed, append([]written(nil), st.inTx...)
+	return st.committed, append([]written(nil), st.inTx...), st.result
 }

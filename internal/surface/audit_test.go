@@ -14,9 +14,10 @@ import (
 )
 
 var nonHTTPAuditSources = map[audit.Action]string{
-	audit.ActionGap:    "the access event writer, when its buffer drops events",
-	audit.ActionPrune:  "the audit_partitions job, when it removes old partitions",
-	audit.ActionRefuse: "the request middleware, for a 401, 403 or 429 on a route that declares no action",
+	audit.ActionGap:     "the access event writer, when its buffer drops events",
+	audit.ActionPrune:   "the audit_partitions job, when it removes old partitions",
+	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
+	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
 }
 
 var pendingAuditActions = []audit.Action{
@@ -25,7 +26,6 @@ var pendingAuditActions = []audit.Action{
 	"audit.search",
 	"auth.credential_rejected",
 	"auth.csrf_rejected",
-	"auth.login_failed",
 	"block.add",
 	"block.edit",
 	"block.remove",

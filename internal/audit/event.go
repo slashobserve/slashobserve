@@ -13,6 +13,7 @@ const (
 	OutcomeSuccess Outcome = "success"
 	OutcomeDenied  Outcome = "denied"
 	OutcomeFailed  Outcome = "failed"
+	OutcomeUnknown Outcome = "unknown"
 )
 
 type ActorKind string
@@ -99,6 +100,13 @@ type By struct {
 	Actor  Actor
 	Origin Origin
 	RunID  uuid.NullUUID
+}
+
+type Result struct {
+	Action  Action
+	Outcome Outcome
+	Reason  string
+	Target  Target
 }
 
 type Event struct {

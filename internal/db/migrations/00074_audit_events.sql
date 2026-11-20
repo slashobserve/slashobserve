@@ -8,7 +8,7 @@ CREATE TABLE audit_events (
   occurred_at TIMESTAMPTZ NOT NULL,
   category TEXT NOT NULL CHECK (category IN ('auth', 'access', 'content', 'conversation', 'agent', 'query', 'admin', 'system')),
   action TEXT NOT NULL CHECK (action ~ '^[a-z_]+\.[a-z_]+$'),
-  outcome TEXT NOT NULL CHECK (outcome IN ('success', 'denied', 'failed')),
+  outcome TEXT NOT NULL CHECK (outcome IN ('success', 'denied', 'failed', 'unknown')),
   reason TEXT,
   status INTEGER,
   duration_ms INTEGER,

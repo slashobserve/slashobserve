@@ -3,11 +3,15 @@ package audit
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/api"
 )
 
 func TestReadDeclaration(t *testing.T) {
@@ -75,7 +79,8 @@ func TestOutcomeFor(t *testing.T) {
 	onKind := Declaration{Action: "dashboard.create", Target: &TargetRule{Kind: "dashboard"}}
 	for _, d := range []Declaration{onTarget, onKind, {}} {
 		for status, want := range map[int]Outcome{
-			200: OutcomeSuccess, 201: OutcomeSuccess, 204: OutcomeSuccess, 302: OutcomeSuccess, 304: OutcomeSuccess,
+			200: OutcomeSuccess, 201: OutcomeSuccess, 204: OutcomeSuccess, 304: OutcomeSuccess,
+			301: OutcomeUnknown, 302: OutcomeUnknown, 303: OutcomeUnknown, 307: OutcomeUnknown, 308: OutcomeUnknown,
 			401: OutcomeDenied, 403: OutcomeDenied, 429: OutcomeDenied,
 			400: OutcomeFailed, 409: OutcomeFailed, 422: OutcomeFailed, 500: OutcomeFailed, 503: OutcomeFailed,
 		} {
@@ -90,6 +95,30 @@ func TestOutcomeFor(t *testing.T) {
 	for _, d := range []Declaration{onKind, {}} {
 		if got := outcomeFor(404, d); got != OutcomeFailed {
 			t.Errorf("404 on %+v = %s, want failed", d, got)
+		}
+	}
+}
+
+var routesThatConcludeTheirRedirects = []string{"GET /api/v1/auth/callback"}
+
+func TestEveryDeclaredRouteThatRedirectsConcludesItsOwnResult(t *testing.T) {
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, item := range doc.Paths.Map() {
+		for method, op := range item.Operations() {
+			d, _, err := ReadDeclaration(op)
+			if err != nil || d.Action == "" {
+				continue
+			}
+			route := method + " " + APIPrefix + path
+			for code := range op.Responses.Map() {
+				status, err := strconv.Atoi(code)
+				if err == nil && redirected(status) && !slices.Contains(routesThatConcludeTheirRedirects, route) {
+					t.Errorf("%s answers %d and declares %s: its handler must call Conclude, then list it here", route, status, d.Action)
+				}
+			}
 		}
 	}
 }

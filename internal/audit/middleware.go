@@ -2,6 +2,7 @@ package audit
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -78,13 +79,21 @@ type outcomeOf struct {
 }
 
 func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
-	committed, inTx := st.unsettled()
+	committed, inTx, concluded := st.unsettled()
 	if committed {
 		return
 	}
 	action := o.declared.Action
 	outcome := outcomeFor(o.status, o.declared)
 	reason := o.code
+	target := o.declared.target(o.params)
+	if concluded != nil {
+		action = cmp.Or(concluded.Action, action)
+		outcome, reason = concluded.Outcome, concluded.Reason
+		if concluded.Target.Kind != "" {
+			target = concluded.Target
+		}
+	}
 	if len(inTx) > 0 {
 		recorded, err := r.anyCommitted(ctx, inTx)
 		if err != nil {
@@ -113,7 +122,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		Outcome:  outcome,
 		Reason:   reason,
 		Status:   o.status,
-		Target:   o.declared.target(o.params),
+		Target:   target,
 		Duration: o.took,
 	})
 	if err != nil {
@@ -148,12 +157,22 @@ func (d Declaration) target(params gin.Params) Target {
 func outcomeFor(status int, declared Declaration) Outcome {
 	_, namesTarget := declared.Target.PathParam()
 	switch {
+	case redirected(status):
+		return OutcomeUnknown
 	case status < http.StatusBadRequest:
 		return OutcomeSuccess
 	case refused(status), status == http.StatusNotFound && namesTarget:
 		return OutcomeDenied
 	}
 	return OutcomeFailed
+}
+
+func redirected(status int) bool {
+	switch status {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return true
+	}
+	return false
 }
 
 func refused(status int) bool {
