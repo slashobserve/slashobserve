@@ -10,7 +10,7 @@ These are the gaps that most often decide whether it fits.
 
 SlashObserve reads six datasource types: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
 Elasticsearch and OpenSearch are logs datasources.
-A datasources file entry with any other `type` is refused (see [Datasources file](../reference/datasources-file.md)).
+A datasources file entry with any other `type` is refused (see [Datasources file](../reference/datasources-file.md)), and so is a datasource of another type in the app.
 There is no Jaeger, InfluxDB, CloudWatch or SQL database datasource such as MySQL or PostgreSQL.
 When you import a Grafana panel that queries another type, such as InfluxDB, it imports as a placeholder that says "Influxdb is not supported yet." and the datasource cannot be mapped.
 Tempo search builder queries and TraceQL metrics queries are dropped from an import by decision; write the search as a TraceQL query instead.
@@ -24,7 +24,7 @@ An alert list panel shows the firing and pending alerts that a Prometheus `ALERT
 
 ## Who can query which datasource
 
-Datasources are defined in the server's [datasources file](../reference/datasources-file.md), and every signed-in person from Viewer up, and every service-account key, may run a query against any of them through the explore query that the logs page and the trace search use.
+Datasources come from the server's [datasources file](../reference/datasources-file.md) or are [added in the app](../connect/datasources-in-the-app.md) by an Admin, and every signed-in person from Viewer up, and every service-account key, may run a query against any of them through the explore query that the logs page and the trace search use.
 There is no per-team or per-folder datasource permission.
 A restricted folder hides its dashboards, not the datasources they read (see [Folders and access](../teams/folders.md)).
 To keep a team away from data, give the datasource account only the access you want every person here to have.
@@ -55,9 +55,10 @@ The import reads dashboard JSON that you provide.
 It also fetches dashboards from a running Grafana, with their folders (see [Switch from Grafana](../use/switch-from-grafana.md)).
 Panel types and options the ObserveSpec format cannot hold are reported at their path (see [Import Grafana dashboards](../use/import-grafana.md)); the [import coverage table](https://slashobserve.com/grafana) on slashobserve.com shows which Grafana features map, change or wait.
 
-Alert rules and annotations are not imported.
+Alert rules and annotation queries are not imported.
 The report marks them as excluded by decision, and a panel whose only report lines are such decisions still counts as imported.
-Library panels and panels from plugins import as placeholders, because there is no shared panel object and no plugin mechanism: SlashObserve draws the panel types it ships, and each dashboard holds its own copy of a panel.
+A library panel imports as a normal panel when the export carries its definition and as a placeholder when it does not, and a panel from a plugin imports as a placeholder.
+There is no shared panel object and no plugin mechanism: SlashObserve draws the panel types it ships, and each dashboard holds its own copy of a panel.
 Users, teams, folder permissions and playlists stay in Grafana (see [Switch from Grafana](../use/switch-from-grafana.md#what-maps-what-changes-and-what-waits)).
 
 ## Wall screens

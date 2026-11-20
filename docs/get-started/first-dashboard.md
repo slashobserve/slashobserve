@@ -25,7 +25,7 @@ A prompt is 1 to 4000 characters.
 ## Watch the agent work
 
 The page switches to a conversation that shows your prompt and, below it, "Building the dashboard" with a progress list.
-Each line is one step the server recorded, grouped by phase:
+Each line is one phase of the work, made of the steps the server recorded:
 
 | Phase            | What the agent is doing                                                                                                    |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -35,16 +35,19 @@ Each line is one step the server recorded, grouped by phase:
 | Saving           | Saving the draft, which runs every panel query again.                                                                      |
 | Repairing        | Fixing a draft that the save rejected.                                                                                     |
 
-Repeated steps of one phase fold into a single line such as "3 times, latest: Listed 12 metrics on prom".
-A step that failed gets a warning icon and is read out as "needed a fix".
+A line names the tools its phase used, with a count when a tool ran more than once, such as "list_metrics 3".
+A phase with more than one step has a **Show N steps** button that lists each step's message, such as "Listed 12 metrics on prom".
+A phase that needed a fix gets a warning icon.
+While the agent writes, its latest text shows under the list, and "Running for" counts the time since the run started.
 The agent only works with names it discovered, so a wrong metric or label usually shows up here as a failed check followed by a repair.
 
 A save is refused when a panel's query is invalid or returns no data.
 The agent then repairs the draft and saves again, a few repair rounds.
 If it still cannot save, the conversation ends with "The dashboard could not be built" and a **Try again** button.
 
-When the dashboard is saved, the progress list collapses into a line such as "Ran 14 steps, repaired 1 query", which you can open to see every step.
-Below it a result card shows the dashboard title, how many panels it has and which datasources they use, and the footer "Saved as version 1".
+When the dashboard is saved, the progress list collapses into a line such as "Ran 14 steps in 1m 12s for about $0.12, repaired 1 query", which you can open to see every step.
+The cost shows only when the model is priced.
+Below it a result card shows the dashboard title, how many panels it has and which datasources they use, and the footer "Saved as version 1" with when it was saved.
 
 ## Open the dashboard
 
