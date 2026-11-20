@@ -77,6 +77,9 @@ export function deleteChatText(request: RequestSummary): string {
     case "partial_version":
       return `${left} The dashboard it made stays.`
     case "observation":
+      if (request.observation_id === null) {
+        return `${left} The answer stays on the chat page, which still opens from its link.`
+      }
       return request.observation_title === null
         ? `${left} The answer stays in its observation, which is not deleted.`
         : `${left} The answer stays in the observation "${request.observation_title}", which is not deleted.`

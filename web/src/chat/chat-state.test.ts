@@ -213,13 +213,30 @@ describe("deleteChatText", () => {
     ],
     [
       "an answer in a named observation",
-      { result_kind: "observation" as const, observation_title: "p99 latency" },
+      {
+        result_kind: "observation" as const,
+        observation_id: "o1",
+        observation_title: "p99 latency",
+      },
       'It leaves your chat lists and cannot be added back. The answer stays in the observation "p99 latency", which is not deleted.',
     ],
     [
       "an answer in an observation the reader cannot see",
-      { result_kind: "observation" as const, observation_title: null },
+      {
+        result_kind: "observation" as const,
+        observation_id: "o1",
+        observation_title: null,
+      },
       "It leaves your chat lists and cannot be added back. The answer stays in its observation, which is not deleted.",
+    ],
+    [
+      "an answer kept in the chat",
+      {
+        result_kind: "observation" as const,
+        observation_id: null,
+        observation_title: null,
+      },
+      "It leaves your chat lists and cannot be added back. The answer stays on the chat page, which still opens from its link.",
     ],
     [
       "a suggestion",
