@@ -61,6 +61,7 @@ var (
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+	jobKeys      = []string{"trigger", "duration_ms"}
 )
 
 func change(c Category, data ...[]string) Spec {
@@ -212,7 +213,7 @@ var catalog = map[Action]Spec{
 	"server.stop":     change(CategorySystem),
 	"migration.apply": change(CategorySystem),
 	"provision.apply": change(CategorySystem),
-	"job.run":         change(CategorySystem),
+	"job.run":         change(CategorySystem, jobKeys),
 	"webhook.deliver": access(CategorySystem),
 	ActionPrune:       change(CategorySystem, pruneKeys),
 	ActionGap:         change(CategorySystem, gapKeys),

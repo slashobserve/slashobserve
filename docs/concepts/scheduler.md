@@ -10,7 +10,8 @@ Each job has a name and an interval, and it runs once per interval across all th
 
 Every job has one row in the `jobs` table of the database, written when a server starts with the job registered.
 The row keeps when the job runs next, which server holds it, and when and how it last ran: `last_outcome` is `succeeded` or `failed`, and `last_error` is a short description of a failure, such as its error type, never the error's own text.
-The transaction that writes the outcome also records one `job.run` audit event, as the system for a scheduled run and as the person for a run they started, and a job stopped by a shutdown records none; the heartbeat job records none.
+The transaction that writes the outcome also records one `job.run` audit event when a person started the run, whatever its outcome, or when the run failed, whoever started it; a scheduled run that succeeds records none, and neither does a job stopped by a shutdown.
+The event names the job, the person or the system that started it, a `trigger` of `schedule` or `manual` and the `duration_ms` of the run.
 
 A server looks for due jobs when it starts and every 15 seconds after.
 Each due job runs in its own goroutine, so a long job such as the dashboard health check never holds up a short one that is due at the same time.

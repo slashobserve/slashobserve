@@ -23,6 +23,13 @@ const (
 	HeartbeatJob = "scheduler_heartbeat"
 )
 
+type trigger string
+
+const (
+	triggerSchedule trigger = "schedule"
+	triggerManual   trigger = "manual"
+)
+
 var outcomes = []string{OutcomeSucceeded, OutcomeFailed, OutcomeInterrupted}
 
 const (
@@ -108,7 +115,7 @@ func (s *Scheduler) RunNow(ctx context.Context, name string, by *audit.By) error
 	if err != nil {
 		return err
 	}
-	s.run(ctx, j, c, by)
+	s.run(ctx, j, c, triggerManual, by)
 	return nil
 }
 
@@ -146,11 +153,11 @@ func (s *Scheduler) runDue(ctx context.Context, running *sync.WaitGroup) {
 			}
 			return
 		}
-		running.Go(func() { s.run(ctx, s.jobs[c.name], c, nil) })
+		running.Go(func() { s.run(ctx, s.jobs[c.name], c, triggerSchedule, nil) })
 	}
 }
 
-func (s *Scheduler) run(ctx context.Context, j job, c claim, by *audit.By) {
+func (s *Scheduler) run(ctx context.Context, j job, c claim, trig trigger, by *audit.By) {
 	s.metrics.JobStarted(j.name)
 	started := time.Now()
 	runCtx, cancel := context.WithDeadline(ctx, c.deadline)
@@ -165,7 +172,7 @@ func (s *Scheduler) run(ctx context.Context, j job, c claim, by *audit.By) {
 	if outcome == OutcomeInterrupted {
 		held, recordErr = s.store.release(recordCtx, c)
 	} else {
-		held, recordErr = s.store.finish(recordCtx, c, outcome, summary(err), runEvent(j.name, outcome, err, by))
+		held, recordErr = s.store.finish(recordCtx, c, outcome, summary(err), runEvent(j.name, outcome, err, trig, by, time.Since(started)))
 	}
 	s.metrics.JobFinished(j.name, outcome)
 
@@ -186,11 +193,17 @@ func (s *Scheduler) run(ctx context.Context, j job, c claim, by *audit.By) {
 	}
 }
 
-func runEvent(name, outcome string, err error, by *audit.By) *audit.Event {
-	if name == HeartbeatJob {
+func runEvent(name, outcome string, err error, trig trigger, by *audit.By, took time.Duration) *audit.Event {
+	if by == nil && outcome != OutcomeFailed {
 		return nil
 	}
-	event := audit.Event{Action: "job.run", Outcome: audit.OutcomeSuccess, Target: audit.Target{Kind: "job", ID: name}, By: by}
+	event := audit.Event{
+		Action:  "job.run",
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "job", ID: name},
+		By:      by,
+		Data:    map[string]any{"trigger": string(trig), "duration_ms": took.Milliseconds()},
+	}
 	if outcome == OutcomeFailed {
 		event.Outcome, event.Reason = audit.OutcomeFailed, "job_failed"
 		var p panicError

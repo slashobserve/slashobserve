@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -395,7 +396,11 @@ func TestADueJobDoesNotWaitForASlowerOne(t *testing.T) {
 	}
 }
 
-func TestScheduledRunRecordsOneSystemEventWithTheJob(t *testing.T) {
+func dataKeys(e dbtest.AuditEvent) []string {
+	return slices.Sorted(maps.Keys(e.Data))
+}
+
+func TestAScheduledRunThatSucceedsRecordsNothing(t *testing.T) {
 	d := dbtest.New(t)
 	s, _ := newScheduler(t, d, "server-a")
 	run, done := signal()
@@ -405,17 +410,33 @@ func TestScheduledRunRecordsOneSystemEventWithTheJob(t *testing.T) {
 	runUntil(t, s, probed)
 	<-done
 
-	events := d.AuditEvents(t, "job.run")
-	want := dbtest.AuditEvent{Action: "job.run", Outcome: "success", ActorKind: "system", Initiator: "system", Origin: "job", TargetKind: "job", TargetID: "a-sweep"}
-	if len(events) != 2 {
-		t.Fatalf("job.run events = %+v, want one per job except the heartbeat", events)
-	}
-	if !slices.ContainsFunc(events, func(e dbtest.AuditEvent) bool { return fmt.Sprint(e) == fmt.Sprint(want) }) {
-		t.Errorf("events %+v lack %+v", events, want)
+	if events := d.AuditEvents(t, "job.run"); len(events) != 0 {
+		t.Fatalf("job.run events = %+v, want none for scheduled runs that succeeded", events)
 	}
 }
 
-func TestRunNowByAPersonRecordsThatPersonOnce(t *testing.T) {
+func TestAScheduledRunThatFailsRecordsASystemEventWithTheScheduleTrigger(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-broken", time.Hour, func(context.Context) error { return errors.New("sok_secret") })
+	probe, probed := signal()
+	s.Register("z-probe", time.Hour, probe)
+	runUntil(t, s, probed)
+
+	events := d.AuditEvents(t, "job.run")
+	if len(events) != 1 {
+		t.Fatalf("job.run events = %+v, want one for the failed run", events)
+	}
+	e := events[0]
+	if e.Outcome != "failed" || e.Reason != "job_failed" || e.ActorKind != "system" || e.Initiator != "system" || e.Origin != "job" || e.TargetID != "a-broken" {
+		t.Errorf("event %+v", e)
+	}
+	if e.Data["trigger"] != "schedule" || !slices.Equal(dataKeys(e), []string{"duration_ms", "trigger"}) {
+		t.Errorf("data %v, want trigger schedule and duration_ms", e.Data)
+	}
+}
+
+func TestRunNowByAPersonRecordsThatPersonOnceWhateverTheOutcome(t *testing.T) {
 	d := dbtest.New(t)
 	s, _ := newScheduler(t, d, "server-a")
 	s.Register("a-health", time.Hour, func(context.Context) error { return nil })
@@ -425,9 +446,17 @@ func TestRunNowByAPersonRecordsThatPersonOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := d.AuditEvents(t, "job.run")
-	want := []dbtest.AuditEvent{{Action: "job.run", Outcome: "success", ActorKind: "user", ActorID: person.String(), Initiator: "person", Origin: "api", TargetKind: "job", TargetID: "a-health"}}
-	if fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("events %+v, want %+v", got, want)
+	if len(got) != 1 {
+		t.Fatalf("events %+v, want one", got)
+	}
+	e := got[0]
+	want := dbtest.AuditEvent{Action: "job.run", Outcome: "success", ActorKind: "user", ActorID: person.String(), Initiator: "person", Origin: "api", TargetKind: "job", TargetID: "a-health"}
+	e.Data = nil
+	if fmt.Sprint(e) != fmt.Sprint(want) {
+		t.Errorf("event %+v, want %+v", e, want)
+	}
+	if got[0].Data["trigger"] != "manual" || !slices.Equal(dataKeys(got[0]), []string{"duration_ms", "trigger"}) {
+		t.Errorf("data %v, want trigger manual and duration_ms", got[0].Data)
 	}
 }
 
@@ -443,8 +472,8 @@ func TestAFailedJobRecordsAFailedEventAndAPanicSaysSo(t *testing.T) {
 	}
 	reasons := map[string]string{}
 	for _, e := range d.AuditEvents(t, "job.run") {
-		if e.Outcome != "failed" || len(e.DataKeys) != 0 {
-			t.Errorf("event %+v, want failed with no data", e)
+		if e.Outcome != "failed" || !slices.Equal(dataKeys(e), []string{"duration_ms", "trigger"}) {
+			t.Errorf("event %+v, want failed with the trigger and duration", e)
 		}
 		reasons[e.TargetID] = e.Reason
 	}
