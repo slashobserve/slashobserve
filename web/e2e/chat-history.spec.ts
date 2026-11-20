@@ -37,6 +37,8 @@ function rowOf(aside: Locator, requestId: string) {
   return aside.locator(`[data-chat-row][id="chat-row-${requestId}"]`)
 }
 
+const unlistedChatPath = "/c/00000000-0000-4000-8000-0000000000ff"
+
 async function openHistory(page: Page, path = "/ask") {
   await page.goto(path)
   await historyButton(page).click()
@@ -356,7 +358,7 @@ for (const scheme of ["light", "dark"] as const) {
         return route.fulfill({ json: historyList(requests, null) })
       })
 
-      await openHistory(page, "/keys")
+      await openHistory(page, unlistedChatPath)
       const aside = panel(page)
       await expect(
         aside.getByText("Could not load your requests.")
@@ -394,7 +396,7 @@ for (const scheme of ["light", "dark"] as const) {
         return route.fulfill({ json: historyList([], null) })
       })
 
-      await openHistory(page, "/keys")
+      await openHistory(page, unlistedChatPath)
       const aside = panel(page)
       const retry = aside.getByRole("button", { name: "Retry" })
       await expect(retry).toBeVisible()
