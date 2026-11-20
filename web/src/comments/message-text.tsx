@@ -15,12 +15,6 @@ import type { MentionPerson } from "./mentions"
 
 type Mention = components["schemas"]["Mention"]
 
-function writtenByPerson(actor: components["schemas"]["Actor"]): boolean {
-  return (
-    actor.kind === "user" && actor.run_id === null && actor.origin !== "mcp"
-  )
-}
-
 export function MessageText({
   message,
   people,
@@ -67,8 +61,9 @@ export function MessageText({
       />
     )
   }
-  const markdown = !folded && writtenByPerson(message.actor)
-  const codeSpans = !folded && !markdown && message.actor.run_id !== null
+  const runAuthored = message.actor.run_id !== null
+  const markdown = !folded && !runAuthored
+  const codeSpans = !folded && runAuthored
   const chat = folded
     ? null
     : chatAnswerLink(message.body, message.actor.run_id)
