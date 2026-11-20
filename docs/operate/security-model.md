@@ -11,9 +11,12 @@ description: What SlashObserve protects and what an operator should know.
   Session cookies are `HttpOnly` and `SameSite=Lax`, and a cross-origin write made with a cookie is refused; `SLASHOBSERVE_PUBLIC_URL` is a trusted origin.
 - **Roles.**
   Every person and service account has an instance role (see [Roles](../teams/roles.md)), and the server checks it on every API route.
-  Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, open the Datasources page, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
+  Only Admins see everyone who has signed in, invite, sign out, deactivate or remove people, manage service accounts and keys, open the Datasources page, manage Grafana connections and webhooks, read the Audit log, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
+  What an Admin changes about people, keys, integrations and access is recorded in the activity log without any secret (see [Activity](../use/activity.md#admin-changes)).
   Every person, Viewers included, can ask the agent for dashboards in their My Dashboards, which spends model tokens and lets the agent query every configured datasource for them.
   New people are Editors by default, so allow into SlashObserve only the people you would trust to create and change dashboards.
+- **An admin email needs a verified address.**
+  An address in `SLASHOBSERVE_ADMIN_EMAILS` makes a person an Admin only when the provider reports it as verified, so a provider that lets people set an unverified address cannot be used to claim an Admin's address (see [Roles](../teams/roles.md#how-a-role-is-decided)).
 
 ## Dashboard access
 
@@ -72,6 +75,10 @@ ClickHouse is queried only as a read-only user.
   Continue also needs the access that starting a run needs, and it answers 409 when someone saved a newer version of the dashboard after the build started.
   A run that does not end holds back other editors' revisions on its dashboard until its limits, its requester or a run time limit end it.
 
+- **The built-in agent's token only works beside the server.**
+  The agent process claims runs with a token that is new at each start, accepted only from a loopback peer on a request with no forwarding header, and it lists only the four claim tools (see [The agent process](../concepts/agent.md#the-agent-process)).
+- **Draft questions are capped.**
+  Each person or key may start 60 draft queries per clock hour, a count every server shares, on top of the limits on concurrent drafts; a refused one answers `429 too_many_requests` and calls no model.
 - **The agent can only save dashboards.**
   Its only product is a dashboard definition that the server validates, and no code or markup written by the model is rendered.
   A save from the agent or an MCP client is refused when it writes HTML in a text panel (`html_not_allowed`) or adds or changes a canvas or field action (`action_not_allowed`), so only people and imports can create them.
@@ -97,12 +104,16 @@ ClickHouse is queried only as a read-only user.
   Every response carries a strict `Content-Security-Policy`: scripts, stylesheets, images, fonts and connections come only from the server's own origin (images may also be `data:` or `blob:` URLs, and inline styles are allowed), and plugins, frames, media and `<base>` are refused.
   So even if a sanitizer were ever bypassed, injected script could not run or send data to another site.
   Images and GeoJSON from other sites reach the browser only through the server, which fetches them from allowlisted domains (see [Outbound access](outbound-access.md#images-and-geojson)).
+- **Links are limited to safe schemes.**
+  A link in a dashboard, panel, override or canvas element whose address starts with a scheme other than `http`, `https` or `mailto` is refused when the Spec is saved, over the API, the CLI and MCP alike (`unsafe_link`), and the browser drops such a link from a stored Spec as well.
 - **HTML in text panels is sanitized.**
   HTML written by a person or imported from Grafana passes through one allowlist in the browser before it is drawn.
   Scripts, styles, forms, embedded frames, event handler attributes, links and images with any scheme but http, https and (for links) mailto are removed, and so are inline style declarations that load a resource or read a variable.
   Every image loads through the server, so the policy above still decides what the browser fetches.
 - **Framing is refused.**
   Responses carry `X-Frame-Options: DENY` and `frame-ancestors 'none'` in the policy.
+- **`/metrics` needs no sign-in.**
+  The series hold route templates, codes and model names and no ids, user names or query text, but anyone who can reach the route can read them, so keep it on an internal network or block it at the proxy, or set `SLASHOBSERVE_METRICS=false` (see [Metrics](metrics.md)).
 
 ## Keys
 
@@ -130,6 +141,8 @@ People connect their own MCP clients, such as Claude Code, VS Code and Cursor, t
 - **Access tokens last 1 hour and refresh tokens 30 days, replaced on every use.**
   Using an already replaced refresh token more than 10 seconds later disconnects the connection, and inside 10 seconds it only fails, so a client with two processes does not lose its connection.
   A connection ends at 90 days whatever its use, and the person then approves again, which passes through the identity provider's sign-in.
+- **`/mcp` takes only a bearer token.**
+  A service-account key or an OAuth access token works there, a session cookie is ignored, and a request with an `Origin` header other than `SLASHOBSERVE_PUBLIC_URL` is refused with `403 forbidden_origin`.
 - **Tokens are bound to `<public url>/mcp` and accepted nowhere else.**
   Changing `SLASHOBSERVE_PUBLIC_URL` therefore disconnects every connected agent.
 - **A connected agent has exactly the person's role and folder access, read again on every request.**

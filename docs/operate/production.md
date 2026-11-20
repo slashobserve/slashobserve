@@ -24,6 +24,8 @@ It is a Server-Sent Events stream that sends a ping every 15 seconds, tells the 
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
 The server ignores `X-Forwarded-For`.
+Keep `/metrics` off the public internet, because it needs no sign-in (see [Metrics](metrics.md)).
+A proxy on the same host as the server must send `X-Forwarded-For` or another forwarding header, so the server can tell its traffic from the built-in agent's; see [The agent process](../concepts/agent.md#the-agent-process).
 
 Serve the proxy over HTTP/2.
 The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).
