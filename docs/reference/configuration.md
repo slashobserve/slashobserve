@@ -51,6 +51,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | --- | --- | --- |
 | `SLASHOBSERVE_ACTIVITY_RETENTION` | `4320h` | A Go duration from `24h` to `87600h`; `4320h` is 180 days. The hourly `activity_prune` job deletes [activity](../use/activity.md) events older than this. |
 
+## Audit
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | A Go duration from `24h` to `87600h`; `8760h` is one year. Audit events are stored in one Postgres partition per UTC day, and the daily `audit_partitions` job drops the partitions older than this, recording an `audit.prune` event. |
+
 ## Dashboard provisioning
 
 | Variable | Default | Notes |

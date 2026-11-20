@@ -28,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agentsview"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -312,6 +313,15 @@ func run() error {
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
 	serverID := instanceID()
+	recorder := audit.New(audit.Config{
+		DB: database, Server: serverID, Version: version, Metrics: serverMetrics.Audit(), Retention: cfg.AuditRetention, Logger: logger,
+	})
+	audit.Install(recorder)
+	if err := recorder.PartitionJob()(ctx); err != nil {
+		logger.Warn("audit partitions not prepared", logattrs.Failure("audit_partitions_failed", err)...)
+	}
+	stopAudit := startBackground(ctx, "audit writer", recorder.Run, logger)
+	defer stopAudit()
 	membership := fleet.New(database, serverID, version, logger)
 	serverMetrics.Fleet(membership.Live)
 	stopFleet := startFleet(ctx, membership, logger)
@@ -434,6 +444,7 @@ func run() error {
 	jobs := scheduler.New(logger, database, serverMetrics.Scheduler(), serverID)
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
+	jobs.Register("audit_partitions", 24*time.Hour, recorder.PartitionJob())
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))

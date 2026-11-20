@@ -5,6 +5,8 @@
 package dbsqlc
 
 import (
+	"net/netip"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -144,6 +146,51 @@ type AppliedDashboard struct {
 	ContentSha256 string
 	AppliedByID   pgtype.UUID
 	UpdatedAt     pgtype.Timestamptz
+}
+
+type AuditEvent struct {
+	ID            pgtype.UUID
+	Seq           int64
+	Xid           pgtype.Uint64
+	OccurredAt    pgtype.Timestamptz
+	Category      string
+	Action        string
+	Outcome       string
+	Reason        pgtype.Text
+	Status        pgtype.Int4
+	DurationMs    pgtype.Int4
+	ActorKind     string
+	ActorID       pgtype.UUID
+	ActorName     pgtype.Text
+	ActorRole     pgtype.Text
+	Initiator     string
+	AgentID       pgtype.UUID
+	AgentName     pgtype.Text
+	RunID         pgtype.UUID
+	AuthMethod    pgtype.Text
+	CredentialID  pgtype.Text
+	Origin        string
+	OriginClient  pgtype.Text
+	Tool          pgtype.Text
+	ClientIp      *netip.Addr
+	UserAgent     pgtype.Text
+	RequestID     pgtype.UUID
+	TraceID       pgtype.Text
+	HttpMethod    pgtype.Text
+	Route         pgtype.Text
+	TargetKind    pgtype.Text
+	TargetID      pgtype.Text
+	TargetName    pgtype.Text
+	FolderID      pgtype.UUID
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	ThreadID      pgtype.UUID
+	ChatID        pgtype.UUID
+	DatasourceUid pgtype.Text
+	Data          []byte
+	Search        interface{}
+	ServerID      string
+	ServerVersion string
 }
 
 type Dashboard struct {

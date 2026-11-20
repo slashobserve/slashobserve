@@ -260,3 +260,55 @@ func (c poolCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(poolEmpty, prometheus.CounterValue, float64(s.EmptyAcquireCount()))
 	ch <- prometheus.MustNewConstMetric(poolWait, prometheus.CounterValue, s.AcquireDuration().Seconds())
 }
+
+var auditWriteBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
+
+type Audit struct {
+	events     *prometheus.CounterVec
+	dropped    *prometheus.CounterVec
+	writes     prometheus.Histogram
+	buffered   prometheus.Gauge
+	partitions prometheus.Gauge
+}
+
+func (r *Registry) Audit() Audit {
+	a := Audit{
+		events: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "slashobserve_audit_events_total",
+			Help: "Audit events recorded, by category, action, outcome, origin and initiator.",
+		}, []string{"category", "action", "outcome", "origin", "initiator"}),
+		dropped: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "slashobserve_audit_dropped_total",
+			Help: "Audit events or data keys not stored, by reason (buffer_full, write_failed or undeclared_key).",
+		}, []string{"reason"}),
+		writes: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name:    "slashobserve_audit_write_seconds",
+			Help:    "Time to write one batch of access events.",
+			Buckets: auditWriteBuckets,
+		}),
+		buffered: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "slashobserve_audit_buffer_events",
+			Help: "Access events waiting in this server's buffer at the last flush.",
+		}),
+		partitions: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "slashobserve_audit_partitions_ahead",
+			Help: "Daily audit partitions attached after today, as of the last partition job.",
+		}),
+	}
+	r.registry.MustRegister(a.events, a.dropped, a.writes, a.buffered, a.partitions)
+	return a
+}
+
+func (a Audit) EventRecorded(category, action, outcome, origin, initiator string) {
+	a.events.WithLabelValues(category, action, outcome, origin, initiator).Inc()
+}
+
+func (a Audit) EventsDropped(reason string, n int) {
+	a.dropped.WithLabelValues(reason).Add(float64(n))
+}
+
+func (a Audit) BatchWritten(took time.Duration) { a.writes.Observe(took.Seconds()) }
+
+func (a Audit) BufferedEvents(n int) { a.buffered.Set(float64(n)) }
+
+func (a Audit) PartitionsAhead(n int) { a.partitions.Set(float64(n)) }

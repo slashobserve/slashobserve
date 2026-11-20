@@ -97,6 +97,31 @@ func TestScrapeServesEverySeries(t *testing.T) {
 	}
 }
 
+func TestAuditSeriesAreServedOnceTheRecorderIsWired(t *testing.T) {
+	r := metrics.New()
+	a := r.Audit()
+	a.EventRecorded("content", "dashboard.update", "success", "web", "person")
+	a.EventRecorded("content", "dashboard.update", "success", "web", "person")
+	a.EventsDropped("buffer_full", 3)
+	a.BatchWritten(4 * time.Millisecond)
+	a.BufferedEvents(12)
+	a.PartitionsAhead(14)
+
+	body := scrape(t, r)
+	for _, want := range []string{
+		`slashobserve_audit_events_total{action="dashboard.update",category="content",initiator="person",origin="web",outcome="success"} 2`,
+		`slashobserve_audit_dropped_total{reason="buffer_full"} 3`,
+		`slashobserve_audit_write_seconds_bucket{le="0.005"} 1`,
+		`slashobserve_audit_write_seconds_count 1`,
+		`slashobserve_audit_buffer_events 12`,
+		`slashobserve_audit_partitions_ahead 14`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("scrape lacks %q", want)
+		}
+	}
+}
+
 func TestSeriesWithoutObservationsAreAbsent(t *testing.T) {
 	body := scrape(t, metrics.New())
 	if strings.Contains(body, "slashobserve_") {

@@ -42,6 +42,9 @@ These jobs run hourly:
 - `oauth_prune` deletes expired OAuth codes, tokens and sign-in requests, grants that expired or were revoked more than 30 days ago, and clients that registered over 24 hours ago and never signed in, which [MCP](../use/mcp.md) clients leave behind.
 - `run_tokens_prune` deletes expired run tokens and the records of agent workers whose grant or service account is gone.
 
+`audit_partitions` runs daily, and every server also runs it once at start.
+It keeps the audit table's daily partitions 14 days ahead and drops those older than `SLASHOBSERVE_AUDIT_RETENTION` (see [Configuration](../reference/configuration.md#audit)).
+
 `agent_requests_sweep` runs every minute.
 It fails agent requests that ran out of attempts, ends requests whose run was canceled, expires requests that no agent claimed within 10 minutes, retries thread replies that did not post in the last 24 hours, and deletes expired build records.
 

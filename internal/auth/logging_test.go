@@ -30,6 +30,10 @@ func (f failingDB) Query(context.Context, string, ...any) (pgx.Rows, error) { re
 
 func (f failingDB) QueryRow(context.Context, string, ...any) pgx.Row { return failingRow(f) }
 
+func (f failingDB) CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error) {
+	return 0, f.err
+}
+
 type failingRow struct{ err error }
 
 func (r failingRow) Scan(...any) error { return r.err }
