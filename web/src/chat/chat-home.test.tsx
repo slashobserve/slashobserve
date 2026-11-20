@@ -11,7 +11,7 @@ const navigate = vi.hoisted(() => vi.fn())
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
   useNavigate: () => navigate,
-  useRouteContext: () => ({ principal: { id: "u1", role: "viewer" } }),
+  useRouteContext: () => ({ principal: { id: "u1", role: "editor" } }),
 }))
 vi.mock("@/home/dashboards-section", () => ({ DashboardsSection: () => null }))
 vi.mock("@/prompts/saved-prompts", () => ({ SavedPrompts: () => null }))
