@@ -329,3 +329,21 @@ func TestARevokeNamingAnUnknownClientIsNeverStoredAsATarget(t *testing.T) {
 	}
 	r.assertNoSecrets(t, junk)
 }
+
+func TestARefusedOAuthCallIsNotWrittenOnTheRequestPath(t *testing.T) {
+	r := newAuditedRig(t)
+	r.registered(t, "claude-code")
+	if rec := r.form("/oauth/token", url.Values{"grant_type": {"refresh_token"}, "refresh_token": {"sor_" + strings.Repeat("a", 43)}, "client_id": {"nobody"}}); rec.Code == http.StatusOK {
+		t.Fatalf("token = %d", rec.Code)
+	}
+	var written int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM audit_events WHERE action = 'oauth.token'`).Scan(&written); err != nil {
+		t.Fatal(err)
+	}
+	if written != 0 {
+		t.Fatalf("%d refusals were inserted before the response went out, want them queued for the writer", written)
+	}
+	if got := r.only(t, "oauth.token"); got.outcome != "denied" {
+		t.Fatalf("event = %+v", got)
+	}
+}
