@@ -328,6 +328,16 @@ func decodeMessage(err error) string {
 	return "cannot parse"
 }
 
+func audienceOf(path string, raw yamlString, errs []error) (datasource.Audience, []error) {
+	switch audience := datasource.Audience(raw.value); {
+	case raw.problem != "":
+		return "", append(errs, fmt.Errorf("%s.audience: %s", path, raw.problem))
+	case audience == "" || audience == datasource.AudienceEveryone || audience == datasource.AudienceAdmins:
+		return audience, errs
+	}
+	return "", append(errs, fmt.Errorf("%s.audience: must be %s or %s, got %q", path, datasource.AudienceEveryone, datasource.AudienceAdmins, raw.value))
+}
+
 func convertDatasource(path string, raw fileDatasource, lookup func(string) (string, bool)) (Datasource, []error) {
 	var errs []error
 	fail := func(field, format string, args ...any) {
@@ -346,14 +356,7 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		fail("name", "%s", raw.Name.problem)
 	}
 
-	switch audience := datasource.Audience(raw.Audience.value); {
-	case raw.Audience.problem != "":
-		fail("audience", "%s", raw.Audience.problem)
-	case audience == "" || audience == datasource.AudienceEveryone || audience == datasource.AudienceAdmins:
-		ds.Audience = audience
-	default:
-		fail("audience", "must be %s or %s, got %q", datasource.AudienceEveryone, datasource.AudienceAdmins, raw.Audience.value)
-	}
+	ds.Audience, errs = audienceOf(path, raw.Audience, errs)
 
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
 	errs = append(errs, limitErrs...)
