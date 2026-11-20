@@ -5,7 +5,7 @@ description: An Admin adds, edits, tests and removes datasources on the Datasour
 
 An Admin can add a datasource without editing a file or restarting the server.
 Open the Datasources page, choose Add datasource, pick the type, fill in the address and any credentials, test the connection, then save.
-The datasource answers queries as soon as it is saved, and other servers in a fleet pick it up within 15 seconds.
+The datasource answers queries as soon as it is saved, and other servers in a fleet pick it up within 10 seconds.
 
 The Datasources page is in the sidebar for Admins only.
 Each row shows the name and id, the type, whether the datasource is "From file" or "Added in the app", its status, how many dashboards use it and when it was last checked.
