@@ -315,7 +315,7 @@ The Chats page lists all your chats, newest first, grouped Today, This week and 
 Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
 An answer is searched only where you could read it: one kept in the chat while you can open the dashboard it is about, and one saved as an observation while you can see that observation's folder.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
-The list ends with how many chats match the search and state, and on Everyone how many people started them.
+The list ends with how many chats it shows, counting a conversation of several messages once, and on Everyone how many people started them; while older chats are still to load it says "so far".
 
 Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
@@ -335,6 +335,7 @@ Each chat has a menu with these actions:
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
 - **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
+  A conversation of several messages says how many messages go and names what they saved, such as `What they saved stays: the dashboard "Checkout health" and the observation "Slowest routes".`, or says "Nothing else is removed." when they saved nothing.
 
 Only the person who started a chat can rename, pin or delete it.
 

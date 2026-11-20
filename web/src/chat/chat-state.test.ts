@@ -2,7 +2,13 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { chatOutcome, chatState, deleteChatText, statesFor } from "./chat-state"
+import {
+  chatOutcome,
+  chatState,
+  deleteChatText,
+  deleteTurnsText,
+  statesFor,
+} from "./chat-state"
 
 function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
   return {
@@ -263,5 +269,97 @@ describe("deleteChatText", () => {
         summary({ result_kind: "observation", dashboard_id: null })
       )
     ).not.toMatch(/dashboard/i)
+  })
+})
+
+describe("deleteTurnsText", () => {
+  const left =
+    "All 3 messages in this chat leave your chat lists and cannot be added back."
+
+  function turns(...overrides: Partial<RequestSummary>[]): RequestSummary[] {
+    return overrides.map((turn, index) => summary({ id: `t${index}`, ...turn }))
+  }
+
+  test("words one message as a single chat", () => {
+    expect(deleteTurnsText(turns({ result_kind: "none" }))).toBe(
+      deleteChatText(summary({ id: "t0", result_kind: "none" }))
+    )
+  })
+
+  test("says nothing else is removed when no message saved anything", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          { result_kind: "none" },
+          { result_kind: "none" },
+          {
+            result_kind: "none",
+          }
+        )
+      )
+    ).toBe(`${left} Nothing else is removed.`)
+  })
+
+  test("names a dashboard once however many messages revised it", () => {
+    const dashboard = {
+      result_kind: "version" as const,
+      dashboard_id: "d1",
+      dashboard_title: "Checkout health",
+    }
+    expect(
+      deleteTurnsText(turns(dashboard, dashboard, { result_kind: "none" }))
+    ).toBe(`${left} What they saved stays: the dashboard "Checkout health".`)
+  })
+
+  test("names the dashboard, the observation and the proposal", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          {
+            result_kind: "version",
+            dashboard_id: "d1",
+            dashboard_title: "Checkout health",
+          },
+          {
+            result_kind: "observation",
+            observation_id: "o1",
+            observation_title: "Slowest routes",
+          },
+          { result_kind: "proposal" }
+        )
+      )
+    ).toBe(
+      `${left} What they saved stays: the dashboard "Checkout health", the observation "Slowest routes" and a proposal.`
+    )
+  })
+
+  test("does not name what the reader cannot see", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          { result_kind: "version", dashboard_id: "d1", dashboard_title: null },
+          {
+            result_kind: "observation",
+            observation_id: "o1",
+            observation_title: null,
+          },
+          { result_kind: "suggestion" }
+        )
+      )
+    ).toBe(
+      `${left} What they saved stays: a dashboard, an observation and a panel suggestion.`
+    )
+  })
+
+  test("says where an unsaved answer stays", () => {
+    expect(
+      deleteTurnsText(
+        turns(
+          { result_kind: "observation", observation_id: null },
+          { result_kind: "none" },
+          { result_kind: "none" }
+        )
+      )
+    ).toBe(`${left} What they saved stays: an answer on its chat page.`)
   })
 })
