@@ -61,6 +61,10 @@ var (
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+
+	renamedKeys    = []string{"from_title", "title"}
+	permissionKeys = []string{"before", "after"}
+	memberKeys     = []string{"user_id", "user_name"}
 )
 
 func change(c Category, data ...[]string) Spec {
@@ -125,7 +129,7 @@ var catalog = map[Action]Spec{
 	"proposal.merge":            change(CategoryContent, proposalKeys),
 	"proposal.discard":          change(CategoryContent, proposalKeys),
 	"folder.create":             change(CategoryContent),
-	"folder.rename":             change(CategoryContent),
+	"folder.rename":             change(CategoryContent, renamedKeys),
 	"folder.move":               change(CategoryContent),
 	"folder.delete":             change(CategoryContent),
 	"block.add":                 change(CategoryContent),
@@ -200,11 +204,11 @@ var catalog = map[Action]Spec{
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),
 	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin),
+	"folder.permissions_change":  change(CategoryAdmin, permissionKeys),
 	"team.create":                change(CategoryAdmin),
 	"team.delete":                change(CategoryAdmin),
-	"team.member_add":            change(CategoryAdmin),
-	"team.member_remove":         change(CategoryAdmin),
+	"team.member_add":            change(CategoryAdmin, memberKeys),
+	"team.member_remove":         change(CategoryAdmin, memberKeys),
 	"settings.change":            change(CategoryAdmin),
 	"action.run":                 change(CategoryAdmin),
 
