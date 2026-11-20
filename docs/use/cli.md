@@ -175,7 +175,7 @@ Anyone who can see the request and may start that kind of request can retry it, 
 A request that has not finished or was already retried fails with `request <request-id> is <state> and cannot be retried`, and a comment or suggestion request cannot be retried.
 `observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`, or `Retried by <request-id>` once it was retried.
 
-Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
+Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id> (forbidden_role)`.
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
 Continuing a revision fails when its dashboard has a newer version than the build started from.
 
