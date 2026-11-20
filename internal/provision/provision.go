@@ -31,6 +31,8 @@ const (
 	maxMessageBytes = 2048
 	summaryPrefix   = "Provisioned from "
 	sessionLockName = "provision"
+	provisionAction = "provision.apply"
+	reasonUnchanged = "unchanged"
 )
 
 var (
@@ -56,6 +58,7 @@ type Provisioner struct {
 	logged  map[string]string
 	gone    map[string]bool
 	failing bool
+	saves   int
 }
 
 func New(logger *slog.Logger, dash *dashboards.Service, access *folders.Access, database *db.DB, dir string) *Provisioner {
@@ -134,6 +137,7 @@ func (p *Provisioner) provisionAll(ctx context.Context) error {
 	ctx = origin.With(ctx, origin.Origin{Kind: origin.API})
 	present := make(map[string]bool, len(files))
 	failing := false
+	p.saves = 0
 	for _, f := range files {
 		present[f.Path] = true
 		delete(p.gone, f.Path)
@@ -154,6 +158,9 @@ func (p *Provisioner) provisionAll(ctx context.Context) error {
 		}
 	}
 	p.failing = failing
+	if p.saves == 0 && !failing {
+		return p.store.unchanged(ctx)
+	}
 	return nil
 }
 
@@ -223,6 +230,7 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 			return p.fail(ctx, f, found, err)
 		}
 		p.saved(ctx, f, row.DashboardID.String(), ver.Number)
+		p.saves++
 		return false, p.store.saved(ctx, f.Path, row.DashboardID, sum, row.FolderTitle)
 	}
 	target, err := p.folders.ForImport(ctx, principal, f.Folder)
@@ -238,6 +246,7 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 		return false, err
 	}
 	p.saved(ctx, f, dash.ID, ver.Number)
+	p.saves++
 	return false, p.store.saved(ctx, f.Path, id, sum, target.Folder.Title)
 }
 

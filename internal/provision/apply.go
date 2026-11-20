@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -208,7 +209,7 @@ func (a *Applier) create(ctx context.Context, by auth.Principal, res Result, fol
 	if err != nil {
 		return Result{}, err
 	}
-	if err := a.bind(ctx, by, res.Path, id, sum); err != nil {
+	if err := a.bind(ctx, by, res.Path, id, sum, ""); err != nil {
 		return Result{}, err
 	}
 	res.Outcome, res.DashboardID, res.Version = OutcomeCreated, dash.ID, ver.Number
@@ -243,7 +244,7 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 		}
 	}
 	if unchanged {
-		if err := a.bind(ctx, by, res.Path, id, sum); err != nil {
+		if err := a.bind(ctx, by, res.Path, id, sum, reasonUnchanged); err != nil {
 			return Result{}, err
 		}
 		res.Outcome, res.Version = OutcomeUnchanged, latest
@@ -253,7 +254,7 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	if err != nil {
 		return failure(res, err)
 	}
-	if err := a.bind(ctx, by, res.Path, id, sum); err != nil {
+	if err := a.bind(ctx, by, res.Path, id, sum, ""); err != nil {
 		return Result{}, err
 	}
 	res.Outcome, res.Version = OutcomeUpdated, ver.Number
@@ -280,7 +281,7 @@ func (a *Applier) sameAsVersion(ctx context.Context, id pgtype.UUID, version int
 	return bytes.Equal(next, prev), nil
 }
 
-func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id pgtype.UUID, sum string) error {
+func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id pgtype.UUID, sum, reason string) error {
 	appliedBy, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return fmt.Errorf("applier id: %w", err)
@@ -289,7 +290,10 @@ func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id p
 		if err := q.DeleteAppliedDashboardElsewhere(ctx, dbsqlc.DeleteAppliedDashboardElsewhereParams{DashboardID: id, Path: path}); err != nil {
 			return err
 		}
-		return q.UpsertAppliedDashboard(ctx, dbsqlc.UpsertAppliedDashboardParams{Path: path, DashboardID: id, ContentSha256: sum, AppliedByID: appliedBy})
+		if err := q.UpsertAppliedDashboard(ctx, dbsqlc.UpsertAppliedDashboardParams{Path: path, DashboardID: id, ContentSha256: sum, AppliedByID: appliedBy}); err != nil {
+			return err
+		}
+		return audit.Record(ctx, q, audit.Event{Action: provisionAction, Reason: reason, Target: dashboardTarget(id), By: &audit.By{Actor: auth.AuditActor(by)}})
 	})
 	if db.IsForeignKeyViolation(err) {
 		return nil

@@ -2,6 +2,7 @@ package provision_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/provision"
 )
@@ -265,5 +267,36 @@ func TestApplyHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 				t.Fatalf("status %d body %s breaks the document: %v", rec.Code, rec.Body.String(), err)
 			}
 		})
+	}
+}
+
+func TestApplyRecordsOneEventPerAttemptAsTheCaller(t *testing.T) {
+	r := newApplyRig(t)
+	created := r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "up"))
+	r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "up"))
+	updated := r.apply(t, r.editor, "Shop/checkout.json", specJSON("Checkout", "rate(up[5m])"))
+	if updated.Outcome != provision.OutcomeUpdated {
+		t.Fatalf("third apply = %+v", updated)
+	}
+
+	want := func(reason string) dbtest.AuditEvent {
+		return dbtest.AuditEvent{Action: "provision.apply", Outcome: "success", Reason: reason, ActorKind: "user", ActorID: r.editor.ID, Initiator: "person", Origin: "job", TargetKind: "dashboard", TargetID: created.DashboardID}
+	}
+	got := r.db.AuditEvents(t, "provision.apply")
+	if fmt.Sprint(got) != fmt.Sprint([]dbtest.AuditEvent{want(""), want("unchanged"), want("")}) {
+		t.Errorf("events %+v", got)
+	}
+}
+
+func TestApplyThatChangesNothingBecauseItIsRefusedRecordsNoEvent(t *testing.T) {
+	r := newApplyRig(t)
+	if res := r.apply(t, r.editor, "Shop/empty.json", `{}`); res.Code == "" {
+		t.Fatalf("empty apply = %+v, want a refusal", res)
+	}
+	if res := r.apply(t, r.editor, "Shop/broken.json", `{"title":`); res.Code == "" {
+		t.Fatalf("invalid apply = %+v, want a refusal", res)
+	}
+	if n := len(r.db.AuditEvents(t, "provision.apply")); n != 0 {
+		t.Errorf("events = %d, want 0", n)
 	}
 }

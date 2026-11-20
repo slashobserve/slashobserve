@@ -3,8 +3,10 @@ package provision
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
@@ -22,8 +24,21 @@ func (s store) saved(ctx context.Context, path string, dashboardID pgtype.UUID, 
 		if err := q.UpsertProvisionedDashboard(ctx, dbsqlc.UpsertProvisionedDashboardParams{Path: path, DashboardID: dashboardID, ContentSha256: sum, FolderTitle: folder}); err != nil {
 			return err
 		}
-		return q.DeleteProvisionError(ctx, path)
+		if err := q.DeleteProvisionError(ctx, path); err != nil {
+			return err
+		}
+		return audit.Record(ctx, q, audit.Event{Action: provisionAction, Target: dashboardTarget(dashboardID)})
 	})
+}
+
+func (s store) unchanged(ctx context.Context) error {
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		return audit.Record(ctx, q, audit.Event{Action: provisionAction, Reason: reasonUnchanged, Target: audit.Target{Kind: "dashboard"}})
+	})
+}
+
+func dashboardTarget(id pgtype.UUID) audit.Target {
+	return audit.Target{Kind: "dashboard", ID: id.String(), DashboardID: uuid.NullUUID{UUID: id.Bytes, Valid: true}}
 }
 
 func (s store) dashboardFailed(ctx context.Context, path, message string) error {
