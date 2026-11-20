@@ -339,10 +339,15 @@ Each chat has a menu with these actions:
 
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
-- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
+- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link.
   A conversation of several messages says how many messages go and names what they saved, such as `What they saved stays: the dashboard "Checkout health" and the observation "Slowest routes".`, or says "Nothing else is removed." when they saved nothing.
 
 Only the person who started a chat can rename, pin or delete it.
+
+The Delete dialog shows an unchecked **Also delete the observation "<title>"** for each observation the chat saved that you may delete, which needs Manage on its folder, or Edit if you started the observation.
+Checked, the dialog says the observation is deleted for everyone, with its blocks, discussion and published RCA revisions, and **Delete chat and observation** deletes it first and then deletes the chat.
+The two differ: the chat only leaves your lists and still opens from its link, while the observation is gone for good and cannot be undone.
+If the observation cannot be deleted, the chat is kept and the dialog says why.
 
 ## What the agent cannot do
 
