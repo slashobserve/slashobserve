@@ -55,19 +55,33 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 		c.Header(RequestIDHeader, scope.RequestID.String())
 		capture := &errorCapture{ResponseWriter: c.Writer}
 		c.Writer = capture
-		c.Next()
+		recovered := next(c)
 		declared, ok := routes.lookup(method, template)
 		if !ok {
 			declared = Declaration{}
 		}
-		r.settle(context.WithoutCancel(c.Request.Context()), stateOf(ctx), outcomeOf{
+		o := outcomeOf{
 			declared: declared,
 			status:   capture.Status(),
 			code:     capture.code(),
 			took:     time.Since(start),
 			params:   c.Params,
-		})
+			panicked: recovered != nil,
+		}
+		if o.panicked {
+			o.status = http.StatusInternalServerError
+		}
+		r.settle(context.WithoutCancel(c.Request.Context()), stateOf(ctx), o)
+		if recovered != nil {
+			panic(recovered)
+		}
 	}, nil
+}
+
+func next(c *gin.Context) (recovered any) {
+	defer func() { recovered = recover() }()
+	c.Next()
+	return nil
 }
 
 type outcomeOf struct {
@@ -76,6 +90,7 @@ type outcomeOf struct {
 	code     string
 	took     time.Duration
 	params   gin.Params
+	panicked bool
 }
 
 func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
@@ -93,6 +108,9 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		if concluded.Target.Kind != "" {
 			target = concluded.Target
 		}
+	}
+	if o.panicked {
+		outcome, reason = OutcomeFailed, "panic"
 	}
 	if len(inTx) > 0 {
 		recorded, err := r.anyCommitted(ctx, inTx)
