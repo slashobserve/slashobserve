@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
@@ -130,13 +131,24 @@ func TestAToolCallWithAnOAuthGrantIsRecordedForThePersonAndTheirClient(t *testin
 	}
 }
 
+type keyScopingAuth struct{ inner Authenticator }
+
+func (k keyScopingAuth) Authenticate(ctx context.Context, header string) (Credential, bool, error) {
+	cred, ok, err := k.inner.Authenticate(ctx, header)
+	if ok && !cred.OAuth && cred.Run == nil && !cred.ClaimOnly {
+		auth.Authenticated(ctx, cred.Principal, audit.AuthAPIKey, "key-1")
+	}
+	return cred, ok, err
+}
+
 func TestAToolCallWithAKeyIsRecordedForTheServiceAccount(t *testing.T) {
 	f := newFixture(t)
 	f.handler.(*handler).call = answering(tools.Result{Content: map[string]string{"ok": "true"}}, nil)
+	f.handler.(*handler).authn = keyScopingAuth{inner: f.authn}
 	a := mountAudited(t, f.handler)
 	a.call(t, goodKey, "get_spec_guide", nil)
 	got := a.only(t, "agent.tool_call")
-	if got.actorKind != "service_account" || got.actorName != "ci" || got.authMethod != "api_key" || got.origin != "mcp" || got.initiator != "agent" || got.outcome != "success" {
+	if got.actorKind != "service_account" || got.actorName != "ci" || got.authMethod != "api_key" || got.credentialID != "key-1" || got.origin != "mcp" || got.initiator != "agent" || got.outcome != "success" {
 		t.Fatalf("event = %+v", got)
 	}
 }
