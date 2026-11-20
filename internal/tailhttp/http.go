@@ -79,14 +79,13 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type tailRequest struct {
-	uid        string
-	query      string
-	from       time.Time
-	limit      int
-	user       datasource.QueryUser
-	source     datasource.LineSource
-	lag        time.Duration
-	adminsOnly bool
+	uid    string
+	query  string
+	from   time.Time
+	limit  int
+	user   datasource.QueryUser
+	source datasource.LineSource
+	lag    time.Duration
 }
 
 type readyData struct {
@@ -189,7 +188,6 @@ func (h *Handler) parse(c *gin.Context) (tailRequest, bool) {
 		return invalid(notLineSource)
 	}
 	req.source = source
-	req.adminsOnly = h.registry.AdminsOnly(req.uid)
 	if lagged, ok := inst.Datasource.(datasource.LagSource); ok {
 		req.lag = lagged.TailLag()
 	}
@@ -458,9 +456,6 @@ func (h *Handler) credentialsValid(c *gin.Context, req tailRequest) (valid, fail
 }
 
 func (h *Handler) stillReadable(ctx context.Context, principal auth.Principal, req tailRequest) bool {
-	if !req.adminsOnly {
-		return true
-	}
 	_, err := h.registry.For(datasource.WithAccess(ctx, datasource.Access{By: principal}), req.uid)
 	return err == nil
 }

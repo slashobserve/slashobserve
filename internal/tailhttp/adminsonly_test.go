@@ -53,6 +53,27 @@ func TestATailOnAnAdminsOnlyDatasourceClosesWhenTheAdminIsDemoted(t *testing.T) 
 	}
 }
 
+func TestATailClosesForANonAdminWhenItsDatasourceBecomesAdminsOnly(t *testing.T) {
+	f := newFixture(t)
+	f.h.pingInterval = testPoll
+	app := datasource.Instance{UID: "app", Datasource: &fakeLines{typ: "loki", responses: []response{lines(1)}}}
+	if err := f.h.registry.Put(app); err != nil {
+		t.Fatal(err)
+	}
+	s := f.openOn("app", "u1", auth.RoleViewer, auditQuery)
+	decode[readyData](t, s.next(t), "ready")
+	if s.closedWithin(4 * testPoll) {
+		t.Fatal("the stream closed while its datasource was open to everyone")
+	}
+	app.Audience = datasource.AudienceAdmins
+	if err := f.h.registry.Put(app); err != nil {
+		t.Fatal(err)
+	}
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("a Viewer's stream stayed open after its datasource became Admins only")
+	}
+}
+
 func TestATailOnAnEveryoneDatasourceIgnoresARoleChange(t *testing.T) {
 	f := newFixture(t)
 	f.h.pingInterval = testPoll
