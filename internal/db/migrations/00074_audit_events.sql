@@ -41,6 +41,7 @@ CREATE TABLE audit_events (
   chat_id UUID,
   datasource_uid TEXT,
   data JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(data) = 'object'),
+  activity_seq BIGINT,
   search TSVECTOR NOT NULL GENERATED ALWAYS AS (to_tsvector('simple'::regconfig,
     action || ' ' || coalesce(actor_name, '') || ' ' || coalesce(target_name, '') || ' ' || coalesce(reason, '') || ' ' ||
     coalesce(tool, '') || ' ' || coalesce(route, '') || ' ' || coalesce(data->>'query', ''))) STORED,
@@ -58,6 +59,7 @@ CREATE INDEX audit_events_target_idx ON audit_events (target_kind, target_id, oc
 CREATE INDEX audit_events_run_idx ON audit_events (run_id) WHERE run_id IS NOT NULL;
 CREATE INDEX audit_events_request_idx ON audit_events (request_id);
 CREATE INDEX audit_events_search_idx ON audit_events USING gin (search);
+CREATE UNIQUE INDEX audit_events_activity_key ON audit_events (activity_seq, occurred_at);
 
 -- +goose StatementBegin
 CREATE FUNCTION audit_events_refuse_change() RETURNS trigger
@@ -107,99 +109,133 @@ END
 $$;
 -- +goose StatementEnd
 
-INSERT INTO audit_events (id, xid, occurred_at, category, action, outcome, actor_kind, actor_id, actor_name, initiator, run_id,
-  origin, origin_client, target_kind, target_id, folder_id, dashboard_id, observation_id, data, server_id, server_version)
-SELECT
-  (lpad(to_hex((extract(epoch FROM a.created_at) * 1000)::bigint), 12, '0') || '7' || substr(md5('audit:' || a.seq), 1, 3) ||
-    to_hex(8 + get_byte(decode(md5('variant:' || a.seq), 'hex'), 0) % 4) || substr(md5('audit:' || a.seq), 4, 15))::uuid,
-  a.xid, a.created_at, m.category, m.action, 'success', a.actor_kind, a.actor_id, a.actor_name,
-  CASE WHEN a.run_id IS NULL THEN 'person' ELSE 'agent' END, a.run_id,
-  coalesce(a.origin, 'unknown'), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
-  a.data || m.extra, 'backfill', 'backfill'
-FROM activity a
-JOIN (VALUES
-  ('dashboard.created', 'dashboard.create', 'content', '{}'::jsonb),
-  ('dashboard.version_created', 'dashboard.update', 'content', '{}'),
-  ('dashboard.restored', 'dashboard.restore', 'content', '{}'),
-  ('dashboard.moved', 'dashboard.move', 'content', '{}'),
-  ('dashboard.deleted', 'dashboard.delete', 'content', '{}'),
-  ('annotation.created', 'annotation.create', 'content', '{}'),
-  ('annotation.updated', 'annotation.update', 'content', '{}'),
-  ('annotation.deleted', 'annotation.delete', 'content', '{}'),
-  ('finding.created', 'finding.create', 'content', '{}'),
-  ('finding.pinned', 'finding.pin', 'content', '{}'),
-  ('finding.moved', 'finding.move', 'content', '{}'),
-  ('saved_search.created', 'saved_search.create', 'content', '{}'),
-  ('saved_search.updated', 'saved_search.update', 'content', '{}'),
-  ('saved_search.moved', 'saved_search.move', 'content', '{}'),
-  ('saved_search.deleted', 'saved_search.delete', 'content', '{}'),
-  ('observation.created', 'observation.create', 'content', '{}'),
-  ('observation.updated', 'observation.update', 'content', '{}'),
-  ('observation.moved', 'observation.move', 'content', '{}'),
-  ('observation.deleted', 'observation.delete', 'content', '{}'),
-  ('observation.resolved', 'observation.resolve', 'content', '{}'),
-  ('observation.reopened', 'observation.reopen', 'content', '{}'),
-  ('observation.published', 'observation.publish', 'content', '{}'),
-  ('observation.rca_withdrawn', 'observation.rca_withdraw', 'content', '{}'),
-  ('observation.block_added', 'observation.block_add', 'content', '{}'),
-  ('observation.block_updated', 'observation.block_update', 'content', '{}'),
-  ('observation.block_kept', 'observation.block_keep', 'content', '{}'),
-  ('observation.block_discarded', 'observation.block_discard', 'content', '{}'),
-  ('observation.block_removed', 'observation.block_remove', 'content', '{}'),
-  ('proposal.opened', 'proposal.open', 'content', '{}'),
-  ('proposal.updated', 'proposal.update', 'content', '{}'),
-  ('proposal.merged', 'proposal.merge', 'content', '{}'),
-  ('proposal.discarded', 'proposal.discard', 'content', '{}'),
-  ('thread.opened', 'thread.open', 'conversation', '{}'),
-  ('thread.replied', 'thread.message', 'conversation', '{}'),
-  ('thread.edited', 'thread.message_edit', 'conversation', '{}'),
-  ('thread.deleted', 'thread.message_delete', 'conversation', '{}'),
-  ('thread.resolved', 'thread.resolve', 'conversation', '{}'),
-  ('thread.reopened', 'thread.reopen', 'conversation', '{}'),
-  ('thread.mentioned', 'thread.mention', 'conversation', '{}'),
-  ('run.queued', 'run.queue', 'agent', '{}'),
-  ('run.started', 'run.start', 'agent', '{}'),
-  ('run.succeeded', 'run.finish', 'agent', '{"result": "succeeded"}'),
-  ('run.failed', 'run.finish', 'agent', '{"result": "failed"}'),
-  ('run.canceled', 'run.finish', 'agent', '{"result": "canceled"}'),
-  ('run.canceling', 'run.cancel', 'agent', '{}'),
-  ('run.released', 'run.release', 'agent', '{}'),
-  ('run.kept', 'run.keep', 'agent', '{}'),
-  ('public_link.created', 'public_link.create', 'admin', '{}'),
-  ('public_link.revoked', 'public_link.revoke', 'admin', '{}'),
-  ('access_request.opened', 'access_request.open', 'admin', '{}'),
-  ('access_request.granted', 'access_request.grant', 'admin', '{}'),
-  ('user.role_changed', 'user.role_change', 'admin', '{}'),
-  ('user.signed_out_everywhere', 'user.sign_out_everywhere', 'admin', '{}'),
-  ('user.invited', 'user.invite', 'admin', '{}'),
-  ('user.invite_updated', 'user.invite_update', 'admin', '{}'),
-  ('user.invite_withdrawn', 'user.invite_withdraw', 'admin', '{}'),
-  ('user.deactivated', 'user.deactivate', 'admin', '{}'),
-  ('user.reactivated', 'user.reactivate', 'admin', '{}'),
-  ('user.removed', 'user.remove', 'admin', '{}'),
-  ('service_account.created', 'service_account.create', 'admin', '{}'),
-  ('service_account.updated', 'service_account.update', 'admin', '{}'),
-  ('service_account.deleted', 'service_account.delete', 'admin', '{}'),
-  ('service_account.key_created', 'service_account.key_create', 'admin', '{}'),
-  ('service_account.key_revoked', 'service_account.key_revoke', 'admin', '{}'),
-  ('webhook.created', 'webhook.create', 'admin', '{}'),
-  ('webhook.updated', 'webhook.update', 'admin', '{}'),
-  ('webhook.secret_rotated', 'webhook.secret_rotate', 'admin', '{}'),
-  ('webhook.deleted', 'webhook.delete', 'admin', '{}'),
-  ('mcp_client.connected', 'mcp_client.connect', 'admin', '{}'),
-  ('mcp_client.disconnected', 'mcp_client.disconnect', 'admin', '{}'),
-  ('outbound_domain.added', 'outbound_domain.add', 'admin', '{}'),
-  ('outbound_domain.removed', 'outbound_domain.remove', 'admin', '{}'),
-  ('grafana_connection.created', 'grafana_connection.create', 'admin', '{}'),
-  ('grafana_connection.updated', 'grafana_connection.update', 'admin', '{}'),
-  ('grafana_connection.deleted', 'grafana_connection.delete', 'admin', '{}'),
-  ('datasource.created', 'datasource.create', 'admin', '{}'),
-  ('datasource.updated', 'datasource.update', 'admin', '{}'),
-  ('datasource.deleted', 'datasource.delete', 'admin', '{}')
-) AS m (type, action, category, extra) ON m.type = a.type
-ORDER BY a.xid, a.seq;
+CREATE TABLE audit_activity_actions (
+  type TEXT PRIMARY KEY,
+  action TEXT NOT NULL,
+  category TEXT NOT NULL,
+  keys TEXT[] NOT NULL,
+  extra JSONB NOT NULL
+);
+
+INSERT INTO audit_activity_actions (type, action, category, keys, extra) VALUES
+  ('dashboard.created', 'dashboard.create', 'content', '{version,parent_version,restored_from,title,summary}', '{}'),
+  ('dashboard.version_created', 'dashboard.update', 'content', '{version,parent_version,restored_from,title,summary}', '{}'),
+  ('dashboard.restored', 'dashboard.restore', 'content', '{version,parent_version,restored_from,title,summary}', '{}'),
+  ('dashboard.moved', 'dashboard.move', 'content', '{title,from_folder_id,to_folder_id}', '{}'),
+  ('dashboard.deleted', 'dashboard.delete', 'content', '{title}', '{}'),
+  ('annotation.created', 'annotation.create', 'content', '{title,panel_id,tags,time_from,time_to}', '{}'),
+  ('annotation.updated', 'annotation.update', 'content', '{title,panel_id,tags,time_from,time_to}', '{}'),
+  ('annotation.deleted', 'annotation.delete', 'content', '{title,panel_id,tags,time_from,time_to}', '{}'),
+  ('finding.created', 'finding.create', 'content', '{title,agent_request_id}', '{}'),
+  ('finding.pinned', 'finding.pin', 'content', '{annotation_id}', '{}'),
+  ('finding.moved', 'finding.move', 'content', '{title,from_folder_id,to_folder_id}', '{}'),
+  ('saved_search.created', 'saved_search.create', 'content', '{title,kind,changed,from_folder_id,to_folder_id}', '{}'),
+  ('saved_search.updated', 'saved_search.update', 'content', '{title,kind,changed,from_folder_id,to_folder_id}', '{}'),
+  ('saved_search.moved', 'saved_search.move', 'content', '{title,kind,changed,from_folder_id,to_folder_id}', '{}'),
+  ('saved_search.deleted', 'saved_search.delete', 'content', '{title,kind,changed,from_folder_id,to_folder_id}', '{}'),
+  ('observation.created', 'observation.create', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.updated', 'observation.update', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.moved', 'observation.move', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.deleted', 'observation.delete', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.resolved', 'observation.resolve', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.reopened', 'observation.reopen', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.published', 'observation.publish', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.rca_withdrawn', 'observation.rca_withdraw', 'content', '{title,from_title,from_folder_id,to_folder_id,revision}', '{}'),
+  ('observation.block_added', 'observation.block_add', 'content', '{title,block_id,block_kind,state}', '{}'),
+  ('observation.block_updated', 'observation.block_update', 'content', '{title,block_id,block_kind,state}', '{}'),
+  ('observation.block_kept', 'observation.block_keep', 'content', '{title,block_id,block_kind,state}', '{}'),
+  ('observation.block_discarded', 'observation.block_discard', 'content', '{title,block_id,block_kind,state}', '{}'),
+  ('observation.block_removed', 'observation.block_remove', 'content', '{title,block_id,block_kind,state}', '{}'),
+  ('proposal.opened', 'proposal.open', 'content', '{title,revision,base_version,version}', '{}'),
+  ('proposal.updated', 'proposal.update', 'content', '{title,revision,base_version,version}', '{}'),
+  ('proposal.merged', 'proposal.merge', 'content', '{title,revision,base_version,version}', '{}'),
+  ('proposal.discarded', 'proposal.discard', 'content', '{title,revision,base_version,version}', '{}'),
+  ('thread.opened', 'thread.open', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.replied', 'thread.message', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.edited', 'thread.message_edit', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.deleted', 'thread.message_delete', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.resolved', 'thread.resolve', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.reopened', 'thread.reopen', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('thread.mentioned', 'thread.mention', 'conversation', '{object,title,version,panel_id,message_id,resolved_by_version,mentioned}', '{}'),
+  ('run.queued', 'run.queue', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{}'),
+  ('run.started', 'run.start', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{}'),
+  ('run.succeeded', 'run.finish', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{"result": "succeeded"}'),
+  ('run.failed', 'run.finish', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{"result": "failed"}'),
+  ('run.canceled', 'run.finish', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{"result": "canceled"}'),
+  ('run.canceling', 'run.cancel', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{}'),
+  ('run.released', 'run.release', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{}'),
+  ('run.kept', 'run.keep', 'agent', '{source,continues_id,attempt,result_version,failure_code,cost_usd,dashboard_title,panels_repaired,result}', '{}'),
+  ('public_link.created', 'public_link.create', 'admin', '{object,title,prefix,expires_at}', '{}'),
+  ('public_link.revoked', 'public_link.revoke', 'admin', '{object,title,prefix,expires_at}', '{}'),
+  ('access_request.opened', 'access_request.open', 'admin', '{object,title,general,requested_by}', '{}'),
+  ('access_request.granted', 'access_request.grant', 'admin', '{object,title,general,requested_by}', '{}'),
+  ('user.role_changed', 'user.role_change', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.signed_out_everywhere', 'user.sign_out_everywhere', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.invited', 'user.invite', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.invite_updated', 'user.invite_update', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.invite_withdrawn', 'user.invite_withdraw', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.deactivated', 'user.deactivate', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.reactivated', 'user.reactivate', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('user.removed', 'user.remove', 'admin', '{name,email,role,from_role,to_role,manual,source,sessions,grants}', '{}'),
+  ('service_account.created', 'service_account.create', 'admin', '{name,role,takes_runs,key_id,key_name,expires_at}', '{}'),
+  ('service_account.updated', 'service_account.update', 'admin', '{name,role,takes_runs,key_id,key_name,expires_at}', '{}'),
+  ('service_account.deleted', 'service_account.delete', 'admin', '{name,role,takes_runs,key_id,key_name,expires_at}', '{}'),
+  ('service_account.key_created', 'service_account.key_create', 'admin', '{name,role,takes_runs,key_id,key_name,expires_at}', '{}'),
+  ('service_account.key_revoked', 'service_account.key_revoke', 'admin', '{name,role,takes_runs,key_id,key_name,expires_at}', '{}'),
+  ('webhook.created', 'webhook.create', 'admin', '{name,host,event_types,changes,url_changed}', '{}'),
+  ('webhook.updated', 'webhook.update', 'admin', '{name,host,event_types,changes,url_changed}', '{}'),
+  ('webhook.secret_rotated', 'webhook.secret_rotate', 'admin', '{name,host,event_types,changes,url_changed}', '{}'),
+  ('webhook.deleted', 'webhook.delete', 'admin', '{name,host,event_types,changes,url_changed}', '{}'),
+  ('mcp_client.connected', 'mcp_client.connect', 'admin', '{client,person_id,person_name,mode,reason}', '{}'),
+  ('mcp_client.disconnected', 'mcp_client.disconnect', 'admin', '{client,person_id,person_name,mode,reason}', '{}'),
+  ('outbound_domain.added', 'outbound_domain.add', 'admin', '{domain}', '{}'),
+  ('outbound_domain.removed', 'outbound_domain.remove', 'admin', '{domain}', '{}'),
+  ('grafana_connection.created', 'grafana_connection.create', 'admin', '{name,host,changes,token_changed}', '{}'),
+  ('grafana_connection.updated', 'grafana_connection.update', 'admin', '{name,host,changes,token_changed}', '{}'),
+  ('grafana_connection.deleted', 'grafana_connection.delete', 'admin', '{name,host,changes,token_changed}', '{}'),
+  ('datasource.created', 'datasource.create', 'admin', '{uid,type,name,host,changes,address_changed,settings_changed,credentials_changed}', '{}'),
+  ('datasource.updated', 'datasource.update', 'admin', '{uid,type,name,host,changes,address_changed,settings_changed,credentials_changed}', '{}'),
+  ('datasource.deleted', 'datasource.delete', 'admin', '{uid,type,name,host,changes,address_changed,settings_changed,credentials_changed}', '{}');
+
+CREATE TABLE audit_backfill (
+  singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),
+  migrated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO audit_backfill DEFAULT VALUES;
+
+-- +goose StatementBegin
+CREATE FUNCTION audit_events_catch_up(since TIMESTAMPTZ, by_server TEXT, by_version TEXT, keep_position BOOLEAN, OUT inserted BIGINT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('audit_events_catch_up', 0));
+  INSERT INTO audit_events (id, xid, occurred_at, category, action, outcome, actor_kind, actor_id, actor_name, initiator, run_id,
+    origin, origin_client, target_kind, target_id, folder_id, dashboard_id, observation_id, data, activity_seq, server_id, server_version)
+  SELECT
+    (lpad(to_hex((extract(epoch FROM a.created_at) * 1000)::bigint), 12, '0') || '7' || substr(md5('audit:' || a.seq), 1, 3) ||
+      to_hex(8 + get_byte(decode(md5('variant:' || a.seq), 'hex'), 0) % 4) || substr(md5('audit:' || a.seq), 4, 15))::uuid,
+    CASE WHEN keep_position THEN a.xid ELSE pg_current_xact_id() END, a.created_at, m.category, m.action, 'success',
+    a.actor_kind, a.actor_id, a.actor_name, CASE WHEN a.run_id IS NULL THEN 'person' ELSE 'agent' END, a.run_id,
+    coalesce(a.origin, 'unknown'), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
+    (SELECT coalesce(jsonb_object_agg(d.key, d.value), '{}'::jsonb) FROM jsonb_each(a.data || m.extra) AS d WHERE d.key = ANY (m.keys)),
+    a.seq, by_server, by_version
+  FROM activity a
+  JOIN audit_activity_actions m ON m.type = a.type
+  WHERE a.created_at >= since AND NOT EXISTS (SELECT 1 FROM audit_events e WHERE e.activity_seq = a.seq)
+  ORDER BY a.xid, a.seq
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS inserted = ROW_COUNT;
+END
+$$;
+-- +goose StatementEnd
+
+SELECT audit_events_catch_up('-infinity', 'backfill', 'backfill', true);
 
 -- +goose Down
+DROP FUNCTION audit_events_catch_up(TIMESTAMPTZ, TEXT, TEXT, BOOLEAN);
+DROP TABLE audit_backfill;
+DROP TABLE audit_activity_actions;
 DROP TABLE audit_events;
 DROP FUNCTION audit_events_add_partition(DATE);
 DROP FUNCTION audit_events_refuse_change();

@@ -110,10 +110,13 @@ Migrations 50 and 73 rebuild `activity_inbox_idx` with a plain `CREATE INDEX`, w
 Like migration 43, the cost grows with the log, so when it holds millions of events, upgrade when little is changing.
 Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
 Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
+Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
+During a rolling upgrade, servers still on the older version keep writing activity events without an audit event, so for 7 days after the migration the `audit_partitions` job, and every server at start, records an audit event for each activity event that has none.
 
 To go back, run `goose down-to 48` against the database before starting an older binary.
 The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
 
+- Migration 74 drops the audit table with every audit event in it.
 - Migration 73 drops access requests and deletes their activity events, and migration 70 drops each request's time zone.
 - Migration 65 deletes every finding that no observation holds, which is a chat answer nobody saved.
 - Migration 64 drops teams and their members, so folder entries that named a team match no one.

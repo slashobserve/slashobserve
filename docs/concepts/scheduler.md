@@ -44,6 +44,7 @@ These jobs run hourly:
 
 `audit_partitions` runs daily, and every server also runs it once at start.
 It keeps the audit table's daily partitions 14 days ahead and drops those older than `SLASHOBSERVE_AUDIT_RETENTION` (see [Configuration](../reference/configuration.md#audit)).
+For 7 days after the audit table's migration it also records an audit event for each activity event an older server wrote without one (see [Upgrades and backups](../operate/upgrades-and-backups.md)).
 
 `agent_requests_sweep` runs every minute.
 It fails agent requests that ran out of attempts, ends requests whose run was canceled, expires requests that no agent claimed within 10 minutes, retries thread replies that did not post in the last 24 hours, and deletes expired build records.

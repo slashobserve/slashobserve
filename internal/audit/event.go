@@ -121,4 +121,5 @@ type Event struct {
 	Duration   time.Duration
 	Data       map[string]any
 	By         *By
+	Activity   int64
 }

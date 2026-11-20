@@ -148,6 +148,19 @@ type AppliedDashboard struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type AuditActivityAction struct {
+	Type     string
+	Action   string
+	Category string
+	Keys     []string
+	Extra    []byte
+}
+
+type AuditBackfill struct {
+	Singleton  bool
+	MigratedAt pgtype.Timestamptz
+}
+
 type AuditEvent struct {
 	ID            pgtype.UUID
 	Seq           int64
@@ -188,6 +201,7 @@ type AuditEvent struct {
 	ChatID        pgtype.UUID
 	DatasourceUid pgtype.Text
 	Data          []byte
+	ActivitySeq   pgtype.Int8
 	Search        interface{}
 	ServerID      string
 	ServerVersion string

@@ -215,6 +215,9 @@ func (r *Recorder) row(ctx context.Context, e Event) (dbsqlc.InsertAuditEventPar
 	if e.Status != 0 {
 		row.Status = int4(int64(e.Status))
 	}
+	if e.Activity > 0 {
+		row.ActivitySeq = pgtype.Int8{Int64: e.Activity, Valid: true}
+	}
 	if e.Duration > 0 {
 		row.DurationMs = int4(e.Duration.Milliseconds())
 	}

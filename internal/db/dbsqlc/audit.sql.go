@@ -23,6 +23,23 @@ func (q *Queries) AddAuditPartition(ctx context.Context, day pgtype.Date) (bool,
 	return audit_events_add_partition, err
 }
 
+const catchUpAuditEvents = `-- name: CatchUpAuditEvents :one
+SELECT audit_events_catch_up($1::timestamptz, $2::text, $3::text, false)::bigint AS inserted
+`
+
+type CatchUpAuditEventsParams struct {
+	Since     pgtype.Timestamptz
+	ByServer  string
+	ByVersion string
+}
+
+func (q *Queries) CatchUpAuditEvents(ctx context.Context, arg CatchUpAuditEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, catchUpAuditEvents, arg.Since, arg.ByServer, arg.ByVersion)
+	var inserted int64
+	err := row.Scan(&inserted)
+	return inserted, err
+}
+
 type CopyAuditEventsParams struct {
 	ID            pgtype.UUID
 	OccurredAt    pgtype.Timestamptz
@@ -61,6 +78,7 @@ type CopyAuditEventsParams struct {
 	ChatID        pgtype.UUID
 	DatasourceUid pgtype.Text
 	Data          []byte
+	ActivitySeq   pgtype.Int8
 	ServerID      string
 	ServerVersion string
 }
@@ -82,14 +100,25 @@ func (q *Queries) CountCommittedAuditEvents(ctx context.Context, arg CountCommit
 	return count, err
 }
 
+const getAuditBackfill = `-- name: GetAuditBackfill :one
+SELECT migrated_at FROM audit_backfill
+`
+
+func (q *Queries) GetAuditBackfill(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, getAuditBackfill)
+	var migrated_at pgtype.Timestamptz
+	err := row.Scan(&migrated_at)
+	return migrated_at, err
+}
+
 const insertAuditEvent = `-- name: InsertAuditEvent :exec
 INSERT INTO audit_events (id, occurred_at, category, action, outcome, reason, status, duration_ms,
   actor_kind, actor_id, actor_name, actor_role, initiator, agent_id, agent_name, run_id, auth_method, credential_id,
   origin, origin_client, tool, client_ip, user_agent, request_id, trace_id, http_method, route,
   target_kind, target_id, target_name, folder_id, dashboard_id, observation_id, thread_id, chat_id, datasource_uid,
-  data, server_id, server_version)
+  data, activity_seq, server_id, server_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-  $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)
+  $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40)
 `
 
 type InsertAuditEventParams struct {
@@ -130,6 +159,7 @@ type InsertAuditEventParams struct {
 	ChatID        pgtype.UUID
 	DatasourceUid pgtype.Text
 	Data          []byte
+	ActivitySeq   pgtype.Int8
 	ServerID      string
 	ServerVersion string
 }
@@ -173,6 +203,7 @@ func (q *Queries) InsertAuditEvent(ctx context.Context, arg InsertAuditEventPara
 		arg.ChatID,
 		arg.DatasourceUid,
 		arg.Data,
+		arg.ActivitySeq,
 		arg.ServerID,
 		arg.ServerVersion,
 	)

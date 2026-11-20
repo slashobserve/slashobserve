@@ -114,7 +114,7 @@ func AuditAction(typ string) (audit.Action, bool) {
 	return m.action, ok
 }
 
-func recordAudit(ctx context.Context, q *dbsqlc.Queries, e Entry, columns actor.Columns, raw []byte) error {
+func recordAudit(ctx context.Context, q *dbsqlc.Queries, seq int64, e Entry, columns actor.Columns, raw []byte) error {
 	mapping, ok := auditActions[e.Type]
 	if !ok {
 		return fmt.Errorf("activity type %q has no audit action", e.Type)
@@ -138,7 +138,7 @@ func recordAudit(ctx context.Context, q *dbsqlc.Queries, e Entry, columns actor.
 		Origin: audit.Origin{Kind: columns.Origin.String, Client: columns.Client.String},
 		RunID:  nullUUID(columns.RunID),
 	}
-	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Target: target, Data: data, By: &by})
+	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Target: target, Data: data, By: &by, Activity: seq})
 }
 
 func displayName(data map[string]any) string {

@@ -66,6 +66,7 @@ func (r iteratorForCopyAuditEvents) Values() ([]interface{}, error) {
 		r.rows[0].ChatID,
 		r.rows[0].DatasourceUid,
 		r.rows[0].Data,
+		r.rows[0].ActivitySeq,
 		r.rows[0].ServerID,
 		r.rows[0].ServerVersion,
 	}, nil
@@ -76,5 +77,5 @@ func (r iteratorForCopyAuditEvents) Err() error {
 }
 
 func (q *Queries) CopyAuditEvents(ctx context.Context, arg []CopyAuditEventsParams) (int64, error) {
-	return q.db.CopyFrom(ctx, []string{"audit_events"}, []string{"id", "occurred_at", "category", "action", "outcome", "reason", "status", "duration_ms", "actor_kind", "actor_id", "actor_name", "actor_role", "initiator", "agent_id", "agent_name", "run_id", "auth_method", "credential_id", "origin", "origin_client", "tool", "client_ip", "user_agent", "request_id", "trace_id", "http_method", "route", "target_kind", "target_id", "target_name", "folder_id", "dashboard_id", "observation_id", "thread_id", "chat_id", "datasource_uid", "data", "server_id", "server_version"}, &iteratorForCopyAuditEvents{rows: arg})
+	return q.db.CopyFrom(ctx, []string{"audit_events"}, []string{"id", "occurred_at", "category", "action", "outcome", "reason", "status", "duration_ms", "actor_kind", "actor_id", "actor_name", "actor_role", "initiator", "agent_id", "agent_name", "run_id", "auth_method", "credential_id", "origin", "origin_client", "tool", "client_ip", "user_agent", "request_id", "trace_id", "http_method", "route", "target_kind", "target_id", "target_name", "folder_id", "dashboard_id", "observation_id", "thread_id", "chat_id", "datasource_uid", "data", "activity_seq", "server_id", "server_version"}, &iteratorForCopyAuditEvents{rows: arg})
 }
