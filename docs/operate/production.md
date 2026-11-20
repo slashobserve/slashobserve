@@ -19,11 +19,12 @@ That address matters beyond links:
 - It is the one origin the MCP endpoint accepts in an `Origin` header.
 - It is the trusted origin for the cross-origin check on cookie-authenticated writes.
 
-Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
-It is a Server-Sent Events stream that sends a ping every 15 seconds, tells the page within 5 seconds when the person's own role changes, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
+Do not buffer or time out the three Server-Sent Events streams: `GET /api/v1/dashboards/{id}/events`, `GET /api/v1/activity/stream` and `GET /api/v1/datasources/{uid}/tail`.
+The dashboard events stream sends a ping every 15 seconds, tells the page within 5 seconds when the person's own role changes, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
+A log tail ends after 30 minutes too, and each person can hold 5 tails and one server process 200.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
-The server ignores `X-Forwarded-For`.
+The server does not use `X-Forwarded-For` to find the client address.
 Keep `/metrics` off the public internet, because it needs no sign-in (see [Metrics](metrics.md)).
 A proxy on the same host as the server must send `X-Forwarded-For` or another forwarding header, so the server can tell its traffic from the built-in agent's; see [The agent process](../concepts/agent.md#the-agent-process).
 
