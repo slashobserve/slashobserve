@@ -209,6 +209,8 @@ services:
   loki:
     image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
     command: ["-config.file=/etc/loki/slashobserve.yaml"]
+    environment:
+      GOMEMLIMIT: 768MiB
     volumes:
       - ./loki/config.yaml:/etc/loki/slashobserve.yaml:ro
       - loki-data:/loki

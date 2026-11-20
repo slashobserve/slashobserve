@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -91,16 +92,21 @@ func TestAVolumeOverDaysIsCountedADayAtATimeNewestFirst(t *testing.T) {
 	}
 	h := time.Hour
 	want := []chunk{
-		{volumeFrom.Add(49 * h), volumeFrom.Add(72 * h)},
-		{volumeFrom.Add(25 * h), volumeFrom.Add(48 * h)},
+		{volumeFrom.Add(48*h + 30*time.Minute), volumeFrom.Add(72 * h)},
+		{volumeFrom.Add(24*h + 30*time.Minute), volumeFrom.Add(48 * h)},
 		{volumeFrom, volumeFrom.Add(24 * h)},
 	}
 	if got := fake.sent(); !slices.Equal(got, want) {
 		t.Fatalf("chunks = %v, want %v", got, want)
 	}
 	v := hist.Volume()
-	if v.Partial() || v.Total != 72 || len(v.Buckets) != 72 || v.Buckets[0].Error != 1 || v.Buckets[71].Error != 1 {
-		t.Fatalf("volume = %+v, want 72 complete buckets of one error line", v)
+	if v.Partial() || v.Total != 144 || len(v.Buckets) != 72 {
+		t.Fatalf("volume = %+v, want 72 complete buckets", v)
+	}
+	for i, b := range v.Buckets {
+		if b.Error != 2 {
+			t.Fatalf("bucket %d = %+v, want the two half-hour counts of the hour", i, b)
+		}
 	}
 }
 
@@ -117,6 +123,43 @@ func TestAVolumeWithinADayIsOneRequest(t *testing.T) {
 	}
 }
 
+func TestAWideStepIsCountedInEqualWindowsOfAtMostHalfAnHour(t *testing.T) {
+	var steps []string
+	var mu sync.Mutex
+	fake := &chunkedLoki{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		steps = append(steps, r.URL.Query().Get("step"), r.URL.Query().Get("query"))
+		mu.Unlock()
+		fake.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := loki.New(loki.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	step := 47 * time.Minute
+	req := volumeOver(1, step, time.Minute)
+	req.Range.To = volumeFrom.Add(30 * step)
+	hist, err := ds.LogVolume(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(steps) != 2 || steps[0] != "1410" || !strings.HasSuffix(steps[1], "[1410000ms]))") {
+		t.Fatalf("sent step and query %q, want 23.5 minute windows", steps)
+	}
+	v := hist.Volume()
+	if v.Total != 60 || len(v.Buckets) != 30 {
+		t.Fatalf("volume = %+v, want 30 buckets of two windows each", v)
+	}
+	for i, b := range v.Buckets {
+		if b.Error != 2 {
+			t.Fatalf("bucket %d = %+v, want two windows", i, b)
+		}
+	}
+}
+
 func TestAVolumeThatRunsOutOfTimeKeepsTheNewestDaysAsPartial(t *testing.T) {
 	fake := &chunkedLoki{slow: func(n int) bool { return n == 2 }}
 	ds := serveChunks(t, fake)
@@ -129,8 +172,8 @@ func TestAVolumeThatRunsOutOfTimeKeepsTheNewestDaysAsPartial(t *testing.T) {
 		t.Fatalf("took %v, want an answer before the 2 s limit", took)
 	}
 	v := hist.Volume()
-	if !v.Partial() || !v.CountedFrom.Equal(volumeFrom.Add(48*time.Hour)) || v.Total != 24 {
-		t.Fatalf("volume = %+v, want 24 lines counted from the start of the third day", v)
+	if !v.Partial() || !v.CountedFrom.Equal(volumeFrom.Add(48*time.Hour)) || v.Total != 48 {
+		t.Fatalf("volume = %+v, want the third day's 48 half hours counted from its start", v)
 	}
 }
 
