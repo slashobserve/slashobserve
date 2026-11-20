@@ -134,3 +134,24 @@ func withCount(row dbsqlc.InsertAuditEventParams, count int64) dbsqlc.InsertAudi
 	row.Data, _ = json.Marshal(data)
 	return row
 }
+
+func weigh(batch []dbsqlc.InsertAuditEventParams) int {
+	total := 0
+	for _, row := range batch {
+		total += weightOf(row)
+	}
+	return total
+}
+
+func weightOf(row dbsqlc.InsertAuditEventParams) int {
+	if !isFolded(row.Action) {
+		return 1
+	}
+	var data struct {
+		Count int `json:"count"`
+	}
+	if json.Unmarshal(row.Data, &data) != nil || data.Count < 1 {
+		return 1
+	}
+	return data.Count
+}

@@ -90,3 +90,24 @@ func TestFoldingKeepsProviderErrorsApart(t *testing.T) {
 		t.Fatalf("counts = %v", seen)
 	}
 }
+
+func TestAFailedWriteCountsEveryFoldedEventAsLost(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour, timeout: 200 * time.Millisecond, settle: 200 * time.Millisecond}, 0)
+	for range 5 {
+		if err := s.recorder.RecordNow(t.Context(), credentialRejected("unknown_credential", "sok_abcdefgh")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tx, err := s.db.SQLDB(t).BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(t.Context(), "LOCK TABLE audit_events IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+	s.run(t)()
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 5 {
+		t.Fatalf("dropped %s = %d, want the 5 refusals the folded row stood for", DroppedWriteFailed, got)
+	}
+}

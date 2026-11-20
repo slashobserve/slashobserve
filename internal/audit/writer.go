@@ -132,7 +132,7 @@ func (w *Writer) stop(ctx context.Context, batch []dbsqlc.InsertAuditEventParams
 func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) {
 	for {
 		if ctx.Err() != nil {
-			w.recorder.metrics.EventsDropped(DroppedWriteFailed, len(batch)+len(w.queue))
+			w.recorder.metrics.EventsDropped(DroppedWriteFailed, weigh(batch)+len(w.queue))
 			return
 		}
 		select {
@@ -150,7 +150,7 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 
 func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) []dbsqlc.InsertAuditEventParams {
 	w.recorder.metrics.BufferedEvents(len(w.queue))
-	events := len(batch)
+	events := weigh(batch)
 	lost := w.lost.Swap(0)
 	if lost > 0 {
 		if gap, err := w.recorder.row(context.Background(), Event{Action: ActionGap, Data: map[string]any{"lost": lost}}); err == nil {
