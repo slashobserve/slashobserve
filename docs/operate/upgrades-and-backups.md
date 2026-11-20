@@ -101,7 +101,7 @@ To go back, run `goose down-to 42` against the database before starting an older
 
 ### Upgrading from 0.1.2
 
-Migrations 49 to 73 are new.
+Migrations 49 to 73 are new, and there is no migration 66.
 They add tables and columns for chats, inbox item states, webhook formats, per-person thread read marks, dashboard viewers and view days, home dashboards, datasources added in the app, people invites and deactivation, teams, chat-only findings, observation pins, run time zones and access requests.
 Take the backup first.
 
