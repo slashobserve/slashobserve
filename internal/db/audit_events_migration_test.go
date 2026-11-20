@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ VALUES ('dashboard.deleted', 'dashboard', '66666666-6666-4666-8666-666666666666'
 		t.Fatalf("up: %v", err)
 	}
 
-	rows, err := d.SQLDB(t).QueryContext(ctx, `SELECT a.type, e.action, e.category, e.outcome, e.initiator, e.origin, coalesce(e.data->>'result', ''), e.data->>'title', e.target_id = a.target_id::text, e.xid = a.xid, e.occurred_at = a.created_at
+	rows, err := d.SQLDB(t).QueryContext(ctx, `SELECT a.type, e.action, e.category, e.outcome, e.initiator, e.origin, coalesce(e.data->>'result', ''), coalesce(e.data->>'title', ''), e.target_id = a.target_id::text, e.xid = a.xid, e.occurred_at = a.created_at
 FROM activity a JOIN audit_events e ON e.xid = a.xid AND e.target_id = a.target_id::text AND e.server_id = 'backfill'
 WHERE a.origin = 'web'`)
 	if err != nil {
@@ -45,7 +46,11 @@ WHERE a.origin = 'web'`)
 		if audit.Action(action) != want || audit.Category(category) != spec.Category {
 			t.Errorf("%s backfilled as %s (%s), want %s (%s)", typ, action, category, want, spec.Category)
 		}
-		if outcome != "success" || initiator != "person" || origin != "web" || title != "Checkout" || !sameTarget || !samePosition || !sameTime {
+		wantTitle := ""
+		if slices.Contains(spec.Data, "title") {
+			wantTitle = "Checkout"
+		}
+		if outcome != "success" || initiator != "person" || origin != "web" || title != wantTitle || !sameTarget || !samePosition || !sameTime {
 			t.Errorf("%s backfilled as %s by a %s from %s titled %q (target %v, position %v, time %v)", typ, outcome, initiator, origin, title, sameTarget, samePosition, sameTime)
 		}
 		if wantResult, isRunEnd := strings.CutPrefix(typ, "run."); isRunEnd && action == "run.finish" && result != wantResult {
