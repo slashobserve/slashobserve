@@ -106,6 +106,9 @@ The first items under Changed can break a script or an integration.
   `/investigate` still opens an observation, and `get_run` returns an unsaved answer with a null `observation_id`.
 - `result_kind` is `answer` for a run whose answer was never saved, in `GET /api/v1/observe`, `get_run`, `list_runs` and `observe requests list --json`.
   A script that switches on `result_kind` must handle `answer`, and `observation_id` is null until the answer is saved.
+- The routes under `/api/v1/findings` still answer in 0.1.3, each with a `Deprecation` header, and a later release removes them.
+  The 0.1.2 notes said the next release would remove them.
+  Use the observation routes and `list_observations` instead.
 - A dashboard that the caller cannot see answers 404 `not_found` on every route, where some routes answered 403.
   A visible one with too low a level still answers 403, and the body of every `forbidden_role` refusal now names `needed_access` and `folder_title` or `needed_role`.
 - A list route answers 400 `invalid_request` for a parameter it does not take or a value it cannot read, and names the parameter.
