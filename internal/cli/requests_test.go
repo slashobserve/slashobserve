@@ -34,6 +34,46 @@ func TestRequestsListSendsFiltersAndPrintsTheTotal(t *testing.T) {
 	}
 }
 
+func TestRequestsListPrintsTheStateWordsOfTheWebAndKeepsJSON(t *testing.T) {
+	row := func(id, state string) string {
+		return `{"id":"` + id + `","kind":"build","title":"T","source":"observe","state":"` + state + `","dashboard_id":null,"dashboard_title":null,"created_at":"x","allowed_actions":[]}`
+	}
+	reply := `{"requests":[` + strings.Join([]string{
+		row("00000000-0000-4000-8000-000000000001", "queued"),
+		row("00000000-0000-4000-8000-000000000002", "running"),
+		row("00000000-0000-4000-8000-000000000003", "canceling"),
+		row("00000000-0000-4000-8000-000000000004", "succeeded"),
+		row("00000000-0000-4000-8000-000000000005", "failed"),
+		row("00000000-0000-4000-8000-000000000006", "canceled"),
+	}, ",") + `],"next_cursor":null,"summary":{"total":6,"people":null}}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(reply))
+	}))
+	t.Cleanup(server.Close)
+	stdout, stderr, code := runWith(server, "requests", "list")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	for id, word := range map[string]string{"1": "Running", "2": "Running", "3": "Running", "4": "Done", "5": "Stopped", "6": "Stopped"} {
+		found := false
+		for _, line := range strings.Split(stdout, "\n") {
+			if strings.Contains(line, "00000000-0000-4000-8000-00000000000"+id) && strings.Contains(line, word) {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("request %s should read %s in %q", id, word, stdout)
+		}
+	}
+	if strings.Contains(stdout, "succeeded") || strings.Contains(stdout, "canceled") {
+		t.Fatalf("raw states in %q", stdout)
+	}
+	jsonOut, _, code := runWith(server, "--json", "requests", "list")
+	if code != 0 || !strings.Contains(jsonOut, "succeeded") || !strings.Contains(jsonOut, "canceled") {
+		t.Fatalf("json output %q", jsonOut)
+	}
+}
+
 func TestRequestsListRefusesUnknownChoices(t *testing.T) {
 	for _, args := range [][]string{
 		{"requests", "list", "--scope", "everyone"},
