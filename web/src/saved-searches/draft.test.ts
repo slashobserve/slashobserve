@@ -280,6 +280,8 @@ describe("matchesSaved", () => {
     ["query", { query: "level:warn" }],
     ["range", { from: "now-1h" }],
     ["columns", { filters: { columns: ["host", "message"] } }],
+    ["trace filters", { filters: { service: "checkout" } }],
+    ["metrics mode", { filters: { mode: "table" as const } }],
   ])("is false when the %s changed", (_name, change) => {
     expect(matchesSaved({ ...draft, ...change }, saved)).toBe(false)
   })

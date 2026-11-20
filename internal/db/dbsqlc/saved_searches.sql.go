@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const changeSavedSearchContent = `-- name: ChangeSavedSearchContent :one
+UPDATE saved_searches
+SET query = $1::text, filters = $2::jsonb, time_from = $3, time_to = $4, updated_at = clock_timestamp()
+WHERE id = $5 RETURNING id, kind, title, datasource_uid, query, filters, time_from, time_to, folder_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at
+`
+
+type ChangeSavedSearchContentParams struct {
+	Query    pgtype.Text
+	Filters  []byte
+	TimeFrom string
+	TimeTo   string
+	ID       pgtype.UUID
+}
+
+func (q *Queries) ChangeSavedSearchContent(ctx context.Context, arg ChangeSavedSearchContentParams) (SavedSearch, error) {
+	row := q.db.QueryRow(ctx, changeSavedSearchContent,
+		arg.Query,
+		arg.Filters,
+		arg.TimeFrom,
+		arg.TimeTo,
+		arg.ID,
+	)
+	var i SavedSearch
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Title,
+		&i.DatasourceUid,
+		&i.Query,
+		&i.Filters,
+		&i.TimeFrom,
+		&i.TimeTo,
+		&i.FolderID,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.Origin,
+		&i.OriginClient,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteSavedSearch = `-- name: DeleteSavedSearch :execrows
 DELETE FROM saved_searches WHERE id = $1
 `

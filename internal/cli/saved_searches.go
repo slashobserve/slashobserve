@@ -30,6 +30,11 @@ type savedSearchSaveOptions struct {
 	mode       string
 }
 
+type savedSearchUpdateOptions struct {
+	savedSearchSaveOptions
+	clearFilters bool
+}
+
 type savedSearchMoveOptions struct {
 	folder string
 }
@@ -64,12 +69,12 @@ var searchFlagKinds = []struct {
 func (a *app) savedSearchesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "saved-searches",
-		Short: "List, save, rename, move and delete saved logs, trace and metrics searches",
+		Short: "List, save, change, rename, move and delete saved logs, trace and metrics searches",
 		Long:  "saved-searches manages the logs, trace and metrics searches filed in folders.\nEveryone who can view a search's folder can read it, and the web app reopens it from the Logs, Traces and Metrics pages.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.savedSearchesListCommand(), a.savedSearchesSaveCommand(), a.savedSearchesRenameCommand(), a.savedSearchesMoveCommand(), a.savedSearchesDeleteCommand())
+	cmd.AddCommand(a.savedSearchesListCommand(), a.savedSearchesSaveCommand(), a.savedSearchesUpdateCommand(), a.savedSearchesRenameCommand(), a.savedSearchesMoveCommand(), a.savedSearchesDeleteCommand())
 	return cmd
 }
 
@@ -178,7 +183,13 @@ func (a *app) savedSearchesSaveCommand() *cobra.Command {
 	flags.StringVar(&opts.folder, "folder", "", "the folder id to save in; default your My Dashboards, or General with a service-account key")
 	flags.StringVar(&opts.from, "from", "now-1h", "start of the range, kept as written")
 	flags.StringVar(&opts.to, "to", "now", "end of the range, kept as written")
-	flags.StringVar(&opts.query, "query", "", "the query; required for logs and metrics")
+	addSearchContentFlags(cmd, opts, "the query; required for logs and metrics")
+	return cmd
+}
+
+func addSearchContentFlags(cmd *cobra.Command, opts *savedSearchSaveOptions, queryHelp string) {
+	flags := cmd.Flags()
+	flags.StringVar(&opts.query, "query", "", queryHelp)
 	flags.StringSliceVar(&opts.columns, "columns", nil, "logs only: the visible columns, comma separated")
 	flags.StringVar(&opts.service, "service", "", "traces only: the service name")
 	flags.StringVar(&opts.span, "span", "", "traces only: the span name")
@@ -186,7 +197,6 @@ func (a *app) savedSearchesSaveCommand() *cobra.Command {
 	flags.StringVar(&opts.max, "max", "", "traces only: the longest span duration, such as 2s")
 	flags.BoolVar(&opts.errors, "errors", false, "traces only: only traces with an error")
 	flags.StringVar(&opts.mode, "mode", "", "metrics only: graph or table, how the page reopens the query")
-	return cmd
 }
 
 func refuseFlagsOfOtherKind(cmd *cobra.Command, kind string) error {
@@ -277,6 +287,70 @@ func (a *app) runSavedSearchesSave(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+func (a *app) savedSearchesUpdateCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update <saved-search-id> [flags]",
+		Short: "Change the query, filters or range of a saved search",
+		Long:  "update replaces what the saved search runs and keeps its kind, datasource, title and folder.\nOnly the flags you give change: --query and --from or --to replace one value each, and any filter flag (--columns, --service, --span, --min, --max, --errors, --mode) replaces all the filters, so repeat the ones to keep.\n--clear-filters removes every filter, and --query \"\" removes the query of a trace search.\nThe result must pass the checks a save does, and it needs Edit on the saved search.",
+		Example: "  observe saved-searches update <id> --query '{app=\"checkout\"} |= \"timeout\"' --from now-6h\n" +
+			"  observe saved-searches update <id> --columns timestamp,line\n" +
+			"  observe saved-searches update <id> --min 500ms --errors",
+		Args: exactArgs(1, "one saved search id"),
+		RunE: a.runSavedSearchesUpdate,
+	}
+	flags := cmd.Flags()
+	opts := &a.savedSearchUpdate
+	flags.StringVar(&opts.from, "from", "", "start of the range, kept as written")
+	flags.StringVar(&opts.to, "to", "", "end of the range, kept as written")
+	addSearchContentFlags(cmd, &opts.savedSearchSaveOptions, "the new query")
+	flags.BoolVar(&opts.clearFilters, "clear-filters", false, "remove every filter")
+	return cmd
+}
+
+var searchFilterFlags = []string{"columns", "service", "span", "min", "max", "errors", "mode"}
+
+func (o savedSearchUpdateOptions) payload(cmd *cobra.Command) (map[string]any, error) {
+	payload := map[string]any{}
+	for name, value := range map[string]string{"query": o.query, "from": o.from, "to": o.to} {
+		if cmd.Flags().Changed(name) {
+			payload[name] = value
+		}
+	}
+	filtersGiven := false
+	for _, name := range searchFilterFlags {
+		filtersGiven = filtersGiven || cmd.Flags().Changed(name)
+	}
+	switch {
+	case o.clearFilters && filtersGiven:
+		return nil, usagef("--clear-filters cannot be combined with a filter flag")
+	case o.clearFilters:
+		payload["filters"] = nil
+	case filtersGiven:
+		payload["filters"] = o.filters()
+	}
+	if len(payload) == 0 {
+		return nil, usagef("give at least one of --query, --from, --to, a filter flag or --clear-filters")
+	}
+	return payload, nil
+}
+
+func (a *app) runSavedSearchesUpdate(cmd *cobra.Command, args []string) error {
+	id, err := parseID(args[0])
+	if err != nil {
+		return err
+	}
+	payload, err := a.savedSearchUpdate.payload(cmd)
+	if err != nil {
+		return err
+	}
+	_, data, err := a.patchSavedSearch(cmd, id, payload)
+	if err != nil {
+		return err
+	}
+	a.reportSavedSearch(data, func(out *output) { out.confirm("Updated saved search %s", text(id)) })
+	return nil
+}
+
 func (a *app) savedSearchesRenameCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rename [flags] <saved-search-id> <title...>",
@@ -304,7 +378,7 @@ func (a *app) runSavedSearchesRename(cmd *cobra.Command, args []string) error {
 	if title == "" {
 		return usagef("rename needs a title")
 	}
-	renamed, data, err := a.patchSavedSearch(cmd, id, map[string]string{"title": title})
+	renamed, data, err := a.patchSavedSearch(cmd, id, map[string]any{"title": title})
 	if err != nil {
 		return err
 	}
@@ -336,7 +410,7 @@ func (a *app) runSavedSearchesMove(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	moved, data, err := a.patchSavedSearch(cmd, id, map[string]string{"folder_id": folder})
+	moved, data, err := a.patchSavedSearch(cmd, id, map[string]any{"folder_id": folder})
 	if err != nil {
 		return err
 	}
@@ -346,7 +420,7 @@ func (a *app) runSavedSearchesMove(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (a *app) patchSavedSearch(cmd *cobra.Command, id string, payload map[string]string) (savedSearchRow, []byte, error) {
+func (a *app) patchSavedSearch(cmd *cobra.Command, id string, payload map[string]any) (savedSearchRow, []byte, error) {
 	c, err := a.newClient()
 	if err != nil {
 		return savedSearchRow{}, nil, err

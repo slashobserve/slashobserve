@@ -111,6 +111,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `update_dashboard` | Viewer |
 | `update_observation` | Viewer |
 | `update_panels` | Viewer |
+| `update_saved_search` | Viewer |
 
 The lowest role is the one the web app needs for the same work, and folder access decides the rest, as in the web app.
 A person's client can create and change dashboards in their own My Dashboards, comment where they may comment, and query every datasource, whatever their role.
@@ -290,6 +291,10 @@ Saving the same search again as the same caller (same kind, title, datasource, q
 No MCP tool renames or deletes a saved search, so people do that in the web app or with the CLI.
 
 `list_saved_searches` lists the saved searches in the folders the key can see, most recently changed first, optionally of one `kind` or in one `folder_id`, with each one's datasource, query, filters, range, folder and `url`.
+`update_saved_search` changes what a saved search runs, outside an agent run: pass its `id` from `list_saved_searches` and any of `query`, `filters`, `from` and `to`.
+Each one replaces the saved value, and `filters` replaces all the filters, so send every filter to keep; `null` removes them all, and an empty `query` removes the query of a trace search and is refused for a logs search.
+The result is checked as a save is, so a rule it breaks returns `invalid_request`; the kind, datasource, title and folder stay, and the tool returns the search with its `url`.
+It needs Edit on the search's folder, which a Viewer key lacks (`forbidden_role`), and a search the key cannot see returns `not_found`.
 No tool renames, moves or deletes a saved search: people do that on the web or with `observe saved-searches`.
 
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.

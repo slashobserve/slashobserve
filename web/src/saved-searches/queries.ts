@@ -62,6 +62,29 @@ export function useRenameSavedSearch(id: string) {
   })
 }
 
+export function useUpdateSavedSearchContent(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (
+      draft: Pick<CreateSavedSearch, "query" | "filters" | "from" | "to">
+    ) =>
+      api
+        .PATCH("/saved-searches/{id}", {
+          params: { path: { id } },
+          body: {
+            query: draft.query ?? "",
+            filters: draft.filters ?? null,
+            from: draft.from,
+            to: draft.to,
+          },
+        })
+        .then(unwrap),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: savedSearchKeys.all }),
+  })
+}
+
 export function useMoveSavedSearch(id: string) {
   const queryClient = useQueryClient()
   return useMutation({

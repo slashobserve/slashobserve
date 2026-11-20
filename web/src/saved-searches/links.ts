@@ -31,6 +31,7 @@ export function savedSearchLocation(
       mode: filters.mode === "table" ? "table" : undefined,
       from,
       to,
+      saved: saved.id,
     })
   }
   return tracesLink(uid, {
@@ -42,5 +43,6 @@ export function savedSearchLocation(
     q: query,
     from,
     to,
+    saved: saved.id,
   })
 }
