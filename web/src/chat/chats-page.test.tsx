@@ -6,6 +6,23 @@ import { renderWithProviders } from "@/test/render"
 import { ChatsPage } from "./chats-page"
 
 const session = vi.hoisted(() => ({ role: "editor", id: "u1" }))
+const observation = vi.hoisted(() => ({ allowed: [] as string[] }))
+
+function observationReply(url: string): Response | null {
+  const path = new URL(url, "http://localhost").pathname
+  const id = /^\/api\/v1\/observations\/([^/]+)$/.exec(path)?.[1]
+  if (id === undefined) return null
+  return new Response(
+    JSON.stringify({
+      observation: {
+        id,
+        title: "p99 latency",
+        allowed_actions: observation.allowed,
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  )
+}
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -56,7 +73,8 @@ function stubList(requests: unknown[]) {
   vi.stubGlobal(
     "fetch",
     vi.fn(
-      async () =>
+      async (input: Request | string) =>
+        observationReply(input instanceof Request ? input.url : input) ??
         new Response(
           JSON.stringify({
             requests,
@@ -87,6 +105,8 @@ function stubRecordedList(requests: unknown[]) {
           headers: { "Content-Type": "application/json" },
         })
       }
+      const reply = observationReply(req.url)
+      if (reply !== null) return reply
       return new Response(
         JSON.stringify({
           requests,
@@ -125,6 +145,7 @@ function render() {
 beforeEach(() => {
   session.role = "editor"
   session.id = "u1"
+  observation.allowed = []
 })
 
 afterEach(() => vi.unstubAllGlobals())
@@ -165,6 +186,35 @@ describe("ChatsPage rows", () => {
       )
     ).toBeInTheDocument()
     expect(screen.queryByText(/The dashboard it made stays/)).toBeNull()
+    expect(screen.queryByRole("checkbox")).toBeNull()
+  })
+
+  it("deletes the saved observation too when the person chooses it", async () => {
+    observation.allowed = ["delete"]
+    const calls = stubRecordedList([request("r1", "u1", "what does p99 mean")])
+    const { user } = render()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Chat actions: what does p99 mean",
+      })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    const box = await screen.findByRole("checkbox", {
+      name: 'Also delete the observation "p99 latency"',
+    })
+    expect(box).not.toBeChecked()
+    await user.click(box)
+    expect(
+      screen.getByText(/The observation "p99 latency" is deleted for everyone/)
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", { name: "Delete chat and observation" })
+    )
+    await waitFor(() => expect(calls).toHaveLength(2))
+    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      "DELETE /api/v1/observations/o1",
+      "DELETE /api/v1/observe/r1",
+    ])
   })
 
   it("offers no actions on a chat someone else asked", async () => {

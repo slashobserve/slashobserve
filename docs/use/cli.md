@@ -110,6 +110,10 @@ A request that failed before it had a dashboard shows only here, and `observe st
 Each can be repeated without effect, so a retry after a dropped connection is safe.
 An archived request stays readable with `observe status`.
 
+`requests archive <id> --delete-observation --yes` first deletes the observation the request saved, as `observe o delete` does and with the same permission (Manage on its folder, or Edit when you started the observation), and archives the request only after that delete succeeds.
+The two differ: the request is only archived and still reads with `observe status`, while the observation is deleted for everyone, with its blocks, RCA revisions and discussion, and cannot be undone.
+A request that saved no observation is refused and left as it was.
+
 ### Discovering what a datasource holds
 
 A script or an agent with only a shell finds what to query with `bin/observe datasources`.
