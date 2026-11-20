@@ -18,6 +18,7 @@ type foldKey struct {
 	targetID   string
 	targetName string
 	actor      pgtype.UUID
+	overflow   bool
 }
 
 type fold struct {
@@ -52,6 +53,26 @@ func foldKeyOf(row dbsqlc.InsertAuditEventParams) foldKey {
 	}
 }
 
+func overflowRow(row dbsqlc.InsertAuditEventParams) dbsqlc.InsertAuditEventParams {
+	return dbsqlc.InsertAuditEventParams{
+		ID:            row.ID,
+		OccurredAt:    row.OccurredAt,
+		Category:      row.Category,
+		Action:        row.Action,
+		Outcome:       row.Outcome,
+		Reason:        row.Reason,
+		Status:        row.Status,
+		ActorKind:     string(ActorAnonymous),
+		Initiator:     row.Initiator,
+		Origin:        row.Origin,
+		HttpMethod:    row.HttpMethod,
+		Route:         row.Route,
+		Data:          []byte(`{"overflow":true}`),
+		ServerID:      row.ServerID,
+		ServerVersion: row.ServerVersion,
+	}
+}
+
 func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) bool {
 	if !isFolded(row.Action) {
 		return false
@@ -60,7 +81,8 @@ func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, found := f.open[key]; !found && len(f.open) >= f.limit {
-		key = foldKey{action: row.Action, reason: row.Reason.String}
+		key = foldKey{action: row.Action, reason: row.Reason.String, overflow: true}
+		row = overflowRow(row)
 	}
 	if open, found := f.open[key]; found {
 		open.count++

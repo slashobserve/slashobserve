@@ -68,6 +68,7 @@ var (
 	pruneKeys    = []string{"partitions", "before"}
 	countKeys    = []string{"count"}
 	providerKeys = []string{"provider_error"}
+	overflowKeys = []string{"overflow"}
 	tokenKeys    = []string{"grant_type"}
 	deliverKeys  = []string{"event_type"}
 )
@@ -87,9 +88,9 @@ var catalog = map[Action]Spec{
 	"oauth.authorize":          change(CategoryAuth),
 	"oauth.token":              change(CategoryAuth, tokenKeys),
 	"oauth.revoke":             change(CategoryAuth),
-	"auth.login_failed":        access(CategoryAuth, countKeys, providerKeys),
-	"auth.credential_rejected": access(CategoryAuth, countKeys),
-	"auth.csrf_rejected":       access(CategoryAuth, countKeys),
+	"auth.login_failed":        access(CategoryAuth, countKeys, overflowKeys, providerKeys),
+	"auth.credential_rejected": access(CategoryAuth, countKeys, overflowKeys),
+	"auth.csrf_rejected":       access(CategoryAuth, countKeys, overflowKeys),
 	"request.refuse":           access(CategoryAccess),
 
 	"dashboard.view":   access(CategoryAccess),
