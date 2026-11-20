@@ -351,7 +351,7 @@ No tool queues an investigation on the server: an MCP client investigates with i
 It lists, by name, the other people who have the dashboard open in the web app now, so a client can see who is looking before it changes the dashboard; it needs View, and the list is empty when nobody is looking.
 
 `list_dashboard_health` is available over MCP only.
-It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
+It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, ranked as in [Dashboard health](dashboard-health.md) (failing first, then no data, then duplicate title, then unopened, and within each the most recently opened first), 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
 `folder_id` and `kind` narrow the list, and `next_cursor` pages on.
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
