@@ -194,6 +194,28 @@ func TestRetryKeepsTheChat(t *testing.T) {
 	}
 }
 
+func TestRetryOfAStoppedFirstRequestStaysInItsChat(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	first, err := svc.SubmitObserve(ctx, user, "one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, `UPDATE agent_requests SET state = 'canceled', status = 'failed', failure_code = 'canceled', error = 'x', finished_at = clock_timestamp() WHERE id = $1`, first.ID)
+
+	retried, err := svc.Retry(ctx, first.ID, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.ChatID != first.ID {
+		t.Fatalf("retry chat_id = %v, want the stopped request %v", retried.ChatID, first.ID)
+	}
+	page := listObserve(t, observeRouterFor(svc, user), "?chat_id="+first.ID.String())
+	if len(page.ids()) != 2 {
+		t.Fatalf("chat has %d requests, want the stopped one and its retry", len(page.ids()))
+	}
+}
+
 func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	ctx := context.Background()

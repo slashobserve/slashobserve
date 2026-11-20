@@ -151,6 +151,32 @@ describe("collapseChats", () => {
     ])
   })
 
+  test("keeps a stopped request, its retry and later revisions of what the retry built in one row", () => {
+    const rows = collapseChats([
+      summary({
+        id: "u",
+        source: "prompt",
+        dashboard_id: "d",
+        title: "make it blue",
+      }),
+      summary({
+        id: "t",
+        chat_id: "s",
+        dashboard_id: "d",
+        title: "Checkout health",
+      }),
+      summary({
+        id: "s",
+        chat_id: "s",
+        state: "canceled",
+        title: "Checkout health",
+      }),
+    ])
+    expect(rows.map((row) => [row.id, row.title])).toEqual([
+      ["u", "Checkout health"],
+    ])
+  })
+
   test("keeps investigations and comment revisions as their own rows", () => {
     const rows = collapseChats([
       summary({ id: "i1", source: "investigate", dashboard_id: "a" }),

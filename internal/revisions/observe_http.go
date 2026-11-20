@@ -342,10 +342,7 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 }
 
 func chatOf(id, chat pgtype.UUID) string {
-	if chat.Valid {
-		return chat.String()
-	}
-	return id.String()
+	return chatRoot(id, chat).String()
 }
 
 func requestTitle(title pgtype.Text, prompt string) string {
