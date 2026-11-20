@@ -28,10 +28,15 @@ It then works in this order: discover, draft, lint, run, save, and repair if the
 ### Discover
 
 - `list_metrics`, `list_labels` and `list_label_values` find real metric names, label names and label values on Prometheus and on the OpenTelemetry tables of ClickHouse.
-- `list_services` lists the services a log or trace datasource has seen in the last hour, or finds which datasources hold one, and names the field a query filters on.
+- `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six, or finds which datasources hold one, and names the field a query filters on.
 - `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
 - On Loki, `list_labels` and `list_label_values` find stream labels and their values, narrowed by a stream selector in `metric`, `sample_rows` reads up to 20 lines of the last 15 minutes from every stream or from a stream selector in `table`, and `list_metrics` with a stream selector as `scope` lists each stream label key with the number of streams that carry it.
 - On Tempo, `list_labels` and `list_label_values` find TraceQL attributes and their values, and `get_schema` lists every service with its span names, plus the attributes.
+- On Elasticsearch and OpenSearch, `list_labels` and `list_label_values` find the fields you can group or filter by and a field's top values, `get_schema` lists the indices of the index pattern or, with a `table`, the fields of one index, and `sample_rows` reads up to 20 of the newest documents.
+- On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
+  `logs_for_trace` reads the lines that carry a trace id.
+- On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.
+- `list_annotations` shows deploy markers beside a spike, `list_folders` names the folders a request may place a dashboard in, and `list_datasources` says whether each source is healthy.
 
 The model calls independent discovery tools together in one turn, and uses only names it found in this run or that are already in the dashboard.
 
@@ -116,7 +121,7 @@ It also names the free end of that row's last line and its height, so the model 
 
 The first save must come early.
 From the sixth model call since the session started, its history was shortened, or the last accepted save, reads are refused and only a save can run; the call before gets a note to save next.
-A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
+A suggest run, which proposes one panel for the panel editor, and an investigation, which saves a finding, get 12 calls instead of 6, with the note at the 11th.
 Reads in the same call as a save always run, and so do the reads of the call right after a rejected save, so the model can look into why a save was rejected.
 Two turns in a row in which every call was refused end the run with `no_progress`.
 
@@ -220,6 +225,7 @@ The codes you will see most are:
 - `validation_exhausted` (three rejected saves in a row)
 - `no_progress` (the run stopped making progress)
 - `budget_exhausted` (the run reached the server's cost limit)
+- `conflict` (the dashboard changed twice while the agent was revising it)
 
 A run the server lost track of, such as after a restart, or whose save found its build taken over by a newer attempt, is `lease_expired`.
 Runs from v0.1.0 may show `turn_limit`, a model-call cap later versions removed.
@@ -321,7 +327,7 @@ The server has 99 tools: MCP clients get 98, every one except `save_finding`, wh
 The built-in agent gets 30 in a new-dashboard or revision request and 29 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
 The other 69 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `run_dashboard_health`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `request_comment_access`, `list_access_requests`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `run_dashboard_health`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open; an investigation cites what it used by the observation's title and `/o/<id>`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.
