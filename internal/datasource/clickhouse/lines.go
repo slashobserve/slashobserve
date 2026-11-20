@@ -21,7 +21,7 @@ var _ datasource.LineSource = (*Datasource)(nil)
 
 func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]datasource.Frame, error) {
 	var frames []datasource.Frame
-	err := d.readLines(ctx, req.Query, req.Range, true, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, _ bool) error {
+	err := d.readLines(ctx, req.Query, req.Range, readTimeLines, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, _ bool) error {
 		lim.MaxRows = min(max(req.Limit, 1), lim.MaxRows)
 		rs, err := d.fetchWith(ctx, linesQuery(inner, req.Direction), lim, linesParameters(req.Range, lim.MaxRows, 0), extra)
 		if err != nil {
@@ -35,7 +35,15 @@ func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]
 
 type linesReader func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error
 
-func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r datasource.TimeRange, needTimestamp bool, read linesReader) error {
+type readMode int
+
+const (
+	readPaged readMode = iota
+	readTimeLines
+	readAsWritten
+)
+
+func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r datasource.TimeRange, mode readMode, read linesReader) error {
 	if err := r.Validate(); err != nil {
 		return err
 	}
@@ -67,7 +75,8 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	if err != nil {
 		return mapError(ctx, inPersonsText(d.parsedAlone(ctx, err, inner, lim, extra), q.Text, exp), timeout)
 	}
-	if !timed && needTimestamp {
+	timed = timed && mode != readAsWritten
+	if !timed && mode == readTimeLines {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
 	}
 	if !timed {

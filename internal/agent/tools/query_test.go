@@ -705,6 +705,24 @@ func TestQueryInstantPagesAndKeepsTheSummaryCompact(t *testing.T) {
 	}
 }
 
+func TestQueryInstantPassesAsWrittenToThePageRequest(t *testing.T) {
+	ds := &fakePageDS{fakeDS: &fakeDS{typ: "clickhouse"}, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return []datasource.Frame{logRows(2)}, datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, Total: 2, TotalRelation: datasource.TotalExact}, nil
+	}}
+	r := newPageRegistry(t, ds)
+	for _, input := range []string{
+		`{"datasource":"fake","query":"SELECT 1","page_size":50,"as_written":true}`,
+		`{"datasource":"fake","query":"SELECT 1","page_size":50}`,
+	} {
+		if res, err := call(t, r, nameQueryInstant, input); err != nil || res.IsError {
+			t.Fatalf("res = %#v err = %v", res, err)
+		}
+	}
+	if len(ds.pages) != 2 || !ds.pages[0].AsWritten || ds.pages[1].AsWritten {
+		t.Fatalf("AsWritten of the page requests = %+v, want true then false", ds.pages)
+	}
+}
+
 func TestQueryInstantRejectsBadPaging(t *testing.T) {
 	ds := &fakePageDS{fakeDS: &fakeDS{typ: "loki"}, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
 		return nil, datasource.PageInfo{Page: 1, PageSize: req.PageSize, TotalRelation: datasource.TotalExact}, nil
@@ -717,6 +735,7 @@ func TestQueryInstantRejectsBadPaging(t *testing.T) {
 		"page without page_size":           `{"datasource":"fake","query":"up","page":2}`,
 		"cursor without page_size":         `{"datasource":"fake","query":"up","cursor":"x"}`,
 		"sort without page_size":           `{"datasource":"fake","query":"up","sort":"-Duration"}`,
+		"as_written without page_size":     `{"datasource":"fake","query":"up","as_written":true}`,
 		"sort that is not a column":        `{"datasource":"fake","query":"up","page_size":50,"sort":"Duration; DROP"}`,
 		"sort on a datasource that cannot": `{"datasource":"fake","query":"up","page_size":50,"sort":"-Duration"}`,
 		"cursor over 2 KiB":                `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,

@@ -153,6 +153,7 @@ describe("TraceSqlResults", () => {
       kind: "instant",
       from: "now-6h",
       to: "now",
+      as_written: true,
     })
   })
 

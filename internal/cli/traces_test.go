@@ -347,7 +347,7 @@ func TestTracesQueryRunsTheSQLAsOnePageOfTheExploreQuery(t *testing.T) {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
 	q := f.queries[0]
-	if q["query"] != traceSQL || q["kind"] != "instant" || q["from"] != "now-6h" || q["to"] != "now" || q["page_size"] != float64(100) || q["page"] != float64(1) {
+	if q["query"] != traceSQL || q["kind"] != "instant" || q["from"] != "now-6h" || q["to"] != "now" || q["page_size"] != float64(100) || q["page"] != float64(1) || q["as_written"] != true {
 		t.Fatalf("query %v", q)
 	}
 	if _, ok := q["limit"]; ok {

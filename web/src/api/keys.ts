@@ -242,6 +242,7 @@ export type ExploreParams = {
   page?: number
   cursor?: string
   sort?: string
+  asWritten?: boolean
 }
 
 export type ContextParams = {

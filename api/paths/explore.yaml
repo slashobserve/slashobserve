@@ -92,6 +92,13 @@ datasources-uid-query:
                 maxLength: 65
                 pattern: "^-?[A-Za-z_][A-Za-z0-9_]{0,63}$"
                 description: A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first.
+              as_written:
+                type: boolean
+                default: false
+                description: >-
+                  ClickHouse only: returns the rows as the query wrote them, with its own `ORDER BY`, `LIMIT` and columns and no `TimeNs` field, even when it selects `Timestamp`; a `LIMIT` above `page_size` is paged and never raised, and the query must read the time range through a macro such as `$__timeFilter(Timestamp)`.
+                  Without it a query that selects `Timestamp` comes back as log lines, newest first.
+                  Needs `page_size`.
     responses:
       "200":
         description: The frames the query returned.

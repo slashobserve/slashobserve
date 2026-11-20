@@ -202,6 +202,7 @@ The built-in agent has these four, and `recheck_datasource` is over MCP only.
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.
+A paged query that selects `Timestamp` comes back as log lines, newest first, with a `TimeNs` column; pass `as_written` with `page_size` to get the rows as the SQL wrote them instead, with its own `ORDER BY`, `LIMIT` and columns.
 On any ClickHouse table, `query_instant` without `page_size` and `query_range` refuse a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`, even one that selects `Timestamp`, because only a paged query is cut to the range by the server; a macro inside a comment does not count.
 
 `query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.

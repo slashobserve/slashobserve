@@ -690,6 +690,7 @@ bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_trac
 
 It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
 It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
+The rows come back as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns even when it selects `Timestamp`, and a `LIMIT` above 100 is cut to the first 100 rows.
 Single quotes keep the shell from expanding `$__timeFilter`.
 `--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
 
