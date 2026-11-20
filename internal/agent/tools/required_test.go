@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -58,24 +59,25 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 	}
 	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
 	registry := New(Deps{
-		Activity:      activity.NewStore(database.DB, access),
-		Datasources:   datasources,
-		Runner:        runner,
-		Dashboards:    service,
-		Threads:       commentThreads,
-		Imports:       imports.New(database.DB, service, access, datasources, logger),
-		Folders:       access,
-		Findings:      found,
-		Observations:  observationService,
-		Proposals:     proposals.New(database.DB, access, service, logger),
-		SavedSearches: savedsearches.New(database.DB, access, datasources, nil, logger),
-		Health:        health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
-		Annotations:   notes,
-		Search:        search.New(database.DB, access, nil),
-		Viewers:       viewers.New(database.DB),
-		Provider:      &scriptedDraft{},
-		Runs:          revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
-		Logger:        logger,
+		Activity:       activity.NewStore(database.DB, access),
+		AccessRequests: accessrequests.New(database.DB, access),
+		Datasources:    datasources,
+		Runner:         runner,
+		Dashboards:     service,
+		Threads:        commentThreads,
+		Imports:        imports.New(database.DB, service, access, datasources, logger),
+		Folders:        access,
+		Findings:       found,
+		Observations:   observationService,
+		Proposals:      proposals.New(database.DB, access, service, logger),
+		SavedSearches:  savedsearches.New(database.DB, access, datasources, nil, logger),
+		Health:         health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, Logger: logger, Job: "dashboard_health"}),
+		Annotations:    notes,
+		Search:         search.New(database.DB, access, nil),
+		Viewers:        viewers.New(database.DB),
+		Provider:       &scriptedDraft{},
+		Runs:           revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
+		Logger:         logger,
 	})
 	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
 
@@ -114,6 +116,8 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"revision":       json.RawMessage(`1`),
 		"version":        json.RawMessage(`1`),
 		"folder_id":      json.RawMessage(`"` + dash.ID + `"`),
+		"object_kind":    json.RawMessage(`"dashboard"`),
+		"object_id":      json.RawMessage(`"` + dash.ID + `"`),
 		"parent_version": json.RawMessage(`1`),
 		"run_id":         json.RawMessage(`"` + runID + `"`),
 		"attempt":        json.RawMessage(`1`),
