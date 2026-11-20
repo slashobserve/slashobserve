@@ -17,6 +17,12 @@ import { useAddBlock, type Block, type Observation } from "./queries"
 
 export const addBlockRowId = "add-block-row"
 
+const dataPages = [
+  { label: "Logs", to: "/logs" },
+  { label: "Traces", to: "/traces" },
+  { label: "Metrics", to: "/explore/metrics" },
+] as const
+
 export function useFreezeBlock(
   observationId: string,
   handlers: {
@@ -48,6 +54,8 @@ type Props = {
   observation: Observation
   blocks: readonly Block[]
   canEdit: boolean
+  picking: boolean
+  onPickingChange: (picking: boolean) => void
   onAdded: (blockId: string) => void
 }
 
@@ -133,7 +141,14 @@ function TextComposer({
   )
 }
 
-export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
+export function AddBlockRow({
+  observation,
+  blocks,
+  canEdit,
+  picking,
+  onPickingChange,
+  onAdded,
+}: Props) {
   const label = canEdit ? "Add a block" : "Suggest a block"
   const verb = canEdit ? "Add" : "Suggest"
   const navigate = useNavigate()
@@ -141,7 +156,6 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
   const panelButton = useRef<HTMLButtonElement>(null)
   const [composing, setComposing] = useState(false)
   const [draft, setDraft] = useState("")
-  const [picking, setPicking] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const freezable = blocks.filter(
     (block) => block.kind === "panel" && block.state === "live"
@@ -188,23 +202,26 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
           aria-expanded={picking}
           onClick={() => {
             setProblem(null)
-            setPicking(true)
+            onPickingChange(true)
           }}
         >
           Panel
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            void navigate({
-              to: "/logs",
-              search: { observation: observation.id },
-            })
-          }
-        >
-          Logs
-        </Button>
+        {dataPages.map((page) => (
+          <Button
+            key={page.label}
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              void navigate({
+                to: page.to,
+                search: { observation: observation.id },
+              })
+            }
+          >
+            {page.label}
+          </Button>
+        ))}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -262,7 +279,7 @@ export function AddBlockRow({ observation, blocks, canEdit, onAdded }: Props) {
           verb={verb}
           trigger={panelButton}
           onPicked={onAdded}
-          onClose={() => setPicking(false)}
+          onClose={() => onPickingChange(false)}
         />
       ) : null}
     </div>

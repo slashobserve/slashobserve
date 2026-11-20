@@ -127,21 +127,29 @@ type TraceRange = { from: string; to: string }
 function traceSearch(
   datasourceUid: string,
   range: TraceRange | undefined,
-  span: string | undefined
+  span: string | undefined,
+  observation: string | undefined
 ) {
-  return { ds: datasourceUid, from: range?.from, to: range?.to, span }
+  return {
+    ds: datasourceUid,
+    from: range?.from,
+    to: range?.to,
+    span,
+    observation,
+  }
 }
 
 export function traceLink(
   traceId: string,
   datasourceUid: string,
   range?: TraceRange,
-  span?: string
+  span?: string,
+  observation?: string
 ) {
   return {
     to: "/t/$traceId",
     params: { traceId },
-    search: traceSearch(datasourceUid, range, span),
+    search: traceSearch(datasourceUid, range, span, observation),
   } as const
 }
 
@@ -149,10 +157,11 @@ export function traceUrl(
   traceId: string,
   datasourceUid: string,
   range?: TraceRange,
-  span?: string
+  span?: string,
+  observation?: string
 ): string {
   return (
     path("t", traceId) +
-    stringifySearch(traceSearch(datasourceUid, range, span))
+    stringifySearch(traceSearch(datasourceUid, range, span, observation))
   )
 }

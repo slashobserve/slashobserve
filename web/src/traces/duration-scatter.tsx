@@ -11,6 +11,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { traceLink, traceUrl } from "@/lib/links"
+import { useObservationOrigin } from "@/observations/origin"
 import { timeLabel } from "@/lib/time-ticks"
 import { cn } from "@/lib/utils"
 
@@ -287,6 +288,7 @@ export function DurationScatter({
   selectionActions?: ReactNode
 }) {
   const navigate = useNavigate()
+  const observation = useObservationOrigin()
   const slowest = Math.max(0, ...rows.map((row) => row.durationMs ?? 0))
   const scale = durationScale(slowest)
   const points = scatterPoints(rows, window, slowest)
@@ -389,13 +391,27 @@ export function DurationScatter({
               return (
                 <a
                   key={point.traceId}
-                  href={traceUrl(row.traceId, datasourceUid, range)}
+                  href={traceUrl(
+                    row.traceId,
+                    datasourceUid,
+                    range,
+                    undefined,
+                    observation
+                  )}
                   aria-label={openTraceLabel(row)}
                   tabIndex={-1}
                   onClick={(event) => {
                     if (!plainLeftClick(event)) return
                     event.preventDefault()
-                    void navigate(traceLink(row.traceId, datasourceUid, range))
+                    void navigate(
+                      traceLink(
+                        row.traceId,
+                        datasourceUid,
+                        range,
+                        undefined,
+                        observation
+                      )
+                    )
                   }}
                   onPointerEnter={() => onHighlight(point.traceId)}
                   onFocus={() => onHighlight(point.traceId)}
