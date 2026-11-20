@@ -16,6 +16,7 @@ export function AddToDashboardAction({
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
+  const kind = panel.type === "table" ? "table" : "traces"
   return (
     <>
       <Button
@@ -33,8 +34,8 @@ export function AddToDashboardAction({
         <AddPanelToDashboard
           idBase={panel.id}
           defaultTitle={panel.title ?? "Traces"}
-          description="Adds a full-width traces panel with this query under the dashboard's last row."
-          summary="Add a traces panel from the traces page"
+          description={`Adds a full-width ${kind} panel with this query under the dashboard's last row.`}
+          summary={`Add a ${kind} panel from the traces page`}
           panelFor={(slot) => placedPanel(panel, slot)}
           onClose={() => setOpen(false)}
           trigger={trigger}

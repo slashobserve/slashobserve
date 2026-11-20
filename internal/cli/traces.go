@@ -26,6 +26,7 @@ type tracesOptions struct {
 	from       string
 	to         string
 	ask        string
+	query      string
 	dryRun     bool
 	compare    []string
 	baseline   []string
@@ -53,11 +54,12 @@ func (a *app) tracesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "traces [<trace id>] --datasource <uid>",
 		Short: "Print the spans of a trace from a Tempo or ClickHouse datasource",
-		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints 100 matching traces, the newest unless --sort says otherwise.",
+		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints 100 matching traces, the newest unless --sort says otherwise.\nWith --query on a ClickHouse datasource it runs your SQL over otel_traces as the SQL view of the trace search does, and prints the first 100 rows as a table.",
 		Example: "  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo\n" +
 			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d\n" +
 			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo\n" +
 			"  observe traces --ask \"checkout requests with errors\" --datasource clickhouse --sort -duration\n" +
+			"  observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse\n" +
 			"  observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736 --baseline 5c1d7a2e9f8b4a3d8e6f0b1c2d3e4f50 --datasource tempo",
 		Args: cobra.ArbitraryArgs,
 		RunE: a.runTraces,
@@ -67,6 +69,7 @@ func (a *app) tracesCommand() *cobra.Command {
 	flags.StringVar(&a.traces.from, "from", "now-24h", "start of the range to search, such as now-7d or an RFC 3339 time")
 	flags.StringVar(&a.traces.to, "to", "now", "end of the range")
 	flags.StringVar(&a.traces.ask, "ask", "", "a question the server turns into a trace search, instead of the trace id")
+	flags.StringVar(&a.traces.query, "query", "", "on ClickHouse, SQL over otel_traces to run instead of the trace id, with the time range through a macro such as $__timeFilter(Timestamp)")
 	flags.BoolVar(&a.traces.dryRun, "dry-run", false, "with --ask, print the search without running it")
 	flags.StringVar(&a.traces.sort, "sort", "", "with --ask, order the traces by start, service, span, duration, spans or errors, a minus in front for descending, such as -duration; ClickHouse sorts everything that matches, Tempo only the 100 it returns")
 	flags.StringSliceVar(&a.traces.compare, "compare", nil, "the trace ids to explain, comma separated or repeated")
@@ -77,6 +80,9 @@ func (a *app) tracesCommand() *cobra.Command {
 
 func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	opts := a.traces
+	if cmd.Flags().Changed("query") {
+		return a.queryTraces(cmd, args)
+	}
 	if cmd.Flags().Changed("compare") {
 		return a.compareTraces(cmd, args)
 	}

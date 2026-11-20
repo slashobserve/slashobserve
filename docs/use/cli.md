@@ -342,7 +342,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 A query with a lint error is refused with `query_invalid` and nothing is saved, and a search you already saved with the same title, datasource, query, filters, range and folder prints `Search <id> was already saved` and its address instead of a second copy; `--json` shows `replayed: true`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource (TraceQL) or a ClickHouse datasource (SQL, which reopens the search in the SQL view); a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of another kind is refused with exit code 2 before any request is sent.
 
@@ -627,6 +627,19 @@ Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickH
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
+
+### Run SQL over ClickHouse traces
+
+`--query` takes SQL over `otel_traces` on a ClickHouse datasource instead of the trace id, and runs it as the SQL view of the Traces page does:
+
+```sh
+bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse
+```
+
+It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
+It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
+Single quotes keep the shell from expanding `$__timeFilter`.
+`--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
 
 ### Compare traces
 

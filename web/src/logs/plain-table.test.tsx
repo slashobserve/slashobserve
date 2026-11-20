@@ -61,4 +61,19 @@ describe("PlainTable", () => {
     expect(screen.getByText("api")).toBeTruthy()
     expect(screen.getByText("9")).toBeTruthy()
   })
+
+  it("takes another note and renders the cells it is given", () => {
+    render(
+      <PlainTable
+        frame={untimed}
+        note="Each row is a service."
+        renderCell={(field, value) =>
+          field === "service" ? <b>{`service ${String(value)}`}</b> : null
+        }
+      />
+    )
+    expect(screen.getByText("Each row is a service.")).toBeTruthy()
+    expect(screen.getByText("service api")).toBeTruthy()
+    expect(screen.getByText("9")).toBeTruthy()
+  })
 })

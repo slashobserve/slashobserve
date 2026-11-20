@@ -36,6 +36,9 @@ type exploreResponse struct {
 	Frames []frame `json:"frames"`
 	Meta   struct {
 		Note string `json:"note"`
+		Page *struct {
+			HasNext bool `json:"has_next"`
+		} `json:"page"`
 	} `json:"meta"`
 }
 
