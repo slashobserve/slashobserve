@@ -14,7 +14,7 @@ The entry's `type`, `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch`
 
 A data panel sets `datasource`, and any of its queries can set its own `datasource` to use a different one.
 A `query` variable and an `adhoc` variable set `datasource` too.
-A save is rejected with `unknown_datasource` when a uid is not in the file, so renaming or removing a uid breaks the next save of every dashboard that uses it.
+A save is rejected with `unknown_datasource` when a uid names no configured datasource, so renaming or removing a uid breaks the next save of every dashboard that uses it.
 
 `list_datasources` over MCP and the agent, and `GET /api/v1/datasources`, return each uid with its type, health and `source`, and an unhealthy one carries `message` and `detail`, the cause the server knows, such as the HTTP status the datasource answered.
 `recheck_datasource` over MCP, `POST /api/v1/datasources/{uid}/recheck` and `observe datasources recheck` run a fresh check instead of reading the 10 second cache; checks of one datasource are at least 2 seconds apart, so a retry loop cannot hammer it.
@@ -44,6 +44,7 @@ Each type has its own fields:
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
+On Loki it is `label_values(label)` or `label_values({selector}, label)`, and on Elasticsearch and OpenSearch `label_values(field)`, as the [Loki](../connect/loki.md#variables-and-discovery) and [Elasticsearch](../connect/elasticsearch.md#variables-and-discovery) pages describe; Tempo has no query variables.
 `regex` keeps only the values it matches, or the part of each value it captures; named groups `text` and `value` set what the picker shows and what is selected, a `text` group alone keeps the whole value, and `sort` (which orders by the shown text) is one of:
 
 - `alpha` and `alphaDesc` compare by character, so every capital letter sorts before every lowercase letter.
@@ -177,11 +178,15 @@ An instant query passes the selected step on as its minimum interval, and the fa
 
 ## Ad hoc filters
 
-An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse).
+An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, Elasticsearch and OpenSearch).
+The filters apply to queries on Prometheus, ClickHouse, Elasticsearch and OpenSearch datasources; a Loki or Tempo query takes no ad hoc filters.
 On Prometheus the filters are added as label matchers to every selector in every query on that datasource, and a query cannot refer to the variable.
 A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND` (a filter that starts an `or` group opens a new group, so `a, b, or c` is `(a AND b) OR c`), or `1 = 1` when there are none.
 `<` and `>` compare as numbers when both sides are plain numbers and as text otherwise.
 Prometheus can only AND label matchers, so a Prometheus variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
+
+On Elasticsearch and OpenSearch every ad hoc variable filters every query on its datasource, and filters joined with `or` become a `should` group; the [Elasticsearch](../connect/elasticsearch.md#ad-hoc-filters) page describes the clauses.
+
 A ClickHouse variable with `applyToAll` also filters every query on its datasource that leaves out `$name`, through `additional_table_filters` on the tables the query reads, and each table gets only the filters whose key is one of its columns.
 A query on a ClickHouse datasource that leaves out `$name` ignores the filters when the variable does not set `applyToAll`.
 The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.

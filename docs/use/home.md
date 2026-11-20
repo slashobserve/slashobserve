@@ -8,14 +8,17 @@ The top bar shows today's date, such as "Friday, 13 November", on wide screens.
 Its card has three tabs: **Ask Observe Agent**, **New observation** and **Import a dashboard**.
 The tab you pick is kept in the address as `tab=observe` or `tab=import`, and the command palette's **Ask Observe Agent**, **New observation** and **Import a dashboard** open these tabs.
 An address of `/` with any other query string opens the chat at `/ask` with that query string.
+When you chose a dashboard to open on sign-in, that dashboard opens in place of Home the first time you open `/` without a query in a browser tab; see [Home dashboard](web.md#home-dashboard).
+If that dashboard was deleted or you can no longer view it, Home opens instead and says so, with **Clear it** to drop the choice.
 
 ## Ask Observe Agent
 
 The tab holds the chat composer, with the example prompts under the card; sending a prompt opens the chat as on the [chat](chat.md) page.
-The prompts follow your datasources: up to three ask for a dashboard, and up to two ask a question about the system, such as "Which services had the most errors in the last hour?", which the agent answers into an observation.
-The prompt that adds a row to a dashboard names the first dashboard you can edit, so it never offers a dashboard you may only read.
-Under the card, **Recent chats** lists your five newest chats, each with its state, Running, Stopped or Done, and what it saved.
-**All chats** opens the History panel beside the page.
+The prompts follow your datasources, at most four in all: up to two ask a question about the system, such as "Which services had the most errors in the last hour?", and Editors and Admins also get prompts that ask for a dashboard.
+A question is answered in the chat, and you can save the answer as an observation; see [Chat and follow-ups](chat.md).
+The prompt that adds a row to a dashboard names a dashboard you can edit, so it never offers one you may only read.
+Under the card, **Recent chats** lists your five newest chats, one row for each conversation, each with its state, Running, Stopped or Done, and what it left behind.
+**All chats** opens the Chats page at `/chats`.
 
 ## New observation
 
@@ -48,8 +51,8 @@ Under the card, **Recent imports** lists your five newest imports, each with the
 ## Needs you, Working now and Pick up where you left off
 
 **Needs you** shows the three newest items of your [inbox](inbox.md) that have a reason, and **Open Inbox** opens it.
-Each row ends with its action: **Review** on a proposal or a suggested block, **Reply** on a mention or a reply, **Open** on a repair you started, and **Try again** on a failed run, which starts the run again and opens the new chat; the action sits beside the row, and the row itself opens the item.
-**Working now** lists the agent runs that are queued, running or canceling and that you started or that act on a dashboard or observation you created, whoever started them, and refreshes every five seconds while one is listed.
+Each row ends with its action: **Review** on a proposal or a suggested block, **Reply** on a mention or a reply, **Open** on a repair you started or a proposal of yours that was closed, **Share** on a request for comment access, or **Change role** when the request is for something in General, and **Try again** on a failed run, which starts the run again and opens the new chat; the action sits beside the row, and the row itself opens the item.
+**Working now**, with an **All agents** link, lists the agent runs that are queued, running or canceling and that you started or that act on a dashboard or observation you created, whoever started them, and refreshes every five seconds while one is listed.
 Each row shows the agent's mark, "<agent> is working on <title>", how long it has run or "Queued", who asked, and the observation or dashboard it works in; a run you started opens its chat, and another person's or agent's run opens the dashboard or observation.
 A run on a dashboard or observation you cannot see is listed without its name.
 **Pick up where you left off** lists the five dashboards and observations you opened last in this browser; the list lives in this browser's local storage and never reaches the server.

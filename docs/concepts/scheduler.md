@@ -34,8 +34,16 @@ It keeps a row in the `jobs` table and a series in the metrics from the first st
 
 ## Other jobs
 
-`activity_prune` deletes old [activity](../use/activity.md#retention) events, and `webhook_deliveries_prune` deletes [webhook](../use/webhooks.md#attempts) attempts older than 7 days.
-Both run hourly.
+These jobs run hourly:
+
+- `dashboard_health` runs the [dashboard health check](../use/dashboard-health.md#the-health-check).
+- `activity_prune` deletes old [activity](../use/activity.md#retention) events.
+- `webhook_deliveries_prune` deletes [webhook](../use/webhooks.md#attempts) attempts older than 7 days.
+- `oauth_prune` deletes expired OAuth codes, tokens and sign-in requests, grants that expired or were revoked more than 30 days ago, and clients that registered over 24 hours ago and never signed in, which [MCP](../use/mcp.md) clients leave behind.
+- `run_tokens_prune` deletes expired run tokens and the records of agent workers whose grant or service account is gone.
+
+`agent_requests_sweep` runs every minute.
+It fails agent requests that ran out of attempts, ends requests whose run was canceled, expires requests that no agent claimed within 10 minutes, retries thread replies that did not post in the last 24 hours, and deletes expired build records.
 
 ## Metrics
 

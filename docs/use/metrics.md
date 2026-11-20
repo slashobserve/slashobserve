@@ -17,7 +17,8 @@ The order is set when the app loads and stays fixed until you reload.
 With one source nothing is listed under **Metrics**, and **Metrics** still opens the list.
 On a phone the line under the page title names the source and PromQL, as it does on the logs and trace pages; with two or more sources it opens the **Metric sources** sheet, and with one there is nothing to switch to.
 An address that carries a query but no source, such as `/explore/metrics?q=up`, opens the source you used last on this browser, else the first by name.
-The address keeps the source, `q`, `from`, `to` and `mode`, so **Copy link** in the top bar copies a query that opens the same way.
+The address keeps the source, `q`, `from`, `to` and `mode`, and `ask` when the query was written from a question, so **Copy link** in the top bar copies a query that opens the same way.
+With no `from` and `to` the page reads the last hour.
 
 ## Run a query
 
@@ -30,6 +31,7 @@ Dragging across the chart narrows the range to the part you selected.
 A query the server finds invalid does not run.
 The page shows the message with its line and column and a caret under the position.
 A query that fails on the datasource shows the datasource's message and a **Retry** button.
+A query that returns no series shows "No data in this range", with a hint to widen the time range or loosen the label matchers.
 
 ## Ask in plain language
 
@@ -64,9 +66,11 @@ The names come from the server, which asks the datasource, so the browser never 
 **Table** runs an instant query at the end of the range and lists one row per series with its labels and value.
 The choice is in the address as `mode=table`; with no `mode` the page shows the graph.
 
+A line above the result says how many series or rows came back, the step of a graph and how long the query took.
 The server caps every query by time, series and points, and a datasource may set lower caps.
 A query that exceeds a limit fails with a message that names the limit it hit, and the page says how to narrow the query: add label matchers, aggregate with `sum by (label)`, or shorten the range.
-The step follows the range and the width of the chart, so a longer range draws coarser points.
+The step follows the range and the width of the chart, so a longer range draws coarser points, and it never drops below the datasource's scrape interval, as [Connect Prometheus](../connect/prometheus.md#step) describes.
+When the table stops at the server's row limit, a note under the tabs says so; add label matchers or aggregate to see the rest.
 
 ## Save a search
 
@@ -74,7 +78,7 @@ The step follows the range and the width of the chart, so a longer range draws c
 It stays disabled until a query has run.
 Everyone who can view the folder can open it.
 **Saved searches** in the top bar lists the saved metrics searches, and `/explore/metrics` lists them under the sources with their folder and who saved them.
-Opening one runs it on its datasource over the saved range, shows its title and folder above the query, and the [search](search.md) that covers saved searches finds it too.
+Opening one runs it on its datasource over the saved range, shows its title and folder above the query, keeps its id in the address as `saved`, and the [search](search.md) that covers saved searches finds it too.
 When you change the query, the range or the graph or table choice, someone with Edit on the search gets **Update saved search**, which saves the change into it; **Save search** still saves a new search.
 Only a Prometheus datasource holds a metrics search.
 On a phone the same actions sit in the **More actions** menu.

@@ -14,7 +14,7 @@ Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, ha
 
 `/logs` lists the log sources, each with its query language and whether it answers, and under them the saved logs searches you can view, most recently changed first, with their source, folder, who saved them and when; a source or a search opens on its own page.
 
-Each source in the list also shows the services it has seen in the last hour, the first few names and then "+N more", and a click on "+N more" shows the rest.
+Each source in the list also shows the services it has seen in the last hour, the first three names and then "+N more", and a click on "+N more" shows the rest, with **Show fewer** to fold them again.
 A service name opens that source with the service filter applied: a pill on the field that holds the service for logs, such as `service_name` on Loki, and the service filter for traces.
 The box above the list filters the sources by the text in a source name or in a service name, so typing `checkout` leaves the sources that hold a checkout service.
 Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
@@ -115,7 +115,8 @@ A query may hold 200 terms, and the values of one `field:(a or b or ...)` list c
 Date math in a range value, such as `@timestamp >= now-15m`, is passed to the cluster as written, so the server cannot lint it.
 A field the mapping does not have is reported as a warning in lint, and the query still runs.
 When exactly one mapped field ends the same way as the unknown one, such as `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch, the lint message adds `did you mean "resource.service.name"?` and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
-KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines and a field in any of its clauses holds `ERROR` where the query says `error`, the empty result says no document has that value and lists the values the field does hold in the range.
+KQL values are case sensitive, so when a query such as `service.name:checkout and log.level:error` finds no lines, the server checks the keyword fields its clauses name, three at most, against the values they hold in the range.
+When one of them holds `ERROR` where the query says `error`, the empty result says no document has that value, that the field has the other spelling, and lists up to five of the values it does hold; when the field has few enough values to list them all and none matches, it lists them without the case remark.
 The server writes that sentence, as `meta.hint` of the query response, so the HTTP API and the MCP tool `query_instant` give the same words: an agent reads it in the step text and in the result's `hint`.
 
 ### Share a search
@@ -613,6 +614,9 @@ A search cannot move into a personal folder, because that would make it private 
 The kind and the datasource never change, so save a new search to change either; the query, filters and range can be replaced, and the result must pass the same rules as a save.
 
 `POST /api/v1/saved-searches` saves a search, `GET /api/v1/saved-searches` lists the ones in the folders you can view (`kind`, `folder_id`, `limit` and `cursor` narrow and page the list), `PATCH /api/v1/saved-searches/{id}` renames or moves one, or replaces its `query`, `filters`, `from` and `to`, and `DELETE` removes it.
+The filters of a logs search hold its `columns`, those of a trace search its service, span, duration and errors-only choices, and those of a metrics search its `mode`; a `filters` value replaces all of them, and `null` clears them.
+A save with a service-account key also lints the query and answers 422 `query_invalid` when it has an error, and a repeat of a search that key already saved answers 200 with `replayed` true instead of making a second copy.
+`observe saved-searches save`, `list`, `update`, `rename`, `move` and `delete` and the MCP tools `save_search`, `list_saved_searches` and `update_saved_search` reach the same operations; no MCP tool deletes, renames or moves one.
 Each saved search carries the `url` of the page that reopens it, and each change is recorded in [Activity](activity.md).
 Deleting a folder that still holds a saved search is refused, and deleting a user deletes the searches in their personal folder.
 
@@ -641,13 +645,16 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 ```
 
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
+`field` is the one the server reads as the service: on Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, on Tempo the `resource.service.name` attribute, on ClickHouse the `ServiceName` column, and on Elasticsearch and OpenSearch the service field of the datasource, empty when its mapping has none.
 `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
 `window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
-The server asks the source once, with a short timeout, over that window only, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept.
+The server asks the source once, over that window only, and waits at most 5 seconds for it, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept, `429` `too_many_requests` means the server's shared upstream slots were busy, and a datasource that does not hold the signal gives `422` `query_invalid`.
 It lists at most 200 services and sets `truncated` when more exist.
 Every signed-in role from Viewer can read it, because any Viewer can already query any datasource.
 In the CLI, `observe datasources services <uid>` lists them, and `observe datasources services --service checkout` asks every source and prints the ones that hold a service whose name contains `checkout`; the MCP tool `list_services` does the same for an agent.
 
+On ClickHouse the explore query refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)` unless it sends `page_size`, and `query_range` and `query_instant` without `page_size` follow the same rule: only a paged query is cut to the range by the server, so a query that selects `Timestamp` still needs the macro there.
+The refusal names the macro with the time column of the first table the query reads.
 `limit` lowers the row limit and never raises it above 1,000.
 With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.
 A cursor remembers the sort it was made with, so send the same `sort` with every cursor of a walk; a cursor sent without it, or with another, is refused with a message naming the sort.

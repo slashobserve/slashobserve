@@ -12,7 +12,7 @@ Over the CLI and MCP no zone is known, so times are written in UTC with the word
 A finding starts with one plain sentence, names the window it used, and says what it did not check; when two pods or services tie it leads with the one with the most errors.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
-A plain question sent without the command, such as "how many pods are up?", is answered in an observation too, without building a dashboard.
+A plain question sent without the command, such as "how many pods are up?", is answered in the chat without building a dashboard, and no observation is made until you choose **Save as observation** under the answer, or run `observe save-answer <request-id>`; see [Chat and follow-ups](chat.md).
 
 ## What a finding is
 

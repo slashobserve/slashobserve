@@ -78,7 +78,7 @@ The restored version keeps the list of panels and variables that were unverified
 
 Restoring needs Edit on the dashboard's folder, so a Commenter or Viewer never sees a **Restore** button (see [Roles](../teams/roles.md) and [Folders and access](../teams/folders.md)).
 Over the API it is `POST /api/v1/dashboards/{id}/versions/{version}/restore` with the `parent_version` it builds on, and it can answer `409` like any save.
-MCP has no restore tool.
+Over MCP it is `restore_dashboard_version`, and in the CLI `observe dashboards restore`.
 
 ## Duplicate a dashboard
 

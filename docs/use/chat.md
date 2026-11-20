@@ -64,7 +64,8 @@ Without a model the box is replaced by "No model is connected to this server."
 **Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
 
 The example prompts under the box are built from your datasources and dashboards, at most four of them.
-With Prometheus and a dashboard you can edit, the first one adds a latency row to the one you changed most recently; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
+Editors and Admins are offered dashboard prompts, and everyone is offered up to two questions, such as "Which services had the most errors in the last hour?" or "Which routes are slowest right now?".
+With Prometheus and a dashboard you can edit, the first dashboard prompt adds a latency row to one you changed, or else to the first one you can edit; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
 Choosing a new-dashboard example sends it at once.
 Choosing the latency-row example sends nothing: it opens the box with the text and the dashboard's name as a chip, so you can check or remove the target, edit the text and press Enter.
 A dashboard you can only view is never offered.
@@ -144,8 +145,10 @@ Until then the status line reads "Working on your request" and the steps list wh
 Opening `/b/<request id>` of a request that has not saved a panel yet, from a bookmark or a reload, takes you to its chat page instead of an empty canvas.
 While the agent keeps the message box disabled, the note under it says to wait for the answer or cancel the run.
 While the agent works, the Working row shows what it is writing, one short sentence before a group of tool calls saying what it is about to do and why.
-That text is live only: it is not kept once the run ends, and only the saved dashboard or finding stays.
+The running entry in a dashboard's activity pane shows the same text.
+That text is live only: the server keeps the last 2,000 characters in memory while the run works, and it is not kept once the run ends, so only the saved dashboard or finding stays.
 Between two messages of the agent's live text there is a blank line.
+Outside the browser, `observe status` prints it as a `Live text` section and `get_run` over MCP returns it as `live_text`; see [CLI](cli.md#follow-ups-and-waiting) and [MCP](mcp.md).
 
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 A chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
@@ -260,7 +263,7 @@ Every request has an id, shown as "Request" and its first eight characters at th
 **Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
 **Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
 It is off while a run goes on.
-The reply streams in as the agent works only as far as the server keeps it: the answer itself is written in one piece when the agent saves it, so there is no word-by-word text to copy while it runs.
+While a run works you see its live text, but the answer itself is written in one piece when the agent saves it, so there is nothing to copy until then.
 The model comes from the server's configuration and cannot be picked in the chat box.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
@@ -319,7 +322,8 @@ The list ends with how many chats it shows, counting a conversation of several m
 
 Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
-An investigation names the observation it was saved to, as long as you can open that observation's folder.
+A run that ended on a suggested panel or a proposal reads "Suggested a panel" or "Opened a proposal".
+An investigation reads "Answered in <title>" with the observation it was saved to, as long as you can open that observation's folder.
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
@@ -327,6 +331,7 @@ On the Chats page, each of your chats has the same actions as in History: a **Sa
 On a row that joins several turns, the actions apply to the whole conversation: Rename changes the title of its first request, which the row shows, Save prompt saves that first prompt, and Delete removes every one of your turns in it, with a dialog that says how many.
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
+From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Save as observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
 
 In History, the search box finds chats whose title, prompt or answer contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
@@ -334,10 +339,15 @@ Each chat has a menu with these actions:
 
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
-- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
+- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link.
   A conversation of several messages says how many messages go and names what they saved, such as `What they saved stays: the dashboard "Checkout health" and the observation "Slowest routes".`, or says "Nothing else is removed." when they saved nothing.
 
 Only the person who started a chat can rename, pin or delete it.
+
+The Delete dialog shows an unchecked **Also delete the observation "<title>"** for each observation the chat saved that you may delete, which needs Manage on its folder, or Edit if you started the observation.
+Checked, the dialog says the observation is deleted for everyone, with its blocks, discussion and published RCA revisions, and **Delete chat and observation** deletes it first and then deletes the chat.
+The two differ: the chat only leaves your lists and still opens from its link, while the observation is gone for good and cannot be undone.
+If the observation cannot be deleted, the chat is kept and the dialog says why.
 
 ### One title for a chat and its observation
 

@@ -23,9 +23,10 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
-| `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to` and `mode` in the query string reopen a query. |
+| `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to`, `mode` and `ask` in the query string reopen a query, and `saved` and `observation` name the saved search or observation it belongs to. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
+| `/rca/<token>` | A published RCA revision opened through its public link, with no sign-in; see [Share a revision](observations.md#share-a-revision). |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
 `/logs`, `/traces` and `/explore/metrics` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
@@ -101,6 +102,7 @@ The **More** button at the right of a dashboard's header opens:
 - **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
 - **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
 - **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
+- **Dashboards as code** opens [Dashboards as code](dashboards-as-code.md) in a new tab.
 - **Print or save as PDF** and **Download as image** lay the dashboard out for paper or draw it as one PNG, see [Print a dashboard or download it as an image](#print-a-dashboard-or-download-it-as-an-image).
 - **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
 - **TV mode**, also `d` then `k`, starts [TV mode](public-links.md#show-it-on-a-wall); **TV mode for this folder** cycles through the folder's dashboards and is left out in a personal folder.
@@ -233,6 +235,8 @@ The problems come from the last health check; see [Dashboard health](dashboard-h
 The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Back to dashboard**, `Esc` or `v` again returns to the grid.
 
+**View as table** in the menu of a chart panel replaces the chart with a table of its data in that panel until you choose **View as chart**; nothing is saved.
+
 ## Panels with many series
 
 A time series or trend panel draws at most 50 series per query.
@@ -283,16 +287,16 @@ A panel that uses dashboard variables is copied with them and the values you hav
 
 ## Sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces, Metrics and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
 The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
-On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
+On the page of a listed observation, pinned dashboard, or log, trace or metrics source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
 `⌘\` or `Ctrl+\` does the same as these buttons on every page that shows the sidebar, including while you type in a field, and does nothing on a phone.
 
 Hovering or focusing an icon on the rail shows its name.
-On the rail, Inbox shows its unread count, Observations shows a teal dot while one of your open observations has something unread, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs and Traces open a menu with a link to their list and the sources.
+On the rail, Inbox shows its unread count, Observations shows a teal dot while one of your open observations has something unread, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs, Traces and Metrics open a menu with a link to their list and the sources.
 A pinned dashboard, in the sidebar and in the Dashboards menu, shows its problem count from the last health check, such as "1 problem", and nothing while it has none.
 
 ## Search
@@ -314,7 +318,7 @@ The empty Dashboards list and the Search page link to their docs page the same w
 
 ## Keyboard shortcuts
 
-Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.
+Dashboards answer `v`, `e`, `i`, `c`, `Esc`, `t z`, `t ←`, `t →`, `d r`, `d k`, `f` and `?`.
 [Keyboard shortcuts](keyboard-shortcuts.md) lists them all.
 
 ## On a phone
@@ -334,7 +338,8 @@ The panel editor opens as a sheet at the bottom of the screen, and the panel men
 ## Wide and narrow screens
 
 On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
-The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+The Dashboards list fills the page: the title takes the spare width, keeps at least 240 pixels, and a narrower page scrolls the table sideways.
+Home and the Ask page stop growing at 720 pixels, and at 960 pixels on a window 1800 pixels wide or more.
 On a dashboard, the title and the controls share one row while they fit, and the controls drop to a second row under the title when they do not, for example with the Activity pane open on a 1440 pixel screen.
 Browser zoom scales the whole app if the text is small on a large display.
 

@@ -114,6 +114,64 @@ func TestRequestsArchiveDeletesTheRequest(t *testing.T) {
 	}
 }
 
+func TestRequestsArchiveDeletesTheSavedObservationFirst(t *testing.T) {
+	request := "/api/v1/observe/" + stoppedID
+	observation := "/api/v1/observations/" + testObservation
+	f := newManageFake(t,
+		manageReply{http.MethodGet, request, http.StatusOK, `{"request":{"id":"` + stoppedID + `","observation_id":"` + testObservation + `"}}`},
+		manageReply{http.MethodDelete, observation, http.StatusNoContent, ""},
+		manageReply{http.MethodDelete, request, http.StatusNoContent, ""},
+	)
+	stdout, stderr, code := f.run("requests", "archive", stoppedID, "--delete-observation", "--yes")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t,
+		recordedRequest{http.MethodGet, request, "", ""},
+		recordedRequest{http.MethodDelete, observation, "", ""},
+		recordedRequest{http.MethodDelete, request, "", ""},
+	)
+	if want := "Deleted observation " + testObservation + "\nArchived request " + stoppedID + "\n"; stdout != want {
+		t.Fatalf("stdout %q, want %q", stdout, want)
+	}
+}
+
+func TestRequestsArchiveKeepsTheRequestWhenTheObservationIsNotDeleted(t *testing.T) {
+	request := "/api/v1/observe/" + stoppedID
+	observation := "/api/v1/observations/" + testObservation
+	f := newManageFake(t,
+		manageReply{http.MethodGet, request, http.StatusOK, `{"request":{"id":"` + stoppedID + `","observation_id":"` + testObservation + `"}}`},
+		manageReply{http.MethodDelete, observation, http.StatusForbidden, `{"error":{"code":"forbidden","message":"needs Manage on the folder"}}`},
+	)
+	_, stderr, code := f.run("requests", "archive", stoppedID, "--delete-observation", "--yes")
+	if code == 0 || !strings.Contains(stderr, "was not archived") {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t,
+		recordedRequest{http.MethodGet, request, "", ""},
+		recordedRequest{http.MethodDelete, observation, "", ""},
+	)
+}
+
+func TestRequestsArchiveRefusesToDeleteWhatIsNotThere(t *testing.T) {
+	request := "/api/v1/observe/" + stoppedID
+	f := newManageFake(t, manageReply{http.MethodGet, request, http.StatusOK, `{"request":{"id":"` + stoppedID + `","observation_id":null}}`})
+	_, stderr, code := f.run("requests", "archive", stoppedID, "--delete-observation", "--yes")
+	if code == 0 || !strings.Contains(stderr, "saved no observation") {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t, recordedRequest{http.MethodGet, request, "", ""})
+}
+
+func TestRequestsArchiveNeedsYesToDeleteTheObservation(t *testing.T) {
+	f := newManageFake(t)
+	_, stderr, code := f.run("requests", "archive", stoppedID, "--delete-observation")
+	if code != 2 || !strings.Contains(stderr, "--yes") {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t)
+}
+
 func TestRequestsPinRenameSendTheChange(t *testing.T) {
 	reply := `{"request":{"id":"` + stoppedID + `"}}`
 	cases := []struct {

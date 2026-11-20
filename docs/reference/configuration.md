@@ -11,8 +11,8 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable                    | Default | Notes                                                                                                                              |
 | --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_HTTP_ADDR`    | `:8080` | Listen address as `host:port`; the port must be 1 to 65535. The image sets it to `:8080`.                                          |
-| `SLASHOBSERVE_DATABASE_URL` | none    | Required. A Postgres connection string (a URL or key/value form, parsed by pgx). The pool opens up to 16 connections, or 8 plus 2 per agent worker when that is more; add `pool_max_conns=N` to set it yourself. |
+| `SLASHOBSERVE_HTTP_ADDR`    | `:8080` | Listen address as `host:port`; the port must be 1 to 65535. The image sets it to `:8080`. While a model provider is set, the host must be empty, an unspecified address such as `0.0.0.0`, `localhost` or a loopback address, because the built-in agent reaches the server on loopback. |
+| `SLASHOBSERVE_DATABASE_URL` | none    | Required. A Postgres connection string (a URL or key/value form, parsed by pgx). The pool opens up to the largest of 16, 8 plus 2 per agent worker, and the CPU count; add `pool_max_conns=N` to set it yourself. |
 | `SLASHOBSERVE_DATABASE_DIRECT_URL` | none | Optional. A connection string straight to Postgres, for when `SLASHOBSERVE_DATABASE_URL` goes through a transaction-mode pooler. Live updates (`LISTEN`) and migrations with their lock use it; everything else uses the pooled URL. It must reach the same database, or the server refuses to start. Unset, everything uses `SLASHOBSERVE_DATABASE_URL`. |
 | `SLASHOBSERVE_LOG_LEVEL`    | `info`  | `debug`, `info`, `warn` or `error`. `/healthz`, `/readyz` and `/metrics` requests are logged at `debug` only.                     |
 | `SLASHOBSERVE_LOG_FORMAT`   | `json`  | `json` or `text`. Logs go to standard error.                                                                                       |
@@ -37,7 +37,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable                        | Default | Notes                                                                          |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources. |
+| `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources from a file; an Admin can still [add them in the app](../connect/datasources-in-the-app.md). |
 
 ## Service accounts
 
@@ -67,7 +67,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable                  | Default | Notes                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_SECRET_KEY` | unset   | Optional. At least 32 random bytes written as hex or base64 (a value that is valid hex is read as hex), checked at startup and never logged. It encrypts the [Grafana connection](../use/switch-from-grafana.md) tokens and the signing secrets of [webhooks](../use/webhooks.md) that the server stores, so adding a connection or a webhook needs it; without it, adding a webhook answers `409 secret_key_missing`. Generate one with `openssl rand -hex 32`. Changing it makes stored tokens unreadable until each connection gets its token again, and disables every webhook with the reason `secret_unreadable` until its secret is rotated and the webhook is enabled. |
+| `SLASHOBSERVE_SECRET_KEY` | unset   | Optional. At least 32 random bytes written as hex or base64 (a value that is valid hex is read as hex), checked at startup and never logged. It encrypts the credentials of [datasources added in the app](../connect/datasources-in-the-app.md), the [Grafana connection](../use/switch-from-grafana.md) tokens and the signing secrets of [webhooks](../use/webhooks.md) that the server stores, so saving one of those needs it; without it the save answers `409 secret_key_missing`. Generate one with `openssl rand -hex 32`. Changing it makes stored credentials and tokens unreadable until each datasource, connection or webhook gets its secret again: a datasource shows as Unavailable, and every webhook is disabled with the reason `secret_unreadable` until its secret is rotated and it is enabled. |
 
 ## LLM
 
@@ -80,7 +80,7 @@ See [LLM providers](../connect/llm-providers.md) for how they combine.
 | `SLASHOBSERVE_LLM_MODEL`           | `claude-sonnet-5-5` for `anthropic` | Required for `openai`. Ignored by `replay`.                                                                                 |
 | `SLASHOBSERVE_LLM_API_KEY`         | unset                               | The provider credential. Required for `anthropic`, optional for `openai`. Never logged or echoed in an error.               |
 | `SLASHOBSERVE_LLM_API_KEY_FILE`    | unset                               | A file holding the credential, with surrounding whitespace trimmed. Set at most one of this and `SLASHOBSERVE_LLM_API_KEY`. |
-| `SLASHOBSERVE_LLM_BASE_URL`        | the provider's own endpoint         | An absolute `http` or `https` URL. A path is allowed; a query, fragment or user info is not.                                |
+| `SLASHOBSERVE_LLM_BASE_URL`        | the provider's own endpoint         | An absolute `http` or `https` URL. A path is allowed; a query, fragment or user info is not. For `anthropic` give the root without `/v1`, which the agent adds; for `openai` the URL is used as written. |
 | `SLASHOBSERVE_LLM_EFFORT`          | unset                               | For `anthropic`: `low`, `medium`, `high`, `xhigh` or `max`; unset means `medium`. For `openai`: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`; unset sends nothing to the provider. The value is checked against the provider's list and ignored by `replay`. The first call of a new build runs one step higher (`low` becomes `medium`, `medium` becomes `high`, anything else stays); every later call runs at this value. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS`      | `16000`                             | Output token cap for a model call, `1024` to `64000`. The first call of a new build uses it as is; later calls cap their output at half of it, but at least `8192` and never above it, and a call cut off at that lower cap is sent once more at this value. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m`                               | A Go duration from `10s` to `60m`, applied to each model call including its retries (up to 4 attempts with backoff). `0` sets no limit on a call. A call that hits the limit fails with `call_timeout`. |

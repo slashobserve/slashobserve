@@ -47,7 +47,7 @@ Admins see a Webhooks section in Settings; nobody else does.
 2. Select **Add webhook** at the top of the section; a panel opens beside the page (at the bottom of the screen on a phone).
 3. Enter the name, the https address, the message and the events to send.
    The message is the signed JSON of [The request](#the-request) by default, or one line of text for a Slack incoming webhook or a Teams workflow address; see [Send to Slack or Teams](#send-to-slack-or-teams).
-   The events are grouped as Dashboards, Annotations, Findings, Saved searches, Observations, Proposals, Comment threads and Agent runs.
+   The events are grouped as Dashboards, Annotations, Findings, Saved searches, Observations, Proposals, Comment threads, Agent runs, Public links, Access requests, People, Service accounts, Webhooks, Connected agents, Outbound access, Grafana connections and Datasources.
    Each group shows how many of its events are chosen, its box chooses all of them, and its arrow lists them.
 4. Select **Add webhook** at the bottom of the panel.
    If the address's domain is not on the outbound allowlist, the form says so and links to the Outbound access section, where an Admin can allow it.

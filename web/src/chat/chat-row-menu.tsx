@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type RefObject } from "react"
+import { useQueries } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   EllipsisIcon,
@@ -22,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,8 +38,13 @@ import {
   useRenameChat,
   type RequestSummary,
 } from "@/observe/queries"
+import { observationQuery, useDeleteObservation } from "@/observations/queries"
 
-import { deleteTurnsText } from "./chat-state"
+import {
+  deleteObservationLabel,
+  deleteTurnsText,
+  savedObservations,
+} from "./chat-state"
 import { keptTitleNote } from "./shared-title"
 
 const maxTitleLength = 120
@@ -76,14 +83,47 @@ export function ChatRowMenu({
   const navigate = useNavigate()
   const pin = usePinChat(request.id)
   const remove = useDeleteChatTurns(turns.map((turn) => turn.id))
+  const removeObservation = useDeleteObservation()
   const [confirming, setConfirming] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set())
   const pinned = request.pinned_at !== null
+  const saved = savedObservations(turns)
+  const observations = useQueries({
+    queries: saved.map((observation) => ({
+      ...observationQuery(observation.id),
+      enabled: confirming,
+    })),
+  })
+  const deletable = saved.filter(
+    (_, index) =>
+      observations[index]?.data?.observation.allowed_actions.includes(
+        "delete"
+      ) === true
+  )
+  const removing = new Set(
+    deletable
+      .filter((observation) => chosen.has(observation.id))
+      .map((observation) => observation.id)
+  )
+  const pending = remove.isPending || removeObservation.isPending
 
   function changeConfirming(next: boolean) {
-    if (!next && remove.isPending) return
+    if (!next && pending) return
     setConfirming(next)
-    if (!next) setProblem(null)
+    if (!next) {
+      setProblem(null)
+      setChosen(new Set())
+    }
+  }
+
+  function choose(id: string, on: boolean) {
+    setChosen((current) => {
+      const next = new Set(current)
+      if (on) next.add(id)
+      else next.delete(id)
+      return next
+    })
   }
 
   function togglePin() {
@@ -92,8 +132,18 @@ export function ChatRowMenu({
     })
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     setProblem(null)
+    for (const id of removing) {
+      try {
+        await removeObservation.mutateAsync(id)
+      } catch (error) {
+        setProblem(
+          `The observation could not be deleted, so the chat was kept: ${failureText(error)}`
+        )
+        return
+      }
+    }
     remove.mutate(undefined, {
       onSuccess: () => {
         setConfirming(false)
@@ -146,32 +196,55 @@ export function ChatRowMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTurnsText(turns)}
+              {deleteTurnsText(turns, removing)}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deletable.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {deletable.map((observation) => (
+                <li key={observation.id}>
+                  <label className="flex items-start gap-2 text-[13px]">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={chosen.has(observation.id)}
+                      disabled={pending}
+                      onCheckedChange={(on) => choose(observation.id, on)}
+                    />
+                    <span className="wrap-anywhere">
+                      {deleteObservationLabel(observation)}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {problem !== null ? (
             <Alert variant="destructive">
               <AlertDescription>{problem}</AlertDescription>
             </Alert>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel aria-disabled={remove.isPending}>
+            <AlertDialogCancel aria-disabled={pending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={remove.isPending}
+              disabled={pending}
               focusableWhenDisabled
-              aria-busy={remove.isPending}
-              onClick={confirmDelete}
+              aria-busy={pending}
+              onClick={() => void confirmDelete()}
             >
-              {remove.isPending ? (
+              {pending ? (
                 <LoaderCircleIcon
                   aria-hidden="true"
                   className="motion-safe:animate-spin"
                 />
               ) : null}
-              Delete chat
+              {removing.size === 0
+                ? "Delete chat"
+                : removing.size === 1
+                  ? "Delete chat and observation"
+                  : "Delete chat and observations"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

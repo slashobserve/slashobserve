@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -166,25 +167,41 @@ func (o requestListOptions) apply(cmd *cobra.Command, query url.Values) error {
 }
 
 func (a *app) requestsArchiveCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "archive <request-id>",
+	var withObservation, yes bool
+	cmd := &cobra.Command{
+		Use:   "archive <request-id> [--delete-observation --yes]",
 		Short: "Archive one of your agent requests so it leaves the list",
-		Long:  "archive removes one of your agent requests from requests list.\nThe request stays readable with observe status, and archiving it again changes nothing.\nOnly the person who made the request can archive it.",
+		Long:  "archive removes one of your agent requests from requests list.\nThe request stays readable with observe status, and archiving it again changes nothing.\nOnly the person who made the request can archive it.\n--delete-observation first deletes the observation the request saved, for everyone and for good, as observe o delete does and with its permission, and archives the request only when that succeeds; it needs --yes.",
 		Args:  exactArgs(1, "one request id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {
 				return err
 			}
+			if withObservation && !yes {
+				return usagef("--delete-observation deletes the observation request %s saved for everyone, with its blocks, RCA revisions and discussion, and cannot be undone; rerun with --yes", id)
+			}
 			c, err := a.newClient()
 			if err != nil {
 				return err
+			}
+			out := a.output()
+			if withObservation {
+				observation, err := savedObservation(cmd.Context(), c, id)
+				if err != nil {
+					return err
+				}
+				if _, err := c.do(cmd.Context(), http.MethodDelete, "observations/"+observation, nil, nil); err != nil {
+					return fmt.Errorf("observation %s was not deleted, so request %s was not archived: %w", observation, id, err)
+				}
+				if !a.json {
+					out.confirm("Deleted observation %s", text(observation))
+				}
 			}
 			data, err := c.do(cmd.Context(), http.MethodDelete, "observe/"+id, nil, nil)
 			if err != nil {
 				return err
 			}
-			out := a.output()
 			if a.json {
 				out.body(data)
 				return nil
@@ -193,6 +210,24 @@ func (a *app) requestsArchiveCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&withObservation, "delete-observation", false, "also delete the observation the request saved, for everyone")
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm that the observation is deleted for everyone")
+	return cmd
+}
+
+func savedObservation(ctx context.Context, c *client, id string) (string, error) {
+	data, err := c.get(ctx, "observe/"+id, nil)
+	if err != nil {
+		return "", err
+	}
+	envelope, err := decode[requestEnvelope](data)
+	if err != nil {
+		return "", err
+	}
+	if envelope.Request.ObservationID == nil {
+		return "", fmt.Errorf("request %s saved no observation, so there is none to delete; rerun without --delete-observation", id)
+	}
+	return *envelope.Request.ObservationID, nil
 }
 
 func (a *app) requestsPinCommand(pin bool) *cobra.Command {
