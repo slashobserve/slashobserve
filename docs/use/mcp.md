@@ -373,7 +373,7 @@ A done item leaves the default list, counts as read and stays done when the inbo
 
 `request_comment_access` asks for [comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation the caller can view but not comment on, with `object_kind` (`dashboard` or `observation`), `object_id` and an optional one-line `note` of at most 200 characters.
 It changes no access and its answer never names who received the request; it answers what `POST /api/v1/access-requests` answers, including `request_open` with `requested_at` while a request is open, `already_can_comment` and `not_found`.
-`list_access_requests` lists the open requests on the folders the caller manages, as `GET /api/v1/access-requests` does.
+`list_access_requests` lists the open requests on the folders the caller manages, as `GET /api/v1/access-requests` does, with each request's `folder`; when `folder.general` is true the object is in General, which takes no folder entry, so only a role change or moving the object to another folder first grants it.
 Both are over MCP only, so the built-in agent does not have them, and a service-account key may call them.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.

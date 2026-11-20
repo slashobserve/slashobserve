@@ -265,8 +265,9 @@ bin/observe access requests
 It prints `Asked for comment access to <kind> <title>; the people who manage its folder will see it in their inbox` and changes no access.
 A request that is still open answers `request_open`, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
 A service-account key may ask too; its request is granted by raising the service account's role.
-`requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
+`requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE`, `FOLDER` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
 Grant one with `bin/observe folders permissions grant <folder-id> --user <id> --level comment`, or by raising the role.
+General takes no folder entry, so for a request whose `FOLDER` is General the command adds a note on standard error: raise the person's role on the People page, or move the object to a folder first.
 
 ## Saved prompts
 

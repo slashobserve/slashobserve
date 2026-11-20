@@ -226,6 +226,7 @@ func (q *Queries) InsertAccessRequest(ctx context.Context, arg InsertAccessReque
 
 const listOpenAccessRequests = `-- name: ListOpenAccessRequests :many
 SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
+  coalesce(d.folder_id, o.folder_id)::uuid AS folder_id,
   r.requester_kind, r.requester_id, r.requester_name, r.note, r.created_at
 FROM access_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id
@@ -245,6 +246,7 @@ type ListOpenAccessRequestsRow struct {
 	DashboardID   pgtype.UUID
 	ObservationID pgtype.UUID
 	Title         string
+	FolderID      pgtype.UUID
 	RequesterKind string
 	RequesterID   pgtype.UUID
 	RequesterName string
@@ -266,6 +268,7 @@ func (q *Queries) ListOpenAccessRequests(ctx context.Context, arg ListOpenAccess
 			&i.DashboardID,
 			&i.ObservationID,
 			&i.Title,
+			&i.FolderID,
 			&i.RequesterKind,
 			&i.RequesterID,
 			&i.RequesterName,

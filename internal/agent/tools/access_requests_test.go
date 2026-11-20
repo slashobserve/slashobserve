@@ -46,7 +46,7 @@ func TestRequestCommentAccessToolAsksOnceAndTheAdminListsIt(t *testing.T) {
 
 	res := callAs(t, r, viewerCaller, nameRequestCommentAccess, input)
 	created, ok := res.Content.(accessrequests.RequestJSON)
-	if res.IsError || !ok || created.Object.Title != "Checkout" || created.Note != "on call" || created.RequestedBy.Name != "Vic" {
+	if res.IsError || !ok || created.Object.Title != "Checkout" || created.Note != "on call" || created.RequestedBy.Name != "Vic" || !created.Folder.General {
 		t.Fatalf("first ask = %#v", res.Content)
 	}
 
@@ -58,7 +58,7 @@ func TestRequestCommentAccessToolAsksOnceAndTheAdminListsIt(t *testing.T) {
 
 	res = callAs(t, r, adminCaller, nameListAccessRequests, `{}`)
 	list, ok := res.Content.(accessrequests.ListJSON)
-	if res.IsError || !ok || len(list.Items) != 1 || list.Items[0].ID != created.ID {
+	if res.IsError || !ok || len(list.Items) != 1 || list.Items[0].ID != created.ID || list.Items[0].Folder != created.Folder {
 		t.Fatalf("Admin's list = %#v", res.Content)
 	}
 	res = callAs(t, r, viewerCaller, nameListAccessRequests, `{}`)

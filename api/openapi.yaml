@@ -2056,7 +2056,7 @@ components:
     AccessRequest:
       type: object
       additionalProperties: false
-      required: [id, object, requested_by, note, created_at]
+      required: [id, object, folder, requested_by, note, created_at]
       description: A request for Comment access to a dashboard or observation.
       properties:
         id:
@@ -2075,6 +2075,20 @@ components:
               format: uuid
             title:
               type: string
+        folder:
+          type: object
+          additionalProperties: false
+          required: [id, title, general]
+          description: The folder the object is in.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            general:
+              type: boolean
+              description: True for General, which is open to everyone by role and takes no folder entry, so the request is granted by raising the requester's role or by moving the object to another folder first.
         requested_by:
           type: object
           additionalProperties: false

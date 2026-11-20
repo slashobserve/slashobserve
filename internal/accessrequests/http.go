@@ -31,6 +31,12 @@ type ObjectJSON struct {
 	Title string `json:"title"`
 }
 
+type FolderJSON struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	General bool   `json:"general"`
+}
+
 type RequesterJSON struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
@@ -40,6 +46,7 @@ type RequesterJSON struct {
 type RequestJSON struct {
 	ID          string        `json:"id"`
 	Object      ObjectJSON    `json:"object"`
+	Folder      FolderJSON    `json:"folder"`
 	RequestedBy RequesterJSON `json:"requested_by"`
 	Note        string        `json:"note"`
 	CreatedAt   string        `json:"created_at"`
@@ -53,6 +60,7 @@ func JSONOf(r Request) RequestJSON {
 	return RequestJSON{
 		ID:          r.ID,
 		Object:      ObjectJSON{Kind: r.Object.Kind, ID: r.Object.ID.String(), Title: r.Title},
+		Folder:      FolderJSON(r.Folder),
 		RequestedBy: RequesterJSON(r.RequestedBy),
 		Note:        r.Note,
 		CreatedAt:   httpapi.FormatTime(r.CreatedAt),

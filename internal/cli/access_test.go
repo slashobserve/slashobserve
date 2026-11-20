@@ -11,7 +11,7 @@ import (
 
 const accessDashboard = "ffffffff-0000-4000-8000-000000000011"
 
-const accessRequestBody = `{"id":"ffffffff-0000-4000-8000-000000000012","object":{"kind":"dashboard","id":"` + accessDashboard + `","title":"Checkout"},"requested_by":{"kind":"user","id":"ffffffff-0000-4000-8000-000000000013","name":"Ada"},"note":"on call","created_at":"2026-11-20T09:00:00Z"}`
+const accessRequestBody = `{"id":"ffffffff-0000-4000-8000-000000000012","object":{"kind":"dashboard","id":"` + accessDashboard + `","title":"Checkout"},"folder":{"id":"ffffffff-0000-4000-8000-000000000014","title":"Payments","general":false},"requested_by":{"kind":"user","id":"ffffffff-0000-4000-8000-000000000013","name":"Ada"},"note":"on call","created_at":"2026-11-20T09:00:00Z"}`
 
 func runAccess(t *testing.T, handler http.HandlerFunc, args ...string) (string, string, int) {
 	t.Helper()
@@ -71,7 +71,7 @@ func TestAccessRequestsPrintsATableOrSaysThereAreNone(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
-	for _, want := range []string{"ASKED", "WHO ID", "Ada", "user:ffffffff-0000-4000-8000-000000000013", "dashboard:" + accessDashboard, "Checkout", "on call"} {
+	for _, want := range []string{"ASKED", "WHO ID", "FOLDER", "Payments", "Ada", "user:ffffffff-0000-4000-8000-000000000013", "dashboard:" + accessDashboard, "Checkout", "on call"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout %q lacks %q", stdout, want)
 		}
@@ -83,5 +83,27 @@ func TestAccessRequestsPrintsATableOrSaysThereAreNone(t *testing.T) {
 	}, "requests")
 	if code != 0 || !strings.Contains(stdout, "No open access requests on folders you manage.") {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestAccessRequestsInGeneralSayWhatToDoInstead(t *testing.T) {
+	inGeneral := strings.Replace(accessRequestBody, `"title":"Payments","general":false`, `"title":"General","general":true`, 1)
+	stdout, stderr, code := runAccess(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"items":[`+inGeneral+`]}`)
+	}, "requests")
+	if code != 0 || !strings.Contains(stdout, "General") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+	if !strings.Contains(stderr, "General takes no folder entry") || !strings.Contains(stderr, "raise the person's role") || !strings.Contains(stderr, "move the object to a folder") {
+		t.Fatalf("stderr %q", stderr)
+	}
+
+	_, stderr, _ = runAccess(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"items":[`+accessRequestBody+`]}`)
+	}, "requests")
+	if strings.Contains(stderr, "General") {
+		t.Fatalf("a request in another folder got the General note: %q", stderr)
 	}
 }

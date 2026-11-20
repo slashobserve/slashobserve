@@ -25,6 +25,22 @@ function item(
 }
 
 describe("needsYouAction", () => {
+  test("Change role opens People for a request in General, where nothing can be shared", () => {
+    const general = {
+      ...item(
+        "access_request",
+        { kind: "access_request", id: requestId },
+        { object: { kind: "dashboard", id: proposalId }, general: true }
+      ),
+      actor: { kind: "user", name: "Ada" },
+    } as InboxItem
+    expect(needsYouAction(general)).toMatchObject({
+      kind: "link",
+      label: "Change role",
+      to: { to: "/people" },
+    })
+  })
+
   test("Share opens the Share pane of the dashboard someone asked about", () => {
     expect(
       needsYouAction(

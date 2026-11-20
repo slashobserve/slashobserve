@@ -105,6 +105,12 @@ function threadObject(item: InboxItem): string {
   return titleOf(item) ?? kindWords[objectRef(item)?.kind ?? item.target.kind]
 }
 
+export function itemHint(item: InboxItem): string | null {
+  if (!inGeneral(item)) return null
+  const where = item.actor.kind === "service_account" ? "API keys" : "People"
+  return `General is open to everyone by role and has no list to change. Raise ${item.actor.name}'s role on ${where}, or move it to a folder first.`
+}
+
 export function itemExcerpt(item: InboxItem): string | null {
   return item.excerpt === null || item.excerpt === "" ? null : item.excerpt
 }
@@ -233,7 +239,14 @@ function threadLink(item: InboxItem): ItemLink | null {
   }
 }
 
+export function inGeneral(item: InboxItem): boolean {
+  return field(item, "general") === true
+}
+
 function accessRequestLink(item: InboxItem): ItemLink | null {
+  if (inGeneral(item)) {
+    return { to: item.actor.kind === "service_account" ? "/keys" : "/people" }
+  }
   const ref = objectRef(item)
   if (ref?.kind === "dashboard") {
     return { to: dashboardPath(ref.id), search: { share: "1" } }

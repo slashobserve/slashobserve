@@ -110,6 +110,7 @@ When nobody manages the folder that way, as for General, it goes to the instance
 The person who asked is never told who received it, beyond what the Share pane already shows them.
 Each of them gets an `access_request` item in their [inbox](../use/inbox.md) that names who asked, the dashboard or observation and the note.
 Opening it goes to the dashboard's Share pane, or for an observation to its folder's settings, where an entry with Comment or higher gives the access.
+General takes no entry, because it cannot be restricted, so a request for something in General says so in the inbox item and opens People, where the Admin raises the person's role, or API keys for a service account; the other way is to move the item to a folder and grant it there.
 
 A person has at most one open request on each dashboard or observation.
 Asking again while it is open answers `409 request_open` with `requested_at`, the time of the open request, and the web app says the request is still open.

@@ -3989,7 +3989,7 @@ export interface paths {
         };
         /**
          * List the open Comment access requests on folders the caller manages.
-         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing.
+         * @description Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100. Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing. An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
          */
         get: operations["listAccessRequests"];
         put?: never;
@@ -4885,6 +4885,14 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 title: string;
+            };
+            /** @description The folder the object is in. */
+            folder: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** @description True for General, which is open to everyone by role and takes no folder entry, so the request is granted by raising the requester's role or by moving the object to another folder first. */
+                general: boolean;
             };
             requested_by: {
                 /** @enum {string} */

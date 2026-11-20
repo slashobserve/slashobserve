@@ -65,13 +65,29 @@ type Requester struct {
 	Name string
 }
 
+type Folder struct {
+	ID      string
+	Title   string
+	General bool
+}
+
 type Request struct {
 	ID          string
 	Object      Object
 	Title       string
+	Folder      Folder
 	RequestedBy Requester
 	Note        string
 	CreatedAt   time.Time
+}
+
+func folderOf(levels folders.Levels, id pgtype.UUID) Folder {
+	for _, f := range levels.Folders() {
+		if f.ID == id {
+			return Folder{ID: id.String(), Title: f.Title, General: f.General}
+		}
+	}
+	return Folder{ID: id.String()}
 }
 
 func cleanNote(raw string) (string, error) {
@@ -192,8 +208,9 @@ type objectData struct {
 }
 
 type openedData struct {
-	Object objectData `json:"object"`
-	Title  string     `json:"title"`
+	Object  objectData `json:"object"`
+	Title   string     `json:"title"`
+	General bool       `json:"general,omitempty"`
 }
 
 type requesterData struct {
@@ -246,6 +263,7 @@ func (s *Service) Request(ctx context.Context, by auth.Principal, obj Object, ra
 		if err := mayAsk(levels.Of(t.folder)); err != nil {
 			return err
 		}
+		out.Folder = folderOf(levels, t.folder)
 		slot := dbsqlc.LockAccessRequestSlotParams{ObjectID: obj.ID, RequesterKind: requester.Kind, RequesterID: requesterID}
 		if err := q.LockAccessRequestSlot(ctx, slot); err != nil {
 			return fmt.Errorf("lock access request: %w", err)
@@ -267,7 +285,7 @@ func (s *Service) Request(ctx context.Context, by auth.Principal, obj Object, ra
 			TargetID: id,
 			Owner:    ownerOf(obj),
 			Actor:    activity.By(ctx, by),
-			Data:     openedData{Object: objectData{Kind: obj.Kind, ID: obj.ID.String()}, Title: t.title},
+			Data:     openedData{Object: objectData{Kind: obj.Kind, ID: obj.ID.String()}, Title: t.title, General: out.Folder.General},
 		}, nil)
 		if err != nil {
 			return err
@@ -319,6 +337,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal) ([]Request, error
 			ID:          r.ID.String(),
 			Object:      obj,
 			Title:       r.Title,
+			Folder:      folderOf(levels, r.FolderID),
 			RequestedBy: Requester{Kind: r.RequesterKind, ID: r.RequesterID.String(), Name: r.RequesterName},
 			Note:        r.Note,
 			CreatedAt:   r.CreatedAt.Time,
