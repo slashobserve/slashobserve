@@ -126,7 +126,11 @@ func TestSearchAuditEventsCutsLargePagesAndPagesOnWithoutGaps(t *testing.T) {
 func TestAuditToolsNameTheBytesOfAParseError(t *testing.T) {
 	r := newAuditToolRig(t)
 	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents} {
-		res := r.call(t, name, map[string]any{"q": "outcome:denied and status:x", "field": "actor_name"})
+		input := map[string]any{"q": "outcome:denied and status:x"}
+		if name == nameListAuditFacets {
+			input["field"] = "actor_name"
+		}
+		res := r.call(t, name, input)
 		body, ok := res.Content.(errorBody)
 		if !res.IsError || !ok || body.Code != trail.CodeQueryInvalid || !strings.Contains(body.Message, "(bytes 19 to 27 of q)") {
 			t.Errorf("%s = %+v", name, res)
@@ -169,7 +173,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 
 	res = r.call(t, nameGetAuditEvent, map[string]any{"id": ids[0]})
-	if out, ok := res.Content.(trail.DetailJSON); !ok || out.Event.ID != ids[0] || len(out.SameRequest) != 1 || out.SameRequest[0].ID != ids[1] {
+	if out, ok := res.Content.(trail.DetailJSON); !ok || out.Event.ID != ids[0] || len(out.SameRequest) != 2 || out.SameRequest[1].ID != ids[1] {
 		t.Errorf("event = %+v", res)
 	}
 	res = r.call(t, nameGetAuditEvent, map[string]any{"id": trailtest.IDAt(r.base).String()})

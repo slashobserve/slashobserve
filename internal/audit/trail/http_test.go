@@ -63,7 +63,16 @@ func (r *httpRig) engine(t *testing.T, principal *auth.Principal) *gin.Engine {
 
 func (r *httpRig) get(t *testing.T, engine *gin.Engine, path string, query url.Values) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1"+path+"?"+query.Encode(), nil)
+	target, err := url.Parse("/api/v1" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged := target.Query()
+	for k, v := range query {
+		merged[k] = v
+	}
+	target.RawQuery = merged.Encode()
+	req := httptest.NewRequest(http.MethodGet, target.String(), nil)
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
 	return rec
