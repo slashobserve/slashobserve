@@ -1804,7 +1804,7 @@ revisions_suite() {
     fail "the finished comment revision ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/versions/2")"
-  if [[ "$out" != 200 ]] || ! grep -q '"summary":"Show requests per second by route"' "$TMP/api.body" \
+  if [[ "$out" != 200 ]] || ! grep -qF '"summary":"Renamed \"Requests per second\" to \"Requests per second by route\"; changed \"Requests per second by route\"."' "$TMP/api.body" \
     || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (route)' "$TMP/api.body"; then
     fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
   fi

@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { CopyButton } from "@/components/copy-button"
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { useLatestPermissions } from "@/dashboards/permissions"
@@ -197,6 +198,14 @@ export function FindingCard({
         {observationId === null && saveAnswerOf !== undefined ? (
           <SaveAnswerAction requestId={saveAnswerOf} />
         ) : null}
+        <CopyButton
+          text={finding.markdown}
+          label="Copy answer"
+          variant="ghost"
+          size="sm"
+        >
+          Copy answer
+        </CopyButton>
         {showOpenLink && observationId !== null ? (
           <Link
             {...observationLink(observationId)}

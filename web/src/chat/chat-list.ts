@@ -46,25 +46,33 @@ function conversationKey(request: RequestSummary): string | null {
   return request.dashboard_id ?? request.chat_id
 }
 
+export function chatRoot(turns: readonly RequestSummary[]): RequestSummary {
+  return (
+    turns.findLast((turn) => turn.source === "observe") ??
+    turns[turns.length - 1]
+  )
+}
+
+export function chatTurns(
+  requests: readonly RequestSummary[],
+  row: RequestSummary
+): RequestSummary[] {
+  const key = conversationKey(row)
+  if (key === null) return [row]
+  return requests.filter((request) => conversationKey(request) === key)
+}
+
 export function collapseChats(
   requests: readonly RequestSummary[]
 ): RequestSummary[] {
-  const roots = new Map<string, RequestSummary>()
-  for (const request of requests) {
-    const key = conversationKey(request)
-    if (key === null) continue
-    const root = roots.get(key)
-    if (root === undefined || root.source !== "observe") roots.set(key, request)
-    else if (request.source === "observe") roots.set(key, request)
-  }
   const shown = new Set<string>()
   return requests.flatMap((request) => {
     const key = conversationKey(request)
     if (key === null) return [request]
     if (shown.has(key)) return []
     shown.add(key)
-    const root = roots.get(key)
-    return root === undefined || root.id === request.id
+    const root = chatRoot(chatTurns(requests, request))
+    return root.id === request.id
       ? [request]
       : [{ ...request, title: root.title }]
   })

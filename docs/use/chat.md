@@ -22,9 +22,16 @@ A chat is titled the same way, from your message.
 
 Type into the box labelled "Message the agent" and press Enter.
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
+Inside the box a line says so ("Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."); on a touch device it is not shown.
 Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters, at least one of them visible, and cannot contain control or bidirectional-text characters; see [Text rules](../reference/text-rules.md).
-The box shows "Describe the dashboard you want first." when it is empty and "Use at most 4000 characters." when it is too long.
+The box shows "Ask a question or describe a dashboard first." when it is empty and "Use at most 4000 characters." when it is too long.
+From 3600 characters a counter such as "3650 of 4000" appears in the box's footer, and turns red with "too long" past 4000.
+A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
+
+An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
+Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send revises it; the chip appears only for a dashboard you can edit, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
+Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.
 The last 20 prompts are kept in this browser only, never on the server.
@@ -32,11 +39,11 @@ The last 20 prompts are kept in this browser only, never on the server.
 A slash command at the start of the box changes what the send does.
 Type the command and a space, and it turns into a chip above the box:
 
-| Command        | Chip        | What the send does                                              |
-| -------------- | ----------- | --------------------------------------------------------------- |
+| Command        | Chip        | What the send does                                                                |
+| -------------- | ----------- | --------------------------------------------------------------------------------- |
 | `/investigate` | Investigate | Asks a question and answers in an observation, see [Investigate](investigate.md). |
-| `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.            |
-| `/revise`      | Revise      | Changes the dashboard this chat is about.                       |
+| `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.                              |
+| `/revise`      | Revise      | Changes the dashboard this chat is about.                                         |
 
 While you type a command, a line under the box lists the matching commands and says "Type a space after the command to use it."
 Remove the chip with its button, or press Backspace in the empty box.
@@ -57,8 +64,10 @@ Without a model the box is replaced by "No model is connected to this server."
 **Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
 
 The example prompts under the box are built from your datasources and dashboards, at most four of them.
-With Prometheus and a dashboard, the first one adds a latency row to that dashboard and opens its chat; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
-Choosing one sends it at once.
+With Prometheus and a dashboard you can edit, the first one adds a latency row to the one you changed most recently; the others start a new dashboard, such as "Service health by pod, last 6h" with Prometheus or "Error logs by service, last hour" with Loki or ClickHouse.
+Choosing a new-dashboard example sends it at once.
+Choosing the latency-row example sends nothing: it opens the box with the text and the dashboard's name as a chip, so you can check or remove the target, edit the text and press Enter.
+A dashboard you can only view is never offered.
 
 Under the example prompts, the Ask page at `/ask` lists your saved prompts and those shared with everyone, and typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
 
@@ -83,20 +92,24 @@ Its order of work is:
 
 The conversation shows these as phases, each with a message from the server:
 
-| Phase            | Examples of what you see                                                               |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch"                         |
-| Checking queries | "Checked a query on prom: 0 errors"                                                    |
-| Running queries  | "Ran a query on prom: ..."                                                             |
-| Saving           | "Saved version 1"                                                                      |
-| Repairing        | "Save rejected: 2 issues (...)"                                                        |
+| Phase            | Examples of what you see                                       |
+| ---------------- | -------------------------------------------------------------- |
+| Discovering      | "Listed 14 metrics on prom", "Read the otel_logs schema on ch" |
+| Checking queries | "Checked a query on prom: 0 errors"                            |
+| Running queries  | "Ran a query on prom: ..."                                     |
+| Saving           | "Saved version 1"                                              |
+| Repairing        | "Save rejected: 2 issues (...)"                                |
 
 A save is the real check.
 A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed.
 Either rejects a panel whose query is invalid or returns no data, except for alert list panels.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
 The instructions allow three repair attempts; if the agent still cannot save, the request fails.
-A save that finishes the dashboard ends the run, and the version summary is a sentence the agent wrote, "Create dashboard" if it wrote none.
+A save that finishes the dashboard ends the run.
+
+The server writes the version summary from the finished build, not from the agent's last save: a new dashboard reads `Built the dashboard with 6 panels: "A", "B", "C", "D" and 2 more.`, and a revision lists what changed since the version it started from, such as `Added "p99 latency"; renamed "Orders" to "Orders (agent)"; changed the description.`
+When the build ends up identical to an earlier version, such as after "undo that", the version is a restore: its summary reads `Restored version 3 (removed "p99 latency").` and the history marks it as restored from that version.
+A build that changed nothing keeps the sentence the agent wrote.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
 
@@ -134,6 +147,9 @@ While the agent works, the Working row shows what it is writing, one short sente
 That text is live only: it is not kept once the run ends, and only the saved dashboard or finding stays.
 Between two messages of the agent's live text there is a blank line.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
+A chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
+An Admin who opens someone else's chat whose answer sits in an observation in a folder the Admin cannot see, such as that person's My Dashboards, reads "The answer is saved in an observation in a folder you cannot see."
+An answer that was never saved as an observation is hidden the same way when the chat is about a dashboard you cannot open, and the chat reads "The answer is about a dashboard you cannot open."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 
 The build page shows the chat beside the build.
@@ -171,7 +187,7 @@ A queued request stops at once.
 A running one shows "Canceling" and stops within a few seconds, once the call the agent is making returns.
 If its worker is gone, the request ends canceled at once instead.
 The request ends as failed with the code `canceled` and keeps what was built, so you can save or continue it.
-The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and History shows "You stopped this run" instead of a red error.
+The chat shows it as a calm "You stopped this run" with what to do next, not as a failure, and the chat lists, History included, say "Stopped" with "Canceled before anything was built" or how far it got, instead of a red error.
 If the agent had already saved the finished dashboard, the request counts as succeeded and the cancel changes nothing.
 
 Other people's follow-ups on the same dashboard wait behind a run until it ends, so a run that goes nowhere holds them back until its owner cancels it or one of its limits stops it.
@@ -240,6 +256,12 @@ A retried investigation writes into the same observation when the person retryin
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
 
+**Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
+**Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
+It is off while a run goes on.
+The reply streams in as the agent works only as far as the server keeps it: the answer itself is written in one piece when the agent saves it, so there is no word-by-word text to copy while it runs.
+The model comes from the server's configuration and cannot be picked in the chat box.
+
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
 The run itself goes on server-side either way.
@@ -289,23 +311,29 @@ The dashboard reloads the new version, and panels the version added fade in once
 Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
 A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
 The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
-Search finds chats whose title or prompt contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
+Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
+An answer is searched only where you could read it: one kept in the chat while you can open the dashboard it is about, and one saved as an observation while you can see that observation's folder.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats match the search and state, and on Everyone how many people started them.
 
+Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
+
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
+On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
+On a row that joins several turns, the actions apply to the whole conversation: Rename changes the title of its first request, which the row shows, Save prompt saves that first prompt, and Delete removes every one of your turns in it, with a dialog that says how many.
+Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
 
-In History, the search box finds chats whose title or prompt contains the text, ignoring case.
+In History, the search box finds chats whose title, prompt or answer contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
 Each chat has a menu with these actions:
 
 - **Rename** turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
 - **Pin** keeps the chat at the top, and **Unpin** puts it back.
-- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists. The dashboard it made stays, and the chat page still opens from its link.
+- **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link. Deleting a chat never deletes an observation.
 
 Only the person who started a chat can rename, pin or delete it.
 

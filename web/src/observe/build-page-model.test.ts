@@ -19,7 +19,7 @@ describe("buildPageNotice", () => {
       notFound,
       false,
       null,
-      "Only the person who asked can watch this build.",
+      "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it.",
     ],
     [
       "request 500 with no request",

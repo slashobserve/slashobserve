@@ -59,6 +59,13 @@ export function observationPath(observationId: string): string {
   return path("o", observationId)
 }
 
+export function askLink(prompt: string, dashboard?: string) {
+  return {
+    to: "/ask",
+    search: dashboard === undefined ? { prompt } : { prompt, dashboard },
+  } as const
+}
+
 export function observationLink(observationId: string) {
   return { to: "/o/$observationId", params: { observationId } } as const
 }
