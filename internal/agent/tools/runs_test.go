@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -103,6 +104,27 @@ func TestGetRunReturnsTheRawRunAndAsksForTwentySteps(t *testing.T) {
 	}
 	if runs.gotID.String() != runID || runs.gotMax != 20 || runs.gotBy.Role != auth.RoleViewer {
 		t.Fatalf("reader got %v %v %d", runs.gotID, runs.gotBy, runs.gotMax)
+	}
+}
+
+func TestGetRunCarriesTheLiveTextOfARunningRun(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"running","live_text":"Checking the p99 of checkout."}`)}
+	res, err := callGetRun(t, runs, auth.RoleViewer, `{"id":"`+runID+`"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("result %+v, error %v", res, err)
+	}
+	raw, err := json.Marshal(res.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		LiveText string `json:"live_text"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil || got.LiveText != "Checking the p99 of checkout." {
+		t.Fatalf("live_text %q from %s, error %v", got.LiveText, raw, err)
+	}
+	if !strings.Contains(descGetRun, "live_text") {
+		t.Fatalf("the get_run description does not name live_text: %s", descGetRun)
 	}
 }
 

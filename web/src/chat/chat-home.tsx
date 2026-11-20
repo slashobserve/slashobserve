@@ -1,24 +1,31 @@
-import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
+import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDatasources } from "@/datasources/queries"
 import { DashboardsSection } from "@/home/dashboards-section"
+import { askLink } from "@/lib/links"
+import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
-import { ChatComposer, useOpenSent, useSendExample } from "./chat-composer"
-import { roleAtLeast } from "@/lib/roles"
-
+import { ChatComposer, useOpenSent } from "./chat-composer"
 import { examplePrompts, noDashboards } from "./examples"
+import { composerPlaceholder } from "./prompt-length"
 import { RecentChats } from "./recent-chats"
+import { useChooseExample } from "./use-choose-example"
 
-export function ChatHome() {
+type Props = { initialPrompt?: string; dashboardId?: string }
+
+export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
-  const { send, pending } = useSendExample()
+  const queryClient = useQueryClient()
+  const { choose, pending } = useChooseExample()
+  const navigate = useNavigate()
   const openSent = useOpenSent()
   const { principal } = useRouteContext({ from: "/_authed" })
 
@@ -27,6 +34,31 @@ export function ChatHome() {
     dashboards: dashboards.data ?? noDashboards,
     canBuild: roleAtLeast(principal.role, "editor"),
   })
+  const listed = dashboards.data?.find(
+    (dashboard) => dashboard.id === dashboardId
+  )
+  const lookup = useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId ?? ""),
+    enabled:
+      dashboardId !== undefined &&
+      !dashboards.isPending &&
+      listed === undefined,
+    retry: false,
+  })
+  const found =
+    listed ??
+    (lookup.data === undefined
+      ? undefined
+      : {
+          id: lookup.data.dashboard.id,
+          title: lookup.data.dashboard.title,
+          canEdit: lookup.data.dashboard.permissions.edit,
+        })
+  const revising = found?.canEdit === true ? found : undefined
+  const resolving =
+    dashboardId !== undefined &&
+    found === undefined &&
+    (dashboards.isPending || lookup.isLoading)
   const agentReady = !agent.isPending && agent.data?.available !== false
   const agentOff = agent.data?.available === false
 
@@ -38,8 +70,22 @@ export function ChatHome() {
       {agentOff ? <DashboardsSection /> : null}
       <div className="w-full max-w-[720px] min-[1800px]:max-w-[960px]">
         <ChatComposer
+          key={initialPrompt ?? ""}
           rows={3}
-          placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
+          disabled={resolving}
+          dashboardId={revising?.id}
+          dashboardTitle={revising?.title}
+          onRemoveDashboard={
+            revising === undefined
+              ? undefined
+              : () =>
+                  void navigate({
+                    ...askLink(initialPrompt ?? ""),
+                    replace: true,
+                  })
+          }
+          placeholder={composerPlaceholder}
+          initialPrompt={initialPrompt}
           autoFocus
           promptPicker
           onSent={openSent}
@@ -58,7 +104,7 @@ export function ChatHome() {
               variant="outline"
               className="font-normal text-muted-foreground"
               disabled={pending}
-              onClick={() => void send(example.prompt, example.dashboardId)}
+              onClick={() => choose(example)}
             >
               {example.label}
             </Button>

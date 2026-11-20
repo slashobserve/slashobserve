@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { AgentMark } from "@/components/agent-mark"
 import { StatusIcon } from "@/components/status-label"
@@ -24,6 +24,7 @@ import { FindingCard } from "@/findings/finding-card"
 
 import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
+import { PromptBubble } from "./prompt-bubble"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
 import { StepTimeline } from "./step-timeline"
@@ -36,6 +37,7 @@ import {
 } from "./turn-failure"
 import {
   mayHaveFinding,
+  noFindingText,
   resultFinishedAt,
   showsWorkingRow,
   tookText,
@@ -78,6 +80,7 @@ type Props = {
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
   latest?: boolean
+  answerActions?: ReactNode
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -153,6 +156,7 @@ export function RequestTurn({
   buildOnScreen = false,
   opensRunsIn = "chat",
   latest = true,
+  answerActions,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -215,9 +219,7 @@ export function RequestTurn({
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
         <ContinuedFrom summary={request} />
-        <div className="max-w-[80%] self-end rounded-xl border px-3.5 py-2.5 text-sm wrap-anywhere whitespace-pre-wrap">
-          {request.prompt}
-        </div>
+        <PromptBubble prompt={request.prompt} />
       </div>
       <div className="flex gap-3">
         <AgentMark variant="tile" />
@@ -343,13 +345,12 @@ export function RequestTurn({
                     prompt={request.prompt}
                   />
                 ) : null}
+                {answerActions}
               </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
-                {investigates
-                  ? "The run finished without a finding."
-                  : "The request finished without a dashboard."}
+                {noFindingText(detail)}
               </p>
             ) : null
           ) : null}

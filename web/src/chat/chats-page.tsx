@@ -1,6 +1,13 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react"
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
-import { MessageSquareIcon, SearchIcon } from "lucide-react"
+import { BookmarkPlusIcon, MessageSquareIcon, SearchIcon } from "lucide-react"
 
 import { AuthorMark } from "@/components/author-mark"
 import { EmptyState } from "@/components/empty-state"
@@ -8,7 +15,6 @@ import { FilterToolbar } from "@/components/filter-toolbar"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { RelativeTime, useNow } from "@/components/relative-time"
-import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,17 +31,17 @@ import { markOf } from "@/lib/author"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { useMyRequests, type RequestSummary } from "@/observe/queries"
+import { canSavePrompts } from "@/prompts/access"
+import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { groupChatsByDay } from "./chat-days"
-import { collapseChats } from "./chat-list"
+import { chatRoot, chatTurns, collapseChats } from "./chat-list"
 import { chatFooterText } from "./chat-footer"
-import {
-  chatOutcome,
-  chatState,
-  statesFor,
-  type ChatStateFilter,
-} from "./chat-state"
+import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
+import { canSaveAsPrompt, savePromptButtonId } from "./save-prompt-target"
+import { statesFor, type ChatStateFilter } from "./chat-state"
+import { ChatStatus } from "./chat-status"
 import type { ChatsSearch } from "./chats-search"
 
 type Props = {
@@ -249,13 +255,18 @@ function ChatGroups({
 }) {
   const id = useId()
   const current = useNow()
+  const list = useRef<HTMLDivElement>(null)
   const groups = useMemo(
     () =>
       groupChatsByDay(collapseChats(requests), new Date(current), !everyone),
     [requests, current, everyone]
   )
   return (
-    <div className="overflow-hidden rounded-card border bg-card">
+    <div
+      ref={list}
+      tabIndex={-1}
+      className="overflow-hidden rounded-card border bg-card outline-none"
+    >
       {groups.map((group, index) => (
         <section
           key={group.label}
@@ -271,7 +282,12 @@ function ChatGroups({
           <ul>
             {group.requests.map((request) => (
               <li key={request.id} className="border-t">
-                <ChatRow request={request} everyone={everyone} />
+                <ChatRow
+                  request={request}
+                  turns={chatTurns(requests, request)}
+                  everyone={everyone}
+                  afterDelete={list}
+                />
               </li>
             ))}
           </ul>
@@ -281,49 +297,108 @@ function ChatGroups({
   )
 }
 
+const rowActionClass =
+  "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100"
+
 function ChatRow({
   request,
+  turns,
   everyone,
+  afterDelete,
 }: {
   request: RequestSummary
+  turns: readonly RequestSummary[]
   everyone: boolean
+  afterDelete: RefObject<HTMLElement | null>
 }) {
-  const state = chatState(request.state)
-  return (
-    <Link
-      to="/c/$requestId"
-      params={{ requestId: request.id }}
-      className={rowLinkClass}
-    >
-      <RowText
-        title={request.title}
-        meta={
-          <>
-            <StatusLabel tone={state.tone}>{state.word}</StatusLabel>
-            <span>{chatOutcome(request)}</span>
-          </>
-        }
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const openPanel = usePromptPanel((state) => state.openPanel)
+  const [renaming, setRenaming] = useState(false)
+  const own = request.requested_by.id === principal.id
+  const titleId = `chats-title-${request.id}`
+  const mine = turns.filter((turn) => turn.requested_by.id === principal.id)
+  const root = chatRoot(own ? mine : turns)
+  const savable = own && canSavePrompts(principal) && canSaveAsPrompt(root)
+
+  if (renaming) {
+    return (
+      <ChatRenameForm
+        request={root}
+        rowId={request.id}
+        onDone={() => setRenaming(false)}
       />
-      {everyone ? (
-        <span className="flex flex-none items-center gap-1.5 text-xs text-muted-foreground">
-          <AuthorMark
-            mark={markOf({
-              ...request.requested_by,
-              origin: null,
-              client: null,
-              run_id: null,
-            })}
-            size={20}
-          />
-          <span className="max-w-[16ch] truncate">
-            {request.requested_by.name}
+    )
+  }
+
+  return (
+    <div className="group/row relative">
+      <Link
+        id={chatRowId(request.id)}
+        to="/c/$requestId"
+        params={{ requestId: request.id }}
+        className={cn(rowLinkClass, own && (savable ? "pr-20" : "pr-11"))}
+      >
+        <RowText
+          title={request.title}
+          titleId={titleId}
+          meta={
+            <>
+              <ChatStatus request={request} />
+            </>
+          }
+        />
+        {everyone ? (
+          <span className="flex flex-none items-center gap-1.5 text-xs text-muted-foreground">
+            <AuthorMark
+              mark={markOf({
+                ...request.requested_by,
+                origin: null,
+                client: null,
+                run_id: null,
+              })}
+              size={20}
+            />
+            <span className="max-w-[16ch] truncate">
+              {request.requested_by.name}
+            </span>
           </span>
+        ) : null}
+        <span className="flex-none text-xs text-muted-foreground">
+          <RelativeTime iso={request.created_at} />
         </span>
+      </Link>
+      {own ? (
+        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center">
+          {savable ? (
+            <Button
+              id={savePromptButtonId(request.id)}
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Save prompt"
+              aria-describedby={titleId}
+              className={rowActionClass}
+              onClick={() =>
+                openPanel({
+                  kind: "create",
+                  body: root.prompt,
+                  returnFocusId: savePromptButtonId(request.id),
+                })
+              }
+            >
+              <BookmarkPlusIcon aria-hidden="true" />
+            </Button>
+          ) : null}
+          <ChatRowMenu
+            request={request}
+            turns={mine}
+            current={false}
+            onRename={() => setRenaming(true)}
+            afterDelete={afterDelete}
+            className={rowActionClass}
+          />
+        </div>
       ) : null}
-      <span className="flex-none text-xs text-muted-foreground">
-        <RelativeTime iso={request.created_at} />
-      </span>
-    </Link>
+    </div>
   )
 }
 

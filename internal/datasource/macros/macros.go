@@ -128,6 +128,25 @@ func expandText(d Dialect, dsType spec.DatasourceType, query string, env Env) (E
 	return exp, nil
 }
 
+func ExpandedReferences(d Dialect, query string) ([]spec.Reference, error) {
+	refs, err := spec.ScanQuery(query)
+	if err != nil {
+		return nil, scanFailure(err)
+	}
+	lx, err := newLexer(lexicalDialect(d), query, refs)
+	if err != nil {
+		return nil, err
+	}
+	var out []spec.Reference
+	for _, ref := range refs {
+		if lx.startsInDelimiter(ref) || lx.contextAt(ref.Start).kind == ctxComment {
+			continue
+		}
+		out = append(out, ref)
+	}
+	return out, nil
+}
+
 func validateEnv(env Env) error {
 	if err := env.Range.Validate(); err != nil {
 		return err

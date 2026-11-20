@@ -13,6 +13,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useRouteContext: () => ({ principal: { id: "u1", role: session.role } }),
 }))
 
+const toasts = vi.hoisted(() => ({ message: vi.fn(), error: vi.fn() }))
+vi.mock("sonner", () => ({ toast: toasts }))
+
 const dashboardId = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const runningId = "7a1d2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
 
@@ -51,15 +54,22 @@ const running: Partial<ObserveRequest> = {
 }
 
 function renderComposer(
-  props: { dashboardId?: string; runningRequestId?: string } = {}
+  props: {
+    dashboardId?: string
+    runningRequestId?: string
+    initialPrompt?: string
+  } = {},
+  agentLoaded = true
 ) {
   const queryClient = testQueryClient()
-  queryClient.setQueryData(observeKeys.agent(), {
-    available: true,
-    provider: "anthropic",
-    model: "claude-haiku-5-5",
-    effort: "medium",
-  })
+  if (agentLoaded) {
+    queryClient.setQueryData(observeKeys.agent(), {
+      available: true,
+      provider: "anthropic",
+      model: "claude-haiku-5-5",
+      effort: "medium",
+    })
+  }
   queryClient.setQueryData(datasourceKeys.list(), { datasources: [] })
   if (props.runningRequestId !== undefined) {
     queryClient.setQueryData(
@@ -87,6 +97,7 @@ async function box() {
 beforeEach(() => {
   localStorage.clear()
   session.role = "editor"
+  toasts.message.mockReset()
 })
 
 afterEach(() => {
@@ -166,11 +177,59 @@ describe("ChatComposer", () => {
     ).toBeInTheDocument()
   })
 
+  it("asks for a question or a dashboard when empty, and for a change on a dashboard", async () => {
+    stubCreate()
+    const { user, unmount } = renderComposer()
+    await user.click(await screen.findByRole("button", { name: "Send" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Ask a question or describe a dashboard first."
+    )
+    unmount()
+    const next = renderComposer({ dashboardId })
+    await next.user.click(await screen.findByRole("button", { name: "Send" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Describe the change you want first."
+    )
+  })
+
+  it("counts characters near the limit and marks an over-long prompt", async () => {
+    const { user } = renderComposer()
+    const field = await box()
+    expect(screen.queryByText(/of 4000/)).not.toBeInTheDocument()
+    await user.click(field)
+    await user.paste("a".repeat(3600))
+    expect(screen.getByText("3600 of 4000")).toBeInTheDocument()
+    await user.paste("a".repeat(401))
+    expect(screen.getByText("4001 of 4000, too long")).toBeInTheDocument()
+    expect(field).toHaveAttribute("aria-invalid", "true")
+  })
+
+  it("opens with a prefilled prompt and sends nothing until the person does", async () => {
+    const fetch = stubCreate()
+    renderComposer({ initialPrompt: "Why is GET /api/products slow?" })
+    expect(await box()).toHaveValue("Why is GET /api/products slow?")
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it("offers Stop for the running request", async () => {
     stubRunning(running)
     renderComposer({ runningRequestId: runningId })
     expect(
       await screen.findByRole("button", { name: "Stop the run" })
     ).toBeInTheDocument()
+  })
+
+  it("says so when Enter is pressed before the agent is known", async () => {
+    const fetch = vi.fn(() => new Promise<Response>(() => undefined))
+    vi.stubGlobal("fetch", fetch)
+    const { user, onSent } = renderComposer(
+      { initialPrompt: "Why is it slow?" },
+      false
+    )
+    await user.type(await box(), "{Enter}")
+    expect(toasts.message).toHaveBeenCalledWith(
+      "Still connecting to the agent. Send again in a moment."
+    )
+    expect(onSent).not.toHaveBeenCalled()
   })
 })

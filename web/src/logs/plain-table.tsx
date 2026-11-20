@@ -1,3 +1,5 @@
+import type { ReactNode } from "react"
+
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 
@@ -15,16 +17,25 @@ export function cellText(value: unknown): string {
   return typeof value === "object" ? JSON.stringify(value) : String(value)
 }
 
-export function PlainTable({ frame }: { frame: WireFrame }) {
+const untimedNote =
+  "This query selects no Timestamp, so the rows show as a table."
+
+export function PlainTable({
+  frame,
+  note = untimedNote,
+  renderCell,
+}: {
+  frame: WireFrame
+  note?: string
+  renderCell?: (field: string, value: unknown) => ReactNode
+}) {
   const rows = frame.fields.reduce(
     (most, field) => Math.max(most, field.values.length),
     0
   )
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-      <p className="text-xs text-muted-foreground">
-        This query selects no Timestamp, so the rows show as a table.
-      </p>
+      <p className="text-xs text-muted-foreground">{note}</p>
       <TableCard label="Query results" minWidth={480}>
         <thead>
           <tr>
@@ -38,7 +49,8 @@ export function PlainTable({ frame }: { frame: WireFrame }) {
             <tr key={row}>
               {frame.fields.map((field) => (
                 <Cell key={field.name} className="font-mono">
-                  {cellText(field.values[row])}
+                  {renderCell?.(field.name, field.values[row]) ??
+                    cellText(field.values[row])}
                 </Cell>
               ))}
             </tr>

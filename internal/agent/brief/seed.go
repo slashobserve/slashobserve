@@ -42,7 +42,7 @@ var seedSentences = map[Reason]string{
 	Renewed:     "Your session was renewed to keep it short; the build above holds every panel you saved.",
 	Conflict:    "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.",
 	NoFinding:   "You answered without a tool call. Call save_finding now with your answer and the evidence you checked; your text alone is not saved.",
-	NoAnswer:    "Your answer is not shown to anyone. Call save_finding with it, or save a panel.",
+	NoAnswer:    "Your answer is not kept once the run ends. Call save_finding with it, or save a panel.",
 }
 
 func (r Reason) shortensConversation() bool {

@@ -35,6 +35,23 @@ export function tracesPanelFor({
   }
 }
 
+export function traceSqlPanelFor({
+  id,
+  title,
+  datasource,
+  query,
+  y,
+}: Omit<TracePanelInput, "type">): DataPanel {
+  return {
+    id,
+    type: "table",
+    title,
+    datasource,
+    gridPos: { x: 0, y, w: 24, h: 10 },
+    queries: [{ query, format: "table" }],
+  }
+}
+
 export function tracePanelQuery(type: string, search: TraceSearch): string {
   return type === "tempo"
     ? (search.q ?? traceQLFor(traceForm(search)))

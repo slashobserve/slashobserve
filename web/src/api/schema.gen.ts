@@ -1536,7 +1536,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk. The SQL views of the ClickHouse logs and trace searches both run here, with the same checks for either table: one read-only `SELECT`, the time range read through a macro such as `$__timeFilter(Timestamp)` when the query selects no `Timestamp`, and the limits above. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -1870,6 +1870,28 @@ export interface paths {
          * @description The browser's only path to label values; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_label_values` tool. ClickHouse labels need `table` or `metric`, as for the label names operation, and a malformed label name is a 422 `query_invalid`. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceLabelValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the services a log or trace datasource has seen over a recent window.
+         * @description The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log or trace sources has `checkout` without opening each one. Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, and Elasticsearch and OpenSearch the service field of the mapping. `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field. `signal` is `logs` or `traces`; without it the answer is `logs`, and `traces` on Tempo, and a datasource that does not hold the signal answers 422 `query_invalid`. ClickHouse holds both, so a client that wants both asks twice. `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed. At most 200 services come back, sorted by name, with `truncated` true when there were more. An answer is cached for about a minute per datasource, signal and window, and calls for the same key in flight share one upstream request. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, and counts against the per-caller in-flight limit. A source that does not answer within 5 seconds answers 504 `query_timeout`, so a client can show that the services are unavailable while the other sources answer. Any query parameter not listed below, or one given twice, is a 400. Viewers and above may call it, service-account keys included, and it reads only datasources that are configured on the server.
+         */
+        get: operations["listDatasourceServices"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2772,7 +2794,7 @@ export interface paths {
         put?: never;
         /**
          * Save a logs, trace or metrics search in a folder.
-         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, TraceQL on Tempo and SQL on ClickHouse. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -12843,6 +12865,49 @@ export interface operations {
                         datasource: string;
                         label: string;
                         values: string[];
+                        truncated: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    listDatasourceServices: {
+        parameters: {
+            query?: {
+                /** @description Which signal to read. */
+                signal?: "logs" | "traces";
+                /** @description How far back the window reaches from now, as a duration such as `15m` or `1h`. */
+                window?: string;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The services the datasource has seen in the window. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        datasource: string;
+                        /** @enum {string} */
+                        signal: "logs" | "traces";
+                        field: string;
+                        window_seconds: number;
+                        services: string[];
                         truncated: boolean;
                     };
                 };

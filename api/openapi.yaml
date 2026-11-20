@@ -176,6 +176,8 @@ paths:
     $ref: "./paths/names.yaml#/datasources-uid-labels"
   /datasources/{uid}/labels/{name}/values:
     $ref: "./paths/names.yaml#/datasources-uid-labels-name-values"
+  /datasources/{uid}/services:
+    $ref: "./paths/names.yaml#/datasources-uid-services"
   /dashboards/{id}/revisions:
     $ref: "./paths/revisions.yaml#/dashboards-id-revisions"
   /dashboards/{id}/revisions/{revision_id}:

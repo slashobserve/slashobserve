@@ -462,7 +462,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(thread.getByText("Observe Agent finished.")).toBeVisible()
         await expect(promptEntries).toHaveCount(1)
         await expect(
-          entryWith(page, p99Prompt).filter({
+          entryWith(page, 'Added "p99 latency"').filter({
             has: page.getByText("Version 2", { exact: true }),
           })
         ).toHaveCount(1)

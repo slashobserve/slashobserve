@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { chatOutcome, chatState, statesFor } from "./chat-state"
+import { chatOutcome, chatState, deleteChatText, statesFor } from "./chat-state"
 
 function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
   return {
@@ -196,5 +196,72 @@ describe("chatOutcome", () => {
         })
       )
     ).toBe("Continued in a new run")
+  })
+})
+
+describe("deleteChatText", () => {
+  test.each([
+    [
+      "a saved dashboard",
+      { result_kind: "version" as const },
+      "It leaves your chat lists and cannot be added back. The dashboard it made stays.",
+    ],
+    [
+      "a kept partial build",
+      { result_kind: "partial_version" as const },
+      "It leaves your chat lists and cannot be added back. The dashboard it made stays.",
+    ],
+    [
+      "an answer in a named observation",
+      {
+        result_kind: "observation" as const,
+        observation_id: "o1",
+        observation_title: "p99 latency",
+      },
+      'It leaves your chat lists and cannot be added back. The answer stays in the observation "p99 latency", which is not deleted.',
+    ],
+    [
+      "an answer in an observation the reader cannot see",
+      {
+        result_kind: "observation" as const,
+        observation_id: "o1",
+        observation_title: null,
+      },
+      "It leaves your chat lists and cannot be added back. The answer stays in its observation, which is not deleted.",
+    ],
+    [
+      "an answer kept in the chat",
+      {
+        result_kind: "observation" as const,
+        observation_id: null,
+        observation_title: null,
+      },
+      "It leaves your chat lists and cannot be added back. The answer stays on the chat page, which still opens from its link.",
+    ],
+    [
+      "a suggestion",
+      { result_kind: "suggestion" as const },
+      "It leaves your chat lists and cannot be added back. The panel suggestion stays.",
+    ],
+    [
+      "a proposal",
+      { result_kind: "proposal" as const },
+      "It leaves your chat lists and cannot be added back. The proposal stays.",
+    ],
+    [
+      "a run that saved nothing",
+      { result_kind: "none" as const },
+      "It leaves your chat lists and cannot be added back. Nothing else is removed.",
+    ],
+  ])("words the dialog for %s", (_name, overrides, expected) => {
+    expect(deleteChatText(summary(overrides))).toBe(expected)
+  })
+
+  test("never says a dashboard stays for an answer", () => {
+    expect(
+      deleteChatText(
+        summary({ result_kind: "observation", dashboard_id: null })
+      )
+    ).not.toMatch(/dashboard/i)
   })
 })

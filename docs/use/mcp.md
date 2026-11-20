@@ -73,6 +73,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_proposals` | Viewer |
 | `list_rcas` | Viewer |
 | `list_saved_searches` | Viewer |
+| `list_services` | Viewer |
 | `log_context` | Viewer |
 | `log_facets` | Viewer |
 | `log_patterns` | Viewer |
@@ -176,7 +177,16 @@ An overlap is reported at the panel the patch upserted or moved, with both panel
 It returns at least one panel, and a panel too large to return is listed in `too_large`.
 `list_metrics`, `list_labels`, `list_label_values` and `get_schema` take an `offset` and answer `truncated`, `truncated_by` (`limit` or `bytes`) and `next_offset`, so a client pages through a long list by passing `next_offset` back as `offset`.
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
+
+`list_services` lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
+With `datasource` it reads that one source; without it, it asks every Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
+`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now, and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
+Each source answers its `field`, the label, column or attribute that holds the service, so a query can filter on it, and a source that does not answer in time says why under `unavailable` while the others still answer.
+Answers are cached for about a minute and a source lists at most 200 services, with `truncated` set when there were more.
+
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
+
+On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.
 
 `query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.
 
@@ -272,7 +282,7 @@ The query is linted as `lint_query` does it, and one with a lint error is refuse
 When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved anyway.
 A repeat of a search you already saved, with the same title, datasource, query, filters, range and folder, returns that search with `replayed` true and saves no second copy.
 `POST /api/v1/saved-searches` and `observe saved-searches save` apply the same two checks to a service-account key, and refuse a lint error with 422 `query_invalid` and answer a repeat with 200 and `replayed` true; a person's browser session saves as before.
-A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional TraceQL `query` on Tempo and none on ClickHouse, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
+A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional `query`, TraceQL on Tempo and SQL on ClickHouse, which reopens the search in the SQL view, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
@@ -361,7 +371,7 @@ It changes no access and its answer never names who received the request; it ans
 Both are over MCP only, so the built-in agent does not have them, and a service-account key may call them.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
-The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
+The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.

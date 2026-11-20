@@ -94,6 +94,8 @@ The order can shift, because a request is skipped while another revision of its 
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
+While a request is running, `observe status` also prints a `Live text` section with what the agent is writing, the same text the Working row shows in the browser; it is not kept, so it is gone once the run ends, and `--json` carries it as `live_text`.
+
 ### Your requests
 
 `bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
@@ -114,6 +116,10 @@ A script or an agent with only a shell finds what to query with `bin/observe dat
 `metrics <uid>` lists metric names with their type and help (the OpenTelemetry metric names and their table on ClickHouse), `labels <uid>` lists label names, and `label-values <uid> <label>` lists one label's values.
 `--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
 On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
+
+`services [uid]` lists the services a Loki, Tempo, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour, with the label, column or attribute that holds them; `--window` takes a duration such as 15m, up to 6h, and `--signal` picks `logs` or `traces`.
+Without a uid it asks every such datasource and prints one row per source and signal, and a source that cannot answer in time says so while the others still answer.
+`--service checkout` keeps only the sources that hold a service whose name contains the text, case-insensitive, which answers which source holds a service.
 
 `schema <uid>` lists the tables of a ClickHouse, Elasticsearch or OpenSearch datasource, and `--table` lists one table's columns with their types.
 A cut list names the `--offset` that reads the next page; a Tempo datasource has no tables, so `schema` lists its services, span names and attribute names.
@@ -359,7 +365,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 A query with a lint error is refused with `query_invalid` and nothing is saved, and a search you already saved with the same title, datasource, query, filters, range and folder prints `Search <id> was already saved` and its address instead of a second copy; `--json` shows `replayed: true`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource only; a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource (TraceQL) or a ClickHouse datasource (SQL, which reopens the search in the SQL view); a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of another kind is refused with exit code 2 before any request is sent.
 
@@ -644,6 +650,19 @@ Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickH
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
+
+### Run SQL over ClickHouse traces
+
+`--query` takes SQL over `otel_traces` on a ClickHouse datasource instead of the trace id, and runs it as the SQL view of the Traces page does:
+
+```sh
+bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse
+```
+
+It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
+It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
+Single quotes keep the shell from expanding `$__timeFilter`.
+`--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
 
 ### Compare traces
 

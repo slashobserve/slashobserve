@@ -8,12 +8,14 @@ import {
   UploadIcon,
 } from "lucide-react"
 
-import { ChatComposer, useOpenSent, useSendExample } from "@/chat/chat-composer"
-import { roleAtLeast } from "@/lib/roles"
+import { ChatComposer, useOpenSent } from "@/chat/chat-composer"
 import { examplePrompts, noDashboards } from "@/chat/examples"
+import { composerPlaceholder } from "@/chat/prompt-length"
+import { useChooseExample } from "@/chat/use-choose-example"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDatasources } from "@/datasources/queries"
+import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { NewObservationForm } from "@/observations/new-observation-form"
 import { useCreateObservation } from "@/observations/queries"
@@ -102,7 +104,7 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
             framed={false}
             importLink={false}
             rows={3}
-            placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
+            placeholder={composerPlaceholder}
             autoFocus={autoFocusTab === "ask"}
             promptPicker
             onSent={openSent}
@@ -123,7 +125,7 @@ export function ExampleChips() {
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const dashboards = useQuery(dashboardTitlesQuery())
-  const { send, pending } = useSendExample()
+  const { choose, pending } = useChooseExample()
   const { principal } = useRouteContext({ from: "/_authed" })
 
   const examples = examplePrompts({
@@ -148,7 +150,7 @@ export function ExampleChips() {
           size="sm"
           className="font-normal narrow:h-11"
           disabled={pending}
-          onClick={() => void send(example.prompt, example.dashboardId)}
+          onClick={() => choose(example)}
         >
           {example.label}
         </Button>

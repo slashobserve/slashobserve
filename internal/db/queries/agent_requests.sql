@@ -268,7 +268,13 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
-  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
+    SELECT 1 FROM findings sf
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE sqlc.narg('pattern')::text
+      AND CASE WHEN sf.observation_id IS NULL
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+      END))
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR ((r.pinned_at IS NOT NULL) = @cursor_pinned::boolean
@@ -296,7 +302,13 @@ WHERE r.source <> 'suggest'
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
-  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
+    SELECT 1 FROM findings sf
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE sqlc.narg('pattern')::text
+      AND CASE WHEN sf.observation_id IS NULL
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+      END))
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]))
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
@@ -312,7 +324,13 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
-  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
+    SELECT 1 FROM findings sf
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE sqlc.narg('pattern')::text
+      AND CASE WHEN sf.observation_id IS NULL
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+      END))
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
 
 -- name: CountAgentRequestsAll :one
@@ -324,7 +342,13 @@ WHERE r.source <> 'suggest'
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
-  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text)
+  AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
+    SELECT 1 FROM findings sf
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE sqlc.narg('pattern')::text
+      AND CASE WHEN sf.observation_id IS NULL
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY(sqlc.arg('folders')::uuid[]))
+      END))
   AND (sqlc.narg('states')::text[] IS NULL OR r.state = ANY(sqlc.narg('states')::text[]));
 
 -- name: LockSuggestRequests :exec

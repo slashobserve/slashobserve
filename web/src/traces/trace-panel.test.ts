@@ -6,6 +6,7 @@ import {
   tracePanelQuery,
   tracePanelTitle,
   tracesPanelFor,
+  traceSqlPanelFor,
 } from "./trace-panel"
 
 describe("tracePanelQuery", () => {
@@ -110,5 +111,26 @@ describe("placedPanel", () => {
       gridPos: { ...panel.gridPos, y: 14 },
     })
     expect(panel.id).toBe("traces")
+  })
+})
+
+describe("traceSqlPanelFor", () => {
+  it("makes a full-width table panel that keeps the SQL as written", () => {
+    expect(
+      traceSqlPanelFor({
+        id: "p",
+        title: "Trace query",
+        datasource: "ch",
+        query: "SELECT TraceId FROM otel_traces",
+        y: 4,
+      })
+    ).toEqual({
+      id: "p",
+      type: "table",
+      title: "Trace query",
+      datasource: "ch",
+      gridPos: { x: 0, y: 4, w: 24, h: 10 },
+      queries: [{ query: "SELECT TraceId FROM otel_traces", format: "table" }],
+    })
   })
 })

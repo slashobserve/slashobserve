@@ -398,8 +398,8 @@ func TestVersionShape(t *testing.T) {
 		panels []string
 		want   string
 	}{
-		{"rows and panels", []string{buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1), suggestStat("b", "B", "up", 5)), buildRow("r2", "Two", 9, suggestStat("c", "C", "up", 10))}, "2 rows, 3 panels"},
-		{"one row", []string{buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1))}, "1 row, 1 panel"},
+		{"rows and panels", []string{buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1), suggestStat("b", "B", "up", 5)), buildRow("r2", "Two", 9, suggestStat("c", "C", "up", 10))}, "3 panels in 2 rows"},
+		{"one row", []string{buildRow("r1", "One", 0, suggestStat("a", "A", "up", 1))}, "1 panel in 1 row"},
 		{"no rows", []string{suggestStat("a", "A", "up", 0), suggestStat("b", "B", "up", 4)}, "2 panels"},
 	}
 	for _, tt := range tests {

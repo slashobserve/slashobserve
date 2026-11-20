@@ -155,8 +155,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         const current = rows.and(page.locator('[aria-current="true"]'))
         await expect(current).toHaveCount(1)
         await expect(current).toContainText(askPrompt)
-        await expect(current).toContainText("Saved version 1")
-        await expect(current).toContainText(refinedDashboardTitle)
+        await expect(current).toContainText(`Saved ${refinedDashboardTitle}`)
         const order = await rows.evaluateAll(
           (buttons, followUp) => ({
             followUp: buttons.findIndex((button) =>

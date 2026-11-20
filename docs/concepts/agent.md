@@ -9,7 +9,9 @@ The only thing a run produces is a complete [ObserveSpec](observespec.md) docume
 The agent is on only when an LLM provider is configured (see [LLM providers](../connect/llm-providers.md)).
 
 A run starts from a prompt in the chat home, from `observe <prompt>`, from a follow-up on an existing dashboard, or from a comment that asks for a revision.
-The conversation page shows the steps the tools report and the result, never the model's own text.
+The conversation page shows the steps the tools report and the result.
+While a run works, it also shows the short sentences the model writes before its tool calls, live; they are never stored, so once the run ends only the result stays.
+An agent that reads the run over MCP or the CLI sees the same text as `live_text` while the run is running.
 
 ## The tool loop
 
@@ -26,6 +28,7 @@ It then works in this order: discover, draft, lint, run, save, and repair if the
 ### Discover
 
 - `list_metrics`, `list_labels` and `list_label_values` find real metric names, label names and label values on Prometheus and on the OpenTelemetry tables of ClickHouse.
+- `list_services` lists the services a log or trace datasource has seen in the last hour, or finds which datasources hold one, and names the field a query filters on.
 - `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
 - On Loki, `list_labels` and `list_label_values` find stream labels and their values, narrowed by a stream selector in `metric`, `sample_rows` reads up to 20 lines of the last 15 minutes from every stream or from a stream selector in `table`, and `list_metrics` with a stream selector as `scope` lists each stream label key with the number of streams that carry it.
 - On Tempo, `list_labels` and `list_label_values` find TraceQL attributes and their values, and `get_schema` lists every service with its span names, plus the attributes.
@@ -120,7 +123,7 @@ Two turns in a row in which every call was refused end the run with `no_progress
 ### Answers without a tool call
 
 If the model answers without a tool call while fewer panels than planned are built, its answer is dropped and its conversation is shortened the same way as after a cut-off, with a note that it is told once; its next answer without a tool call saves what is built.
-If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not shown and to call `save_finding`, which keeps its answer in the chat, or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
+If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not kept and to call `save_finding`, which keeps its answer in the chat, or save a panel; its next answer without a tool call ends the run with `no_tool_call`.
 
 ### Cut-offs and shortened conversations
 
@@ -314,8 +317,8 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 92 tools: MCP clients get 91, every one except `save_finding`, which only a run offers.
-The built-in agent gets 29 in a new-dashboard or revision request and 28 in a suggestion, which leaves out `save_finding`.
+The server has 93 tools: MCP clients get 92, every one except `save_finding`, which only a run offers.
+The built-in agent gets 30 in a new-dashboard or revision request and 29 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
 The other 63 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
 They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `run_dashboard_health`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
