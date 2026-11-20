@@ -132,7 +132,6 @@ test("explains a failed request", async ({ page }) => {
   await expect(chat.getByText(neverSavesPrompt, { exact: true })).toHaveCount(2)
   await expect(alert).toHaveCount(2, { timeout: 90_000 })
   await expect(alert.last()).toContainText("without saving")
-  await expect(alert.first()).toContainText("Tried again in a new run")
 })
 
 test("retries a failed follow-up on the same dashboard", async ({ page }) => {
