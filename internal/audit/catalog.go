@@ -90,8 +90,6 @@ var catalog = map[Action]Spec{
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
 	"public_link.view": access(CategoryAccess),
-	"dashboard.export": access(CategoryAccess),
-	"logs.export":      access(CategoryAccess),
 	"audit.search":     access(CategoryAccess),
 	"audit.export":     access(CategoryAccess),
 
@@ -123,6 +121,7 @@ var catalog = map[Action]Spec{
 	"observation.block_keep":    change(CategoryContent, blockKeys),
 	"observation.block_discard": change(CategoryContent, blockKeys),
 	"observation.block_remove":  change(CategoryContent, blockKeys),
+	"observation.arrange":       change(CategoryContent),
 	"proposal.open":             change(CategoryContent, proposalKeys),
 	"proposal.update":           change(CategoryContent, proposalKeys),
 	"proposal.merge":            change(CategoryContent, proposalKeys),
