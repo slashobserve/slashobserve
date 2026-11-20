@@ -64,3 +64,24 @@ func TestProfileMaximumBelowDriverSlack(t *testing.T) {
 		t.Fatalf("QueryInstant: %v", err)
 	}
 }
+
+func TestASyntaxErrorNamesThePlaceInThePersonsOwnQuery(t *testing.T) {
+	ctx := context.Background()
+	text := "SELECT ServiceName, count() FROM otel_traces\nWHERE $__timeFilter(Timestamp) GROUP"
+	_, _, paged := roDS(t).QueryPage(ctx, datasource.PageRequest{Query: datasource.Query{Text: text}, Range: lastHour(), Page: 1, PageSize: 50})
+	_, plain := roDS(t).QueryInstant(ctx, datasource.Query{Text: text, Explore: true}, lastHour())
+	for name, err := range map[string]error{"paged": paged, "instant": plain} {
+		if !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Fatalf("%s: err = %v, want an invalid query", name, err)
+		}
+		message := err.Error()
+		if !regexp.MustCompile(`Syntax error: failed at (line 2, column \d+ of the query|the end of the query \(line 2, column 37\))`).MatchString(message) {
+			t.Errorf("%s: err = %v, want the place in the person's text", name, err)
+		}
+		for _, leak := range []string{"position", "ORDER BY ALL", "{limit", "fromUnixTimestamp64Milli"} {
+			if strings.Contains(message, leak) {
+				t.Errorf("%s: err = %v, names %q", name, err, leak)
+			}
+		}
+	}
+}
