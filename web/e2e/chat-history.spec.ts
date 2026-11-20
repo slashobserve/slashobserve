@@ -356,7 +356,7 @@ for (const scheme of ["light", "dark"] as const) {
         return route.fulfill({ json: historyList(requests, null) })
       })
 
-      await openHistory(page)
+      await openHistory(page, "/keys")
       const aside = panel(page)
       await expect(
         aside.getByText("Could not load your requests.")
@@ -394,7 +394,7 @@ for (const scheme of ["light", "dark"] as const) {
         return route.fulfill({ json: historyList([], null) })
       })
 
-      await openHistory(page)
+      await openHistory(page, "/keys")
       const aside = panel(page)
       const retry = aside.getByRole("button", { name: "Retry" })
       await expect(retry).toBeVisible()
