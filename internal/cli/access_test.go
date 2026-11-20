@@ -56,9 +56,9 @@ func TestAccessRequestSaysWhenARequestIsAlreadyOpen(t *testing.T) {
 	_, stderr, code := runAccess(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		_, _ = io.WriteString(w, `{"error":"you already asked for comment access here and the request is still open","code":"request_open","requested_at":"2026-11-20T09:00:00Z"}`)
+		_, _ = io.WriteString(w, `{"error":"you already asked for comment access here at 2026-11-20T09:00:00Z and the request is still open","code":"request_open","requested_at":"2026-11-20T09:00:00Z"}`)
 	}, "request", "observation:"+accessDashboard)
-	if code == 0 || !strings.Contains(stderr, "the request is still open") {
+	if code == 0 || !strings.Contains(stderr, "at 2026-11-20T09:00:00Z and the request is still open") {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
 	}
 }

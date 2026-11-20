@@ -64,10 +64,11 @@ func TestHTTPRequestsCommentAccessAndListsItForTheGranter(t *testing.T) {
 
 	rec = serve(t, r, ada, http.MethodPost, objectBody("dashboard", d, ""))
 	var open struct {
+		Error       string `json:"error"`
 		Code        string `json:"code"`
 		RequestedAt string `json:"requested_at"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &open); err != nil || rec.Code != http.StatusConflict || open.Code != CodeRequestOpen || open.RequestedAt != created.CreatedAt {
+	if err := json.Unmarshal(rec.Body.Bytes(), &open); err != nil || rec.Code != http.StatusConflict || open.Code != CodeRequestOpen || open.RequestedAt != created.CreatedAt || !strings.Contains(open.Error, created.CreatedAt[:19]) {
 		t.Fatalf("second create = %d %s, want 409 request_open at %s", rec.Code, rec.Body, created.CreatedAt)
 	}
 

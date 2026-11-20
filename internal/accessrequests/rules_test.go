@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -105,5 +106,13 @@ func TestParseKindTakesDashboardsAndObservationsOnly(t *testing.T) {
 		if _, ok := ParseKind(raw); ok != want {
 			t.Errorf("ParseKind(%q) ok = %v, want %v", raw, ok, want)
 		}
+	}
+}
+
+func TestAnOpenRequestMessageSaysSinceWhen(t *testing.T) {
+	open := &OpenError{RequestedAt: time.Date(2026, 11, 20, 9, 0, 0, 0, time.FixedZone("IST", 5*3600+1800))}
+	want := "you already asked for comment access here at 2026-11-20T03:30:00Z and the request is still open"
+	if got := open.Message(); got != want {
+		t.Fatalf("message = %q, want %q", got, want)
 	}
 }

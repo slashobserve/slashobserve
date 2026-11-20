@@ -57,7 +57,7 @@ access-requests:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The caller can already comment on the object (`already_can_comment`), or already has an open request on it (`request_open`, with `requested_at`).
+          The caller can already comment on the object (`already_can_comment`), or already has an open request on it (`request_open`, with `requested_at`, which its message names too).
         content:
           application/json:
             schema:

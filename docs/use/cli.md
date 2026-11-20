@@ -263,7 +263,7 @@ bin/observe access requests
 
 `request` takes the object as `<kind>:<id>`, with `dashboard` or `observation` as the kind, and an optional `--note` of one line, at most 200 characters.
 It prints `Asked for comment access to <kind> <title>; the people who manage its folder will see it in their inbox` and changes no access.
-A request that is still open answers `request_open`, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
+A request that is still open answers `request_open` with the time it was made, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
 A service-account key may ask too; its request is granted by raising the service account's role.
 `requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE`, `FOLDER` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
 Grant one with `bin/observe folders permissions grant <folder-id> --user <id> --level comment`, or by raising the role.

@@ -54,6 +54,10 @@ type OpenError struct {
 
 func (e *OpenError) Error() string { return "the caller already has an open request here" }
 
+func (e *OpenError) Message() string {
+	return "you already asked for comment access here at " + e.RequestedAt.UTC().Format(time.RFC3339) + " and the request is still open"
+}
+
 type Object struct {
 	Kind Kind
 	ID   pgtype.UUID

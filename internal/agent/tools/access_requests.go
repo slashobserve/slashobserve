@@ -78,7 +78,7 @@ func (r *Registry) requestCommentAccess(ctx context.Context, input json.RawMessa
 	case errors.Is(err, accessrequests.ErrCanComment):
 		return toolError(accessrequests.CodeCanComment, accessrequests.CanCommentMessage), nil
 	case errors.As(err, &open):
-		return failure("", requestOpenBody{Code: accessrequests.CodeRequestOpen, Message: accessrequests.RequestOpenText, RequestedAt: httpapi.FormatTime(open.RequestedAt)}), nil
+		return failure("", requestOpenBody{Code: accessrequests.CodeRequestOpen, Message: open.Message(), RequestedAt: httpapi.FormatTime(open.RequestedAt)}), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	case err != nil:

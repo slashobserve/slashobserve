@@ -17833,7 +17833,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller can already comment on the object (`already_can_comment`), or already has an open request on it (`request_open`, with `requested_at`). */
+            /** @description The caller can already comment on the object (`already_can_comment`), or already has an open request on it (`request_open`, with `requested_at`, which its message names too). */
             409: {
                 headers: {
                     [name: string]: unknown;

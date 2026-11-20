@@ -113,7 +113,7 @@ Opening it goes to the dashboard's Share pane, or for an observation to its fold
 General takes no entry, because it cannot be restricted, so a request for something in General says so in the inbox item and opens People, where the Admin raises the person's role, or API keys for a service account; the other way is to move the item to a folder and grant it there.
 
 A person has at most one open request on each dashboard or observation.
-Asking again while it is open answers `409 request_open` with `requested_at`, the time of the open request, and the web app says the request is still open.
+Asking again while it is open answers `409 request_open` with `requested_at`, the time of the open request, and a message that names it; the web app says how long ago it was made, and the CLI and MCP print the time.
 A person who can already comment gets `409 already_can_comment`.
 A dashboard or observation the caller cannot see answers `404 not_found`, the same answer as an id that does not exist.
 

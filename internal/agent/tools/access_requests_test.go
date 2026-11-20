@@ -2,6 +2,7 @@ package tools
 
 import (
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -52,7 +53,7 @@ func TestRequestCommentAccessToolAsksOnceAndTheAdminListsIt(t *testing.T) {
 
 	res = callAs(t, r, viewerCaller, nameRequestCommentAccess, input)
 	open, ok := res.Content.(requestOpenBody)
-	if !res.IsError || !ok || open.Code != accessrequests.CodeRequestOpen || open.RequestedAt != created.CreatedAt {
+	if !res.IsError || !ok || open.Code != accessrequests.CodeRequestOpen || open.RequestedAt != created.CreatedAt || !strings.Contains(open.Message, created.CreatedAt[:19]) {
 		t.Fatalf("second ask = %#v, want request_open at %s", res.Content, created.CreatedAt)
 	}
 

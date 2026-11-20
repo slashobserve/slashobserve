@@ -12,6 +12,7 @@ export class ApiError extends Error {
   readonly retryAfterMs: number | undefined
   readonly ref: string | undefined
   readonly conflicts: MergeConflict[]
+  readonly requestedAt: string | undefined
 
   constructor(
     status: number,
@@ -21,7 +22,8 @@ export class ApiError extends Error {
     latestVersion?: number,
     retryAfterMs?: number,
     ref?: string,
-    conflicts: MergeConflict[] = []
+    conflicts: MergeConflict[] = [],
+    requestedAt?: string
   ) {
     super(message)
     this.name = "ApiError"
@@ -32,6 +34,7 @@ export class ApiError extends Error {
     this.retryAfterMs = retryAfterMs
     this.ref = ref
     this.conflicts = conflicts
+    this.requestedAt = requestedAt
   }
 }
 
@@ -156,7 +159,10 @@ export function toApiError(response: Response, body: unknown): ApiError {
     typeof fields.ref === "string" && fields.ref !== ""
       ? fields.ref
       : undefined,
-    readConflicts(fields.conflicts)
+    readConflicts(fields.conflicts),
+    typeof fields.requested_at === "string" && fields.requested_at !== ""
+      ? fields.requested_at
+      : undefined
   )
 }
 
