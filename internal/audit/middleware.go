@@ -96,20 +96,16 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	}
 	if len(inTx) > 0 {
 		recorded, err := r.anyCommitted(ctx, inTx)
-		if err != nil {
+		switch {
+		case err != nil:
 			r.logger.WarnContext(ctx, "audit commit check failed", logattrs.Failure("audit_check_failed", err)...)
+			outcome, reason = OutcomeUnknown, "commit_check_failed"
+		case recorded:
 			return
+		default:
+			outcome, reason = OutcomeFailed, cmp.Or(reason, "rolled_back")
 		}
-		if recorded {
-			return
-		}
-		if action == "" {
-			action = inTx[0].action
-		}
-		outcome = OutcomeFailed
-		if reason == "" {
-			reason = "rolled_back"
-		}
+		action = cmp.Or(action, inTx[0].action)
 	}
 	if action == "" {
 		if !refused(o.status) {
@@ -140,6 +136,9 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 }
 
 func batched(action Action, outcome Outcome) bool {
+	if outcome == OutcomeUnknown {
+		return false
+	}
 	spec, _ := Lookup(action)
 	return spec.Class == ClassAccess || outcome == OutcomeDenied
 }
