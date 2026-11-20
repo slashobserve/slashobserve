@@ -55,7 +55,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | A Go duration from `24h` to `87600h`; `8760h` is one year. Audit events are stored in one Postgres partition per UTC day, and the daily `audit_partitions` job drops the partitions older than this, recording an `audit.prune` event. |
+| `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | A Go duration from `24h` to `87600h`; `8760h` is one year. Audit events are stored in one Postgres partition per UTC day, and events copied from the activity log at upgrade in one per UTC month; the daily `audit_partitions` job drops each partition whose end is older than this, recording an `audit.prune` event. |
 
 ## Dashboard provisioning
 

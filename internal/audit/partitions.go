@@ -14,12 +14,13 @@ import (
 )
 
 const (
-	CatchUpFor         = 7 * 24 * time.Hour
-	catchUpBefore      = time.Hour
-	DaysAhead          = 14
-	partitionPrefix    = "audit_events_"
-	partitionDayLayout = "20060102"
-	attachLockTimeout  = "2s"
+	CatchUpFor           = 7 * 24 * time.Hour
+	catchUpBefore        = time.Hour
+	DaysAhead            = 14
+	partitionPrefix      = "audit_events_"
+	partitionDayLayout   = "20060102"
+	partitionMonthLayout = "200601"
+	attachLockTimeout    = "2s"
 )
 
 func (r *Recorder) PartitionJob() func(context.Context) error {
@@ -94,8 +95,7 @@ func (r *Recorder) removePartitionsBefore(ctx context.Context, cutoff time.Time)
 	}
 	removed := 0
 	for _, p := range attached {
-		day, ok := partitionDay(p.Name)
-		if !ok || !day.Before(cutoff) {
+		if !endsBy(p.Name, cutoff) {
 			continue
 		}
 		detach := "ALTER TABLE audit_events DETACH PARTITION " + pgx.Identifier{p.Name}.Sanitize()
@@ -117,7 +117,7 @@ func (r *Recorder) removePartitionsBefore(ctx context.Context, cutoff time.Time)
 		return removed, fmt.Errorf("list detached audit partitions: %w", err)
 	}
 	for _, name := range detached {
-		if day, ok := partitionDay(name); ok && day.Before(cutoff) {
+		if endsBy(name, cutoff) {
 			if err := r.dropPartition(ctx, name); err != nil {
 				return removed, err
 			}
@@ -141,7 +141,7 @@ func (r *Recorder) reportAhead(ctx context.Context, today time.Time) error {
 	}
 	ahead := 0
 	for _, p := range attached {
-		if day, ok := partitionDay(p.Name); ok && day.After(today) && !p.DetachPending {
+		if starts, _, ok := partitionSpan(p.Name); ok && starts.After(today) && !p.DetachPending {
 			ahead++
 		}
 	}
@@ -149,13 +149,23 @@ func (r *Recorder) reportAhead(ctx context.Context, today time.Time) error {
 	return nil
 }
 
-func partitionDay(name string) (time.Time, bool) {
+func endsBy(name string, cutoff time.Time) bool {
+	_, ends, ok := partitionSpan(name)
+	return ok && !ends.After(cutoff)
+}
+
+func partitionSpan(name string) (starts, ends time.Time, ok bool) {
 	suffix, ok := strings.CutPrefix(name, partitionPrefix)
 	if !ok {
-		return time.Time{}, false
+		return time.Time{}, time.Time{}, false
 	}
-	day, err := time.Parse(partitionDayLayout, suffix)
-	return day, err == nil
+	if day, err := time.Parse(partitionDayLayout, suffix); err == nil && len(suffix) == len(partitionDayLayout) {
+		return day, day.AddDate(0, 0, 1), true
+	}
+	if month, err := time.Parse(partitionMonthLayout, suffix); err == nil && len(suffix) == len(partitionMonthLayout) {
+		return month, month.AddDate(0, 1, 0), true
+	}
+	return time.Time{}, time.Time{}, false
 }
 
 func utcDay(t time.Time) time.Time {

@@ -75,11 +75,9 @@ CREATE TRIGGER audit_events_append_only BEFORE UPDATE OR DELETE ON audit_events
   FOR EACH ROW EXECUTE FUNCTION audit_events_refuse_change();
 
 -- +goose StatementBegin
-CREATE FUNCTION audit_events_add_partition(day DATE) RETURNS BOOLEAN
+CREATE FUNCTION audit_events_attach(name TEXT, starts DATE, ends DATE) RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  name TEXT := 'audit_events_' || to_char(day, 'YYYYMMDD');
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('audit_events_partitions', 0));
   IF EXISTS (SELECT 1 FROM pg_inherits WHERE inhparent = 'audit_events'::regclass AND inhrelid = to_regclass(name)) THEN
@@ -89,20 +87,34 @@ BEGIN
     EXECUTE format('CREATE TABLE %I (LIKE audit_events INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING GENERATED)', name);
   END IF;
   EXECUTE format('ALTER TABLE audit_events ATTACH PARTITION %I FOR VALUES FROM (%L) TO (%L)', name,
-    day::timestamp AT TIME ZONE 'UTC', (day + 1)::timestamp AT TIME ZONE 'UTC');
+    starts::timestamp AT TIME ZONE 'UTC', ends::timestamp AT TIME ZONE 'UTC');
   RETURN true;
 END
 $$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
+CREATE FUNCTION audit_events_add_partition(day DATE) RETURNS BOOLEAN
+LANGUAGE sql
+AS $$
+  SELECT audit_events_attach('audit_events_' || to_char(day, 'YYYYMMDD'), day, day + 1);
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
 DO $$
 DECLARE
-  today DATE := (now() AT TIME ZONE 'UTC')::date;
-  first DATE := coalesce((SELECT (min(created_at) AT TIME ZONE 'UTC')::date FROM activity), today);
+  daily_from DATE := ((now() - interval '1 hour') AT TIME ZONE 'UTC')::date;
+  first DATE := coalesce((SELECT (min(created_at) AT TIME ZONE 'UTC')::date FROM activity), daily_from);
+  month DATE;
   day DATE;
 BEGIN
-  FOR day IN SELECT generate_series(least(first, today), today + 14, interval '1 day')::date LOOP
+  IF first < daily_from THEN
+    FOR month IN SELECT generate_series(date_trunc('month', first::timestamp), date_trunc('month', (daily_from - 1)::timestamp), interval '1 month')::date LOOP
+      PERFORM audit_events_attach('audit_events_' || to_char(month, 'YYYYMM'), month, least((month + interval '1 month')::date, daily_from));
+    END LOOP;
+  END IF;
+  FOR day IN SELECT generate_series(daily_from, (now() AT TIME ZONE 'UTC')::date + 14, interval '1 day')::date LOOP
     PERFORM audit_events_add_partition(day);
   END LOOP;
 END
@@ -208,6 +220,9 @@ INSERT INTO audit_backfill DEFAULT VALUES;
 CREATE FUNCTION audit_events_catch_up(since TIMESTAMPTZ, by_server TEXT, by_version TEXT, keep_position BOOLEAN, OUT inserted BIGINT)
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  dated_until TIMESTAMPTZ := clock_timestamp();
+  future BIGINT;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('audit_events_catch_up', 0));
   INSERT INTO audit_events (id, xid, occurred_at, category, action, outcome, actor_kind, actor_id, actor_name, initiator, run_id,
@@ -222,10 +237,14 @@ BEGIN
     a.seq, by_server, by_version
   FROM activity a
   JOIN audit_activity_actions m ON m.type = a.type
-  WHERE a.created_at >= since AND NOT EXISTS (SELECT 1 FROM audit_events e WHERE e.activity_seq = a.seq)
+  WHERE a.created_at >= since AND a.created_at <= dated_until AND NOT EXISTS (SELECT 1 FROM audit_events e WHERE e.activity_seq = a.seq)
   ORDER BY a.xid, a.seq
   ON CONFLICT DO NOTHING;
   GET DIAGNOSTICS inserted = ROW_COUNT;
+  SELECT count(*) INTO future FROM activity a JOIN audit_activity_actions m ON m.type = a.type WHERE a.created_at > dated_until;
+  IF future > 0 THEN
+    RAISE NOTICE '% activity rows dated after % have no audit event', future, dated_until;
+  END IF;
 END
 $$;
 -- +goose StatementEnd
@@ -238,4 +257,5 @@ DROP TABLE audit_backfill;
 DROP TABLE audit_activity_actions;
 DROP TABLE audit_events;
 DROP FUNCTION audit_events_add_partition(DATE);
+DROP FUNCTION audit_events_attach(TEXT, DATE, DATE);
 DROP FUNCTION audit_events_refuse_change();

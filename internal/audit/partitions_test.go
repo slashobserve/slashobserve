@@ -54,7 +54,7 @@ func TestThePartitionJobCreatesAheadAndDropsBehind(t *testing.T) {
 	}
 	cutoff := today.AddDate(0, 0, -3)
 	for _, name := range names {
-		if day, _ := partitionDay(name); day.Before(cutoff) {
+		if endsBy(name, cutoff) {
 			t.Errorf("partition %s is older than the retention and still attached", name)
 		}
 	}
@@ -119,4 +119,39 @@ func (r *Recorder) rowAt(t *testing.T, at time.Time) dbsqlc.InsertAuditEventPara
 	}
 	row.OccurredAt = pgtype.Timestamptz{Time: at, Valid: true}
 	return row
+}
+
+func TestAPartitionEndsAtItsUpperBound(t *testing.T) {
+	cutoff := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	for name, want := range map[string]bool{
+		"audit_events_202601":   true,
+		"audit_events_202602":   true,
+		"audit_events_202603":   false,
+		"audit_events_20260228": true,
+		"audit_events_20260301": false,
+		"audit_events_2026":     false,
+		"audit_events_2026022":  false,
+		"audit_activity_202601": false,
+	} {
+		if got := endsBy(name, cutoff); got != want {
+			t.Errorf("endsBy(%s, %s) = %v, want %v", name, cutoff.Format(time.DateOnly), got, want)
+		}
+	}
+}
+
+func TestTheRetentionDropsAMonthlyPartitionOnceItsMonthHasPassed(t *testing.T) {
+	s := newStoreRig(t, writerLimits{}, 72*time.Hour)
+	s.db.Exec(t, `SELECT audit_events_attach('audit_events_202001', '2020-01-01', '2020-02-01')`)
+	s.db.Exec(t, `SELECT audit_events_attach('audit_events_202002', '2020-02-01', '2020-03-01')`)
+	s.db.Exec(t, "ALTER TABLE audit_events DETACH PARTITION audit_events_202002")
+	if err := s.recorder.keepPartitions(t.Context(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	if err := s.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM pg_catalog.pg_class WHERE relname IN ('audit_events_202001', 'audit_events_202002')").Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Fatalf("%d monthly partitions from 2020 are left, want both dropped", left)
+	}
 }
