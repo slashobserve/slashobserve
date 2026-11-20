@@ -72,6 +72,23 @@ func TestRowsLimits(t *testing.T) {
 	}
 }
 
+func TestAnExplicitSizeOfZeroReturnsNoRows(t *testing.T) {
+	for _, text := range []string{`{"size":0}`, `{"size":0,"aggs":{"n":{"cardinality":{"field":"actor_id"}}}}`} {
+		q := mustParse(t, text)
+		for _, asked := range []int{0, 5} {
+			c, err := q.Rows(testWindow, Page{Limit: asked})
+			if err != nil || c.Limit != 0 || c.Args[len(c.Args)-1] != 0 {
+				t.Errorf("%s asked %d: limit = %d, args = %#v, err = %v", text, asked, c.Limit, c.Args, err)
+			}
+		}
+	}
+	q := mustParse(t, `{"query":{"match_all":{}}}`)
+	c, err := q.Rows(testWindow, Page{})
+	if err != nil || c.Limit != DefaultRows {
+		t.Errorf("a query with no size: limit = %d, err = %v", c.Limit, err)
+	}
+}
+
 func TestRowsRefuseABadWindowOrCursor(t *testing.T) {
 	q := mustParse(t, "")
 	for _, w := range []Window{{}, {From: testWindow.To, To: testWindow.From}, {From: testWindow.From, To: testWindow.From}} {

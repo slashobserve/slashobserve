@@ -39,7 +39,7 @@ type Query struct {
 	Form   Form
 	Clause map[string]any
 	Aggs   []Agg
-	Size   int
+	Size   *int
 }
 
 func Parse(text string) (Query, error) {
@@ -198,7 +198,7 @@ func dslQuery(top map[string]any) (Query, error) {
 		if !isWhole || n < 0 || n > maxSize {
 			return Query{}, failOn("size", "size must be a whole number from 0 to %d", maxSize)
 		}
-		q.Size = n
+		q.Size = &n
 	}
 	tree, err := aggTree(top)
 	if err != nil || tree == nil {

@@ -41,8 +41,17 @@ func TestParseClassifiesTheForm(t *testing.T) {
 
 func TestParseKeepsSizeAndAggs(t *testing.T) {
 	q := mustParse(t, `{"size":7,"query":{"match_all":{}},"aggregations":{"n":{"cardinality":{"field":"actor_id"}}}}`)
-	if q.Size != 7 || len(q.Aggs) != 1 || q.Aggs[0].Type != "cardinality" || q.Aggs[0].Field != "actor_id" {
+	if q.Size == nil || *q.Size != 7 || len(q.Aggs) != 1 || q.Aggs[0].Type != "cardinality" || q.Aggs[0].Field != "actor_id" {
 		t.Errorf("query = %+v", q)
+	}
+}
+
+func TestParseTellsAnAbsentSizeFromZero(t *testing.T) {
+	if q := mustParse(t, `{"query":{"match_all":{}}}`); q.Size != nil {
+		t.Errorf("absent size = %d", *q.Size)
+	}
+	if q := mustParse(t, `{"size":0}`); q.Size == nil || *q.Size != 0 {
+		t.Errorf("size 0 = %v", q.Size)
 	}
 }
 

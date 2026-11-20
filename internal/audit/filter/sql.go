@@ -72,9 +72,17 @@ func (b *builder) where(q Query, w Window) (string, error) {
 }
 
 func (q Query) Rows(w Window, p Page) (Compiled, error) {
-	limit, err := pageLimit(p.Limit, q.Size, DefaultRows, MaxRows)
+	var fromBody int
+	if q.Size != nil {
+		fromBody = *q.Size
+	}
+	limit, err := pageLimit(p.Limit, fromBody, DefaultRows, MaxRows)
 	if err != nil {
 		return Compiled{}, err
+	}
+	fetch := limit + 1
+	if q.Size != nil && *q.Size == 0 {
+		limit, fetch = 0, 0
 	}
 	b := &builder{}
 	where, err := b.where(q, w)
@@ -89,7 +97,7 @@ func (q Query) Rows(w Window, p Page) (Compiled, error) {
 		where += " AND (occurred_at, id) < (" + b.add(p.After.OccurredAt.UTC()) + ", " + b.add(id.String()) + "::uuid)"
 	}
 	sql := "SELECT " + strings.Join(eventColumns, ", ") + " FROM " + tableName + " WHERE " + where +
-		" ORDER BY occurred_at DESC, id DESC LIMIT " + b.add(limit+1)
+		" ORDER BY occurred_at DESC, id DESC LIMIT " + b.add(fetch)
 	return Compiled{SQL: sql, Args: b.args, Columns: eventColumns, Limit: limit}, nil
 }
 
