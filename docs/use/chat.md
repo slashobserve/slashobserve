@@ -130,6 +130,8 @@ Until then the status line reads "Working on your request" and the steps list wh
 
 Opening `/b/<request id>` of a request that has not saved a panel yet, from a bookmark or a reload, takes you to its chat page instead of an empty canvas.
 While the agent keeps the message box disabled, the note under it says to wait for the answer or cancel the run.
+While the agent works, the Working row shows what it is writing, one short sentence before a group of tool calls saying what it is about to do and why.
+That text is live only: it is not kept once the run ends, and only the saved dashboard or finding stays.
 Between two messages of the agent's live text there is a blank line.
 Only you can watch your build: anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.

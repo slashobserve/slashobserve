@@ -364,7 +364,7 @@ It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a s
 A done item leaves the default list, counts as read and stays done when the inbox is read, as the done button in the web app does; it answers like `PUT /api/v1/inbox/items/{seq}`, and a service-account key gets `user_session_required`.
 
 `get_run` reads one run of the built-in agent by the id of a `run.*` event from `list_activity`.
-The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps and its usage.
+The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.

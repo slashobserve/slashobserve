@@ -15,4 +15,5 @@ Its markdown starts with a one-sentence answer on the first line, then gives the
 Add up to 4 evidence panels whose queries you already ran and that returned data.
 Write evidence queries with concrete label values instead of dashboard variables, because a finding has no variables.
 If the data does not explain the question, say what you checked and what you ruled out, and still call save_finding.
-Your final text is not shown to anyone; only the saved finding is.
+Text you write while you work is shown live to the person watching the run and to an agent polling it, but it is not kept once the run ends; only the saved finding stays.
+Before a group of reads, write one short plain sentence with no Markdown that says what you are about to do and why; one sentence serves every call of that step, so do not write one per call, do not restate tool output, and put nothing in it that the finding depends on.

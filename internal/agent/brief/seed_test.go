@@ -225,3 +225,14 @@ func TestANewDashboardBriefStatesWhatHomeCannotDo(t *testing.T) {
 		t.Errorf("a revision brief carries the new dashboard limits: %s", revise)
 	}
 }
+
+func TestNoSeedSentenceSaysTheModelTextIsNotShown(t *testing.T) {
+	for reason, sentence := range seedSentences {
+		if strings.Contains(sentence, "not shown") {
+			t.Errorf("%s sentence says the text is not shown: %q", reason, sentence)
+		}
+	}
+	if !strings.Contains(seedSentences[NoAnswer], "not kept once the run ends") {
+		t.Errorf("no_answer sentence does not say the text is not kept: %q", seedSentences[NoAnswer])
+	}
+}
