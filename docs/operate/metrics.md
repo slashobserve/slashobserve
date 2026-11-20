@@ -48,7 +48,7 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_datasource_slots_in_use`            | gauge     | `datasource`                   | Queries running against a datasource on this server.                                                     |
 | `slashobserve_datasource_slots_limit`             | gauge     | `datasource`                   | Queries this server allows against a datasource at once: its share of the datasource's `maxConcurrentQueries`. |
 | `slashobserve_fleet_servers`                      | gauge     |                                | Servers that heartbeat into this database in the last 30 seconds, this one included.                     |
-| `slashobserve_audit_dropped_total` | counter | `reason` | Audit events not stored because the buffer was full (`buffer_full`) or a batch write failed (`write_failed`), and data keys an event did not declare (`undeclared_key`). |
+| `slashobserve_audit_dropped_total` | counter | `reason` | Audit events not stored because the buffer was full (`buffer_full`), a batch write failed (`write_failed`) or the direct write of a change's request event failed (`record_failed`), and data keys an event did not declare (`undeclared_key`). |
 | `slashobserve_audit_write_seconds` | histogram | | Time to write one batch of read and refusal events. |
 | `slashobserve_audit_buffer_events` | gauge | | Read and refusal events waiting in this server's buffer at the last flush. |
 | `slashobserve_audit_partitions_ahead` | gauge | | Daily audit partitions after today; it drops below 14 when the `audit_partitions` job stops. |

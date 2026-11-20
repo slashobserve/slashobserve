@@ -29,6 +29,7 @@ const (
 	DroppedUndeclaredKey = "undeclared_key"
 	DroppedBufferFull    = "buffer_full"
 	DroppedWriteFailed   = "write_failed"
+	DroppedRecordFailed  = "record_failed"
 )
 
 type Metrics interface {
@@ -133,13 +134,23 @@ func (r *Recorder) RecordNow(ctx context.Context, e Event) error {
 	}
 	if spec.Class == ClassAccess {
 		r.writer.enqueue(row)
-	} else {
-		if err := r.db.Queries().InsertAuditEvent(ctx, row); err != nil {
-			return fmt.Errorf("insert audit event: %w", err)
-		}
+	} else if err := r.insertNow(ctx, row); err != nil {
+		return err
 	}
 	if st := stateOf(ctx); st != nil {
 		st.markCommitted()
+	}
+	return nil
+}
+
+func (r *Recorder) insertNow(ctx context.Context, row dbsqlc.InsertAuditEventParams) error {
+	if r.db == nil {
+		return ErrNotInstalled
+	}
+	ictx, cancel := context.WithTimeout(ctx, r.writer.limits.timeout)
+	defer cancel()
+	if err := r.db.Queries().InsertAuditEvent(ictx, row); err != nil {
+		return fmt.Errorf("insert audit event: %w", err)
 	}
 	return nil
 }

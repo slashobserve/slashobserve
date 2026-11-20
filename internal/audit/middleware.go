@@ -129,7 +129,19 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		r.logger.WarnContext(ctx, "audit request event not built", logattrs.Failure("audit_event_invalid", err)...)
 		return
 	}
-	r.writer.enqueue(row)
+	if batched(action, outcome) {
+		r.writer.enqueue(row)
+		return
+	}
+	if err := r.insertNow(ctx, row); err != nil {
+		r.logger.WarnContext(ctx, "audit request event not written", logattrs.Failure("audit_record_failed", err)...)
+		r.metrics.EventsDropped(DroppedRecordFailed, 1)
+	}
+}
+
+func batched(action Action, outcome Outcome) bool {
+	spec, _ := Lookup(action)
+	return spec.Class == ClassAccess || outcome == OutcomeDenied
 }
 
 func (r *Recorder) anyCommitted(ctx context.Context, events []written) (bool, error) {
