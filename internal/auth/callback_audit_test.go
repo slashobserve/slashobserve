@@ -201,7 +201,7 @@ func TestAForgedSignInStateIsRecordedAsARefusedSignIn(t *testing.T) {
 	if rec.Code != http.StatusFound || !strings.Contains(rec.Header().Get("Location"), "error=state_mismatch") {
 		t.Fatalf("callback answered %d to %q", rec.Code, rec.Header().Get("Location"))
 	}
-	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "state_mismatch", actorKind: "anonymous", authMethod: "none", data: "{}"}
+	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "state_mismatch", actorKind: "anonymous", authMethod: "none", data: `{"count": 1}`}
 	if got := r.eventsOf(t, rec.Header().Get(audit.RequestIDHeader)); len(got) != 1 || got[0] != want {
 		t.Fatalf("events = %+v, want %+v", got, want)
 	}
@@ -218,7 +218,7 @@ func TestADeactivatedPersonsSignInIsRecordedAsRefused(t *testing.T) {
 	if !strings.Contains(rec.Header().Get("Location"), "error=account_deactivated") {
 		t.Fatalf("callback answered %d to %q", rec.Code, rec.Header().Get("Location"))
 	}
-	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "account_deactivated", actorKind: "anonymous", authMethod: "none", targetKind: "user", targetID: id, data: "{}"}
+	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "account_deactivated", actorKind: "anonymous", authMethod: "none", targetKind: "user", targetID: id, data: `{"count": 1}`}
 	if got := r.eventsOf(t, request); len(got) != 1 || got[0] != want {
 		t.Fatalf("events = %+v, want %+v", got, want)
 	}
@@ -231,7 +231,7 @@ func TestADisallowedEmailIsRecordedWithoutTheEmail(t *testing.T) {
 		t.Fatalf("callback answered %d to %q", rec.Code, rec.Header().Get("Location"))
 	}
 	got := r.eventsOf(t, request)
-	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "email_not_allowed", actorKind: "anonymous", authMethod: "none", data: "{}"}
+	want := signInEvent{action: "auth.login_failed", outcome: "denied", reason: "email_not_allowed", actorKind: "anonymous", authMethod: "none", data: `{"count": 1}`}
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("events = %+v, want %+v", got, want)
 	}

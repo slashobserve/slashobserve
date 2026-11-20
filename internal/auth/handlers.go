@@ -41,11 +41,36 @@ const (
 var oauthErrorPattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
 
 type loginFailure struct {
-	code   string
-	reason string
-	err    error
-	attrs  []any
-	target audit.Target
+	code          string
+	reason        string
+	err           error
+	attrs         []any
+	target        audit.Target
+	providerError string
+}
+
+func (f *loginFailure) providerErrorCode() string {
+	if oauthErrorPattern.MatchString(f.providerError) {
+		return f.providerError
+	}
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(f.err, &retrieveErr) && oauthErrorPattern.MatchString(retrieveErr.ErrorCode) {
+		return retrieveErr.ErrorCode
+	}
+	return ""
+}
+
+func (f *loginFailure) result() audit.Result {
+	result := audit.Result{Action: "auth.login_failed", Outcome: f.outcome(), Reason: f.code, Target: f.target}
+	if code := f.providerErrorCode(); code != "" {
+		result.Data = map[string]any{"provider_error": code}
+	}
+	return result
+}
+
+func refuseLogin(c *gin.Context, code string) {
+	audit.Conclude(c.Request.Context(), (&loginFailure{code: code}).result())
+	c.Redirect(http.StatusFound, loginErrorPath(code))
 }
 
 func (f *loginFailure) outcome() audit.Outcome {
@@ -61,7 +86,7 @@ func (s *Service) login(c *gin.Context) {
 	provider, err := s.provider(ctx)
 	if err != nil {
 		s.logger.WarnContext(ctx, "oidc discovery failed", logattrs.Failure("oidc_unavailable", err)...)
-		c.Redirect(http.StatusFound, loginErrorPath("unavailable"))
+		refuseLogin(c, "unavailable")
 		return
 	}
 
@@ -69,7 +94,7 @@ func (s *Service) login(c *gin.Context) {
 	state, stateHash, nonce, verifier, err := newLoginSecrets()
 	if err != nil {
 		s.logger.ErrorContext(ctx, "generate login state", logattrs.Failure("login_state_failed", err)...)
-		c.Redirect(http.StatusFound, loginErrorPath("internal"))
+		refuseLogin(c, "internal")
 		return
 	}
 	if err := s.queries.DeleteExpiredLoginStates(ctx); err != nil {
@@ -85,7 +110,7 @@ func (s *Service) login(c *gin.Context) {
 	})
 	if err == nil && stored == 0 {
 		s.logger.WarnContext(ctx, "too many pending logins; refusing a new one", slog.Int("limit", maxLoginStates))
-		c.Redirect(http.StatusFound, loginErrorPath("unavailable"))
+		refuseLogin(c, "unavailable")
 		return
 	}
 	if err != nil {
@@ -93,7 +118,7 @@ func (s *Service) login(c *gin.Context) {
 			return
 		}
 		s.logger.ErrorContext(ctx, "store login state", logattrs.Failure("login_state_failed", err)...)
-		c.Redirect(http.StatusFound, loginErrorPath("internal"))
+		refuseLogin(c, "internal")
 		return
 	}
 
@@ -134,7 +159,7 @@ func (s *Service) callback(c *gin.Context) {
 		return
 	}
 	if c.Query("error") != "" {
-		s.refuse(c, &loginFailure{code: "access_denied"})
+		s.refuse(c, &loginFailure{code: "access_denied", providerError: c.Query("error")})
 		return
 	}
 
@@ -307,7 +332,7 @@ func truncateRunes(s string, limit int) string {
 }
 
 func (s *Service) refuse(c *gin.Context, f *loginFailure) {
-	audit.Conclude(c.Request.Context(), audit.Result{Action: "auth.login_failed", Outcome: f.outcome(), Reason: f.code, Target: f.target})
+	audit.Conclude(c.Request.Context(), f.result())
 	if f.err != nil && clientgone.Handle(c, s.logger, "sign-in", f.err) {
 		return
 	}
@@ -317,9 +342,8 @@ func (s *Service) refuse(c *gin.Context, f *loginFailure) {
 	}
 	if f.err != nil {
 		attrs = append(attrs, logattrs.Safe(f.err)...)
-		var retrieveErr *oauth2.RetrieveError
-		if errors.As(f.err, &retrieveErr) && oauthErrorPattern.MatchString(retrieveErr.ErrorCode) {
-			attrs = append(attrs, slog.String("oauth_error", retrieveErr.ErrorCode))
+		if code := f.providerErrorCode(); code != "" {
+			attrs = append(attrs, slog.String("oauth_error", code))
 		}
 	}
 	attrs = append(attrs, f.attrs...)
@@ -333,7 +357,7 @@ func (s *Service) refuse(c *gin.Context, f *loginFailure) {
 
 func (s *Service) logout(c *gin.Context) {
 	if err := s.csrf.Check(c.Request); err != nil {
-		abortError(c, http.StatusForbidden, "csrf_rejected", "cross-origin request rejected")
+		rejectCrossOrigin(c)
 		return
 	}
 	if cookie, err := c.Request.Cookie(s.sessionCookie); err == nil && cookie.Value != "" {

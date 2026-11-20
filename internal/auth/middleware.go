@@ -41,6 +41,7 @@ func (s *Service) require(c *gin.Context) {
 			return
 		}
 		if !ok {
+			RejectCredential(c.Request.Context(), h)
 			abortError(c, http.StatusUnauthorized, "unauthenticated", "invalid credentials")
 			return
 		}
@@ -64,7 +65,7 @@ func (s *Service) require(c *gin.Context) {
 	p := s.sessionPrincipalOf(c.Request.Context(), row)
 	if !isSafeMethod(c.Request.Method) {
 		if err := s.csrf.Check(c.Request); err != nil {
-			abortError(c, http.StatusForbidden, "csrf_rejected", "cross-origin request rejected")
+			rejectCrossOrigin(c)
 			return
 		}
 	}
@@ -136,10 +137,63 @@ func (s *Service) sessionPrincipalOf(ctx context.Context, row dbsqlc.GetSessionU
 }
 
 func authenticated(ctx context.Context, p Principal, method audit.AuthMethod, credential pgtype.UUID) {
+	Authenticated(ctx, p, method, credential.String())
+}
+
+func Authenticated(ctx context.Context, p Principal, method audit.AuthMethod, credentialID string) {
 	audit.Update(ctx, func(s *audit.Scope) {
 		s.Actor = AuditActor(p)
-		s.Auth = audit.Auth{Method: method, CredentialID: credential.String()}
+		s.Auth = audit.Auth{Method: method, CredentialID: credentialID}
 	})
+}
+
+func rejectCrossOrigin(c *gin.Context) {
+	audit.Conclude(c.Request.Context(), audit.Result{Action: "auth.csrf_rejected", Outcome: audit.OutcomeDenied, Reason: "csrf_rejected"})
+	abortError(c, http.StatusForbidden, "csrf_rejected", "cross-origin request rejected")
+}
+
+var credentialKinds = map[string]audit.AuthMethod{
+	keyPrefix: audit.AuthAPIKey,
+	"sot_":    audit.AuthAPIKey,
+	"sob_":    audit.AuthAPIKey,
+	"soa_":    audit.AuthOAuth,
+	"sor_":    audit.AuthOAuth,
+}
+
+func bearerToken(header string) (string, bool) {
+	scheme, token, found := strings.Cut(header, " ")
+	return token, found && strings.EqualFold(scheme, "Bearer")
+}
+
+func RejectCredential(ctx context.Context, header string) {
+	audit.Update(ctx, func(s *audit.Scope) { s.Auth = audit.Auth{Method: CredentialKind(header)} })
+	audit.Conclude(ctx, rejectedCredential(header))
+}
+
+func rejectedCredential(header string) audit.Result {
+	rejected := audit.Result{Action: "auth.credential_rejected", Outcome: audit.OutcomeDenied, Reason: "malformed_credential"}
+	token, ok := bearerToken(header)
+	if !ok {
+		return rejected
+	}
+	for prefix := range credentialKinds {
+		if opaquetoken.Shaped(token, prefix) {
+			rejected.Reason = "unknown_credential"
+			rejected.Target = audit.Target{Kind: "credential", Name: token[:displayPrefixLength]}
+		}
+	}
+	return rejected
+}
+
+func CredentialKind(header string) audit.AuthMethod {
+	if token, ok := bearerToken(header); ok {
+		for prefix, kind := range credentialKinds {
+			if strings.HasPrefix(token, prefix) {
+				return kind
+			}
+		}
+	}
+	return audit.AuthNone
 }
 
 func AuditActor(p Principal) audit.Actor {
