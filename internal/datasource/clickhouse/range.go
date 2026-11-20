@@ -2,16 +2,14 @@ package clickhouse
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const (
-	needsRange       = "a query without Timestamp must read the time range, for example WHERE $__timeFilter(EventTime)"
-	timestampInRange = "$__timeFilter(Timestamp)"
-)
+const timestampInRange = "$__timeFilter(Timestamp)"
 
 var rangeMacros = map[string]bool{
 	"__timeFilter": true, "__timeFilter_ms": true, "__dateFilter": true, "__dateTimeFilter": true, "__dt": true,
@@ -32,7 +30,22 @@ func requireRange(text string, selectsTimestamp bool) error {
 	if selectsTimestamp || readsRange(text) {
 		return nil
 	}
-	return datasource.Errorf(datasource.ErrInvalidQuery, "%s", needsRange)
+	return datasource.Errorf(datasource.ErrInvalidQuery, "%s", needsRange(text))
+}
+
+func needsRange(text string) string {
+	if column := knownTimeColumn(text); column != "" {
+		return "add $__timeFilter(" + column + ") to the WHERE clause so the query reads only the selected time range"
+	}
+	return "add $__timeFilter(column) to the WHERE clause, naming the table's time column, so the query reads only the selected time range"
+}
+
+func knownTimeColumn(text string) string {
+	tables := macros.ClickHouseTables(text)
+	if len(tables) == 0 {
+		return ""
+	}
+	return preferredTimeColumn(tableKind(tables[0][strings.LastIndex(tables[0], ".")+1:]))
 }
 
 func timestampRange(env macros.Env) (string, error) {

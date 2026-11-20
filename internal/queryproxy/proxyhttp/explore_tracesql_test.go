@@ -65,7 +65,7 @@ func TestExploreAnswersTheTraceSQLRefusalWithItsCode(t *testing.T) {
 		code   string
 	}{
 		{"forbidden", datasource.ErrForbiddenQuery, "SETTINGS clauses are not allowed", "query_forbidden"},
-		{"no range", datasource.ErrInvalidQuery, "a query without Timestamp must read the time range, for example WHERE $__timeFilter(EventTime)", "query_invalid"},
+		{"no range", datasource.ErrInvalidQuery, "add $__timeFilter(Timestamp) to the WHERE clause so the query reads only the selected time range", "query_invalid"},
 		{"too many rows", datasource.ErrLimitExceeded, "result exceeds 50 rows", "limit_exceeded"},
 		{"database message", datasource.ErrInvalidQuery, "Syntax error: failed at position 8 (FROM)", "query_invalid"},
 	}

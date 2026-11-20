@@ -33,7 +33,7 @@ func TestExploreQueryWithoutTheRangeIsRefusedBeforeItRuns(t *testing.T) {
 	for _, text := range unboundedExploreQueries {
 		conn := &pageConn{fakeConn: &fakeConn{columns: stringColumns("TraceId")}}
 		for kind, err := range runBoth(pageDatasource(conn), exploreQuery(text)) {
-			if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter") {
+			if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter(Timestamp)") {
 				t.Errorf("%s %q: err = %v, want the range rule", kind, text, err)
 			}
 		}
