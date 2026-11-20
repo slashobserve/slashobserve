@@ -173,3 +173,23 @@ func TestOnlyAnAdminSetsReadsAndChangesTheAudienceOverHTTP(t *testing.T) {
 		t.Fatalf("audience after lower roles tried = %q", got)
 	}
 }
+
+func TestAnEmptyAudienceInAChangeIsRefusedAndKeepsTheStoredOne(t *testing.T) {
+	h := newHTTPRig(t)
+	if rec := h.call(t, http.MethodPost, "/api/v1/datasources", `{"uid":"audit","type":"prometheus","address":"http://audit:9090","audience":"admins"}`); rec.Code != http.StatusCreated {
+		t.Fatalf("create answered %d: %s", rec.Code, rec.Body)
+	}
+	rec := h.call(t, http.MethodPatch, "/api/v1/datasources/audit", `{"audience":""}`)
+	expectCode(t, rec, http.StatusUnprocessableEntity, "invalid_datasource")
+	var body struct {
+		Fields []struct {
+			Field string `json:"field"`
+		} `json:"fields"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || len(body.Fields) != 1 || body.Fields[0].Field != "audience" {
+		t.Fatalf("refusal = %s", rec.Body)
+	}
+	if got := audienceOver(t, h, "audit"); got != datasource.AudienceAdmins {
+		t.Fatalf("audience after an empty change = %q", got)
+	}
+}

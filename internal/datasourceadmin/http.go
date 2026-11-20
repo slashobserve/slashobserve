@@ -105,6 +105,10 @@ func (h *Handler) update(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
+	if err := checkAudience(body.Audience); err != nil {
+		h.fail(c, "change datasource", err)
+		return
+	}
 	record, err := h.svc.Update(c.Request.Context(), httpapi.Caller(c), uid, body.Definition, body.change())
 	if err != nil {
 		h.fail(c, "change datasource", err)
