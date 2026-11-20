@@ -72,6 +72,10 @@ The first items under Changed can break a script or an integration.
   A trace search or a trace adds to a dashboard or an observation, and `observe traces` lists whole traces sorted with `--sort`.
   A saved search updates its query, columns and range with **Update saved search**, `PATCH /api/v1/saved-searches/{id}`, `observe saved-searches update` and `update_saved_search`.
   A Kibana Discover link pasted into the Ask box imports like one pasted into the query box.
+- Trace SQL rows as written.
+  The explore query request and the MCP tool `query_instant` take `as_written` together with `page_size` on a ClickHouse datasource, and return the rows as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns and no `TimeNs` column.
+  Without it, a query that selects `Timestamp` still comes back as log lines, newest first, and `as_written` without `page_size` is refused.
+  The trace SQL view and `observe traces --query` send it, so a query for the three slowest spans returns those three.
 - The CLI reaches what the web app does.
   `observe logs` prints lines from Elasticsearch and OpenSearch and rows from ClickHouse SQL.
   `observe folders permissions`, `observe dashboards schema` and `sample`, `observe datasources schema` and `sample`, `observe import --update` and `--as-new`, and `--all` on list commands are new.
@@ -148,6 +152,7 @@ The first items under Changed can break a script or an integration.
 - A Kibana Discover link lost its time range, columns and filters on the logs page, and an exclude pill on a Loki label that the query selects with a regex replaced the matcher and was dropped.
 - The built-in agent reported a read that timed out as no data, said a metric was missing after searching only by name, and wrote times in UTC under a page that showed another zone.
   It now names each datasource it could not check, reads deploy markers in every run, and uses the page's zone.
+- `observe cancel` and `observe continue` dropped the error code when someone other than the requester was refused, and now end the message with it.
 - The span count of a Tempo trace stats read was wrong when a sample was NaN.
 - A Prometheus answer with warnings was not marked partial, and ClickHouse integers above 2^53 lost digits in a table.
 - A live tail that polled a partial result did not fetch the lines it missed.
