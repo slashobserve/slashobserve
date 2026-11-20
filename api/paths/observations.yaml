@@ -165,7 +165,9 @@ observations-id:
       mcp: [update_observation]
       cli: [observe o edit]
     summary: Change an observation's title or time range.
-    description: Needs Edit on the folder. Allowed whether the observation is open or resolved.
+    description: >-
+      Needs Edit on the folder. Allowed whether the observation is open or resolved.
+      A new title also renames the chat with no dashboard that this observation is the one observation made from, when the caller started that chat, and `chat_rename` says which happened.
     requestBody:
       required: true
       content:

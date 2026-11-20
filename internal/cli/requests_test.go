@@ -215,3 +215,18 @@ func TestArchiveAndRemoveBlockPrintOnlyAnEmptyBodyWithJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestRequestsRenameSaysWhatHappenedToTheObservationTitle(t *testing.T) {
+	cases := map[string]string{
+		"renamed": "Request " + stoppedID + " renamed, and the observation made from it\n",
+		"kept":    "Request " + stoppedID + " renamed; the observation made from it keeps its title because you may not edit it\n",
+		"":        "Request " + stoppedID + " renamed\n",
+	}
+	for outcome, want := range cases {
+		reply := `{"request":{"id":"` + stoppedID + `","observation_rename":"` + outcome + `"}}`
+		_, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "requests", "rename", stoppedID, "Routes")
+		if code != 0 || stdout != want {
+			t.Fatalf("%q: exit %d, stdout %q, stderr %q", outcome, code, stdout, stderr)
+		}
+	}
+}

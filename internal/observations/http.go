@@ -25,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -60,6 +61,8 @@ type ObservationJSON struct {
 	ResolvedAt     *string      `json:"resolved_at"`
 	AllowedActions []string     `json:"allowed_actions"`
 	Blocks         *[]BlockJSON `json:"blocks,omitempty"`
+
+	ChatRename revisions.SharedTitle `json:"chat_rename,omitempty"`
 }
 
 type BlockJSON struct {
@@ -157,6 +160,7 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		UpdatedAt:      httpapi.FormatTime(o.UpdatedAt),
 		ResolvedAt:     timeString(o.ResolvedAt),
 		AllowedActions: actions(o.AllowedActions),
+		ChatRename:     o.ChatRename,
 	}
 	if o.Blocks != nil {
 		blocks := make([]BlockJSON, len(o.Blocks))

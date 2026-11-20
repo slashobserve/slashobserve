@@ -111,6 +111,7 @@ Archived requests are left out.
 A request that failed before it had a dashboard shows only here, and `observe status <request-id>` reads it.
 
 `requests pin <id>`, `requests unpin <id>`, `requests rename <id> <title>` (`--clear` takes the title back to the start of the prompt) and `requests archive <id>` change one of your own requests.
+`requests rename` and `o edit --title` also rename the chat or observation that shares the title ([Chat](chat.md#one-title-for-a-chat-and-its-observation)), and say so, or say that the other title was left as it is.
 Each can be repeated without effect, so a retry after a dropped connection is safe.
 An archived request stays readable with `observe status`.
 

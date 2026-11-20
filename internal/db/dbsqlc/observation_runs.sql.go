@@ -11,6 +11,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const chatObservations = `-- name: ChatObservations :many
+SELECT chat.id AS chat_id, chat.requested_by_kind, chat.requested_by_id, o.id AS observation_id
+FROM agent_requests chat
+JOIN agent_requests turn ON turn.id = chat.id OR turn.chat_id = chat.id
+JOIN observations o ON o.run_id = turn.id
+WHERE chat.chat_id IS NULL AND chat.dashboard_id IS NULL AND chat.archived_at IS NULL
+  AND chat.id = coalesce($1::uuid, (
+    SELECT coalesce(r.chat_id, r.id) FROM observations so JOIN agent_requests r ON r.id = so.run_id
+    WHERE so.id = $2::uuid))
+LIMIT 2
+`
+
+type ChatObservationsParams struct {
+	ChatID        pgtype.UUID
+	ObservationID pgtype.UUID
+}
+
+type ChatObservationsRow struct {
+	ChatID          pgtype.UUID
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+	ObservationID   pgtype.UUID
+}
+
+func (q *Queries) ChatObservations(ctx context.Context, arg ChatObservationsParams) ([]ChatObservationsRow, error) {
+	rows, err := q.db.Query(ctx, chatObservations, arg.ChatID, arg.ObservationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ChatObservationsRow
+	for rows.Next() {
+		var i ChatObservationsRow
+		if err := rows.Scan(
+			&i.ChatID,
+			&i.RequestedByKind,
+			&i.RequestedByID,
+			&i.ObservationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const observationHasActiveRun = `-- name: ObservationHasActiveRun :one
 SELECT EXISTS (
   SELECT 1 FROM agent_requests r

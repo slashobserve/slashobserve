@@ -8,6 +8,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 
 	messageNoObservationChange = "no change given: send title, from and to, or clear_range"
 
-	descUpdateObservation = "Change an observation's title or its time range (from and to together), or clear the range."
+	descUpdateObservation = "Change an observation's title or its time range (from and to together), or clear the range. A new title also renames the chat with no dashboard that the observation was the one observation made from; chat_rename in the result is renamed, or kept when you did not start that chat."
 	descMoveObservation   = "Move an observation and its blocks to another folder from list_folders. Needs edit access to both folders."
 	descReopenObservation = "Reopen a resolved observation so blocks can be added again."
 
@@ -47,10 +48,12 @@ type observationManagedOut struct {
 	State         string `json:"state"`
 	FolderID      string `json:"folder_id"`
 	URL           string `json:"url"`
+
+	ChatRename revisions.SharedTitle `json:"chat_rename,omitempty"`
 }
 
 func (r *Registry) observationManaged(o observations.Observation) observationManagedOut {
-	return observationManagedOut{ObservationID: o.ID, Title: o.Title, State: string(o.State), FolderID: o.FolderID, URL: r.deps.Observations.URL(o.ID)}
+	return observationManagedOut{ObservationID: o.ID, Title: o.Title, State: string(o.State), FolderID: o.FolderID, URL: r.deps.Observations.URL(o.ID), ChatRename: o.ChatRename}
 }
 
 func (r *Registry) observationManageFailure(step string, err error) (Result, error) {
@@ -99,7 +102,12 @@ func (r *Registry) updateObservation(ctx context.Context, input json.RawMessage)
 	if err != nil {
 		return r.observationManageFailure("Updated an observation", err)
 	}
-	return success("Updated observation "+o.ID, r.observationManaged(o)), nil
+	return success("Updated observation "+o.ID+chatRenameNote[o.ChatRename], r.observationManaged(o)), nil
+}
+
+var chatRenameNote = map[revisions.SharedTitle]string{
+	revisions.TitleRenamed: " and renamed the chat it was made from",
+	revisions.TitleKept:    "; the chat it was made from keeps its title because only the person who started it may rename it",
 }
 
 func (r *Registry) moveObservation(ctx context.Context, input json.RawMessage) (Result, error) {

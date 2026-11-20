@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react"
+import { toast } from "sonner"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -87,7 +88,10 @@ function stubList(requests: unknown[]) {
   )
 }
 
-function stubRecordedList(requests: unknown[]) {
+function stubRecordedList(
+  requests: unknown[],
+  written: unknown = { request: {} }
+) {
   const calls: { method: string; url: string; body: string }[] = []
   vi.stubGlobal(
     "fetch",
@@ -100,7 +104,7 @@ function stubRecordedList(requests: unknown[]) {
           url: new URL(req.url).pathname,
           body: await req.text(),
         })
-        return new Response(JSON.stringify({}), {
+        return new Response(JSON.stringify(written), {
           status: method === "DELETE" ? 204 : 200,
           headers: { "Content-Type": "application/json" },
         })
@@ -258,6 +262,29 @@ describe("ChatsPage rows", () => {
     await waitFor(() => expect(calls).toHaveLength(1))
     expect(calls[0].method).toBe("PATCH")
     expect(calls[0].url).toBe("/api/v1/observe/t1")
+  })
+
+  it("says when the observation made from the chat keeps its title", async () => {
+    const info = vi.spyOn(toast, "info")
+    stubRecordedList(twoTurnChat(), {
+      request: { observation_rename: "kept" },
+    })
+    const { user } = render()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Chat actions: Checkout health",
+      })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    const field = await screen.findByRole("textbox", { name: "Chat title" })
+    await user.clear(field)
+    await user.type(field, "Checkout status{Enter}")
+    await waitFor(() =>
+      expect(info).toHaveBeenCalledWith(
+        "The observation made from this chat keeps its title, because you cannot edit it."
+      )
+    )
+    info.mockRestore()
   })
 
   it("deletes every turn of the chat the row stands for", async () => {
