@@ -18,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 )
@@ -40,7 +41,7 @@ func newDocumented(t *testing.T, options ...savedsearches.HandlerOption) *docume
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: newRig(t), engine: gin.New(), router: router, who: editor}
 	savedsearches.NewHandler(d.service, slog.New(slog.DiscardHandler), options...).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), d.who), datasource.Access{By: d.who}))
 	})))
 	return d
 }
@@ -67,13 +68,13 @@ func (d *documented) send(t *testing.T, by auth.Principal, method, path, body st
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	return rec

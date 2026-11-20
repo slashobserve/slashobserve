@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
@@ -40,9 +41,9 @@ func serve(t *testing.T, svc *health.Service, repairs *health.Repairs, jobs heal
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	group := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), by))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), by), datasource.Access{By: by}))
 	})
-	h := health.NewHandler(t.Context(), svc, repairs, jobs)
+	h := health.NewHandler(reading(t.Context()), svc, repairs, jobs)
 	h.Register(auth.NewRoutes(group))
 	var reader io.Reader
 	if body != "" {
@@ -70,10 +71,10 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 	r.create(t, boardSpec("Twin", "up"))
 	r.create(t, boardSpec("twin", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
-	first, err := r.svc.List(t.Context(), r.viewer, health.ListParams{Limit: 1})
+	first, err := r.svc.List(reading(t.Context()), r.viewer, health.ListParams{Limit: 1})
 	if err != nil || first.NextCursor == "" {
 		t.Fatalf("first page cursor %q: %v", first.NextCursor, err)
 	}
@@ -126,7 +127,7 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 				Options:                options,
 			}
 			input.SetBodyBytes(rec.Body.Bytes())
-			if err := openapi3filter.ValidateResponse(t.Context(), input); err != nil {
+			if err := openapi3filter.ValidateResponse(reading(t.Context()), input); err != nil {
 				t.Fatalf("status %d body %s breaks the document: %v", rec.Code, rec.Body.String(), err)
 			}
 		})

@@ -13,11 +13,11 @@ func TestViewsCountOnePersonOncePerDay(t *testing.T) {
 	id := r.create(t, boardSpec("Checkout", "up"))
 
 	for range 3 {
-		if err := r.svc.RecordView(t.Context(), r.viewer, id); err != nil {
+		if err := r.svc.RecordView(reading(t.Context()), r.viewer, id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	got, err := r.svc.Views(t.Context(), id)
+	got, err := r.svc.Views(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,10 +25,10 @@ func TestViewsCountOnePersonOncePerDay(t *testing.T) {
 		t.Fatalf("views after one person opened it three times = %+v, want 1 over 30 days", got)
 	}
 
-	if err := r.svc.RecordView(t.Context(), r.editor, id); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.editor, id); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ = r.svc.Views(t.Context(), id); got.Count != 2 {
+	if got, _ = r.svc.Views(reading(t.Context()), id); got.Count != 2 {
 		t.Fatalf("views after a second person opened it = %d, want 2", got.Count)
 	}
 }
@@ -36,13 +36,13 @@ func TestViewsCountOnePersonOncePerDay(t *testing.T) {
 func TestViewsCountEachDayOfAPerson(t *testing.T) {
 	r := newRig(t)
 	id := r.create(t, boardSpec("Checkout", "up"))
-	if err := r.svc.RecordView(t.Context(), r.viewer, id); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.viewer, id); err != nil {
 		t.Fatal(err)
 	}
 	r.db.Exec(t, `INSERT INTO dashboard_view_days (dashboard_id, user_id, day) VALUES ($1, $2, current_date - 1), ($1, $2, current_date - 29)`, id.String(), r.viewer.ID)
 	r.db.Exec(t, `INSERT INTO dashboard_view_days (dashboard_id, user_id, day) VALUES ($1, $2, current_date - 30), ($1, $2, current_date - 200)`, id.String(), r.viewer.ID)
 
-	got, err := r.svc.Views(t.Context(), id)
+	got, err := r.svc.Views(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,15 +54,15 @@ func TestViewsCountEachDayOfAPerson(t *testing.T) {
 func TestViewsIgnoreAKeyAndAnUnknownDashboard(t *testing.T) {
 	r := newRig(t)
 	id := r.create(t, boardSpec("Checkout", "up"))
-	if err := r.svc.RecordView(t.Context(), r.key, id); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.key, id); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := r.svc.Views(t.Context(), id); got.Count != 0 {
+	if got, _ := r.svc.Views(reading(t.Context()), id); got.Count != 0 {
 		t.Fatalf("a key's open counted: %d", got.Count)
 	}
 	gone := r.create(t, boardSpec("Gone", "up"))
 	r.db.Exec(t, `DELETE FROM dashboards WHERE id = $1`, gone.String())
-	if err := r.svc.RecordView(t.Context(), r.viewer, gone); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.viewer, gone); err != nil {
 		t.Fatalf("recording a view of a deleted dashboard failed: %v", err)
 	}
 }
@@ -72,7 +72,7 @@ func TestRunPrunesViewDaysOlderThanNinetyDays(t *testing.T) {
 	id := r.create(t, boardSpec("Checkout", "up"))
 	r.db.Exec(t, `INSERT INTO dashboard_view_days (dashboard_id, user_id, day) VALUES ($1, $2, current_date - 89), ($1, $2, current_date - 91), ($1, $2, current_date - 400)`, id.String(), r.viewer.ID)
 
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	var left int

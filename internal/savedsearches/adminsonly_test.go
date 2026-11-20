@@ -29,7 +29,7 @@ func TestASavedSearchOnAnAdminsOnlyDatasourceIsRefusedLikeAMissingOne(t *testing
 	}
 	for _, role := range []auth.Role{auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor, auth.RoleAdmin} {
 		t.Run(string(role), func(t *testing.T) {
-			ctx := datasource.WithAccess(t.Context(), datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "u", Role: role}})
+			ctx := datasource.WithAccess(reading(t.Context()), datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "u", Role: role}})
 			got := s.checkDatasource(ctx, search("audit"))
 			if role == auth.RoleAdmin {
 				if got != nil {

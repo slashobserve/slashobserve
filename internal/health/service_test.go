@@ -23,7 +23,7 @@ func TestRunRecordsEachDashboardsProblemsAndListShowsOnlyUnhealthyOnes(t *testin
 	viewer := r.create(t, boardSpec("Per viewer", `up{user="${__user.login}"}`, "empty_series"))
 	r.broken.Store(true)
 
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,7 +68,7 @@ func TestRunRecordsEachDashboardsProblemsAndListShowsOnlyUnhealthyOnes(t *testin
 func TestRunChecksADashboardAgainOnlyAfterADay(t *testing.T) {
 	r := newRig(t)
 	id := r.create(t, boardSpec("Board", "up"))
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	checkedAt := func() time.Time {
@@ -77,14 +77,14 @@ func TestRunChecksADashboardAgainOnlyAfterADay(t *testing.T) {
 		return at
 	}
 	first := checkedAt()
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if again := checkedAt(); !again.Equal(first) {
 		t.Errorf("a second run rechecked the dashboard: %v then %v", first, again)
 	}
 	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '24 hours' WHERE dashboard_id = $1`, id.String())
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if again := checkedAt(); !again.After(first) {
@@ -100,10 +100,10 @@ func TestRunChecksAnHourOldDashboardAgainOnlyWhenItFailedOrIsOutdated(t *testing
 	empty := r.create(t, boardSpec("Empty", "empty_series"))
 	outdated := r.create(t, boardSpec("Outdated", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
-	_, err := r.dashboards.Save(t.Context(), r.editor, dashboards.SaveInput{
+	_, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{
 		DashboardID: outdated, Parent: 1, Spec: boardSpec("Outdated", "up", "up"), Summary: "edit",
 	})
 	if err != nil {
@@ -120,7 +120,7 @@ func TestRunChecksAnHourOldDashboardAgainOnlyWhenItFailedOrIsOutdated(t *testing
 		before[id] = checkedAt(id)
 	}
 
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,14 +142,14 @@ func TestRunChecksAFailingDashboardOnceInOneRun(t *testing.T) {
 	failing := r.create(t, boardSpec("Failing", "fail_series"))
 	r.broken.Store(true)
 	r.queries.Store(0)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	queriesPerCheck := r.queries.Load()
 	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '1 hour' WHERE dashboard_id = $1`, failing.String())
 
 	r.queries.Store(0)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.queries.Load(); got != queriesPerCheck {
@@ -164,10 +164,10 @@ func TestListFindsDuplicateTitlesAndUnopenedDashboardsAndFiltersByKind(t *testin
 	old := r.create(t, boardSpec("Old", "up"))
 	opened := r.create(t, boardSpec("Opened", "up"))
 	r.db.Exec(t, `UPDATE dashboards SET created_at = now() - interval '100 days' WHERE id IN ($1, $2)`, old.String(), opened.String())
-	if err := r.svc.RecordView(t.Context(), r.viewer, opened); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.viewer, opened); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.svc.RecordView(t.Context(), r.key, old); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.key, old); err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,7 +204,7 @@ func TestListPagesWithACursor(t *testing.T) {
 	seen := map[string]bool{}
 	cursor := ""
 	for range 3 {
-		page, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: 2, Cursor: cursor})
+		page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 2, Cursor: cursor})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -219,7 +219,7 @@ func TestListPagesWithACursor(t *testing.T) {
 	if len(seen) != 3 || cursor != "" {
 		t.Errorf("paging saw %d dashboards, last cursor %q", len(seen), cursor)
 	}
-	if _, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: 2, Cursor: "not a cursor"}); err == nil {
+	if _, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 2, Cursor: "not a cursor"}); err == nil {
 		t.Error("a malformed cursor was accepted")
 	}
 }
@@ -228,7 +228,7 @@ const day = 24 * time.Hour
 
 func (r *rig) ordered(t *testing.T, by auth.Principal, p health.ListParams) []string {
 	t.Helper()
-	page, err := r.svc.List(t.Context(), by, p)
+	page, err := r.svc.List(reading(t.Context()), by, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func (r *rig) rankedFixture(t *testing.T) []string {
 	staleA := r.create(t, boardSpec("Stale A", "up"))
 	r.create(t, boardSpec("Healthy", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	r.openedAgo(t, variable, 30*day)
@@ -279,7 +279,7 @@ func TestListPagesThroughTheRankOrderWithoutRepeats(t *testing.T) {
 		var got []string
 		cursor := ""
 		for range len(want) + 1 {
-			page, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: limit, Cursor: cursor})
+			page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: limit, Cursor: cursor})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -302,7 +302,7 @@ func TestListByKindKeepsEachDashboardsRank(t *testing.T) {
 	never := r.create(t, boardSpec("Empty never opened", "empty_series"))
 	opened := r.create(t, boardSpec("Empty opened", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	r.openedAgo(t, opened, time.Hour)
@@ -343,14 +343,14 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 	other := r.folder(t, "Other")
 	r.createIn(t, other, boardSpec("Elsewhere", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	r.createdAgo(t, stale, 100*day)
 
 	all := health.Summary{Dashboards: 7, Failing: 2, QueryFailed: 2, VariableFailed: 1, NoData: 2, DuplicateTitles: 2, Unopened: 1}
 	for _, kind := range []health.Kind{"", health.KindNoData, health.KindDuplicateTitle} {
-		page, err := r.svc.List(t.Context(), r.editor, health.ListParams{Kind: kind, Limit: 1})
+		page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Kind: kind, Limit: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -360,7 +360,7 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 		if page.NextCursor == "" {
 			t.Fatalf("kind %q has one page", kind)
 		}
-		next, err := r.svc.List(t.Context(), r.editor, health.ListParams{Kind: kind, Limit: 1, Cursor: page.NextCursor})
+		next, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Kind: kind, Limit: 1, Cursor: page.NextCursor})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -369,7 +369,7 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 		}
 	}
 
-	page, err := r.svc.List(t.Context(), r.editor, health.ListParams{FolderID: other, Limit: 10})
+	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{FolderID: other, Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,10 +388,10 @@ func TestListShowsEachDashboardsLatestHealthRepair(t *testing.T) {
 	chat := r.create(t, boardSpec("Chat", "empty_series"))
 	never := r.create(t, boardSpec("Never", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
-	out, err := r.repairs.Repair(t.Context(), r.editor, []pgtype.UUID{queued})
+	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{queued})
 	if err != nil || len(out.Queued) != 1 {
 		t.Fatalf("queue a repair: %+v, %v", out, err)
 	}
@@ -460,7 +460,7 @@ func (r *rig) dashboardIDsFixture(t *testing.T) (empty, failing, healthy, hidden
 	hidden = r.create(t, boardSpec("Hidden", "empty_series"))
 	r.moveToPersonalFolderOf(t, hidden, r.viewer)
 	r.broken.Store(true)
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	return empty, failing, healthy, hidden
@@ -478,7 +478,7 @@ func TestListWithDashboardIDsReadsEveryVisibleRequestedDashboardHealthyOnesInclu
 	r := newRig(t)
 	empty, failing, healthy, hidden := r.dashboardIDsFixture(t)
 
-	page, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{empty, failing, healthy, hidden}, Limit: 100})
+	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{empty, failing, healthy, hidden}, Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,11 +493,11 @@ func TestListWithDashboardIDsReadsEveryVisibleRequestedDashboardHealthyOnesInclu
 		t.Errorf("healthy dashboard = %+v", ok)
 	}
 
-	owner, err := r.svc.List(t.Context(), r.viewer, health.ListParams{DashboardIDs: []pgtype.UUID{hidden}, Limit: 100})
+	owner, err := r.svc.List(reading(t.Context()), r.viewer, health.ListParams{DashboardIDs: []pgtype.UUID{hidden}, Limit: 100})
 	if err != nil || len(owner.Items) != 1 || owner.Items[0].Title != "Hidden" {
 		t.Errorf("owner list = %+v, %v", owner.Items, err)
 	}
-	stranger, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{hidden}, Limit: 100})
+	stranger, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{hidden}, Limit: 100})
 	if err != nil || len(stranger.Items) != 0 {
 		t.Errorf("a dashboard in another user's personal folder listed %+v, %v", stranger.Items, err)
 	}
@@ -506,12 +506,12 @@ func TestListWithDashboardIDsReadsEveryVisibleRequestedDashboardHealthyOnesInclu
 func TestListWithDashboardIDsReadsASkippedAndANeverCheckedDashboard(t *testing.T) {
 	r := newRig(t)
 	viewer := r.create(t, boardSpec("Per viewer", `up{user="${__user.login}"}`))
-	if err := r.svc.Run(t.Context()); err != nil {
+	if err := r.svc.Run(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	fresh := r.create(t, boardSpec("Fresh", "up"))
 
-	page, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{viewer, fresh}, Limit: 100})
+	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{viewer, fresh}, Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,14 +532,14 @@ func TestListWithDashboardIDsAndAKindKeepsOnlyDashboardsWithThatKind(t *testing.
 	empty, failing, healthy, _ := r.dashboardIDsFixture(t)
 	ids := []pgtype.UUID{empty, failing, healthy}
 
-	noData, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: ids, Kind: health.KindNoData, Limit: 100})
+	noData, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: ids, Kind: health.KindNoData, Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{"Empty"}; !slices.Equal(titles(noData.Items), want) {
 		t.Errorf("kind no_data listed %v, want %v", titles(noData.Items), want)
 	}
-	unopened, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{healthy}, Kind: health.KindUnopened, Limit: 100})
+	unopened, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{healthy}, Kind: health.KindUnopened, Limit: 100})
 	if err != nil || len(unopened.Items) != 0 {
 		t.Errorf("kind unopened listed %v for a healthy dashboard, %v", titles(unopened.Items), err)
 	}
@@ -549,7 +549,7 @@ func TestListWithoutDashboardIDsStillListsOnlyDashboardsWithAProblem(t *testing.
 	r := newRig(t)
 	r.dashboardIDsFixture(t)
 
-	page, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: 100})
+	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,16 +563,16 @@ func TestListWithDashboardIDsHasNoSummaryOnAnyPage(t *testing.T) {
 	empty, failing, _, _ := r.dashboardIDsFixture(t)
 	ids := []pgtype.UUID{empty, failing}
 
-	first, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1})
+	first, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1})
 	if err != nil || first.NextCursor == "" || first.Summary != nil || len(first.Items) != 1 {
 		t.Fatalf("first page = %+v, %v", first, err)
 	}
-	second, err := r.svc.List(t.Context(), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1, Cursor: first.NextCursor})
+	second, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: ids, Limit: 1, Cursor: first.NextCursor})
 	if err != nil || second.NextCursor != "" || second.Summary != nil || len(second.Items) != 1 {
 		t.Fatalf("second page = %+v, %v", second, err)
 	}
 
-	all, err := r.svc.List(t.Context(), r.editor, health.ListParams{Limit: 1})
+	all, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 1})
 	if err != nil || all.Summary == nil {
 		t.Fatalf("unfiltered first page summary = %+v, %v", all.Summary, err)
 	}

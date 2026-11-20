@@ -111,7 +111,7 @@ func newRig(t *testing.T) *rig {
 	queue := revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access))
 	none := revisions.NewService(database.DB, logger, revisions.WithAccess(access))
 	svc := health.New(health.Deps{DB: database.DB, Runner: runner, Access: access, PublicURL: base, Logger: logger, Job: "dashboard_health"})
-	shared, err := database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Shop"})
+	shared, err := database.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Shop"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func newRig(t *testing.T) *rig {
 
 func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) auth.Principal {
 	t.Helper()
-	row, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
+	row, err := database.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func (r *rig) create(t *testing.T, raw []byte) pgtype.UUID {
 
 func (r *rig) createIn(t *testing.T, folder pgtype.UUID, raw []byte) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.dashboards.Create(t.Context(), r.editor, folder, raw, "create")
+	dash, _, err := r.dashboards.Create(reading(t.Context()), r.editor, folder, raw, "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func (r *rig) createIn(t *testing.T, folder pgtype.UUID, raw []byte) pgtype.UUID
 
 func (r *rig) list(t *testing.T, by auth.Principal, kind health.Kind) map[string]health.Item {
 	t.Helper()
-	page, err := r.svc.List(t.Context(), by, health.ListParams{Kind: kind, Limit: 100})
+	page, err := r.svc.List(reading(t.Context()), by, health.ListParams{Kind: kind, Limit: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func (r *rig) list(t *testing.T, by auth.Principal, kind health.Kind) map[string
 
 func (r *rig) folder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	f, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	f, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func (r *rig) folder(t *testing.T, title string) pgtype.UUID {
 
 func (r *rig) openedAgo(t *testing.T, id pgtype.UUID, ago time.Duration) {
 	t.Helper()
-	if err := r.svc.RecordView(t.Context(), r.viewer, id); err != nil {
+	if err := r.svc.RecordView(reading(t.Context()), r.viewer, id); err != nil {
 		t.Fatal(err)
 	}
 	r.db.Exec(t, `UPDATE dashboard_views SET viewed_at = now() - make_interval(secs => $2) WHERE dashboard_id = $1`, id.String(), ago.Seconds())
@@ -231,7 +231,7 @@ func (r *rig) request(t *testing.T, dashboard pgtype.UUID, req request) string {
 	FROM (SELECT now() - make_interval(secs => $7) AS at) t
 	RETURNING id`
 	var id string
-	row := r.db.SQLDB(t).QueryRowContext(t.Context(), insert, dashboard.String(), req.prompt, req.status, req.resultVersion, req.failure, r.editor.ID, req.ago.Seconds())
+	row := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), insert, dashboard.String(), req.prompt, req.status, req.resultVersion, req.failure, r.editor.ID, req.ago.Seconds())
 	if err := row.Scan(&id); err != nil {
 		t.Fatalf("insert agent request: %v", err)
 	}
@@ -248,7 +248,7 @@ func kinds(it health.Item) []health.Kind {
 
 func (r *rig) scan(t *testing.T, query string, arg any, dest ...any) {
 	t.Helper()
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, arg).Scan(dest...); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, arg).Scan(dest...); err != nil {
 		t.Fatalf("%s: %v", query, err)
 	}
 }

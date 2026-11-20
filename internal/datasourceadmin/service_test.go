@@ -93,7 +93,7 @@ func newRigWith(t *testing.T, opts rigOptions) (*rig, *Service) {
 		domains: allowlist.New(database.DB, opts.lock, slog.New(slog.DiscardHandler)),
 		access:  folders.NewAccess(database.DB),
 	}
-	user, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: "ada", Email: "ada@example.com"})
+	user, err := database.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: "ada", Email: "ada@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func (r *rig) insert(t *testing.T, key sealed.Key, def Definition, secrets Secre
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := r.db.Queries().InsertDatasource(t.Context(), dbsqlc.InsertDatasourceParams{
+	row, err := r.db.Queries().InsertDatasource(reading(t.Context()), dbsqlc.InsertDatasourceParams{
 		ID: id, Uid: def.UID, Type: def.Type, Name: def.Name, Config: config,
 		Secrets: sealedSecrets, SecretNames: namesOrEmpty(secrets),
 	})
@@ -155,7 +155,7 @@ func upstream(t *testing.T, seenAuth *string) *httptest.Server {
 
 func health(t *testing.T, r *rig, uid string) datasource.Status {
 	t.Helper()
-	status, ok := r.registry.Recheck(context.Background(), uid)
+	status, ok := r.registry.Recheck(reading(context.Background()), uid)
 	if !ok {
 		t.Fatalf("datasource %q is not registered", uid)
 	}
@@ -171,7 +171,7 @@ func TestLoadRegistersStoredDatasourcesAsAppSources(t *testing.T) {
 	def.Limits.MaxConcurrentQueries = 4
 	r.insert(t, testKey, def, Secrets{BearerToken: "token-1"})
 
-	if err := svc.Load(t.Context()); err != nil {
+	if err := svc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -196,7 +196,7 @@ func TestLoadWithoutASecretKeyMarksCredentialedRowsUnavailable(t *testing.T) {
 	r.insert(t, testKey, prometheus("secured", server.URL), Secrets{BearerToken: "token-1"})
 	r.insert(t, nil, prometheus("open", server.URL), Secrets{})
 
-	if err := svc.Load(t.Context()); err != nil {
+	if err := svc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -214,7 +214,7 @@ func TestLoadWithAnotherSecretKeyReportsUnreadableCredentials(t *testing.T) {
 	r, svc := newRig(t, sealed.Key("another-key-another-key-another-k"))
 	r.insert(t, testKey, prometheus("secured", server.URL), Secrets{BearerToken: "token-1"})
 
-	if err := svc.Load(t.Context()); err != nil {
+	if err := svc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -228,7 +228,7 @@ func TestLoadRegistersAnInvalidRowAsUnavailableWithoutEchoingIt(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	r.insert(t, testKey, Definition{UID: "broken", Type: TypePrometheus, Name: "Broken"}, Secrets{})
 
-	if err := svc.Load(t.Context()); err != nil {
+	if err := svc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -242,29 +242,29 @@ func TestReconcileAppliesChangesAndRemovals(t *testing.T) {
 	server := upstream(t, nil)
 	r, svc := newRig(t, testKey)
 	row := r.insert(t, testKey, prometheus("added", server.URL), Secrets{})
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
 	renamed := prometheus("added", server.URL)
 	renamed.Name = "Renamed"
 	config, _ := json.Marshal(renamed)
-	if _, err := r.db.Queries().UpdateDatasource(t.Context(), dbsqlc.UpdateDatasourceParams{
+	if _, err := r.db.Queries().UpdateDatasource(reading(t.Context()), dbsqlc.UpdateDatasourceParams{
 		Uid: row.Uid, Name: renamed.Name, Config: config, SecretNames: []string{},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if in, _ := registered(t, r.registry, "added"); in.Name != "Renamed" {
 		t.Fatalf("name after an edit by another server = %q", in.Name)
 	}
 
-	if _, err := r.db.Queries().DeleteDatasource(t.Context(), "added"); err != nil {
+	if _, err := r.db.Queries().DeleteDatasource(reading(t.Context()), "added"); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := registered(t, r.registry, "added"); ok {
@@ -278,7 +278,7 @@ func TestReconcileNeverReplacesAFileDatasource(t *testing.T) {
 	r, svc := newRig(t, testKey, file)
 	r.insert(t, testKey, prometheus("prom", server.URL), Secrets{})
 
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,7 +293,7 @@ func addDashboard(t *testing.T, r *rig, title, datasourceUID string) {
 	logger := slog.New(slog.DiscardHandler)
 	service := dashboards.New(r.db, queryproxy.NewRunner(r.registry, logger), r.access, logger)
 	spec := fmt.Sprintf(`{"specVersion":"0","title":%q,"description":"","tags":[],"time":{"from":"now-15m","to":"now"},"panels":[{"id":"p","type":"timeseries","title":"p","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":%q,"queries":[{"query":"up"}]}]}`, title, datasourceUID)
-	if _, _, err := service.Create(t.Context(), r.admin, pgtype.UUID{}, []byte(spec), "create"); err != nil {
+	if _, _, err := service.Create(reading(t.Context()), r.admin, pgtype.UUID{}, []byte(spec), "create"); err != nil {
 		var invalidSpec *dashboards.InvalidSpecError
 		if errors.As(err, &invalidSpec) {
 			t.Fatalf("%v: %+v", err, invalidSpec.Issues)
@@ -308,14 +308,14 @@ func TestRemovingAShadowedRowKeepsTheFileDatasourcesConcurrencyLimit(t *testing.
 	r, svc := newRig(t, testKey, file)
 	r.slots.SetTotal("prom", 2)
 	r.insert(t, testKey, prometheus("prom", server.URL), Secrets{})
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := r.db.Queries().DeleteDatasource(t.Context(), "prom"); err != nil {
+	if _, err := r.db.Queries().DeleteDatasource(reading(t.Context()), "prom"); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -338,12 +338,12 @@ func TestAPollThatReadTheRowsBeforeACreateDoesNotUndoIt(t *testing.T) {
 	}
 
 	polled := make(chan error, 1)
-	go func() { polled <- svc.Reconcile(t.Context()) }()
+	go func() { polled <- svc.Reconcile(reading(t.Context())) }()
 	<-listed
 
 	created := make(chan error, 1)
 	go func() {
-		_, err := svc.Create(t.Context(), r.admin, prometheus("added", server.URL), Secrets{})
+		_, err := svc.Create(reading(t.Context()), r.admin, prometheus("added", server.URL), Secrets{})
 		created <- err
 	}()
 	select {
@@ -375,7 +375,7 @@ func TestLoadRefusesAnIPAddressOnceTheAllowlistIsLocked(t *testing.T) {
 	server := upstream(t, nil)
 	unlocked, unlockedSvc := newRig(t, testKey)
 	unlocked.insert(t, testKey, prometheus("added", server.URL), Secrets{})
-	if err := unlockedSvc.Load(t.Context()); err != nil {
+	if err := unlockedSvc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if status := health(t, unlocked, "added"); !status.Healthy {
@@ -384,7 +384,7 @@ func TestLoadRefusesAnIPAddressOnceTheAllowlistIsLocked(t *testing.T) {
 
 	locked, lockedSvc := newRigWith(t, rigOptions{key: testKey, lock: allowlist.Lock{Locked: true}})
 	locked.insert(t, testKey, prometheus("added", server.URL), Secrets{})
-	if err := lockedSvc.Load(t.Context()); err != nil {
+	if err := lockedSvc.Load(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if status := health(t, locked, "added"); status.Healthy || status.Message != outboundBlockedMessage() {
@@ -395,7 +395,7 @@ func TestLoadRefusesAnIPAddressOnceTheAllowlistIsLocked(t *testing.T) {
 func TestReconcileFollowsTheAllowlistForStoredDomains(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	r.insert(t, testKey, prometheus("added", "http://prom.example.invalid:9090"), Secrets{})
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if status := health(t, r, "added"); status.Message != outboundBlockedMessage() {
@@ -403,20 +403,20 @@ func TestReconcileFollowsTheAllowlistForStoredDomains(t *testing.T) {
 	}
 
 	pattern, _ := domains.ParsePattern("prom.example.invalid")
-	if _, err := r.domains.Add(t.Context(), r.admin, pattern); err != nil {
+	if _, err := r.domains.Add(reading(t.Context()), r.admin, pattern); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if status := health(t, r, "added"); status.Message == outboundBlockedMessage() {
 		t.Fatalf("the datasource stayed blocked after its domain was allowed: %+v", status)
 	}
 
-	if _, err := r.db.Queries().DeleteOutboundDomain(t.Context(), pattern.String()); err != nil {
+	if _, err := r.db.Queries().DeleteOutboundDomain(reading(t.Context()), pattern.String()); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Reconcile(t.Context()); err != nil {
+	if err := svc.Reconcile(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if status := health(t, r, "added"); status.Message != outboundBlockedMessage() {
