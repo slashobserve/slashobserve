@@ -48,6 +48,9 @@ type RunDesk interface {
 	Cancel(ctx context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error)
 	Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error)
 	Build(ctx context.Context, id pgtype.UUID, by auth.Principal) (json.RawMessage, error)
+	List(ctx context.Context, by auth.Principal, filter revisions.ListFilter, limit int, cursor string) (json.RawMessage, error)
+	Update(ctx context.Context, id pgtype.UUID, by auth.Principal, title *string, clearTitle bool, pinned *bool) (json.RawMessage, error)
+	Archive(ctx context.Context, id pgtype.UUID, by auth.Principal) error
 }
 
 func init() { registerEntries((*Registry).runEntries) }

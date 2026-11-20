@@ -28,6 +28,40 @@ type fakeRuns struct {
 	invoked bool
 	started *revisions.StartRequest
 	retried bool
+
+	pages       []json.RawMessage
+	gotFilter   revisions.ListFilter
+	gotLimits   []int
+	gotCursor   string
+	gotTitle    *string
+	gotClear    bool
+	gotPinned   *bool
+	archivedID  pgtype.UUID
+	updateCalls int
+}
+
+func (f *fakeRuns) List(_ context.Context, by auth.Principal, filter revisions.ListFilter, limit int, cursor string) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.gotFilter, f.gotCursor = true, by, filter, cursor
+	f.gotLimits = append(f.gotLimits, limit)
+	if len(f.pages) > 0 {
+		page := f.pages[0]
+		if len(f.pages) > 1 {
+			f.pages = f.pages[1:]
+		}
+		return page, f.err
+	}
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Update(_ context.Context, id pgtype.UUID, by auth.Principal, title *string, clearTitle bool, pinned *bool) (json.RawMessage, error) {
+	f.invoked, f.gotID, f.gotBy, f.gotTitle, f.gotClear, f.gotPinned = true, id, by, title, clearTitle, pinned
+	f.updateCalls++
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Archive(_ context.Context, id pgtype.UUID, by auth.Principal) error {
+	f.invoked, f.gotBy, f.archivedID = true, by, id
+	return f.err
 }
 
 func (f *fakeRuns) Start(_ context.Context, by auth.Principal, req revisions.StartRequest) (json.RawMessage, error) {
