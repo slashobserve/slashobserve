@@ -17,7 +17,6 @@ import { parseSearch, stringifySearch } from "@/lib/search"
 import { testQueryClient } from "@/test/render"
 
 import { ActivityToggle } from "./activity-toggle"
-import { activityCardId } from "./pane-openers"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { MoreMenu } from "./more-menu"
 
@@ -33,7 +32,7 @@ function setNarrow(matches: boolean) {
 
 beforeAll(() => setNarrow(false))
 afterEach(() => {
-  document.getElementById(activityCardId)?.remove()
+  document.querySelector("aside")?.remove()
   setNarrow(false)
   vi.unstubAllGlobals()
 })
@@ -192,7 +191,7 @@ describe("DashboardTopRow", () => {
     const user = userEvent.setup()
     const openPane = () => {
       const pane = document.createElement("aside")
-      pane.id = activityCardId
+      pane.setAttribute("data-focus-pending", "")
       pane.setAttribute("aria-labelledby", "pane-heading")
       const heading = document.createElement("h2")
       heading.id = "pane-heading"
