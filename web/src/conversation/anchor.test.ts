@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import casesText from "../../../spec/examples/anchor-cases.json?raw"
+import casesText from "../../../spec/examples/anchor/anchor-cases.json?raw"
 import { anchorKinds, describeAnchor, parseAnchor } from "./anchor"
 
 type SharedCases = {

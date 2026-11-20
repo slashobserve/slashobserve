@@ -34,7 +34,7 @@ func readCases(t *testing.T) sharedCases {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = root.Close() })
-	data, err := root.ReadFile("anchor-cases.json")
+	data, err := root.ReadFile("anchor/anchor-cases.json")
 	if err != nil {
 		t.Fatal(err)
 	}
