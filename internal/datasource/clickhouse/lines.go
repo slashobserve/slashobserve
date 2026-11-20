@@ -65,7 +65,7 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	}
 	timed, err := d.selectsTimestamp(ctx, inner, lim, extra)
 	if err != nil {
-		return mapError(ctx, err, timeout)
+		return mapError(ctx, inPersonsText(err, q.Text, exp), timeout)
 	}
 	if !timed && needTimestamp {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
@@ -77,7 +77,7 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 		inner = plainSource(text, ordered)
 	}
 	if err := read(ctx, inner, lim, extra, timed); err != nil {
-		return mapError(ctx, err, timeout)
+		return mapError(ctx, inPersonsText(err, q.Text, exp), timeout)
 	}
 	return nil
 }
