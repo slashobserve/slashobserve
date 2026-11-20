@@ -321,7 +321,7 @@ func TestRunnerRecordsEveryUpstreamQueryAndCacheLookup(t *testing.T) {
 	}
 	now := time.Now()
 	for _, id := range []string{"a", "b"} {
-		_, _ = runner.RunPanel(t.Context(), queryproxy.Request{Dashboard: dashboard, PanelID: id, Range: datasource.TimeRange{From: now.Add(-time.Hour), To: now}})
+		_, _ = runner.RunPanel(datasource.WithAccess(t.Context(), datasource.Access{System: true}), queryproxy.Request{Dashboard: dashboard, PanelID: id, Range: datasource.TimeRange{From: now.Add(-time.Hour), To: now}})
 	}
 	runner.RecordCacheLookup(true)
 	runner.RecordCacheLookup(false)
