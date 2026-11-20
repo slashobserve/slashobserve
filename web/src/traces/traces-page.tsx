@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner"
 
 import { AskField } from "@/ask/ask-field"
-import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
+import type { InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
@@ -68,6 +68,7 @@ import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
 import { usePhone } from "@/logs/logs-results"
 import { useAgentInfo } from "@/observe/queries"
+import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { saveBlockedText, tracesDraft } from "@/saved-searches/draft"
 import { savedSearchLocation } from "@/saved-searches/links"
 import { savedSearchesQuery } from "@/saved-searches/queries"
@@ -103,6 +104,9 @@ import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
 import { shorterRange, traceQLProblem } from "./trace-query-problem"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
+import { useTraceInputMode } from "./trace-input-mode"
+import { traceSqlSearch, traceSqlStart } from "./trace-sql"
+import { TraceSqlEditor, TraceSqlResults } from "./trace-sql-view"
 import {
   histogramPercentile,
   p95Label,
@@ -120,13 +124,6 @@ const askPlaceholder =
 
 const tempoPagingNote =
   "Tempo pages by start time from the last trace shown, so there is no page count."
-
-const traceModes: readonly InputMode[] = ["ask", "code"]
-const traceModeLabels: Record<InputMode, string> = {
-  ask: "Ask",
-  builder: "Builder",
-  code: "Query",
-}
 
 type FocusRequest = { target: InputMode; count: number }
 
@@ -233,7 +230,6 @@ export function TracesPage({ uid }: { uid: string }) {
 
   const draft = tracesDraft({
     uid: datasource.uid,
-    type: datasource.type,
     search,
     range,
   })
@@ -426,17 +422,6 @@ function TraceSearchActions({
   )
 }
 
-function hasTraceFilters(search: TraceSearch): boolean {
-  return [
-    search.service,
-    search.span,
-    search.min,
-    search.max,
-    search.errors,
-    search.q,
-  ].some((value) => value !== undefined)
-}
-
 function TraceSearchWorkspace({
   datasource,
   search,
@@ -451,17 +436,16 @@ function TraceSearchWorkspace({
   const formId = useId()
   const uid = datasource.uid
   const type = datasource.type
+  const clickhouse = type === "clickhouse"
   const range = tracesTimeRange(search)
   const agent = useAgentInfo()
   const agentAvailable = agent.data?.available === true
-  const [mode, setMode] = useInputMode({
-    agentAvailable,
-    hasQuery: hasTraceFilters(search),
-    hasAsk: search.ask !== undefined,
-  })
+  const inputMode = useTraceInputMode({ type, search, agentAvailable })
+  const { shown, formMode } = inputMode
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const askFieldRef = useRef<HTMLTextAreaElement>(null)
   const serviceRef = useRef<HTMLInputElement>(null)
+  const sqlRef = useRef<CodeEditorHandle>(null)
   const ask = useAsk({
     uid,
     signal: "traces",
@@ -471,16 +455,18 @@ function TraceSearchWorkspace({
     onAnswer: (drafted, question) =>
       update({ ...traceSearchFromAnswer(drafted, type), ask: question }),
     onCannotTranslate: () => {
-      setMode("code", false)
-      focusNext("code")
+      inputMode.select(formMode, false)
+      focusNext(formMode)
     },
   })
 
   useEffect(() => {
     if (focusRequest === null) return
     if (focusRequest.target === "ask") askFieldRef.current?.focus()
+    else if (focusRequest.target === "code" && clickhouse)
+      sqlRef.current?.focusAt(Number.MAX_SAFE_INTEGER)
     else serviceRef.current?.focus()
-  }, [focusRequest])
+  }, [focusRequest, clickhouse])
 
   function focusNext(target: InputMode) {
     setFocusRequest((current) => ({
@@ -490,12 +476,12 @@ function TraceSearchWorkspace({
   }
 
   function switchMode(next: InputMode) {
-    if (next === mode) return
-    setMode(next)
+    if (next === shown) return
+    inputMode.select(next)
     focusNext(next)
   }
 
-  useInputModeShortcut(() => switchMode(nextMode(mode, agentAvailable)))
+  useInputModeShortcut(() => switchMode(inputMode.following()))
 
   function askAgain() {
     ask.askAgain()
@@ -512,7 +498,8 @@ function TraceSearchWorkspace({
 
   const chips = traceFilterChips(search)
   const explanation = ask.answer?.explanation ?? ""
-  const askRow = mode === "ask"
+  const askRow = shown === "ask"
+  const sqlRow = inputMode.sqlShown
 
   return (
     <>
@@ -527,9 +514,9 @@ function TraceSearchWorkspace({
           )}
         >
           <InputModeToggle
-            mode={mode}
-            modes={traceModes}
-            labels={traceModeLabels}
+            mode={shown}
+            modes={inputMode.modes}
+            labels={inputMode.labels}
             agentAvailable={agentAvailable}
             onChange={switchMode}
           />
@@ -591,13 +578,25 @@ function TraceSearchWorkspace({
               variant="ghost"
               size="sm"
               className="narrow:h-11"
-              onClick={() => switchMode("code")}
+              onClick={() => switchMode(formMode)}
             >
               Edit the query
             </Button>
           </div>
         ) : null}
-        {askRow ? null : (
+        {sqlRow ? (
+          <TraceSqlEditor
+            key={search.q ?? ""}
+            datasource={datasource}
+            initial={traceSqlStart(search)}
+            editorRef={sqlRef}
+            onRun={(query) => {
+              ask.clearProblem()
+              update(traceSqlSearch(query))
+            }}
+          />
+        ) : null}
+        {askRow || sqlRow ? null : (
           <>
             <div className="px-4 pt-3 pb-4" onKeyDownCapture={submitOnModEnter}>
               <TraceSearchForm
@@ -672,17 +671,28 @@ function TraceSearchWorkspace({
           </div>
         ) : null}
       </section>
-      <TraceResults
-        datasource={datasource}
-        search={search}
-        update={(next, options) => {
-          if (changesQuery(next)) {
-            setMode("code", false)
-            update({ ask: undefined, ...next }, options)
-          } else update(next, options)
-        }}
-        live={live}
-      />
+      {clickhouse && search.q !== undefined ? (
+        <TraceSqlResults
+          datasource={datasource}
+          query={search.q}
+          search={search}
+          onPage={(page) => update({ page })}
+          onPageSize={(size) => update({ size })}
+          live={live}
+        />
+      ) : (
+        <TraceResults
+          datasource={datasource}
+          search={search}
+          update={(next, options) => {
+            if (changesQuery(next)) {
+              inputMode.select(formMode, false)
+              update({ ask: undefined, ...next }, options)
+            } else update(next, options)
+          }}
+          live={live}
+        />
+      )}
     </>
   )
 }

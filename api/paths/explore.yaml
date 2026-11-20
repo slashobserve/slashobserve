@@ -28,6 +28,7 @@ datasources-uid-query:
       Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact.
       `prev` is the cursor that produced the page.
       `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk.
+      The SQL views of the ClickHouse logs and trace searches both run here, with the same checks for either table: one read-only `SELECT`, the time range read through a macro such as `$__timeFilter(Timestamp)` when the query selects no `Timestamp`, and the limits above.
       With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
     requestBody:
       required: true

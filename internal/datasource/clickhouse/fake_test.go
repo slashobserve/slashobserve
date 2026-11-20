@@ -77,6 +77,8 @@ func (c *fakeConn) Query(_ context.Context, query string, _ ...any) (driver.Rows
 	switch {
 	case strings.HasSuffix(query, "LIMIT 0"):
 		return &fakeRows{columns: c.columns}, nil
+	case strings.HasPrefix(query, "SELECT DISTINCT toString(ServiceName)"):
+		return &fakeRows{columns: stringColumns("v"), rows: c.rows}, nil
 	case strings.HasPrefix(query, "SELECT * FROM ("):
 		return &fakeRows{columns: c.columns, rows: c.rows}, nil
 	case strings.HasPrefix(query, "SELECT arrayJoin(mapKeys("):

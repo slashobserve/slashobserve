@@ -9,7 +9,10 @@ import (
 	"unicode"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
+	"github.com/slashobserve/slashobserve/internal/datasource/loki"
+	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -26,16 +29,13 @@ const (
 	draftValueBytes   = 200
 	moreNotShown      = " (more not shown)"
 
-	tempoServiceAttribute   = "resource.service.name"
-	clickhouseServiceColumn = "ServiceName"
-	textFacetNote           = "text (facet via .keyword)"
-	clickhouseLogsTable     = "otel_logs"
-	clickhouseTracesTable   = "otel_traces"
+	textFacetNote         = "text (facet via .keyword)"
+	clickhouseLogsTable   = "otel_logs"
+	clickhouseTracesTable = "otel_traces"
 )
 
 var (
-	lokiServiceLabels = []string{"service_name", "service", "app", "job"}
-	lokiLevelLabels   = []string{"detected_level", "level", "severity_text", "severity", "lvl"}
+	lokiLevelLabels = []string{"detected_level", "level", "severity_text", "severity", "lvl"}
 
 	prometheusServiceLabels = []string{"service", "service_name", "app", "job"}
 
@@ -105,7 +105,7 @@ func (b *factsBuilder) loki() error {
 		return err
 	}
 	b.list("labels", names(cat.Labels), cat.Truncated)
-	if label := firstPresent(cat.Labels, lokiServiceLabels); label != "" {
+	if label := firstPresent(cat.Labels, loki.ServiceLabels); label != "" {
 		if err := b.services("values of "+label, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: label, Limit: draftValuesLimit}); err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func (b *factsBuilder) tempo() error {
 	if cat != nil {
 		b.list("attributes", names(cat.Labels), cat.Truncated)
 	}
-	return b.services("values of "+tempoServiceAttribute, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: tempoServiceAttribute, Limit: draftValuesLimit})
+	return b.services("values of "+tempo.ServiceTag, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: tempo.ServiceTag, Limit: draftValuesLimit})
 }
 
 func (b *factsBuilder) clickhouse(signal string) error {
@@ -246,7 +246,7 @@ func (b *factsBuilder) clickhouse(signal string) error {
 		}
 		b.list("columns of "+table, items, columns.Truncated)
 	}
-	return b.services("values of "+clickhouseServiceColumn+" in "+table, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Table: table, Label: clickhouseServiceColumn, Limit: draftValuesLimit})
+	return b.services("values of "+clickhouse.ServiceColumn+" in "+table, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Table: table, Label: clickhouse.ServiceColumn, Limit: draftValuesLimit})
 }
 
 func (b *factsBuilder) search(inst datasource.Instance) error {

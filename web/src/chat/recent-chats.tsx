@@ -3,12 +3,12 @@ import { useId, useMemo } from "react"
 import { LayoutDashboardIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
-import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { requestStatusView, useMyRequests } from "@/observe/queries"
+import { useMyRequests } from "@/observe/queries"
 
 import { collapseChats } from "./chat-list"
+import { ChatStatus } from "./chat-status"
 
 const recentLimit = 5
 const recentFetched = 15
@@ -64,7 +64,6 @@ export function RecentChats() {
                 </li>
               ))
             : requests.map((request) => {
-                const view = requestStatusView(request)
                 return (
                   <li key={request.id} className="border-b last:border-b-0">
                     <button
@@ -80,12 +79,8 @@ export function RecentChats() {
                       <span className="min-w-0 flex-1 truncate text-[13px] narrow:basis-full">
                         {request.title}
                       </span>
-                      <span className="flex flex-none items-center text-xs text-muted-foreground">
-                        <StatusLabel tone={view.tone}>
-                          <span className="max-w-[220px] truncate narrow:max-w-[180px]">
-                            {view.text}
-                          </span>
-                        </StatusLabel>
+                      <span className="flex flex-none items-center gap-x-3 text-xs text-muted-foreground">
+                        <ChatStatus request={request} truncate />
                       </span>
                       {request.dashboard_title !== null ? (
                         <span className="flex max-w-[200px] min-w-0 flex-none items-center gap-1 text-xs text-muted-foreground">

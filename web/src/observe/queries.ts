@@ -346,10 +346,23 @@ export function usePinChat(id: string) {
   )
 }
 
-export function useDeleteChat(id: string) {
-  return useChatMutation(id, () =>
-    api.DELETE("/observe/{id}", { params: { path: { id } } }).then(unwrap)
-  )
+export function useDeleteChatTurns(ids: readonly string[]) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      Promise.all(
+        ids.map((id) =>
+          api.DELETE("/observe/{id}", { params: { path: { id } } }).then(unwrap)
+        )
+      ),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() }),
+        ...ids.map((id) =>
+          queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
+        ),
+      ]),
+  })
 }
 
 export function useCancelRequest(id: string) {

@@ -94,11 +94,11 @@ func (a *app) datasourcesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "datasources",
 		Short: "List, recheck and manage datasources, discover their metrics, labels and values, and lint, count and sample queries",
-		Long:  "datasources is how a script or an agent with only a shell finds what to query before it writes a query.\nlist prints the datasources and recheck runs a fresh health check on one.\nget, add, edit, test and remove manage the datasources added in the app and need an Admin key; a datasource from the datasources file cannot be changed here.\nmetrics, labels and label-values name what a datasource holds, lint checks a query without running it, and log-volume, trace-stats and trace-logs summarise logs and traces.\nA datasource is named by its uid, the first column of datasources list.",
+		Long:  "datasources is how a script or an agent with only a shell finds what to query before it writes a query.\nlist prints the datasources and recheck runs a fresh health check on one.\nget, add, edit, test and remove manage the datasources added in the app and need an Admin key; a datasource from the datasources file cannot be changed here.\nmetrics, labels, label-values and services name what a datasource holds, lint checks a query without running it, and log-volume, trace-stats and trace-logs summarise logs and traces.\nA datasource is named by its uid, the first column of datasources list.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand(), a.datasourcesGetCommand(), a.datasourcesAddCommand(), a.datasourcesEditCommand(), a.datasourcesTestCommand(), a.datasourcesRemoveCommand(), a.datasourceSchemaCommand(), a.datasourceSampleCommand(), a.metricsCommand(), a.labelsCommand(), a.labelValuesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
+	cmd.AddCommand(a.datasourcesListCommand(), a.datasourcesRecheckCommand(), a.datasourcesGetCommand(), a.datasourcesAddCommand(), a.datasourcesEditCommand(), a.datasourcesTestCommand(), a.datasourcesRemoveCommand(), a.datasourceSchemaCommand(), a.datasourceSampleCommand(), a.metricsCommand(), a.labelsCommand(), a.labelValuesCommand(), a.servicesCommand(), a.lintCommand(), a.logVolumeCommand(), a.traceStatsCommand(), a.traceLogsCommand())
 	return cmd
 }
 

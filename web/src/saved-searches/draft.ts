@@ -95,7 +95,6 @@ export function logsDraft(input: {
 
 export function tracesDraft(input: {
   uid: string
-  type: string
   search: TraceSearch
   range: { from: string; to: string }
 }): SearchDraft {
@@ -103,7 +102,7 @@ export function tracesDraft(input: {
   return {
     kind: "traces",
     datasource_uid: input.uid,
-    query: input.type === "tempo" ? search.q : undefined,
+    query: search.q,
     filters: {
       service: search.service,
       span: search.span,

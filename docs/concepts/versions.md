@@ -18,6 +18,7 @@ These all save a version:
 - **Add panel** in the **More** menu, which writes `Add "<title>"` unless you add a note.
 - The agent creating or revising a dashboard: one version per request, saved when the agent finishes, so the rows it builds along the way never appear in the history.
   Saving what a stopped run built is one version too.
+  The agent's version summary is written by the server from what the whole build changed (see [Chat](../use/chat.md)), and a build that comes back to an earlier version is recorded as a restore of it.
 - `update_panels` or `update_dashboard` from an MCP client, one version per accepted save.
 - `POST /api/v1/dashboards/{id}/versions` over the API, or `POST /api/v1/dashboards/{id}/panels` with only the panels to add, replace, remove or move, which runs only their queries like `update_panels` and `observe dashboards panels`.
 - A restore of an older version.

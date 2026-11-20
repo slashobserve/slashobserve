@@ -9,15 +9,17 @@ Each prompt belongs to the person who saved it and is either private or shared w
 
 ## Save a prompt
 
-The web app has one place to save a prompt, the History panel.
+The web app has two places to save a prompt, the History panel and the **Chats** page.
+Only an Editor or an Admin sees the button.
 
-1. Open the chat home or any conversation and choose **History**.
-2. On the **Chats** tab, point at a chat and choose the bookmark button (**Save prompt**).
+1. Open the chat home or any conversation and choose **History**, or open **Chats** in the sidebar.
+2. Point at one of your chats and choose the bookmark button (**Save prompt**).
    On a device without hover the button is always visible.
 3. Check the name and the text, choose **Only me** or **Everyone on this server**, and choose **Save prompt**.
 
-The button appears only on a chat that started a new dashboard.
-A follow-up message on an existing dashboard has none.
+The button appears on a chat you started from the chat box.
+A chat started by a saved prompt, by a comment or by an outside agent has none.
+A follow-up message on an existing dashboard counts as a chat of its own and has the button.
 The panel starts with the first three words of the prompt as the name and the whole prompt as the text, and you can change both.
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.
@@ -32,12 +34,13 @@ A service-account key cannot create, change or delete a prompt.
 
 ## Run a prompt
 
-On the chat home, saved prompts are listed under the example prompts: name, a preview of the text, and who can use it (**Only me**, **Everyone**, or **By** the owner's name for someone else's shared prompt).
+On the chat page (`/ask`, **Ask** in the sidebar), saved prompts are listed under the example prompts and the dashboards: name, a preview of the text, and who can use it (**Only me**, **Everyone**, or **By** the owner's name for someone else's shared prompt).
 The list shows 5 and has a **Show all** button, labelled with the total, for the rest.
 **Run** sends the prompt at once and opens the conversation.
-The list is hidden when you have no prompts or the agent is off.
+The list is hidden when there are no prompts to show or the agent is off.
+The Home page (`/`) has no list, only the picker.
 
-To pick one without leaving the keyboard, type `/` as the only line in the home prompt box.
+To pick one without leaving the keyboard, type `/` as the only line in the prompt box of Home or of the chat page.
 The picker lists the prompts that match what follows the slash, in this order: names that start with it, names that contain it, then prompts whose text contains it.
 It shows the first 50.
 The arrow keys move, **Enter** fills the box and **Esc** closes the picker.

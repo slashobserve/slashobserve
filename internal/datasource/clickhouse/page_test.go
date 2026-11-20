@@ -146,6 +146,9 @@ func TestPageRefusesAPlainQueryThatDoesNotReadTheRange(t *testing.T) {
 		"SELECT ServiceName, count() AS n FROM otel_logs GROUP BY ServiceName",
 		"SELECT Body FROM otel_logs",
 		"SELECT Body FROM otel_logs WHERE EventTime > now() - INTERVAL 1 DAY",
+		"SELECT ServiceName, count() AS n FROM otel_traces GROUP BY ServiceName -- $__timeFilter(Timestamp)",
+		"SELECT ServiceName, count() AS n FROM otel_traces /* WHERE $__timeFilter(Timestamp) */ GROUP BY ServiceName",
+		"SELECT SpanName FROM otel_traces # $__fromTime\n",
 	} {
 		conn, err := plainPage(t, text, 1)
 		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter") {

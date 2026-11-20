@@ -2,7 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { NotebookTextIcon, UploadIcon } from "lucide-react"
 
-import { chatOutcome, chatState } from "@/chat/chat-state"
+import { ChatStatus } from "@/chat/chat-status"
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -55,27 +55,19 @@ export function RecentChatsList() {
         getKey={(request) => request.id}
         emptyText="No requests yet. Ask for a dashboard to start one."
         errorText="Could not load your chats."
-        renderRow={(request) => {
-          const state = chatState(request.state)
-          return (
-            <Link
-              to="/c/$requestId"
-              params={{ requestId: request.id }}
-              className={rowLinkClass}
-            >
-              <RowText
-                title={request.title}
-                meta={
-                  <>
-                    <StatusLabel tone={state.tone}>{state.word}</StatusLabel>
-                    <span>{chatOutcome(request)}</span>
-                  </>
-                }
-              />
-              <Time iso={request.created_at} />
-            </Link>
-          )
-        }}
+        renderRow={(request) => (
+          <Link
+            to="/c/$requestId"
+            params={{ requestId: request.id }}
+            className={rowLinkClass}
+          >
+            <RowText
+              title={request.title}
+              meta={<ChatStatus request={request} />}
+            />
+            <Time iso={request.created_at} />
+          </Link>
+        )}
       />
     </HomeSection>
   )

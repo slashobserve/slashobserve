@@ -19,7 +19,7 @@ var rangeMacros = map[string]bool{
 }
 
 func readsRange(text string) bool {
-	refs, err := spec.ScanQuery(text)
+	refs, err := macros.ExpandedReferences(macros.ClickHouse, text)
 	if err != nil {
 		return false
 	}

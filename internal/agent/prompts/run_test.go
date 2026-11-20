@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 23335
-	fullSystemTextBudget = 28077
+	systemTextBudget     = 23717
+	fullSystemTextBudget = 28439
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -133,6 +133,25 @@ func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("investigate text lacks %q", want)
+		}
+	}
+}
+
+func TestBothSystemTextsSayLiveTextIsShownButNotKept(t *testing.T) {
+	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
+		for _, want := range []string{
+			"is shown live to the person watching the run and to an agent polling it, but it is not kept once the run ends",
+			"write one short plain sentence with no Markdown that says what you are about to do and why",
+			"do not write one per call, do not restate tool output",
+		} {
+			if !strings.Contains(system, want) {
+				t.Errorf("%s system text lacks %q", name, want)
+			}
+		}
+		for _, stale := range []string{"not shown to anyone", "is not shown"} {
+			if strings.Contains(system, stale) {
+				t.Errorf("%s system text still says %q", name, stale)
+			}
 		}
 	}
 }

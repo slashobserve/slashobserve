@@ -66,7 +66,7 @@ func (s *Service) checkDatasource(in validated) error {
 	if !found {
 		return &InvalidInputError{Code: CodeUnknownDatasource, Message: "datasource " + in.DatasourceUID + " does not exist"}
 	}
-	return fitDatasource(in.Kind, spec.DatasourceType(inst.Datasource.Type()), in.Query)
+	return fitDatasource(in.Kind, spec.DatasourceType(inst.Datasource.Type()))
 }
 
 func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]SavedSearch, string, error) {

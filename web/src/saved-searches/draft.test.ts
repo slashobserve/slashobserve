@@ -172,35 +172,45 @@ describe("tracesDraft", () => {
     q: '{ resource.service.name = "checkout" }',
   }
 
-  it("keeps the filters and the query on Tempo", () => {
-    expect(tracesDraft({ uid: "tempo", type: "tempo", search, range })).toEqual(
-      {
-        kind: "traces",
-        datasource_uid: "tempo",
-        query: search.q,
-        filters: {
-          service: "checkout",
-          span: "POST /pay",
-          min: "250ms",
-          max: "2s",
-          errors: true,
-        },
-        from: "now-6h",
-        to: "now",
-      }
-    )
+  it("keeps the filters and the query", () => {
+    expect(tracesDraft({ uid: "tempo", search, range })).toEqual({
+      kind: "traces",
+      datasource_uid: "tempo",
+      query: search.q,
+      filters: {
+        service: "checkout",
+        span: "POST /pay",
+        min: "250ms",
+        max: "2s",
+        errors: true,
+      },
+      from: "now-6h",
+      to: "now",
+    })
   })
 
-  it("leaves the query out on ClickHouse, which ignores it", () => {
-    const draft = tracesDraft({ uid: "ch", type: "clickhouse", search, range })
-    expect(draft.query).toBeUndefined()
+  it("keeps the SQL of the SQL view on ClickHouse", () => {
+    const sql = "SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp)"
+    const draft = tracesDraft({
+      uid: "ch",
+      search: { q: sql },
+      range,
+    })
+    expect(draft.query).toBe(sql)
+  })
+
+  it("leaves the query out of a ClickHouse search of fields", () => {
+    const draft = tracesDraft({
+      uid: "ch",
+      search: { service: "checkout" },
+      range,
+    })
     expect(JSON.parse(JSON.stringify(draft))).not.toHaveProperty("query")
   })
 
   it("leaves out errors when it is not set", () => {
     const draft = tracesDraft({
       uid: "tempo",
-      type: "tempo",
       search: { service: "checkout" },
       range,
     })

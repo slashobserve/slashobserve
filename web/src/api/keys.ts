@@ -134,6 +134,8 @@ export const datasourceKeys = {
     ["datasources", uid, "labels", params] as const,
   labelValues: (uid: string, label: string, params: NameListParams) =>
     ["datasources", uid, "labels", label, "values", params] as const,
+  services: (uid: string, signal: "logs" | "traces") =>
+    ["datasources", uid, "services", signal] as const,
 }
 
 export type PreviewKeyParams = {

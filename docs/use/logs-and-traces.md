@@ -14,6 +14,12 @@ Each log source, an Elasticsearch, OpenSearch, Loki or ClickHouse datasource, ha
 
 `/logs` lists the log sources, each with its query language and whether it answers, and under them the saved logs searches you can view, most recently changed first, with their source, folder, who saved them and when; a source or a search opens on its own page.
 
+Each source in the list also shows the services it has seen in the last hour, the first few names and then "+N more", and a click on "+N more" shows the rest.
+A service name opens that source with the service filter applied: a pill on the field that holds the service for logs, such as `service_name` on Loki, and the service filter for traces.
+The box above the list filters the sources by the text in a source name or in a service name, so typing `checkout` leaves the sources that hold a checkout service.
+Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
+The services come from `GET /api/v1/datasources/{uid}/services`, as [Scripts and the CLI](#scripts-and-the-cli) describes, and are cached on the server for about a minute.
+
 With two or more log sources they are listed under **Logs** in the sidebar, each with its query language: SQL on ClickHouse, LogQL on Loki and KQL on Elasticsearch and OpenSearch.
 The five you used last on this browser come first and the rest follow by name, and **More** opens the Logs list.
 The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
@@ -62,7 +68,7 @@ On Loki, write a LogQL query such as `{service_name="checkout"} |= "error"`.
 On ClickHouse, the editor holds the template; keep `$__timeFilter(Timestamp)` in the `WHERE` clause and a `LIMIT` at the end.
 A query that selects no `Timestamp`, such as `SELECT ServiceName, count() FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC`, runs too: the rows show as a plain table in your own order and the volume chart is hidden.
 
-Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not.
+Such a query must read the time range through a macro such as `$__timeFilter(...)`, and the server refuses it with a sentence naming the macro when it does not; a macro inside a comment does not count, because it never runs.
 The field counts follow the same rule, except that a query selecting `Timestamp` is counted over the time range even without the macro.
 So no ClickHouse request reads a table beyond the range at the top of the page.
 Without an `ORDER BY` the rows are ordered by all their columns, so a page never repeats or skips a row.
@@ -452,7 +458,7 @@ With two or more trace sources they are listed under **Traces** in the sidebar w
 As for logs, the order is set when the app loads and stays fixed until you reload.
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
-`/traces` lists the trace sources and the saved trace searches like `/logs`; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
+`/traces` lists the trace sources and the saved trace searches like `/logs`, including the services each source has seen and the box that filters sources by source or service name, and a service opens the trace search on that source with the service filter set; an address that carries a search but no source opens the last source you used in this browser, else Tempo when one is configured, else the first by name, and an old `/traces?ds=<datasource uid>` address opens `/traces/<datasource uid>`.
 The time range, **Live tail**, **Saved searches**, **Save search** and **Copy link** sit in the top bar, and on a phone the bar keeps the time range and **Live tail**, while **Save search**, **Saved searches** and **Copy link** are under **More actions**.
 **Live tail**, named as on the Logs page, runs the search and its statistics again every 10 seconds while the page is open and the range is relative, such as the last 15 minutes; press **Stop live tail** to end it.
 It is a refresh and not a stream, because the trace sources have no tail, and the address does not carry it, so a shared link opens without it.
@@ -468,9 +474,19 @@ The minimum and maximum are span durations: a trace matches when a span that als
 On Tempo you can also write TraceQL, which replaces the fields: while the TraceQL field has text the other fields are disabled, and only the TraceQL goes into the address.
 The link under the TraceQL field opens the TraceQL reference.
 On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
-The ClickHouse search has no SQL mode; to run your own SQL over `otel_traces`, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it; the API, the CLI and MCP return the same sentence, without the parser's own `$end` and doubled prefix.
+
+### SQL on ClickHouse
+
+On ClickHouse the query card has a **Search** and **SQL** switch beside **Ask**, and Ctrl+I or Cmd+I moves through them.
+**SQL** opens an editor with the search of the fields written as SQL over `otel_traces`, so you can start from it, and Ctrl+Space completes the columns of `otel_traces` and the SQL keywords.
+Press **Run query**, or Ctrl+Enter or Cmd+Enter, to run it; the address keeps it as `q`, and a link or a saved search with SQL opens in the SQL view.
+It runs through the same path and checks as the SQL of the logs page: one read-only `SELECT`, the time range at the top of the page through a macro such as `$__timeFilter(Timestamp)`, the 15 second query limit and the page size; a query that breaks a rule is refused with a sentence that names it, and one ClickHouse cannot run shows the database's message with its position.
+The rows show as a table with a column per selected column, paged like the search, and when the query selects a trace id column, `TraceId` or `trace_id` in any case, each id opens its trace.
+**Add to dashboard** adds a full-width table panel with the SQL as written under the last row of a dashboard you can edit, and **Add to observation** copies it into an [observation](observations.md) as the same table panel over the time range the page shows.
+The scatter, the statistics and **Compare** belong to the search, so the SQL view does not show them; switch back to **Search** and press **Search traces** to run the fields again.
+To draw the spans of one trace from your own SQL, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 
 ### Results
 
@@ -524,12 +540,12 @@ Applying a filter, or **Keep only the selection**, switches the query card to Qu
 
 ## Ask on the trace search
 
-With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, at the top left of the query card, with the question field beside it.
+With a model configured on the server, the trace search has the same **Ask** and **Query** toggle as the logs page, at the top left of the query card, with the question field beside it; on ClickHouse the toggle reads **Ask**, **Search** and **SQL**.
 Ctrl+I or Cmd+I switches it, Enter asks, Shift+Enter adds a line and Esc cancels a question that is still running.
-The mode you last chose on either page is the one both pages open in, and the trace search opens in Query when the address carries a search field.
+The mode you last chose on either page is the one both pages open in, and the trace search opens in Query when the address carries a search field; on ClickHouse it opens in **Search**, or in **SQL** when the address carries SQL.
 **Recent** and Up bring back earlier questions, kept apart from those of the logs page.
 
-The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL.
+The answer fills Service, Span name, the durations and Errors only, or on Tempo the TraceQL field when the question needs TraceQL; on ClickHouse it replaces any SQL in the address with those fields.
 A duration the form cannot read is left empty.
 The search runs at once, and the address keeps the question as `ask` until you change a field and search again, which drops it because the fields are then your own query.
 The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min span duration** with `500ms`, and any warnings show under the question, with **Edit the query**, which switches to Query with the answer's values in the form.
@@ -567,7 +583,7 @@ A saved search keeps what the logs page or the trace view shows so that anyone w
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
 The query may span lines but holds no NUL character, and a column name holds no control characters; the server answers 422 `invalid_saved_search` with the rule in `error`.
-A trace search takes a Tempo or ClickHouse datasource, and its query is optional, except on ClickHouse, which takes filters only.
+A trace search takes a Tempo or ClickHouse datasource, and its query is optional: TraceQL on Tempo, or on ClickHouse the SQL of the SQL view.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The title starts as the query with all of it selected, so typing a name replaces it.
@@ -577,7 +593,7 @@ A search opened from the box, from the Logs, Traces or Metrics list or from a fo
 When you edit the query, the range, the columns, the trace filters or the metrics view, the line says so and, to someone with Edit on the search, offers **Update saved search**, which replaces the saved query, filters and range with what the page shows and keeps the title and folder; **Save search** still saves a new search.
 Someone without Edit sees only that **Save search** saves a new search and the open one stays as it was saved.
 The title shows only for a search among the 100 most recently changed that the list holds.
-A trace search on a ClickHouse datasource saves its filters only, because the trace search ignores a query there.
+A trace search on a ClickHouse datasource saves its SQL while the SQL view shows a result, and reopens in the SQL view; otherwise it saves the fields of the search.
 A trace search whose minimum span duration is above its maximum is refused with 422 `invalid_saved_search` and "min must not be greater than max", because it could only return nothing.
 
 The Logs and Traces lists show the saved searches of their kind, up to the 100 most recently changed, grouped under their folders the way the dashboards list is: your My Dashboards first, then the other folders you can view, each with its access and a chevron that collapses it.
@@ -613,6 +629,21 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/query" \
   -H "Content-Type: application/json" \
   -d '{"query":"{service_name=\"checkout\"}","kind":"instant","from":"now-15m","to":"now","limit":100}'
 ```
+
+`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, ClickHouse, Elasticsearch or OpenSearch datasource has seen over a recent window, with the label, column or attribute that holds them:
+
+```sh
+curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=logs&window=1h" \
+  -H "Authorization: Bearer $OBSERVE_TOKEN"
+```
+
+The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
+`signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
+`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
+The server asks the source once, with a short timeout, over that window only, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept.
+It lists at most 200 services and sets `truncated` when more exist.
+Every signed-in role from Viewer can read it, because any Viewer can already query any datasource.
+In the CLI, `observe datasources services <uid>` lists them, and `observe datasources services --service checkout` asks every source and prints the ones that hold a service whose name contains `checkout`; the MCP tool `list_services` does the same for an agent.
 
 `limit` lowers the row limit and never raises it above 1,000.
 With `page_size` on ClickHouse, `sort` names a result column, with a minus in front for descending, such as `-Duration`, and orders the whole result before it is paged; the MCP tool `query_instant` takes the same `sort`.

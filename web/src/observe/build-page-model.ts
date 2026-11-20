@@ -1,8 +1,11 @@
 import { ApiError } from "@/api/errors"
 import type { ObserveRequest } from "@/observe/queries"
 
+import { cannotOpenChatText, cannotOpenChatTitle } from "./not-openable"
+
 const buildLoadFailedText = "This build could not be loaded."
 const buildRequesterOnlyText = "Only the person who asked can watch this build."
+const cannotOpenText = `${cannotOpenChatTitle}. ${cannotOpenChatText}`
 
 function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404
@@ -18,9 +21,7 @@ export function buildPageNotice({
   buildError: unknown
 }): string | undefined {
   if (!hasRequest && requestError != null) {
-    return isNotFound(requestError)
-      ? buildRequesterOnlyText
-      : buildLoadFailedText
+    return isNotFound(requestError) ? cannotOpenText : buildLoadFailedText
   }
   if (isNotFound(buildError)) return buildRequesterOnlyText
   return undefined

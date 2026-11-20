@@ -434,6 +434,21 @@ func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
 	}
 }
 
+func TestPrintRequestShowsTheLiveTextOfARunningRun(t *testing.T) {
+	live := "Checking the p99 of checkout.\n\nNow reading the error rate.\x1b[31m"
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", LiveText: &live})
+	want := "\nLive text\n  Checking the p99 of checkout.\n  \n  Now reading the error rate. [31m\n"
+	if !strings.HasSuffix(stdout.String(), want) {
+		t.Fatalf("output does not end with the live text:\n%q", stdout.String())
+	}
+	var without bytes.Buffer
+	printRequest(&output{out: &without, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running"})
+	if strings.Contains(without.String(), "Live text") {
+		t.Fatalf("a run with no live text prints a Live text section:\n%s", without.String())
+	}
+}
+
 func TestPrintRequestShowsTheRunCost(t *testing.T) {
 	cost := func(v float64) *requestUsage { return &requestUsage{CostUSD: &v} }
 	cases := []struct {

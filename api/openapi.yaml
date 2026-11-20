@@ -176,6 +176,8 @@ paths:
     $ref: "./paths/names.yaml#/datasources-uid-labels"
   /datasources/{uid}/labels/{name}/values:
     $ref: "./paths/names.yaml#/datasources-uid-labels-name-values"
+  /datasources/{uid}/services:
+    $ref: "./paths/names.yaml#/datasources-uid-services"
   /dashboards/{id}/revisions:
     $ref: "./paths/revisions.yaml#/dashboards-id-revisions"
   /dashboards/{id}/revisions/{revision_id}:
@@ -5135,7 +5137,7 @@ components:
           format: uuid
         query:
           type: string
-          description: The new query, 1 to 8000 characters; an empty string clears the query of a Tempo trace search and is refused for a logs search.
+          description: The new query, 1 to 8000 characters; an empty string clears the query of a trace search and is refused for a logs search.
         filters:
           allOf:
             - $ref: "#/components/schemas/SavedSearchFilters"
