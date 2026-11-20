@@ -1,6 +1,7 @@
 import { TopRowTitle } from "@/shell/top-row-title"
 
 import type { DatasourceStatus } from "./queries"
+import { usePublishSourceLanguage } from "./source-language-store"
 import { sourceLanguage, type ExploreKind } from "./sources"
 
 export function SourceTitle({
@@ -12,6 +13,7 @@ export function SourceTitle({
   source: DatasourceStatus
   language?: string
 }) {
+  usePublishSourceLanguage(source.uid, language)
   return (
     <TopRowTitle>
       <span className="flex min-w-0 items-center gap-1.5">
