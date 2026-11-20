@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 type documented struct {
@@ -39,7 +40,7 @@ func newDocumented(t *testing.T) *documented {
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: newRig(t), engine: gin.New(), router: router, who: admin}
 	NewHandler(d.service, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), d.who), datasource.Access{By: d.who}))
 	})))
 	return d
 }
@@ -48,7 +49,7 @@ func (d *documented) get(t *testing.T, by auth.Principal, query string, want int
 	t.Helper()
 	d.who = by
 	request := func() *http.Request {
-		return httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/search?"+query, nil)
+		return httptest.NewRequestWithContext(reading(t.Context()), http.MethodGet, "/api/v1/search?"+query, nil)
 	}
 	rec := httptest.NewRecorder()
 	d.engine.ServeHTTP(rec, request())
@@ -65,7 +66,7 @@ func (d *documented) get(t *testing.T, by auth.Principal, query string, want int
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("GET %s answered %d against the document: %v\n%s", query, rec.Code, err, rec.Body)
 	}
 	return rec

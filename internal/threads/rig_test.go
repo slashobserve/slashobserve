@@ -161,7 +161,7 @@ func (r *rig) createDashboard(t *testing.T, panelIDs ...string) pgtype.UUID {
 	if len(panelIDs) == 0 {
 		panelIDs = []string{"rps"}
 	}
-	dash, _, err := r.dashboards.Create(t.Context(), testUser, pgtype.UUID{}, panelsSpec("t", panelIDs...), "create")
+	dash, _, err := r.dashboards.Create(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("t", panelIDs...), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func (r *rig) createDashboard(t *testing.T, panelIDs ...string) pgtype.UUID {
 
 func (r *rig) addVersion(t *testing.T, dash pgtype.UUID, parent int) {
 	t.Helper()
-	if _, _, _, err := r.dashboards.AddVersion(t.Context(), testUser, dash, parent, panelsSpec(fmt.Sprintf("t%d", parent), "rps", "errors"), "next"); err != nil {
+	if _, _, _, err := r.dashboards.AddVersion(reading(t.Context()), testUser, dash, parent, panelsSpec(fmt.Sprintf("t%d", parent), "rps", "errors"), "next"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -193,7 +193,7 @@ func (r *rig) saveFinding(t *testing.T, by auth.Principal, in findings.SaveInput
 func (r *rig) answer(t *testing.T, by auth.Principal, in findings.SaveInput) findings.Finding {
 	t.Helper()
 	in.Title, in.Markdown, in.From, in.To = "Checkout is slow", "the 5xx rate rose", time.Now().Add(-time.Hour), time.Now()
-	f, _, err := r.findings.Save(t.Context(), by, in)
+	f, _, err := r.findings.Save(reading(t.Context()), by, in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func (r *rig) answer(t *testing.T, by auth.Principal, in findings.SaveInput) fin
 
 func (r *rig) createAnnotation(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	a, err := r.annotations.Create(t.Context(), by, annotations.CreateInput{DashboardID: dashboardID, Text: "deploy"})
+	a, err := r.annotations.Create(reading(t.Context()), by, annotations.CreateInput{DashboardID: dashboardID, Text: "deploy"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func (r *rig) createAnnotation(t *testing.T, by auth.Principal, dashboardID pgty
 
 func (r *rig) createUser(t *testing.T, name, email string) pgtype.UUID {
 	t.Helper()
-	u, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: email, Email: email, Name: name})
+	u, err := r.db.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: email, Email: email, Name: name})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ type activityRow struct {
 
 func (r *rig) activity(t *testing.T) []activityRow {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type, target_kind, target_id::text, coalesce(dashboard_id::text, ''), coalesce(folder_id::text, ''), actor_id::text, actor_name, data FROM activity WHERE target_kind = 'thread' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type, target_kind, target_id::text, coalesce(dashboard_id::text, ''), coalesce(folder_id::text, ''), actor_id::text, actor_name, data FROM activity WHERE target_kind = 'thread' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}

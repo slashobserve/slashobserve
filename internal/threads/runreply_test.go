@@ -24,7 +24,7 @@ type runReply struct {
 
 func (r *rig) runReplies(t *testing.T, thread string) []runReply {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT id::text, body, run_id::text FROM thread_messages WHERE thread_id = $1 AND run_id IS NOT NULL ORDER BY created_at, id`, thread)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, body, run_id::text FROM thread_messages WHERE thread_id = $1 AND run_id IS NOT NULL ORDER BY created_at, id`, thread)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func (r *rig) mentionRun(t *testing.T, target Target) (thread string, run dbsqlc
 	if started == nil || refusal != nil {
 		t.Fatalf("started = %+v, refusal = %+v", started, refusal)
 	}
-	run, err := r.db.Queries().GetAgentRequestByID(t.Context(), mustParse(t, started.ID))
+	run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), mustParse(t, started.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,8 +62,8 @@ func (r *rig) mentionRun(t *testing.T, target Target) (thread string, run dbsqlc
 
 func (r *rig) runEnded(t *testing.T, run dbsqlc.AgentRequest) error {
 	t.Helper()
-	return r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(t.Context(), q, run)
+	return r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
 	})
 }
 
@@ -98,7 +98,7 @@ func TestAMentionRunAnswersInItsThreadAsTheRequesterAndLeavesItOpen(t *testing.T
 	if len(replies) != 1 || replies[0].Body != "Saved version 3 of this dashboard." || replies[0].RunID != run.ID.String() {
 		t.Fatalf("replies = %+v", replies)
 	}
-	stored, err := r.db.Queries().GetMessage(t.Context(), mustParse(t, replies[0].ID))
+	stored, err := r.db.Queries().GetMessage(reading(t.Context()), mustParse(t, replies[0].ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestAMentionRunAnswersInItsThreadAsTheRequesterAndLeavesItOpen(t *testing.T
 	}
 
 	var actorID, runID, dataRun string
-	err = r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT actor_id::text, coalesce(run_id::text, ''), data->>'message_id' FROM activity WHERE type = 'thread.replied' AND data->>'message_id' = $1`, replies[0].ID).Scan(&actorID, &runID, &dataRun)
+	err = r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT actor_id::text, coalesce(run_id::text, ''), data->>'message_id' FROM activity WHERE type = 'thread.replied' AND data->>'message_id' = $1`, replies[0].ID).Scan(&actorID, &runID, &dataRun)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestAnAgentReplyCanNotBeEditedByTheRequester(t *testing.T) {
 	reply := r.runReplies(t, thread)[0]
 
 	for _, by := range []auth.Principal{testUser, admin} {
-		if _, _, _, err := r.service.Edit(t.Context(), by, mustParse(t, reply.ID), "EDITED BY REQUESTER"); !errors.Is(err, ErrNotAuthor) {
+		if _, _, _, err := r.service.Edit(reading(t.Context()), by, mustParse(t, reply.ID), "EDITED BY REQUESTER"); !errors.Is(err, ErrNotAuthor) {
 			t.Fatalf("%s editing an agent reply: err = %v, want ErrNotAuthor", by.Name, err)
 		}
 	}
@@ -180,7 +180,7 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			proposal := r.createProposal(t, run.DashboardID)
 			r.db.Exec(t, `UPDATE proposals SET run_id = $1 WHERE id = $2`, run.ID, proposal)
 			var title string
-			if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT title FROM proposals WHERE id = $1`, proposal).Scan(&title); err != nil {
+			if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT title FROM proposals WHERE id = $1`, proposal).Scan(&title); err != nil {
 				t.Fatal(err)
 			}
 			run = ended(run, revisions.StateSucceeded)
@@ -246,7 +246,7 @@ func TestAReplyAPersonDeletedIsNotPostedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	reply := r.runReplies(t, thread)[0]
-	if err := r.service.Delete(t.Context(), admin, mustParse(t, reply.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, mustParse(t, reply.ID)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -264,7 +264,7 @@ func TestARunWhoseReplyFailedIsStillAwaitingItsReply(t *testing.T) {
 	_, run := r.mentionRun(t, target(KindDashboard, dash))
 	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', finished_at = now() WHERE id = $1`, run.ID)
 
-	rows, err := r.db.Queries().ListRunsAwaitingReply(t.Context(), dbsqlc.ListRunsAwaitingReplyParams{
+	rows, err := r.db.Queries().ListRunsAwaitingReply(reading(t.Context()), dbsqlc.ListRunsAwaitingReplyParams{
 		Terminal: []string{"succeeded"}, WithinSeconds: 3600, MaxRows: 10,
 	})
 	if err != nil {
@@ -293,7 +293,7 @@ func TestARunReplyNeverReopensAResolvedThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
-	if _, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, thread), StatusResolved, new(1)); err != nil {
+	if _, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, thread), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -316,10 +316,10 @@ func TestARunSkipsItsReplyInsteadOfWaitingForADelete(t *testing.T) {
 	obsThread, obsRun := r.mentionRun(t, target(KindObservation, observation))
 
 	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
-		if _, err := q.LockDashboardForDelete(t.Context(), dash); err != nil {
+		if _, err := q.LockDashboardForDelete(reading(t.Context()), dash); err != nil {
 			return err
 		}
-		_, err := q.LockObservation(t.Context(), observation)
+		_, err := q.LockObservation(reading(t.Context()), observation)
 		return err
 	})
 	for name, run := range map[string]dbsqlc.AgentRequest{"dashboard": dashRun, "observation": obsRun} {
@@ -376,7 +376,7 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 			if started == nil || refusal != nil {
 				t.Fatalf("started = %+v, refusal = %+v", started, refusal)
 			}
-			run, err := r.db.Queries().GetAgentRequestByID(t.Context(), mustParse(t, started.ID))
+			run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), mustParse(t, started.ID))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -388,7 +388,7 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 			if len(replies) != 1 {
 				t.Fatalf("replies = %+v, want one", replies)
 			}
-			stored, err := r.db.Queries().GetMessage(t.Context(), mustParse(t, replies[0].ID))
+			stored, err := r.db.Queries().GetMessage(reading(t.Context()), mustParse(t, replies[0].ID))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -397,7 +397,7 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 				t.Fatalf("reply author = %+v label %q, want label %q, no run, %s %s", author, author.Label(), tt.wantLabel, tt.wantKind, tt.wantID)
 			}
 			var actorKind, actorID string
-			err = r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT actor_kind, actor_id::text FROM activity WHERE type = 'thread.replied' AND data->>'message_id' = $1`, replies[0].ID).Scan(&actorKind, &actorID)
+			err = r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT actor_kind, actor_id::text FROM activity WHERE type = 'thread.replied' AND data->>'message_id' = $1`, replies[0].ID).Scan(&actorKind, &actorID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -444,10 +444,10 @@ func TestTheSweepAnswersInTheThreadOfARunThatEndedWithoutAReply(t *testing.T) {
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
 	r.endWithoutAReply(t, run)
 
-	if err := r.sweeper().Sweep(t.Context()); err != nil {
+	if err := r.sweeper().Sweep(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.sweeper().Sweep(t.Context()); err != nil {
+	if err := r.sweeper().Sweep(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 
@@ -463,18 +463,18 @@ func TestTheSweepRetriesAReplyThatWasSkippedWhileTheTargetWasLocked(t *testing.T
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
 	r.endWithoutAReply(t, run)
 	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
-		_, err := q.LockDashboardForDelete(t.Context(), dash)
+		_, err := q.LockDashboardForDelete(reading(t.Context()), dash)
 		return err
 	})
 
-	if err := r.sweeper().Sweep(t.Context()); err != nil {
+	if err := r.sweeper().Sweep(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if replies := r.runReplies(t, thread); len(replies) != 0 {
 		t.Fatalf("replies = %+v while the dashboard was locked, want none", replies)
 	}
 	deleting.finish(t)
-	if err := r.sweeper().Sweep(t.Context()); err != nil {
+	if err := r.sweeper().Sweep(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if replies := r.runReplies(t, thread); len(replies) != 1 {
@@ -489,7 +489,7 @@ func TestTheSweepLeavesAnOldRunWithoutAReplyAlone(t *testing.T) {
 	r.endWithoutAReply(t, run)
 	r.db.Exec(t, `UPDATE agent_requests SET finished_at = clock_timestamp() - interval '3 days' WHERE id = $1`, run.ID)
 
-	if err := r.sweeper().Sweep(t.Context()); err != nil {
+	if err := r.sweeper().Sweep(reading(t.Context())); err != nil {
 		t.Fatal(err)
 	}
 	if replies := r.runReplies(t, thread); len(replies) != 0 {

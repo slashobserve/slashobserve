@@ -32,7 +32,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := (&Service{}).Start(t.Context(), auth.Principal{}, tc.req)
+			_, err := (&Service{}).Start(reading(t.Context()), auth.Principal{}, tc.req)
 			var invalid *StartError
 			if !errors.As(err, &invalid) || !strings.Contains(invalid.Message, tc.want) {
 				t.Fatalf("err = %v, want a StartError containing %q", err, tc.want)
@@ -42,7 +42,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 }
 
 func TestStartKeepsTheReasonATextRuleGave(t *testing.T) {
-	_, err := (&Service{}).Start(t.Context(), auth.Principal{}, StartRequest{Prompt: ptr("\u200b \u200b")})
+	_, err := (&Service{}).Start(reading(t.Context()), auth.Principal{}, StartRequest{Prompt: ptr("\u200b \u200b")})
 	reason, ok := usertext.ReasonOf(err)
 	if !ok || reason != usertext.ReasonInvisibleOnly {
 		t.Fatalf("reason = %q, %v for %v", reason, ok, err)

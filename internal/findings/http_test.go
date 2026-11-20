@@ -59,7 +59,7 @@ func newDocumented(t *testing.T) *documented {
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: r, engine: gin.New(), router: router, who: editor}
 	findings.NewHandler(r.service, func(f findings.Finding) string { return "/o/" + f.ObservationID }, logger).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), d.who), datasource.Access{By: d.who}))
 	})))
 	return d
 }
@@ -91,13 +91,13 @@ func (d *documented) send(t *testing.T, by auth.Principal, method, path, body st
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	return rec
@@ -264,7 +264,7 @@ func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 func TestTheFindingMoveRouteIsGone(t *testing.T) {
 	d := newDocumented(t)
 	f := d.save(t, editor, findings.SaveInput{})
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/findings/"+f.ID+"/move", strings.NewReader(`{}`))
+	request := httptest.NewRequestWithContext(reading(t.Context()), http.MethodPost, "/api/v1/findings/"+f.ID+"/move", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	d.engine.ServeHTTP(rec, request)
 	if rec.Code != http.StatusNotFound {

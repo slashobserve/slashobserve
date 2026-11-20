@@ -30,7 +30,7 @@ func TestTheFindingOfARequestReachesOnlyWhoCanSeeItsObservation(t *testing.T) {
 		{"a Viewer, on a dashboard in General", shared, viewer, true},
 	}
 	for _, c := range cases {
-		f, found, err := r.service.ForRequest(t.Context(), c.who, c.request)
+		f, found, err := r.service.ForRequest(reading(t.Context()), c.who, c.request)
 		if err != nil || found != c.want {
 			t.Errorf("%s: found %v, err %v, want found %v", c.name, found, err, c.want)
 		}
@@ -43,7 +43,7 @@ func TestTheFindingOfARequestReachesOnlyWhoCanSeeItsObservation(t *testing.T) {
 func TestARequestWithoutAFindingHasNoneForAnyone(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, r.open)
-	if _, found, err := r.service.ForRequest(t.Context(), admin, request); err != nil || found {
+	if _, found, err := r.service.ForRequest(reading(t.Context()), admin, request); err != nil || found {
 		t.Fatalf("found %v, err %v", found, err)
 	}
 }

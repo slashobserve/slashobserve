@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/usertext"
@@ -42,10 +43,10 @@ func (r *rig) call(t *testing.T, who auth.Principal, method, path string, body a
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})
 	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
-	req := httptest.NewRequestWithContext(t.Context(), method, "/api/v1"+path, reader)
+	req := httptest.NewRequestWithContext(reading(t.Context()), method, "/api/v1"+path, reader)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

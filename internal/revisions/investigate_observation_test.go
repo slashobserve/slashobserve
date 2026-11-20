@@ -57,7 +57,7 @@ func newObservationRig(t *testing.T) observationRig {
 
 func (r observationRig) observation(t *testing.T, by auth.Principal, folder pgtype.UUID) observations.Observation {
 	t.Helper()
-	o, err := r.observations.Create(t.Context(), by, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx"})
+	o, err := r.observations.Create(reading(t.Context()), by, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx"})
 	if err != nil {
 		t.Fatalf("create observation: %v", err)
 	}
@@ -67,7 +67,7 @@ func (r observationRig) observation(t *testing.T, by auth.Principal, folder pgty
 func (r observationRig) count(t *testing.T, table string) int {
 	t.Helper()
 	var n int
-	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM `+table).Scan(&n); err != nil {
+	if err := r.d.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM `+table).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -75,7 +75,7 @@ func (r observationRig) count(t *testing.T, table string) int {
 
 func (r observationRig) fetch(t *testing.T, by auth.Principal, id pgtype.UUID) observations.Observation {
 	t.Helper()
-	o, err := r.observations.Get(t.Context(), by, id)
+	o, err := r.observations.Get(reading(t.Context()), by, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestAnInvestigationOpensAnObservationWithItsRunBlock(t *testing.T) {
 	if o.Title != "why are checkout errors up" || o.RunID != row.ID.String() || len(o.Blocks) != 1 || o.Blocks[0].Kind != observations.KindRun || o.Blocks[0].State != observations.BlockLive {
 		t.Errorf("observation %+v", o)
 	}
-	stored, err := r.svc.GetByID(t.Context(), row.ID)
+	stored, err := r.svc.GetByID(reading(t.Context()), row.ID)
 	if err != nil || stored.ObservationID != row.ObservationID {
 		t.Errorf("stored run names %v, %v", stored.ObservationID, err)
 	}
@@ -171,12 +171,12 @@ func TestObservationIdChecksBeforeAnythingIsEnqueued(t *testing.T) {
 func TestARefusedObservationAnswers403AndEnqueuesNothing(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithObservations(refusingObservations{}))
-	_, err := svc.SubmitInvestigate(t.Context(), revisions.InvestigateParams{Prompt: "why", By: user})
+	_, err := svc.SubmitInvestigate(reading(t.Context()), revisions.InvestigateParams{Prompt: "why", By: user})
 	if !errors.Is(err, revisions.ErrForbidden) {
 		t.Fatalf("err = %v, want the forbidden error", err)
 	}
 	var n int
-	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests`).Scan(&n); err != nil || n != 0 {
+	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests`).Scan(&n); err != nil || n != 0 {
 		t.Errorf("%d requests, %v", n, err)
 	}
 }
@@ -186,10 +186,10 @@ func TestRetryOfAnInvestigationReusesItsObservation(t *testing.T) {
 	dash := seedDashboard(t, r.d, 1)
 	named := r.observation(t, user, pgtype.UUID{})
 	first := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash, ObservationID: mustUUID(t, named.ID)})
-	if _, err := r.svc.Cancel(t.Context(), first.ID, user); err != nil {
+	if _, err := r.svc.Cancel(reading(t.Context()), first.ID, user); err != nil {
 		t.Fatal(err)
 	}
-	next, err := r.svc.Retry(t.Context(), first.ID, user)
+	next, err := r.svc.Retry(reading(t.Context()), first.ID, user)
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}
@@ -211,10 +211,10 @@ func TestRetryByAnotherPersonFallsBackToANewObservation(t *testing.T) {
 	if first.ObservationID != mustUUID(t, secret.ID) {
 		t.Fatalf("first run names %v", first.ObservationID)
 	}
-	if _, err := r.svc.Cancel(t.Context(), first.ID, root); err != nil {
+	if _, err := r.svc.Cancel(reading(t.Context()), first.ID, root); err != nil {
 		t.Fatal(err)
 	}
-	next, err := r.svc.Retry(t.Context(), first.ID, user)
+	next, err := r.svc.Retry(reading(t.Context()), first.ID, user)
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}

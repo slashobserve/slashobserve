@@ -17,7 +17,7 @@ import (
 func (r rig) saveErr(t *testing.T, by auth.Principal, in findings.SaveInput) error {
 	t.Helper()
 	in.Title, in.Markdown, in.From, in.To = "t", "m", windowTo.Add(-1), windowTo
-	_, _, err := r.service.Save(t.Context(), by, in)
+	_, _, err := r.service.Save(reading(t.Context()), by, in)
 	return err
 }
 
@@ -28,7 +28,7 @@ func TestAFindingWithoutADashboardIsFiledInTheSaversMyDashboards(t *testing.T) {
 	if saved.FolderID != personal.String() {
 		t.Fatalf("folder = %q, want My Dashboards %s", saved.FolderID, personal)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, saved.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestAFindingWithoutADashboardIsFiledInTheSaversMyDashboards(t *testing.T) {
 func TestAFindingOnADashboardKeepsNoFolderOfItsOwn(t *testing.T) {
 	r := newRig(t)
 	saved := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	got, err := r.service.Get(t.Context(), viewer, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), viewer, mustUUID(t, saved.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestAFindingFromAnAccountThatCannotCreateAnywhereIsRefused(t *testing.T) {
 func TestAnEditorKeyWithNoMyDashboardsFilesInGeneral(t *testing.T) {
 	r := newRig(t)
 	saved := r.save(t, ciKey, findings.SaveInput{})
-	got, err := r.service.Get(t.Context(), viewer, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), viewer, mustUUID(t, saved.ID))
 	if err != nil || got.Folder == nil || !got.Folder.General || got.Abilities != folders.AbilitiesFor(folders.LevelView) {
 		t.Fatalf("a viewer reads a key's finding in General: folder %+v, abilities %+v, %v", got.Folder, got.Abilities, err)
 	}
@@ -102,17 +102,17 @@ func TestListingByFolderShowsOnlyFindingsFiledThere(t *testing.T) {
 	r.save(t, editor, findings.SaveInput{DashboardID: r.open})
 	r.save(t, otherEditor, findings.SaveInput{FolderID: shared})
 
-	rows, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{FolderID: shared}, 10, "")
+	rows, _, err := r.service.List(reading(t.Context()), viewer, findings.ListFilter{FolderID: shared}, 10, "")
 	if err != nil || len(rows) != 2 || rows[1].ID != filed.ID {
 		t.Fatalf("folder list: %+v, %v", rows, err)
 	}
-	if _, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{FolderID: hidden}, 10, ""); !errors.Is(err, findings.ErrNotFound) {
+	if _, _, err := r.service.List(reading(t.Context()), viewer, findings.ListFilter{FolderID: hidden}, 10, ""); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a folder the caller cannot see: %v", err)
 	}
-	if _, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{FolderID: shared, DashboardID: r.open}, 10, ""); !errors.Is(err, findings.ErrPlacement) {
+	if _, _, err := r.service.List(reading(t.Context()), viewer, findings.ListFilter{FolderID: shared, DashboardID: r.open}, 10, ""); !errors.Is(err, findings.ErrPlacement) {
 		t.Errorf("both filters: %v", err)
 	}
-	own, _, err := r.service.List(t.Context(), editor, findings.ListFilter{}, 10, "")
+	own, _, err := r.service.List(reading(t.Context()), editor, findings.ListFilter{}, 10, "")
 	if err != nil || len(own) != 3 {
 		t.Errorf("own findings: %d, %v, want the editor's 3 and none of the other editor's", len(own), err)
 	}
@@ -125,11 +125,11 @@ func TestListingOwnFindingsDropsOnesFiledInAFolderThatTurnedHidden(t *testing.T)
 	kept := r.save(t, editor, findings.SaveInput{})
 	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'oncall', 'view')`, folder)
 
-	rows, _, err := r.service.List(t.Context(), otherEditor, findings.ListFilter{}, 10, "")
+	rows, _, err := r.service.List(reading(t.Context()), otherEditor, findings.ListFilter{}, 10, "")
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("another editor's own list: %+v, %v", rows, err)
 	}
-	rows, _, err = r.service.List(t.Context(), editor, findings.ListFilter{}, 10, "")
+	rows, _, err = r.service.List(reading(t.Context()), editor, findings.ListFilter{}, 10, "")
 	if err != nil || len(rows) != 1 || rows[0].ID != kept.ID {
 		t.Fatalf("own list: %+v, %v, want only the finding in My Dashboards", rows, err)
 	}

@@ -181,7 +181,7 @@ func uuid(t *testing.T, s string) pgtype.UUID {
 func TestImportStoresTheVerifiedReport(t *testing.T) {
 	r := newRig(t)
 	mapping := map[string]string{"prom": "prom2"}
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2), Mapping: mapping})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2), Mapping: mapping})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestImportStoresTheVerifiedReport(t *testing.T) {
 		t.Fatalf("report verified %t, counts %+v", got.Record.Report.Verified, got.Record.Report.Counts)
 	}
 
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestImportStoresTheVerifiedReport(t *testing.T) {
 
 func TestAnImportRecordCarriesTheActorOfItsVersion(t *testing.T) {
 	r := newRig(t)
-	over := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	over := origin.With(reading(t.Context()), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
 	got, err := r.imports.Import(over, ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ func TestAnImportRecordCarriesTheActorOfItsVersion(t *testing.T) {
 	if got.Record.Actor.Label() != want {
 		t.Errorf("created record label = %q, want %q", got.Record.Actor.Label(), want)
 	}
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,11 +229,11 @@ func TestAnImportRecordCarriesTheActorOfItsVersion(t *testing.T) {
 		t.Errorf("stored actor = %+v, label %q, want %q", stored.Actor, stored.Actor.Label(), want)
 	}
 
-	plain, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Plain", "prom", 1)})
+	plain, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Plain", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	storedPlain, err := r.imports.ForDashboard(t.Context(), uuid(t, plain.Dashboard.ID))
+	storedPlain, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, plain.Dashboard.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,11 +244,11 @@ func TestAnImportRecordCarriesTheActorOfItsVersion(t *testing.T) {
 
 func TestImportWithoutAMappingStoresAnEmptyObject(t *testing.T) {
 	r := newRig(t)
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil || stored.Mapping == nil || len(stored.Mapping) != 0 {
 		t.Fatalf("mapping %v, err %v", stored.Mapping, err)
 	}
@@ -262,23 +262,23 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 		seen, seenVersion = issues, ver.Number
 		return nil
 	}
-	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, hook)
+	dash, ver, issues, replayed, err := r.dashboard.CreateImported(reading(t.Context()), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, hook)
 	if err != nil || replayed || ver.Number != 1 {
 		t.Fatalf("version %d, replayed %t, err %v", ver.Number, replayed, err)
 	}
 	if len(issues) == 0 || len(seen) != len(issues) || seenVersion != 1 || !strings.HasPrefix(issues[0].Path, "/panels/0") {
 		t.Fatalf("issues %+v, hook saw %+v at version %d", issues, seen, seenVersion)
 	}
-	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, dash.ID)); err != nil || latest != 1 {
+	if latest, err := r.dashboard.LatestVersion(reading(t.Context()), uuid(t, dash.ID)); err != nil || latest != 1 {
 		t.Fatalf("latest = %d, err %v", latest, err)
 	}
 
-	_, _, err = r.dashboard.Create(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "create")
+	_, _, err = r.dashboard.Create(reading(t.Context()), ada, pgtype.UUID{}, specWith(brokenQuery), "create")
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("Create with the same spec: err = %v, want InvalidSpecError", err)
 	}
-	_, again, _, err := r.dashboard.AddVersion(t.Context(), ada, uuid(t, dash.ID), 1, specWith(brokenQuery), "again")
+	_, again, _, err := r.dashboard.AddVersion(reading(t.Context()), ada, uuid(t, dash.ID), 1, specWith(brokenQuery), "again")
 	if err != nil || again.Number != 2 || len(again.Unverified.Panels) != 1 {
 		t.Fatalf("AddVersion with the same spec: version %d, unverified %+v, err %v, want version 2 keeping the panel unverified", again.Number, again.Unverified, err)
 	}
@@ -286,7 +286,7 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 
 func TestCreateImportedWithoutAHookSavesAndReportsIssues(t *testing.T) {
 	r := newRig(t)
-	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, nil)
+	dash, ver, issues, replayed, err := r.dashboard.CreateImported(reading(t.Context()), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, nil)
 	if err != nil || replayed || ver.Number != 1 || dash.ID == "" || len(issues) == 0 {
 		t.Fatalf("version %d, replayed %t, issues %d, err %v", ver.Number, replayed, len(issues), err)
 	}
@@ -298,7 +298,7 @@ func TestCreateImportedStillRejectsAnInvalidSpec(t *testing.T) {
 		t.Error("the hook ran for an invalid spec")
 		return nil
 	}
-	_, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, []byte(`{"specVersion":"0"}`), "", pgtype.UUID{}, hook)
+	_, _, _, _, err := r.dashboard.CreateImported(reading(t.Context()), ada, pgtype.UUID{}, []byte(`{"specVersion":"0"}`), "", pgtype.UUID{}, hook)
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want InvalidSpecError", err)
@@ -311,10 +311,10 @@ func TestAFailingHookRollsTheSaveBack(t *testing.T) {
 	hook := func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version, []spec.Issue) error {
 		return boom
 	}
-	if _, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith("up"), "Imported", pgtype.UUID{}, hook); !errors.Is(err, boom) {
+	if _, _, _, _, err := r.dashboard.CreateImported(reading(t.Context()), ada, pgtype.UUID{}, specWith("up"), "Imported", pgtype.UUID{}, hook); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want the hook's error", err)
 	}
-	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(reading(t.Context()), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after a failed hook: %d, %v", len(page.Items), err)
 	}
@@ -322,18 +322,18 @@ func TestAFailingHookRollsTheSaveBack(t *testing.T) {
 
 func TestPreviewWritesNothing(t *testing.T) {
 	r := newRig(t)
-	result, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
+	result, err := r.imports.Preview(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !result.Ready() || result.Report.Verified {
 		t.Fatalf("ready %t, verified %t", result.Ready(), result.Report.Verified)
 	}
-	metas, next, err := r.imports.List(t.Context(), ada, imports.ListParams{})
+	metas, next, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{})
 	if err != nil || len(metas) != 0 || next != "" {
 		t.Fatalf("list after preview: %v, %q, %v", metas, next, err)
 	}
-	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(reading(t.Context()), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after preview: %d, %v", len(page.Items), err)
 	}
@@ -341,7 +341,7 @@ func TestPreviewWritesNothing(t *testing.T) {
 
 func TestPreviewReturnsInputErrors(t *testing.T) {
 	r := newRig(t)
-	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: []byte(`not json`)})
+	_, err := r.imports.Preview(reading(t.Context()), ada, imports.Request{JSON: []byte(`not json`)})
 	var input *grafana.InputError
 	if !errors.As(err, &input) {
 		t.Fatalf("err = %v, want InputError", err)
@@ -350,30 +350,30 @@ func TestPreviewReturnsInputErrors(t *testing.T) {
 
 func TestImportNeedsEveryDatasourceMatched(t *testing.T) {
 	r := newRig(t)
-	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "elsewhere", 1)})
+	_, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "elsewhere", 1)})
 	var unresolved *imports.UnresolvedError
 	if !errors.As(err, &unresolved) || len(unresolved.Datasources) != 1 || unresolved.Datasources[0].Match != nil {
 		t.Fatalf("err = %v, want UnresolvedError with the unmatched datasource", err)
 	}
-	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
+	if metas, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
 		t.Fatalf("list: %v, %v", metas, err)
 	}
-	if _, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "elsewhere", 1), Mapping: map[string]string{"elsewhere": "prom"}}); err != nil {
+	if _, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "elsewhere", 1), Mapping: map[string]string{"elsewhere": "prom"}}); err != nil {
 		t.Fatalf("with a mapping: %v", err)
 	}
 }
 
 func TestForDashboardTellsMissingFromNotImported(t *testing.T) {
 	r := newRig(t)
-	plain, _, err := r.dashboard.Create(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create")
+	plain, _, err := r.dashboard.Create(reading(t.Context()), ada, pgtype.UUID{}, specWith("up"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.imports.ForDashboard(t.Context(), uuid(t, plain.ID)); !errors.Is(err, imports.ErrNotFound) {
+	if _, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, plain.ID)); !errors.Is(err, imports.ErrNotFound) {
 		t.Errorf("not imported: err = %v, want ErrNotFound", err)
 	}
 	missing := uuid(t, "99999999-9999-4999-8999-999999999999")
-	if _, err := r.imports.ForDashboard(t.Context(), missing); !errors.Is(err, dashboards.ErrNotFound) {
+	if _, err := r.imports.ForDashboard(reading(t.Context()), missing); !errors.Is(err, dashboards.ErrNotFound) {
 		t.Errorf("missing dashboard: err = %v, want dashboards.ErrNotFound", err)
 	}
 }
@@ -381,45 +381,45 @@ func TestForDashboardTellsMissingFromNotImported(t *testing.T) {
 func TestListPagesNewestFirst(t *testing.T) {
 	r := newRig(t)
 	for _, title := range []string{"One", "Two", "Three"} {
-		if _, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON(title, "prom", 1)}); err != nil {
+		if _, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON(title, "prom", 1)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	first, next, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2})
+	first, next, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{Limit: 2})
 	if err != nil || len(first) != 2 || next == "" {
 		t.Fatalf("first page: %d items, cursor %q, err %v", len(first), next, err)
 	}
 	if first[0].Title != "Three" || first[1].Title != "Two" {
 		t.Errorf("first page titles: %q, %q", first[0].Title, first[1].Title)
 	}
-	rest, next, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2, Cursor: next})
+	rest, next, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{Limit: 2, Cursor: next})
 	if err != nil || len(rest) != 1 || next != "" || rest[0].Title != "One" || rest[0].Counts.Total != 1 {
 		t.Fatalf("second page: %+v, cursor %q, err %v", rest, next, err)
 	}
-	if _, _, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2, Cursor: "!"}); !errors.Is(err, imports.ErrInvalidCursor) {
+	if _, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{Limit: 2, Cursor: "!"}); !errors.Is(err, imports.ErrInvalidCursor) {
 		t.Errorf("bad cursor: err = %v", err)
 	}
 }
 
 func TestAnAgentRequestImportsOnce(t *testing.T) {
 	r := newRig(t)
-	row, err := r.queue.SubmitObserve(t.Context(), ada, "import it")
+	row, err := r.queue.SubmitObserve(reading(t.Context()), ada, "import it")
 	if err != nil {
 		t.Fatal(err)
 	}
 	req := imports.Request{JSON: grafanaJSON("Shop", "prom", 2), RequestID: row.ID}
-	first, err := r.imports.Import(t.Context(), ada, req)
+	first, err := r.imports.Import(reading(t.Context()), ada, req)
 	if err != nil || first.Replayed || first.Dashboard.Creator.Via != "agent" {
 		t.Fatalf("first: replayed %t, err %v", first.Replayed, err)
 	}
-	again, err := r.imports.Import(t.Context(), ada, req)
+	again, err := r.imports.Import(reading(t.Context()), ada, req)
 	if err != nil || !again.Replayed || again.Dashboard.ID != first.Dashboard.ID {
 		t.Fatalf("repeat: replayed %t, err %v", again.Replayed, err)
 	}
 	if again.Record.ID != first.Record.ID || !again.Record.Report.Verified || again.Record.Report.Counts.Total != 2 {
 		t.Errorf("replayed record: %+v", again.Record)
 	}
-	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 1 {
+	if metas, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{}); err != nil || len(metas) != 1 {
 		t.Fatalf("list: %d, %v", len(metas), err)
 	}
 }
@@ -434,7 +434,7 @@ func TestImportSlotsRefuseAndFree(t *testing.T) {
 	start := func(who auth.Principal) <-chan error {
 		done := make(chan error, 1)
 		go func() {
-			_, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")})
+			_, err := r.imports.Import(reading(t.Context()), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")})
 			done <- err
 		}()
 		select {
@@ -446,7 +446,7 @@ func TestImportSlotsRefuseAndFree(t *testing.T) {
 	}
 	refused := func(who auth.Principal) {
 		t.Helper()
-		_, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+		_, err := r.imports.Import(reading(t.Context()), who, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 		if !errors.Is(err, imports.ErrBusy) {
 			t.Fatalf("import for %s: err = %v, want ErrBusy", who.Name, err)
 		}
@@ -468,7 +468,7 @@ func TestImportSlotsRefuseAndFree(t *testing.T) {
 		}
 	}
 	for _, who := range []auth.Principal{principal(0), principal(4)} {
-		if _, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")}); err != nil {
+		if _, err := r.imports.Import(reading(t.Context()), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")}); err != nil {
 			t.Errorf("import for %s after the slots freed: %v", who.Name, err)
 		}
 	}
@@ -477,7 +477,7 @@ func TestImportSlotsRefuseAndFree(t *testing.T) {
 func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
 	r := newRig(t)
 	body := grafanaWithVariables("Shop", "prom", "label_values(up, pod)", "label_values("+brokenQuery+", pod)")
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -495,14 +495,14 @@ func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
 	if subjects := unverifiedNotes(got.Record.Report.Notes); len(subjects) != 1 || subjects[0] != "variable v1" {
 		t.Fatalf("unverified notes on the import: %v", subjects)
 	}
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil || stored.Version != 1 || !stored.Report.Verified {
 		t.Fatalf("stored version %d, verified %t, err %v", stored.Version, stored.Report.Verified, err)
 	}
 	if subjects := unverifiedNotes(stored.Report.Notes); len(subjects) != 1 || subjects[0] != "variable v1" {
 		t.Fatalf("unverified notes in the stored report: %v", subjects)
 	}
-	metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{})
+	metas, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{})
 	if err != nil || len(metas) != 1 || metas[0].Version != 1 || metas[0].Counts != stored.Report.Counts {
 		t.Fatalf("list: %+v, %v", metas, err)
 	}
@@ -511,7 +511,7 @@ func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
 func TestAnImportReplacesANULFromADatasourceErrorInTheReason(t *testing.T) {
 	r := newRigWith(t, nulErrorStub{})
 	body := grafanaWithVariables("Shop", "prom", "label_values("+brokenQuery+", pod)")
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -527,7 +527,7 @@ func TestAnImportReplacesANULFromADatasourceErrorInTheReason(t *testing.T) {
 	if reason := reasonOf(got.Record.Report); !strings.Contains(reason, want) || strings.ContainsRune(reason, 0) {
 		t.Fatalf("reason on the import = %q, want it to hold %q", reason, want)
 	}
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +541,7 @@ func TestAnImportReplacesANULFromAPanelQueryErrorInTheReason(t *testing.T) {
 	body := fmt.Appendf(nil, `{"title":"Shop","uid":"abc","schemaVersion":39,"panels":[
 		{"id":1,"type":"timeseries","title":"Good","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":"up"}]},
 		{"id":2,"type":"timeseries","title":"Broken","gridPos":{"x":12,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":%q}]}]}`, brokenQuery)
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -565,7 +565,7 @@ func TestAnImportReplacesANULFromAPanelQueryErrorInTheReason(t *testing.T) {
 		}
 	}
 	check("on the import", got.Record.Report)
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, got.Dashboard.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,11 +574,11 @@ func TestAnImportReplacesANULFromAPanelQueryErrorInTheReason(t *testing.T) {
 
 func assertNothingSaved(t *testing.T, r *rig) {
 	t.Helper()
-	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(reading(t.Context()), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after a refused import: %d, %v", len(page.Items), err)
 	}
-	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
+	if metas, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
 		t.Fatalf("imports after a refused import: %d, %v", len(metas), err)
 	}
 }
@@ -586,7 +586,7 @@ func assertNothingSaved(t *testing.T, r *rig) {
 func TestImportRefusesANULInTheGrafanaUID(t *testing.T) {
 	r := newRig(t)
 	body := bytes.Replace(grafanaJSON("Shop", "prom", 1), []byte(`"uid":"abc"`), []byte(`"uid":"a\u0000b"`), 1)
-	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	_, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body})
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) || len(invalid.Issues) != 1 || invalid.Issues[0].Path != "/summary/uid" {
 		t.Fatalf("err = %v, want InvalidSpecError at /summary/uid", err)
@@ -599,7 +599,7 @@ func TestImportRefusesANULInADatasourceName(t *testing.T) {
 	body := []byte(`{"title":"Shop","uid":"abc","schemaVersion":39,
 		"__inputs":[{"name":"DS_PROM","label":"Pro\u0000m","pluginId":"prometheus","type":"datasource"}],
 		"panels":[{"id":1,"type":"timeseries","title":"One","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"${DS_PROM}"},"targets":[{"refId":"A","expr":"up"}]}]}`)
-	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body, Mapping: map[string]string{"${DS_PROM}": "prom"}})
+	_, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body, Mapping: map[string]string{"${DS_PROM}": "prom"}})
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) || len(invalid.Issues) != 1 || invalid.Issues[0].Path != "/datasources/0/name" {
 		t.Fatalf("err = %v, want InvalidSpecError at /datasources/0/name", err)
@@ -610,7 +610,7 @@ func TestImportRefusesANULInADatasourceName(t *testing.T) {
 func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	r := newRig(t)
 	var input *grafana.InputError
-	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
+	_, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
 	if !errors.As(err, &input) || input.Code != "too_large" {
 		t.Fatalf("large body: err = %v, want InputError too_large", err)
 	}
@@ -618,7 +618,7 @@ func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	for i := range imports.MaxMappingEntries + 1 {
 		mapping[fmt.Sprintf("key%d", i)] = "prom"
 	}
-	_, err = r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
+	_, err = r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
 	if !errors.As(err, &input) || input.Code != "invalid_mapping" {
 		t.Fatalf("large mapping: err = %v, want InputError invalid_mapping", err)
 	}
@@ -628,7 +628,7 @@ func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	r := newRig(t)
 	var input *grafana.InputError
-	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
+	_, err := r.imports.Preview(reading(t.Context()), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
 	if !errors.As(err, &input) || input.Code != "too_large" {
 		t.Fatalf("large body: err = %v, want InputError too_large", err)
 	}
@@ -636,7 +636,7 @@ func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	for i := range imports.MaxMappingEntries + 1 {
 		mapping[fmt.Sprintf("key%d", i)] = "prom"
 	}
-	_, err = r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
+	_, err = r.imports.Preview(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
 	if !errors.As(err, &input) || input.Code != "invalid_mapping" {
 		t.Fatalf("large mapping: err = %v, want InputError invalid_mapping", err)
 	}
@@ -644,11 +644,11 @@ func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 
 func TestARetriedRequestReplaysWhateverItCarries(t *testing.T) {
 	r := newRig(t)
-	row, err := r.queue.SubmitObserve(t.Context(), ada, "import it")
+	row, err := r.queue.SubmitObserve(reading(t.Context()), ada, "import it")
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -657,7 +657,7 @@ func TestARetriedRequestReplaysWhateverItCarries(t *testing.T) {
 		"unmatched sources":   {JSON: grafanaJSON("Shop", "elsewhere", 1), RequestID: row.ID},
 		"different dashboard": {JSON: grafanaJSON("Other", "prom", 3), RequestID: row.ID},
 	} {
-		again, err := r.imports.Import(t.Context(), ada, req)
+		again, err := r.imports.Import(reading(t.Context()), ada, req)
 		if err != nil || !again.Replayed || again.Dashboard.ID != first.Dashboard.ID || again.Record.ID != first.Record.ID {
 			t.Errorf("%s: replayed %t, err %v", name, again.Replayed, err)
 		}
@@ -666,15 +666,15 @@ func TestARetriedRequestReplaysWhateverItCarries(t *testing.T) {
 
 func TestReplayOfADashboardTheAgentCreatedHasNoRecord(t *testing.T) {
 	r := newRig(t)
-	row, err := r.queue.SubmitObserve(t.Context(), ada, "build it")
+	row, err := r.queue.SubmitObserve(reading(t.Context()), ada, "build it")
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create", row.ID)
+	created, _, _, err := r.dashboard.CreateRequestDashboard(reading(t.Context()), ada, pgtype.UUID{}, specWith("up"), "create", row.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
 	if err != nil || !got.Replayed || got.Dashboard.ID != created.ID || got.Record.ID != "" {
 		t.Fatalf("replayed %t, dashboard %q, record %+v, err %v", got.Replayed, got.Dashboard.ID, got.Record, err)
 	}
@@ -687,7 +687,7 @@ func TestSummaryKeepsItsFramingForTrimmedAndLongTitles(t *testing.T) {
 		"padded": {"  Shop  ", `Imported "Shop" from Grafana`},
 		"long":   {long, ""},
 	} {
-		got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON(c.title, "prom", 1)})
+		got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON(c.title, "prom", 1)})
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -704,7 +704,7 @@ func TestSummaryKeepsItsFramingForTrimmedAndLongTitles(t *testing.T) {
 func TestAFreshImportWithoutDatasourcesHasAnEmptyList(t *testing.T) {
 	r := newRig(t)
 	body := []byte(`{"title":"Notes","uid":"abc","schemaVersion":39,"panels":[{"id":1,"type":"text","title":"Hello","gridPos":{"x":0,"y":0,"w":12,"h":4},"options":{"mode":"markdown","content":"hi"}}]}`)
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: body})
 	if err != nil {
 		t.Fatal(err)
 	}

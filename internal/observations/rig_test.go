@@ -90,7 +90,7 @@ func newRig(t *testing.T) rig {
 func (r rig) folder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, title).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, title).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -104,7 +104,7 @@ func (r rig) hiddenFolder(t *testing.T) pgtype.UUID {
 func (r rig) personalFolder(t *testing.T, p auth.Principal) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, p.ID).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, p.ID).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -121,7 +121,7 @@ func mustUUID(t *testing.T, raw string) pgtype.UUID {
 
 func (r rig) create(t *testing.T, by auth.Principal, folder pgtype.UUID) observations.Observation {
 	t.Helper()
-	o, err := r.service.Create(t.Context(), by, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx"})
+	o, err := r.service.Create(reading(t.Context()), by, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx"})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -142,7 +142,7 @@ func panelBody() json.RawMessage {
 
 func (r rig) addText(t *testing.T, by auth.Principal, o observations.Observation, markdown string) observations.Block {
 	t.Helper()
-	b, err := r.service.AddBlock(t.Context(), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody(markdown)})
+	b, err := r.service.AddBlock(reading(t.Context()), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody(markdown)})
 	if err != nil {
 		t.Fatalf("add text block: %v", err)
 	}
@@ -151,7 +151,7 @@ func (r rig) addText(t *testing.T, by auth.Principal, o observations.Observation
 
 func (r rig) addPanel(t *testing.T, by auth.Principal, o observations.Observation) observations.Block {
 	t.Helper()
-	b, err := r.service.AddBlock(t.Context(), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	b, err := r.service.AddBlock(reading(t.Context()), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
 	if err != nil {
 		t.Fatalf("add panel block: %v", err)
 	}
@@ -160,7 +160,7 @@ func (r rig) addPanel(t *testing.T, by auth.Principal, o observations.Observatio
 
 func (r rig) positions(t *testing.T, by auth.Principal, o observations.Observation) []string {
 	t.Helper()
-	got, err := r.service.Get(t.Context(), by, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), by, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func (r rig) positions(t *testing.T, by auth.Principal, o observations.Observati
 
 func (r rig) activityTypes(t *testing.T, o observations.Observation) []string {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type FROM activity WHERE observation_id = $1::uuid AND target_kind = 'observation' ORDER BY seq`, o.ID)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type FROM activity WHERE observation_id = $1::uuid AND target_kind = 'observation' ORDER BY seq`, o.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

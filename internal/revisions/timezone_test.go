@@ -32,7 +32,7 @@ func TestCheckTimeZone(t *testing.T) {
 func TestEveryRunKeepsThePersonsTimeZone(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	ctx := revisions.WithTimeZone(context.Background(), "Asia/Kolkata")
+	ctx := revisions.WithTimeZone(reading(context.Background()), "Asia/Kolkata")
 	observe, err := svc.SubmitObserve(ctx, user, "which dashboards show checkout")
 	if err != nil {
 		t.Fatal(err)
@@ -53,14 +53,14 @@ func TestEveryRunKeepsThePersonsTimeZone(t *testing.T) {
 	if got := revisions.RequestOf(observe).TimeZone; got != "Asia/Kolkata" {
 		t.Fatalf("request zone = %q", got)
 	}
-	if _, err := svc.Cancel(context.Background(), observe.ID, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), observe.ID, user); err != nil {
 		t.Fatal(err)
 	}
-	retried, err := svc.Retry(context.Background(), observe.ID, user)
+	retried, err := svc.Retry(reading(context.Background()), observe.ID, user)
 	if err != nil || retried.TimeZone.String != "Asia/Kolkata" {
 		t.Fatalf("retry = %+v, %v; want the zone kept", retried, err)
 	}
-	plain, err := svc.SubmitObserve(context.Background(), user, "list dashboards")
+	plain, err := svc.SubmitObserve(reading(context.Background()), user, "list dashboards")
 	if err != nil || plain.TimeZone.Valid {
 		t.Fatalf("a run without a zone = %+v, %v", plain, err)
 	}
