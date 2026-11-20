@@ -30,7 +30,16 @@ Create a client in your provider and give SlashObserve its settings:
   An address the provider does not report as verified never makes a person an Admin through `SLASHOBSERVE_ADMIN_EMAILS`, even under `*`, and such a sign-in logs the warning `admin email signed in unverified`; with a provider that does not send `email_verified`, give Admin through a group instead; see [Roles](../teams/roles.md#how-a-role-is-decided).
 - The setting is required, so a deployment can never be open by accident.
 
+A refused sign-in sends the person back to the sign-in page with "This account is not allowed to sign in." and logs `sign-in refused` with `reason` `domain_not_allowed` or `email_unverified` and the email's domain, never the address.
+A provider that sends no email address at all is refused too, whatever the setting.
+
+An [invite](../teams/people.md#invite-people) does not change these rules: an email outside the list cannot be invited, and an invited role applies only to a first sign-in with a verified email.
+An Admin can also [deactivate](../teams/people.md#deactivate-a-person) a person, and their next sign-in is refused with "This account was deactivated by an Admin."
+
 ## Users and groups
 
 Users are identified by the provider's issuer and subject, and are created on first sign-in.
+A session lasts `SLASHOBSERVE_SESSION_TTL` from sign-in, 7 days by default and between 5 minutes and 30 days.
+Set `SLASHOBSERVE_AUTH_PROVIDER_NAME` to the name people know the provider by, up to 64 characters; the web app shows it in the account menu, on the People page and in the access dialogs.
+Settings shows the issuer, the allowed domains, the provider name and the session length, read-only.
 The server also asks for the `groups` scope when the provider lists it in `scopes_supported`, so that `SLASHOBSERVE_OIDC_GROUP_ROLES` can map groups to roles (see [Roles](../teams/roles.md)).
