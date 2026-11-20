@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -109,6 +109,38 @@ describe("OpenObservations", () => {
     expect(
       screen.queryByRole("link", { name: "All observations" })
     ).not.toBeInTheDocument()
+  })
+
+  it("keeps the order it first showed when a refetch changes the recency", async () => {
+    answer(
+      [
+        observation("o1", "Checkout latency"),
+        observation("o2", "Slow pods"),
+        observation("o3", "Disk pressure"),
+      ],
+      null
+    )
+    const { queryClient } = renderWithProviders(<OpenObservationsList />, {
+      route,
+    })
+    await screen.findByRole("link", { name: "Checkout latency" })
+
+    answer(
+      [
+        observation("o3", "Disk pressure"),
+        observation("o4", "Fresh one"),
+        observation("o1", "Checkout latency"),
+      ],
+      null
+    )
+    await queryClient.invalidateQueries()
+    await screen.findByRole("link", { name: "Fresh one" })
+
+    expect(
+      within(screen.getByRole("list", { name: "Open observations" }))
+        .getAllByRole("link")
+        .map((link) => link.textContent)
+    ).toEqual(["Fresh one", "Checkout latency", "Disk pressure"])
   })
 
   it("renders nothing when no observation is open", async () => {

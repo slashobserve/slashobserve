@@ -1,5 +1,6 @@
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
+import { useMemo } from "react"
 
 import { unreadObservationIds } from "@/inbox/inbox-item"
 import { useInboxForYou } from "@/inbox/queries"
@@ -7,6 +8,7 @@ import { observationLink, observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { observationsInfiniteQuery } from "@/observations/queries"
 
+import { holdOrder } from "./held-order"
 import type { SubNavRow } from "./nav"
 import {
   SubNavList,
@@ -25,9 +27,14 @@ export function useOpenObservationsPage() {
     ...observationsInfiniteQuery({ state: "open" }, shown),
     staleTime,
   })
+  const client = useQueryClient()
   const page = open.data?.pages[0]
+  const observations = useMemo(
+    () => holdOrder(client, page?.observations ?? []),
+    [client, page]
+  )
   return {
-    observations: page?.observations ?? [],
+    observations,
     more: page?.next_cursor !== null && page?.next_cursor !== undefined,
     pending: open.isPending,
   }
