@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -47,20 +48,33 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	req, bad := decodeRegistration(w, r)
 	if bad != nil {
+		s.refusedWith(r.Context(), audit.ActionOAuthRegister, bad, audit.Target{Kind: "oauth_client", Name: origin.CleanClient(req.ClientName)}, nil)
 		writeOAuthError(w, bad)
 		return
 	}
 	name := origin.CleanClient(req.ClientName)
-	client, err := s.db.Queries().CreateOAuthClient(r.Context(), dbsqlc.CreateOAuthClientParams{
-		Name:         pgtype.Text{String: name, Valid: name != ""},
-		RedirectUris: req.RedirectURIs,
-		MaxUnused:    maxUnusedClients,
+	ctx := r.Context()
+	var client dbsqlc.OauthClient
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		client, err = q.CreateOAuthClient(ctx, dbsqlc.CreateOAuthClientParams{
+			Name:         pgtype.Text{String: name, Valid: name != ""},
+			RedirectUris: req.RedirectURIs,
+			MaxUnused:    maxUnusedClients,
+		})
+		if err != nil {
+			return err
+		}
+		audit.Update(ctx, func(sc *audit.Scope) { sc.Origin.Client = name })
+		return audit.Record(ctx, q, audit.Event{Action: audit.ActionOAuthRegister, Target: clientTarget(client.ID, name)})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
+		s.refused(ctx, audit.ActionOAuthRegister, audit.OutcomeDenied, "too_many_clients", audit.Target{Kind: "oauth_client", Name: name}, nil)
 		tooManyRequests(w, s.registerLimit)
 		return
 	}
 	if err != nil {
+		s.refused(ctx, audit.ActionOAuthRegister, audit.OutcomeFailed, "oauth_register_failed", audit.Target{Kind: "oauth_client", Name: name}, nil)
 		s.fail(w, r, "register oauth client", "oauth_register_failed", err)
 		return
 	}

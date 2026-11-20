@@ -11,8 +11,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
+)
+
+const (
+	grantTypeCode    = "authorization_code"
+	grantTypeRefresh = "refresh_token"
 )
 
 type tokenResponse struct {
@@ -69,9 +75,9 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
 	var resp tokenResponse
 	var err error
 	switch form.grantType {
-	case "authorization_code":
+	case grantTypeCode:
 		resp, err = s.exchangeCode(r.Context(), form)
-	case "refresh_token":
+	case grantTypeRefresh:
 		resp, err = s.refresh(r.Context(), form)
 	default:
 		writeOAuthError(w, &oauthError{http.StatusBadRequest, "unsupported_grant_type", "grant_type must be authorization_code or refresh_token"})
@@ -79,10 +85,12 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
 	}
 	var denied *oauthError
 	if errors.As(err, &denied) {
+		s.refusedWith(r.Context(), audit.ActionOAuthExchange, denied, clientTarget(form.clientID, ""), map[string]any{"grant_type": form.grantType})
 		writeOAuthError(w, denied)
 		return
 	}
 	if err != nil {
+		s.refused(r.Context(), audit.ActionOAuthExchange, audit.OutcomeFailed, "oauth_token_failed", clientTarget(form.clientID, ""), map[string]any{"grant_type": form.grantType})
 		s.fail(w, r, "issue oauth tokens", "oauth_token_failed", err)
 		return
 	}
@@ -179,7 +187,11 @@ func (s *Server) connectGrant(ctx context.Context, q *dbsqlc.Queries, code dbsql
 	if err := recordConnected(ctx, q, grant.ID); err != nil {
 		return tokenResponse{}, err
 	}
-	return s.issue(ctx, q, grant.ID, grant.CreatedAt.Time)
+	resp, err := s.issue(ctx, q, grant.ID, grant.CreatedAt.Time)
+	if err != nil {
+		return tokenResponse{}, err
+	}
+	return resp, s.recordToken(ctx, q, grant.ID, grantTypeCode)
 }
 
 func (s *Server) revokeReusedCode(ctx context.Context, q *dbsqlc.Queries, grantID pgtype.UUID) error {
@@ -227,7 +239,10 @@ func (s *Server) refresh(ctx context.Context, f tokenForm) (tokenResponse, error
 			return err
 		}
 		resp, err = s.issue(ctx, q, row.GrantID, row.CreatedAt.Time)
-		return err
+		if err != nil {
+			return err
+		}
+		return s.recordToken(ctx, q, row.GrantID, grantTypeRefresh)
 	})
 	if committed != nil {
 		return tokenResponse{}, committed
