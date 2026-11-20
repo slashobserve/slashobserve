@@ -52,6 +52,7 @@ SELECT r.id, r.source, r.title, r.prompt, r.state, r.result_kind, r.failure_code
        ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
        coalesce((r.run_usage->>'cost_usd')::float8, 0)::float8 AS cost_usd,
        r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+       r.observation_id,
        d.id AS visible_dashboard_id, d.title AS dashboard_title,
        o.id AS visible_observation_id, o.title AS observation_title
 FROM agent_requests r

@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/activity"
 )
 
@@ -134,5 +136,25 @@ func TestActionStrings(t *testing.T) {
 	}
 	if got := actionStrings([]Action{ActionCancel, ActionPin}); !slices.Equal(got, []string{"cancel", "pin"}) {
 		t.Errorf("actionStrings = %v", got)
+	}
+}
+
+func TestReportedResultKindCallsAFindingWithoutAnObservationAnAnswer(t *testing.T) {
+	saved := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	for _, tt := range []struct {
+		name        string
+		stored      string
+		observation pgtype.UUID
+		want        ResultKind
+	}{
+		{"a finding kept on the run", "observation", pgtype.UUID{}, ResultAnswer},
+		{"a finding in an observation", "observation", saved, ResultObservation},
+		{"a version", "version", pgtype.UUID{}, ResultVersion},
+		{"nothing", "none", pgtype.UUID{}, ResultNone},
+		{"a proposal", "proposal", saved, ResultProposal},
+	} {
+		if got := ReportedResultKind(tt.stored, tt.observation); got != tt.want {
+			t.Errorf("%s: %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }

@@ -460,7 +460,7 @@ func (sess *session) settled(ctx context.Context) (tools.RunFinished, error) {
 }
 
 func finishedOf(row dbsqlc.AgentRequest, restarted bool) tools.RunFinished {
-	out := tools.RunFinished{State: row.State, ResultKind: row.ResultKind, Restarted: restarted}
+	out := tools.RunFinished{State: row.State, ResultKind: string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)), Restarted: restarted}
 	if row.ResultVersion.Valid {
 		version := int(row.ResultVersion.Int32)
 		out.ResultVersion = &version

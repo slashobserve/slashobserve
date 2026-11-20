@@ -61,6 +61,7 @@ function succeededOutcome(request: RequestSummary): string {
     case "partial_version":
       return savedText(request)
     case "observation":
+    case "answer":
       return observationOutcome(request)
     case "suggestion":
       return "Suggested a panel"
@@ -117,10 +118,9 @@ export function deleteChatText(
     case "version":
     case "partial_version":
       return `${left} The dashboard it made stays.`
+    case "answer":
+      return `${left} The answer stays on the chat page, which still opens from its link.`
     case "observation":
-      if (request.observation_id === null) {
-        return `${left} The answer stays on the chat page, which still opens from its link.`
-      }
       return request.observation_title === null
         ? `${left} The answer stays in its observation, which is not deleted.`
         : `${left} The answer stays in the observation "${request.observation_title}", which is not deleted.`
@@ -153,10 +153,14 @@ function savedThings(
             : `the dashboard "${turn.dashboard_title}"`
         )
         break
+      case "answer":
+        unsavedAnswers += 1
+        break
       case "observation":
-        if (turn.observation_id === null) {
-          unsavedAnswers += 1
-        } else if (!removing.has(turn.observation_id)) {
+        if (
+          turn.observation_id !== null &&
+          !removing.has(turn.observation_id)
+        ) {
           observations.set(
             turn.observation_id,
             turn.observation_title === null

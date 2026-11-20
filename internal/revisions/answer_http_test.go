@@ -98,6 +98,7 @@ VALUES ($1, 'Log sources', 'two sources', now() - interval '1 hour', now(), 'use
 	var got struct {
 		Request struct {
 			URL           *string `json:"url"`
+			ResultKind    string  `json:"result_kind"`
 			ObservationID *string `json:"observation_id"`
 			Finding       *struct {
 				ObservationID *string `json:"observation_id"`
@@ -113,5 +114,16 @@ VALUES ($1, 'Log sources', 'two sources', now() - interval '1 hour', now(), 'use
 	if r.Finding == nil || r.Finding.ObservationID != nil || r.Finding.URL != nil || r.ObservationID != nil || r.URL != nil {
 		t.Fatalf("GET of a chat-only answer: %s", rec.Body)
 	}
-	h.call(t, http.MethodGet, "/api/v1/observe", "", http.StatusOK)
+	if r.ResultKind != "answer" {
+		t.Fatalf("result_kind of a chat-only answer = %q, want answer", r.ResultKind)
+	}
+	var listed struct {
+		Requests []struct {
+			ResultKind string `json:"result_kind"`
+		} `json:"requests"`
+	}
+	list := h.call(t, http.MethodGet, "/api/v1/observe", "", http.StatusOK)
+	if err := json.Unmarshal(list.Body.Bytes(), &listed); err != nil || len(listed.Requests) != 1 || listed.Requests[0].ResultKind != "answer" {
+		t.Fatalf("list of a chat-only answer: %s", list.Body)
+	}
 }

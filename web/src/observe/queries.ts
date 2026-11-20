@@ -98,6 +98,7 @@ function succeededView(
   }
   switch (r.result_kind) {
     case "observation":
+    case "answer":
       return { tone: "ok", text: "Answered" }
     case "none":
       return { tone: "warning", text: "Nothing saved" }

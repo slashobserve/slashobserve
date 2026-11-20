@@ -408,6 +408,7 @@ Only the person or key that started a run can rename, pin, unpin or archive it, 
 
 `save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
 It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
+Until then a run's `result_kind` is `answer` and its `observation_id` is null, and it reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.

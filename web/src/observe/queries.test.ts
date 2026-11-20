@@ -226,6 +226,16 @@ describe("requestStatusView", () => {
     ).toEqual({ tone: "ok", text: "Answered" })
   })
 
+  it("shows an answer kept on the run as answered", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "succeeded",
+        result_kind: "answer",
+      })
+    ).toEqual({ tone: "ok", text: "Answered" })
+  })
+
   it("flags a succeeded request that saved nothing", () => {
     expect(
       requestStatusView({ ...base, status: "succeeded", result_kind: "none" })
