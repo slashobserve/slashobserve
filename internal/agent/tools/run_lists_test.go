@@ -223,7 +223,7 @@ func TestRunListToolsAreMCPOnlyAndNeedAViewer(t *testing.T) {
 	readOnly := map[string]bool{nameListRuns: true, nameRenameRun: false, namePinRun: false, nameUnpinRun: false, nameArchiveRun: false}
 	for name, wantReadOnly := range readOnly {
 		tool := byName[name]
-		if !tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly != wantReadOnly || tool.Destructive || tool.PersonOnly {
+		if !tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly != wantReadOnly || tool.Destructive != (name == nameRenameRun) || tool.PersonOnly {
 			t.Errorf("%s = %+v", name, tool)
 		}
 	}
