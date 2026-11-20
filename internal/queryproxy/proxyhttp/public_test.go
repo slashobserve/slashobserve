@@ -180,7 +180,7 @@ func TestPublicValuesSeeOnlyEarlierSelections(t *testing.T) {
 func TestVariableOptionsShareTheValuesCacheAndTheSlots(t *testing.T) {
 	hn := newHarness(t)
 	d := testDashboard()
-	ctx := auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, ID: "alice", Role: auth.RoleAdmin})
+	ctx := as(t.Context(), auth.Principal{Kind: auth.KindUser, ID: "alice", Role: auth.RoleAdmin})
 	for range 2 {
 		if _, err := hn.h.VariableOptions(ctx, hn.id, 1, d, "job", nil); err != nil {
 			t.Fatalf("VariableOptions: %v", err)

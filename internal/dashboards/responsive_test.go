@@ -119,12 +119,12 @@ func TestASaveThatResizesAPanelKeepsItAtItsSize(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t, "rps")
 
-	_, ver, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, resizedRPS(), "wider")
+	_, ver, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, resizedRPS(), "wider")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	stored, err := r.service.VersionSpec(t.Context(), dash, ver.Number)
+	stored, err := r.service.VersionSpec(reading(t.Context()), dash, ver.Number)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,12 +136,12 @@ func TestASaveThatResizesAPanelKeepsItAtItsSize(t *testing.T) {
 func TestARepeatedResizeSaveReplays(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t, "rps")
-	_, first, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, resizedRPS(), "wider")
+	_, first, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, resizedRPS(), "wider")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, again, replayed, err := r.service.AddVersion(t.Context(), testUser, dash, 1, resizedRPS(), "wider")
+	_, again, replayed, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, resizedRPS(), "wider")
 	if err != nil || !replayed || again.Number != first.Number {
 		t.Fatalf("second save: version %d, replayed %v, err %v", again.Number, replayed, err)
 	}
@@ -150,11 +150,11 @@ func TestARepeatedResizeSaveReplays(t *testing.T) {
 func TestARestoreKeepsTheRestoredFlags(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t, "rps")
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, resizedRPS(), "wider"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, resizedRPS(), "wider"); err != nil {
 		t.Fatal(err)
 	}
 
-	_, ver, err := r.service.Restore(t.Context(), testUser, dash, 1, 2, "")
+	_, ver, err := r.service.Restore(reading(t.Context()), testUser, dash, 1, 2, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,14 +168,14 @@ func TestACommittedRevisionBuildFreezesAResizedPanel(t *testing.T) {
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "rps", "p99")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1,
 		Spec: bytes.Replace(panelsSpec("t", "rps", "p99"), []byte(`"w":12`), []byte(`"w":24`), 1),
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	ver := commit.Version
 	if err != nil {
 		t.Fatal(err)

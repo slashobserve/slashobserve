@@ -94,7 +94,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}
@@ -337,7 +337,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}

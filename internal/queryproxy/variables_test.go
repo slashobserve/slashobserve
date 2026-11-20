@@ -103,7 +103,7 @@ func TestDefaults(t *testing.T) {
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, tt.variables...)
-			got, err := runner.Defaults(t.Context(), d, testRange(), tt.given, datasource.QueryUser{})
+			got, err := runner.Defaults(reading(t.Context()), d, testRange(), tt.given, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("Defaults: %v", err)
 			}
@@ -122,7 +122,7 @@ func TestDefaultsDoesNotMutateGiven(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	given := map[string]Selection{"a": {Values: []string{"a2"}}}
 	d := dashboardOf(nil, customVariable("a", "a1", "a2"), customVariable("b", "b1"))
-	got, err := runner.Defaults(t.Context(), d, testRange(), given, datasource.QueryUser{})
+	got, err := runner.Defaults(reading(t.Context()), d, testRange(), given, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("Defaults: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestDefaultsPassesOnlyEarlierSelections(t *testing.T) {
 		queryVariable("d", "prom", "d"),
 	)
 	given := map[string]Selection{"c": {Values: []string{"c-given"}}}
-	got, err := runner.Defaults(t.Context(), d, testRange(), given, datasource.QueryUser{})
+	got, err := runner.Defaults(reading(t.Context()), d, testRange(), given, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("Defaults: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestDefaultsErrors(t *testing.T) {
 			fake := newFake("prometheus")
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variables...), testRange(), tt.given, datasource.QueryUser{})
+			_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, tt.variables...), testRange(), tt.given, datasource.QueryUser{})
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -226,7 +226,7 @@ func TestDefaultsAcceptsShapeThatIncludeAllAndMultiAllow(t *testing.T) {
 	v.IncludeAll, v.Multi = true, true
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
 	for _, sel := range []Selection{{All: true}, {Values: []string{"a", "b"}}} {
-		got, err := runner.Defaults(t.Context(), dashboardOf(nil, v), testRange(), map[string]Selection{"v": sel}, datasource.QueryUser{})
+		got, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, v), testRange(), map[string]Selection{"v": sel}, datasource.QueryUser{})
 		if err != nil {
 			t.Fatalf("Defaults(%+v): %v", sel, err)
 		}
@@ -255,7 +255,7 @@ func TestVariableValues(t *testing.T) {
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, queryVariable("v", "prom", "label_values(job)"))
-			got, truncated, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
+			got, truncated, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "v", testRange(), nil, datasource.QueryUser{}))
 			if err != nil {
 				t.Fatalf("VariableValues: %v", err)
 			}
@@ -277,7 +277,7 @@ func TestVariableValuesKeepTextAndValueFromTheRegexAndSortByText(t *testing.T) {
 	v.Regex = "/^(?<text>[a-z]+)-(?<value>\\d+)$/"
 	v.Sort = "alpha"
 
-	got, truncated, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+	got, truncated, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
 	want := []spec.VariableOption{{Text: "api", Value: "2"}, {Text: "db", Value: "3"}, {Text: "web", Value: "1"}}
 	if err != nil || truncated || !slices.Equal(got, want) {
 		t.Fatalf("got %+v truncated=%v err=%v, want %+v", got, truncated, err, want)
@@ -289,7 +289,7 @@ func TestSelectionsAreCheckedAgainstOptionValuesNotTexts(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), nil)
 	d := dashboardOf(nil, v, queryVariable("dep", "prom", "label_values(job)"))
 	for value, ok := range map[string]bool{"prod": true, "Production": false} {
-		_, _, err := runner.VariableValues(t.Context(), d, "dep", testRange(), map[string]Selection{"env": {Values: []string{value}}}, datasource.QueryUser{})
+		_, _, err := runner.VariableValues(reading(t.Context()), d, "dep", testRange(), map[string]Selection{"env": {Values: []string{value}}}, datasource.QueryUser{})
 		if gotOK := !errors.Is(err, ErrInvalidRequest); gotOK != ok {
 			t.Errorf("selection %q: err = %v, want accepted=%v", value, err, ok)
 		}
@@ -302,7 +302,7 @@ func TestVariableValuesCustomAndUnknown(t *testing.T) {
 	options := []string{"a", "b"}
 	d := dashboardOf(nil, customVariable("env", options...))
 
-	got, truncated, err := runner.VariableValues(t.Context(), d, "env", testRange(), nil, datasource.QueryUser{})
+	got, truncated, err := runner.VariableValues(reading(t.Context()), d, "env", testRange(), nil, datasource.QueryUser{})
 	if err != nil || truncated || !reflect.DeepEqual(spec.OptionValues(got), options) {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
@@ -314,10 +314,10 @@ func TestVariableValuesCustomAndUnknown(t *testing.T) {
 		t.Fatal("custom variable reached upstream")
 	}
 
-	if _, _, err := runner.VariableValues(t.Context(), d, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
+	if _, _, err := runner.VariableValues(reading(t.Context()), d, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
 		t.Fatalf("unknown variable err = %v", err)
 	}
-	if _, _, err := runner.VariableValues(t.Context(), nil, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
+	if _, _, err := runner.VariableValues(reading(t.Context()), nil, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
 		t.Fatalf("nil dashboard err = %v", err)
 	}
 }
@@ -331,7 +331,7 @@ func TestVariableValuesPassesOnlyEarlierVariables(t *testing.T) {
 		customVariable("c", "c1"),
 	)
 	earlier := map[string]Selection{"a": {Values: []string{"a1"}}}
-	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), earlier, datasource.QueryUser{}); err != nil {
+	if _, _, err := runner.VariableValues(reading(t.Context()), d, "b", testRange(), earlier, datasource.QueryUser{}); err != nil {
 		t.Fatalf("VariableValues: %v", err)
 	}
 	got := fake.recorded()[0].query
@@ -364,7 +364,7 @@ func TestVariableValuesSelectionValidation(t *testing.T) {
 			a := queryVariable("a", "prom", "label_values(a)")
 			a.Multi = true
 			d := dashboardOf(nil, a, queryVariable("b", "prom", "label_values($a, job)"))
-			_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{"a": tt.sel}, datasource.QueryUser{})
+			_, _, err := runner.VariableValues(reading(t.Context()), d, "b", testRange(), map[string]Selection{"a": tt.sel}, datasource.QueryUser{})
 			if !errors.Is(err, ErrInvalidRequest) {
 				t.Fatalf("err = %v, want ErrInvalidRequest", err)
 			}
@@ -390,7 +390,7 @@ func TestVariableValuesErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newFake("prometheus")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			_, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, tt.v), "v", tt.rng, nil, datasource.QueryUser{})
+			_, _, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, tt.v), "v", tt.rng, nil, datasource.QueryUser{})
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -409,7 +409,7 @@ func TestVariableValuesUpstreamErrorAndPanic(t *testing.T) {
 	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 		return []string{"partial"}, datasource.Errorf(datasource.ErrUnavailable, "down")
 	}
-	got, truncated, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
+	got, truncated, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "v", testRange(), nil, datasource.QueryUser{}))
 	if !errors.Is(err, datasource.ErrUnavailable) || got != nil || truncated {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
@@ -417,7 +417,7 @@ func TestVariableValuesUpstreamErrorAndPanic(t *testing.T) {
 	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 		panic("kaboom-secret")
 	}
-	_, _, err = runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
+	_, _, err = runner.VariableValues(reading(t.Context()), d, "v", testRange(), nil, datasource.QueryUser{})
 	status, code, message := Classify(err)
 	if status != 500 || code != "internal" || message != "internal error" || strings.Contains(err.Error(), "kaboom-secret") {
 		t.Fatalf("err = %v, Classify = %d %q %q", err, status, code, message)
@@ -432,7 +432,7 @@ func includeAllQuery(name, uid, query string) spec.Variable {
 
 func runAll(t *testing.T, runner *Runner, d *spec.Dashboard, panelID string, selections map[string]Selection) error {
 	t.Helper()
-	_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: panelID, Range: testRange(), Selections: selections})
+	_, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: panelID, Range: testRange(), Selections: selections})
 	return err
 }
 
@@ -543,7 +543,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		env := customVariable("env", "prod", "staging")
 		env.IncludeAll, env.Multi = true, true
 		d := dashboardOf(nil, env, queryVariable("pod", "prom", `label_values(up{env=~"$env"}, pod)`))
-		if _, _, err := runner.VariableValues(t.Context(), d, "pod", testRange(), map[string]Selection{"env": {All: true}}, datasource.QueryUser{}); err != nil {
+		if _, _, err := runner.VariableValues(reading(t.Context()), d, "pod", testRange(), map[string]Selection{"env": {All: true}}, datasource.QueryUser{}); err != nil {
 			t.Fatalf("VariableValues: %v", err)
 		}
 		got := fake.callsTo("variable")[0].query.Variables
@@ -558,7 +558,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 		runner.slots = NewSlots(map[string]int{"prom": 1}, nil)
 		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
-		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(reading(t.Context()), 5*time.Second)
 		defer cancel()
 		_, err := runner.RunPanel(ctx, Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: map[string]Selection{"job": {All: true}}})
 		if err != nil {
@@ -686,7 +686,7 @@ func TestVariableValuesSelectionsMustBeEarlier(t *testing.T) {
 		customVariable("c", "c1"),
 	)
 	for name, sel := range map[string]Selection{"b": {Values: []string{"x"}}, "c": {Values: []string{"c1"}}} {
-		_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{name: sel}, datasource.QueryUser{})
+		_, _, err := runner.VariableValues(reading(t.Context()), d, "b", testRange(), map[string]Selection{name: sel}, datasource.QueryUser{})
 		if !errors.Is(err, ErrInvalidRequest) {
 			t.Fatalf("selection for %q: err = %v, want ErrInvalidRequest", name, err)
 		}
@@ -695,7 +695,7 @@ func TestVariableValuesSelectionsMustBeEarlier(t *testing.T) {
 		t.Fatalf("upstream called %d times", fake.callCount())
 	}
 
-	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), nil, datasource.QueryUser{}); err != nil {
+	if _, _, err := runner.VariableValues(reading(t.Context()), d, "b", testRange(), nil, datasource.QueryUser{}); err != nil {
 		t.Fatalf("VariableValues without earlier selections: %v", err)
 	}
 	got := fake.callsTo("variable")[0].query.Variables
@@ -715,7 +715,7 @@ func TestDefaultsRejectsBadDefaults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.v), testRange(), nil, datasource.QueryUser{})
+			_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, tt.v), testRange(), nil, datasource.QueryUser{})
 			if !errors.Is(err, ErrInvalidRequest) {
 				t.Fatalf("err = %v, want ErrInvalidRequest", err)
 			}
@@ -900,17 +900,17 @@ func TestNewVariableTypeValuesAndDefaults(t *testing.T) {
 			runner := newTypesRunner(t)
 			d := dashboardOf(nil, tt.variable)
 			if tt.variable.Type == spec.AdhocVariable {
-				_, _, err := runner.VariableValues(t.Context(), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{})
+				_, _, err := runner.VariableValues(reading(t.Context()), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{})
 				if !errors.Is(err, ErrInvalidRequest) || !strings.Contains(err.Error(), "has no value list") {
 					t.Fatalf("VariableValues err = %v, want invalid request: no value list", err)
 				}
 			} else if tt.wantValues != nil {
-				got, _, err := valueStrings(runner.VariableValues(t.Context(), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{}))
+				got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, tt.variable.Name, testRange(), nil, datasource.QueryUser{}))
 				if err != nil || !reflect.DeepEqual(got, tt.wantValues) {
 					t.Fatalf("VariableValues = %q, %v, want %q", got, err, tt.wantValues)
 				}
 			}
-			defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+			defaults, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{})
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("Defaults err = %v, want %v", err, tt.wantErr)
@@ -985,7 +985,7 @@ func TestNewVariableTypeSelections(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runner := newTypesRunner(t)
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variable), testRange(), map[string]Selection{tt.variable.Name: tt.sel}, datasource.QueryUser{})
+			_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, tt.variable), testRange(), map[string]Selection{tt.variable.Name: tt.sel}, datasource.QueryUser{})
 			if tt.ok && err != nil {
 				t.Fatalf("Defaults: %v", err)
 			}
@@ -999,7 +999,7 @@ func TestNewVariableTypeSelections(t *testing.T) {
 func TestAdhocErrorsNeverEchoTheFilter(t *testing.T) {
 	runner := newTypesRunner(t)
 	secret := "super-secret-value"
-	_, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocVariable("f", "prom")), testRange(), map[string]Selection{"f": {Values: []string{"job|=~|" + secret + "("}}}, datasource.QueryUser{})
+	_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, adhocVariable("f", "prom")), testRange(), map[string]Selection{"f": {Values: []string{"job|=~|" + secret + "("}}}, datasource.QueryUser{})
 	if err == nil || strings.Contains(err.Error(), secret) {
 		t.Fatalf("err = %v, want an error without the value", err)
 	}
@@ -1036,11 +1036,11 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 			v := queryVariable("v", "prom", "label_values(job)")
 			v.Regex, v.Sort = tt.regex, tt.sort
 			d := dashboardOf(nil, v)
-			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{}))
+			got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "v", testRange(), nil, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("VariableValues = %q, %v, want %q", got, err, tt.want)
 			}
-			defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+			defaults, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{})
 			if err != nil || !reflect.DeepEqual(defaults["v"], Selection{Values: tt.want[:1]}) {
 				t.Fatalf("Defaults = %+v, %v, want first of %q", defaults["v"], err, tt.want)
 			}
@@ -1053,7 +1053,7 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 		v := queryVariable("v", "prom", "label_values(job)")
 		v.Regex = "/zzz/"
-		if _, err := runner.Defaults(t.Context(), dashboardOf(nil, v), testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrVariableEmpty) {
+		if _, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, v), testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrVariableEmpty) {
 			t.Fatalf("err = %v, want ErrVariableEmpty", err)
 		}
 	})
@@ -1071,7 +1071,7 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 		plain := queryVariable("b", "prom", "label_values(job)")
 		d := dashboardOf(nil, filtered, plain)
 		for name, want := range map[string][]string{"a": {"web-1"}, "b": {"web-1", "api-1"}} {
-			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, name, testRange(), nil, datasource.QueryUser{}))
+			got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, name, testRange(), nil, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, want) {
 				t.Fatalf("VariableValues(%s) = %q, %v, want %q", name, got, err, want)
 			}
@@ -1140,7 +1140,7 @@ func TestRunPanelNewVariableTypesReachTheQuery(t *testing.T) {
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
 		panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
 		d := dashboardOf([]spec.Panel{panel}, variables...)
-		_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections})
+		_, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections})
 		return expanded, err
 	}
 
@@ -1214,7 +1214,7 @@ func TestRunPanelNewVariableTypesReachTheQuery(t *testing.T) {
 		f := adhocVariable("f", "ch")
 		bad := queryVariable("q", "ch", "SELECT DISTINCT Pod FROM t WHERE $f")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": newFake("clickhouse")})
-		_, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, f, bad), "q", testRange(), map[string]Selection{"f": {}}, datasource.QueryUser{})
+		_, _, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, f, bad), "q", testRange(), map[string]Selection{"f": {}}, datasource.QueryUser{})
 		if !errors.Is(err, datasource.ErrInvalidQuery) {
 			t.Fatalf("err = %v, want ErrInvalidQuery", err)
 		}
@@ -1231,7 +1231,7 @@ func TestAdhocFiltersApplyToPrometheusQueriesOfTheirDatasource(t *testing.T) {
 		"g": {Values: []string{"env|!=|dev"}},
 		"h": {},
 	}
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	want := []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}, {Key: "pod", Op: "!~", Value: "web-.*"}, {Key: "env", Op: "!=", Value: "dev"}}
@@ -1248,7 +1248,7 @@ func TestAdhocFiltersDoNotApplyToVariableQueries(t *testing.T) {
 	prom.onVariable = answer("a")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
 	d := dashboardOf(nil, adhocVariable("f", "prom"), queryVariable("q", "prom", "label_values(job)"))
-	if _, _, err := runner.VariableValues(t.Context(), d, "q", testRange(), map[string]Selection{"f": {Values: []string{"job|=|api"}}}, datasource.QueryUser{}); err != nil {
+	if _, _, err := runner.VariableValues(reading(t.Context()), d, "q", testRange(), map[string]Selection{"f": {Values: []string{"job|=|api"}}}, datasource.QueryUser{}); err != nil {
 		t.Fatalf("VariableValues: %v", err)
 	}
 	if calls := prom.callsTo("variable"); len(calls) != 1 || len(calls[0].query.Filters) != 0 {
@@ -1262,15 +1262,15 @@ func TestAdhocFiltersAndDatasourceRegexesAreParsedOncePerRequest(t *testing.T) {
 	adhoc := adhocVariable("f", "prom")
 	d := dashboardOf(nil, adhoc)
 	sel := Selection{Values: []string{"job|=|api", "job|!=|web"}}
-	first, err := runner.adhocFilters(st, d, adhoc, sel)
+	first, err := runner.adhocFilters(reading(t.Context()), st, d, adhoc, sel)
 	if err != nil || len(first) != 2 {
 		t.Fatalf("adhocFilters = %+v, %v", first, err)
 	}
-	second, err := runner.adhocFilters(st, d, adhoc, sel)
+	second, err := runner.adhocFilters(reading(t.Context()), st, d, adhoc, sel)
 	if err != nil || &first[0] != &second[0] {
 		t.Fatalf("a second lookup parsed the filters again: %v", err)
 	}
-	other, err := runner.adhocFilters(st, d, adhoc, Selection{Values: []string{"job|=|db"}})
+	other, err := runner.adhocFilters(reading(t.Context()), st, d, adhoc, Selection{Values: []string{"job|=|db"}})
 	if err != nil || len(other) != 1 || other[0].Value != "db" {
 		t.Fatalf("a different selection must not reuse the cached filters: %+v, %v", other, err)
 	}
@@ -1312,7 +1312,7 @@ func TestVariableRegexInterpolatesEarlierVariables(t *testing.T) {
 			v := includeAllQuery("svc", "prom", "label_values(job)")
 			v.Regex = tt.regex
 			d := dashboardOf(nil, envOptions, v)
-			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": tt.earlier}, datasource.QueryUser{}))
+			got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "svc", testRange(), map[string]Selection{"env": tt.earlier}, datasource.QueryUser{}))
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("err = %v, want %v", err, tt.wantErr)
@@ -1333,7 +1333,7 @@ func TestVariableRegexUsesTheDefaultOfAnEarlierVariable(t *testing.T) {
 	v := queryVariable("svc", "prom", "label_values(job)")
 	v.Regex = "/^$tier-/"
 	d := dashboardOf(nil, customVariable("tier", "api", "web"), v)
-	defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+	defaults, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{})
 	if err != nil || !reflect.DeepEqual(defaults["svc"], Selection{Values: []string{"api-1"}}) {
 		t.Fatalf("Defaults = %+v, %v, want api-1", defaults, err)
 	}
@@ -1346,7 +1346,7 @@ func TestVariableRegexRefusesAnAdhocReference(t *testing.T) {
 	v := queryVariable("svc", "prom", "label_values(job)")
 	v.Regex = "/$f/"
 	d := dashboardOf(nil, adhocVariable("f", "prom"), v)
-	if _, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), nil, datasource.QueryUser{}); err == nil {
+	if _, _, err := runner.VariableValues(reading(t.Context()), d, "svc", testRange(), nil, datasource.QueryUser{}); err == nil {
 		t.Fatal("VariableValues accepted an adhoc variable in a regex")
 	}
 }
@@ -1357,18 +1357,18 @@ func TestDatasourceVariableRegexInterpolatesEarlierVariables(t *testing.T) {
 	ds.Regex = "/^$pick$/"
 	runner := newTypesRunner(t)
 	d := dashboardOf(nil, pick, ds)
-	values, _, err := valueStrings(runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"prom2"}}}, datasource.QueryUser{}))
+	values, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"prom2"}}}, datasource.QueryUser{}))
 	if err != nil || !reflect.DeepEqual(values, []string{"prom2"}) {
 		t.Fatalf("VariableValues = %q, %v, want prom2", values, err)
 	}
-	values, _, err = valueStrings(runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"pr.m"}}}, datasource.QueryUser{}))
+	values, _, err = valueStrings(runner.VariableValues(reading(t.Context()), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"pr.m"}}}, datasource.QueryUser{}))
 	if err != nil || len(values) != 0 {
 		t.Fatalf("VariableValues = %q, %v, want nothing (pr.m is literal)", values, err)
 	}
-	if _, err := runner.Defaults(t.Context(), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom2"}}}, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
+	if _, err := runner.Defaults(reading(t.Context()), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom2"}}}, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("a datasource its regex filters out: err = %v, want ErrInvalidRequest", err)
 	}
-	got, err := runner.Defaults(t.Context(), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom"}}}, datasource.QueryUser{})
+	got, err := runner.Defaults(reading(t.Context()), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom"}}}, datasource.QueryUser{})
 	if err != nil || !reflect.DeepEqual(got["ds"], Selection{Values: []string{"prom"}}) {
 		t.Fatalf("Defaults = %+v, %v", got, err)
 	}
@@ -1403,11 +1403,11 @@ func TestChainedDatasourceVariableRegexesAreCheckedOncePerSelection(t *testing.T
 
 	counting.types.Store(0)
 	start := time.Now()
-	defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+	defaults, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{})
 	if err != nil || len(defaults) != chain {
 		t.Fatalf("Defaults = %v, %v", defaults, err)
 	}
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p0", Range: testRange(), Selections: defaults}); err != nil {
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p0", Range: testRange(), Selections: defaults}); err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
 	if n := counting.types.Load(); n > 50*chain {
@@ -1426,7 +1426,7 @@ func TestVariableRegexMatchesAnEarlierValueWithSlashesLiterally(t *testing.T) {
 	v.Regex = "$env"
 	d := dashboardOf(nil, customVariable("env", "/prom/", "/x/z"), v)
 	for pick, want := range map[string][]string{"/prom/": {"/prom/"}, "/x/z": {"/x/z"}} {
-		got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": {Values: []string{pick}}}, datasource.QueryUser{}))
+		got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "svc", testRange(), map[string]Selection{"env": {Values: []string{pick}}}, datasource.QueryUser{}))
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Errorf("env=%q: VariableValues = %q, %v, want %q", pick, got, err, want)
 		}
@@ -1444,11 +1444,11 @@ func TestVariableRegexWithAnUnparsableReferenceFailsWithTheScanError(t *testing.
 			fake.onVariable = answer("a")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, v)
-			_, _, err := runner.VariableValues(t.Context(), d, v.Name, testRange(), nil, datasource.QueryUser{})
+			_, _, err := runner.VariableValues(reading(t.Context()), d, v.Name, testRange(), nil, datasource.QueryUser{})
 			if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "invalid reference") {
 				t.Fatalf("VariableValues err = %v, want the invalid reference scan error", err)
 			}
-			if _, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{}); !errors.Is(err, datasource.ErrInvalidQuery) {
+			if _, err := runner.Defaults(reading(t.Context()), d, testRange(), nil, datasource.QueryUser{}); !errors.Is(err, datasource.ErrInvalidQuery) {
 				t.Fatalf("Defaults err = %v, want the scan error", err)
 			}
 		})
@@ -1485,7 +1485,7 @@ func TestCustomValueSelection(t *testing.T) {
 			fake := newFake("prometheus")
 			fake.onVariable = answer("web", "api")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variable), testRange(), map[string]Selection{tt.variable.Name: tt.sel}, datasource.QueryUser{})
+			_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, tt.variable), testRange(), map[string]Selection{tt.variable.Name: tt.sel}, datasource.QueryUser{})
 			if tt.ok && err != nil {
 				t.Fatalf("Defaults: %v", err)
 			}
@@ -1522,11 +1522,11 @@ func TestAdhocDefaultFilters(t *testing.T) {
 			prom := newFake("prometheus")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
 			d := dashboardOf([]spec.Panel{panel}, adhocWithDefault("f", "prom", saved...))
-			selections, err := runner.Defaults(t.Context(), d, testRange(), tt.selections, datasource.QueryUser{})
+			selections, err := runner.Defaults(reading(t.Context()), d, testRange(), tt.selections, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("Defaults: %v", err)
 			}
-			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+			if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
 			}
 			calls := prom.callsTo("instant")
@@ -1538,7 +1538,7 @@ func TestAdhocDefaultFilters(t *testing.T) {
 
 	t.Run("the default selection is the saved filters as key|operator|value", func(t *testing.T) {
 		runner := newTypesRunner(t)
-		defaults, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), nil, datasource.QueryUser{})
+		defaults, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), nil, datasource.QueryUser{})
 		want := Selection{Values: []string{"namespace|=|checkout", "pod|!~|canary-.*"}}
 		if err != nil || !reflect.DeepEqual(defaults["f"], want) {
 			t.Fatalf("Defaults = %+v, %v, want %+v", defaults["f"], err, want)
@@ -1547,7 +1547,7 @@ func TestAdhocDefaultFilters(t *testing.T) {
 
 	t.Run("a variable without saved filters has none", func(t *testing.T) {
 		runner := newTypesRunner(t)
-		defaults, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocVariable("f", "prom")), testRange(), nil, datasource.QueryUser{})
+		defaults, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, adhocVariable("f", "prom")), testRange(), nil, datasource.QueryUser{})
 		if err != nil || !reflect.DeepEqual(defaults["f"], Selection{}) {
 			t.Fatalf("Defaults = %+v, %v, want an empty selection", defaults["f"], err)
 		}
@@ -1555,7 +1555,7 @@ func TestAdhocDefaultFilters(t *testing.T) {
 
 	t.Run("an empty parameter next to a filter is still refused", func(t *testing.T) {
 		runner := newTypesRunner(t)
-		_, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), map[string]Selection{"f": {Values: []string{"", "job|=|api"}}}, datasource.QueryUser{})
+		_, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), map[string]Selection{"f": {Values: []string{"", "job|=|api"}}}, datasource.QueryUser{})
 		if !errors.Is(err, ErrInvalidRequest) {
 			t.Fatalf("err = %v, want ErrInvalidRequest", err)
 		}
@@ -1564,14 +1564,14 @@ func TestAdhocDefaultFilters(t *testing.T) {
 	t.Run("a saved filter with a key the datasource refuses is refused", func(t *testing.T) {
 		runner := newTypesRunner(t)
 		bad := adhocWithDefault("f", "prom", spec.AdhocFilter{Key: "Bad Key", Operator: "=", Value: "x"})
-		if _, err := runner.Defaults(t.Context(), dashboardOf(nil, bad), testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
+		if _, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, bad), testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
 			t.Fatalf("err = %v, want ErrInvalidRequest", err)
 		}
 	})
 
 	t.Run("an empty parameter for a text variable stays a value", func(t *testing.T) {
 		runner := newTypesRunner(t)
-		got, err := runner.Defaults(t.Context(), dashboardOf(nil, textboxVariable("tb")), testRange(), map[string]Selection{"tb": {Values: []string{""}}}, datasource.QueryUser{})
+		got, err := runner.Defaults(reading(t.Context()), dashboardOf(nil, textboxVariable("tb")), testRange(), map[string]Selection{"tb": {Values: []string{""}}}, datasource.QueryUser{})
 		if err != nil || !reflect.DeepEqual(got["tb"], Selection{Values: []string{""}}) {
 			t.Fatalf("Defaults = %+v, %v, want the empty value kept", got["tb"], err)
 		}
@@ -1599,7 +1599,7 @@ func TestVariableValuesOfferStaticOptionsWhereStaticOrderSays(t *testing.T) {
 			if tt.order != "sorted" {
 				v.Sort = ""
 			}
-			got, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+			got, _, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
 			if err != nil || !slices.Equal(got, tt.want) {
 				t.Fatalf("got %+v err=%v, want %+v", got, err, tt.want)
 			}
@@ -1614,7 +1614,7 @@ func TestVariableValuesWithRefreshNeverRunNoQuery(t *testing.T) {
 	v := queryVariable("v", "prom", "label_values(job)")
 	v.Refresh = spec.RefreshNever
 	v.StaticOptions = []spec.StaticOption{{Text: "API", Value: "api"}, {Text: "None", Value: ""}}
-	got, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
+	got, _, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, v), "v", testRange(), nil, datasource.QueryUser{})
 	want := []spec.VariableOption{{Text: "API", Value: "api"}, {Text: "None"}}
 	if err != nil || !slices.Equal(got, want) {
 		t.Fatalf("got %+v err=%v, want %+v", got, err, want)
@@ -1632,7 +1632,7 @@ func TestSelectingAllLeavesOutAnEmptyStaticOption(t *testing.T) {
 	v.IncludeAll, v.Multi = true, true
 	v.StaticOptions = []spec.StaticOption{{Text: "None", Value: ""}}
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job=~"$job"}`)}, v)
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	got := fake.callsTo("range")[0].query.Variables

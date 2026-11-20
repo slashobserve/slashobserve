@@ -49,7 +49,7 @@ type rig struct {
 func (r rig) general(t *testing.T) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE general`).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id::text FROM folders WHERE general`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -84,7 +84,7 @@ func (r rig) user(t *testing.T, p auth.Principal) {
 func (r rig) personalFolder(t *testing.T, p auth.Principal) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, p.ID).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id::text FROM folders WHERE personal AND owner_id = $1::uuid`, p.ID).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -93,7 +93,7 @@ func (r rig) personalFolder(t *testing.T, p auth.Principal) pgtype.UUID {
 func (r rig) folder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, title).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, title).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -102,7 +102,7 @@ func (r rig) folder(t *testing.T, title string) pgtype.UUID {
 func (r rig) dashboard(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ($1, 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`, title).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ($1, 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`, title).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -111,7 +111,7 @@ func (r rig) dashboard(t *testing.T, title string) pgtype.UUID {
 func (r rig) request(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
 VALUES ('investigate', 'why', $1, $2::uuid, $3, $4, $5::timestamptz - interval '1 hour', $5::timestamptz) RETURNING id::text`,
 		string(by.Kind), by.ID, by.Name, dashboardID, windowTo).Scan(&raw); err != nil {
 		t.Fatal(err)
@@ -130,7 +130,7 @@ func (r rig) save(t *testing.T, by auth.Principal, in findings.SaveInput) findin
 	if in.To.IsZero() {
 		in.From, in.To = windowTo.Add(-time.Hour), windowTo
 	}
-	f, replayed, err := r.service.Save(t.Context(), by, in)
+	f, replayed, err := r.service.Save(reading(t.Context()), by, in)
 	if err != nil || replayed {
 		t.Fatalf("save: replayed %v, %v", replayed, err)
 	}
@@ -172,7 +172,7 @@ func TestFindingsAreReadableByWhoMayViewThem(t *testing.T) {
 		{"an editor of a finding a key filed in General", editor, inGeneral, true},
 	}
 	for _, c := range cases {
-		_, err := r.service.Get(t.Context(), c.by, mustUUID(t, c.finding.ID))
+		_, err := r.service.Get(reading(t.Context()), c.by, mustUUID(t, c.finding.ID))
 		if c.visible && err != nil || !c.visible && !errors.Is(err, findings.ErrNotFound) {
 			t.Errorf("%s: %v, want visible %v", c.name, err, c.visible)
 		}
@@ -183,7 +183,7 @@ func TestSavingTwiceForOneRequestReturnsTheFirstFinding(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, r.open)
 	first := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Markdown: "first"})
-	again, replayed, err := r.service.Save(t.Context(), editor, findings.SaveInput{
+	again, replayed, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{
 		AgentRequestID: request, DashboardID: r.open, Title: "why", Markdown: "second", From: windowTo.Add(-time.Hour), To: windowTo,
 	})
 	if err != nil || !replayed || again.ID != first.ID || again.Markdown != "first" {
@@ -193,7 +193,7 @@ func TestSavingTwiceForOneRequestReturnsTheFirstFinding(t *testing.T) {
 
 func TestFindingRecordsTheOriginItWasSavedThrough(t *testing.T) {
 	r := newRig(t)
-	over := origin.With(t.Context(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	over := origin.With(reading(t.Context()), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
 	saved, _, err := r.service.Save(over, editor, findings.SaveInput{
 		DashboardID: r.open, Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo,
 	})
@@ -201,13 +201,13 @@ func TestFindingRecordsTheOriginItWasSavedThrough(t *testing.T) {
 		t.Fatal(err)
 	}
 	var kind, client string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT origin, origin_client FROM findings WHERE id = $1::uuid`, saved.ID).Scan(&kind, &client); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT origin, origin_client FROM findings WHERE id = $1::uuid`, saved.ID).Scan(&kind, &client); err != nil {
 		t.Fatal(err)
 	}
 	if kind != "mcp" || client != "claude-code" {
 		t.Fatalf("stored origin %q and client %q, want mcp and claude-code", kind, client)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, saved.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestFindingSavedInARunLabelsTheAgent(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, r.open)
 	saved := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, saved.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, saved.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestSavingOnAHiddenDashboardIsNotFound(t *testing.T) {
 	r := newRig(t)
 	hidden := r.dashboard(t, "Payroll")
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	_, _, err := r.service.Save(t.Context(), editor, findings.SaveInput{DashboardID: hidden, Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo})
+	_, _, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{DashboardID: hidden, Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo})
 	if !errors.Is(err, findings.ErrNotFound) {
 		t.Fatalf("save on a hidden dashboard: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 	var walked []string
 	cursor := ""
 	for pages := 0; pages < 10; pages++ {
-		page, next, err := r.service.List(t.Context(), editor, findings.ListFilter{}, 1, cursor)
+		page, next, err := r.service.List(reading(t.Context()), editor, findings.ListFilter{}, 1, cursor)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -271,10 +271,10 @@ func TestListingOwnFindingsPagesAndDropsHiddenDashboards(t *testing.T) {
 	if !slices.Equal(walked, want) {
 		t.Fatalf("walked %v, want %v", walked, want)
 	}
-	if _, _, err := r.service.List(t.Context(), editor, findings.ListFilter{}, 1, "not a cursor"); !errors.Is(err, findings.ErrInvalidCursor) {
+	if _, _, err := r.service.List(reading(t.Context()), editor, findings.ListFilter{}, 1, "not a cursor"); !errors.Is(err, findings.ErrInvalidCursor) {
 		t.Errorf("a bad cursor: %v", err)
 	}
-	onDashboard, _, err := r.service.List(t.Context(), viewer, findings.ListFilter{DashboardID: r.open}, 10, "")
+	onDashboard, _, err := r.service.List(reading(t.Context()), viewer, findings.ListFilter{DashboardID: r.open}, 10, "")
 	if err != nil || len(onDashboard) != 1 || onDashboard[0].ID != made[1] {
 		t.Errorf("dashboard list: %v, %v", onDashboard, err)
 	}
@@ -284,7 +284,7 @@ func TestPinningCreatesOneAnnotationAtTheWindowEnd(t *testing.T) {
 	r := newRig(t)
 	f := r.save(t, editor, findings.SaveInput{AgentRequestID: r.investigation(t, editor, r.open), DashboardID: r.open})
 	id := mustUUID(t, f.ID)
-	a, created, err := r.service.Pin(t.Context(), editor, id)
+	a, created, err := r.service.Pin(reading(t.Context()), editor, id)
 	if err != nil || !created {
 		t.Fatalf("pin: created %v, %v", created, err)
 	}
@@ -294,7 +294,7 @@ func TestPinningCreatesOneAnnotationAtTheWindowEnd(t *testing.T) {
 	if want := "Checkout errors come from checkout-0 /findings/" + f.ID; a.Text != want {
 		t.Errorf("text = %q, want %q", a.Text, want)
 	}
-	again, created, err := r.service.Pin(t.Context(), viewer, id)
+	again, created, err := r.service.Pin(reading(t.Context()), viewer, id)
 	if err != nil || created || again.ID != a.ID {
 		t.Fatalf("second pin: %+v created %v, %v", again, created, err)
 	}
@@ -307,11 +307,11 @@ func TestPinningCreatesOneAnnotationAtTheWindowEnd(t *testing.T) {
 func TestPinningNeedsADashboardAndEdit(t *testing.T) {
 	r := newRig(t)
 	private := r.save(t, editor, findings.SaveInput{})
-	if _, _, err := r.service.Pin(t.Context(), editor, mustUUID(t, private.ID)); !errors.Is(err, findings.ErrNoDashboard) {
+	if _, _, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, private.ID)); !errors.Is(err, findings.ErrNoDashboard) {
 		t.Errorf("pin without a dashboard: %v", err)
 	}
 	shared := r.save(t, editor, findings.SaveInput{DashboardID: r.open})
-	if _, _, err := r.service.Pin(t.Context(), viewer, mustUUID(t, shared.ID)); !errors.Is(err, annotations.ErrForbidden) {
+	if _, _, err := r.service.Pin(reading(t.Context()), viewer, mustUUID(t, shared.ID)); !errors.Is(err, annotations.ErrForbidden) {
 		t.Errorf("pin by a viewer: %v", err)
 	}
 }
@@ -319,7 +319,7 @@ func TestPinningNeedsADashboardAndEdit(t *testing.T) {
 func TestSavingAFindingWithoutEvidenceAsADashboardIsRefused(t *testing.T) {
 	r := newRig(t)
 	f := r.save(t, editor, findings.SaveInput{Evidence: []spec.Panel{}})
-	_, _, err := r.service.SaveAsDashboard(t.Context(), editor, mustUUID(t, f.ID))
+	_, _, err := r.service.SaveAsDashboard(reading(t.Context()), editor, mustUUID(t, f.ID))
 	if !errors.Is(err, findings.ErrNoEvidence) {
 		t.Fatalf("save without evidence: %v", err)
 	}
@@ -352,12 +352,12 @@ func TestAccessNamesTheDashboardAndWhatTheCallerMayDoWithIt(t *testing.T) {
 		{"another editor of a finding in General", otherEditor, inGeneral, pgtype.UUID{}, folders.AbilitiesFor(folders.LevelEdit), nil},
 	}
 	for _, c := range cases {
-		placement, err := r.service.Access(t.Context(), c.by, mustUUID(t, c.finding.ID))
+		placement, err := r.service.Access(reading(t.Context()), c.by, mustUUID(t, c.finding.ID))
 		if !errors.Is(err, c.err) || placement.Dashboard != c.dashboard || placement.Abilities != c.want {
 			t.Errorf("%s: dashboard %v, abilities %+v, err %v; want %v, %+v, %v", c.name, placement.Dashboard, placement.Abilities, err, c.dashboard, c.want, c.err)
 		}
 	}
-	if _, err := r.service.Access(t.Context(), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
+	if _, err := r.service.Access(reading(t.Context()), editor, pgtype.UUID{Bytes: [16]byte{15: 9}, Valid: true}); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a missing finding: %v", err)
 	}
 }

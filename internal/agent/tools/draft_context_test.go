@@ -20,11 +20,11 @@ var draftRange = datasource.TimeRange{From: time.Date(2026, 11, 6, 10, 0, 0, 0, 
 func contextFor(t *testing.T, ds *fakeDS, signal string) (draftFacts, error) {
 	t.Helper()
 	r := draftRegistry(t, nil, map[string]*fakeDS{"ds": ds})
-	inst, ok := r.deps.Datasources.Get("ds")
+	inst, ok := registered(t, r.deps.Datasources, "ds")
 	if !ok {
 		t.Fatal("no datasource")
 	}
-	return r.draftContext(context.Background(), inst, signal, draftRange, "")
+	return r.draftContext(reading(context.Background()), inst, signal, draftRange, "")
 }
 
 func valueRequests(ds *fakeDS) []datasource.DiscoverRequest {
@@ -261,8 +261,8 @@ func searchRegistry(t *testing.T, provider llm.Provider, ds datasource.Datasourc
 func searchFacts(t *testing.T, ds datasource.Datasource) (draftFacts, error) {
 	t.Helper()
 	r := searchRegistry(t, nil, ds)
-	inst, _ := r.deps.Datasources.Get("es")
-	return r.draftContext(context.Background(), inst, signalLogs, draftRange, "")
+	inst, _ := registered(t, r.deps.Datasources, "es")
+	return r.draftContext(reading(context.Background()), inst, signalLogs, draftRange, "")
 }
 
 func TestDraftContextSearchListsFieldsWithKindsAndTheRoleValues(t *testing.T) {

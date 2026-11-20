@@ -39,22 +39,18 @@ func (r *Registry) getSpecGuide(ctx context.Context, input json.RawMessage) (Res
 		return success("Read the Spec schema", schemaOut{Schema: json.RawMessage(prompts.Schema())}), nil
 	}
 	return success("Read the Spec guide", guideOut{
-		Guide:   prompts.GuideFor(configuredTypes(r.deps.Datasources)),
+		Guide:   prompts.GuideFor(configuredTypes(ctx, r.deps.Datasources)),
 		Schema:  json.RawMessage(prompts.Schema()),
 		Example: json.RawMessage(examples.CheckoutServiceHealth),
 	}), nil
 }
 
-func (r *Registry) DatasourceTypes() []spec.DatasourceType {
-	return configuredTypes(r.deps.Datasources)
-}
-
-func configuredTypes(reg *datasource.Registry) []spec.DatasourceType {
+func configuredTypes(ctx context.Context, reg *datasource.Registry) []spec.DatasourceType {
 	if reg == nil {
 		return nil
 	}
 	var types []spec.DatasourceType
-	for _, inst := range reg.List() {
+	for _, inst := range reg.Visible(ctx) {
 		if t := typeOf(inst); !slices.Contains(types, t) {
 			types = append(types, t)
 		}

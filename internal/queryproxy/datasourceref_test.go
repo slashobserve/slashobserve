@@ -74,7 +74,7 @@ func TestPanelRunsOnTheSelectedDatasource(t *testing.T) {
 			prom, prom2, ch := newFake("prometheus"), newFake("prometheus"), newFake("clickhouse")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom, "prom2": prom2, "ch": ch})
 			d := dashboardOf([]spec.Panel{tt.panel}, tt.variable)
-			_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection})
+			_, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: tt.selection})
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("RunPanel error = %v, want %v", err, tt.wantErr)
 			}
@@ -106,7 +106,7 @@ func TestQueryVariableOnADatasourceVariableCachesPerSelectedDatasource(t *testin
 	d := refDashboard(nil, queryVariable("q", "${ds}", "label_values(job)"))
 	for range 2 {
 		for uid, want := range map[string][]string{"prom": {"from-prom"}, "prom2": {"from-prom2"}} {
-			got, _, err := valueStrings(runner.VariableValues(t.Context(), d, "q", testRange(), map[string]Selection{"ds": {Values: []string{uid}}}, datasource.QueryUser{}))
+			got, _, err := valueStrings(runner.VariableValues(reading(t.Context()), d, "q", testRange(), map[string]Selection{"ds": {Values: []string{uid}}}, datasource.QueryUser{}))
 			if err != nil || !reflect.DeepEqual(got, want) {
 				t.Fatalf("VariableValues with ds=%s = %q, %v, want %q", uid, got, err, want)
 			}
@@ -136,7 +136,7 @@ func TestCheckSpecWithADatasourceVariable(t *testing.T) {
 				prom, prom2 := newFake("prometheus"), newFake("prometheus")
 				runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom, "prom2": prom2})
 				d := dashboardOf([]spec.Panel{refPanel("${ds}")}, tt.variable)
-				issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+				issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 				if err != nil || issues != nil {
 					t.Fatalf("CheckSpec = %+v, %v, want no issues", issues, err)
 				}
@@ -154,7 +154,7 @@ func TestCheckSpecWithADatasourceVariable(t *testing.T) {
 		ch := newFake("clickhouse")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": ch})
 		d := refDashboard([]spec.Panel{refPanel("${ds}")}, queryVariable("q", "${ds}", "label_values(job)"))
-		issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+		issues, err := runner.CheckSpec(reading(t.Context()), d, testNow, datasource.QueryUser{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -172,7 +172,7 @@ func TestCheckSpecWithADatasourceVariable(t *testing.T) {
 		prom := newFake("prometheus")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
 		panel := panelOf("p1", spec.Table, "${ds}", "up[$__timeFilter(ts)]")
-		issues, err := runner.CheckSpec(t.Context(), refDashboard([]spec.Panel{panel}), testNow, datasource.QueryUser{})
+		issues, err := runner.CheckSpec(reading(t.Context()), refDashboard([]spec.Panel{panel}), testNow, datasource.QueryUser{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -203,7 +203,7 @@ func TestAdhocFiltersFollowTheResolvedDatasource(t *testing.T) {
 			runner := newTestRunner(t, discardLogger(), fakes)
 			d := refDashboard([]spec.Panel{refPanel(tt.panelOn)}, adhocVariable("f", tt.adhocOn))
 			selections := map[string]Selection{"ds": {Values: []string{tt.selected}}, "f": {Values: []string{"job|=|api"}}}
-			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+			if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
 			}
 			calls := fakes[tt.ranOn].callsTo("instant")

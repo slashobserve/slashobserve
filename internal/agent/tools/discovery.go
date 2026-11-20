@@ -87,7 +87,7 @@ func (r *Registry) recheckDatasource(ctx context.Context, input json.RawMessage)
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}
@@ -102,12 +102,12 @@ func (r *Registry) recheckDatasource(ctx context.Context, input json.RawMessage)
 	return success(summary, datasourceStatusOut(status)), nil
 }
 
-func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
+func (r *Registry) instance(ctx context.Context, uid string) (datasource.Instance, Result, bool) {
 	if uid == "" {
 		return datasource.Instance{}, invalid("datasource is required; call list_datasources"), false
 	}
-	inst, ok := r.deps.Datasources.Get(uid)
-	if !ok {
+	inst, err := r.deps.Datasources.For(ctx, uid)
+	if err != nil {
 		code := string(queryproxy.CodeUnknownDatasource)
 		return datasource.Instance{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(uid, maxStepNameBytes))), false
 	}
@@ -149,7 +149,7 @@ func searchName(t spec.DatasourceType) string {
 }
 
 func (r *Registry) discover(ctx context.Context, uid string, req datasource.DiscoverRequest, failStep string) (*datasource.Catalog, Result, bool, error) {
-	inst, res, ok := r.instance(uid)
+	inst, res, ok := r.instance(ctx, uid)
 	if !ok {
 		return nil, res, false, nil
 	}
@@ -324,7 +324,7 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	if in.Scope != "" {
 		return r.listInventory(ctx, in, offset)
 	}
-	if inst, found := r.deps.Datasources.Get(in.Datasource); found && !holdsMetrics(typeOf(inst)) {
+	if inst, err := r.deps.Datasources.For(ctx, in.Datasource); err == nil && !holdsMetrics(typeOf(inst)) {
 		return invalid("list_metrics works on Prometheus and ClickHouse datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
@@ -378,7 +378,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	if !ok || err != nil {
 		return res, err
 	}
-	if inst, ok := r.deps.Datasources.Get(names.Datasource); !ok || !isLogStore(typeOf(inst)) {
+	if inst, err := r.deps.Datasources.For(ctx, names.Datasource); err != nil || !isLogStore(typeOf(inst)) {
 		inventories.put(ctx, names.Families)
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
@@ -588,7 +588,7 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	if !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}
@@ -696,7 +696,7 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	if res, ok := checkLength("table", in.Table, maxNameBytes); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}

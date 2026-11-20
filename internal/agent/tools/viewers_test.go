@@ -14,7 +14,7 @@ func TestListDashboardViewersNamesTheOtherPeopleLookingAndHonoursFolderAccess(t 
 	bo := r.person(t, "bo", auth.RoleViewer)
 	service := viewers.New(r.db.DB)
 	for _, p := range []auth.Principal{ada, bo} {
-		if err := service.Record(t.Context(), p, boards.open); err != nil {
+		if err := service.Record(reading(t.Context()), p, boards.open); err != nil {
 			t.Fatal(err)
 		}
 	}

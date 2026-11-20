@@ -174,7 +174,7 @@ func (s *Service) Preview(ctx context.Context, by auth.Principal, req Request) (
 	return s.PreviewFrom(ctx, by, fixed(req))
 }
 
-func (s *Service) PreviewFrom(_ context.Context, by auth.Principal, load LoadFunc) (*grafana.Result, error) {
+func (s *Service) PreviewFrom(ctx context.Context, by auth.Principal, load LoadFunc) (*grafana.Result, error) {
 	release, ok := s.previewSlots.acquire(principalKey(by))
 	if !ok {
 		return nil, ErrBusy
@@ -187,7 +187,7 @@ func (s *Service) PreviewFrom(_ context.Context, by auth.Principal, load LoadFun
 	if err := checkLimits(req); err != nil {
 		return nil, err
 	}
-	return grafana.Convert(req.JSON, s.options(req))
+	return grafana.Convert(req.JSON, s.options(ctx, req))
 }
 
 func (s *Service) ExistingFor(ctx context.Context, by auth.Principal, uid string) (*Existing, error) {
@@ -246,7 +246,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		return s.update(ctx, by, req.Update, req)
 	}
 
-	result, err := grafana.Convert(req.JSON, s.options(req))
+	result, err := grafana.Convert(req.JSON, s.options(ctx, req))
 	if err != nil {
 		return Imported{}, err
 	}
@@ -401,7 +401,7 @@ func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgt
 }
 
 func (s *Service) reimport(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, req Request, wantUID string) (Imported, error) {
-	result, err := grafana.Convert(req.JSON, s.options(req))
+	result, err := grafana.Convert(req.JSON, s.options(ctx, req))
 	if err != nil {
 		return Imported{}, err
 	}
@@ -613,12 +613,12 @@ func (s *Service) ForDashboard(ctx context.Context, dashboardID pgtype.UUID) (Re
 	return record, nil
 }
 
-func (s *Service) options(req Request) grafana.Options {
-	return grafana.Options{Datasources: s.Datasources(), Mapping: req.Mapping}
+func (s *Service) options(ctx context.Context, req Request) grafana.Options {
+	return grafana.Options{Datasources: s.Datasources(ctx), Mapping: req.Mapping}
 }
 
-func (s *Service) Datasources() []grafana.Datasource {
-	list := s.registry.List()
+func (s *Service) Datasources(ctx context.Context) []grafana.Datasource {
+	list := s.registry.Visible(ctx)
 	ours := make([]grafana.Datasource, len(list))
 	for i, in := range list {
 		ours[i] = grafana.Datasource{UID: in.UID, Type: in.Datasource.Type(), Aliases: in.GrafanaUIDs}
@@ -626,12 +626,12 @@ func (s *Service) Datasources() []grafana.Datasource {
 	return ours
 }
 
-func (s *Service) MappingFor(raw []byte, shared map[string]string) map[string]string {
+func (s *Service) MappingFor(ctx context.Context, raw []byte, shared map[string]string) map[string]string {
 	used := map[string]string{}
 	if len(shared) == 0 {
 		return used
 	}
-	result, err := grafana.Convert(raw, grafana.Options{Datasources: s.Datasources()})
+	result, err := grafana.Convert(raw, grafana.Options{Datasources: s.Datasources(ctx)})
 	if err != nil {
 		return used
 	}

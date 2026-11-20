@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
@@ -46,7 +47,7 @@ func newRouter(svc *imports.Service, access *folders.Access) *gin.Engine {
 		if n, err := strconv.Atoi(c.GetHeader(principalHeader)); err == nil {
 			who = principal(n)
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})))
 	return r
 }
@@ -187,14 +188,14 @@ func TestPreviewsDoNotTakeImportSlots(t *testing.T) {
 
 func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testing.T) {
 	r := newRig(t)
-	row, err := r.queue.SubmitObserve(t.Context(), ada, "build it")
+	row, err := r.queue.SubmitObserve(reading(t.Context()), ada, "build it")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create", row.ID); err != nil {
+	if _, _, _, err := r.dashboard.CreateRequestDashboard(reading(t.Context()), ada, pgtype.UUID{}, specWith("up"), "create", row.ID); err != nil {
 		t.Fatal(err)
 	}
-	replayed, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	replayed, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
 	if err != nil || !replayed.Replayed || replayed.Record.ID != "" {
 		t.Fatalf("replayed %t, record %+v, err %v", replayed.Replayed, replayed.Record, err)
 	}

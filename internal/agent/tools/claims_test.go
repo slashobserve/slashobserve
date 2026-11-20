@@ -264,7 +264,7 @@ func TestOnlyTheFourClaimToolsAreClaimTools(t *testing.T) {
 
 func TestCallClaimServesOnlyClaimToolsAndNeedsNoPrincipal(t *testing.T) {
 	deps := Deps{Claims: &fakeClaims{offer: claims.Offer{RetryAfterSeconds: 5}}}
-	ctx := claims.WithClaimer(t.Context(), claims.Claimer{Kind: revisions.AssignBuiltin, ID: "server-1"})
+	ctx := claims.WithClaimer(reading(t.Context()), claims.Claimer{Kind: revisions.AssignBuiltin, ID: "server-1"})
 	r := New(deps)
 
 	res, err := r.CallClaim(ctx, nameClaimRun, []byte(`{"wait_seconds":0}`))

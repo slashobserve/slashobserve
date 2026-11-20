@@ -60,6 +60,7 @@ type checkResult struct {
 }
 
 func (s *Service) Run(ctx context.Context) error {
+	ctx = datasource.WithAccess(ctx, datasource.Access{System: true})
 	budget, cancel := context.WithTimeout(ctx, runBudget)
 	defer cancel()
 	started := time.Now()

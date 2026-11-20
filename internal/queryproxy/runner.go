@@ -557,7 +557,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	}
 	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User, TimeZone: namedTimeZone(req.Dashboard), Explore: req.Explore}
 	if applies := implicitScope(inst.Datasource.Type(), use); applies != nil {
-		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
+		if dq.Filters, err = r.implicitFilters(ctx, st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
 			return nil, err
 		}
 	}
@@ -604,10 +604,13 @@ func invalidRangeError(err error) error {
 	return fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
 }
 
-func (r *Runner) instance(uid string) (datasource.Instance, error) {
-	inst, ok := r.reg.Get(uid)
-	if !ok {
-		return datasource.Instance{}, fmt.Errorf("%w: %q", ErrUnknownDatasource, uid)
+func (r *Runner) instance(ctx context.Context, uid string) (datasource.Instance, error) {
+	inst, err := r.reg.For(ctx, uid)
+	if errors.Is(err, datasource.ErrNoAccess) {
+		return datasource.Instance{}, err
+	}
+	if err != nil {
+		return datasource.Instance{}, fmt.Errorf("%w: %q: %w", ErrUnknownDatasource, uid, err)
 	}
 	return inst, nil
 }

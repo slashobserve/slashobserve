@@ -52,7 +52,7 @@ func (r *rig) seedList(t *testing.T) map[string]string {
 	}
 	ids := map[string]string{}
 	for _, s := range seeds {
-		dash, _, err := r.service.Create(origin.With(t.Context(), s.from), s.by, pgtype.UUID{}, specWithDatasources(s.title, s.desc, s.uids...), "create")
+		dash, _, err := r.service.Create(origin.With(reading(t.Context()), s.from), s.by, pgtype.UUID{}, specWithDatasources(s.title, s.desc, s.uids...), "create")
 		if err != nil {
 			t.Fatalf("create %s: %v", s.title, err)
 		}
@@ -110,7 +110,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 				}
 				params.MadeBy = parsed
 			}
-			page, err := r.service.List(t.Context(), testUser, params)
+			page, err := r.service.List(reading(t.Context()), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,7 +122,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 			}
 
 			params.Limit = 1
-			paged, err := r.service.List(t.Context(), testUser, params)
+			paged, err := r.service.List(reading(t.Context()), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -134,7 +134,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 			}
 
 			params.SkipTotal = true
-			skipped, err := r.service.List(t.Context(), testUser, params)
+			skipped, err := r.service.List(reading(t.Context()), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -160,7 +160,7 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 		"Fleet":    {"demo"},
 		"Untagged": nil,
 	} {
-		if _, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, taggedSpec(title, tags...), "create"); err != nil {
+		if _, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, taggedSpec(title, tags...), "create"); err != nil {
 			t.Fatalf("create %s: %v", title, err)
 		}
 	}
@@ -177,7 +177,7 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, Tags: tt.tags})
+			page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, Tags: tt.tags})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,11 +194,11 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 func TestListTotalCountIgnoresTheCursor(t *testing.T) {
 	r := newRig(t, false)
 	r.seedList(t)
-	first, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2})
+	first, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: first.NextCursor})
+	second, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Cursor: first.NextCursor})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,13 +220,13 @@ func TestListOffsetWalksTheSameOrder(t *testing.T) {
 	r.seedList(t)
 	for _, byFolder := range []bool{false, true} {
 		t.Run(fmt.Sprintf("by folder %v", byFolder), func(t *testing.T) {
-			whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 5, ByFolder: byFolder})
+			whole, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 5, ByFolder: byFolder})
 			if err != nil {
 				t.Fatal(err)
 			}
 			var walked []string
 			for _, offset := range []int{0, 2, 4} {
-				page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByFolder: byFolder})
+				page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Offset: offset, ByFolder: byFolder})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -238,7 +238,7 @@ func TestListOffsetWalksTheSameOrder(t *testing.T) {
 			if want := itemIDs(whole.Items); !slices.Equal(walked, want) {
 				t.Errorf("offset pages = %v, want %v", walked, want)
 			}
-			past, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: 5, ByFolder: byFolder})
+			past, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Offset: 5, ByFolder: byFolder})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -252,7 +252,7 @@ func TestListOffsetWalksTheSameOrder(t *testing.T) {
 func TestListReportsDatasourcesAndCreator(t *testing.T) {
 	r := newRig(t, false)
 	ids := r.seedList(t)
-	page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
+	page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestListCountsOnlyOpenThreads(t *testing.T) {
 	r.insertThread(t, busy, "resolved")
 
 	count := func() map[string]int {
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -307,7 +307,7 @@ func TestListCountsOnlyOpenThreads(t *testing.T) {
 
 func (r *rig) insertThread(t *testing.T, dash pgtype.UUID, status string) {
 	t.Helper()
-	_, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO threads (dashboard_id, dashboard_version, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name)
+	_, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `INSERT INTO threads (dashboard_id, dashboard_version, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name)
 VALUES ($1, 1, $2, CASE WHEN $2 = 'resolved' THEN now() END, CASE WHEN $2 = 'resolved' THEN 'user' END, CASE WHEN $2 = 'resolved' THEN gen_random_uuid() END, CASE WHEN $2 = 'resolved' THEN 'x' END)`, dash, status)
 	if err != nil {
 		t.Fatal(err)
@@ -358,7 +358,7 @@ func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, MadeBy: parsed})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, MadeBy: parsed})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -370,13 +370,13 @@ func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 
 func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 	r := newRig(t, false)
-	dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, specWithDatasources("Usage", "", "prom"), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, specWithDatasources("Usage", "", "prom"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
 	check := func(label string, want map[string]int) {
 		t.Helper()
-		usage, err := r.service.DatasourceUsage(t.Context(), testUser)
+		usage, err := r.service.DatasourceUsage(reading(t.Context()), testUser)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -384,7 +384,7 @@ func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 			if usage[uid] != want[uid] {
 				t.Errorf("%s: usage[%s] = %d, want %d", label, uid, usage[uid], want[uid])
 			}
-			page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 1, Datasource: uid})
+			page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 1, Datasource: uid})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -395,7 +395,7 @@ func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 	}
 	check("first version", map[string]int{"prom": 1})
 
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, mustParse(t, dash.ID), 1, specWithDatasources("Usage", "", "ch"), "switch"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, mustParse(t, dash.ID), 1, specWithDatasources("Usage", "", "ch"), "switch"); err != nil {
 		t.Fatal(err)
 	}
 	check("second version", map[string]int{"ch": 1})
@@ -409,11 +409,11 @@ func (r *rig) recordCheck(t *testing.T, id, kind string) {
 
 func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
 	r := newRig(t, false)
-	other, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Other"})
+	other, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Other"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	elsewhere, _, err := r.service.Create(t.Context(), testUser, other.ID, specWithDatasources("Elsewhere", "", "prom"), "create")
+	elsewhere, _, err := r.service.Create(reading(t.Context()), testUser, other.ID, specWithDatasources("Elsewhere", "", "prom"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +442,7 @@ func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
 				if byFolder {
 					want = tt.byFolder
 				}
-				page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, Problem: tt.problem, ByFolder: byFolder})
+				page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, Problem: tt.problem, ByFolder: byFolder})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -460,7 +460,7 @@ func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
 
 func (r *rig) viewDays(t *testing.T, dashboardID string, subject string, daysAgo ...int) {
 	t.Helper()
-	user, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "views", OidcSubject: subject, Email: subject + "@example.com", Name: subject})
+	user, err := r.db.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "views", OidcSubject: subject, Email: subject + "@example.com", Name: subject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +478,7 @@ func TestListByViewsSortsByPersonDaysInTheWindow(t *testing.T) {
 	r.viewDays(t, ids["Queues"], "ann", 5)
 	r.viewDays(t, ids["Nodes"], "ann", 30, 90)
 
-	whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, ByViews: true})
+	whole, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, ByViews: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -499,7 +499,7 @@ func TestListByViewsSortsByPersonDaysInTheWindow(t *testing.T) {
 	var walked []string
 	cursor := ""
 	for range 5 {
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: cursor, ByViews: true, SkipTotal: true})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Cursor: cursor, ByViews: true, SkipTotal: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -515,7 +515,7 @@ func TestListByViewsSortsByPersonDaysInTheWindow(t *testing.T) {
 
 	var offsets []string
 	for _, offset := range []int{0, 2, 4} {
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByViews: true})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Offset: offset, ByViews: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -532,31 +532,31 @@ func TestListByViewsSortsByPersonDaysInTheWindow(t *testing.T) {
 func TestListRejectsACursorFromAnotherOrder(t *testing.T) {
 	r := newRig(t, false)
 	r.seedList(t)
-	recent, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2})
+	recent, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	byViews, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByViews: true})
+	byViews, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, ByViews: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByViews: true, Cursor: recent.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, ByViews: true, Cursor: recent.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a recency cursor under order views: %v, want ErrInvalidCursor", err)
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a views cursor under order updated: %v, want ErrInvalidCursor", err)
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByFolder: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, ByFolder: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a views cursor under order folder: %v, want ErrInvalidCursor", err)
 	}
-	byName, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true})
+	byName, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, ByName: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: byName.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Cursor: byName.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a name cursor under order updated: %v, want ErrInvalidCursor", err)
 	}
-	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, ByName: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a views cursor under order name: %v, want ErrInvalidCursor", err)
 	}
 }
@@ -565,7 +565,7 @@ func TestListByNameSortsByLowerCaseTitleAcrossFolders(t *testing.T) {
 	r := newRig(t, false)
 	r.seedList(t)
 
-	whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, ByName: true})
+	whole, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, ByName: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -582,7 +582,7 @@ func TestListByNameSortsByLowerCaseTitleAcrossFolders(t *testing.T) {
 	var walked []string
 	cursor := ""
 	for range 5 {
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: cursor, ByName: true, SkipTotal: true})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Cursor: cursor, ByName: true, SkipTotal: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -598,7 +598,7 @@ func TestListByNameSortsByLowerCaseTitleAcrossFolders(t *testing.T) {
 
 	var offsets []string
 	for _, offset := range []int{0, 2, 4} {
-		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByName: true})
+		page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 2, Offset: offset, ByName: true})
 		if err != nil {
 			t.Fatal(err)
 		}

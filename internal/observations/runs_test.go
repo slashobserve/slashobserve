@@ -22,7 +22,7 @@ const evidencePanel = `{"type":"timeseries","title":"Rate","datasource":"prom","
 
 func (r rig) dashboardIn(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	d, err := r.db.Queries().CreateDashboard(t.Context(), dbsqlc.CreateDashboardParams{
+	d, err := r.db.Queries().CreateDashboard(reading(t.Context()), dbsqlc.CreateDashboardParams{
 		Title: "Checkout", Tags: []string{}, CreatedByKind: string(editor.Kind), CreatedByID: mustUUID(t, editor.ID), CreatedByName: editor.Name,
 		CreatedVia: "direct", FolderID: folder,
 	})
@@ -44,7 +44,7 @@ func (r rig) run(t *testing.T, by auth.Principal, dashboard pgtype.UUID, prompt 
 	if to != nil {
 		params.ContextTo = pgtype.Timestamptz{Time: *to, Valid: true}
 	}
-	row, err := r.db.Queries().EnqueueInvestigateRequest(t.Context(), params)
+	row, err := r.db.Queries().EnqueueInvestigateRequest(reading(t.Context()), params)
 	if err != nil {
 		t.Fatalf("enqueue investigation: %v", err)
 	}
@@ -54,9 +54,9 @@ func (r rig) run(t *testing.T, by auth.Principal, dashboard pgtype.UUID, prompt 
 func (r rig) openForRun(t *testing.T, in observations.RunOpen) (pgtype.UUID, error) {
 	t.Helper()
 	var id pgtype.UUID
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		id, err = r.service.OpenForRun(t.Context(), q, in)
+		id, err = r.service.OpenForRun(reading(t.Context()), q, in)
 		return err
 	})
 	return id, err
@@ -71,7 +71,7 @@ func (r rig) mustOpenForRun(t *testing.T, in observations.RunOpen) observations.
 	if !id.Valid {
 		t.Fatal("no observation was opened")
 	}
-	o, err := r.service.Get(t.Context(), in.By, id)
+	o, err := r.service.Get(reading(t.Context()), in.By, id)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestAKeyThatCannotEditAnyFolderGetsNoObservation(t *testing.T) {
 		t.Errorf("a key that cannot edit General got %v, %v", id, err)
 	}
 	var count int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM observations`).Scan(&count); err != nil || count != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observations`).Scan(&count); err != nil || count != 0 {
 		t.Errorf("observations: %d, %v", count, err)
 	}
 
@@ -289,7 +289,7 @@ func TestRecordingARunsResultWritesTextAndPanelsAndCitesThem(t *testing.T) {
 	if id, created, err := r.conclude(t, editor, recordInput(t, run, evidencePanel, evidencePanel)); err != nil || created || id.String() != o.ID {
 		t.Fatalf("conclusion: %v, created %v, %v", id, created, err)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,7 +338,7 @@ func TestRecordingARunsResultTwiceWritesOnce(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil || len(got.Blocks) != 3 {
 		t.Errorf("blocks %d, %v", len(got.Blocks), err)
 	}
@@ -354,7 +354,7 @@ func TestARequesterWhoLostEditGetsRequestedBlocks(t *testing.T) {
 	if _, _, err := r.conclude(t, demoted, recordInput(t, run, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestAnInvalidEvidencePanelIsSkippedAndTheRestIsKept(t *testing.T) {
 	if _, _, err := r.conclude(t, editor, recordInput(t, run, notAPanel, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil || len(got.Blocks) != 3 || got.Blocks[2].Kind != observations.KindPanel || len(cites(t, got.Blocks[0])) != 2 {
 		t.Errorf("blocks %+v, %v", got.Blocks, err)
 	}
@@ -403,7 +403,7 @@ func TestEvidenceStopsAtThePanelLimit(t *testing.T) {
 	if _, _, err := r.conclude(t, editor, recordInput(t, run, evidencePanel, evidencePanel, evidencePanel)); err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatal(err)
 	}

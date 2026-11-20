@@ -21,7 +21,7 @@ func TestAnAnswerToAQuestionStaysOnTheRunAndMakesNoObservation(t *testing.T) {
 	if n := r.count(t, `SELECT count(*) FROM observations`); n != 0 {
 		t.Fatalf("%d observations after a plain answer", n)
 	}
-	if run, err := r.db.Queries().GetAgentRequestByID(t.Context(), request); err != nil || run.ObservationID.Valid {
+	if run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), request); err != nil || run.ObservationID.Valid {
 		t.Fatalf("run observation %v, %v", run.ObservationID, err)
 	}
 	if n := r.count(t, `SELECT count(*) FROM activity WHERE type = 'finding.created'`); n != 0 {
@@ -45,10 +45,10 @@ func TestAnUnsavedAnswerReachesOnlyTheRequesterAndAdmins(t *testing.T) {
 		{"a Viewer", viewer, false},
 	}
 	for _, c := range cases {
-		if _, found, err := r.service.ForRequest(t.Context(), c.who, request); err != nil || found != c.want {
+		if _, found, err := r.service.ForRequest(reading(t.Context()), c.who, request); err != nil || found != c.want {
 			t.Errorf("%s: found %v, err %v, want found %v", c.name, found, err, c.want)
 		}
-		got, getErr := r.service.Get(t.Context(), c.who, mustUUID(t, saved.ID))
+		got, getErr := r.service.Get(reading(t.Context()), c.who, mustUUID(t, saved.ID))
 		if (getErr == nil) != c.want {
 			t.Errorf("%s: get err %v, want readable %v", c.name, getErr, c.want)
 		}
@@ -65,7 +65,7 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 	request := r.request(t, editor, r.open)
 	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: "Checkout errors by pod"})
 
-	first, replayed, err := r.service.SaveAsObservation(t.Context(), editor, request)
+	first, replayed, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
 	if err != nil || replayed || !first.Saved() || first.ID != answer.ID {
 		t.Fatalf("first save: %+v replayed %v, %v", first, replayed, err)
 	}
@@ -75,12 +75,12 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 	if n := r.count(t, `SELECT count(*) FROM observation_blocks WHERE observation_id = $1::uuid AND kind = 'text' AND run_id = $2`, first.ObservationID, request); n != 1 {
 		t.Fatalf("text blocks of the saved answer: %d", n)
 	}
-	run, err := r.db.Queries().GetAgentRequestByID(t.Context(), request)
+	run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), request)
 	if err != nil || run.ObservationID.String() != first.ObservationID {
 		t.Fatalf("run observation %v, want %s, %v", run.ObservationID, first.ObservationID, err)
 	}
 
-	again, replayed, err := r.service.SaveAsObservation(t.Context(), editor, request)
+	again, replayed, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
 	if err != nil || !replayed || again.ObservationID != first.ObservationID {
 		t.Fatalf("repeat: %+v replayed %v, %v", again, replayed, err)
 	}
@@ -94,13 +94,13 @@ func TestOnlyTheRequesterSavesAnAnswerAsAnObservation(t *testing.T) {
 	request := r.request(t, editor, pgtype.UUID{})
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request})
 
-	if _, _, err := r.service.SaveAsObservation(t.Context(), admin, request); !errors.Is(err, findings.ErrRequesterOnly) {
+	if _, _, err := r.service.SaveAsObservation(reading(t.Context()), admin, request); !errors.Is(err, findings.ErrRequesterOnly) {
 		t.Errorf("an Admin: %v, want ErrRequesterOnly", err)
 	}
-	if _, _, err := r.service.SaveAsObservation(t.Context(), otherEditor, request); !errors.Is(err, findings.ErrNotFound) {
+	if _, _, err := r.service.SaveAsObservation(reading(t.Context()), otherEditor, request); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("another Editor: %v, want ErrNotFound", err)
 	}
-	if _, _, err := r.service.SaveAsObservation(t.Context(), editor, r.request(t, editor, pgtype.UUID{})); !errors.Is(err, findings.ErrNotFound) {
+	if _, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, r.request(t, editor, pgtype.UUID{})); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a run without an answer: %v, want ErrNotFound", err)
 	}
 	if n := r.count(t, `SELECT count(*) FROM observations`); n != 0 {
@@ -113,13 +113,13 @@ func TestAnUnsavedAnswerCannotBePinnedButCanBecomeADashboard(t *testing.T) {
 	request := r.request(t, editor, r.open)
 	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
 
-	if _, _, err := r.service.Pin(t.Context(), editor, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotSaved) {
+	if _, _, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotSaved) {
 		t.Fatalf("pin: %v, want ErrNotSaved", err)
 	}
-	if _, _, err := r.service.SaveAsObservation(t.Context(), editor, request); err != nil {
+	if _, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, request); err != nil {
 		t.Fatal(err)
 	}
-	if _, created, err := r.service.Pin(t.Context(), editor, mustUUID(t, answer.ID)); err != nil || !created {
+	if _, created, err := r.service.Pin(reading(t.Context()), editor, mustUUID(t, answer.ID)); err != nil || !created {
 		t.Fatalf("pin after saving: created %v, %v", created, err)
 	}
 }
@@ -131,13 +131,13 @@ func TestAnUnsavedAnswerOnADashboardFollowsWhoCanStillSeeThatDashboard(t *testin
 	onPrivate := r.request(t, editor, private)
 	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: onPrivate, DashboardID: private})
 
-	if _, err := r.service.Get(t.Context(), admin, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotFound) {
+	if _, err := r.service.Get(reading(t.Context()), admin, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("an Admin reads an answer on a dashboard in someone's My Dashboards: %v, want ErrNotFound", err)
 	}
-	if _, found, err := r.service.ForRequest(t.Context(), admin, onPrivate); err != nil || found {
+	if _, found, err := r.service.ForRequest(reading(t.Context()), admin, onPrivate); err != nil || found {
 		t.Errorf("an Admin finds the answer of the run: found %v, %v", found, err)
 	}
-	if _, err := r.service.Get(t.Context(), editor, mustUUID(t, answer.ID)); err != nil {
+	if _, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, answer.ID)); err != nil {
 		t.Errorf("the requester: %v", err)
 	}
 
@@ -146,7 +146,7 @@ func TestAnUnsavedAnswerOnADashboardFollowsWhoCanStillSeeThatDashboard(t *testin
 	restricted := r.folder(t, "Restricted")
 	r.db.Exec(t, `INSERT INTO folder_permissions (folder_id, group_name, level) VALUES ($1, 'sre', 'view')`, restricted)
 	r.db.Exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, r.open, restricted)
-	if _, err := r.service.Get(t.Context(), editor, mustUUID(t, onShared.ID)); !errors.Is(err, findings.ErrNotFound) {
+	if _, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, onShared.ID)); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("the requester who lost the dashboard reads its answer: %v, want ErrNotFound", err)
 	}
 }
@@ -156,7 +156,7 @@ func TestDeletingARunTakesItsUnsavedAnswerWithIt(t *testing.T) {
 	request := r.request(t, editor, r.open)
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request})
 
-	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `DELETE FROM dashboards WHERE id = $1`, r.open); err != nil {
+	if _, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `DELETE FROM dashboards WHERE id = $1`, r.open); err != nil {
 		t.Fatalf("delete the dashboard the run was asked on: %v", err)
 	}
 	if n := r.count(t, `SELECT count(*) FROM findings`); n != 0 {

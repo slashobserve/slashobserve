@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
@@ -21,19 +22,19 @@ func TestAnAuthorDeletesTheirOwnReplyAndNobodyElsesButAManager(t *testing.T) {
 	_, mine := r.reply(t, commenter, thread.ID, "mine")
 	_, other := r.reply(t, commenter, thread.ID, "mistake")
 
-	if err := r.service.Delete(t.Context(), testUser, mustParse(t, mine.ID)); !errors.Is(err, ErrCannotDelete) {
+	if err := r.service.Delete(reading(t.Context()), testUser, mustParse(t, mine.ID)); !errors.Is(err, ErrCannotDelete) {
 		t.Fatalf("an editor deleting a commenter's reply: err = %v, want ErrCannotDelete", err)
 	}
-	if err := r.service.Delete(t.Context(), viewer, mustParse(t, mine.ID)); !errors.Is(err, ErrTargetNotFound) && !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.Delete(reading(t.Context()), viewer, mustParse(t, mine.ID)); !errors.Is(err, ErrTargetNotFound) && !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a viewer: err = %v, want a refusal", err)
 	}
-	if err := r.service.Delete(t.Context(), commenter, mustParse(t, other.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), commenter, mustParse(t, other.ID)); err != nil {
 		t.Fatalf("the author deleting their reply: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), admin, mustParse(t, mine.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, mustParse(t, mine.ID)); err != nil {
 		t.Fatalf("a manager deleting a reply: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), admin, mustParse(t, other.ID)); !errors.Is(err, ErrNotFound) {
+	if err := r.service.Delete(reading(t.Context()), admin, mustParse(t, other.ID)); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("deleting twice: err = %v, want ErrNotFound", err)
 	}
 
@@ -68,13 +69,13 @@ func TestDeletingTheFirstMessageDeletesTheThreadOnlyWhenNobodyElseWroteInIt(t *t
 			t.Fatalf("can_delete of %q = %v, want %v", m.Body, m.CanDelete, want[m.Body])
 		}
 	}
-	if err := r.service.Delete(t.Context(), testUser, mustParse(t, busyRoot.ID)); !errors.Is(err, ErrCannotDelete) {
+	if err := r.service.Delete(reading(t.Context()), testUser, mustParse(t, busyRoot.ID)); !errors.Is(err, ErrCannotDelete) {
 		t.Fatalf("a thread others wrote in: err = %v, want ErrCannotDelete", err)
 	}
-	if err := r.service.Delete(t.Context(), testUser, mustParse(t, aloneRoot.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), testUser, mustParse(t, aloneRoot.ID)); err != nil {
 		t.Fatalf("a thread only I wrote in: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), admin, mustParse(t, busyRoot.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, mustParse(t, busyRoot.ID)); err != nil {
 		t.Fatalf("a manager deleting a busy thread: %v", err)
 	}
 	if page := r.list(t, testUser, tg); len(page.Threads) != 0 || len(page.Messages) != 0 {
@@ -94,7 +95,7 @@ func TestOnlyAManagerDeletesAnAgentReply(t *testing.T) {
 	}
 	reply := r.runReplies(t, thread)[0]
 
-	if err := r.service.Delete(t.Context(), testUser, mustParse(t, reply.ID)); !errors.Is(err, ErrCannotDelete) {
+	if err := r.service.Delete(reading(t.Context()), testUser, mustParse(t, reply.ID)); !errors.Is(err, ErrCannotDelete) {
 		t.Fatalf("the requester deleting the agent's reply: err = %v, want ErrCannotDelete", err)
 	}
 	for _, m := range r.list(t, testUser, target(KindDashboard, dash)).Messages {
@@ -102,7 +103,7 @@ func TestOnlyAManagerDeletesAnAgentReply(t *testing.T) {
 			t.Fatalf("the agent reply is listed as deletable by its requester: %+v", m)
 		}
 	}
-	if err := r.service.Delete(t.Context(), admin, mustParse(t, reply.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, mustParse(t, reply.ID)); err != nil {
 		t.Fatalf("a manager: %v", err)
 	}
 }
@@ -130,7 +131,7 @@ func (r *rig) callStatus(t *testing.T, who auth.Principal, method, path string) 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})
 	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
 	rec := httptest.NewRecorder()

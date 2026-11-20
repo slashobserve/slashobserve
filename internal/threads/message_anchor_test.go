@@ -13,7 +13,7 @@ import (
 
 func (r *rig) addBlock(t *testing.T, observation pgtype.UUID) string {
 	t.Helper()
-	block, err := r.observations.AddBlock(t.Context(), testUser, observation, observations.BlockInput{Kind: observations.KindText, Body: []byte(`{"markdown":"p99 doubled"}`)})
+	block, err := r.observations.AddBlock(reading(t.Context()), testUser, observation, observations.BlockInput{Kind: observations.KindText, Body: []byte(`{"markdown":"p99 doubled"}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestAMessageAnchorsToABlockOfItsObservationAndKeepsTheMessageWhenTheBlockIs
 	if opened.BlockID != first {
 		t.Fatalf("opened on block %q, want %q", opened.BlockID, first)
 	}
-	_, reply, err := r.service.Reply(t.Context(), commenter, mustParse(t, thread.ID), ReplyInput{Body: "on the second", BlockID: &second}, nil)
+	_, reply, err := r.service.Reply(reading(t.Context()), commenter, mustParse(t, thread.ID), ReplyInput{Body: "on the second", BlockID: &second}, nil)
 	if err != nil || reply.BlockID != second {
 		t.Fatalf("reply on block %q, %v", reply.BlockID, err)
 	}
@@ -47,7 +47,7 @@ func TestAMessageAnchorsToABlockOfItsObservationAndKeepsTheMessageWhenTheBlockIs
 		t.Errorf("a reply with no block_id is about the whole observation, got %q", whole.BlockID)
 	}
 
-	if _, edited, _, err := r.service.Edit(t.Context(), testUser, mustParse(t, opened.ID), "still on the first"); err != nil || edited.BlockID != first {
+	if _, edited, _, err := r.service.Edit(reading(t.Context()), testUser, mustParse(t, opened.ID), "still on the first"); err != nil || edited.BlockID != first {
 		t.Errorf("an edit keeps the anchor: %q, %v", edited.BlockID, err)
 	}
 
@@ -85,7 +85,7 @@ func TestABlockOfAnotherObservationOrOnAnotherTargetIsRefused(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("open on "+tt.name, func(t *testing.T) {
-			_, _, err := r.service.Open(t.Context(), testUser, OpenInput{Target: tt.target, Body: "hi", BlockID: tt.block}, nil)
+			_, _, err := r.service.Open(reading(t.Context()), testUser, OpenInput{Target: tt.target, Body: "hi", BlockID: tt.block}, nil)
 			wantInvalid(t, err, CodeInvalidBlock)
 		})
 	}
@@ -103,7 +103,7 @@ func TestABlockOfAnotherObservationOrOnAnotherTargetIsRefused(t *testing.T) {
 	}
 	for _, tt := range replies {
 		t.Run("reply with "+tt.name, func(t *testing.T) {
-			_, _, err := r.service.Reply(t.Context(), testUser, mustParse(t, tt.thread), ReplyInput{Body: "hi", BlockID: tt.block}, nil)
+			_, _, err := r.service.Reply(reading(t.Context()), testUser, mustParse(t, tt.thread), ReplyInput{Body: "hi", BlockID: tt.block}, nil)
 			wantInvalid(t, err, CodeInvalidBlock)
 		})
 	}
@@ -120,7 +120,7 @@ func TestAReplyQuotesAMessageOfItsOwnThreadWithAnExcerptOfAtMost200Characters(t 
 	_, short := r.reply(t, commenter, thread.ID, "short one")
 
 	quoteFirst := first.ID
-	_, reply, err := r.service.Reply(t.Context(), commenter, mustParse(t, thread.ID), ReplyInput{Body: "agreed", ReplyToID: &quoteFirst}, nil)
+	_, reply, err := r.service.Reply(reading(t.Context()), commenter, mustParse(t, thread.ID), ReplyInput{Body: "agreed", ReplyToID: &quoteFirst}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestAReplyQuotesAMessageOfItsOwnThreadWithAnExcerptOfAtMost200Characters(t 
 		t.Fatalf("reply_to = %+v", reply.ReplyTo)
 	}
 	quoteShort := short.ID
-	_, second, err := r.service.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "thanks", ReplyToID: &quoteShort}, nil)
+	_, second, err := r.service.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "thanks", ReplyToID: &quoteShort}, nil)
 	if err != nil || second.ReplyTo == nil || second.ReplyTo.Excerpt != "short one" || second.ReplyTo.Author.Name != short.Author.Name {
 		t.Fatalf("second = %+v, %v", second.ReplyTo, err)
 	}
@@ -141,7 +141,7 @@ func TestAReplyQuotesAMessageOfItsOwnThreadWithAnExcerptOfAtMost200Characters(t 
 		t.Errorf("listed quotes = %+v", listed)
 	}
 
-	_, edited, _, err := r.service.Edit(t.Context(), commenter, mustParse(t, reply.ID), "agreed, fully")
+	_, edited, _, err := r.service.Edit(reading(t.Context()), commenter, mustParse(t, reply.ID), "agreed, fully")
 	if err != nil || edited.ReplyTo == nil || edited.ReplyTo.ID != first.ID {
 		t.Errorf("an edit keeps the quote: %+v, %v", edited.ReplyTo, err)
 	}
@@ -163,7 +163,7 @@ func TestAReplyCannotQuoteAMessageOfAnotherThreadOrOneThatDoesNotExist(t *testin
 
 	for name, quoted := range map[string]*string{"another thread": &elsewhere.ID, "no message": &missing, "not a UUID": &notAnID} {
 		t.Run(name, func(t *testing.T) {
-			_, _, err := r.service.Reply(t.Context(), testUser, mustParse(t, thread.ID), ReplyInput{Body: "hi", ReplyToID: quoted}, nil)
+			_, _, err := r.service.Reply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "hi", ReplyToID: quoted}, nil)
 			wantInvalid(t, err, CodeInvalidReplyTo)
 		})
 	}

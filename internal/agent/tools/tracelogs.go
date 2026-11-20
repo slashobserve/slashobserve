@@ -48,7 +48,7 @@ func (r *Registry) logsForTrace(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}

@@ -14,7 +14,7 @@ func liveTextOf(t *testing.T, opts ObserveOptions, row dbsqlc.AgentRequest) (*st
 	t.Helper()
 	row.Steps = []byte("[]")
 	reader := NewRunDesk(&Service{logger: slog.New(slog.DiscardHandler)}, opts)
-	out := reader.view(context.Background(), row, auth.Principal{}, buildState{}, nil, nil)
+	out := reader.view(reading(context.Background()), row, auth.Principal{}, buildState{}, nil, nil)
 	raw, err := json.Marshal(out)
 	if err != nil {
 		t.Fatal(err)

@@ -71,13 +71,13 @@ func (d *documentedObserve) call(t *testing.T, method, path, body string, want i
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	return rec
@@ -215,7 +215,7 @@ func TestAFinishedRequestReportsItsCostAsTheDocumentSays(t *testing.T) {
 
 	for id, want := range map[string]*float64{priced: &cost, unpriced: nil} {
 		waitFor(t, "request "+id+" to finish", func() bool {
-			row, err := svc.GetByID(context.Background(), mustUUID(t, id))
+			row, err := svc.GetByID(reading(context.Background()), mustUUID(t, id))
 			return err == nil && row.Status == string(revisions.StatusSucceeded)
 		})
 		var body struct {
@@ -241,7 +241,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
 	var findingID, observationID string
-	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
+	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
 		t.Fatal(err)
 	}
 	finding := func(_ context.Context, _ auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
@@ -308,7 +308,7 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 
 func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	row, err := svc.SubmitObserve(context.Background(), user, "what all logs are available?")
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "what all logs are available?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) 
 func TestAnAnsweredDashboardPromptShowsItsFindingAsTheDocumentSays(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "what does this dashboard show?", user)
+	row, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "what does this dashboard show?", user)
 	if err != nil {
 		t.Fatal(err)
 	}

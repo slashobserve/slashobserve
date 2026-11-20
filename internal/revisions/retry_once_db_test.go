@@ -24,7 +24,7 @@ func countRequests(t *testing.T, d *dbtest.Database, prompt string) int {
 
 func TestAFailedRequestCanBeRetriedOnceAndSaysWhichRequestRetriedIt(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "retry me once")
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestAFailedRequestCanBeRetriedOnceAndSaysWhichRequestRetriedIt(t *testing.T
 
 func TestASucceededRequestCanStillBeRetriedAgain(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "ask again")
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +79,7 @@ func TestASucceededRequestCanStillBeRetriedAgain(t *testing.T) {
 
 func TestARunTakesOneSuccessorWhetherItWasRetriedOrContinued(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "one successor")
 	if err != nil {
 		t.Fatal(err)

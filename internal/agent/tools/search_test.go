@@ -33,7 +33,7 @@ func newWorkspaceRig(t *testing.T) workspaceRig {
 func (r workspaceRig) text(t *testing.T, query string, args ...any) string {
 	t.Helper()
 	var out string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&out); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&out); err != nil {
 		t.Fatal(err)
 	}
 	return out

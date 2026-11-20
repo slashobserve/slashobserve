@@ -28,7 +28,7 @@ func twoPanels(q0, q1 string) []byte {
 func (r *rig) staleDashboard(t *testing.T) pgtype.UUID {
 	t.Helper()
 	id := r.createSpec(t, specDef{panels: []panelDef{{id: "p0", query: "m0"}, {id: "p1", query: "m1"}}})
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, id, 1, twoPanels("m0", "x1"), "another panel"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, id, 1, twoPanels("m0", "x1"), "another panel"); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -36,7 +36,7 @@ func (r *rig) staleDashboard(t *testing.T) pgtype.UUID {
 
 func (r *rig) latestNumber(t *testing.T, id pgtype.UUID) int {
 	t.Helper()
-	n, err := r.service.LatestVersion(t.Context(), id)
+	n, err := r.service.LatestVersion(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestAStaleSaveWithoutMergeIsAConflictWithNoConflictList(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.staleDashboard(t)
 
-	_, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("y0", "m1"), Summary: "mine"})
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("y0", "m1"), Summary: "mine"})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || conflict.Latest != 2 || conflict.Conflicts != nil {
 		t.Fatalf("err = %v, want a conflict at version 2 with no conflict list", err)
@@ -70,7 +70,7 @@ func TestAStaleSaveWithMergeLandsOnTopOfTheLatestWhenOtherPanelsChanged(t *testi
 	r, _ := newProbeRig(t)
 	id := r.staleDashboard(t)
 
-	res, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("y0", "m1"), Summary: "mine", Merge: true})
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("y0", "m1"), Summary: "mine", Merge: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestAStaleSaveWithMergeLandsOnTopOfTheLatestWhenOtherPanelsChanged(t *testi
 	if got, want := queryOf(t, res.Version.Spec, "p1"), "x1"; got != want {
 		t.Fatalf("p1 query = %q, want %q", got, want)
 	}
-	stored, err := r.service.VersionSpec(t.Context(), id, 3)
+	stored, err := r.service.VersionSpec(reading(t.Context()), id, 3)
 	if err != nil || queryOf(t, stored, "p0") != "y0" || queryOf(t, stored, "p1") != "x1" {
 		t.Fatalf("stored version 3 does not carry both changes: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestAStaleSaveWithMergeThatChangedTheSamePanelAnswersTheConflictAndSavesNot
 	r, _ := newProbeRig(t)
 	id := r.staleDashboard(t)
 
-	_, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("m0", "y1"), Summary: "mine", Merge: true})
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("m0", "y1"), Summary: "mine", Merge: true})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || conflict.Latest != 2 {
 		t.Fatalf("err = %v, want a conflict at version 2", err)
@@ -119,7 +119,7 @@ func TestAChoiceResolvesAConflictAndAnUnknownChoiceIsInvalidInput(t *testing.T) 
 	r, _ := newProbeRig(t)
 	id := r.staleDashboard(t)
 
-	res, err := r.service.Save(t.Context(), testUser, SaveInput{
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
 		DashboardID: id, Parent: 1, Spec: twoPanels("m0", "y1"), Summary: "mine", Merge: true,
 		Choices: []spec.Choice{{Kind: spec.UnitPanel, ID: "p1", Take: spec.SideTheirs}},
 	})
@@ -127,7 +127,7 @@ func TestAChoiceResolvesAConflictAndAnUnknownChoiceIsInvalidInput(t *testing.T) 
 		t.Fatalf("version %d, err %v, want version 3 with the caller's p1", res.Version.Number, err)
 	}
 
-	_, err = r.service.Save(t.Context(), testUser, SaveInput{
+	_, err = r.service.Save(reading(t.Context()), testUser, SaveInput{
 		DashboardID: id, Parent: 2, Spec: twoPanels("m0", "z1"), Summary: "again", Merge: true,
 		Choices: []spec.Choice{{Kind: spec.UnitPanel, ID: "nope", Take: spec.SideOurs}},
 	})
@@ -141,7 +141,7 @@ func TestAMergeNeverReadsAParentThatIsNotOlderThanTheLatest(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.staleDashboard(t)
 	for _, parent := range []int{0, 7} {
-		_, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: parent, Spec: twoPanels("y0", "m1"), Summary: "mine", Merge: true})
+		_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: parent, Spec: twoPanels("y0", "m1"), Summary: "mine", Merge: true})
 		var conflict *ConflictError
 		if !errors.As(err, &conflict) || conflict.Latest != 2 || conflict.Conflicts != nil {
 			t.Errorf("parent %d: err = %v, want a plain conflict at version 2", parent, err)
@@ -154,7 +154,7 @@ func TestAMergedSaveRunsThePanelQueriesItBrought(t *testing.T) {
 	id := r.staleDashboard(t)
 	p.setFail("bad0", true)
 
-	_, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("bad0", "m1"), Summary: "mine", Merge: true})
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("bad0", "m1"), Summary: "mine", Merge: true})
 	invalid := wantInvalid(t, err)
 	if len(invalid.Issues) == 0 {
 		t.Fatal("no issues on the failing panel")
@@ -169,14 +169,14 @@ func TestAPartialMergedSaveChecksOnlyWhatTheMergeBrought(t *testing.T) {
 	id := r.createSpec(t, specDef{panels: numberedPanels(5)})
 	newer := numberedPanels(5)
 	newer[3].query = "newer3"
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, id, 1, specDef{panels: newer}.json(), "newer"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, id, 1, specDef{panels: newer}.json(), "newer"); err != nil {
 		t.Fatal(err)
 	}
 	mine := numberedPanels(5)
 	mine[0].query = "mine0"
 	p.reset()
 
-	res, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: specDef{panels: mine}.json(), Summary: "mine", Merge: true, Partial: true})
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: specDef{panels: mine}.json(), Summary: "mine", Merge: true, Partial: true})
 	if err != nil || res.Version.Number != 3 {
 		t.Fatalf("version %d, err %v, want version 3", res.Version.Number, err)
 	}
@@ -188,11 +188,11 @@ func TestAPartialMergedSaveChecksOnlyWhatTheMergeBrought(t *testing.T) {
 func TestAStaleSaveWhoseChangeIsAlreadyInTheLatestAnswersTheLatestAsAReplay(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.createSpec(t, specDef{panels: []panelDef{{id: "p0", query: "m0"}, {id: "p1", query: "m1"}}})
-	if _, _, _, err := r.service.AddVersion(t.Context(), otherUser, id, 1, twoPanels("same", "x1"), "both"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), otherUser, id, 1, twoPanels("same", "x1"), "both"); err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("same", "m1"), Summary: "mine", Merge: true})
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: id, Parent: 1, Spec: twoPanels("same", "m1"), Summary: "mine", Merge: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,14 +209,14 @@ func TestARequestIdSaveRepeatedAfterSomeoneElseSavedReturnsTheFirstVersion(t *te
 	dash := r.createDashboard(t)
 	request := r.queueRevision(t, dash)
 
-	first, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "first", RequestID: request, Merge: true})
+	first, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "first", RequestID: request, Merge: true})
 	if err != nil || first.Replayed || first.Version.Number != 2 {
 		t.Fatalf("first save: version %d, replayed %t, err %v", first.Version.Number, first.Replayed, err)
 	}
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 2, panelsSpec("t", "rps"), "someone else"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 2, panelsSpec("t", "rps"), "someone else"); err != nil {
 		t.Fatal(err)
 	}
-	again, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "first", RequestID: request, Merge: true})
+	again, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "first", RequestID: request, Merge: true})
 	if err != nil || !again.Replayed || again.Version.Number != 2 || again.MergedFrom != nil {
 		t.Fatalf("repeat: version %d, replayed %t, merged_from %+v, err %v", again.Version.Number, again.Replayed, again.MergedFrom, err)
 	}
@@ -228,7 +228,7 @@ func TestInTxRunsInTheSavesTransaction(t *testing.T) {
 	boom := errors.New("boom")
 
 	var seen int
-	_, err := r.service.Save(t.Context(), testUser, SaveInput{
+	_, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
 		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "refused",
 		InTx: func(_ *dbsqlc.Queries, version int) error {
 			seen = version
@@ -242,7 +242,7 @@ func TestInTxRunsInTheSavesTransaction(t *testing.T) {
 		t.Fatalf("latest = %d, want the failed hook to leave no version", got)
 	}
 
-	res, err := r.service.Save(t.Context(), testUser, SaveInput{
+	res, err := r.service.Save(reading(t.Context()), testUser, SaveInput{
 		DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "kept",
 		InTx: func(*dbsqlc.Queries, int) error { return nil },
 	})
@@ -260,7 +260,7 @@ func TestACallerWhoCanOnlyCommentGetsAProposalOnlyWhenAskedAndWired(t *testing.T
 		return ProposalRef{ID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", Revision: 1, Opened: true}, nil
 	})
 	save := func(by auth.Principal, propose bool) (SaveResult, error) {
-		return r.service.Save(t.Context(), by, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "idea", ProposeIfNeeded: propose})
+		return r.service.Save(reading(t.Context()), by, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "idea", ProposeIfNeeded: propose})
 	}
 
 	res, err := save(commenterNoGrant, true)
@@ -370,7 +370,7 @@ func TestAnEditorInProposeModeNeverWritesAVersionDirectly(t *testing.T) {
 		proposed++
 		return ProposalRef{ID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", Revision: 1, Opened: true}, nil
 	})
-	ctx := grantmode.With(t.Context(), grantmode.Propose)
+	ctx := grantmode.With(reading(t.Context()), grantmode.Propose)
 	save := func(propose bool) (SaveResult, error) {
 		return r.service.Save(ctx, testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "idea", ProposeIfNeeded: propose})
 	}
@@ -388,7 +388,7 @@ func TestAnEditorInProposeModeNeverWritesAVersionDirectly(t *testing.T) {
 	if got := r.latestNumber(t, dash); got != 1 {
 		t.Fatalf("latest = %d, want 1", got)
 	}
-	if _, err := r.service.Save(t.Context(), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "direct"}); err != nil {
+	if _, err := r.service.Save(reading(t.Context()), testUser, SaveInput{DashboardID: dash, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "direct"}); err != nil {
 		t.Fatalf("the same editor outside propose mode: %v", err)
 	}
 }
@@ -405,12 +405,12 @@ func TestCheckProposalRunsTheQueriesTheProposalChanges(t *testing.T) {
 	}
 	p.setFail("y1", true)
 
-	if err := r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "x1"), false); err != nil {
+	if err := r.service.CheckProposal(reading(t.Context()), testUser, id, 1, parse("m0", "x1"), false); err != nil {
 		t.Fatalf("a proposal whose queries run: %v", err)
 	}
-	_ = wantInvalid(t, r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "y1"), false))
-	_ = wantInvalid(t, r.service.CheckProposal(t.Context(), testUser, id, 1, parse("m0", "y1"), true))
-	if err := r.service.CheckProposal(t.Context(), testUser, id, 9, parse("m0", "x1"), false); !errors.Is(err, ErrNotFound) {
+	_ = wantInvalid(t, r.service.CheckProposal(reading(t.Context()), testUser, id, 1, parse("m0", "y1"), false))
+	_ = wantInvalid(t, r.service.CheckProposal(reading(t.Context()), testUser, id, 1, parse("m0", "y1"), true))
+	if err := r.service.CheckProposal(reading(t.Context()), testUser, id, 9, parse("m0", "x1"), false); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("an unknown base: err = %v, want not found", err)
 	}
 	if got := r.latestNumber(t, id); got != 1 {
@@ -440,7 +440,7 @@ func TestAProposeModeSaveThatRemovesPanelsOrVariablesIsRefusedAndWritesNothing(t
 		proposed++
 		return ProposalRef{ID: "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", Revision: 1, Opened: true}, nil
 	})
-	propose := grantmode.With(t.Context(), grantmode.Propose)
+	propose := grantmode.With(reading(t.Context()), grantmode.Propose)
 	save := func(ctx context.Context, by auth.Principal, def specDef) (SaveResult, error) {
 		return r.service.Save(ctx, by, SaveInput{DashboardID: dash, Parent: 1, Spec: def.json(), Summary: "idea", ProposeIfNeeded: true})
 	}
@@ -479,7 +479,7 @@ func TestAProposeModeSaveThatRemovesPanelsOrVariablesIsRefusedAndWritesNothing(t
 	}
 
 	removing := specDef{panels: numberedPanels(2)}
-	if res, err := save(t.Context(), commenterNoGrant, removing); err != nil || res.Proposal == nil || proposed != 2 {
+	if res, err := save(reading(t.Context()), commenterNoGrant, removing); err != nil || res.Proposal == nil || proposed != 2 {
 		t.Fatalf("a commenter outside propose mode removing units: proposal %+v, err %v, proposer calls %d", res.Proposal, err, proposed)
 	}
 }

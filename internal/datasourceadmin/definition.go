@@ -42,21 +42,22 @@ type FieldRoles struct {
 }
 
 type Definition struct {
-	UID            string     `json:"uid"`
-	Type           string     `json:"type"`
-	Name           string     `json:"name"`
-	GrafanaUIDs    []string   `json:"grafana_uids,omitempty"`
-	Address        string     `json:"address"`
-	Username       string     `json:"username,omitempty"`
-	Database       string     `json:"database,omitempty"`
-	TLS            bool       `json:"tls,omitempty"`
-	TenantID       string     `json:"tenant_id,omitempty"`
-	ScrapeInterval string     `json:"scrape_interval,omitempty"`
-	Index          string     `json:"index,omitempty"`
-	TimeField      string     `json:"time_field,omitempty"`
-	QueryLanguage  string     `json:"query_language,omitempty"`
-	Fields         FieldRoles `json:"fields,omitzero"`
-	Limits         Limits     `json:"limits,omitzero"`
+	UID            string              `json:"uid"`
+	Type           string              `json:"type"`
+	Name           string              `json:"name"`
+	Audience       datasource.Audience `json:"audience"`
+	GrafanaUIDs    []string            `json:"grafana_uids,omitempty"`
+	Address        string              `json:"address"`
+	Username       string              `json:"username,omitempty"`
+	Database       string              `json:"database,omitempty"`
+	TLS            bool                `json:"tls,omitempty"`
+	TenantID       string              `json:"tenant_id,omitempty"`
+	ScrapeInterval string              `json:"scrape_interval,omitempty"`
+	Index          string              `json:"index,omitempty"`
+	TimeField      string              `json:"time_field,omitempty"`
+	QueryLanguage  string              `json:"query_language,omitempty"`
+	Fields         FieldRoles          `json:"fields,omitzero"`
+	Limits         Limits              `json:"limits,omitzero"`
 }
 
 type Secrets struct {

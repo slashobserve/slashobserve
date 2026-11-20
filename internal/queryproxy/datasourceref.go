@@ -32,12 +32,12 @@ func ResolveDatasourceUID(d *spec.Dashboard, ref string, selections map[string]S
 	return sel.Values[0], nil
 }
 
-func (r *Runner) resolveDatasource(d *spec.Dashboard, ref string, selections map[string]Selection) (datasource.Instance, error) {
+func (r *Runner) resolveDatasource(ctx context.Context, d *spec.Dashboard, ref string, selections map[string]Selection) (datasource.Instance, error) {
 	uid, err := ResolveDatasourceUID(d, ref, selections)
 	if err != nil {
 		return datasource.Instance{}, err
 	}
-	inst, err := r.instance(uid)
+	inst, err := r.instance(ctx, uid)
 	if err != nil {
 		return datasource.Instance{}, err
 	}
@@ -50,14 +50,14 @@ func (r *Runner) resolveDatasource(d *spec.Dashboard, ref string, selections map
 	return inst, nil
 }
 
-func (r *Runner) datasourceType(d *spec.Dashboard, ref string) (spec.DatasourceType, error) {
+func (r *Runner) datasourceType(ctx context.Context, d *spec.Dashboard, ref string) (spec.DatasourceType, error) {
 	if name, ok := spec.DatasourceVariableName(ref); ok {
 		if _, declared := referencedVariable(d, ref); !declared {
 			return "", fmt.Errorf("%w: %q", ErrUnknownVariable, name)
 		}
 		return d.Variables[variableIndex(d, name)].DatasourceType, nil
 	}
-	inst, err := r.instance(ref)
+	inst, err := r.instance(ctx, ref)
 	if err != nil {
 		return "", err
 	}
@@ -72,5 +72,5 @@ func (r *Runner) selectedDatasource(ctx context.Context, d *spec.Dashboard, ref 
 			}
 		}
 	}
-	return r.resolveDatasource(d, ref, selections)
+	return r.resolveDatasource(ctx, d, ref, selections)
 }

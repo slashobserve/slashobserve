@@ -81,8 +81,8 @@ func TestSelectionEncodingIsUnambiguous(t *testing.T) {
 		if d1 == d2 {
 			t.Errorf("dataKey: %s collides", name)
 		}
-		v1 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[0], "")
-		v2 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[1], "")
+		v1 := valuesKey(0, idA, 1, "n", at(-time.Hour), at(0), pair[0], "")
+		v2 := valuesKey(0, idA, 1, "n", at(-time.Hour), at(0), pair[1], "")
 		if v1 == v2 {
 			t.Errorf("valuesKey: %s collides", name)
 		}
@@ -103,28 +103,29 @@ func TestSelectionEncodingIgnoresMapOrder(t *testing.T) {
 func TestValuesKeyDiffersOnInputs(t *testing.T) {
 	base := map[string]queryproxy.Selection{"job": sel(false, "a")}
 	from, to := at(-time.Hour), at(0)
-	reference := valuesKey(idA, 1, "pod", from, to, base, "")
+	reference := valuesKey(0, idA, 1, "pod", from, to, base, "")
 	variants := map[string]cacheKey{
-		"dashboard": valuesKey(idB, 1, "pod", from, to, base, ""),
-		"version":   valuesKey(idA, 2, "pod", from, to, base, ""),
-		"name":      valuesKey(idA, 1, "node", from, to, base, ""),
-		"from":      valuesKey(idA, 1, "pod", from.Add(-10*time.Second), to, base, ""),
-		"to":        valuesKey(idA, 1, "pod", from, to.Add(10*time.Second), base, ""),
-		"selection": valuesKey(idA, 1, "pod", from, to, map[string]queryproxy.Selection{"job": sel(false, "b")}, ""),
-		"principal": valuesKey(idA, 1, "pod", from, to, base, "u1"),
+		"dashboard": valuesKey(0, idB, 1, "pod", from, to, base, ""),
+		"version":   valuesKey(0, idA, 2, "pod", from, to, base, ""),
+		"name":      valuesKey(0, idA, 1, "node", from, to, base, ""),
+		"from":      valuesKey(0, idA, 1, "pod", from.Add(-10*time.Second), to, base, ""),
+		"to":        valuesKey(0, idA, 1, "pod", from, to.Add(10*time.Second), base, ""),
+		"selection": valuesKey(0, idA, 1, "pod", from, to, map[string]queryproxy.Selection{"job": sel(false, "b")}, ""),
+		"principal": valuesKey(0, idA, 1, "pod", from, to, base, "u1"),
+		"registry":  valuesKey(1, idA, 1, "pod", from, to, base, ""),
 	}
 	for name, k := range variants {
 		if k == reference {
 			t.Errorf("%s does not change the key", name)
 		}
 	}
-	if valuesKey(idA, 1, "pod", from.Add(2*time.Second), to.Add(3*time.Second), base, "") != reference {
+	if valuesKey(0, idA, 1, "pod", from.Add(2*time.Second), to.Add(3*time.Second), base, "") != reference {
 		t.Error("the range is not floored to the values resolution")
 	}
 }
 
 func TestDataAndValuesKeysNeverCollide(t *testing.T) {
-	if dataKey(idA, 1, "n", queryproxy.KindRange, alignment{}, nil, "") == valuesKey(idA, 1, "n", time.Time{}, time.Time{}, nil, "") {
+	if dataKey(idA, 1, "n", queryproxy.KindRange, alignment{}, nil, "") == valuesKey(0, idA, 1, "n", time.Time{}, time.Time{}, nil, "") {
 		t.Fatal("data and values share a key space")
 	}
 }

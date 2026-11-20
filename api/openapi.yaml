@@ -1683,6 +1683,10 @@ components:
           type: string
           maxLength: 100
           description: The display name; the uid when empty.
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who can query the datasource, `everyone` by default. With `admins`, every other role, key and public link gets the same answer for it as for a datasource that does not exist.
         grafana_uids:
           type: array
           maxItems: 20
@@ -1729,7 +1733,7 @@ components:
     DatasourceConfig:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, address, secrets_set, created_at, updated_at]
+      required: [uid, type, name, audience, source, address, secrets_set, created_at, updated_at]
       description: A datasource added in the app, without its credentials.
       properties:
         uid:
@@ -1738,6 +1742,10 @@ components:
           type: string
         name:
           type: string
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who can query the datasource.
         source:
           type: string
           enum: [app]
@@ -1996,7 +2004,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, access_request.opened, access_request.granted, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, access_request.opened, access_request.granted, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.audience_changed, datasource.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -5917,7 +5925,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 78
+          maxItems: 79
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -6008,7 +6016,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 78
+          maxItems: 79
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -6029,7 +6037,7 @@ components:
         event_types:
           type: array
           minItems: 1
-          maxItems: 78
+          maxItems: 79
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"

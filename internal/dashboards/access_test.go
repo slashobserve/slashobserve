@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
@@ -53,7 +54,7 @@ func seedBoards(t *testing.T) boards {
 	t.Helper()
 	r := newRig(t, false)
 	create := func(spec []byte) pgtype.UUID {
-		dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, spec, "create")
+		dash, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, spec, "create")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +75,7 @@ func (b boards) serve(by auth.Principal, method, path, body string) *httptest.Re
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	b.rig.service.Register(auth.NewRoutes(router.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), by))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), by), datasource.Access{By: by}))
 	})))
 	req := httptest.NewRequest(method, "/api/v1"+path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -87,7 +88,7 @@ func TestOffsetNeverCountsHiddenDashboards(t *testing.T) {
 	b := seedBoards(t)
 	second := func(by auth.Principal, offset int) ListPage {
 		t.Helper()
-		page, err := b.rig.service.List(t.Context(), by, ListParams{ByFolder: true, Limit: 1, Offset: offset})
+		page, err := b.rig.service.List(reading(t.Context()), by, ListParams{ByFolder: true, Limit: 1, Offset: offset})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +144,7 @@ func TestRestrictedFolderDashboardsNeverLeakIntoListings(t *testing.T) {
 			for _, s := range searches {
 				params := s.params
 				params.Limit = 50
-				page, err := b.rig.service.List(t.Context(), c.by, params)
+				page, err := b.rig.service.List(reading(t.Context()), c.by, params)
 				if err != nil {
 					t.Fatalf("%s: %v", s.name, err)
 				}
@@ -161,7 +162,7 @@ func TestRestrictedFolderDashboardsNeverLeakIntoListings(t *testing.T) {
 				}
 			}
 
-			tags, err := b.rig.service.Tags(t.Context(), c.by)
+			tags, err := b.rig.service.Tags(reading(t.Context()), c.by)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,7 +180,7 @@ func TestRestrictedFolderDashboardsNeverLeakIntoListings(t *testing.T) {
 				t.Errorf("tags = %v, want %v", gotTags, wantTags)
 			}
 
-			usage, err := b.rig.service.DatasourceUsage(t.Context(), c.by)
+			usage, err := b.rig.service.DatasourceUsage(reading(t.Context()), c.by)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -260,11 +261,11 @@ func TestHiddenDashboardsRefuseWritesFromCallersWithoutAccess(t *testing.T) {
 			}
 		}
 	}
-	page, err := b.rig.service.List(t.Context(), adminUser, ListParams{Limit: 50})
+	page, err := b.rig.service.List(reading(t.Context()), adminUser, ListParams{Limit: 50})
 	if err != nil || page.Total != 2 {
 		t.Fatalf("after the refused writes: total %d, err %v", page.Total, err)
 	}
-	if _, ver, err := b.rig.service.Get(t.Context(), b.hidden); err != nil || ver.Number != 1 || ver.Spec.Title != hiddenTitle {
+	if _, ver, err := b.rig.service.Get(reading(t.Context()), b.hidden); err != nil || ver.Number != 1 || ver.Spec.Title != hiddenTitle {
 		t.Fatalf("hidden dashboard changed: version %d, err %v", ver.Number, err)
 	}
 }
@@ -292,7 +293,7 @@ func TestViewersAndCommentersWithoutAGrantCannotEditMoveOrDeleteDashboards(t *te
 			if rec := b.serve(by, http.MethodGet, "/dashboards/"+id, ""); rec.Code != http.StatusOK {
 				t.Errorf("read = %d %s, want 200", rec.Code, rec.Body)
 			}
-			if _, ver, err := b.rig.service.Get(t.Context(), b.open); err != nil || ver.Number != 1 {
+			if _, ver, err := b.rig.service.Get(reading(t.Context()), b.open); err != nil || ver.Number != 1 {
 				t.Errorf("open dashboard changed: version %d, err %v", ver.Number, err)
 			}
 		})
@@ -318,7 +319,7 @@ func TestViewersAndCommentersWithoutAGrantCannotEditMoveOrDeleteDashboards(t *te
 
 func openFolder(t *testing.T, b boards) string {
 	t.Helper()
-	folder, err := b.rig.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Ops"})
+	folder, err := b.rig.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Ops"})
 	if err != nil {
 		t.Fatal(err)
 	}

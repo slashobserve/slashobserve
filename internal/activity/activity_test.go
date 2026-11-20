@@ -81,6 +81,7 @@ func TestTargetKindAndKnownForEveryType(t *testing.T) {
 		"grafana_connection.deleted":  "grafana_connection",
 		"datasource.created":          "datasource",
 		"datasource.updated":          "datasource",
+		"datasource.audience_changed": "datasource",
 		"datasource.deleted":          "datasource",
 	}
 	for typ, kind := range tests {

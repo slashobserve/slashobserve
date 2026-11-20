@@ -30,7 +30,7 @@ type runRecord struct {
 
 func runRecords(t *testing.T, d *dbtest.Database, requestID pgtype.UUID) []runRecord {
 	t.Helper()
-	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT type, coalesce(dashboard_id::text, ''), coalesce(folder_id::text, ''), actor_id::text, actor_name, coalesce(run_id::text, ''), data
+	rows, err := d.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type, coalesce(dashboard_id::text, ''), coalesce(folder_id::text, ''), actor_id::text, actor_name, coalesce(run_id::text, ''), data
 FROM activity WHERE target_kind = 'run' AND target_id = $1 ORDER BY seq`, requestID.String())
 	if err != nil {
 		t.Fatal(err)
@@ -87,13 +87,13 @@ VALUES ($1, 1, '{}', 's', 'user', $2::uuid, 'Ada', $3)`, dash, userID, mustUUID(
 		created = dash
 		return revisions.Result{Version: 1}, nil
 	}))
-	f, err := d.Queries().CreateFolder(context.Background(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	f, err := d.Queries().CreateFolder(reading(context.Background()), dbsqlc.CreateFolderParams{Title: "Payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	folder = f.ID
 
-	row, err := svc.SubmitObserve(context.Background(), user, "build checkout health")
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "build checkout health")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ VALUES ($1, 1, '{}', 's', 'user', $2::uuid, 'Ada', $3)`, dash, userID, mustUUID(
 
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitFor(t, "the observe request to succeed", func() bool {
-		got, err := svc.GetByID(context.Background(), row.ID)
+		got, err := svc.GetByID(reading(context.Background()), row.ID)
 		return err == nil && got.Status == string(revisions.StatusSucceeded)
 	})
 
@@ -151,7 +151,7 @@ func TestACanceledQueuedRequestRecordsRunCanceled(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "go")
 
-	if _, err := svc.Cancel(context.Background(), mustUUID(t, rev.ID), user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
 		t.Fatal(err)
 	}
 
@@ -197,19 +197,19 @@ func TestAReleaseRecordsTheRunReleased(t *testing.T) {
 func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	folder, err := d.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Payments"})
+	folder, err := d.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	foldertest.Move(t, d, dash, folder.ID)
 	rev := submit(t, svc, dash, "add a panel")
 
-	tx, err := d.SQLDB(t).BeginTx(t.Context(), nil)
+	tx, err := d.SQLDB(t).BeginTx(reading(t.Context()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err := tx.ExecContext(t.Context(), `SELECT title FROM dashboards WHERE id = $1 FOR UPDATE`, dash.String()); err != nil {
+	if _, err := tx.ExecContext(reading(t.Context()), `SELECT title FROM dashboards WHERE id = $1 FOR UPDATE`, dash.String()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -219,7 +219,7 @@ func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {
 	}
 	done := make(chan claimed, 1)
 	go func() {
-		_, found, err := svc.ClaimRow(t.Context())
+		_, found, err := svc.ClaimRow(reading(t.Context()))
 		done <- claimed{found, err}
 	}()
 	select {
@@ -231,7 +231,7 @@ func TestAClaimDoesNotDeadlockWithADashboardDelete(t *testing.T) {
 		t.Fatal("claim waited on the dashboard row lock")
 	}
 
-	if _, err := tx.ExecContext(t.Context(), `DELETE FROM dashboards WHERE id = $1`, dash.String()); err != nil {
+	if _, err := tx.ExecContext(reading(t.Context()), `DELETE FROM dashboards WHERE id = $1`, dash.String()); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -255,7 +255,7 @@ func listenForNotices(t *testing.T, d *dbtest.Database) *notices {
 	t.Helper()
 	n := &notices{sentinel: make(chan struct{}, 1)}
 	listening := make(chan struct{})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(reading(context.Background()))
 	t.Cleanup(cancel)
 	go func() {
 		_ = d.Listen(ctx, events.Channel, func() { close(listening) }, func(payload string) {
@@ -314,7 +314,7 @@ func TestATransitionWithoutALiveEventSendsOnlyItsSequence(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	got := listenForNotices(t, d)
 
-	row, err := svc.SubmitObserve(context.Background(), user, "build something")
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "build something")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +332,7 @@ func TestARecordedTransitionNeverSendsASecondNotification(t *testing.T) {
 	rev := submit(t, svc, dash, "go")
 	got := listenForNotices(t, d)
 
-	if _, err := svc.Cancel(context.Background(), mustUUID(t, rev.ID), user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
 		t.Fatal(err)
 	}
 
