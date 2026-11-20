@@ -58,7 +58,7 @@ A closed proposal reads "merged your proposal" or "discarded your proposal" with
 A failed run opens its chat.
 A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
 An item recorded before the title and panel count were stored reads "Your repair saved version N".
-An access request reads "asked for comment access to" followed by the title, shows the note, and opens the dashboard's Share pane, or for an observation its folder's settings; marking it done declines it for every recipient.
+An access request reads "asked for comment access to" followed by the title, shows the note, and opens the dashboard's Share pane, or for an observation its folder's settings; for something in General, which takes no folder entry, it says to raise the person's role or move the item to a folder first and opens People (API keys for a service account); marking it done declines it for every recipient.
 
 ## Views
 

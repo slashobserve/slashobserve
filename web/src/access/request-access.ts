@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { ApiError, unwrap } from "@/api/errors"
 import type { components } from "@/api/schema.gen"
+import { formatShortRelative } from "@/lib/time"
 
 export type AccessObject = {
   kind: components["schemas"]["AccessRequest"]["object"]["kind"]
@@ -28,12 +29,22 @@ export function outcomeOf(error: unknown): RequestOutcome {
   return "failed"
 }
 
-export function outcomeText(outcome: RequestOutcome): string {
+export function requestedAtOf(error: unknown): string | undefined {
+  return error instanceof ApiError ? error.requestedAt : undefined
+}
+
+export function outcomeText(
+  outcome: RequestOutcome,
+  requestedAt?: string,
+  now = Date.now()
+): string {
   switch (outcome) {
     case "sent":
       return "Request sent. The people who manage this folder's sharing will see it in their inbox."
     case "open":
-      return "You already asked for comment access here, and the request is still open."
+      return requestedAt === undefined
+        ? "You already asked for comment access here, and the request is still open."
+        : `You asked for comment access here ${formatShortRelative(requestedAt, now).toLowerCase()}, and the request is still open.`
     case "can_comment":
       return "You can already comment here. Reload the page to start."
     case "failed":

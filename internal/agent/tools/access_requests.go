@@ -17,7 +17,7 @@ const (
 	nameListAccessRequests   = "list_access_requests"
 
 	descRequestCommentAccess = "Ask for Comment access to a dashboard or observation that the caller can view but not comment on. It changes no access: it puts a request, with the optional one-line note, in the inbox of the people who manage the sharing of its folder (the folder's creator and anyone with Admin on it, or the workspace Admins when there are none), who grant it by changing the folder's access or the caller's role. The answer never names them. One open request per caller and object: asking again while one is open answers request_open, a caller who can already comment gets already_can_comment, and an object the caller cannot view is not_found. A request closes when access is granted or a granter marks its inbox item done, and after 30 days."
-	descListAccessRequests   = "List the open requests for Comment access on dashboards and observations whose folder sharing the caller manages, newest first, at most 100: who asked, on what (kind, id, title), the note and when. Grant one by giving the person Comment on the folder (folder permissions) or by raising their role; nothing here changes access."
+	descListAccessRequests   = "List the open requests for Comment access on dashboards and observations whose folder sharing the caller manages, newest first, at most 100: who asked, on what (kind, id, title), in which folder, the note and when. Grant one by giving the person Comment on the folder (folder permissions) or by raising their role; nothing here changes access. When folder.general is true the object is in General, which is open to everyone by role and takes no folder entry, so only a role change or moving the object to another folder first can grant it."
 
 	propAccessNote = `"note":{"type":"string","maxLength":200,"description":"Optional one-line note for the people who can grant access, at most 200 characters, no line breaks."}`
 
@@ -78,7 +78,7 @@ func (r *Registry) requestCommentAccess(ctx context.Context, input json.RawMessa
 	case errors.Is(err, accessrequests.ErrCanComment):
 		return toolError(accessrequests.CodeCanComment, accessrequests.CanCommentMessage), nil
 	case errors.As(err, &open):
-		return failure("", requestOpenBody{Code: accessrequests.CodeRequestOpen, Message: accessrequests.RequestOpenText, RequestedAt: httpapi.FormatTime(open.RequestedAt)}), nil
+		return failure("", requestOpenBody{Code: accessrequests.CodeRequestOpen, Message: open.Message(), RequestedAt: httpapi.FormatTime(open.RequestedAt)}), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	case err != nil:

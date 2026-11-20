@@ -263,10 +263,11 @@ bin/observe access requests
 
 `request` takes the object as `<kind>:<id>`, with `dashboard` or `observation` as the kind, and an optional `--note` of one line, at most 200 characters.
 It prints `Asked for comment access to <kind> <title>; the people who manage its folder will see it in their inbox` and changes no access.
-A request that is still open answers `request_open`, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
+A request that is still open answers `request_open` with the time it was made, an object you can already comment on answers `already_can_comment`, and one you cannot see answers `not_found`.
 A service-account key may ask too; its request is granted by raising the service account's role.
-`requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
+`requests` prints `ASKED`, `WHO`, `WHO ID`, `OBJECT`, `TITLE`, `FOLDER` and `NOTE` columns for the open requests on the folders you manage, newest first and at most 100, or `No open access requests on folders you manage.`
 Grant one with `bin/observe folders permissions grant <folder-id> --user <id> --level comment`, or by raising the role.
+General takes no folder entry, so for a request whose `FOLDER` is General the command adds a note on standard error: raise the person's role on the People page, or move the object to a folder first.
 
 ## Saved prompts
 
@@ -583,6 +584,8 @@ bin/observe logs '{app="shop"}' --datasource loki --tail
 `--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard, and `--limit` keeps the newest 1 to 1000 lines (100 by default).
 Each line shows its time in UTC, its level when the lines have one, the labels whose values differ between the lines, and the message.
 The message is the first column named `body`, `message`, `msg`, `line` or `log`, else the first text column, as in the web app's logs panel.
+On ClickHouse the query is SQL that reads the time range with `$__timeFilter(Timestamp)` and selects `Timestamp` and `Body`; the rows come back as they are.
+A ClickHouse result with no `Timestamp` or message column prints as a table instead of log lines.
 
 `--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.

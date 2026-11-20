@@ -9,6 +9,7 @@ import {
   noteProblem,
   outcomeOf,
   outcomeText,
+  requestedAtOf,
   useRequestCommentAccess,
   type AccessObject,
   type RequestOutcome,
@@ -26,12 +27,13 @@ export function RequestCommentAccess({
   const [composing, setComposing] = useState(false)
   const [note, setNote] = useState("")
   const [outcome, setOutcome] = useState<RequestOutcome | null>(null)
+  const [requestedAt, setRequestedAt] = useState<string | undefined>()
   const problem = noteProblem(note)
 
   if (outcome !== null && outcome !== "failed") {
     return (
       <p role="status" className={cn("text-[13px]", className)}>
-        {outcomeText(outcome)}
+        {outcomeText(outcome, requestedAt)}
       </p>
     )
   }
@@ -54,7 +56,10 @@ export function RequestCommentAccess({
     if (problem !== null || request.isPending) return
     request.mutate(note, {
       onSuccess: () => setOutcome("sent"),
-      onError: (error) => setOutcome(outcomeOf(error)),
+      onError: (error) => {
+        setRequestedAt(requestedAtOf(error))
+        setOutcome(outcomeOf(error))
+      },
     })
   }
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   itemExcerpt,
+  itemHint,
   threadTarget,
   groupByTarget,
   groupItems,
@@ -390,6 +391,51 @@ describe("access requests", () => {
         })
       )
     ).toEqual({ to: `/f/${folder}`, search: { settings: "1" } })
+  })
+
+  const inGeneral = (over: Partial<InboxItem> = {}) =>
+    item({
+      type: "access_request.opened",
+      target: { kind: "access_request", id: other },
+      folder_id: folder,
+      data: withData({ object: { kind: "observation", id }, general: true }),
+      ...over,
+    })
+
+  test("a request in General opens People, where the role is raised", () => {
+    expect(itemLink(inGeneral())).toEqual({ to: "/people" })
+    expect(
+      itemLink(
+        inGeneral({
+          data: withData({ object: { kind: "dashboard", id }, general: true }),
+        })
+      )
+    ).toEqual({ to: "/people" })
+  })
+
+  test("a service account's request in General opens API keys", () => {
+    const key = inGeneral({
+      actor: { ...item().actor, kind: "service_account", name: "ci-bot" },
+    })
+    expect(itemLink(key)).toEqual({ to: "/keys" })
+    expect(itemHint(key)).toContain("Raise ci-bot's role on API keys")
+  })
+
+  test("a request in General says there is no list to change and what to do", () => {
+    expect(itemHint(inGeneral())).toBe(
+      "General is open to everyone by role and has no list to change. Raise Ada's role on People, or move it to a folder first."
+    )
+  })
+
+  test("a request in another folder has no hint", () => {
+    expect(
+      itemHint(
+        item({
+          type: "access_request.opened",
+          data: withData({ object: { kind: "dashboard", id } }),
+        })
+      )
+    ).toBeNull()
   })
 })
 

@@ -72,6 +72,38 @@ func TestASyntaxErrorInTheWrapperPointsAtTheEndOfThePersonsText(t *testing.T) {
 	}
 }
 
+const strayParenthesis = "SELECT TraceId\nFROM otel_traces WHERE ) AND $__timeFilter(Timestamp)"
+
+func failWrappedAtItsEnd(statement string) (int, bool) {
+	if strings.HasPrefix(statement, "EXPLAIN AST ") {
+		return strings.Index(statement, ") AND"), true
+	}
+	return strings.LastIndex(statement, "LIMIT 0"), true
+}
+
+func TestAStrayParenthesisInAPagedQueryIsLocatedByParsingTheQueryAlone(t *testing.T) {
+	d := syntaxDatasource(failWrappedAtItsEnd)
+	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(strayParenthesis, 50))
+	want := `Syntax error: failed at line 2, column 24 of the query, near ")". Expected one of: BY, token`
+	if err == nil || messageOf(err) != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
+
+func TestAWrapperOnlySyntaxErrorKeepsItsEndOfQueryPosition(t *testing.T) {
+	d := syntaxDatasource(func(statement string) (int, bool) {
+		if strings.HasPrefix(statement, "EXPLAIN AST ") {
+			return 0, false
+		}
+		return strings.LastIndex(statement, "LIMIT 0"), true
+	})
+	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(unfinishedGroup, 50))
+	want := "Syntax error: failed at the end of the query (line 2, column 37). Expected one of: BY, token"
+	if err == nil || messageOf(err) != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
+
 func TestASyntaxErrorOfAnExploreQueryIsCountedBeforeTheMacrosExpand(t *testing.T) {
 	d := syntaxDatasource(func(s string) (int, bool) { return strings.LastIndex(s, "GROUP"), true })
 	_, err := d.QueryInstant(context.Background(), exploreQuery(unfinishedGroup), datasource.TimeRange{From: linesStart, To: linesEnd})

@@ -22,13 +22,18 @@ const (
 	CodeRequestOpen   = "request_open"
 	CodeInvalidNote   = "invalid_note"
 	CanCommentMessage = "you can already comment here; there is nothing to request"
-	RequestOpenText   = "you already asked for comment access here and the request is still open"
 )
 
 type ObjectJSON struct {
 	Kind  Kind   `json:"kind"`
 	ID    string `json:"id"`
 	Title string `json:"title"`
+}
+
+type FolderJSON struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	General bool   `json:"general"`
 }
 
 type RequesterJSON struct {
@@ -40,6 +45,7 @@ type RequesterJSON struct {
 type RequestJSON struct {
 	ID          string        `json:"id"`
 	Object      ObjectJSON    `json:"object"`
+	Folder      FolderJSON    `json:"folder"`
 	RequestedBy RequesterJSON `json:"requested_by"`
 	Note        string        `json:"note"`
 	CreatedAt   string        `json:"created_at"`
@@ -53,6 +59,7 @@ func JSONOf(r Request) RequestJSON {
 	return RequestJSON{
 		ID:          r.ID,
 		Object:      ObjectJSON{Kind: r.Object.Kind, ID: r.Object.ID.String(), Title: r.Title},
+		Folder:      FolderJSON(r.Folder),
 		RequestedBy: RequesterJSON(r.RequestedBy),
 		Note:        r.Note,
 		CreatedAt:   httpapi.FormatTime(r.CreatedAt),
@@ -131,7 +138,7 @@ func abortRefusal(c *gin.Context, err error) bool {
 	case errors.Is(err, ErrCanComment):
 		httpapi.AbortError(c, http.StatusConflict, CodeCanComment, CanCommentMessage)
 	case errors.As(err, &open):
-		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": RequestOpenText, "code": CodeRequestOpen, "requested_at": httpapi.FormatTime(open.RequestedAt)})
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": open.Message(), "code": CodeRequestOpen, "requested_at": httpapi.FormatTime(open.RequestedAt)})
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	default:

@@ -17,6 +17,10 @@ type accessRequest struct {
 		ID    string `json:"id"`
 		Title string `json:"title"`
 	} `json:"object"`
+	Folder struct {
+		Title   string `json:"title"`
+		General bool   `json:"general"`
+	} `json:"folder"`
 	RequestedBy struct {
 		Kind string `json:"kind"`
 		ID   string `json:"id"`
@@ -81,7 +85,7 @@ func (a *app) accessRequestsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "requests",
 		Short: "List the open comment access requests on folders you manage",
-		Long:  "requests lists the open requests for Comment access on dashboards and observations whose folder you manage, newest first, at most 100.\nGrant one with observe folders permissions grant <folder-id> --user <id> --level comment, or by raising the person's role.",
+		Long:  "requests lists the open requests for Comment access on dashboards and observations whose folder you manage, newest first, at most 100.\nGrant one with observe folders permissions grant <folder-id> --user <id> --level comment, or by raising the person's role.\nIn General, which is open to everyone by role and takes no entry, only a role change or moving the object to a folder first can grant it.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return a.observationCall(cmd, http.MethodGet, "access-requests", nil, func(out *output, data []byte) error {
@@ -96,10 +100,15 @@ func (a *app) accessRequestsCommand() *cobra.Command {
 					return nil
 				}
 				rows := make([][]string, 0, len(list.Items))
+				inGeneral := false
 				for _, r := range list.Items {
-					rows = append(rows, []string{when(r.CreatedAt), text(r.RequestedBy.Name), text(r.RequestedBy.Kind) + ":" + text(r.RequestedBy.ID), text(r.Object.Kind) + ":" + text(r.Object.ID), text(r.Object.Title), text(r.Note)})
+					inGeneral = inGeneral || r.Folder.General
+					rows = append(rows, []string{when(r.CreatedAt), text(r.RequestedBy.Name), text(r.RequestedBy.Kind) + ":" + text(r.RequestedBy.ID), text(r.Object.Kind) + ":" + text(r.Object.ID), text(r.Object.Title), text(r.Folder.Title), text(r.Note)})
 				}
-				out.table([]string{"ASKED", "WHO", "WHO ID", "OBJECT", "TITLE", "NOTE"}, rows)
+				out.table([]string{"ASKED", "WHO", "WHO ID", "OBJECT", "TITLE", "FOLDER", "NOTE"}, rows)
+				if inGeneral {
+					out.notice("General takes no folder entry, so a request there cannot be granted with folders permissions: raise the person's role on the People page, or move the object to a folder first (observe dashboards move, observe observations move)")
+				}
 				return nil
 			})
 		},

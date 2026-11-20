@@ -65,7 +65,7 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 	}
 	timed, err := d.selectsTimestamp(ctx, inner, lim, extra)
 	if err != nil {
-		return mapError(ctx, inPersonsText(err, q.Text, exp), timeout)
+		return mapError(ctx, inPersonsText(d.parsedAlone(ctx, err, inner, lim, extra), q.Text, exp), timeout)
 	}
 	if !timed && needTimestamp {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", linesNeedTimestamp)
@@ -77,9 +77,20 @@ func (d *Datasource) readLines(ctx context.Context, q datasource.Query, r dataso
 		inner = plainSource(text, ordered)
 	}
 	if err := read(ctx, inner, lim, extra, timed); err != nil {
-		return mapError(ctx, inPersonsText(err, q.Text, exp), timeout)
+		return mapError(ctx, inPersonsText(d.parsedAlone(ctx, err, inner, lim, extra), q.Text, exp), timeout)
 	}
 	return nil
+}
+
+func (d *Datasource) parsedAlone(ctx context.Context, err error, inner string, lim datasource.Limits, extra ch.Settings) error {
+	if _, _, ok := syntaxFailure(err); !ok {
+		return err
+	}
+	_, alone := d.fetchWith(ctx, "EXPLAIN AST "+inner, lim, nil, extra)
+	if _, _, ok := syntaxFailure(alone); ok {
+		return alone
+	}
+	return err
 }
 
 func wholeMilliseconds(r datasource.TimeRange) datasource.TimeRange {

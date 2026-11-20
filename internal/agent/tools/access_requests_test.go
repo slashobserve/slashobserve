@@ -2,6 +2,7 @@ package tools
 
 import (
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -46,19 +47,19 @@ func TestRequestCommentAccessToolAsksOnceAndTheAdminListsIt(t *testing.T) {
 
 	res := callAs(t, r, viewerCaller, nameRequestCommentAccess, input)
 	created, ok := res.Content.(accessrequests.RequestJSON)
-	if res.IsError || !ok || created.Object.Title != "Checkout" || created.Note != "on call" || created.RequestedBy.Name != "Vic" {
+	if res.IsError || !ok || created.Object.Title != "Checkout" || created.Note != "on call" || created.RequestedBy.Name != "Vic" || !created.Folder.General {
 		t.Fatalf("first ask = %#v", res.Content)
 	}
 
 	res = callAs(t, r, viewerCaller, nameRequestCommentAccess, input)
 	open, ok := res.Content.(requestOpenBody)
-	if !res.IsError || !ok || open.Code != accessrequests.CodeRequestOpen || open.RequestedAt != created.CreatedAt {
+	if !res.IsError || !ok || open.Code != accessrequests.CodeRequestOpen || open.RequestedAt != created.CreatedAt || !strings.Contains(open.Message, created.CreatedAt[:19]) {
 		t.Fatalf("second ask = %#v, want request_open at %s", res.Content, created.CreatedAt)
 	}
 
 	res = callAs(t, r, adminCaller, nameListAccessRequests, `{}`)
 	list, ok := res.Content.(accessrequests.ListJSON)
-	if res.IsError || !ok || len(list.Items) != 1 || list.Items[0].ID != created.ID {
+	if res.IsError || !ok || len(list.Items) != 1 || list.Items[0].ID != created.ID || list.Items[0].Folder != created.Folder {
 		t.Fatalf("Admin's list = %#v", res.Content)
 	}
 	res = callAs(t, r, viewerCaller, nameListAccessRequests, `{}`)

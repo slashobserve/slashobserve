@@ -17,6 +17,7 @@ import { proposalQuery } from "@/proposals/queries"
 
 import {
   itemExcerpt,
+  itemHint,
   itemLink,
   itemText,
   threadTarget,
@@ -97,6 +98,7 @@ function ItemDetail({
   const { actor, verb, object } = itemText(item)
   const link = itemLink(item)
   const excerpt = itemExcerpt(item)
+  const hint = itemHint(item)
   const target = threadTarget(item)
   return (
     <div className="flex flex-col gap-3">
@@ -116,6 +118,11 @@ function ItemDetail({
         />
       ) : excerpt === null ? null : (
         <p className="text-[13px] wrap-anywhere">{excerpt}</p>
+      )}
+      {hint === null ? null : (
+        <p className="text-[13px] wrap-anywhere text-muted-foreground">
+          {hint}
+        </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {link === null ? null : (

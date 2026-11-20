@@ -30,10 +30,16 @@ func (e *sentError) Error() string { return e.err.Error() }
 
 func (e *sentError) Unwrap() error { return e.err }
 
-func inPersonsText(err error, original string, exp macros.Expansion) error {
+func syntaxFailure(err error) (*sentError, *ch.Exception, bool) {
 	var sent *sentError
 	var ex *ch.Exception
-	if !errors.As(err, &sent) || !errors.As(err, &ex) || ex.Code != syntaxErrorCode {
+	ok := errors.As(err, &sent) && errors.As(err, &ex) && ex.Code == syntaxErrorCode
+	return sent, ex, ok
+}
+
+func inPersonsText(err error, original string, exp macros.Expansion) error {
+	sent, ex, ok := syntaxFailure(err)
+	if !ok {
 		return err
 	}
 	located := *ex

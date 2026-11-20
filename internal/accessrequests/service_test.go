@@ -1,6 +1,7 @@
 package accessrequests
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"slices"
@@ -420,5 +421,45 @@ func TestARoleChangeGrantsTheRequestsOfThatPerson(t *testing.T) {
 	}
 	if n := r.count(t, `SELECT count(*) FROM activity WHERE type = 'access_request.granted'`); n != 2 {
 		t.Fatalf("granted events = %d, want one per request", n)
+	}
+}
+
+func markedGeneral(t *testing.T, item activity.InboxItem) bool {
+	t.Helper()
+	var data struct {
+		General bool `json:"general"`
+	}
+	if err := json.Unmarshal(item.Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	return data.General
+}
+
+func TestARequestInGeneralSaysSoInItsRowAndItsListing(t *testing.T) {
+	r := newRig(t)
+	payments := r.folderBy(t, "Payments", ben)
+	inGeneral := r.ask(t, ada, Object{Kind: KindDashboard, ID: r.dashboard(t, "Checkout", pgtype.UUID{})}, "")
+	inFolder := r.ask(t, cleo, Object{Kind: KindDashboard, ID: r.dashboard(t, "Ledger", payments)}, "")
+	if !inGeneral.Folder.General || inGeneral.Folder.Title != "General" || inFolder.Folder.General || inFolder.Folder.Title != "Payments" {
+		t.Fatalf("folders = %+v and %+v", inGeneral.Folder, inFolder.Folder)
+	}
+
+	items := accessItems(r.inbox(t, root, activity.TriageOpen))
+	if len(items) != 1 || !markedGeneral(t, items[0]) {
+		t.Fatalf("the Admin's access items = %+v, want one marked general", items)
+	}
+	items = accessItems(r.inbox(t, ben, activity.TriageOpen))
+	if len(items) != 1 || markedGeneral(t, items[0]) {
+		t.Fatalf("the folder creator's access items = %+v, want one not marked general", items)
+	}
+
+	listed, err := r.service.List(t.Context(), root)
+	if err != nil || len(listed) != 2 {
+		t.Fatalf("the Admin lists %+v, %v", listed, err)
+	}
+	for _, item := range listed {
+		if want := item.ID == inGeneral.ID; item.Folder.General != want {
+			t.Errorf("listed %s with folder %+v", item.ID, item.Folder)
+		}
 	}
 }

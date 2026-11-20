@@ -101,6 +101,22 @@ describe("RequestCommentAccess", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(text)
   })
 
+  it("says since when an open request has waited", async () => {
+    answer(409, {
+      error: "you already asked",
+      code: "request_open",
+      requested_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+    })
+    const { user } = renderButton()
+    await user.click(
+      screen.getByRole("button", { name: "Request comment access" })
+    )
+    await user.click(screen.getByRole("button", { name: "Send request" }))
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You asked for comment access here 3 h ago, and the request is still open."
+    )
+  })
+
   it("keeps the form after a failure so the person can try again", async () => {
     const { fetchMock } = answer(500, {
       error: "internal error",

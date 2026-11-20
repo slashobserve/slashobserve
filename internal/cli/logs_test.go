@@ -47,7 +47,12 @@ func newLogsFake(t *testing.T, answers ...string) *logsFake {
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		if r.URL.Path != "/api/v1/datasources/loki/query" {
+		if r.URL.Path == "/api/v1/datasources" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"datasources":[{"uid":"loki","type":"loki","name":"L","healthy":true,"checked_at":"x","dashboard_count":0},{"uid":"ch","type":"clickhouse","name":"C","healthy":true,"checked_at":"x","dashboard_count":0}]}`)
+			return
+		}
+		if r.URL.Path != "/api/v1/datasources/loki/query" && r.URL.Path != "/api/v1/datasources/ch/query" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -101,6 +106,37 @@ func TestLogsReadsClickHouseColumns(t *testing.T) {
 	want := "2025-11-01T12:26:40.000Z  -     started\n2025-11-01T12:26:41.000Z  WARN  slow query\n"
 	if code != 0 || stdout != want {
 		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestLogsOnClickHouseAsksForRowsNotSeries(t *testing.T) {
+	f := newLogsFake(t, clickhouseFrames)
+	stdout, stderr, code := f.run("SELECT Timestamp, Body FROM otel_logs WHERE $__timeFilter(Timestamp)", "--datasource", "ch", "--limit", "20")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	if got := f.requests[0]; got["kind"] != "instant" || got["limit"] != float64(20) {
+		t.Fatalf("request %v", got)
+	}
+	want := "2025-11-01T12:26:40.000Z  -     started\n2025-11-01T12:26:41.000Z  WARN  slow query\n"
+	if stdout != want {
+		t.Fatalf("stdout %q", stdout)
+	}
+}
+
+func TestLogsOnClickHouseJSONPrintsTheRows(t *testing.T) {
+	f := newLogsFake(t, clickhouseFrames)
+	stdout, _, code := f.run("q", "--datasource", "ch", "--json")
+	if code != 0 || strings.TrimSpace(stdout) != strings.TrimSpace(clickhouseFrames) || f.requests[0]["kind"] != "instant" {
+		t.Fatalf("exit %d, stdout %q, request %v", code, stdout, f.requests[0])
+	}
+}
+
+func TestLogsOnClickHousePrintsAResultWithoutLogColumnsAsATable(t *testing.T) {
+	f := newLogsFake(t, `{"frames":[{"ref":"A","fields":[{"name":"ServiceName","type":"string","values":["checkout","cart"]},{"name":"n","type":"number","values":[3,4]}]}],"meta":{}}`)
+	stdout, stderr, code := f.run("q", "--datasource", "ch")
+	if code != 0 || strings.Contains(stderr, "No log lines") || !strings.Contains(stdout, "checkout") || !strings.Contains(stdout, "cart") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
 	}
 }
 

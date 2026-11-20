@@ -123,7 +123,11 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 	if insight != insightNone {
 		return a.logInsight(ctx, c, out, insight, query)
 	}
-	req := exploreRequest{Query: query, Kind: "range", From: opts.from, To: opts.to, Limit: opts.limit}
+	kind, err := logQueryKind(ctx, c, opts.datasource)
+	if err != nil {
+		return err
+	}
+	req := exploreRequest{Query: query, Kind: kind, From: opts.from, To: opts.to, Limit: opts.limit}
 	data, body, err := explore(ctx, c, opts.datasource, req)
 	if err != nil {
 		return err
@@ -138,8 +142,27 @@ func (a *app) runLogs(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	printLogLines(out, lines, opts.from, opts.to)
+	printLogResult(out, body.Frames, lines, opts.from, opts.to)
 	return nil
+}
+
+func printLogResult(out *output, frames []frame, lines []logLine, from, to string) {
+	if headers, rows := resultTable(frames); len(lines) == 0 && len(rows) > 0 {
+		out.table(headers, rows)
+		return
+	}
+	printLogLines(out, lines, from, to)
+}
+
+func logQueryKind(ctx context.Context, c *client, uid string) (string, error) {
+	typ, err := datasourceType(ctx, c, uid)
+	if err != nil {
+		return "", err
+	}
+	if typ == "clickhouse" {
+		return "instant", nil
+	}
+	return "range", nil
 }
 
 func printLogLines(out *output, lines []logLine, from, to string) {

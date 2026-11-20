@@ -45,6 +45,7 @@ RETURNING created_at;
 
 -- name: ListOpenAccessRequests :many
 SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
+  coalesce(d.folder_id, o.folder_id)::uuid AS folder_id,
   r.requester_kind, r.requester_id, r.requester_name, r.note, r.created_at
 FROM access_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id

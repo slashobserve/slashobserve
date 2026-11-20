@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 
 import type { DatasourceStatus } from "./queries"
+import { usePublishedLanguage } from "./source-language-store"
 import {
   exploreLink,
   exploreText,
@@ -172,7 +173,8 @@ export function PhoneSourceTitle({
   const { sources } = useExploreSources(kind)
   const [open, setOpen] = useState(false)
   const switcher = useRef<HTMLButtonElement>(null)
-  const language = sourceLanguage(kind, source.type)
+  const language =
+    usePublishedLanguage(source.uid) ?? sourceLanguage(kind, source.type)
   const lines = (
     <>
       <span className={phoneTitleClass}>{label}</span>

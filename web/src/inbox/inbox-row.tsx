@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 
-import { itemExcerpt, itemLink, itemText, type InboxItem } from "./inbox-item"
+import {
+  itemExcerpt,
+  itemHint,
+  itemLink,
+  itemText,
+  type InboxItem,
+} from "./inbox-item"
 import { ReasonChip } from "./reason-chip"
 
 type Props = {
@@ -42,6 +48,7 @@ function ItemLine({ item }: { item: InboxItem }) {
 
 function RowBody({ item }: { item: InboxItem }) {
   const excerpt = itemExcerpt(item)
+  const hint = itemHint(item)
   return (
     <>
       <span
@@ -58,6 +65,11 @@ function RowBody({ item }: { item: InboxItem }) {
         {excerpt === null ? null : (
           <span className="line-clamp-2 text-xs leading-snug wrap-anywhere text-muted-foreground">
             {excerpt}
+          </span>
+        )}
+        {hint === null ? null : (
+          <span className="line-clamp-3 text-xs leading-snug wrap-anywhere text-muted-foreground">
+            {hint}
           </span>
         )}
         <span className="flex items-center gap-2 text-xs text-muted-foreground">

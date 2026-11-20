@@ -32,6 +32,19 @@ describe("toApiError", () => {
     ])
   })
 
+  test("reads when an open request was made", () => {
+    expect(
+      toApiError(response(409), {
+        error: "open",
+        code: "request_open",
+        requested_at: "2026-11-20T09:00:00Z",
+      }).requestedAt
+    ).toBe("2026-11-20T09:00:00Z")
+    expect(
+      toApiError(response(409), { error: "x", code: "y" }).requestedAt
+    ).toBe(undefined)
+  })
+
   test("says which folder level or role a forbidden_role refusal needs", () => {
     const refusal = {
       error: "your role does not allow this",
