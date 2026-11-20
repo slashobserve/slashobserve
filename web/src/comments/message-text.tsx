@@ -68,6 +68,7 @@ export function MessageText({
     )
   }
   const markdown = !folded && writtenByPerson(message.actor)
+  const codeSpans = !folded && !markdown && message.actor.run_id !== null
   const chat = folded
     ? null
     : chatAnswerLink(message.body, message.actor.run_id)
@@ -83,6 +84,7 @@ export function MessageText({
           body={chat === null ? message.body : chat.before}
           mentions={message.mentions}
           markdown={markdown}
+          codeSpans={codeSpans}
         />
         {chat === null ? null : (
           <Link
