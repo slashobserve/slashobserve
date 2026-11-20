@@ -105,6 +105,7 @@ Every refused tool call answers with `code`, a stable word to branch on, and `me
 Moves, duplicates and restores of a dashboard have tools, but no tool deletes a dashboard, renames or deletes a saved search, makes a public link, or manages people, keys, who can see a folder, webhooks or connected agents: tell the person to do it in the web app.
 create_folder and rename_folder make and rename folders.
 start_run, cancel_run, retry_run and get_run_build hand work to the built-in agent and follow it; use them only when the person asks, because each start spends the server's model and is not safe to repeat.
+list_runs finds the person's earlier runs, which the web app calls chats, by state, dashboard or a word of the title or answer; rename_run, pin_run, unpin_run and archive_run tidy them, only for runs the person started.
 Investigations are a person's decision, and run_dashboard_health is for Admins.
 Never write HTML into a text panel, create a placeholder panel, or add or change actions; the server refuses them.
 

@@ -1,29 +1,21 @@
 import { useNavigate } from "@tanstack/react-router"
-import { useId, useMemo } from "react"
+import { useId } from "react"
 import { LayoutDashboardIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useMyRequests } from "@/observe/queries"
 
-import { collapseChats } from "./chat-list"
 import { ChatStatus } from "./chat-status"
+import { useRecentChats } from "./use-recent-chats"
 
 const recentLimit = 5
-const recentFetched = 15
 
 export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
-  const { requests: fetched, query } = useMyRequests(
-    { source: "observe" },
-    recentFetched
-  )
-  const requests = useMemo(
-    () => collapseChats(fetched).slice(0, recentLimit),
-    [fetched]
-  )
+  const { chats, query } = useRecentChats(recentLimit)
+  const requests = chats ?? []
 
   const failed = query.data === undefined && !query.isPending
 

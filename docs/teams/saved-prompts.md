@@ -17,9 +17,9 @@ Only an Editor or an Admin sees the button.
    On a device without hover the button is always visible.
 3. Check the name and the text, choose **Only me** or **Everyone on this server**, and choose **Save prompt**.
 
-The button appears on a chat you started from the chat box.
-A chat started by a saved prompt, by a comment or by an outside agent has none.
-A follow-up message on an existing dashboard counts as a chat of its own and has the button.
+The button appears on a chat whose request came from the chat box and was not about an existing dashboard.
+A chat you started by running a saved prompt is such a chat, so it has the button too.
+A comment revision, an investigation and a follow-up message on an existing dashboard have none.
 The panel starts with the first three words of the prompt as the name and the whole prompt as the text, and you can change both.
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.

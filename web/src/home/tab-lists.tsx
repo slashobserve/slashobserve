@@ -3,6 +3,7 @@ import { Link, useRouteContext } from "@tanstack/react-router"
 import { NotebookTextIcon, UploadIcon } from "lucide-react"
 
 import { ChatStatus } from "@/chat/chat-status"
+import { useRecentChats } from "@/chat/use-recent-chats"
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -10,14 +11,8 @@ import { myImportsQuery } from "@/import/record-queries"
 import { markOf, markOfAuthor } from "@/lib/author"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { observationsInfiniteQuery } from "@/observations/queries"
-import { useMyRequests } from "@/observe/queries"
 
-import {
-  createdBy,
-  importMeta,
-  messageCountText,
-  newestChats,
-} from "./home-lists"
+import { createdBy, importMeta, messageCountText } from "./home-lists"
 import {
   HomeSection,
   IconTile,
@@ -40,9 +35,7 @@ function Time({ iso }: { iso: string }) {
 }
 
 export function RecentChatsList() {
-  const { requests, query } = useMyRequests({}, 20)
-  const items =
-    query.data === undefined ? undefined : newestChats(requests, shown)
+  const { chats: items, query } = useRecentChats(shown)
 
   return (
     <HomeSection

@@ -92,9 +92,72 @@ export function deleteChatText(request: RequestSummary): string {
   }
 }
 
+function savedThings(turns: readonly RequestSummary[]): string[] {
+  const dashboards = new Map<string, string>()
+  const observations = new Map<string, string>()
+  let unsavedAnswers = 0
+  let suggestions = 0
+  let proposals = 0
+  for (const turn of turns) {
+    switch (turn.result_kind) {
+      case "version":
+      case "partial_version":
+        dashboards.set(
+          turn.dashboard_id ?? turn.id,
+          turn.dashboard_title === null
+            ? "a dashboard"
+            : `the dashboard "${turn.dashboard_title}"`
+        )
+        break
+      case "observation":
+        if (turn.observation_id === null) {
+          unsavedAnswers += 1
+        } else {
+          observations.set(
+            turn.observation_id,
+            turn.observation_title === null
+              ? "an observation"
+              : `the observation "${turn.observation_title}"`
+          )
+        }
+        break
+      case "suggestion":
+        suggestions += 1
+        break
+      case "proposal":
+        proposals += 1
+        break
+      case "none":
+        break
+    }
+  }
+  const things = [...dashboards.values(), ...observations.values()]
+  if (suggestions > 0) {
+    things.push(suggestions === 1 ? "a panel suggestion" : "panel suggestions")
+  }
+  if (proposals > 0) things.push(proposals === 1 ? "a proposal" : "proposals")
+  if (unsavedAnswers > 0) {
+    things.push(
+      unsavedAnswers === 1
+        ? "an answer on its chat page"
+        : "answers on their chat pages"
+    )
+  }
+  return things
+}
+
+function joinThings(things: readonly string[]): string {
+  if (things.length < 2) return things.join("")
+  return `${things.slice(0, -1).join(", ")} and ${things[things.length - 1]}`
+}
+
 export function deleteTurnsText(turns: readonly RequestSummary[]): string {
   if (turns.length === 1) return deleteChatText(turns[0])
-  return `All ${turns.length} messages in this chat leave your chat lists and cannot be added back. What they saved, such as dashboards, observations and proposals, stays.`
+  const left = `All ${turns.length} messages in this chat leave your chat lists and cannot be added back.`
+  const things = savedThings(turns)
+  return things.length === 0
+    ? `${left} Nothing else is removed.`
+    : `${left} What they saved stays: ${joinThings(things)}.`
 }
 
 export function chatOutcome(request: RequestSummary): string {

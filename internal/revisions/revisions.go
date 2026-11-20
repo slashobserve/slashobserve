@@ -371,6 +371,14 @@ func CheckTitle(s string) (string, error) {
 	return usertext.Clean("title", s, usertext.Line(MaxTitleRunes))
 }
 
+func CheckQuery(s string) (string, error) {
+	q := strings.TrimSpace(s)
+	if n := utf8.RuneCountInString(q); n < 1 || n > maxQueryRunes || !utf8.ValidString(q) || strings.ContainsRune(q, 0) {
+		return "", fmt.Errorf("q must be 1 to %d characters", maxQueryRunes)
+	}
+	return q, nil
+}
+
 func CheckContinueNote(note *string) (string, error) {
 	if note == nil {
 		return "", nil

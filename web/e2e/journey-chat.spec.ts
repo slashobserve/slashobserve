@@ -194,7 +194,10 @@ for (const colorScheme of ["light", "dark"] as const) {
           .first()
         await expect(row).toBeVisible()
         await row.click()
-        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
+        await expect(page).toHaveURL(/\/c\/[0-9a-f-]+$/)
+        const turns = page.getByRole("region", { name: /^Request / })
+        await expect(turns.first()).toContainText(askPrompt)
+        await expect(turns.last()).toContainText(followUpPrompt)
       })
 
       await test.step("theme", async () => {

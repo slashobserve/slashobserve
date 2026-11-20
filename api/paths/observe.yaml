@@ -22,6 +22,7 @@ observe:
   get:
     operationId: listObserveRequests
     x-surfaces:
+      mcp: [list_runs]
       cli: [observe requests list]
     summary: "List agent requests, newest first: the caller's own, or everyone's for an Admin."
     description: >-
@@ -277,6 +278,7 @@ observe-id:
   patch:
     operationId: updateObserveRequest
     x-surfaces:
+      mcp: [pin_run, unpin_run, rename_run]
       cli: [observe requests pin, observe requests unpin, observe requests rename]
     summary: Rename or pin one of your agent requests.
     description: >-
@@ -319,6 +321,7 @@ observe-id:
   delete:
     operationId: archiveObserveRequest
     x-surfaces:
+      mcp: [archive_run]
       cli: [observe requests archive]
     summary: Archive one of your agent requests so it leaves your list.
     description: >-

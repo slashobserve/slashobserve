@@ -22,6 +22,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | Tool | Lowest role |
 | ---- | ----------- |
 | `add_block` | Viewer |
+| `archive_run` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -72,6 +73,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_pinned_dashboards` | Viewer |
 | `list_proposals` | Viewer |
 | `list_rcas` | Viewer |
+| `list_runs` | Viewer |
 | `list_saved_searches` | Viewer |
 | `list_services` | Viewer |
 | `log_context` | Viewer |
@@ -84,11 +86,13 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `move_observation` | Viewer |
 | `pin_dashboard` | Viewer |
 | `pin_observation` | Viewer |
+| `pin_run` | Viewer |
 | `publish_rca` | Viewer |
 | `query_instant` | Viewer |
 | `query_range` | Viewer |
 | `recheck_datasource` | Viewer |
 | `rename_folder` | Viewer |
+| `rename_run` | Viewer |
 | `reopen_comment` | Viewer |
 | `reopen_observation` | Viewer |
 | `reply_to_comment` | Viewer |
@@ -108,6 +112,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
+| `unpin_run` | Viewer |
 | `update_annotation` | Viewer |
 | `update_block` | Viewer |
 | `update_dashboard` | Viewer |
@@ -123,7 +128,7 @@ Every refused tool call returns one shape: `code`, a stable word to branch on, a
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
 
-Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
+Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `rename_run`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
 A client that approves only non-destructive tools on its own therefore asks before any of them runs.
 
 `list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
@@ -392,6 +397,13 @@ Every call queues another run, so read `get_run` or `list_activity` before askin
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+
+`list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
+`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `source`, `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
+It takes `state` (a list), `source` (`observe`, `prompt`, `comment` or `investigate`), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
+The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
+`rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
+Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` or, for a run they cannot see, `not_found`; each is safe to repeat.
 `run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 
 `save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).

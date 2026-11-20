@@ -1,5 +1,4 @@
 import type { components } from "@/api/schema.gen"
-import { collapseChats } from "@/chat/chat-list"
 import type { StatusTone } from "@/components/status-label"
 import { importStatus } from "@/import/record-summary"
 import type { InboxItem } from "@/inbox/inbox-item"
@@ -8,22 +7,10 @@ import {
   observeAgentMark,
   type AuthorMarkModel,
 } from "@/lib/author"
-import type { RequestSummary } from "@/observe/queries"
 
 import type { RecentEntry, RecentKind } from "./recent"
 
 export type PickUpEntry = RecentEntry & { kind: RecentKind }
-
-function newestFirst(a: RequestSummary, b: RequestSummary): number {
-  return Date.parse(b.created_at) - Date.parse(a.created_at)
-}
-
-export function newestChats(
-  requests: readonly RequestSummary[],
-  limit: number
-): RequestSummary[] {
-  return collapseChats(requests.toSorted(newestFirst)).slice(0, limit)
-}
 
 export function needsYou(
   items: readonly InboxItem[],

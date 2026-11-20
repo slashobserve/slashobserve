@@ -2,7 +2,13 @@ import { describe, expect, test } from "vitest"
 
 import type { RequestSummary } from "@/observe/queries"
 
-import { chatRoot, chatTurns, collapseChats, groupChats } from "./chat-list"
+import {
+  chatRoot,
+  chatTurns,
+  collapseChats,
+  groupChats,
+  newestChats,
+} from "./chat-list"
 
 function summary(
   overrides: Partial<RequestSummary> & { id: string }
@@ -184,5 +190,78 @@ describe("chatTurns and chatRoot", () => {
 
   test("names the first ask as the root of a conversation", () => {
     expect(chatRoot(chatTurns(list, list[0])).id).toBe("t1")
+  })
+})
+
+describe("newestChats", () => {
+  test("puts a newer unpinned chat before an older pinned one", () => {
+    const pinned = summary({
+      id: "pinned",
+      created_at: "2026-11-01T10:00:00Z",
+      pinned_at: "2026-11-02T10:00:00Z",
+    })
+    const newer = summary({ id: "newer", created_at: "2026-11-10T10:00:00Z" })
+    expect(newestChats([pinned, newer], 5).map((r) => r.id)).toEqual([
+      "newer",
+      "pinned",
+    ])
+  })
+
+  test("cuts the list to the limit", () => {
+    const requests = ["a", "b", "c", "d"].map((id, index) =>
+      summary({ id, created_at: `2026-11-0${index + 1}T10:00:00Z` })
+    )
+    expect(newestChats(requests, 2).map((r) => r.id)).toEqual(["d", "c"])
+  })
+
+  test("shows a dashboard's build, edit and question as one row named by the first build", () => {
+    const dashboard = { dashboard_id: "a" }
+    const rows = newestChats(
+      [
+        summary({
+          id: "build",
+          ...dashboard,
+          source: "observe",
+          title: "Checkout health",
+          created_at: "2026-11-01T10:00:00Z",
+        }),
+        summary({
+          id: "edit",
+          ...dashboard,
+          source: "prompt",
+          title: "Rename a panel",
+          created_at: "2026-11-01T11:00:00Z",
+        }),
+        summary({
+          id: "question",
+          ...dashboard,
+          source: "prompt",
+          title: "What did you rename",
+          created_at: "2026-11-01T12:00:00Z",
+        }),
+        summary({ id: "other", created_at: "2026-10-31T12:00:00Z" }),
+      ],
+      5
+    )
+    expect(rows.map((r) => [r.id, r.title])).toEqual([
+      ["question", "Checkout health"],
+      ["other", "Show checkout latency"],
+    ])
+  })
+
+  test("fills the limit with distinct chats after collapsing", () => {
+    const turns = ["t1", "t2", "t3"].map((id, index) =>
+      summary({
+        id,
+        source: "prompt",
+        dashboard_id: "a",
+        created_at: `2026-11-0${index + 1}T10:00:00Z`,
+      })
+    )
+    const other = summary({ id: "o", created_at: "2026-10-01T10:00:00Z" })
+    expect(newestChats([...turns, other], 2).map((r) => r.id)).toEqual([
+      "t3",
+      "o",
+    ])
   })
 })

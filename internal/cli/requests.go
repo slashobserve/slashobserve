@@ -94,7 +94,7 @@ func (a *app) requestsListCommand() *cobra.Command {
 			}
 			rows := make([][]string, 0, len(list.Requests))
 			for _, r := range list.Requests {
-				rows = append(rows, []string{text(r.ID), text(r.State), text(r.Source), orDash(r.DashboardTitle), text(r.Title)})
+				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Source), orDash(r.DashboardTitle), text(r.Title)})
 			}
 			out.table([]string{"ID", "STATE", "SOURCE", "DASHBOARD", "TITLE"}, rows)
 			var total *int
@@ -114,6 +114,18 @@ func (a *app) requestsListCommand() *cobra.Command {
 	flags.BoolVar(&opts.pinned, "pinned", false, "keep only pinned requests, or only unpinned ones with --pinned=false")
 	flags.StringVar(&opts.dashboard, "dashboard", "", "keep only the requests about this dashboard id")
 	return cmd
+}
+
+func requestStateWord(state string) string {
+	switch state {
+	case "queued", "running", "canceling":
+		return "Running"
+	case "succeeded":
+		return "Done"
+	case "failed", "canceled":
+		return "Stopped"
+	}
+	return text(state)
 }
 
 func (o requestListOptions) apply(cmd *cobra.Command, query url.Values) error {

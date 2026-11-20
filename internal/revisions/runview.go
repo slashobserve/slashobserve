@@ -44,6 +44,73 @@ func (r *RunDesk) Run(ctx context.Context, id pgtype.UUID, caller auth.Principal
 	return raw, nil
 }
 
+func (r *RunDesk) List(ctx context.Context, caller auth.Principal, filter ListFilter, limit int, cursor string) (json.RawMessage, error) {
+	body, err := r.listBody(ctx, caller, filter, limit, cursor)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("encode agent request list: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) Update(ctx context.Context, id pgtype.UUID, caller auth.Principal, title *string, clearTitle bool, pinned *bool) (json.RawMessage, error) {
+	row, err := r.service.UpdateListFields(ctx, id, caller, title, clearTitle, pinned)
+	return r.answer(ctx, row, caller, err)
+}
+
+func (r *RunDesk) Archive(ctx context.Context, id pgtype.UUID, caller auth.Principal) error {
+	return r.service.Archive(ctx, id, caller)
+}
+
+func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter ListFilter, limit int, cursor string) (requestListJSON, error) {
+	rows, next, err := r.service.ListRequests(ctx, caller, filter, limit, cursor)
+	if err != nil {
+		return requestListJSON{}, err
+	}
+	ids := make([]pgtype.UUID, len(rows))
+	for i, row := range rows {
+		ids[i] = row.ID
+	}
+	states, err := r.service.buildStates(ctx, ids)
+	if err != nil {
+		return requestListJSON{}, fmt.Errorf("list agent request build state: %w", err)
+	}
+	starts := r.service.newStartChecks(caller)
+	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
+	for i, row := range rows {
+		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
+		var allowed []Action
+		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
+			mayStart, err := starts.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+			if err != nil {
+				return requestListJSON{}, fmt.Errorf("check who may start a listed agent request again: %w", err)
+			}
+			mayEdit, err := starts.mayEdit(ctx, State(row.State), row.DashboardID)
+			if err != nil {
+				return requestListJSON{}, fmt.Errorf("check who may keep a listed agent request's build: %w", err)
+			}
+			allowed = allowedActions(newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
+		}
+		state := states[row.ID]
+		state.build = state.progressFor(requester, caller)
+		body.Requests[i] = r.summary(row, state, allowed)
+	}
+	if next != "" {
+		body.NextCursor = &next
+	}
+	if cursor == "" {
+		count, err := r.service.CountRequests(ctx, caller, filter)
+		if err != nil {
+			return requestListJSON{}, fmt.Errorf("count agent requests: %w", err)
+		}
+		body.Summary = &requestCountJSON{Total: count.Total, People: count.People}
+	}
+	return body, nil
+}
+
 func (r *RunDesk) Start(ctx context.Context, caller auth.Principal, req StartRequest) (json.RawMessage, error) {
 	row, err := r.service.Start(ctx, caller, req)
 	return r.answer(ctx, row, caller, err)
@@ -240,4 +307,58 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 		return nil
 	}
 	return &text
+}
+
+func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
+	out := requestSummaryJSON{
+		ID:           row.ID.String(),
+		Kind:         Kind(Source(row.Source)),
+		Source:       Source(row.Source),
+		Trigger:      row.Trigger,
+		Title:        requestTitle(row.Title, row.Prompt),
+		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
+		Prompt:       row.Prompt,
+		Status:       Status(row.Status),
+		State:        State(row.State),
+		ResultKind:   ResultKind(row.ResultKind),
+		PanelID:      optionalText(row.PanelID),
+		Error:        httpapi.OptionalString(row.Error.String),
+		Origin:       httpapi.OptionalString(row.Origin.String),
+		OriginClient: httpapi.OptionalString(row.OriginClient.String),
+		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
+
+		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
+		Build:        state.build,
+		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
+		ContinuesID:  optionalUUID(row.ContinuesID),
+		ContinuedBy:  state.continuedBy,
+		RetriedBy:    state.retriedBy,
+		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
+
+		ObservationID:    optionalUUID(row.ObservationID),
+		ObservationTitle: optionalText(row.ObservationTitle),
+		ChatID:           chatOf(row.ID, row.ChatID),
+		AllowedActions:   actionStrings(allowed),
+	}
+	if row.DashboardID.Valid {
+		id := row.DashboardID.String()
+		out.DashboardID = &id
+		out.DashboardTitle = optionalText(row.DashboardTitle)
+		if out.Status == StatusSucceeded && out.Kind == KindBuild && r.opts.DashboardURL != nil {
+			url := r.opts.DashboardURL(id, row.DashboardTitle.String)
+			out.URL = &url
+		}
+	}
+	if out.Status == StatusSucceeded && row.FindingID.Valid && row.ObservationID.Valid && r.opts.ObservationURL != nil {
+		url := r.opts.ObservationURL(row.ObservationID.String())
+		out.URL = &url
+	}
+	if row.ResultVersion.Valid {
+		n := int(row.ResultVersion.Int32)
+		out.ResultVersion = &n
+	}
+	return out
 }

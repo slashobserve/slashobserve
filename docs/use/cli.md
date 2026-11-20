@@ -99,6 +99,7 @@ While a request is running, `observe status` also prints a `Live text` section w
 ### Your requests
 
 `bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
+The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
 `--state` (repeatable, or comma-separated), `--source` (`observe`, `prompt`, `comment` or `investigate`), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
 `--scope all` lists every principal's requests and needs the Admin role.
 It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.

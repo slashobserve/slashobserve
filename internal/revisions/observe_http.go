@@ -5,20 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -265,53 +261,10 @@ func (h *ObserveHandler) listObserve(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, next, err := h.service.ListRequests(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
+	body, err := h.runs.listBody(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.service.fail(c, "list agent requests", err, principalAttrs(c)...)
 		return
-	}
-	ids := make([]pgtype.UUID, len(rows))
-	for i, row := range rows {
-		ids[i] = row.ID
-	}
-	states, err := h.service.buildStates(c.Request.Context(), ids)
-	if err != nil {
-		h.service.fail(c, "list agent request build state", err, principalAttrs(c)...)
-		return
-	}
-	caller := httpapi.Caller(c)
-	starts := h.service.newStartChecks(caller)
-	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
-	for i, row := range rows {
-		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
-		var allowed []Action
-		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
-			mayStart, err := starts.may(c.Request.Context(), State(row.State), Source(row.Source), row.DashboardID)
-			if err != nil {
-				h.service.fail(c, "check who may start a listed agent request again", err, principalAttrs(c)...)
-				return
-			}
-			mayEdit, err := starts.mayEdit(c.Request.Context(), State(row.State), row.DashboardID)
-			if err != nil {
-				h.service.fail(c, "check who may keep a listed agent request's build", err, principalAttrs(c)...)
-				return
-			}
-			allowed = allowedActions(newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
-		}
-		state := states[row.ID]
-		state.build = state.progressFor(requester, caller)
-		body.Requests[i] = h.summary(row, state, allowed)
-	}
-	if next != "" {
-		body.NextCursor = &next
-	}
-	if c.Query("cursor") == "" {
-		count, err := h.service.CountRequests(c.Request.Context(), caller, filter)
-		if err != nil {
-			h.service.fail(c, "count agent requests", err, principalAttrs(c)...)
-			return
-		}
-		body.Summary = &requestCountJSON{Total: count.Total, People: count.People}
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -352,9 +305,9 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 		}
 	}
 	if raw, present := c.GetQuery("q"); present {
-		q := strings.TrimSpace(raw)
-		if n := utf8.RuneCountInString(q); n < 1 || n > maxQueryRunes || !utf8.ValidString(q) || strings.ContainsRune(q, 0) {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("q must be 1 to %d characters", maxQueryRunes))
+		q, err := CheckQuery(raw)
+		if err != nil {
+			httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 			return filter, false
 		}
 		filter.Query = q
@@ -400,60 +353,6 @@ func requestTitle(title pgtype.Text, prompt string) string {
 		return title.String
 	}
 	return DefaultTitle(prompt)
-}
-
-func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
-	out := requestSummaryJSON{
-		ID:           row.ID.String(),
-		Kind:         Kind(Source(row.Source)),
-		Source:       Source(row.Source),
-		Trigger:      row.Trigger,
-		Title:        requestTitle(row.Title, row.Prompt),
-		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ResultKind(row.ResultKind),
-		PanelID:      optionalText(row.PanelID),
-		Error:        httpapi.OptionalString(row.Error.String),
-		Origin:       httpapi.OptionalString(row.Origin.String),
-		OriginClient: httpapi.OptionalString(row.OriginClient.String),
-		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
-		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
-
-		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
-		Build:        state.build,
-		BuildSavedAt: formatOptionalTime(optionalTime(row.BuildSavedAt)),
-		ContinuesID:  optionalUUID(row.ContinuesID),
-		ContinuedBy:  state.continuedBy,
-		RetriedBy:    state.retriedBy,
-		ContinueNote: httpapi.OptionalString(row.ContinueNote.String),
-
-		ObservationID:    optionalUUID(row.ObservationID),
-		ObservationTitle: optionalText(row.ObservationTitle),
-		ChatID:           chatOf(row.ID, row.ChatID),
-		AllowedActions:   actionStrings(allowed),
-	}
-	if row.DashboardID.Valid {
-		id := row.DashboardID.String()
-		out.DashboardID = &id
-		out.DashboardTitle = optionalText(row.DashboardTitle)
-		if out.Status == StatusSucceeded && out.Kind == KindBuild && h.opts.DashboardURL != nil {
-			url := h.opts.DashboardURL(id, row.DashboardTitle.String)
-			out.URL = &url
-		}
-	}
-	if out.Status == StatusSucceeded && row.FindingID.Valid && row.ObservationID.Valid && h.opts.ObservationURL != nil {
-		url := h.opts.ObservationURL(row.ObservationID.String())
-		out.URL = &url
-	}
-	if row.ResultVersion.Valid {
-		n := int(row.ResultVersion.Int32)
-		out.ResultVersion = &n
-	}
-	return out
 }
 
 func optionalUUID(id pgtype.UUID) *string {
