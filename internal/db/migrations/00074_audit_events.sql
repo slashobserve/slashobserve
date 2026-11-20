@@ -74,6 +74,9 @@ $$;
 CREATE TRIGGER audit_events_append_only BEFORE UPDATE OR DELETE ON audit_events
   FOR EACH ROW EXECUTE FUNCTION audit_events_refuse_change();
 
+CREATE TRIGGER audit_events_no_truncate BEFORE TRUNCATE ON audit_events
+  FOR EACH STATEMENT EXECUTE FUNCTION audit_events_refuse_change();
+
 -- +goose StatementBegin
 CREATE FUNCTION audit_events_attach(name TEXT, starts DATE, ends DATE) RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -83,9 +86,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_inherits WHERE inhparent = 'audit_events'::regclass AND inhrelid = to_regclass(name)) THEN
     RETURN false;
   END IF;
-  IF to_regclass(name) IS NULL THEN
-    EXECUTE format('CREATE TABLE %I (LIKE audit_events INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING GENERATED)', name);
+  IF to_regclass(name) IS NOT NULL THEN
+    RAISE EXCEPTION 'audit partition % already exists outside the audit trail and is refused', name USING ERRCODE = 'duplicate_table';
   END IF;
+  EXECUTE format('CREATE TABLE %I (LIKE audit_events INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING GENERATED)', name);
+  EXECUTE format('CREATE TRIGGER audit_events_no_truncate BEFORE TRUNCATE ON %I FOR EACH STATEMENT EXECUTE FUNCTION audit_events_refuse_change()', name);
   EXECUTE format('ALTER TABLE audit_events ATTACH PARTITION %I FOR VALUES FROM (%L) TO (%L)', name,
     starts::timestamp AT TIME ZONE 'UTC', ends::timestamp AT TIME ZONE 'UTC');
   RETURN true;
@@ -252,6 +257,19 @@ $$;
 SELECT audit_events_catch_up('-infinity', 'backfill', 'backfill', true);
 
 -- +goose Down
+-- +goose StatementBegin
+DO $$
+DECLARE
+  detached TEXT;
+BEGIN
+  FOR detached IN SELECT c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r' AND n.nspname = current_schema() AND c.relname ~ '^audit_events_([0-9]{6}|[0-9]{8})$'
+      AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid) LOOP
+    EXECUTE format('DROP TABLE %I', detached);
+  END LOOP;
+END
+$$;
+-- +goose StatementEnd
 DROP FUNCTION audit_events_catch_up(TIMESTAMPTZ, TEXT, TEXT, BOOLEAN);
 DROP TABLE audit_backfill;
 DROP TABLE audit_activity_actions;

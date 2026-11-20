@@ -117,7 +117,7 @@ During a rolling upgrade, servers still on the older version keep writing activi
 To go back, run `goose down-to 48` against the database before starting an older binary.
 The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
 
-- Migration 74 drops the audit table with every audit event in it.
+- Migration 74 drops the audit table with every audit event in it, its detached partitions included.
 - Migration 73 drops access requests and deletes their activity events, and migration 70 drops each request's time zone.
 - Migration 65 deletes every finding that no observation holds, which is a chat answer nobody saved.
 - Migration 64 drops teams and their members, so folder entries that named a team match no one.
