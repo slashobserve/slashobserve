@@ -41,9 +41,36 @@ export function groupChats(requests: readonly RequestSummary[]): ChatGroup[] {
   ]
 }
 
-function conversationKey(request: RequestSummary): string | null {
-  if (request.source !== "observe" && request.source !== "prompt") return null
-  return request.dashboard_id ?? request.chat_id
+function isChatTurn(request: RequestSummary): boolean {
+  return request.source === "observe" || request.source === "prompt"
+}
+
+function find(parent: Map<string, string>, node: string): string {
+  const up = parent.get(node)
+  if (up === undefined || up === node) return node
+  const root = find(parent, up)
+  parent.set(node, root)
+  return root
+}
+
+function conversationKeys(
+  requests: readonly RequestSummary[]
+): Map<string, string> {
+  const parent = new Map<string, string>()
+  const nodeOf = (request: RequestSummary) =>
+    request.dashboard_id === null
+      ? `chat:${request.chat_id}`
+      : `dashboard:${request.dashboard_id}`
+  const turns = requests.filter(isChatTurn)
+  for (const request of turns) {
+    if (request.dashboard_id === null) continue
+    const chat = find(parent, `chat:${request.chat_id}`)
+    const dashboard = find(parent, nodeOf(request))
+    if (chat !== dashboard) parent.set(chat, dashboard)
+  }
+  return new Map(
+    turns.map((request) => [request.id, find(parent, nodeOf(request))])
+  )
 }
 
 export function chatRoot(turns: readonly RequestSummary[]): RequestSummary {
@@ -57,18 +84,20 @@ export function chatTurns(
   requests: readonly RequestSummary[],
   row: RequestSummary
 ): RequestSummary[] {
-  const key = conversationKey(row)
-  if (key === null) return [row]
-  return requests.filter((request) => conversationKey(request) === key)
+  const keys = conversationKeys(requests)
+  const key = keys.get(row.id)
+  if (key === undefined) return [row]
+  return requests.filter((request) => keys.get(request.id) === key)
 }
 
 export function collapseChats(
   requests: readonly RequestSummary[]
 ): RequestSummary[] {
+  const keys = conversationKeys(requests)
   const shown = new Set<string>()
   return requests.flatMap((request) => {
-    const key = conversationKey(request)
-    if (key === null) return [request]
+    const key = keys.get(request.id)
+    if (key === undefined) return [request]
     if (shown.has(key)) return []
     shown.add(key)
     const root = chatRoot(chatTurns(requests, request))

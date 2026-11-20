@@ -129,9 +129,24 @@ describe("chatOutcome", () => {
       "Revised Checkout",
     ],
     [
-      "a saved version with no dashboard title",
+      "a saved version with no dashboard",
       { dashboard_title: null, result_version: 3 },
       "Saved version 3",
+    ],
+    [
+      "a new dashboard whose title the caller cannot read",
+      { source: "observe", dashboard_id: "d1", dashboard_title: null },
+      "Saved a dashboard",
+    ],
+    [
+      "a revision whose dashboard the caller cannot read",
+      {
+        source: "prompt",
+        dashboard_id: "d1",
+        dashboard_title: null,
+        result_version: 3,
+      },
+      "Revised a dashboard",
     ],
     [
       "a partial version",
@@ -174,6 +189,11 @@ describe("chatOutcome", () => {
         result_kind: "observation",
         observation_title: "Checkout errors",
       },
+      "Answered, no dashboard",
+    ],
+    [
+      "a request for a dashboard whose answer was not saved",
+      { source: "observe", result_kind: "answer" },
       "Answered, no dashboard",
     ],
     [
@@ -239,11 +259,7 @@ describe("deleteChatText", () => {
     ],
     [
       "an answer kept in the chat",
-      {
-        result_kind: "observation" as const,
-        observation_id: null,
-        observation_title: null,
-      },
+      { result_kind: "answer" as const },
       "It leaves your chat lists and cannot be added back. The answer stays on the chat page, which still opens from its link.",
     ],
     [
@@ -267,9 +283,7 @@ describe("deleteChatText", () => {
 
   test("never says a dashboard stays for an answer", () => {
     expect(
-      deleteChatText(
-        summary({ result_kind: "observation", dashboard_id: null })
-      )
+      deleteChatText(summary({ result_kind: "answer", dashboard_id: null }))
     ).not.toMatch(/dashboard/i)
   })
 })
@@ -357,7 +371,7 @@ describe("deleteTurnsText", () => {
     expect(
       deleteTurnsText(
         turns(
-          { result_kind: "observation", observation_id: null },
+          { result_kind: "answer" },
           { result_kind: "none" },
           { result_kind: "none" }
         )
@@ -441,7 +455,7 @@ describe("deleting the saved observation with the chat", () => {
           observation_id: "o2",
           observation_title: null,
         }),
-        summary({ result_kind: "observation", observation_id: null }),
+        summary({ result_kind: "answer" }),
         summary({ result_kind: "version", observation_id: "o3" }),
       ])
     ).toEqual([{ id: "o1", title: "Slowest routes" }])

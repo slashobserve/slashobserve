@@ -32,6 +32,13 @@ type observeChat struct {
 	retries pgtype.UUID
 }
 
+func chatRoot(id, chat pgtype.UUID) pgtype.UUID {
+	if chat.Valid {
+		return chat
+	}
+	return id
+}
+
 func clipRunes(s string, n int) string {
 	s = strings.TrimSpace(s)
 	if utf8.RuneCountInString(s) <= n {

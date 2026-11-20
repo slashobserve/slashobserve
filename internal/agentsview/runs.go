@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -204,7 +205,7 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 		Source:      row.Source,
 		Title:       runTitle(row.Title.String, row.Prompt, row.Source),
 		State:       row.State,
-		ResultKind:  row.ResultKind,
+		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
 		FailureCode: optionalText(row.FailureCode),
 		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:   optionalTime(row.StartedAt),

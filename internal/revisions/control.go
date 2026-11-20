@@ -290,7 +290,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				ThreadContext:   threadContext,
 			})
 		} else {
-			next, err = s.enqueueObserve(ctx, q, by, row.Prompt, row.ID, note, observeChat{id: row.ChatID, context: row.ThreadContext.String})
+			next, err = s.enqueueObserve(ctx, q, by, row.Prompt, row.ID, note, observeChat{id: chatRoot(row.ID, row.ChatID), context: row.ThreadContext.String})
 		}
 		if err != nil {
 			return err
@@ -381,7 +381,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	case SourceObserve:
 		chat := observeChat{retries: retries}
 		if sameActor(requesterOf(row), by) {
-			chat = observeChat{id: row.ChatID, context: row.ThreadContext.String, retries: retries}
+			chat = observeChat{id: chatRoot(row.ID, row.ChatID), context: row.ThreadContext.String, retries: retries}
 		}
 		return s.submitObserve(ctx, by, row.Prompt, chat)
 	case SourceInvestigate:

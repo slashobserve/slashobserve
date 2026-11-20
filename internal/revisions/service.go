@@ -240,10 +240,7 @@ func (s *Service) SubmitObserveFollowUp(ctx context.Context, by auth.Principal, 
 	if parent.DashboardID.Valid {
 		return dbsqlc.AgentRequest{}, ErrFollowsDashboard
 	}
-	chatID := parent.ChatID
-	if !chatID.Valid {
-		chatID = parent.ID
-	}
+	chatID := chatRoot(parent.ID, parent.ChatID)
 	transcript, err := s.chatTranscript(ctx, by, chatID, pgtype.UUID{})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -1014,7 +1011,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
 		State:        State(row.State),
-		ResultKind:   ResultKind(row.ResultKind),
+		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
 		Attempts:     int(row.Attempts),
 		Error:        row.Error.String,
 		RequestedBy:  requesterOf(row),

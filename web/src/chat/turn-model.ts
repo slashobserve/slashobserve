@@ -15,17 +15,20 @@ export function mayHaveFinding(
   request: Pick<ObserveRequest, "source" | "result_kind">
 ): boolean {
   return (
-    request.source === "investigate" || request.result_kind === "observation"
+    request.source === "investigate" ||
+    request.result_kind === "observation" ||
+    request.result_kind === "answer"
   )
 }
 
 export function noFindingText(
-  request: Pick<ObserveRequest, "source" | "result_kind" | "observation_id">
+  request: Pick<ObserveRequest, "source" | "result_kind">
 ): string {
+  if (request.result_kind === "answer") {
+    return "The answer is about a dashboard you cannot open."
+  }
   if (request.result_kind === "observation") {
-    return request.observation_id === null
-      ? "The answer is about a dashboard you cannot open."
-      : "The answer is saved in an observation in a folder you cannot see."
+    return "The answer is saved in an observation in a folder you cannot see."
   }
   return request.source === "investigate"
     ? "The run finished without a finding."

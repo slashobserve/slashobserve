@@ -983,7 +983,7 @@ components:
           enum: [queued, running, canceling, succeeded, failed, canceled]
         result_kind:
           type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation]
+          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
         failure_code:
           type: string
           nullable: true
@@ -3986,8 +3986,8 @@ components:
           description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
         result_kind:
           type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
+          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -4515,8 +4515,8 @@ components:
           description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
         result_kind:
           type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
+          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -4754,8 +4754,8 @@ components:
           description: "Where the request is in its life: `queued`, `running`, `canceling` (the requester canceled it and its worker is stopping), `succeeded`, `failed` or `canceled`. `status` keeps its four values; a `canceling` request has status `running`, and a `canceled` one has status `failed` with the failure code `canceled`. The moves between states are in `docs/reference/states.md`."
         result_kind:
           type: string
-          enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
+          enum: [none, version, partial_version, proposal, suggestion, observation, answer]
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion`, `observation` (a finding written into an observation, which `observation_id` names) or `answer` (a finding kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`, which turns it into `observation`). A finding wins over a version."
         allowed_actions:
           type: array
           uniqueItems: true

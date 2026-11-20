@@ -414,11 +414,12 @@ It takes `state` (a list), `source` (`observe`, `prompt`, `comment` or `investig
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
 An observation the run saved stays too, because no MCP tool deletes anything; a person deletes it with the chat in the web app, or with `observe requests archive <id> --delete-observation --yes`.
-Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` or, for a run they cannot see, `not_found`; each is safe to repeat.
+Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` on a run they can see on a dashboard and `not_found` on any other, so a chat that only its requester can read never shows it exists; each is safe to repeat.
 `run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 
 `save_run_answer` takes `run_id` and files the answer of that run as an observation, in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
 It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
+Until then a run's `result_kind` is `answer` and its `observation_id` is null, and it reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.

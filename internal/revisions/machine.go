@@ -3,6 +3,8 @@ package revisions
 import (
 	"slices"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
@@ -27,9 +29,17 @@ const (
 	ResultProposal       ResultKind = "proposal"
 	ResultSuggestion     ResultKind = "suggestion"
 	ResultObservation    ResultKind = "observation"
+	ResultAnswer         ResultKind = "answer"
 )
 
-var ResultKinds = []ResultKind{ResultNone, ResultVersion, ResultPartialVersion, ResultProposal, ResultSuggestion, ResultObservation}
+var ResultKinds = []ResultKind{ResultNone, ResultVersion, ResultPartialVersion, ResultProposal, ResultSuggestion, ResultObservation, ResultAnswer}
+
+func ReportedResultKind(stored string, observation pgtype.UUID) ResultKind {
+	if ResultKind(stored) == ResultObservation && !observation.Valid {
+		return ResultAnswer
+	}
+	return ResultKind(stored)
+}
 
 type Action string
 
