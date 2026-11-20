@@ -256,12 +256,17 @@ func printRequest(out *output, req agentRequest) {
 			out.line("  %s  %s", text(step.Phase), text(step.Message))
 		}
 	}
-	if req.LiveText != nil && *req.LiveText != "" {
-		out.line("")
-		out.line("Live text")
-		for _, line := range strings.Split(*req.LiveText, "\n") {
-			out.line("  %s", text(line))
-		}
+	printLiveText(out, req.LiveText)
+}
+
+func printLiveText(out *output, live *string) {
+	if live == nil || *live == "" {
+		return
+	}
+	out.line("")
+	out.line("Live text")
+	for _, line := range strings.Split(*live, "\n") {
+		out.line("  %s", text(line))
 	}
 }
 
