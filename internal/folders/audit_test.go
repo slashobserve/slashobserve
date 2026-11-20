@@ -150,7 +150,7 @@ VALUES ($1::uuid, 'logs', 't', 'loki', '{app="x"}', 'now-1h', 'now', 'user', gen
 	wantFolderEvent(t, onlyEventAfter(t, d, len(refused), rec), "folder.delete", empty, "Empty")
 }
 
-func TestSettingAFolderPermissionsRecordsBeforeAndAfterWithoutEmails(t *testing.T) {
+func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testing.T) {
 	d := dbtest.New(t)
 	user, err := d.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "bo", Email: "bo@example.com", Name: "Bo"})
 	if err != nil {
@@ -158,25 +158,41 @@ func TestSettingAFolderPermissionsRecordsBeforeAndAfterWithoutEmails(t *testing.
 	}
 	id := newFolder(t, d, "Locked")
 	engine := adminEngine(t, d)
+	put := func(entries string) storedEvent {
+		earlier := len(storedEvents(t, d))
+		rec := send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", `{"entries":`+entries+`}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("set = %d %s", rec.Code, rec.Body)
+		}
+		got := onlyEventAfter(t, d, earlier, rec)
+		wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "added", "changed", "count_after", "count_before", "removed", "truncated")
+		return got
+	}
+	sre := map[string]any{"kind": "group", "name": "sre", "level": "edit"}
+	bo := func(level string) map[string]any {
+		return map[string]any{"kind": "user", "id": user.ID.String(), "name": "Bo", "level": level}
+	}
 
-	first := send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", `{"entries":[{"group":"sre","level":"edit"}]}`)
-	if first.Code != http.StatusOK {
-		t.Fatalf("set = %d %s", first.Code, first.Body)
+	first := put(`[{"group":"sre","level":"edit"}]`)
+	want := map[string]any{"added": []any{sre}, "removed": []any{}, "changed": []any{}, "count_before": 0.0, "count_after": 1.0, "truncated": false}
+	if !reflect.DeepEqual(first.Data, want) {
+		t.Fatalf("first = %v, want %v", first.Data, want)
 	}
-	earlier := len(storedEvents(t, d))
 
-	rec := send(t, engine, http.MethodPut, "/api/v1/folders/"+id+"/permissions", `{"entries":[{"user_id":"`+user.ID.String()+`","level":"view"}]}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("set = %d %s", rec.Code, rec.Body)
+	second := put(`[{"user_id":"` + user.ID.String() + `","level":"view"}]`)
+	want = map[string]any{"added": []any{bo("view")}, "removed": []any{sre}, "changed": []any{}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	if !reflect.DeepEqual(second.Data, want) {
+		t.Fatalf("second = %v, want %v", second.Data, want)
 	}
-	got := onlyEventAfter(t, d, earlier, rec)
-	wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "after", "before")
-	wantBefore := []any{map[string]any{"kind": "group", "name": "sre", "level": "edit"}}
-	wantAfter := []any{map[string]any{"kind": "user", "id": user.ID.String(), "name": "Bo", "level": "view"}}
-	if !reflect.DeepEqual(got.Data["before"], wantBefore) || !reflect.DeepEqual(got.Data["after"], wantAfter) {
-		t.Fatalf("before = %v, after = %v; want %v and %v", got.Data["before"], got.Data["after"], wantBefore, wantAfter)
+
+	third := put(`[{"user_id":"` + user.ID.String() + `","level":"edit"}]`)
+	changed := bo("edit")
+	changed["from_level"] = "view"
+	want = map[string]any{"added": []any{}, "removed": []any{}, "changed": []any{changed}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	if !reflect.DeepEqual(third.Data, want) {
+		t.Fatalf("third = %v, want %v", third.Data, want)
 	}
-	if raw, _ := json.Marshal(got.Data); strings.Contains(string(raw), "example.com") {
+	if raw, _ := json.Marshal(third.Data); strings.Contains(string(raw), "example.com") {
 		t.Fatal("an email address reached the audit event")
 	}
 }

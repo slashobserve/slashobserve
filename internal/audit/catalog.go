@@ -63,7 +63,7 @@ var (
 	pruneKeys    = []string{"partitions", "before"}
 
 	renamedKeys    = []string{"from_title", "title"}
-	permissionKeys = []string{"before", "after"}
+	permissionKeys = []string{"added", "removed", "changed", "count_before", "count_after", "truncated"}
 	memberKeys     = []string{"user_id", "user_name"}
 )
 

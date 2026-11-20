@@ -326,8 +326,7 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 		if err != nil {
 			return err
 		}
-		data := map[string]any{"before": recordedGrants(before), "after": recordedGrants(after)}
-		if err := recordFolder(ctx, q, "folder.permissions_change", folderID, folder.Title, data); err != nil {
+		if err := recordFolder(ctx, q, "folder.permissions_change", folderID, folder.Title, permissionChange(before, after)); err != nil {
 			return err
 		}
 		if h.settle == nil {
