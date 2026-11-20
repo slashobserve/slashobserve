@@ -583,6 +583,8 @@ bin/observe logs '{app="shop"}' --datasource loki --tail
 `--from` and `--to` default to `now-1h` and `now` and take the same times as a dashboard, and `--limit` keeps the newest 1 to 1000 lines (100 by default).
 Each line shows its time in UTC, its level when the lines have one, the labels whose values differ between the lines, and the message.
 The message is the first column named `body`, `message`, `msg`, `line` or `log`, else the first text column, as in the web app's logs panel.
+On ClickHouse the query is SQL that reads the time range with `$__timeFilter(Timestamp)` and selects `Timestamp` and `Body`; the rows come back as they are.
+A ClickHouse result with no `Timestamp` or message column prints as a table instead of log lines.
 
 `--tail` keeps asking every 2 seconds and prints only the lines it has not printed, with every label, until Ctrl-C, which exits 0.
 `--json` prints the response body, or with `--tail` one JSON object per line with `time`, `level`, `labels` and `line`.
