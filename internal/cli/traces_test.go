@@ -329,3 +329,80 @@ func TestTheCLIRewritesTheWalkSentenceItAlsoReadsFromTheServer(t *testing.T) {
 		t.Fatalf("%q no longer holds %q", queryproxy.FullPageNote, serverWalkSentence)
 	}
 }
+
+const sqlRows = `{"frames":[{"ref":"A","fields":[
+	{"name":"TraceId","type":"string","values":["` + traceID + `","5c1d7a2e9f8b4a3d8e6f0b1c2d3e4f50"]},
+	{"name":"ServiceName","type":"string","values":["checkout","cart\tweb"]},
+	{"name":"Timestamp","type":"time","values":[1762000000030,null]},
+	{"name":"Spans","type":"number","values":[12,3]}
+]}],"meta":{"page":{"page":1,"page_size":100,"has_next":true,"has_prev":false,"total_relation":"unknown","plain":true}}}`
+
+const traceSQL = "SELECT TraceId, ServiceName, Timestamp, count() AS Spans FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY TraceId, ServiceName, Timestamp"
+
+func TestTracesQueryRunsTheSQLAsOnePageOfTheExploreQuery(t *testing.T) {
+	f := newTracesFake(t, "clickhouse")
+	f.answer = sqlRows
+	stdout, stderr, code := f.run("--query", traceSQL, "--datasource", "traces", "--from", "now-6h")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	q := f.queries[0]
+	if q["query"] != traceSQL || q["kind"] != "instant" || q["from"] != "now-6h" || q["to"] != "now" || q["page_size"] != float64(100) || q["page"] != float64(1) {
+		t.Fatalf("query %v", q)
+	}
+	if _, ok := q["limit"]; ok {
+		t.Fatalf("a page carries no limit: %v", q)
+	}
+	lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+	if len(lines) != 3 || strings.Fields(lines[0])[0] != "TraceId" || !strings.Contains(lines[1], "2025-11-01T12:26:40.03Z") || !strings.Contains(lines[2], "cart web") {
+		t.Fatalf("stdout %q", stdout)
+	}
+	if !strings.Contains(stderr, "Showing the first 100 rows") {
+		t.Fatalf("stderr %q", stderr)
+	}
+}
+
+func TestTracesQueryJSONPrintsTheResponse(t *testing.T) {
+	f := newTracesFake(t, "clickhouse")
+	f.answer = sqlRows
+	stdout, _, code := f.run("--query", traceSQL, "--datasource", "traces", "--json")
+	if code != 0 || !strings.Contains(stdout, `"has_next":true`) {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestTracesQueryUsageErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		kind string
+		args []string
+		want string
+	}{
+		{"tempo", "tempo", []string{"--query", traceSQL, "--datasource", "traces"}, "--query runs SQL on a ClickHouse datasource; traces is tempo"},
+		{"empty", "clickhouse", []string{"--query", " ", "--datasource", "traces"}, "--query needs SQL"},
+		{"with an id", "clickhouse", []string{traceID, "--query", traceSQL, "--datasource", "traces"}, "give a trace id or --query, not both"},
+		{"with ask", "clickhouse", []string{"--query", traceSQL, "--ask", "slow", "--datasource", "traces"}, "give --ask or --query, not both"},
+		{"with dry run", "clickhouse", []string{"--query", traceSQL, "--dry-run", "--datasource", "traces"}, "--dry-run needs --ask"},
+		{"with sort", "clickhouse", []string{"--query", traceSQL, "--sort", "-duration", "--datasource", "traces"}, "--sort needs --ask"},
+		{"with compare", "clickhouse", []string{"--query", traceSQL, "--compare", traceID, "--datasource", "traces"}, "give --compare or --query, not both"},
+		{"no datasource", "clickhouse", []string{"--query", traceSQL}, "needs --datasource"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTracesFake(t, tc.kind)
+			_, stderr, code := f.run(tc.args...)
+			if code != 2 || !strings.Contains(stderr, tc.want) || len(f.queries) != 0 {
+				t.Fatalf("exit %d, stderr %q, queries %d", code, stderr, len(f.queries))
+			}
+		})
+	}
+}
+
+func TestTracesQuerySaysWhenNothingMatched(t *testing.T) {
+	f := newTracesFake(t, "clickhouse")
+	f.answer = `{"frames":[],"meta":{}}`
+	stdout, stderr, code := f.run("--query", traceSQL, "--datasource", "traces")
+	if code != 0 || stdout != "" || !strings.Contains(stderr, "No rows between now-24h and now") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+}

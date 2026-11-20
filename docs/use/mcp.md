@@ -176,6 +176,8 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
+On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.
+
 `query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.
 
 `list_proposals` takes a `dashboard_id`, a `state` (`open` by default, or `merged`, `discarded` or `all`) and a `cursor`, and pages with `next_cursor`.
