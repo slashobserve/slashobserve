@@ -214,9 +214,10 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 		meta datasource.FrameMeta
 		want string
 	}{
-		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to)"},
-		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (partial: the datasource did not search every block)"},
-		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (more rows exist; narrow from and to) (partial: the datasource did not search every block)"},
+		{"truncated", datasource.FrameMeta{Truncated: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ")"},
+		{"partial", datasource.FrameMeta{Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + ")"},
+		{"warned", datasource.FrameMeta{Partial: true, Warning: "store a is down"}, "Ran a query on fake: 3 rows (" + queryproxy.PartialNote + "; the datasource warned: store a is down)"},
+		{"both", datasource.FrameMeta{Truncated: true, Partial: true}, "Ran a query on fake: 3 rows (" + queryproxy.NarrowNote + ") (" + queryproxy.PartialNote + ")"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -244,6 +245,32 @@ func TestQueryInstantSaysMoreRowsExistAndPartial(t *testing.T) {
 				t.Fatalf("summary = %+v, want more_rows %v and partial %v", summary, tc.meta.Truncated, tc.meta.Partial)
 			}
 		})
+	}
+}
+
+func TestQueryInstantExplainsAnEmptyResultWithTheDatasourceHint(t *testing.T) {
+	hint := "No document has log.level = error in this range, but it has ERROR."
+	ds := &fakeDS{
+		typ: "clickhouse",
+		instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+			f := logTableFrame()
+			for i := range f.Fields {
+				f.Fields[i].Values = nil
+			}
+			f.Meta = &datasource.FrameMeta{Hint: hint}
+			return []datasource.Frame{f}, nil
+		},
+	}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameQueryInstant, `{"datasource":"fake","query":"SELECT Timestamp, ServiceName, Body FROM otel_logs"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if want := "Ran a query on fake: no data (" + hint + ")"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if summary := res.Content.(querySummary); !summary.Empty || summary.Hint != hint {
+		t.Fatalf("summary = %+v", summary)
 	}
 }
 
@@ -441,19 +468,21 @@ func TestBoundedInt(t *testing.T) {
 
 func TestClassifyRouting(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		wantCode string
-		wantErr  bool
-		wantStep string
+		name      string
+		err       error
+		wantCode  string
+		wantErr   bool
+		wantStep  string
+		unchecked bool
 	}{
-		{"canceled", context.Canceled, "", true, ""},
-		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "tool_failed", false, "Could not run query_instant: tool_failed"},
-		{"deadline", context.DeadlineExceeded, "query_timeout", false, "Ran a query on fake: query_timeout"},
-		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 15s"), "query_timeout", false, "Ran a query on fake: query_timeout"},
-		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), "query_invalid", false, "Ran a query on fake: query_invalid"},
-		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "INSERT"), "query_forbidden", false, "Ran a query on fake: query_forbidden"},
-		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "down"), "datasource_unavailable", false, "Ran a query on fake: datasource_unavailable"},
+		{"canceled", context.Canceled, "", true, "", false},
+		{"internal", errors.New("dial tcp 10.0.0.5: password=hunter2"), "tool_failed", false, "Could not run query_instant: tool_failed", false},
+		{"deadline", context.DeadlineExceeded, "query_timeout", false, "Ran a query on fake: could not check, query_timeout", true},
+		{"upstream timeout", datasource.Errorf(datasource.ErrTimeout, "after 15s"), "query_timeout", false, "Ran a query on fake: could not check, query_timeout", true},
+		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad promql"), "query_invalid", false, "Ran a query on fake: query_invalid", false},
+		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "INSERT"), "query_forbidden", false, "Ran a query on fake: query_forbidden", false},
+		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "down"), "datasource_unavailable", false, "Ran a query on fake: could not check, datasource_unavailable", true},
+		{"busy", queryproxy.ErrUpstreamBusy, "too_many_requests", false, "Ran a query on fake: could not check, too_many_requests", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -480,12 +509,16 @@ func TestClassifyRouting(t *testing.T) {
 			if res.Step != tt.wantStep {
 				t.Fatalf("step = %q, want %q", res.Step, tt.wantStep)
 			}
+			body, _ := res.Content.(errorBody)
+			if got := res.Unchecked != ""; got != tt.unchecked || (body.Note == uncheckedNote) != tt.unchecked {
+				t.Fatalf("unchecked = %q, note = %q, want unchecked %v", res.Unchecked, body.Note, tt.unchecked)
+			}
 		})
 	}
 }
 
 func TestDiscoveryErrorsRouteThroughClassify(t *testing.T) {
-	ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	ds := &fakeDS{typ: "clickhouse", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		return nil, datasource.Errorf(datasource.ErrNotFound, "not supported")
 	}}
 	r := newTestRegistry(t, ds, nil)
@@ -534,7 +567,7 @@ func TestGetSchemaTruncation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ds := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) { return tt.catalog, nil }}
+			ds := &fakeDS{typ: "clickhouse", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) { return tt.catalog, nil }}
 			r := newTestRegistry(t, ds, nil)
 			res, err := call(t, r, nameGetSchema, tt.input)
 			if err != nil || res.IsError {
@@ -654,15 +687,18 @@ func TestQueryInstantRejectsBadPaging(t *testing.T) {
 	}}
 	r := newPageRegistry(t, ds)
 	for name, input := range map[string]string{
-		"page_size below 50":           `{"datasource":"fake","query":"up","page_size":10}`,
-		"page_size above 500":          `{"datasource":"fake","query":"up","page_size":501}`,
-		"page zero":                    `{"datasource":"fake","query":"up","page_size":50,"page":0}`,
-		"page without page_size":       `{"datasource":"fake","query":"up","page":2}`,
-		"cursor without page_size":     `{"datasource":"fake","query":"up","cursor":"x"}`,
-		"cursor over 2 KiB":            `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,
-		"page 2 without a cursor":      `{"datasource":"fake","query":"up","page_size":50,"page":2}`,
-		"a cursor of another query":    `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("fake", "other"), Page: 2}) + `"}`,
-		"page_size on a plain instant": `{"datasource":"fake","query":"up","page_size":"many"}`,
+		"page_size below 50":               `{"datasource":"fake","query":"up","page_size":10}`,
+		"page_size above 500":              `{"datasource":"fake","query":"up","page_size":501}`,
+		"page zero":                        `{"datasource":"fake","query":"up","page_size":50,"page":0}`,
+		"page without page_size":           `{"datasource":"fake","query":"up","page":2}`,
+		"cursor without page_size":         `{"datasource":"fake","query":"up","cursor":"x"}`,
+		"sort without page_size":           `{"datasource":"fake","query":"up","sort":"-Duration"}`,
+		"sort that is not a column":        `{"datasource":"fake","query":"up","page_size":50,"sort":"Duration; DROP"}`,
+		"sort on a datasource that cannot": `{"datasource":"fake","query":"up","page_size":50,"sort":"-Duration"}`,
+		"cursor over 2 KiB":                `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + strings.Repeat("x", 2049) + `"}`,
+		"page 2 without a cursor":          `{"datasource":"fake","query":"up","page_size":50,"page":2}`,
+		"a cursor of another query":        `{"datasource":"fake","query":"up","page_size":50,"cursor":"` + datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("fake", "other"), Page: 2}) + `"}`,
+		"page_size on a plain instant":     `{"datasource":"fake","query":"up","page_size":"many"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			res, err := call(t, r, nameQueryInstant, input)
@@ -698,5 +734,56 @@ func TestPageDescribeNamesTheTotalAndTheWalk(t *testing.T) {
 				t.Fatalf("describe = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSummaryNoteTellsHowToGetMore(t *testing.T) {
+	frame := datasource.Frame{Fields: []datasource.Field{{Name: "TraceId", Type: datasource.FieldString, Values: []any{"a"}}}, Meta: &datasource.FrameMeta{Partial: true}}
+	summary := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}})
+	if summary.Note != queryproxy.PartialNote {
+		t.Fatalf("note = %q", summary.Note)
+	}
+}
+
+func TestQueryOffersPagingOnlyOnAnInstantQueryOfADatasourceThatPages(t *testing.T) {
+	truncated := func() []datasource.Frame {
+		f := logRows(3)
+		f.Meta = &datasource.FrameMeta{Truncated: true}
+		return []datasource.Frame{f}
+	}
+	ds := &fakePageDS{fakeDS: &fakeDS{
+		typ: "loki",
+		instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+			return truncated(), nil
+		},
+		rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+			return truncated(), nil
+		},
+	}}
+	r := newPageRegistry(t, ds)
+	for name, want := range map[string]struct{ tool, note string }{
+		"instant": {nameQueryInstant, queryproxy.MoreRowsNote},
+		"range":   {nameQueryRange, queryproxy.NarrowNote},
+	} {
+		res, err := call(t, r, want.tool, `{"datasource":"fake","query":"{a=\"b\"}"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", name, res, err)
+		}
+		if got := res.Content.(querySummary).Note; got != want.note {
+			t.Errorf("%s: note = %q, want %q", name, got, want.note)
+		}
+		if !strings.Contains(res.Step, want.note) {
+			t.Errorf("%s: step = %q, want the note %q", name, res.Step, want.note)
+		}
+	}
+}
+
+func TestSummarizeReportsTheExpandedQueryText(t *testing.T) {
+	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{
+		{Ref: "A", Executed: `rate(up{job="api"}[5m])`},
+		{Ref: "B"},
+	}})
+	if len(got.Executed) != 1 || got.Executed[0].Ref != "A" || got.Executed[0].Text != `rate(up{job="api"}[5m])` {
+		t.Fatalf("executed = %+v", got.Executed)
 	}
 }

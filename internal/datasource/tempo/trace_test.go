@@ -146,21 +146,22 @@ func TestTraceIDReturnsOneRowPerSpan(t *testing.T) {
 	f := frames[0]
 	want := []string{
 		"string:TraceId", "string:SpanId", "string:ParentSpanId", "string:SpanName", "string:ServiceName",
-		"time:StartTime", "number:Duration", "string:StatusCode", "string:SpanAttributes", "string:ResourceAttributes",
+		"time:StartTime", "number:Duration", "string:StatusCode", "string:StatusMessage", "string:SpanAttributes", "string:ResourceAttributes",
 		"string:SpanKind", "string:SpanEvents", "string:SpanLinks",
 	}
 	if got := fieldNames(f); !slices.Equal(got, want) {
 		t.Fatalf("fields = %v, want %v", got, want)
 	}
 	checks := map[string][]any{
-		"TraceId":      {traceID, traceID},
-		"SpanId":       {"b7ad6b7169203331", "00f067aa0ba902b7"},
-		"ParentSpanId": {"", "b7ad6b7169203331"},
-		"SpanName":     {"POST /checkout", "charge"},
-		"ServiceName":  {"checkout", "checkout"},
-		"StartTime":    {time.Unix(0, 1793966399950000000).UTC(), time.Unix(0, 1793966399960000000).UTC()},
-		"Duration":     {int64(50 * time.Millisecond), int64(30 * time.Millisecond)},
-		"StatusCode":   {"Error", "Unset"},
+		"TraceId":       {traceID, traceID},
+		"SpanId":        {"b7ad6b7169203331", "00f067aa0ba902b7"},
+		"ParentSpanId":  {"", "b7ad6b7169203331"},
+		"SpanName":      {"POST /checkout", "charge"},
+		"ServiceName":   {"checkout", "checkout"},
+		"StartTime":     {time.Unix(0, 1793966399950000000).UTC(), time.Unix(0, 1793966399960000000).UTC()},
+		"Duration":      {int64(50 * time.Millisecond), int64(30 * time.Millisecond)},
+		"StatusCode":    {"Error", "Unset"},
+		"StatusMessage": {"boom", ""},
 		"SpanAttributes": {
 			`{"http.method":"POST","http.status_code":500,"nested":{"k":"v"},"ratio":0.5,"retry":true,"tags":["a",2],"weird":"NaN"}`,
 			`{}`,

@@ -14,25 +14,30 @@ Anyone with the dashboard open sees a toast saying that it was deleted.
 
 ## The activity timeline
 
-The card is headed "Activity" with the description "Comments, agent requests and saved versions."
-Without a model on the server it reads "Comments and saved versions."
+The card is headed "Activity" with the description "Comments, agent requests, proposals, annotations and saved versions."
+Without a model on the server it reads "Comments, proposals, annotations and saved versions."
 Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
-They come in four kinds:
+They come in six kinds:
 
 - **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
 - **Versions** show who saved as their label and "saved", such as "Ishan saved", "Ishan (via Claude Code) saved" or "Observe Agent for Ishan saved", then "Version N" with its summary, or "No summary".
-  **See changes** opens the comparison with the previous version.
+  **See changes** opens the comparison with the previous version, on the dashboard's version history page at `/d/<dashboard id>/versions`, headed "Versions of <title>".
+  A version saved by merging a proposal adds "Proposed by `<name>`, merged by `<name>`".
   The card loads the 50 newest versions first.
   When the dashboard has more, **Load older versions** at the top of the list adds the next 50 and moves focus to the oldest version it added.
   The button shows while the filters keep versions in the list, so it is hidden under **Open comments** and when a panel is chosen.
 - **Imports** show "`<label>` imported this dashboard from Grafana", where the label is the importer's, such as "Ishan" or "Ishan (via Claude Code)", with the conversion counts, and list the panels that are still unverified in the latest version with the reason each failed, and an **Ask the agent to fix** button where you may send requests.
   See [Import Grafana dashboards](import-grafana.md).
+- **Proposals** show "`<name>` proposed a change" for each open proposal, with its title and a **Review** link to the proposal page; a merged one shows on its version instead.
+- **Annotations** show "`<name>` added an annotation", with its text and tags, and "on `<panel>`" when it belongs to a panel.
+  The card lists the 50 newest annotations of the dashboard.
 
 Two menus filter the list.
 **Show** switches between Everything, Open comments and Changes only, and **Panel** narrows it to one panel.
@@ -42,7 +47,11 @@ Filters that match nothing say "No activity matches these filters."
 ## Comment on a panel or the dashboard
 
 At the bottom of the card, the form "Add to the activity" has an **On** menu with "The whole dashboard" and every panel title, and a box labelled "Comment or request".
-Write the comment and choose **Send** (the up arrow), or press Cmd+Enter (Ctrl+Enter elsewhere).
+Write the comment and press Enter, or choose **Send** (the up arrow); Shift+Enter adds a line, and on a touch device Enter adds a line and **Send** sends.
+Cmd+Enter (Ctrl+Enter elsewhere) also sends.
+The reply boxes in a thread, in an observation's discussion and in the inbox take the same keys.
+A comment that mentions no agent goes to the team and starts nothing, and while you type one the box says so and says how to ask the agent.
+Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
 To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
@@ -53,25 +62,45 @@ A comment is attached to the latest version when you write it.
 A comment that mentions no agent never asks an agent to do anything.
 
 Commenting needs the Comment level on the dashboard's folder: the Commenter role or higher, or a Comment entry or higher on the folder.
-Without it you see "You can view dashboards in `<folder>`. Ask an Admin if you need to comment."
+Without it you see "You can view dashboards in `<folder>`. Ask an Admin of this folder, or of this server, to give you Comment access."
 With Comment but not Edit you see "You can view and comment in `<folder>`. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
 See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 ## Edit a comment and mention people
 
 Your own comments and replies have an **Edit** button while you can still comment on the dashboard.
-It opens the text in place; **Save** or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, and **Cancel** or Escape drops it.
+It opens the text in place; **Save**, Enter or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, Shift+Enter adds a new line, and **Cancel** or Escape drops it.
 An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
+An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
-The **Mention** box, or typing `@` after a space, lists the people who already wrote in the thread, the built-in agent (Observe Agent, `@observe`) and your own connected agents.
+The **Mention** box, or typing `@` after a space, lists the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the thread is about; typing a name or an email narrows the people.
+A picked person shows in the box as `@Name`, and the comment is stored and shown with the mention.
+Someone who cannot see the dashboard, observation or proposal is not offered, and mentioning one is refused with 422 `invalid_mention`, as is a person who does not exist.
 Choosing one inserts it at the cursor.
 The form at the bottom of the card has the same box, but a new thread has no people yet, so it offers only the agents.
+
 A person is stored as `@[Name](user:<id>)` and a connected agent as `@[Name](grant:<id>)`; both show as "@Name" once the comment is saved, using the name the server has.
-A comment can mention at most 20 people and agents.
-A mention is recorded and appears in the [activity log](activity.md); it does not notify anyone.
+A comment can contain at most 20 mentions, and a repeated mention counts each time.
+A mention of a person is recorded, appears in the [activity log](activity.md) and reaches that person's [Inbox](inbox.md).
 A mention of an agent starts a run only when you send the comment from a composer that asks the agent, as described next.
+
+Every comment box says how to send under it: "Enter to send, Shift+Enter for a new line", or "Tap the arrow to send" on a touch screen, where Enter adds a new line.
+The one rule holds in the dashboard Activity box, the discussion box, replies and the edit box.
+
+A comment written by a person renders Markdown: bold, italic, code, lists, quotes, tables and links.
+Links open in a new tab and only `http`, `https` and `mailto` links work.
+Raw HTML and images are not rendered.
+Text an agent wrote, a reply from a run or a message from a connected agent or service account, is always shown as plain text.
+
+## Delete a comment
+
+You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
+The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
+Someone with Manage on the folder can delete any comment, including an agent's reply; nobody else can delete an agent's reply.
+The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
+A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 ## Ask the agent from a comment
 
@@ -89,6 +118,11 @@ Under the form the card says "Observe Agent is working on it" with a link to the
 The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
+A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
+
+A discussion entry reads "asked the agent" only when the message started a run.
+A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
@@ -110,16 +144,30 @@ An external agent can pick the comment up over [MCP](mcp.md).
 "Link to this dashboard" copies the address of the dashboard.
 It carries the time range and the variable values you are looking at, and each has a checkbox to leave it out.
 "Link to one panel" picks a data or text panel by title and copies a link that opens the dashboard with that panel focused, expanding its row if the row is collapsed.
-A link grants nothing: the person who opens it signs in, and sees "You don't have access to this dashboard" when the dashboard's folder is not open to them.
+A link grants nothing: the person who opens it signs in, and sees "Dashboard not found" when the dashboard's folder is not open to them, the same page as for a link with a wrong id.
 "Who has access" says "Everyone, by role" for an open folder, or lists the people and groups of a restricted one, with the instance Admins who always have access.
-People who can manage a folder other than General also get a **Manage folder access** button; see [Folders](../teams/folders.md).
+People who can manage a folder other than General also get a **Manage folder access** button; everyone else sees who can add people and create public links, namely the people who manage that folder; see [Folders](../teams/folders.md).
+
+## Unread threads
+
+A thread that holds something you have not read shows a small dot before its author's name.
+It is unread when someone else wrote in it, or the agent answered a request you made in it, after you last opened it, answered in it or joined; your own messages never make a thread unread, and threads written before your account existed do not count.
+Click the dot, or click or focus anywhere in the thread, and it counts as read for you alone; answering in a thread marks it read too.
+Over the API each thread and comment carries `unread`, and `list_comments` shows it on the first comment of each thread; `POST /api/v1/threads/{thread_id}/read` marks one read for a person, and a service-account key never has unread threads.
+
+## Who else is viewing
+
+While a dashboard is open, the header shows "Also viewing" with the names of the other people who have it open, up to three and a count for the rest; it is empty when nobody else is there.
+Anyone who can view the dashboard sees the names, and a person counts for 45 seconds after their open page last reported in.
+Over the API `GET /api/v1/dashboards/{id}/viewers` returns the list, `list_dashboard_viewers` returns it over MCP and `bin/observe dashboards viewers <dashboard-id>` prints it; a service-account key never counts as a viewer.
 
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
 A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
-Over the API and MCP each thread carries `allowed_actions`, the actions the caller may take now (`reply`, `resolve` or `reopen`), which is empty for someone who may not comment; see [States](../reference/states.md).
+A Commenter sees **Resolve** only on a thread they started and the server refuses any other with 403 `not_starter`; an Editor or an Admin resolves any thread, and every commenter may reopen one.
+Over the API and MCP each thread carries `allowed_actions`, the actions the caller may take now (`reply`, `resolve` or `reopen`), which is empty for someone who may not comment and leaves out `resolve` for a Commenter on a thread they did not start; see [States](../reference/states.md).
 A thread can also be on a [proposal](../concepts/proposals.md), written `proposal:<id>` as the target of the threads API.
 It has no panel or version and follows the proposal's dashboard: View reads it and Comment writes to it.
 

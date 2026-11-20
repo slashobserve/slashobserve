@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -35,16 +36,16 @@ const (
 	proposeModeMessage = "This connection is in propose mode, so it cannot merge; ask a person who can edit to merge it."
 
 	descListProposals   = "List the proposals on a dashboard, newest first: open ones by default, or state merged, discarded or all. A proposal is a change someone who cannot edit, or whose connection is in propose mode, saved for an Editor to merge. Pass next_cursor as cursor for the next page."
-	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on, the conflicts a merge would hit on the latest version, and the allowed_actions you have now. A spec over 128 KiB returns too_large."
+	descGetProposal     = "Read a proposal: its summary, the proposed spec, its changes against the version it was based on (`changes` by panel, variable and setting, and `diff` field by field with the old and new values), the conflicts a merge would hit on the latest version, and the allowed_actions you have now. `diff` is left out, with the step saying so, when it would take the result over 128 KiB; a spec over 128 KiB returns too_large."
 	descMergeProposal   = "Merge an open proposal into its dashboard as a new version; only someone who can edit may, and not a connection in propose mode. Send the revision you read with get_proposal, and a choice per conflict, ours for the dashboard's current unit or theirs for the proposal's. The merge runs the queries of the panels it changes before it saves."
-	descDiscardProposal = "Close an open proposal without saving its change. Its author may, and so may an Editor whose connection is not in propose mode."
+	descDiscardProposal = "Close an open proposal without saving its change. Its author may, and so may an Editor whose connection is not in propose mode. Pass reason (up to 500 characters) to tell the author why; it is shown on the proposal."
 
 	propProposalID = `"proposal_id":{"type":"string","format":"uuid","description":"The proposal, from list_proposals or a save that answered proposed."}`
 
 	schemaListProposals   = `{"type":"object","properties":{` + propDashID + `,"state":{"type":"string","enum":["open","merged","discarded","all"],"description":"Which proposals to list. Default open."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"required":["dashboard_id"],"additionalProperties":false}`
 	schemaGetProposal     = `{"type":"object","properties":{` + propProposalID + `},"required":["proposal_id"],"additionalProperties":false}`
 	schemaMergeProposal   = `{"type":"object","properties":{` + propProposalID + `,"revision":{"type":"integer","minimum":1,"description":"The proposal's revision from get_proposal; a newer one answers proposal_changed."},"choices":{"type":"array","maxItems":400,"items":{"type":"object","additionalProperties":false,"required":["kind","id","take"],"properties":{"kind":{"type":"string","enum":["panel","variable","setting"]},"id":{"type":"string","description":"The panel id, variable name or setting name from the conflict."},"take":{"type":"string","enum":["ours","theirs"],"description":"ours keeps the dashboard's current unit, theirs takes the proposal's."}}},"description":"One choice per conflict get_proposal listed."}},"required":["proposal_id","revision"],"additionalProperties":false}`
-	schemaDiscardProposal = `{"type":"object","properties":{` + propProposalID + `},"required":["proposal_id"],"additionalProperties":false}`
+	schemaDiscardProposal = `{"type":"object","properties":{` + propProposalID + `,"reason":{"type":"string","maxLength":500,"description":"Why the proposal is discarded; optional, shown on the proposal."}},"required":["proposal_id"],"additionalProperties":false}`
 )
 
 var errProposalsNotConfigured = errors.New("proposals are not configured")
@@ -155,10 +156,15 @@ func (r *Registry) getProposal(ctx context.Context, input json.RawMessage) (Resu
 		return r.proposalFailure(err)
 	}
 	out := proposals.NewProposalJSON(proposal)
+	step := "Read proposal revision " + strconv.Itoa(out.Revision)
+	if jsonSize(out) > MaxModelSpecBytes {
+		out.Diff = []spec.Change{}
+		step += "; diff left out because the result would be over the size limit, read changes instead"
+	}
 	if size := jsonSize(out); size > MaxModelSpecBytes {
 		return toolError(codeTooLarge, fmt.Sprintf("the proposal is %d bytes, over the %d byte tool result limit", size, MaxModelSpecBytes)), nil
 	}
-	return success("Read proposal revision "+strconv.Itoa(out.Revision), out), nil
+	return success(step, out), nil
 }
 
 func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -196,16 +202,30 @@ func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return r.proposalFailure(err)
 	}
-	step := "Merged proposal; the dashboard already had its change"
+	step := "Merged proposal; it saved no new version because the dashboard already had everything kept"
 	if merged.MergedVersion != nil {
 		step = "Merged proposal as version " + strconv.Itoa(*merged.MergedVersion)
 	}
+	if dropped := droppedUnits(choices); dropped != "" {
+		step += "; the proposed change to " + dropped + " was dropped because the dashboard's own was kept"
+	}
 	return success(step, proposals.NewSummaryJSON(merged.Item)), nil
+}
+
+func droppedUnits(choices []spec.Choice) string {
+	var units []string
+	for _, c := range choices {
+		if c.Take == spec.SideOurs {
+			units = append(units, string(c.Kind)+" "+strconv.Quote(c.ID))
+		}
+	}
+	return strings.Join(units, ", ")
 }
 
 func (r *Registry) discardProposal(ctx context.Context, input json.RawMessage) (Result, error) {
 	var in struct {
 		ProposalID string `json:"proposal_id"`
+		Reason     string `json:"reason"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -218,7 +238,7 @@ func (r *Registry) discardProposal(ctx context.Context, input json.RawMessage) (
 		return Result{}, errProposalsNotConfigured
 	}
 	principal, _ := auth.FromContext(ctx)
-	discarded, err := r.deps.Proposals.Discard(ctx, principal, id)
+	discarded, err := r.deps.Proposals.Discard(ctx, principal, id, in.Reason)
 	if err != nil {
 		return r.proposalFailure(err)
 	}

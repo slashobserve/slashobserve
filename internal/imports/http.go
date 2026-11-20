@@ -44,6 +44,9 @@ type importRequest struct {
 	JSON    *string           `json:"json"`
 	Mapping map[string]string `json:"mapping"`
 	Folder  *string           `json:"folder"`
+
+	UpdateDashboard *string `json:"update_dashboard"`
+	RefuseExisting  bool    `json:"refuse_existing"`
 }
 
 type authorJSON struct {
@@ -65,6 +68,20 @@ type previewJSON struct {
 	Ready       bool                       `json:"ready"`
 	Report      grafana.Report             `json:"report"`
 	Spec        *spec.Dashboard            `json:"spec"`
+	Existing    *existingJSON              `json:"existing"`
+}
+
+type existingJSON struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+	Version     int    `json:"version"`
+	CanUpdate   bool   `json:"can_update"`
+}
+
+type alreadyImportedJSON struct {
+	Error    string       `json:"error"`
+	Code     string       `json:"code"`
+	Existing existingJSON `json:"existing"`
 }
 
 type importJSON struct {
@@ -175,7 +192,15 @@ func decodeImportBody(c *gin.Context) (Request, bool) {
 			return Request{}, false
 		}
 	}
-	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping}
+	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping, RefuseExisting: body.RefuseExisting}
+	if body.UpdateDashboard != nil {
+		id, err := db.ParseUUID(*body.UpdateDashboard)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "update_dashboard must be a dashboard id")
+			return Request{}, false
+		}
+		req.Update = id
+	}
 	if body.Folder != nil {
 		title, err := folders.CleanTitle(*body.Folder)
 		if err != nil {
@@ -196,13 +221,26 @@ func (h *Handler) preview(c *gin.Context) {
 		h.fail(c, "preview import", err)
 		return
 	}
+	existing, err := h.svc.ExistingFor(c.Request.Context(), httpapi.Caller(c), result.Summary.UID)
+	if err != nil {
+		h.fail(c, "find existing import", err)
+		return
+	}
 	c.JSON(http.StatusOK, previewJSON{
 		Summary:     result.Summary,
 		Datasources: result.Datasources,
 		Ready:       result.Ready(),
 		Report:      result.Report,
 		Spec:        result.Spec,
+		Existing:    newExistingJSON(existing),
 	})
+}
+
+func newExistingJSON(e *Existing) *existingJSON {
+	if e == nil {
+		return nil
+	}
+	return &existingJSON{DashboardID: e.DashboardID, Title: e.Title, Version: e.Version, CanUpdate: e.CanUpdate}
 }
 
 func (h *Handler) create(c *gin.Context) {
@@ -223,8 +261,13 @@ func respondImported(c *gin.Context, imported Imported) {
 		c.JSON(http.StatusOK, saved)
 		return
 	}
+	body := importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)}
+	if imported.Updated {
+		c.JSON(http.StatusOK, body)
+		return
+	}
 	c.Header("Location", "/api/v1/dashboards/"+imported.Dashboard.ID)
-	c.JSON(http.StatusCreated, importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)})
+	c.JSON(http.StatusCreated, body)
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -285,6 +328,8 @@ func (h *Handler) forDashboard(c *gin.Context) {
 func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var input *grafana.InputError
 	var unresolved *UnresolvedError
+	var already *AlreadyImportedError
+	var mismatch *UIDMismatchError
 	var invalid *dashboards.InvalidSpecError
 	if clientgone.Handle(c, h.svc.logger, action, err) {
 		return
@@ -294,6 +339,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, input.Code, input.Message)
 	case errors.As(err, &unresolved):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, unresolvedJSON{Error: unresolved.Error(), Code: "datasources_unresolved", Datasources: unresolved.Datasources})
+	case errors.As(err, &already):
+		c.AbortWithStatusJSON(http.StatusConflict, alreadyImportedJSON{Error: already.Error(), Code: "already_imported", Existing: *newExistingJSON(&already.Existing)})
+	case errors.As(err, &mismatch):
+		httpapi.AbortError(c, http.StatusConflict, "grafana_uid_mismatch", mismatch.Error())
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.Is(err, ErrBusy):

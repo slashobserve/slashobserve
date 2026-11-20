@@ -143,6 +143,17 @@ describe("reduceItems", () => {
       ])
     })
 
+    it("labels a one-row frame by its series name instead of its time", () => {
+      const instant: WireField = {
+        name: "Time",
+        type: "time",
+        values: [rowTimes[0]],
+      }
+      const value: WireField = { name: "cpu", type: "number", values: [7] }
+      const result = items([frame([instant, value])], { allValues: true })
+      expect(result.map((item) => item.label)).toEqual(["cpu"])
+    })
+
     it("labels a row by its time in the given zone", () => {
       const fixed: WireField = {
         name: "Time",

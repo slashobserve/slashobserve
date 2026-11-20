@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -11,7 +12,13 @@ import { dashboardLink, dashboardPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 import type { SubNavRow } from "@/shell/nav"
-import { SubNavList, subNavLinkClass, subNavMoreClass } from "@/shell/sub-nav"
+import {
+  SubNavList,
+  SubNavSkeleton,
+  subNavLinkClass,
+  subNavMoreClass,
+  useReservedRows,
+} from "@/shell/sub-nav"
 
 import { pinProblemText } from "./pin-problems"
 import type { Pin } from "./pins"
@@ -20,8 +27,16 @@ import { usePins } from "./queries"
 const shown = 10
 
 export function useVisiblePins() {
-  const pins = usePins().data ?? []
-  return { pins: pins.slice(0, shown), more: pins.length > shown }
+  const [expanded, setExpanded] = useState(false)
+  const query = usePins()
+  const pins = query.data ?? []
+  return {
+    pins: expanded ? pins : pins.slice(0, shown),
+    more: pins.length > shown,
+    pending: query.isPending,
+    expanded,
+    onToggle: () => setExpanded((open) => !open),
+  }
 }
 
 function usePinHealth(pins: readonly Pin[]) {
@@ -47,15 +62,29 @@ export function pinRows(pins: readonly Pin[]): SubNavRow[] {
 export function PinnedDashboards({
   pins,
   more,
+  expanded,
+  onToggle,
+  pending = false,
   currentId,
   onNavigate,
 }: {
   pins: readonly Pin[]
   more: boolean
+  expanded: boolean
+  onToggle: () => void
+  pending?: boolean
   currentId: string | null
   onNavigate?: () => void
 }) {
   const health = usePinHealth(pins)
+  const reserved = useReservedRows(
+    "pins",
+    pending,
+    pins.length + (more ? 1 : 0)
+  )
+  if (pending) {
+    return <SubNavSkeleton label="Pinned dashboards" rows={reserved} />
+  }
   if (pins.length === 0) return null
 
   return (
@@ -79,14 +108,14 @@ export function PinnedDashboards({
       })}
       {more ? (
         <li>
-          <Link
-            to="/dashboards"
-            onClick={onNavigate}
-            aria-label="More pinned dashboards"
-            className={subNavMoreClass}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={onToggle}
+            className={cn(subNavMoreClass, "w-full")}
           >
-            More
-          </Link>
+            {expanded ? "Show fewer pins" : "Show all pins"}
+          </button>
         </li>
       ) : null}
     </SubNavList>

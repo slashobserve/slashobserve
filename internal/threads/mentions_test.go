@@ -86,8 +86,17 @@ func TestParseMentionsAllowsTwentyAndRejectsTwentyOne(t *testing.T) {
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyMentions {
 		t.Fatalf("21 mentions: err = %v, want too_many_mentions", err)
 	}
-	if got, err := ParseMentions(body + token(0) + token(1) + "@observe @observe"); err != nil || len(got) != MaxMentions {
-		t.Fatalf("duplicates must not count twice: %d, err %v", len(got), err)
+}
+
+func TestParseMentionsCountsARepeatedMentionEachTime(t *testing.T) {
+	repeated := strings.Repeat("@["+"Ada"+"](user:"+adaID+") ", MaxMentions+1)
+	_, err := ParseMentions(repeated)
+	var invalid *InvalidInputError
+	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyMentions {
+		t.Fatalf("21 identical mentions: err = %v, want too_many_mentions", err)
+	}
+	if got, err := ParseMentions(strings.Repeat("@observe ", MaxMentions)); err != nil || len(got) != 1 {
+		t.Fatalf("20 identical handles: %d, err %v", len(got), err)
 	}
 }
 

@@ -30,6 +30,7 @@ type proposalRow struct {
 	LatestVersion  int      `json:"latest_version"`
 	Summary        string   `json:"summary"`
 	MergedVersion  *int     `json:"merged_version"`
+	CloseReason    *string  `json:"close_reason"`
 	Behind         bool     `json:"behind"`
 	AllowedActions []string `json:"allowed_actions"`
 }
@@ -53,10 +54,24 @@ type proposalListBody struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 
+type proposalDiscardBody struct {
+	Reason string `json:"reason,omitempty"`
+}
+
 type mergeChoice struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
 	Take string `json:"take"`
+}
+
+func droppedUnits(choices []mergeChoice) string {
+	var units []string
+	for _, c := range choices {
+		if c.Take == "ours" {
+			units = append(units, c.Kind+" "+strconv.Quote(c.ID))
+		}
+	}
+	return strings.Join(units, ", ")
 }
 
 type proposalMergeBody struct {
@@ -185,6 +200,9 @@ func printProposal(out *output, p proposalDetail) {
 	if p.MergedVersion != nil {
 		pairs = append(pairs, [2]string{"Merged as", "version " + strconv.Itoa(*p.MergedVersion)})
 	}
+	if p.CloseReason != nil {
+		pairs = append(pairs, [2]string{"Discarded because", text(*p.CloseReason)})
+	}
 	out.fields(pairs)
 	if len(p.Changes) > 0 {
 		out.line("")
@@ -235,11 +253,18 @@ func (a *app) proposalsMergeCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if merged.MergedVersion == nil {
+				dropped := droppedUnits(choices)
+				switch {
+				case merged.MergedVersion != nil:
+					out.confirm("Merged as version %d", *merged.MergedVersion)
+				case dropped != "":
+					out.confirm("Merged without a new version")
+				default:
 					out.confirm("Already in the dashboard")
-					return nil
 				}
-				out.confirm("Merged as version %d", *merged.MergedVersion)
+				if dropped != "" {
+					out.confirm("The proposed change to %s was dropped; the dashboard keeps its own", dropped)
+				}
 				return nil
 			})
 		},
@@ -267,20 +292,23 @@ func parseTake(raw string) (mergeChoice, error) {
 }
 
 func (a *app) proposalsDiscardCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "discard <proposal-id>",
+	var reason string
+	cmd := &cobra.Command{
+		Use:   "discard <proposal-id> [--reason <text>]",
 		Short: "Close a proposal without saving it",
-		Long:  "discard closes an open proposal without saving its change.\nIts author may, and so may someone who can edit the dashboard on a connection that is not in propose mode.",
+		Long:  "discard closes an open proposal without saving its change.\nIts author may, and so may someone who can edit the dashboard on a connection that is not in propose mode.\n--reason, at most 500 characters, says why; the proposal shows it and the activity log records it.",
 		Args:  exactArgs(1, "one proposal id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {
 				return err
 			}
-			return a.observationCall(cmd, http.MethodPost, "proposals/"+id+"/discard", nil, func(out *output, _ []byte) error {
+			return a.observationCall(cmd, http.MethodPost, "proposals/"+id+"/discard", proposalDiscardBody{Reason: reason}, func(out *output, _ []byte) error {
 				out.confirm("Discarded")
 				return nil
 			})
 		},
 	}
+	cmd.Flags().StringVar(&reason, "reason", "", "why the proposal is discarded, up to 500 characters")
+	return cmd
 }

@@ -3,10 +3,12 @@ package main
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/observeagent"
 )
 
@@ -48,7 +50,7 @@ func TestModelSettingsCarryTheConfiguredModelAndAFreshCopyEachCall(t *testing.T)
 		t.Fatal(err)
 	}
 	settings := modelSettingsOf(config.LLM{
-		Provider: "anthropic", Model: "m", APIKey: "k", BaseURL: base, Effort: "high", MaxTokens: 4096,
+		Provider: "anthropic", Model: "m", APIKey: datasource.NewSecret("k"), BaseURL: base, Effort: "high", MaxTokens: 4096,
 		RequestTimeout: 90 * time.Second, IdleTimeout: 30 * time.Second, ReplayDir: "/replay", LogProviderErrors: true,
 	}, 262144)
 	got := settings()
@@ -99,9 +101,17 @@ func TestObserveAgentTokenIsNeverAcceptedWithoutARunningChild(t *testing.T) {
 
 func TestOtherBearerTokensFallThroughToTheNormalCredentials(t *testing.T) {
 	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
-	for _, header := range []string{"", "Bearer sok_abc", "Bearer sot_abc", "Basic soa_abc", "soa_abc"} {
+	for _, header := range []string{"", "Bearer sok_abc", "Bearer sot_abc", "Basic sob_abc", "sob_abc"} {
 		if _, ok, owned := m.observeAgent(header); ok || owned {
 			t.Errorf("%q: ok=%v owned=%v, want it left to the other credentials", header, ok, owned)
 		}
+	}
+}
+
+func TestOAuthAccessTokensAreNotClaimedByTheBuiltInAgent(t *testing.T) {
+	m := mcpCredentials{supervisor: observeagent.NewSupervisor(observeagent.SupervisorConfig{})}
+	header := "Bearer soa_" + strings.Repeat("a", 43)
+	if _, ok, owned := m.observeAgent(header); ok || owned {
+		t.Fatalf("ok=%v owned=%v, want an OAuth access token left to the OAuth check", ok, owned)
 	}
 }

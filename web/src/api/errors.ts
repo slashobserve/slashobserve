@@ -107,16 +107,40 @@ function readRetryAfterMs(response: Response): number | undefined {
   return seconds * 1000
 }
 
+const accessLevelNames: Record<string, string> = {
+  view: "View",
+  comment: "Comment",
+  edit: "Edit",
+  manage: "Manage",
+}
+
+function neededText(fields: Record<string, unknown>): string {
+  const access = fields.needed_access
+  if (typeof access === "string" && access in accessLevelNames) {
+    const folder = fields.folder_title
+    return typeof folder === "string" && folder !== ""
+      ? `it needs ${accessLevelNames[access]} on ${folder}`
+      : `it needs ${accessLevelNames[access]} on the folder`
+  }
+  const role = fields.needed_role
+  if (typeof role === "string" && role !== "") {
+    return `it needs the ${role.charAt(0).toUpperCase()}${role.slice(1)} role`
+  }
+  return ""
+}
+
 export function toApiError(response: Response, body: unknown): ApiError {
   const fields = isRecord(body) ? body : {}
-  const message =
-    typeof fields.error === "string" && fields.error !== ""
-      ? fields.error
-      : `Request failed (${response.status})`
   const code =
     typeof fields.code === "string" && fields.code !== ""
       ? fields.code
       : "unknown"
+  const base =
+    typeof fields.error === "string" && fields.error !== ""
+      ? fields.error
+      : `Request failed (${response.status})`
+  const needed = code === "forbidden_role" ? neededText(fields) : ""
+  const message = needed === "" ? base : `${base}; ${needed}`
   const latestVersion =
     typeof fields.latest_version === "number" &&
     Number.isInteger(fields.latest_version)
@@ -153,7 +177,11 @@ export const maxRetryDelayMs = 30_000
 
 export function isRetryable(error: unknown): boolean {
   if (error instanceof NetworkError) return true
-  if (!(error instanceof ApiError) || !retryableStatuses.has(error.status)) {
+  if (
+    !(error instanceof ApiError) ||
+    !retryableStatuses.has(error.status) ||
+    error.code === "query_timeout"
+  ) {
     return false
   }
   return (

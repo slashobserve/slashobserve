@@ -7,7 +7,6 @@ import {
   TriangleAlertIcon,
 } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useDraftTitle } from "@/panel-editor/draft-title"
 import type { ResolvedLink } from "@/panels/field-config"
 import { errorMessage, PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
@@ -28,8 +28,9 @@ import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
+import { panelProblem } from "./panel-problem"
+import type { SeriesCap } from "./series-cap"
 import { timeOverrideLabel } from "./time-override"
-import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
@@ -43,21 +44,31 @@ export function panelBodySize(width: number, height: number) {
   }
 }
 
-const errorTitles: Record<string, string> = {
-  query_timeout: "Query timed out",
-  datasource_unavailable: "Datasource unavailable",
-  limit_exceeded: "Too much data",
-  query_invalid: "Query error",
-  query_forbidden: "Query not allowed",
-  variable_empty: "Variable has no values",
-}
-
-function errorTitle(error: unknown): string {
-  if (error instanceof VariableLoadError) return "Variable failed to load"
-  if (error instanceof ApiError && Object.hasOwn(errorTitles, error.code)) {
-    return errorTitles[error.code]
+function PanelProblemState({
+  error,
+  onRetry,
+}: {
+  error: unknown
+  onRetry: (() => void) | undefined
+}) {
+  const problem = panelProblem(error)
+  if (problem.empty) {
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-1 p-3 text-center">
+        <p className="text-sm text-muted-foreground">{problem.title}</p>
+        <p className="line-clamp-3 text-xs text-muted-foreground">
+          {problem.message}
+        </p>
+      </div>
+    )
   }
-  return "Panel failed to load"
+  return (
+    <PanelErrorState
+      title={problem.title}
+      message={problem.message}
+      onRetry={problem.retry ? onRetry : undefined}
+    />
+  )
 }
 
 type Props = {
@@ -71,6 +82,7 @@ type Props = {
   links?: ResolvedLink[]
   menu?: ReactNode
   datasourceLabel?: string
+  seriesCap?: SeriesCap | null
   editing?: boolean
   highlighted?: boolean
   selected?: boolean
@@ -91,6 +103,7 @@ export function PanelChrome({
   links = [],
   menu,
   datasourceLabel,
+  seriesCap,
   editing = false,
   highlighted = false,
   selected = false,
@@ -100,7 +113,8 @@ export function PanelChrome({
   children,
 }: Props) {
   const titleId = useId()
-  const title = panelTitle(panel)
+  const draftTitle = useDraftTitle(editing ? panel.id : null)
+  const title = draftTitle ?? panelTitle(panel)
   const emphasized = editing || highlighted
   const timeOverride = isDataPanel(panel) ? timeOverrideLabel(panel) : null
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
@@ -137,6 +151,7 @@ export function PanelChrome({
         <h2
           id={titleId}
           title={title}
+          aria-label={selectable ? title : undefined}
           className={cn(
             "min-w-0 text-[13px] font-semibold",
             !selectable && "truncate",
@@ -147,6 +162,8 @@ export function PanelChrome({
             <button
               type="button"
               data-panel-title=""
+              aria-pressed={selected}
+              aria-label={`Select panel: ${title}`}
               className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={onSelect}
             >
@@ -184,6 +201,14 @@ export function PanelChrome({
           >
             <ClockIcon aria-hidden="true" className="size-3 shrink-0" />
             <span className="truncate">{timeOverride.text}</span>
+          </span>
+        ) : null}
+        {seriesCap ? (
+          <span
+            title={seriesCap.title}
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {seriesCap.text}
           </span>
         ) : null}
         {editing ? (
@@ -252,11 +277,7 @@ export function PanelChrome({
           </div>
         ) : null}
         {state === "error" ? (
-          <PanelErrorState
-            title={errorTitle(error)}
-            error={error}
-            onRetry={onRetry}
-          />
+          <PanelProblemState error={error} onRetry={onRetry} />
         ) : null}
         {state === "unsupported" ? (
           <div className="flex size-full items-center justify-center p-3 text-center text-sm text-muted-foreground">

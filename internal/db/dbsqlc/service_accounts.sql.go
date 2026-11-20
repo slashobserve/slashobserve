@@ -120,6 +120,18 @@ func (q *Queries) CreateServiceAccountKey(ctx context.Context, arg CreateService
 	return i, err
 }
 
+const deleteServiceAccount = `-- name: DeleteServiceAccount :execrows
+DELETE FROM service_accounts WHERE id = $1 AND NOT provisioned
+`
+
+func (q *Queries) DeleteServiceAccount(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteServiceAccount, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getKeyPrincipal = `-- name: GetKeyPrincipal :one
 SELECT k.id AS key_id, sa.id AS service_account_id, sa.name, sa.role, k.last_used_at
 FROM service_account_keys k JOIN service_accounts sa ON sa.id = k.service_account_id
@@ -354,9 +366,16 @@ func (q *Queries) ReplaceProvisionedKey(ctx context.Context, arg ReplaceProvisio
 	return err
 }
 
-const revokeServiceAccountKey = `-- name: RevokeServiceAccountKey :execrows
-UPDATE service_account_keys SET revoked_at = COALESCE(revoked_at, now())
-WHERE id = $1 AND service_account_id = $2
+const revokeServiceAccountKey = `-- name: RevokeServiceAccountKey :one
+WITH old AS (
+  SELECT k.id, k.name, k.revoked_at FROM service_account_keys k
+  WHERE k.id = $1 AND k.service_account_id = $2
+  FOR UPDATE
+), revoked AS (
+  UPDATE service_account_keys SET revoked_at = COALESCE(revoked_at, now())
+  WHERE id IN (SELECT old.id FROM old)
+)
+SELECT old.name, (old.revoked_at IS NULL)::boolean AS newly_revoked FROM old
 `
 
 type RevokeServiceAccountKeyParams struct {
@@ -364,12 +383,16 @@ type RevokeServiceAccountKeyParams struct {
 	ServiceAccountID pgtype.UUID
 }
 
-func (q *Queries) RevokeServiceAccountKey(ctx context.Context, arg RevokeServiceAccountKeyParams) (int64, error) {
-	result, err := q.db.Exec(ctx, revokeServiceAccountKey, arg.ID, arg.ServiceAccountID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+type RevokeServiceAccountKeyRow struct {
+	Name         string
+	NewlyRevoked bool
+}
+
+func (q *Queries) RevokeServiceAccountKey(ctx context.Context, arg RevokeServiceAccountKeyParams) (RevokeServiceAccountKeyRow, error) {
+	row := q.db.QueryRow(ctx, revokeServiceAccountKey, arg.ID, arg.ServiceAccountID)
+	var i RevokeServiceAccountKeyRow
+	err := row.Scan(&i.Name, &i.NewlyRevoked)
+	return i, err
 }
 
 const touchServiceAccountKey = `-- name: TouchServiceAccountKey :exec

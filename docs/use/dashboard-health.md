@@ -10,7 +10,8 @@ It is the list to work through after [switching from Grafana](switch-from-grafan
 
 The dashboards list has a **Health** column that shows the first problem of each dashboard with a problem, with "+N more problems" counting its other problems, and the state of its repair.
 Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
-A dashboard that was checked and has no problem shows a **Healthy** badge, whose popover says "No problems found" and when and on which version it was checked.
+A dashboard that was checked and has no problem shows a **Queries OK** badge, whose popover says "No problems found" and when and on which version it was checked.
+The badge says only that the panel and variable queries ran; it does not read the numbers, so a stat past its threshold can sit beside it.
 
 The **Problem** menu narrows the list to the dashboards with one kind of problem, or with any problem, and the address keeps the choice, as `?kind=<kind or any>&folder=<folder id>`.
 The Health column still shows every problem of a dashboard under a filter, because the filter chooses dashboards and not problems.
@@ -57,6 +58,7 @@ A check that cannot run at all is recorded as a `query_failed` problem with the 
 ## Repair
 
 An Editor can ask the agent to repair a dashboard, with **Repair** from the dashboards list or the dashboard, or the API, when its last check found a `no_data`, `query_failed` or `variable_failed` problem.
+A dashboard saved since its last check has nothing to repair until the next check, because the problems on record belong to an older version; the repair answers `nothing_to_repair`.
 The repair is an ordinary revision with a prompt that names each failing panel and variable, so it shows in the dashboard's history and can be reviewed and reverted like any other.
 It needs a configured LLM provider and edit access to the dashboard, and a dashboard with a revision already queued or running is skipped.
 Each person can have 20 health repairs queued or running at once.
@@ -73,7 +75,7 @@ It takes `folder_id`, `dashboard_id`, `kind` (one of the kinds above), `limit` (
 `dashboard_id` repeats up to 50 times and lists only those dashboards that the caller can see, whether or not they have a problem: a checked dashboard with no problem comes back with empty `problems`, and one that was never checked has `state` `unchecked` with null `checked_at` and `checked_version`.
 With `kind` as well, the list keeps only the dashboards with a problem of that kind.
 `summary` is null on every page when `dashboard_id` is given.
-The web reads a dashboard's Healthy badge this way.
+The web reads a dashboard's Queries OK badge this way.
 `GET /api/v1/dashboards?problem=<kind or any>` narrows the dashboards list to the dashboards with that problem by the same rules, keeping its order, paging and `total_count`.
 
 The list is ranked, so the dashboards most worth fixing come first:

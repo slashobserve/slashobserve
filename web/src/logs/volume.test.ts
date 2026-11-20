@@ -6,6 +6,8 @@ import {
   selectionText,
   volumeBucketText,
   volumeCaption,
+  partialVolumeText,
+  uncountedBuckets,
   volumeFailureText,
   volumeLabel,
   volumeTotals,
@@ -60,6 +62,14 @@ describe("volumeCaption", () => {
     expect(volumeCaption(12431, "now-1h", "now")).toBe(
       "12,431 lines in the last 1 hour"
     )
+  })
+
+  it("says since when a partial count starts", () => {
+    expect(
+      volumeCaption(7, "now-7d", "now", "2026-11-06T10:00:00Z").startsWith(
+        "7 lines since 2026-11-0"
+      )
+    ).toBe(true)
   })
 
   it("says in this range for an absolute range", () => {
@@ -151,9 +161,51 @@ describe("selectionText", () => {
 })
 
 describe("volumeFailureText", () => {
+  it("does not vouch for the lines when they failed too", () => {
+    expect(volumeFailureText("The query ran out of time.", true)).toBe(
+      "The volume query did not finish (The query ran out of time)."
+    )
+  })
+
   it("puts the server's reason in the notice", () => {
     expect(volumeFailureText("The query ran out of time.")).toBe(
       "The volume query did not finish (The query ran out of time). The lines below are complete."
+    )
+  })
+})
+
+describe("uncountedBuckets", () => {
+  const buckets = ["10:00", "11:00", "12:00"].map((at) =>
+    bucket({ start: `2026-11-06T${at}:00Z` })
+  )
+
+  it("is zero for a complete count", () => {
+    expect(uncountedBuckets({ buckets })).toBe(0)
+  })
+
+  it("counts the buckets before the count starts", () => {
+    expect(
+      uncountedBuckets({ buckets, counted_from: "2026-11-06T11:00:00Z" })
+    ).toBe(1)
+  })
+
+  it("is every bucket when nothing was counted", () => {
+    expect(
+      uncountedBuckets({ buckets, counted_from: "2026-11-06T13:00:00Z" })
+    ).toBe(3)
+  })
+})
+
+describe("partialVolumeText", () => {
+  it("says from when the lines were counted", () => {
+    expect(partialVolumeText("2026-11-06T10:00:00Z", false)).toMatch(
+      /^The datasource ran out of time, so only the lines since 2026-11-0\d \d\d:\d\d are counted; the shaded bars before it are not counted\.$/
+    )
+  })
+
+  it("says nothing was counted", () => {
+    expect(partialVolumeText("2026-11-06T10:00:00Z", true)).toMatch(
+      /before it counted any lines/
     )
   })
 })

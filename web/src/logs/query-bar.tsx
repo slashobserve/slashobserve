@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { AskField } from "@/ask/ask-field"
@@ -33,15 +33,23 @@ import {
 } from "@/components/ui/tooltip"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { languageReference } from "@/datasources/sources"
+import { matcherInsert } from "@/panel-editor/insert-text"
+import { labelNamesQuery } from "@/panel-editor/queries"
 import { formatDateTime } from "@/lib/time"
 import { isModEnter, modChordLabel } from "@/lib/shortcuts"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
 import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import type { LintResult } from "@/query-editor/server-lint"
 
 import { BuilderBar } from "./builder-bar"
-import { canBuild, withoutField } from "./builder"
+import {
+  canBuild,
+  equivalentField,
+  withRenamedField,
+  withoutField,
+} from "./builder"
 import { typeName } from "./datasource-picker"
 import {
   DiscoverUrlError,
@@ -51,9 +59,10 @@ import {
 } from "./discover-url"
 import { parseKql } from "./kql"
 import { LogLabelBrowser } from "./label-browser"
-import { addPill, decodePills, encodePills, unpinnedCleared } from "./pills"
+import { withFilter } from "./query-filters"
+import { decodePills, encodePills, mergePills, unpinnedCleared } from "./pills"
 import { formLabels, formOf, splitForm, withForm } from "./query-form"
-import { problemOf, type QueryProblem } from "./query-problem"
+import { problemOf, unreadableKql, type QueryProblem } from "./query-problem"
 import { QueryProblemCard } from "./query-problem.tsx"
 import { isSearchFamily, queryModeLabel, type LogsSearch } from "./search"
 import { useLogsWorkspace } from "./workspace"
@@ -62,7 +71,7 @@ const askPlaceholder =
   "Ask in plain language, like: errors from checkout in the last hour with a trace id"
 const noModelText = "Add a model key to ask in plain language"
 const builderBlockedText = "The builder cannot show this query. Edit it as KQL."
-const unknownFieldMessage = /^unknown field "(.*)"$/
+const unknownFieldMessage = /^unknown field "([^"]*)"/
 const segmentClass =
   "inline-flex h-full items-center rounded-chip border px-2.5 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
 const formItems = (["kql", "lucene", "dsl"] as const).map((value) => ({
@@ -282,6 +291,20 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const [discoverNote, setDiscoverNote] = useState<string | null>(null)
   const emptyDraft = draft.trim() === ""
   const form = formOf(draft)
+  const { ready: linesAnswered } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, urlSearch.q, range.from, range.to])
+  )
+  const names = useQuery({
+    ...labelNamesQuery(
+      uid,
+      type === "clickhouse"
+        ? { table: "otel_logs" }
+        : { from: range.from, to: range.to }
+    ),
+    enabled: linesAnswered || urlSearch.q === undefined,
+  })
+  const completionNames = names.data?.labels
 
   function switchMode(next: InputMode, remember = true) {
     if (next === shown) return
@@ -312,11 +335,9 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
   const toolbarShown = shown === "ask" ? answered : true
 
   const problem = useMemo<QueryProblem | null>(() => {
-    if (!search || blocked !== draft) return null
-    const { form: current, body, offset } = splitForm(draft)
-    if (current !== "kql") return null
-    return problemOf(draft, parseKql(body), offset)
-  }, [search, blocked, draft])
+    if (!search || (blocked !== draft && urlSearch.q !== draft)) return null
+    return unreadableKql(draft, type)
+  }, [search, blocked, draft, urlSearch.q, type])
 
   useInputModeShortcut(() =>
     switchMode(nextMode(shown, agentAvailable, builderAvailable))
@@ -366,12 +387,8 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
     submit()
   }
 
-  function onEditorPaste(event: ClipboardEvent<HTMLDivElement>) {
-    if (!search) return
-    const text = event.clipboardData.getData("text/plain")
-    if (!isDiscoverUrl(text)) return
-    event.preventDefault()
-    event.stopPropagation()
+  function importLink(text: string) {
+    if (mode === "ask") setMode("code", false)
     let imported: ReturnType<typeof importDiscoverUrl>
     try {
       imported = importDiscoverUrl(text)
@@ -381,29 +398,57 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
       return
     }
     const kept = decodePills(urlSearch.f)
-    const pills = imported.pills.reduce(
-      (current, pill) => addPill(current, pill),
-      imported.q === undefined ? kept : unpinnedCleared(kept)
+    const merged = mergePills(
+      imported.q === undefined ? kept : unpinnedCleared(kept),
+      imported.pills
     )
     const next: Partial<LogsSearch> = {}
-    if (imported.q !== undefined) next.q = imported.q
     if (imported.from !== undefined) next.from = imported.from
     if (imported.to !== undefined) next.to = imported.to
     if (imported.cols !== undefined) next.cols = imported.cols.join(",")
-    if (imported.pills.length > 0) next.f = encodePills(pills)
-    if (imported.q !== undefined) setDraft(imported.q)
-    update(next)
-    if (imported.q !== undefined) run(imported.q)
-    setDiscoverNote(importSummary(imported))
+    if (imported.pills.length > 0 && "pills" in merged) {
+      next.f = encodePills(merged.pills)
+    }
+    if (imported.q !== undefined) {
+      setDraft(imported.q)
+      run(imported.q, undefined, next)
+    } else {
+      update(next)
+    }
+    setDiscoverNote(
+      "blocked" in merged
+        ? `${importSummary(imported)} ${merged.blocked}.`
+        : importSummary(imported)
+    )
   }
 
-  function insert(text: string) {
+  function onEditorPaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (!search) return
+    const text = event.clipboardData.getData("text/plain")
+    if (!isDiscoverUrl(text)) return
+    event.preventDefault()
+    event.stopPropagation()
+    importLink(text)
+  }
+
+  function onAsk(question: string) {
+    if (search && isDiscoverUrl(question)) importLink(question)
+    else ask.ask(question)
+  }
+
+  function pickLabel(label: string, value: string) {
     if (mode === "ask") setMode("code", false)
+    const text = matcherInsert(type, label, value)
     if (type === "loki" && emptyDraft) {
       setDraft(`{${text}}`)
       return
     }
-    if (editorRef.current === null) setDraft(draft + text)
+    const inSelector =
+      type === "loki"
+        ? withFilter(draft, "loki", "loki-stream", label, value, false)
+        : null
+    if (inSelector !== null) setDraft(inSelector)
+    else if (editorRef.current === null) setDraft(draft + text)
     else editorRef.current.insertAtCursor(text)
   }
 
@@ -447,16 +492,18 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
           {builderInBar ? <BuilderBar /> : null}
         </div>
         {shown === "ask" ? (
-          <AskField
-            ref={askFieldRef}
-            signal="logs"
-            value={ask.question}
-            onChange={ask.setQuestion}
-            onAsk={ask.ask}
-            pending={ask.asking}
-            onCancel={ask.cancel}
-            placeholder={askPlaceholder}
-          />
+          <div onPasteCapture={onEditorPaste}>
+            <AskField
+              ref={askFieldRef}
+              signal="logs"
+              value={ask.question}
+              onChange={ask.setQuestion}
+              onAsk={onAsk}
+              pending={ask.asking}
+              onCancel={ask.cancel}
+              placeholder={askPlaceholder}
+            />
+          </div>
         ) : null}
         {shown === "ask" && ask.answer !== null ? (
           <div className="flex flex-col gap-1">
@@ -498,7 +545,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
             <LogLabelBrowser
               datasourceUid={uid}
               datasourceType={type}
-              onInsert={insert}
+              onPick={pickLabel}
             />
           </div>
         ) : null}
@@ -520,6 +567,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                 ariaLabel={`${modeLabel} query`}
                 onLint={setLint}
                 editorRef={editorRef}
+                completionNames={completionNames}
               />
             </div>
             {problem !== null ? (
@@ -559,6 +607,15 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                   if (next !== null) setDraft(next)
                 }}
                 removable={withoutField(draft, field) !== null}
+                replacement={
+                  withoutField(draft, field) === null
+                    ? null
+                    : equivalentField(field, completionNames ?? [])
+                }
+                onReplace={(name) => {
+                  const next = withRenamedField(draft, field, name)
+                  if (next !== null) setDraft(next)
+                }}
               />
             ))}
             {shown === "ask" ? null : (
@@ -680,7 +737,7 @@ function helpText(type: string, index: string | undefined): string {
     return `Ctrl Space completes field names from the ${index === undefined ? "" : index + " "}mapping.`
   }
   if (type === "loki") {
-    return "Ctrl Space completes stream labels and, after a parser stage, parsed fields."
+    return "Ctrl Space completes stream labels."
   }
   return "Ctrl Space completes keywords and columns."
 }
@@ -690,17 +747,31 @@ function UnknownField({
   index,
   removable,
   onRemove,
+  replacement,
+  onReplace,
 }: {
   field: string
   index: string | undefined
   removable: boolean
   onRemove: () => void
+  replacement: string | null
+  onReplace: (name: string) => void
 }) {
   return (
     <p className="flex flex-wrap items-center gap-2 text-xs">
       <StatusLabel tone="warning">
         {field} is not in the {index ?? "data view"} mapping
       </StatusLabel>
+      {replacement === null ? null : (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          onClick={() => onReplace(replacement)}
+        >
+          Use {replacement}
+        </Button>
+      )}
       {removable ? (
         <Tooltip>
           <TooltipTrigger

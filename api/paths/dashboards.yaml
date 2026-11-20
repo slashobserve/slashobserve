@@ -59,7 +59,7 @@ dashboards:
     x-surfaces:
       mcp: [list_dashboards]
       cli: [observe dashboards list]
-    summary: List the dashboards the caller can see, most recently updated first or grouped by folder.
+    summary: List the dashboards the caller can see, most recently updated first, grouped by folder or most viewed first.
     description: >-
       Filters combine with AND; `total_count` counts all matches regardless of the cursor.
       Dashboards in folders the caller cannot see are never listed or counted.
@@ -117,9 +117,11 @@ dashboards:
         description: >-
           `updated` (default) sorts by most recent update.
           `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder.
+          `views` sorts by `view_count`, most viewed first, then by most recent update.
+          `name` sorts by lower-case title, then by id.
         schema:
           type: string
-          enum: [updated, folder]
+          enum: [updated, folder, views, name]
           default: updated
       - name: tag
         in: query
@@ -197,6 +199,8 @@ dashboards-tags:
                       dashboards:
                         type: integer
                         minimum: 1
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
@@ -473,13 +477,22 @@ dashboards-id-versions-version:
       mcp: [get_dashboard]
       cli: [observe dashboards show]
     summary: Get one version of a dashboard with its Spec.
+    description: >-
+      The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
     responses:
       "200":
         description: The dashboard summary and the requested version.
+        headers:
+          ETag:
+            required: true
+            schema:
+              type: string
         content:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "304":
+        $ref: "../openapi.yaml#/components/responses/NotModified"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
@@ -544,6 +557,155 @@ dashboards-id-versions-version-restore:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-panels:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: patchDashboardPanels
+    x-surfaces:
+      mcp: [update_panels]
+      cli: [observe dashboards panels]
+    summary: Save a new version that adds, replaces, removes or moves panels, running only the queries of what changed.
+    description: >-
+      The patch is applied to `parent_version` with the same merge as the `update_panels` tool, then saved like `createDashboardVersion` with `merge: auto`.
+      Only the changed panels and variables run their queries, or every query when `dashboard.time` changes.
+      A retried request with the same parent and body answers 200 with `Idempotent-Replay: true`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [summary, parent_version]
+            properties:
+              upsert:
+                type: array
+                maxItems: 50
+                items:
+                  type: object
+                  additionalProperties: true
+                description: Complete panels matched by id; an existing id replaces that panel and keeps its position without `gridPos`, a new id adds one.
+              delete:
+                type: array
+                maxItems: 50
+                items:
+                  type: string
+                description: Ids of panels to remove; a row only with all of its children.
+              layout:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [id]
+                  properties:
+                    id:
+                      type: string
+                    gridPos:
+                      type: object
+                      additionalProperties: true
+                    row:
+                      type: string
+                      description: Id of the row to move the panel into; an empty string moves it to the top level.
+                description: Moves of existing panels.
+              variables:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                description: The complete variable list; replaces the existing one.
+              dashboard:
+                type: object
+                additionalProperties: false
+                properties:
+                  time:
+                    type: object
+                    additionalProperties: true
+                  title:
+                    type: string
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  links:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                description: Dashboard-level values to replace; a key left out is kept.
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 500
+              parent_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+              propose_if_needed:
+                type: boolean
+                default: false
+                description: Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+              accept_empty:
+                type: boolean
+                default: false
+                description: Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
+    responses:
+      "200":
+        description: The request repeats the latest version, so that version is returned.
+        headers:
+          Idempotent-Replay:
+            required: true
+            schema:
+              type: string
+              enum: ["true"]
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
+      "201":
+        description: The new version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardVersionSaved"
+      "202":
+        description: The change became a proposal, or a revision of the caller's open one; no version was saved.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProposalCreated"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
@@ -695,6 +857,42 @@ dashboards-id-views:
       schema:
         type: string
         format: uuid
+  get:
+    operationId: getDashboardViews
+    x-surfaces:
+      mcp: [get_dashboard]
+      cli: [observe dashboards show]
+    summary: Count how many people opened the dashboard in the last 30 days.
+    description: >-
+      Needs View on the dashboard.
+      The count is person-days: a person who opens the dashboard on three different UTC days counts three, however often they open it on one day.
+      The window is the last 30 UTC days including today, and the same count is `view_count` on each item of `GET /dashboards`.
+    responses:
+      "200":
+        description: The count and the window it covers.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [view_count, window_days]
+              properties:
+                view_count:
+                  type: integer
+                  minimum: 0
+                window_days:
+                  type: integer
+                  minimum: 1
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: recordDashboardView
     summary: Record that the caller opened the dashboard.
@@ -702,10 +900,70 @@ dashboards-id-views:
       Needs View on the dashboard.
       The web app calls it once each time it loads a dashboard page.
       It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens.
+      It also records that the caller opened the dashboard on this UTC day, once however often they open it, which `view_count` counts.
       A service-account key gets 204 and nothing is written, because only people count as opens.
     responses:
       "204":
         description: The open is recorded, or there was nothing to record.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-viewers:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listDashboardViewers
+    x-surfaces:
+      mcp: [list_dashboard_viewers]
+      cli: [observe dashboards viewers]
+    summary: List the other people who have the dashboard open now.
+    description: >-
+      Needs View on the dashboard.
+      A person is listed while their open dashboard page has reported in during the last 45 seconds, by name and user id, ordered by name; the caller is left out.
+      Everyone who can view a dashboard can see who else is looking at it.
+    responses:
+      "200":
+        description: The people looking at the dashboard now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardViewers"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: reportDashboardViewer
+    summary: Report that the caller has the dashboard open, and list who else does.
+    description: >-
+      Needs View on the dashboard.
+      The web app calls it when a dashboard page opens and every 20 seconds while the page is visible; each call keeps the caller listed for 45 seconds and answers with the same list as `GET /api/v1/dashboards/{id}/viewers`.
+      A service-account key gets the list and nothing is recorded, because only people count as viewers.
+    responses:
+      "200":
+        description: The other people looking at the dashboard now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardViewers"
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

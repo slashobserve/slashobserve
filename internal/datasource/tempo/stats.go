@@ -21,6 +21,7 @@ const (
 	statsNeedsFilter = `trace stats need a TraceQL spanset filter such as { resource.service.name = "checkout" }`
 	quantileLabel    = "p"
 	histogramLabel   = "__bucket"
+	maxCount         = 1 << 53
 )
 
 type metricsResponse struct {
@@ -59,6 +60,9 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if !strings.HasPrefix(q, "{") || !strings.HasSuffix(q, "}") {
 		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", statsNeedsFilter)
 	}
+	if err := rangeStartsInFuture(req.Range); err != nil {
+		return datasource.TraceStats{}, err
+	}
 	lim := d.opts.Limits.Tighten(req.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
@@ -78,7 +82,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 				"end":   {strconv.FormatInt(req.Range.To.UnixNano(), 10)},
 				"step":  {strconv.FormatInt(max(int64(req.Step/time.Second), 1), 10) + "s"},
 			}
-			return d.getJSON(groupCtx, metricsPath, params, &responses[i])
+			return traceQLProblem(d.getJSON(groupCtx, metricsPath, params, &responses[i]), text, text)
 		})
 	}
 	if err := group.Wait(); err != nil {
@@ -121,7 +125,7 @@ func (g *bucketGrid) addCounts(resp metricsResponse, into func(*datasource.Trace
 	for _, s := range resp.Series {
 		for _, sample := range s.Samples {
 			if b := g.at(sample.Timestamp); b != nil {
-				*into(b) += int64(math.Round(sampleValue(sample.Value)))
+				*into(b) += sampleCount(sample.Value)
 			}
 		}
 	}
@@ -183,7 +187,7 @@ func histogramOf(resp metricsResponse) []datasource.DurationBucket {
 			continue
 		}
 		for _, sample := range s.Samples {
-			counts[millis(le)] += int64(math.Round(sampleValue(sample.Value)))
+			counts[millis(le)] += sampleCount(sample.Value)
 		}
 	}
 	out := []datasource.DurationBucket{}
@@ -216,6 +220,14 @@ func sampleValue(raw json.RawMessage) float64 {
 		return math.NaN()
 	}
 	return v
+}
+
+func sampleCount(raw json.RawMessage) int64 {
+	v := math.Round(sampleValue(raw))
+	if math.IsNaN(v) || v < 0 || v >= maxCount {
+		return 0
+	}
+	return int64(v)
 }
 
 func labelFloat(labels []metricsLabel, key string) (float64, bool) {

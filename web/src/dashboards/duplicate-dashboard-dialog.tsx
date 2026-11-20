@@ -23,6 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { dashboardLink } from "@/lib/links"
+import { sentence } from "@/observe/queries"
+
+import { cleanText } from "@/lib/user-text"
 
 import { titleError } from "./edit/details"
 import { saveProblemFrom, type Problem } from "./edit/save-problem"
@@ -89,7 +92,7 @@ export function DuplicateDashboardDialog({
     setSubmitted(true)
     if (titleProblem !== null || folder === null || duplicate.isPending) return
     setProblem(null)
-    const trimmed = title.trim()
+    const trimmed = cleanText(title)
     const folderTitle = items.find((item) => item.value === folder)?.label
     duplicate.mutate(
       { title: trimmed, folderId: folder },
@@ -182,7 +185,7 @@ export function DuplicateDashboardDialog({
           ) : null}
           {problem?.kind === "failed" ? (
             <Alert variant="destructive">
-              <AlertDescription>{problem.message}</AlertDescription>
+              <AlertDescription>{sentence(problem.message)}</AlertDescription>
             </Alert>
           ) : null}
           <DialogFooter>

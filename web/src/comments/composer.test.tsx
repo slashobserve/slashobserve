@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
 import { ApiError } from "@/api/errors"
+import { renderWithProviders } from "@/test/render"
 
 import { Composer } from "./composer"
 
@@ -20,7 +21,7 @@ function setup(
 ) {
   const user = userEvent.setup()
   const submit = vi.fn(onSubmit)
-  render(
+  renderWithProviders(
     <Composer
       label="Reply"
       placeholder="Reply, or type @ to ask an agent"
@@ -46,11 +47,13 @@ describe("Composer", () => {
     await waitFor(() => expect(field).toHaveValue(""))
   })
 
-  it("inserts a newline on Enter alone", async () => {
+  it("sends on Enter alone and adds a line on Shift+Enter", async () => {
     const { user, submit, field } = setup()
-    await user.type(field, "one{Enter}two")
+    await user.type(field, "one{Shift>}{Enter}{/Shift}two")
     expect(field).toHaveValue("one\ntwo")
     expect(submit).not.toHaveBeenCalled()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(submit).toHaveBeenCalledWith("one\ntwo"))
   })
 
   it("sends from the Send button and keeps it disabled while the text is empty", async () => {
@@ -106,7 +109,52 @@ describe("Composer", () => {
     const { user, field } = setup()
     await user.type(field, "ask @")
     await user.click(await screen.findByRole("option", { name: "Ada" }))
-    await waitFor(() => expect(field).toHaveValue(`ask @[Ada](user:${adaId}) `))
+    await waitFor(() => expect(field).toHaveValue("ask @Ada "))
+  })
+
+  it("shows a person as @Name and sends the mention token", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const { user, field } = setup({ onSubmit })
+    await user.type(field, "ask @")
+    await user.click(await screen.findByRole("option", { name: "Ada" }))
+    await user.type(field, "to look")
+    await user.keyboard("{Control>}{Enter}{/Control}")
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(`ask @[Ada](user:${adaId}) to look`)
+    )
+  })
+
+  it("sends a line typed straight through from @observe on Enter and asks the agent", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@observe add a stat panel for request rate")
+    expect(field).toHaveValue("@observe add a stat panel for request rate")
+    expect(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    ).toBeEnabled()
+    await user.keyboard("{Enter}")
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        "@observe add a stat panel for request rate"
+      )
+    )
+  })
+
+  it("sends a line with an unknown handle on Enter", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@nobody look at this{Enter}")
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith("@nobody look at this")
+    )
+  })
+
+  it("picks the highlighted match on Enter instead of sending", async () => {
+    const { user, submit, field } = setup()
+    await user.type(field, "@obs{Enter}")
+    await waitFor(() => expect(field).toHaveValue("@observe "))
+    expect(screen.queryByRole("option")).toBeNull()
+    expect(submit).not.toHaveBeenCalled()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(submit).toHaveBeenCalledWith("@observe"))
   })
 
   it("does not open the picker for an @ inside a word", async () => {

@@ -67,6 +67,13 @@ describe("SavedSearchesMenu", () => {
     expect(requests[0].searchParams.get("kind")).toBe("logs")
   })
 
+  it("names the chevron and keeps it out of the tab order", () => {
+    stubServer([])
+    renderWithProviders(<SavedSearchesMenu kind="logs" />)
+    const chevron = screen.getByRole("button", { name: "Show saved searches" })
+    expect(chevron).toHaveAttribute("tabindex", "-1")
+  })
+
   it("opens the chosen search on its page", async () => {
     stubServer([saved("s1", "Checkout errors")])
     const { user } = renderWithProviders(<SavedSearchesMenu kind="logs" />)
@@ -83,6 +90,7 @@ describe("SavedSearchesMenu", () => {
           cols: "host",
           from: "now-6h",
           to: "now",
+          saved: "s1",
         },
       })
     )

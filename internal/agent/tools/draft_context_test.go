@@ -24,7 +24,7 @@ func contextFor(t *testing.T, ds *fakeDS, signal string) (draftFacts, error) {
 	if !ok {
 		t.Fatal("no datasource")
 	}
-	return r.draftContext(context.Background(), inst, signal, draftRange)
+	return r.draftContext(context.Background(), inst, signal, draftRange, "")
 }
 
 func valueRequests(ds *fakeDS) []datasource.DiscoverRequest {
@@ -67,6 +67,45 @@ func TestDraftContextLokiPrefersServiceNameAndDetectedLevel(t *testing.T) {
 	}
 	if facts.Reads != 3 || !facts.ServicesComplete || strings.Join(facts.Services, ",") != "checkout,payments" {
 		t.Fatalf("facts %+v", facts)
+	}
+}
+
+func TestDraftContextLokiOffersAStructuredLevelWhenNoLevelLabelIsListed(t *testing.T) {
+	ds := &fakeDS{typ: "loki", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch {
+		case req.Kind == datasource.DiscoverLabels:
+			return &datasource.Catalog{Labels: []string{"service_name", "k8s_pod_name"}}, nil
+		case req.Label == "detected_level":
+			return &datasource.Catalog{Values: []string{"error", "info", "warn"}}, nil
+		}
+		return &datasource.Catalog{Values: []string{"checkout"}}, nil
+	}}
+	facts, err := contextFor(t, ds, signalLogs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `values of detected_level (structured metadata read from a sample of the newest lines, so a level can exist that is not listed; not an index label: filter after the selector with | detected_level="value", never inside it): "error", "info", "warn"` + "\n"
+	if !strings.Contains(facts.Text, want) {
+		t.Fatalf("text lacks %q:\n%s", want, facts.Text)
+	}
+}
+
+func TestDraftContextLokiSaysNothingAboutAMissingStructuredLevel(t *testing.T) {
+	ds := &fakeDS{typ: "loki", discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch {
+		case req.Kind == datasource.DiscoverLabels:
+			return &datasource.Catalog{Labels: []string{"service_name"}}, nil
+		case req.Label == "detected_level":
+			return nil, datasource.Errorf(datasource.ErrUnavailable, "connection refused")
+		}
+		return &datasource.Catalog{Values: []string{"checkout"}}, nil
+	}}
+	facts, err := contextFor(t, ds, signalLogs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(facts.Text, "detected_level") {
+		t.Fatalf("text:\n%s", facts.Text)
 	}
 }
 
@@ -223,7 +262,7 @@ func searchFacts(t *testing.T, ds datasource.Datasource) (draftFacts, error) {
 	t.Helper()
 	r := searchRegistry(t, nil, ds)
 	inst, _ := r.deps.Datasources.Get("es")
-	return r.draftContext(context.Background(), inst, signalLogs, draftRange)
+	return r.draftContext(context.Background(), inst, signalLogs, draftRange, "")
 }
 
 func TestDraftContextSearchListsFieldsWithKindsAndTheRoleValues(t *testing.T) {
@@ -286,5 +325,13 @@ func TestDraftContextSearchKeepsTheFieldsWhenTheRolesCannotBeRead(t *testing.T) 
 	}
 	if !strings.Contains(facts.Text, "fields: service.name\n") || !strings.Contains(facts.Text, "field roles: unavailable\n") || len(facts.Services) != 0 {
 		t.Fatalf("facts %+v\n%s", facts, facts.Text)
+	}
+}
+
+func TestDraftPromptTellsALevelQuestionToKeepEveryNamedLevel(t *testing.T) {
+	for _, rule := range []string{`| detected_level=~"error|warn"`, "never keep only the levels the context lists", "a sample of recent lines"} {
+		if !strings.Contains(draftSystem, rule) {
+			t.Errorf("the draft prompt lacks %q", rule)
+		}
 	}
 }

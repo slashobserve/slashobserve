@@ -184,17 +184,27 @@ func (a *app) runExport(cmd *cobra.Command, arg, dir string) error {
 	}
 	names := exportNames(items, boundNames(bindings))
 	folderDir := specfiles.DirName(folder.Title)
+	if !filepath.IsLocal(folderDir) {
+		return fmt.Errorf("the folder title %q cannot be used as a directory name", folder.Title)
+	}
 	if err := os.MkdirAll(filepath.Join(dir, folderDir), 0o750); err != nil {
 		return fmt.Errorf("create the folder directory: %w", err)
 	}
 	written := make([]exported, 0, len(items))
 	for _, it := range items {
 		rel := folderDir + "/" + names[it.ID]
+		if !filepath.IsLocal(filepath.FromSlash(rel)) {
+			return fmt.Errorf("the file name %q would leave %s", names[it.ID], dir)
+		}
 		if err := exportOne(cmd, c, it.ID, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
 			return err
 		}
 		written = append(written, exported{Path: rel, DashboardID: it.ID, Title: it.Title})
 	}
+	return a.printExported(written)
+}
+
+func (a *app) printExported(written []exported) error {
 	out := a.output()
 	if a.json {
 		raw, err := json.Marshal(written)
@@ -270,12 +280,20 @@ func (a *app) applyCommand() *cobra.Command {
 			"A file applied before saves into the same dashboard; otherwise the one dashboard in the folder with the same title is adopted, and when there is none a new one is created. A version is saved only when the file changed. Apply never deletes a dashboard.\n" +
 			"It exits 1 when any file failed.",
 		Example: "  observe dashboards apply --dir dashboards",
-		Args:    noArgs,
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return usagef("apply takes a directory, not a file: observe dashboards apply --dir <directory>")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if dir == "" {
+				return usagef("--dir is required: name the directory of ObserveSpec files to apply")
+			}
 			return a.runApply(cmd, dir)
 		},
 	}
-	cmd.Flags().StringVar(&dir, "dir", ".", "the directory to apply")
+	cmd.Flags().StringVar(&dir, "dir", "", "the directory to apply (required)")
 	return cmd
 }
 

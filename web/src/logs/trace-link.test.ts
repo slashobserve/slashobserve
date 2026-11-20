@@ -71,6 +71,7 @@ function datasource(uid: string, type: string): DatasourceStatus {
     uid,
     type,
     name: uid,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-06T00:00:00Z",
     dashboard_count: 0,
@@ -95,6 +96,21 @@ describe("traceDatasourceFor", () => {
 
   it("gives null for Loki without a Tempo", () => {
     expect(traceDatasourceFor(all[0], all.slice(0, 1))).toBeNull()
+  })
+
+  it.each(["elasticsearch", "opensearch"])(
+    "opens a %s document in the first Tempo",
+    (type) => {
+      expect(traceDatasourceFor(datasource("search", type), all)).toBe(
+        "tempo-a"
+      )
+    }
+  )
+
+  it("gives null for a search store without a Tempo", () => {
+    expect(
+      traceDatasourceFor(datasource("search", "elasticsearch"), all.slice(0, 1))
+    ).toBeNull()
   })
 })
 

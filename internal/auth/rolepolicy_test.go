@@ -19,27 +19,39 @@ func TestResolveRolePrecedence(t *testing.T) {
 	}{
 		{
 			name:   "admin email wins",
-			in:     RoleInputs{Email: "boss@example.com"},
+			in:     RoleInputs{Email: "boss@example.com", EmailTrusted: true},
 			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}},
 			want:   RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails},
 		},
 		{
 			name:   "admin email match ignores case",
-			in:     RoleInputs{Email: "Boss@Example.COM"},
+			in:     RoleInputs{Email: "Boss@Example.COM", EmailTrusted: true},
 			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}},
 			want:   RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails},
 		},
 		{
 			name:   "admin email beats a lower group",
-			in:     RoleInputs{Email: "boss@example.com", Groups: []string{"guests"}},
+			in:     RoleInputs{Email: "boss@example.com", EmailTrusted: true, Groups: []string{"guests"}},
 			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}, GroupRoles: groupRoles},
 			want:   RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails},
 		},
 		{
 			name:   "admin email beats a manual role",
-			in:     RoleInputs{Email: "boss@example.com", Manual: &viewer},
+			in:     RoleInputs{Email: "boss@example.com", EmailTrusted: true, Manual: &viewer},
 			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}},
 			want:   RoleDecision{Role: RoleAdmin, Source: SourceAdminEmails},
+		},
+		{
+			name:   "admin email is not enough when the address is not trusted",
+			in:     RoleInputs{Email: "boss@example.com"},
+			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}},
+			want:   RoleDecision{Role: RoleEditor, Source: SourceDefault},
+		},
+		{
+			name:   "an untrusted admin email falls through to a group",
+			in:     RoleInputs{Email: "boss@example.com", Groups: []string{"guests"}},
+			policy: RolePolicy{AdminEmails: []string{"boss@example.com"}, GroupRoles: groupRoles},
+			want:   RoleDecision{Role: RoleViewer, Source: SourceGroup, Group: "guests"},
 		},
 		{
 			name:   "admin email must match exactly",

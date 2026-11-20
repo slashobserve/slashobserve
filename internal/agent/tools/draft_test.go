@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -498,17 +499,19 @@ func TestDraftRefusesBadInput(t *testing.T) {
 		in   DraftInput
 		want error
 	}{
-		"prometheus":         {DraftInput{DatasourceUID: "prom", Question: "q"}, ErrDraftInvalid},
-		"traces on loki":     {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalTraces}, ErrDraftInvalid},
-		"logs on tempo":      {DraftInput{DatasourceUID: "tempo", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
-		"clickhouse signal":  {DraftInput{DatasourceUID: "ch", Question: "q"}, ErrDraftInvalid},
-		"unknown signal":     {DraftInput{DatasourceUID: "loki", Question: "q", Signal: "metrics"}, ErrDraftInvalid},
-		"empty question":     {DraftInput{DatasourceUID: "loki", Question: "  "}, ErrDraftInvalid},
-		"long question":      {DraftInput{DatasourceUID: "loki", Question: strings.Repeat("q", maxQuestionRunes+1)}, ErrDraftInvalid},
-		"control character":  {DraftInput{DatasourceUID: "loki", Question: "q\x00"}, ErrDraftInvalid},
-		"missing datasource": {DraftInput{Question: "q"}, ErrDraftInvalid},
-		"bad range":          {DraftInput{DatasourceUID: "loki", Question: "q", From: "now", To: "now-1h"}, ErrDraftInvalid},
-		"unknown uid":        {DraftInput{DatasourceUID: "nope", Question: "q"}, ErrDraftNotFound},
+		"logs on prometheus":    {DraftInput{DatasourceUID: "prom", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
+		"metrics on clickhouse": {DraftInput{DatasourceUID: "ch", Question: "q", Signal: signalMetrics}, ErrDraftInvalid},
+		"traces on loki":        {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalTraces}, ErrDraftInvalid},
+		"logs on tempo":         {DraftInput{DatasourceUID: "tempo", Question: "q", Signal: signalLogs}, ErrDraftInvalid},
+		"clickhouse signal":     {DraftInput{DatasourceUID: "ch", Question: "q"}, ErrDraftInvalid},
+		"metrics on loki":       {DraftInput{DatasourceUID: "loki", Question: "q", Signal: signalMetrics}, ErrDraftInvalid},
+		"unknown signal":        {DraftInput{DatasourceUID: "loki", Question: "q", Signal: "events"}, ErrDraftInvalid},
+		"empty question":        {DraftInput{DatasourceUID: "loki", Question: "  "}, ErrDraftInvalid},
+		"long question":         {DraftInput{DatasourceUID: "loki", Question: strings.Repeat("q", maxQuestionRunes+1)}, ErrDraftInvalid},
+		"control character":     {DraftInput{DatasourceUID: "loki", Question: "q\x00"}, ErrDraftInvalid},
+		"missing datasource":    {DraftInput{Question: "q"}, ErrDraftInvalid},
+		"bad range":             {DraftInput{DatasourceUID: "loki", Question: "q", From: "now", To: "now-1h"}, ErrDraftInvalid},
+		"unknown uid":           {DraftInput{DatasourceUID: "nope", Question: "q"}, ErrDraftNotFound},
 	}
 	for name, c := range cases {
 		if _, err := r.DraftQuery(viewerContext(), c.in); !errors.Is(err, c.want) {
@@ -712,5 +715,56 @@ func TestDraftLogsNoQuestionOrQueryText(t *testing.T) {
 	}
 	if text := logs.String(); strings.Contains(text, "timeout\\\"") || strings.Contains(text, "with a timeout") {
 		t.Fatalf("logs carry the question or query: %s", text)
+	}
+}
+
+type fakeBudget struct {
+	allowed  bool
+	resetsIn time.Duration
+	keys     []string
+}
+
+func (f *fakeBudget) Spend(_ context.Context, key string) (bool, time.Duration, error) {
+	f.keys = append(f.keys, key)
+	return f.allowed, f.resetsIn, nil
+}
+
+func TestDraftRefusesAQuestionOnceTheHourlyBudgetIsSpent(t *testing.T) {
+	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	r := draftRegistry(t, provider, draftFakes())
+	budget := &fakeBudget{allowed: false, resetsIn: 17 * time.Minute}
+	r.deps.DraftBudget = budget
+
+	_, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "checkout lines"})
+
+	code, message, ok := DraftFailure(err)
+	if !ok || code != "too_many_requests" || !strings.Contains(message, "try again in 18 minutes") {
+		t.Fatalf("code %q message %q ok %v err %v", code, message, ok, err)
+	}
+	if len(provider.requests) != 0 {
+		t.Fatalf("the model was called %d times after the budget was spent", len(provider.requests))
+	}
+	if !slices.Equal(budget.keys, []string{"user:viewer-1"}) {
+		t.Fatalf("budget keys %v", budget.keys)
+	}
+}
+
+func TestDraftSpendsOneBudgetUnitPerQuestionAndIgnoresAnInvalidOne(t *testing.T) {
+	provider := &scriptedDraft{turns: []llm.Turn{submitTurn(`{"query":"{service_name=\"checkout\"}","explanation":"Checkout lines."}`)}}
+	r := draftRegistry(t, provider, draftFakes())
+	budget := &fakeBudget{allowed: true}
+	r.deps.DraftBudget = budget
+
+	if _, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: ""}); !errors.Is(err, ErrDraftInvalid) {
+		t.Fatalf("err %v", err)
+	}
+	if len(budget.keys) != 0 {
+		t.Fatalf("an invalid question spent the budget: %v", budget.keys)
+	}
+	if _, err := r.DraftQuery(viewerContext(), DraftInput{DatasourceUID: "loki", Question: "checkout lines"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(budget.keys) != 1 {
+		t.Fatalf("budget keys %v, want one", budget.keys)
 	}
 }

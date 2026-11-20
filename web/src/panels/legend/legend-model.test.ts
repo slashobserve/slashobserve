@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  capLegend,
   effectiveLegendMode,
   inlineValues,
   legendOrder,
+  legendWorthShowing,
+  maxStateLegendEntries,
   type LegendOptions,
   type LegendSource,
 } from "./legend-model"
@@ -112,5 +115,36 @@ describe("legendOrder", () => {
 describe("inlineValues", () => {
   it("joins each reducer label and its cell", () => {
     expect(inlineValues(["mean", "max"], ["1.2", "3"])).toBe("Mean 1.2  Max 3")
+  })
+})
+
+describe("legendWorthShowing", () => {
+  it("shows a legend for several series", () => {
+    expect(legendWorthShowing(2, [])).toBe(true)
+  })
+
+  it("hides the legend of a single series that has no values to show", () => {
+    expect(legendWorthShowing(1, [])).toBe(false)
+  })
+
+  it("shows the legend of a single series when it lists values", () => {
+    expect(legendWorthShowing(1, ["lastNotNull"])).toBe(true)
+  })
+
+  it("shows nothing for no series", () => {
+    expect(legendWorthShowing(0, ["lastNotNull"])).toBe(false)
+  })
+})
+
+describe("capLegend", () => {
+  it("keeps the first entries and counts the rest", () => {
+    const items = Array.from({ length: 25 }, (_, index) => index)
+    const { shown, more } = capLegend(items, maxStateLegendEntries)
+    expect(shown).toEqual(items.slice(0, maxStateLegendEntries))
+    expect(more).toBe(25 - maxStateLegendEntries)
+  })
+
+  it("leaves a short list alone", () => {
+    expect(capLegend(["a", "b"], 12)).toEqual({ shown: ["a", "b"], more: 0 })
   })
 })

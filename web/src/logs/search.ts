@@ -18,6 +18,7 @@ export type LogsSearch = {
   view?: "patterns"
   tail?: "1"
   observation?: string
+  saved?: string
   page?: number
   size?: PageSize
 }
@@ -32,11 +33,33 @@ export function searchAfter(
   return { ...state, ...(reset ? { page: undefined } : {}), ...next }
 }
 
+export function runPatch({
+  text,
+  current,
+  asked,
+  alongside,
+}: {
+  text: string
+  current: LogsSearch
+  asked: string | undefined
+  alongside: Partial<LogsSearch> | undefined
+}): Partial<LogsSearch> {
+  const changed =
+    text !== current.q || (asked !== undefined && asked !== current.ask)
+  if (!changed) return { ...alongside }
+  return {
+    ...alongside,
+    q: text,
+    ...(asked !== undefined && { ask: asked }),
+  }
+}
+
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const maxQueryLength = 8000
 const maxAskLength = 2000
 const controlCharacter = /\p{Cc}/u
-const pillsPattern = /^[A-Za-z0-9_-]{1,4000}$/
+export const maxEncodedPillsLength = 4000
+const pillsPattern = new RegExp(`^[A-Za-z0-9_-]{1,${maxEncodedPillsLength}}$`)
 const linePattern = /^\d{1,20}:[A-Za-z0-9_-]{1,64}$/
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -111,9 +134,13 @@ function validLine(value: unknown): string | undefined {
   return line !== undefined && linePattern.test(line) ? line : undefined
 }
 
-function validObservation(value: unknown): string | undefined {
+export function validObservation(value: unknown): string | undefined {
   const id = firstString(value)
   return id !== undefined && uuidPattern.test(id) ? id : undefined
+}
+
+function validSaved(value: unknown): string | undefined {
+  return validObservation(value)
 }
 
 function unlessStandard<T>(value: T | undefined, standard: T): T | undefined {
@@ -145,6 +172,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     view: firstString(raw.view) === "patterns" ? "patterns" : undefined,
     tail: firstString(raw.tail) === "1" ? "1" : undefined,
     observation: validObservation(raw.observation),
+    saved: validSaved(raw.saved),
     page: unlessStandard(validPage(raw.page), 1),
     size: unlessStandard(validPageSize(raw.size), defaultPageSize),
   }

@@ -1,6 +1,7 @@
 export type DashboardEvent =
   | { type: "ready"; dashboardId: string; latestVersion: number }
   | { type: "resync"; dashboardId: string }
+  | { type: "role.changed"; dashboardId: string }
   | {
       type: "version.created"
       dashboardId: string
@@ -10,7 +11,11 @@ export type DashboardEvent =
     }
   | { type: "dashboard.deleted"; dashboardId: string; authorName: string }
   | {
-      type: "comment.created" | "comment.updated" | "revision.updated"
+      type:
+        | "comment.created"
+        | "comment.updated"
+        | "revision.updated"
+        | "proposal.updated"
       dashboardId: string
     }
 
@@ -54,7 +59,8 @@ export function parseEvent(
       return { type: "ready", dashboardId, latestVersion }
     }
     case "resync":
-      return { type: "resync", dashboardId }
+    case "role.changed":
+      return { type: eventName, dashboardId }
     case "dashboard.deleted":
       return {
         type: "dashboard.deleted",
@@ -75,6 +81,7 @@ export function parseEvent(
     case "comment.created":
     case "comment.updated":
     case "revision.updated":
+    case "proposal.updated":
       return { type: eventName, dashboardId }
     default:
       return null

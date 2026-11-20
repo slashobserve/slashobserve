@@ -3,6 +3,7 @@ package threads
 import (
 	"errors"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -35,6 +36,7 @@ type threadJSON struct {
 	PanelPresent      bool                 `json:"panel_present"`
 	Status            string               `json:"status"`
 	AllowedActions    []string             `json:"allowed_actions"`
+	Unread            bool                 `json:"unread"`
 	CreatedAt         string               `json:"created_at"`
 	UpdatedAt         string               `json:"updated_at"`
 	ResolvedAt        *string              `json:"resolved_at"`
@@ -53,6 +55,7 @@ type messageJSON struct {
 	EditedAt   *string         `json:"edited_at"`
 	Mentions   []mentionJSON   `json:"mentions"`
 	CanEdit    bool            `json:"can_edit"`
+	CanDelete  bool            `json:"can_delete"`
 	BlockID    *string         `json:"block_id"`
 	ReplyTo    *replyToJSON    `json:"reply_to"`
 	Run        *startedRunJSON `json:"run"`
@@ -119,11 +122,14 @@ type resolveThreadRequest struct {
 
 func (th *Threads) Register(api auth.Routes) {
 	api.GET("/threads", auth.RoleViewer, th.list)
+	api.GET("/threads/mentionable", auth.RoleViewer, th.mentionable)
 	api.POST("/threads", auth.RoleViewer, th.open)
 	api.POST("/threads/:thread_id/messages", auth.RoleViewer, th.reply)
 	api.POST("/threads/:thread_id/resolve", auth.RoleViewer, th.resolve)
 	api.POST("/threads/:thread_id/reopen", auth.RoleViewer, th.reopen)
+	api.POST("/threads/:thread_id/read", auth.RoleViewer, auth.RequireUser, th.markRead)
 	api.PATCH("/messages/:message_id", auth.RoleViewer, th.edit)
+	api.DELETE("/messages/:message_id", auth.RoleViewer, th.deleteMessage)
 }
 
 func (th *Threads) list(c *gin.Context) {
@@ -166,6 +172,39 @@ func (th *Threads) list(c *gin.Context) {
 		body.Messages = append(body.Messages, newMessageJSON(m))
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+type mentionablePersonJSON struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+func (th *Threads) mentionable(c *gin.Context) {
+	target, err := ParseTarget(c.Query("target"))
+	if err != nil {
+		th.fail(c, "list mentionable people", err)
+		return
+	}
+	limit, ok := httpapi.LimitParam(c, maxMentionablePeople, maxMentionablePeople)
+	if !ok {
+		return
+	}
+	term := c.Query("q")
+	if utf8.RuneCountInString(term) > maxMentionTermRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be at most 100 characters")
+		return
+	}
+	people, more, err := th.service.MentionablePeople(c.Request.Context(), httpapi.Caller(c), target, term, limit)
+	if err != nil {
+		th.fail(c, "list mentionable people", err)
+		return
+	}
+	body := make([]mentionablePersonJSON, len(people))
+	for i, p := range people {
+		body[i] = mentionablePersonJSON(p)
+	}
+	c.JSON(http.StatusOK, gin.H{"people": body, "more": more})
 }
 
 func (th *Threads) open(c *gin.Context) {
@@ -222,6 +261,18 @@ func (th *Threads) edit(c *gin.Context) {
 	th.respondWithMessage(c, http.StatusOK, thread, newMessageJSON(message))
 }
 
+func (th *Threads) deleteMessage(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "message_id")
+	if !ok {
+		return
+	}
+	if err := th.service.Delete(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		th.fail(c, "delete message", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (th *Threads) resolve(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "thread_id")
 	if !ok {
@@ -232,6 +283,18 @@ func (th *Threads) resolve(c *gin.Context) {
 		return
 	}
 	th.setStatus(c, id, StatusResolved, req.Version)
+}
+
+func (th *Threads) markRead(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "thread_id")
+	if !ok {
+		return
+	}
+	if err := th.service.MarkRead(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		th.fail(c, "mark thread read", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (th *Threads) reopen(c *gin.Context) {
@@ -296,10 +359,10 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 	switch {
 	case errors.As(err, &exists):
 		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": exists.Error(), "code": CodeObservationThreadExists, "thread_id": exists.ThreadID.String()})
-	case errors.Is(err, ErrNotAuthor):
+	case errors.Is(err, ErrNotAuthor), errors.Is(err, ErrCannotDelete):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotAuthor, err.Error())
 	case errors.As(err, &invalid) && invalid.Code != "":
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, invalid.Code, invalid.Message)
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
 	default:
 		th.service.dashboards.Fail(c, action, err)
 	}
@@ -309,6 +372,8 @@ func abortKnown(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrNotStarter):
+		httpapi.AbortError(c, http.StatusForbidden, CodeNotStarter, err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, CodeUnknownPanel, err.Error())
 	case errors.Is(err, ErrUnknownVersion):
@@ -329,6 +394,7 @@ func newThreadJSON(t Thread) threadJSON {
 		PanelPresent:      t.PanelPresent,
 		Status:            t.Status,
 		AllowedActions:    t.AllowedActions,
+		Unread:            t.Unread,
 		CreatedAt:         httpapi.FormatTime(t.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(t.UpdatedAt),
 		ResolvedByVersion: t.ResolvedByVersion,
@@ -354,7 +420,11 @@ func newMessageJSON(m Message) messageJSON {
 		UpdatedAt: httpapi.FormatTime(m.UpdatedAt),
 		Mentions:  newMentionsJSON(m.Mentions),
 		CanEdit:   m.CanEdit,
+		CanDelete: m.CanDelete,
 		BlockID:   httpapi.OptionalString(m.BlockID),
+	}
+	if m.Run != nil {
+		out.Run = &startedRunJSON{ID: m.Run.ID, Status: m.Run.Status, AssignedKind: m.Run.AssignedKind}
 	}
 	if m.ReplyTo != nil {
 		out.ReplyTo = &replyToJSON{ID: m.ReplyTo.ID, Actor: m.ReplyTo.Author.JSON(), Excerpt: m.ReplyTo.Excerpt}

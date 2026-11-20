@@ -186,9 +186,34 @@ func TestParseSince(t *testing.T) {
 		{"2026-11-01T12:00:00+02:00", "2026-11-01T12:00:00+02:00"},
 	}
 	for _, tc := range cases {
-		got, err := parseSince(tc.raw, now)
+		got, err := parseTimeFlag("--since", tc.raw, now)
 		if err != nil || got != tc.want {
-			t.Errorf("parseSince(%q) = %q, %v, want %q", tc.raw, got, err, tc.want)
+			t.Errorf("parseTimeFlag(%q) = %q, %v, want %q", tc.raw, got, err, tc.want)
+		}
+	}
+}
+
+func TestActivityFiltersCarryTheAdminFilters(t *testing.T) {
+	now := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	got, err := activityOptions{limit: 20, admin: true, actor: "11111111-1111-4111-8111-111111111111", until: "1h", since: "24h"}.filters(now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := url.Values{
+		"scope":    {"admin"},
+		"actor_id": {"11111111-1111-4111-8111-111111111111"},
+		"until":    {"2026-11-01T09:00:00Z"},
+		"since":    {"2026-10-31T10:00:00Z"},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("filters = %v, want %v", got, want)
+	}
+	for name, opts := range map[string]activityOptions{
+		"until": {limit: 20, until: "soon"},
+		"actor": {limit: 20, actor: "ada"},
+	} {
+		if _, err := opts.filters(now); err == nil {
+			t.Errorf("%s: expected a usage error", name)
 		}
 	}
 }
@@ -210,11 +235,14 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"annotation.updated", `{"tags":["deploy"]}`, `edited an annotation (deploy)`},
 		{"annotation.updated", `{"tags":[]}`, `edited an annotation`},
 		{"annotation.deleted", `{}`, `deleted an annotation`},
+		{"annotation.created", `{"title":"deploy v2 started","tags":["deploy"]}`, `added an annotation "deploy v2 started" (deploy)`},
+		{"annotation.deleted", `{"title":"deploy v2 started","tags":[]}`, `deleted an annotation "deploy v2 started"`},
 		{"finding.created", `{"title":"Slow pod"}`, `saved the finding "Slow pod"`},
 		{"finding.pinned", `{"annotation_id":"a"}`, `pinned a finding`},
 		{"finding.moved", `{"title":"Slow pod","from_folder_id":null,"to_folder_id":"f"}`, `moved the finding "Slow pod"`},
 		{"saved_search.created", `{"title":"Errors","kind":"logs"}`, `saved the logs search "Errors"`},
 		{"saved_search.created", `{"title":"Slow","kind":"traces"}`, `saved the trace search "Slow"`},
+		{"saved_search.created", `{"title":"Request rate","kind":"metrics"}`, `saved the metrics search "Request rate"`},
 		{"saved_search.updated", `{"title":"Errors v2","kind":"logs"}`, `renamed the saved search to "Errors v2"`},
 		{"saved_search.moved", `{"title":"Errors","kind":"logs","from_folder_id":"a","to_folder_id":"b"}`, `moved the saved search "Errors"`},
 		{"saved_search.deleted", `{"title":"Errors","kind":"logs"}`, `deleted the saved search "Errors"`},
@@ -239,11 +267,12 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"thread.resolved", `{"object":{"kind":"dashboard","id":"d"}}`, `resolved a thread`},
 		{"thread.resolved", `{"object":{"kind":"dashboard","id":"d"},"resolved_by_version":4}`, `resolved a thread (fixed by version 4)`},
 		{"thread.reopened", `{"object":{"kind":"dashboard","id":"d"}}`, `reopened a thread`},
+		{"thread.deleted", `{"object":{"kind":"dashboard","id":"d"}}`, `deleted a comment`},
 		{"thread.mentioned", `{"mentioned":{"kind":"user","id":"u","name":"Ada"}}`, `mentioned Ada`},
 		{"thread.mentioned", `{"mentioned":{"kind":"user","id":"u","name":"Ada\u202eevil"}}`, `mentioned Ada evil`},
 		{"thread.mentioned", `{"mentioned":{"kind":"user","id":"u","name":""}}`, `mentioned someone`},
 		{"thread.mentioned", `{"mentioned":{"kind":"agent","id":"observe","name":"observe"}}`, `mentioned @observe`},
-		{"thread.deleted", `{}`, `thread.deleted`},
+		{"thread.archived", `{}`, `thread.archived`},
 		{"proposal.opened", `{"title":"Rename the errors panel","revision":1,"base_version":3}`, `opened the proposal "Rename the errors panel"`},
 		{"proposal.opened", `{}`, `opened a proposal`},
 		{"proposal.updated", `{"title":"Rename the errors panel","revision":2}`, `updated the proposal "Rename the errors panel" (revision 2)`},
@@ -251,6 +280,38 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"proposal.merged", `{"title":"Rename the errors panel","revision":2,"version":null}`, `merged the proposal "Rename the errors panel", already in the dashboard`},
 		{"proposal.discarded", `{"title":"Evil\u001b[31m","revision":1}`, `discarded the proposal "Evil [31m"`},
 		{"dashboard.created", `{"title":"Evil\u001b[31m"}`, `created "Evil [31m"`},
+		{"user.role_changed", `{"name":"Bob","from_role":"viewer","to_role":"editor","manual":true}`, `changed the role of Bob from viewer to editor`},
+		{"user.role_changed", `{"name":"Bob","from_role":"editor","to_role":"viewer","manual":false}`, `cleared the role override of Bob; the role is now viewer (was editor)`},
+		{"user.role_changed", `{"name":"Bob","from_role":"editor","to_role":"admin","manual":false,"source":"group"}`, `had the role of Bob changed from editor to admin by the sign-in policy (group)`},
+		{"user.signed_out_everywhere", `{"name":"Bob","sessions":2,"grants":1}`, `signed Bob out everywhere (2 sessions, 1 connected agents)`},
+		{"user.invited", `{"email":"bob@example.com","role":"editor"}`, `invited bob@example.com as editor`},
+		{"user.invite_updated", `{"email":"bob@example.com","role":{"from":"editor","to":"viewer"}}`, `changed the invite of bob@example.com: role editor to viewer`},
+		{"user.invite_withdrawn", `{"email":"bob@example.com"}`, `withdrew the invite of bob@example.com`},
+		{"user.deactivated", `{"name":"Bob","sessions":2,"grants":1}`, `deactivated Bob (2 sessions, 1 connected agents)`},
+		{"user.reactivated", `{"name":"Bob"}`, `reactivated Bob`},
+		{"user.removed", `{"name":"Evil\u001b[31m"}`, `removed Evil [31m`},
+		{"service_account.created", `{"name":"ci","role":"viewer","takes_runs":false}`, `created the service account "ci" (viewer)`},
+		{"service_account.deleted", `{"name":"ci"}`, `deleted the service account "ci"`},
+		{"service_account.updated", `{"name":"ci","role":{"from":"viewer","to":"editor"},"takes_runs":{"from":false,"to":true}}`, `changed the service account "ci": role viewer to editor, takes runs false to true`},
+		{"service_account.key_created", `{"name":"ci","key_id":"k","key_name":"laptop"}`, `created the key "laptop" for the service account "ci"`},
+		{"service_account.key_revoked", `{"name":"ci","key_id":"k","key_name":"laptop"}`, `revoked the key "laptop" of the service account "ci"`},
+		{"webhook.created", `{"name":"SIEM","host":"hooks.example.com","event_types":["user.role_changed"]}`, `created the webhook "SIEM" to hooks.example.com`},
+		{"webhook.updated", `{"name":"SIEM","host":"hooks.example.com","url_changed":true,"changes":{"enabled":{"from":false,"to":true},"event_types":{"from":["a.b"],"to":["a.b","c.d"]}}}`, `changed the webhook "SIEM": enabled false to true, event types 1 to 2 (address changed)`},
+		{"webhook.secret_rotated", `{"name":"SIEM","host":"hooks.example.com"}`, `rotated the secret of the webhook "SIEM"`},
+		{"webhook.deleted", `{"name":"SIEM","host":"hooks.example.com"}`, `deleted the webhook "SIEM"`},
+		{"mcp_client.connected", `{"client":"Claude Code","person_name":"Bob","mode":"direct"}`, `connected the agent "Claude Code" for Bob`},
+		{"mcp_client.disconnected", `{"client":"Claude Code","person_name":"Bob","reason":"admin"}`, `disconnected the agent "Claude Code" of Bob (admin)`},
+		{"outbound_domain.added", `{"domain":"example.com"}`, `allowed the outbound domain example.com`},
+		{"outbound_domain.removed", `{"domain":"example.com"}`, `removed the outbound domain example.com`},
+		{"grafana_connection.created", `{"name":"Prod","host":"grafana.example.com"}`, `connected Grafana grafana.example.com as the connection "Prod"`},
+		{"grafana_connection.updated", `{"name":"Prod","host":"grafana.example.com","token_changed":true,"changes":{"host":{"from":"old.example.com","to":"grafana.example.com"}}}`, `changed the Grafana connection "Prod": host old.example.com to grafana.example.com (token replaced)`},
+		{"grafana_connection.deleted", `{"name":"Prod","host":"grafana.example.com"}`, `removed the Grafana connection "Prod"`},
+		{"datasource.created", `{"uid":"metrics","type":"prometheus","name":"Metrics","host":"prom.example.com:9090"}`, `added the datasource "Metrics" at prom.example.com:9090`},
+		{"datasource.updated", `{"uid":"metrics","name":"Prod","host":"prom2.example.com","credentials_changed":true,"address_changed":true,"settings_changed":true,"changes":{"host":{"from":"prom.example.com","to":"prom2.example.com"}}}`, `changed the datasource "Prod": host prom.example.com to prom2.example.com (credentials replaced, address changed, settings changed)`},
+		{"datasource.deleted", `{"uid":"metrics","name":"Metrics","host":"prom.example.com"}`, `deleted the datasource "Metrics"`},
+		{"public_link.created", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout","prefix":"pub_abcdefgh"}`, `created a public link to the dashboard "Checkout"`},
+		{"public_link.revoked", `{"object":{"kind":"observation","id":"o"},"title":"Slow checkout","prefix":"pub_abcdefgh"}`, `revoked a public link to the RCA "Slow checkout"`},
+		{"public_link.revoked", `{"object":{"kind":"dashboard","id":"d"},"prefix":"pub_abcdefgh"}`, `revoked a public link to a dashboard`},
 	}
 	for _, tc := range cases {
 		event, err := decode[activityEvent]([]byte(activityJSON(1, tc.kind, "Sam", "2026-11-01T10:00:00Z", tc.data)))

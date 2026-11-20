@@ -327,8 +327,62 @@ func TestRetryErrorLines(t *testing.T) {
 	}
 }
 
+func TestSaveAnswerPostsAndPrintsTheObservationAddress(t *testing.T) {
+	const saved = `{"observation_id":"` + observationID + `","url":"https://observe.example.com/o/x","replayed":false}`
+	call, stdout, stderr, code := runAgainst(t, http.StatusCreated, saved, "save-answer", stoppedID)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if call.method != http.MethodPost || call.path != "/api/v1/observe/"+stoppedID+"/observation" || call.body != "" {
+		t.Fatalf("got %+v", call)
+	}
+	if strings.TrimSpace(stdout) != "Saved as an observation: https://observe.example.com/o/x" {
+		t.Fatalf("stdout %q", stdout)
+	}
+	_, stdout, _, _ = runAgainst(t, http.StatusOK, strings.Replace(saved, "false", "true", 1), "save-answer", stoppedID)
+	if strings.TrimSpace(stdout) != "Already an observation: https://observe.example.com/o/x" {
+		t.Fatalf("repeat stdout %q", stdout)
+	}
+}
+
+func TestSaveAnswerErrorLines(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		reply  string
+		want   string
+	}{
+		{"no answer", 409, `{"error":"x","code":"no_answer"}`, "request " + stoppedID + " has no answer to save"},
+		{"not yours", 404, `{"error":"agent request not found","code":"not_found"}`, "only the person who made it can save its answer"},
+		{"no folder", 403, `{"error":"x","code":"forbidden_role"}`, "your role or your folders do not allow it"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, stderr, code := runAgainst(t, tc.status, tc.reply, "save-answer", stoppedID)
+			if code != 1 || !strings.Contains(stderr, tc.want) {
+				t.Fatalf("exit %d, stderr %q, want %q", code, stderr, tc.want)
+			}
+		})
+	}
+}
+
+func TestAPromptFollowingAChatSendsFollowsID(t *testing.T) {
+	const created = `{"request":{"id":"` + stoppedID + `","status":"queued","state":"queued","steps":[]}}`
+	call, _, stderr, code := runAgainst(t, http.StatusAccepted, created, "--no-wait", "--follows", stoppedID, "and the day before?")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if call.path != "/api/v1/observe" || call.body != `{"follows_id":"`+stoppedID+`","prompt":"and the day before?"}` {
+		t.Fatalf("got %+v", call)
+	}
+	_, _, stderr, code = runAgainst(t, http.StatusAccepted, created, "--follows", stoppedID, "--dashboard", stoppedID, "why")
+	if code != 2 || !strings.Contains(stderr, "exclude each other") {
+		t.Fatalf("both flags: exit %d, stderr %q", code, stderr)
+	}
+}
+
 func TestControlCommandsRejectABadID(t *testing.T) {
-	for _, name := range []string{"cancel", "continue", "retry"} {
+	for _, name := range []string{"cancel", "continue", "retry", "save-answer"} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, name, "nope")
 		if code != 2 || !strings.Contains(stderr, "not a valid id") {
 			t.Fatalf("%s: exit %d, stderr %q", name, code, stderr)
@@ -430,6 +484,31 @@ func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 	want := "Checkout errors rose after the deploy\n\nErrors rose at 10:02.\nThe deploy at 10:00 added a retry.\n\nhttps://observe.example.com/findings/f1\n"
 	if stdout != want || posted != `{"prompt":"what logs are available?"}` {
 		t.Errorf("stdout %q posted %q", stdout, posted)
+	}
+}
+
+const askOnDashboardID = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
+
+func TestAFindingFromHomeSaysWhichDashboardToAskOn(t *testing.T) {
+	finding := `{"id":"f1","title":"Add a stat panel","markdown":"The change goes on Checkout.","url":"https://observe.example.com/o/f1","ask_on":{"dashboard_id":"` + askOnDashboardID + `","title":"Checkout"}}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"queued","steps":[]}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"succeeded","prompt":"on Checkout add Ada's stat panel","dashboard_id":null,"result_version":null,"steps":[],"finding":`+finding+`}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	stdout, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "on", "Checkout", "add", "Ada's", "stat", "panel")
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	want := "Add a stat panel\n\nThe change goes on Checkout.\n\nhttps://observe.example.com/o/f1\n\nThis change is made on the dashboard Checkout. Ask there:\n  observe --dashboard " + askOnDashboardID + ` 'on Checkout add Ada'\''s stat panel'` + "\n"
+	if stdout != want {
+		t.Errorf("stdout %q\nwant %q", stdout, want)
 	}
 }
 

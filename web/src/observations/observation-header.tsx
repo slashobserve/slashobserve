@@ -6,7 +6,8 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { LinkIcon, MoreHorizontalIcon } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
+import { LinkIcon, MoreHorizontalIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
@@ -20,18 +21,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { markOf } from "@/lib/author"
-import { observationPath } from "@/lib/links"
+import { dashboardLink, observationPath } from "@/lib/links"
 import { cn } from "@/lib/utils"
+import { sentence } from "@/observe/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { DeleteObservationsDialog } from "./delete-dialog"
 import { blockWriteProblem } from "./errors"
 import { discussionToggleLabel } from "./discussion-changes"
 import {
+  useMakeDashboard,
+  usePinObservation,
   useUpdateObservation,
   type Observation,
   type ObservationEnvelope,
 } from "./queries"
 import { StateControl } from "./state-control"
+import { plainTitle } from "@/comments/plain-title"
 
 const titleType = "text-[28px] leading-9 font-semibold tracking-[-0.01em]"
 
@@ -106,7 +112,8 @@ function EditableTitle({ observation }: { observation: Observation }) {
     }
   }
 
-  if (!canEdit) return <h1 className={titleType}>{observation.title}</h1>
+  if (!canEdit)
+    return <h1 className={titleType}>{plainTitle(observation.title)}</h1>
 
   if (editing) {
     return (
@@ -142,7 +149,7 @@ function EditableTitle({ observation }: { observation: Observation }) {
         className="-mx-2 w-[calc(100%+1rem)] rounded-control px-2 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
         onClick={begin}
       >
-        {observation.title}
+        {plainTitle(observation.title)}
       </button>
     </h1>
   )
@@ -168,6 +175,16 @@ export function ObservationHeader({
 }: Props) {
   const { observation, folder } = envelope
   const canMove = observation.allowed_actions.includes("move")
+  const canDelete = observation.allowed_actions.includes("delete")
+  const canPin = observation.can_pin
+  const canMake = (observation.blocks ?? []).some(
+    (block) => block.kind === "panel" && block.state === "live"
+  )
+  const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
+  const pin = usePinObservation(observation.id)
+  const make = useMakeDashboard({ observationId: observation.id })
+  const pinned = observation.pinned || pin.isSuccess
 
   return (
     <>
@@ -189,7 +206,7 @@ export function ObservationHeader({
           pressed={shown}
           onToggle={onToggle}
         />
-        {canMove ? (
+        {canMove || canDelete || canPin || canMake ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -203,14 +220,63 @@ export function ObservationHeader({
             >
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onMove}>
-                Move to folder
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="min-w-max">
+              {canPin ? (
+                <DropdownMenuItem
+                  disabled={pinned || pin.isPending}
+                  onClick={() =>
+                    pin.mutate(undefined, {
+                      onSuccess: () => toast.success("Pinned to the dashboard"),
+                      onError: (error) => toast.error(sentence(error.message)),
+                    })
+                  }
+                >
+                  {pinned ? "Pinned to dashboard" : "Pin to dashboard"}
+                </DropdownMenuItem>
+              ) : null}
+              {canMake ? (
+                <DropdownMenuItem
+                  disabled={make.isPending}
+                  onClick={() =>
+                    make.mutate(undefined, {
+                      onSuccess: (saved) =>
+                        void navigate(
+                          dashboardLink(
+                            saved.dashboard.id,
+                            saved.dashboard.title
+                          )
+                        ),
+                      onError: (error) => toast.error(sentence(error.message)),
+                    })
+                  }
+                >
+                  Make a dashboard
+                </DropdownMenuItem>
+              ) : null}
+              {canMove ? (
+                <DropdownMenuItem onClick={onMove}>
+                  Move to folder
+                </DropdownMenuItem>
+              ) : null}
+              {canDelete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleting(true)}
+                >
+                  <Trash2Icon aria-hidden="true" />
+                  Delete observation
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
       </TopRowActions>
+      <DeleteObservationsDialog
+        targets={[{ id: observation.id, title: observation.title }]}
+        open={deleting}
+        onOpenChange={setDeleting}
+        onDeleted={() => void navigate({ to: "/observations" })}
+      />
       <div className="flex flex-col gap-3">
         <EditableTitle observation={observation} />
         <StateControl observation={observation} folder={folder} />

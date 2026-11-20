@@ -35,6 +35,7 @@ const (
 
 	codeInvalidTransition = "invalid_transition"
 	codeBlockRefused      = "block_refused"
+	blockRefusedMessage   = "the block was refused and the observation was not changed; the reason is in refused, so fix it and send the call again"
 
 	defaultListObservations = 20
 	maxListObservations     = 50
@@ -45,9 +46,9 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary, range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id). Send a block's version when you update or keep it."
+	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
-	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A person who can only comment gets a requested block that an editor keeps or discards."
+	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. A stale version answers version_conflict."
 	descResolveObservation = "Close an observation with a one-line summary of what was found."
 	descKeepBlock          = "Keep a requested block so it goes live for everyone who sees the observation. Send the block's version."
@@ -61,19 +62,20 @@ const (
 	propBlockKind        = `"kind":{"type":"string","enum":["text","panel","snapshot"],"description":"What the block holds."}`
 	propBlockMarkdown    = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"Markdown of a text block, without HTML."}`
 	propBlockPanel       = `"panel":{"type":"object","description":"A data panel in ObserveSpec form whose queries return data; gridPos and ids are set for you."}`
+	propBlockVariables   = `"variables":{"type":"object","additionalProperties":{"type":"array","items":{"type":"string"}}}`
 	propBlockFrom        = `"from":{"type":"string","format":"date-time","description":"Start of a panel's own range, RFC 3339, with to. Default the observation's range."}`
 	propBlockTo          = `"to":{"type":"string","format":"date-time","description":"End of a panel's own range, RFC 3339."}`
 	propBlockSnapshotOf  = `"from_block_id":{"type":"string","format":"uuid","description":"The panel block to freeze, for a snapshot block."}`
 	propBlockWidth       = `"width":{"type":"string","enum":["full","half"],"description":"Default full."}`
 	propBlockPosition    = `"position":{"type":"integer","minimum":0,"description":"Index to place the block at. Default the end."}`
-	blockProps           = propBlockKind + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockSnapshotOf + `,` + propBlockWidth + `,` + propBlockPosition
+	blockProps           = propBlockKind + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockSnapshotOf + `,` + propBlockWidth + `,` + propBlockPosition
 	propObservationBlock = `"blocks":{"type":"array","maxItems":10,"items":{"type":"object","properties":{` + blockProps + `},"required":["kind"],"additionalProperties":false},"description":"Blocks to add in order, shaped as in add_block."}`
 
 	schemaCreateObservation  = `{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200,"description":"A short title."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file it in, from list_folders. Default your My Dashboards, else General."},` + propObservationFrom + `,` + propObservationTo + `,` + propObservationBlock + `},"required":["title"],"additionalProperties":false}`
-	schemaGetObservation     = `{"type":"object","properties":{` + propObservationID + `},"required":["observation_id"],"additionalProperties":false}`
-	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+	schemaGetObservation     = `{"type":"object","properties":{"observation_id":{"type":"string","format":"uuid","description":"The observation, from list_observations."}},"required":["observation_id"],"additionalProperties":false}`
+	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `},"required":["observation_id","kind"],"additionalProperties":false}`
-	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propBlockPosition + `},"required":["block_id","version"],"additionalProperties":false}`
+	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propBlockPosition + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaResolveObservation = `{"type":"object","properties":{` + propObservationID + `,"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line on what was found."}},"required":["observation_id","summary"],"additionalProperties":false}`
 	schemaKeepBlock          = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaDiscardBlock       = `{"type":"object","properties":{` + propBlockID + `},"required":["block_id"],"additionalProperties":false}`
@@ -86,7 +88,7 @@ func init() { registerEntries((*Registry).observationEntries) }
 func (r *Registry) observationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameCreateObservation, Description: descCreateObservation, InputSchema: json.RawMessage(schemaCreateObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createObservation},
-		{Tool{Name: nameGetObservation, Description: descGetObservation, InputSchema: json.RawMessage(schemaGetObservation), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.getObservation},
+		{Tool{Name: nameGetObservation, Description: descGetObservation, InputSchema: json.RawMessage(schemaGetObservation), ReadOnly: true, MinRole: auth.RoleViewer}, r.getObservation},
 		{Tool{Name: nameListObservations, Description: descListObservations, InputSchema: json.RawMessage(schemaListObservations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listObservations},
 		{Tool{Name: nameAddBlock, Description: descAddBlock, InputSchema: json.RawMessage(schemaAddBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.addBlock},
 		{Tool{Name: nameUpdateBlock, Description: descUpdateBlock, InputSchema: json.RawMessage(schemaUpdateBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateBlock},
@@ -97,14 +99,15 @@ func (r *Registry) observationEntries() []entry {
 }
 
 type blockFields struct {
-	Kind        string          `json:"kind"`
-	Markdown    *string         `json:"markdown"`
-	Panel       json.RawMessage `json:"panel"`
-	From        string          `json:"from"`
-	To          string          `json:"to"`
-	FromBlockID string          `json:"from_block_id"`
-	Width       string          `json:"width"`
-	Position    *int            `json:"position"`
+	Kind        string              `json:"kind"`
+	Markdown    *string             `json:"markdown"`
+	Panel       json.RawMessage     `json:"panel"`
+	Variables   map[string][]string `json:"variables"`
+	From        string              `json:"from"`
+	To          string              `json:"to"`
+	FromBlockID string              `json:"from_block_id"`
+	Width       string              `json:"width"`
+	Position    *int                `json:"position"`
 }
 
 type addBlockInput struct {
@@ -121,6 +124,7 @@ func (b blockFields) presence() []fieldPresence {
 	return []fieldPresence{
 		{"markdown", b.Markdown != nil},
 		{"panel", len(b.Panel) > 0},
+		{"variables", len(b.Variables) > 0},
 		{"from", b.From != ""},
 		{"to", b.To != ""},
 		{"from_block_id", b.FromBlockID != ""},
@@ -129,7 +133,7 @@ func (b blockFields) presence() []fieldPresence {
 
 var blockKindFields = map[observations.Kind][]string{
 	observations.KindText:     {"markdown"},
-	observations.KindPanel:    {"panel", "from", "to"},
+	observations.KindPanel:    {"panel", "variables", "from", "to"},
 	observations.KindSnapshot: {"from_block_id"},
 }
 
@@ -169,7 +173,6 @@ func parseWindow(from, to string) (window, Result, bool) {
 }
 
 type observationWrittenOut struct {
-	Code          string `json:"code"`
 	ObservationID string `json:"observation_id,omitempty"`
 	BlockID       string `json:"block_id,omitempty"`
 	State         string `json:"state"`
@@ -180,6 +183,7 @@ type observationWrittenOut struct {
 
 type blockRefusedOut struct {
 	Code          string `json:"code"`
+	Message       string `json:"message"`
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	BlockIndex    int    `json:"block_index"`
@@ -193,22 +197,24 @@ type observationViewOut struct {
 }
 
 type blockViewOut struct {
-	ID                string   `json:"id"`
-	Kind              string   `json:"kind"`
-	State             string   `json:"state"`
-	Position          int      `json:"position"`
-	Width             string   `json:"width"`
-	Version           int      `json:"version"`
-	AllowedActions    []string `json:"allowed_actions"`
-	Markdown          string   `json:"markdown,omitempty"`
-	MarkdownTruncated bool     `json:"markdown_truncated,omitempty"`
-	Title             string   `json:"title,omitempty"`
-	Type              string   `json:"type,omitempty"`
-	Datasources       []string `json:"datasources,omitempty"`
-	From              string   `json:"from,omitempty"`
-	To                string   `json:"to,omitempty"`
-	SnapshotID        string   `json:"snapshot_id,omitempty"`
-	RunID             string   `json:"run_id,omitempty"`
+	ID                string              `json:"id"`
+	Kind              string              `json:"kind"`
+	State             string              `json:"state"`
+	Position          int                 `json:"position"`
+	Width             string              `json:"width"`
+	Version           int                 `json:"version"`
+	AllowedActions    []string            `json:"allowed_actions"`
+	Markdown          string              `json:"markdown,omitempty"`
+	MarkdownTruncated bool                `json:"markdown_truncated,omitempty"`
+	Title             string              `json:"title,omitempty"`
+	Type              string              `json:"type,omitempty"`
+	Datasources       []string            `json:"datasources,omitempty"`
+	Panel             json.RawMessage     `json:"panel,omitempty"`
+	Variables         map[string][]string `json:"variables,omitempty"`
+	From              string              `json:"from,omitempty"`
+	To                string              `json:"to,omitempty"`
+	SnapshotID        string              `json:"snapshot_id,omitempty"`
+	RunID             string              `json:"run_id,omitempty"`
 }
 
 type observationListOut struct {
@@ -243,7 +249,7 @@ func observationRefusal(err error) (Result, bool) {
 	case errors.As(err, &refusal):
 		return toolError(codeInvalidTransition, fmt.Sprintf("%s is not allowed while the %s is %s%s", refusal.Action, refusal.Machine, refusal.State, allowedNow(refusal.Allowed))), true
 	case errors.As(err, &invalidInput):
-		if len(invalidInput.Issues) > 0 {
+		if len(invalidInput.Issues) > 0 && invalidInput.Code != observations.CodeVariableMissing {
 			return suggestionRejected(invalidInput.Issues), true
 		}
 		return toolError(invalidInput.Code, invalidInput.Message), true
@@ -291,13 +297,13 @@ func blockMarkdown(raw *string) (string, Result, bool) {
 		return "", invalid("markdown is required for a text block"), false
 	}
 	markdown := strings.TrimSpace(*raw)
-	switch _, clean := revisions.CleanPrompt(markdown); {
+	switch _, textErr := revisions.CheckPrompt("markdown", markdown); {
 	case markdown == "":
 		return "", invalid("markdown must not be empty"), false
 	case utf8.RuneCountInString(markdown) > maxBlockMarkdownRunes:
 		return "", invalid("markdown must be at most %d characters", maxBlockMarkdownRunes), false
-	case !clean:
-		return "", invalid("markdown must not contain control or bidirectional override characters"), false
+	case textErr != nil:
+		return "", invalid("%s", textErr), false
 	case containsHTML(markdown):
 		return "", toolError(string(codeHTMLNotAllowed), "the agent cannot write HTML; write Markdown without tags"), false
 	}
@@ -314,10 +320,35 @@ func foreignFields(b blockFields, kind observations.Kind) (Result, bool) {
 	return Result{}, true
 }
 
-func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, panel json.RawMessage, own, fallback window) (Result, bool, error) {
+func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, panel json.RawMessage, values map[string][]string, own, fallback window) (Result, bool, error) {
 	from, to := own.bounds(fallback, time.Now())
-	_, res, ok, err := r.evidenceDashboard(ctx, principal, findings.SaveInput{Title: panelCheckTitle, From: from, To: to}, []json.RawMessage{panel}, time.Now())
+	variables, err := observations.ValueVariables(values)
+	if err != nil {
+		res, _ := observationRefusal(err)
+		return res, false, nil
+	}
+	_, res, ok, err := r.evidenceDashboardWith(ctx, principal, findings.SaveInput{Title: panelCheckTitle, From: from, To: to}, []json.RawMessage{panel}, variables, true, time.Now())
 	return res, ok, err
+}
+
+func (r *Registry) CheckPanel(ctx context.Context, by auth.Principal, body observations.PanelBody, fallbackFrom, fallbackTo *time.Time) error {
+	res, ok, err := r.checkPanel(ctx, by, body.Panel, body.VariableValues, window{body.From, body.To}, window{fallbackFrom, fallbackTo})
+	if err != nil || ok {
+		return err
+	}
+	return refusalOf(res)
+}
+
+func refusalOf(res Result) error {
+	switch content := res.Content.(type) {
+	case invalidSpecOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case patchRejectedOut:
+		return &observations.InvalidInputError{Code: content.Code, Message: "the panel is invalid", Issues: content.Issues}
+	case errorBody:
+		return &observations.InvalidInputError{Code: content.Code, Message: content.Message}
+	}
+	return errors.New("a panel check failed in a way a caller cannot read")
 }
 
 func checkKind(kind observations.Kind) (Result, bool) {
@@ -354,10 +385,10 @@ func (r *Registry) blockInput(ctx context.Context, principal auth.Principal, b b
 		if !ok {
 			return in, res, false, nil
 		}
-		if res, ok, err := r.checkPanel(ctx, principal, b.Panel, own, fallback); err != nil || !ok {
+		if res, ok, err := r.checkPanel(ctx, principal, b.Panel, b.Variables, own, fallback); err != nil || !ok {
 			return in, res, false, err
 		}
-		in.Body, err = json.Marshal(observations.PanelBody{Panel: b.Panel, From: own.from, To: own.to})
+		in.Body, err = json.Marshal(observations.PanelBody{Panel: b.Panel, VariableValues: b.Variables, From: own.from, To: own.to})
 	case observations.KindSnapshot:
 		if in.FromBlockID, err = db.ParseUUID(b.FromBlockID); err != nil {
 			return in, invalid("from_block_id must be the UUID of a panel block from get_observation"), false, nil
@@ -370,7 +401,7 @@ func (r *Registry) blockInput(ctx context.Context, principal auth.Principal, b b
 }
 
 func (r *Registry) addedBlock(b observations.Block) Result {
-	out := observationWrittenOut{Code: "ok", ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
+	out := observationWrittenOut{ObservationID: b.ObservationID, BlockID: b.ID, State: string(b.State), Version: b.Version, URL: r.deps.Observations.URL(b.ObservationID)}
 	if b.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -436,10 +467,10 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 		}
 		if !ok {
 			step := fmt.Sprintf("Created observation %s, but block %d was refused", o.ID, i)
-			return failure(step, blockRefusedOut{Code: codeBlockRefused, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
+			return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
 		}
 	}
-	return success("Created observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: url}), nil
+	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: url}), nil
 }
 
 func (r *Registry) addBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -505,7 +536,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return r.observationFailure("Updated a block", err)
 	}
-	out := observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
+	out := observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
 	if block.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
@@ -513,14 +544,15 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 }
 
 type blockUpdateInput struct {
-	BlockID  string          `json:"block_id"`
-	Version  *int            `json:"version"`
-	Markdown *string         `json:"markdown"`
-	Panel    json.RawMessage `json:"panel"`
-	From     string          `json:"from"`
-	To       string          `json:"to"`
-	Width    string          `json:"width"`
-	Position *int            `json:"position"`
+	BlockID   string              `json:"block_id"`
+	Version   *int                `json:"version"`
+	Markdown  *string             `json:"markdown"`
+	Panel     json.RawMessage     `json:"panel"`
+	Variables map[string][]string `json:"variables"`
+	From      string              `json:"from"`
+	To        string              `json:"to"`
+	Width     string              `json:"width"`
+	Position  *int                `json:"position"`
 }
 
 func (r *Registry) blockBody(ctx context.Context, principal auth.Principal, id pgtype.UUID, in blockUpdateInput, change *observations.BlockChange) (Result, bool, error) {
@@ -541,7 +573,7 @@ func (r *Registry) blockBody(ctx context.Context, principal auth.Principal, id p
 		}
 		change.Body = body
 	case len(in.Panel) > 0:
-		body, res, ok, err := r.panelChange(ctx, principal, id, in.Panel, in.From, in.To)
+		body, res, ok, err := r.panelChange(ctx, principal, id, in.Panel, in.Variables, in.From, in.To)
 		if err != nil || !ok {
 			return res, false, err
 		}
@@ -552,7 +584,7 @@ func (r *Registry) blockBody(ctx context.Context, principal auth.Principal, id p
 	return Result{}, true, nil
 }
 
-func (r *Registry) panelChange(ctx context.Context, principal auth.Principal, blockID pgtype.UUID, panel json.RawMessage, from, to string) (json.RawMessage, Result, bool, error) {
+func (r *Registry) panelChange(ctx context.Context, principal auth.Principal, blockID pgtype.UUID, panel json.RawMessage, values map[string][]string, from, to string) (json.RawMessage, Result, bool, error) {
 	own, res, ok := parseWindow(from, to)
 	if !ok {
 		return nil, res, false, nil
@@ -565,10 +597,10 @@ func (r *Registry) panelChange(ctx context.Context, principal auth.Principal, bl
 		res, err := r.observationFailure("Read a block", err)
 		return nil, res, false, err
 	}
-	if res, ok, err := r.checkPanel(ctx, principal, panel, own, window{&shown, &end}); err != nil || !ok {
+	if res, ok, err := r.checkPanel(ctx, principal, panel, values, own, window{&shown, &end}); err != nil || !ok {
 		return nil, res, false, err
 	}
-	body, err := json.Marshal(observations.PanelBody{Panel: panel, From: own.from, To: own.to})
+	body, err := json.Marshal(observations.PanelBody{Panel: panel, VariableValues: values, From: own.from, To: own.to})
 	if err != nil {
 		return nil, Result{}, false, fmt.Errorf("encode block body: %w", err)
 	}
@@ -595,7 +627,7 @@ func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage
 	if err != nil {
 		return r.observationFailure("Resolved an observation", err)
 	}
-	return success("Resolved observation "+o.ID, observationWrittenOut{Code: "ok", ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
+	return success("Resolved observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
 }
 
 func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -625,7 +657,7 @@ func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result
 	if err != nil {
 		return r.observationFailure("Kept a block", err)
 	}
-	return success("Kept block "+block.ID, observationWrittenOut{Code: "ok", ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
+	return success("Kept block "+block.ID, observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
 }
 
 func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -650,7 +682,7 @@ func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Res
 	if err := r.deps.Observations.DiscardBlock(ctx, principal, id, runID); err != nil {
 		return r.observationFailure("Discarded a block", err)
 	}
-	return success("Discarded block "+id.String(), observationWrittenOut{Code: "ok", BlockID: id.String(), State: "discarded"}), nil
+	return success("Discarded block "+id.String(), observationWrittenOut{BlockID: id.String(), State: "discarded"}), nil
 }
 
 func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -688,7 +720,7 @@ func blockView(b observations.Block) blockViewOut {
 	base := observations.BlockOf(b)
 	out := blockViewOut{
 		ID: base.ID, Kind: base.Kind, State: base.State, Position: base.Position, Width: base.Width, Version: base.Version,
-		AllowedActions: base.AllowedActions, SnapshotID: b.SnapshotID, RunID: b.RunID,
+		AllowedActions: withoutRemove(base.AllowedActions), SnapshotID: b.SnapshotID, RunID: b.RunID,
 	}
 	switch b.Kind {
 	case observations.KindText:
@@ -701,13 +733,32 @@ func blockView(b observations.Block) blockViewOut {
 		if json.Unmarshal(b.Body, &body) != nil {
 			break
 		}
+		out.Panel = body.Panel
 		var panel spec.Panel
 		if json.Unmarshal(body.Panel, &panel) == nil {
 			out.Title, out.Type, out.Datasources = panel.Title, string(panel.Type), panelDatasources(panel)
 		}
+		out.Variables = bakedValues(body.Variables)
 		if body.From != nil && body.To != nil {
 			out.From, out.To = body.From.UTC().Format(time.RFC3339), body.To.UTC().Format(time.RFC3339)
 		}
+	}
+	return out
+}
+
+func withoutRemove(actions []string) []string {
+	return slices.DeleteFunc(slices.Clone(actions), func(a string) bool { return a == string(observations.BlockRemove) })
+}
+
+func bakedValues(variables []spec.Variable) map[string][]string {
+	out := map[string][]string{}
+	for _, v := range variables {
+		if v.Default != nil {
+			out[v.Name] = v.Default.Values
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -737,6 +788,13 @@ func clipRunes(s string, limit int) (string, bool) {
 	return string([]rune(s)[:limit]), true
 }
 
+func checkListState(state observations.State) (Result, bool) {
+	if state != "" && state != observations.StateOpen && state != observations.StateResolved {
+		return invalid("state must be open or resolved"), false
+	}
+	return Result{}, true
+}
+
 func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) (Result, error) {
 	if r.deps.Observations == nil {
 		return Result{}, errObservationsNotConfigured
@@ -744,19 +802,23 @@ func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) 
 	var in struct {
 		FolderID string `json:"folder_id"`
 		State    string `json:"state"`
+		Title    string `json:"title"`
 		Limit    *int   `json:"limit"`
 		Cursor   string `json:"cursor"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if res, ok := checkLength("title", in.Title, maxNameBytes); !ok {
+		return res, nil
+	}
 	folderID, res, ok := parseFolderID(in.FolderID)
 	if !ok {
 		return res, nil
 	}
-	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State)}
-	if filter.State != "" && filter.State != observations.StateOpen && filter.State != observations.StateResolved {
-		return invalid("state must be open or resolved"), nil
+	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State), Query: in.Title}
+	if res, ok := checkListState(filter.State); !ok {
+		return res, nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListObservations, 1, maxListObservations, "limit")
 	if !ok {

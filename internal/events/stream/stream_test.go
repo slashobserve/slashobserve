@@ -41,24 +41,31 @@ type fakeSessions struct {
 	valid    atomic.Bool
 	failNext atomic.Int32
 	calls    atomic.Int32
+	role     atomic.Value
 }
 
-func (f *fakeSessions) Valid(*http.Request) (bool, error) {
+func (f *fakeSessions) RequestPrincipal(*http.Request) (auth.Principal, bool, error) {
 	f.calls.Add(1)
 	if f.failNext.Load() > 0 {
 		f.failNext.Add(-1)
-		return false, errors.New("database unavailable")
+		return auth.Principal{}, false, errors.New("database unavailable")
 	}
-	return f.valid.Load(), nil
+	role, ok := f.role.Load().(auth.Role)
+	if !ok {
+		role = auth.RoleViewer
+	}
+	return auth.Principal{Kind: auth.KindUser, ID: "u1", Role: role}, f.valid.Load(), nil
 }
 
 type fakeAccess struct {
+	lastRole atomic.Value
 	view     atomic.Bool
 	failNext atomic.Int32
 	err      atomic.Pointer[error]
 }
 
-func (f *fakeAccess) Dashboard(context.Context, auth.Principal, pgtype.UUID) (folders.DashboardAccess, error) {
+func (f *fakeAccess) Dashboard(_ context.Context, p auth.Principal, _ pgtype.UUID) (folders.DashboardAccess, error) {
+	f.lastRole.Store(p.Role)
 	if f.failNext.Load() > 0 {
 		f.failNext.Add(-1)
 		return folders.DashboardAccess{}, errors.New("database unavailable")
@@ -84,13 +91,14 @@ type openStream struct {
 
 var eventViewer = auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}
 
-func newEventServer(t *testing.T, sessions Sessions, access Access, caller auth.Principal, extra func(auth.Routes)) *httptest.Server {
+func newEventServer(t *testing.T, sessions Principals, access Access, caller auth.Principal, extra func(auth.Routes)) *httptest.Server {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
 	t.Cleanup(broker.Close)
 	h := NewHandler(broker, fakeDashboards{}, sessions, access, allowAll, slog.New(slog.DiscardHandler))
 	h.pingInterval = testPing
+	h.roleInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
@@ -134,7 +142,7 @@ func followEvents(t *testing.T, srv *httptest.Server, cookie string) *openStream
 	return s
 }
 
-func openEventStream(t *testing.T, sessions Sessions, access Access) *openStream {
+func openEventStream(t *testing.T, sessions Principals, access Access) *openStream {
 	t.Helper()
 	return followEvents(t, newEventServer(t, sessions, access, eventViewer, nil), "")
 }
@@ -347,4 +355,39 @@ func TestClientGoingAwayWhileReadingTheVersionIsNotAServerError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStreamChecksAccessAsTheRoleTheCallerHasNow(t *testing.T) {
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	sessions.role.Store(auth.RoleEditor)
+	access := newFakeAccess()
+	s := openEventStream(t, sessions, access)
+	s.waitFor(t, "event: ready")
+	s.waitFor(t, ": ping")
+	if got := access.lastRole.Load(); got != auth.RoleEditor {
+		t.Fatalf("access was checked as %v before the demotion", got)
+	}
+
+	sessions.role.Store(auth.RoleViewer)
+	deadline := time.After(waitTimeout)
+	for access.lastRole.Load() != auth.RoleViewer {
+		select {
+		case <-deadline:
+			t.Fatal("the stream kept checking access as the role it had when it connected")
+		case <-time.After(testPing):
+		}
+	}
+}
+
+func TestStreamTellsTheClientWhenItsRoleChanges(t *testing.T) {
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	sessions.role.Store(auth.RoleViewer)
+	s := openEventStream(t, sessions, newFakeAccess())
+	s.waitFor(t, "event: ready")
+
+	sessions.role.Store(auth.RoleEditor)
+	s.waitFor(t, "event: role.changed")
+	s.waitFor(t, `data: {"dashboard_id":"`+dashboardID+`","role":"editor"}`)
 }

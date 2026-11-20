@@ -1,13 +1,19 @@
 const stepMultipliers = [1, 2, 2.5, 5]
-const fewestTicks = 4
+const tickFloors = [4, 3, 2, 1]
 const mostTicks = 6
 const preferredTicks = 5
 const floatSlack = 1e-9
 const tickLabelPx = 64
 const labelHalfPx = 24
 
-function tickCount(durationMs: number, step: number): number {
-  return Math.floor((durationMs / step) * (1 + floatSlack)) + 1
+function stepIndexes(
+  originMs: number,
+  durationMs: number,
+  step: number
+): { first: number; count: number } {
+  const first = Math.ceil((originMs / step) * (1 - floatSlack))
+  const last = Math.floor(((originMs + durationMs) / step) * (1 + floatSlack))
+  return { first, count: Math.max(0, last - first + 1) }
 }
 
 function candidateSteps(durationMs: number): number[] {
@@ -21,18 +27,28 @@ function candidateSteps(durationMs: number): number[] {
   return steps
 }
 
-function niceStep(durationMs: number, limit: number): number | null {
+function niceStep(
+  durationMs: number,
+  limit: number,
+  originMs: number
+): number | null {
   const most = Math.min(mostTicks, limit)
-  const fewest = Math.min(fewestTicks, most)
   const preferred = Math.min(preferredTicks, most)
-  let best: { step: number; distance: number } | null = null
-  for (const step of candidateSteps(durationMs)) {
-    const count = tickCount(durationMs, step)
-    if (count < fewest || count > most) continue
-    const distance = Math.abs(count - preferred)
-    if (best === null || distance <= best.distance) best = { step, distance }
+  const steps = candidateSteps(durationMs).map((step) => ({
+    step,
+    count: stepIndexes(originMs, durationMs, step).count,
+  }))
+  for (const floor of tickFloors) {
+    const fewest = Math.min(floor, most)
+    let best: { step: number; distance: number } | null = null
+    for (const { step, count } of steps) {
+      if (count < fewest || count > most) continue
+      const distance = Math.abs(count - preferred)
+      if (best === null || distance <= best.distance) best = { step, distance }
+    }
+    if (best) return best.step
   }
-  return best?.step ?? null
+  return null
 }
 
 export function tickLimit(rulerPx: number): number {
@@ -41,14 +57,15 @@ export function tickLimit(rulerPx: number): number {
 
 export function niceTicks(
   durationMs: number,
-  limit: number = mostTicks
+  limit: number = mostTicks,
+  originMs = 0
 ): number[] {
   if (!Number.isFinite(durationMs) || durationMs <= 0) return [0]
-  const step = niceStep(durationMs, limit)
+  const step = niceStep(durationMs, limit, originMs)
   if (step === null) return [0, durationMs]
-  return Array.from(
-    { length: tickCount(durationMs, step) },
-    (_, index) => index * step
+  const { first, count } = stepIndexes(originMs, durationMs, step)
+  return Array.from({ length: count }, (_, index) =>
+    Math.max(0, (first + index) * step - originMs)
   )
 }
 

@@ -64,6 +64,23 @@ func TestReadsRunUntilTheSixthTurnWithoutASaveAndThenAreRefused(t *testing.T) {
 	}
 }
 
+func TestAFindingSavedAfterARefusedReadLearnsHowManyWereRefused(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	for n := range 5 {
+		r.read(req, n)
+	}
+	r.read(req, 6)
+	var refused int
+	saved := r.call(req, "save_finding", `{"x":1}`, nil, func(ctx context.Context) (tools.Result, error) {
+		refused = tools.ReadsRefused(ctx)
+		return findingSaved(ctx)
+	})
+	if refused != 1 || settledOf(saved) != "finding" {
+		t.Fatalf("reads refused %d, meta %+v", refused, saved.Meta)
+	}
+}
+
 func TestAReadInATurnThatHoldsASaveRunsAfterTheSixthTurn(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()
@@ -147,7 +164,7 @@ func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
 	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureValidationExhausted) {
 		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
 	}
-	want := "the dashboard still failed validation after 3 rejected saves in a row (last issues: unknown_field)"
+	want := "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1, p2; ask the agent to fix them one panel at a time (last issues: unknown_field)"
 	if row.Error.String != want {
 		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}
@@ -162,6 +179,28 @@ func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
 	}
 	if n := r.tokenCount(req); n != 0 {
 		t.Fatalf("%d run tokens remain after the run ended", n)
+	}
+}
+
+func TestThreeRejectedFindingsEndAnInvestigationNamingTheEvidenceThatTimedOut(t *testing.T) {
+	r := newRig(t)
+	req := r.investigate()
+	timedOut := func(context.Context) (tools.Result, error) {
+		return tools.Result{
+			Content: map[string]any{"code": "invalid_spec", "failing_panels": []string{"evidence-2"}, "issues": []map[string]string{{"code": "query_timeout"}}},
+			IsError: true,
+		}, nil
+	}
+	for n := range guard.MaxRejectionsInRow {
+		r.call(req, "save_finding", `{"n":`+strconv.Itoa(n+1)+`}`, nil, timedOut)
+	}
+	row := r.stored(req)
+	if row.FailureCode.String != string(revisions.FailureValidationExhausted) {
+		t.Fatalf("failure = %q", row.FailureCode.String)
+	}
+	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: query_timeout); a datasource did not answer in time, so ask again when it is healthy"
+	if row.Error.String != want {
+		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}
 }
 

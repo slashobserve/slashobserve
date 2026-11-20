@@ -2,6 +2,7 @@ package threads
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -9,12 +10,27 @@ import (
 var (
 	ErrNotFound       = errors.New("comment not found")
 	ErrTargetNotFound = errors.New("target not found")
-	ErrNotAuthor      = errors.New("only the author can edit a comment")
+	ErrNotAuthor      = errors.New("only a person can edit their own comment; an agent's reply cannot be edited")
+	ErrNotStarter     = errors.New("a commenter can resolve only a thread they started; ask someone who can edit, or the person who started it")
+	ErrCannotDelete   = errors.New("only the author of a comment, or someone who manages its folder, can delete it; an agent's reply can be deleted only by someone who manages the folder")
 	ErrUnknownPanel   = errors.New("panel does not exist in that version")
 	ErrUnknownVersion = errors.New("version does not exist on this dashboard")
 )
 
+type VersionNotFoundError struct {
+	Version int
+	Latest  int
+}
+
+func (e *VersionNotFoundError) Error() string {
+	return fmt.Sprintf("version %d does not exist on this dashboard; its latest version is %d", e.Version, e.Latest)
+}
+
+const CodeVersionNotFound = "version_not_found"
+
 var errInvalidMention = &InvalidInputError{Code: CodeInvalidMention, Message: "you can mention only your own connected agents and service accounts that take runs"}
+
+var errInvalidPerson = &InvalidInputError{Code: CodeInvalidMention, Message: "a mentioned person does not exist or cannot see this; remove the mention or pick someone from the mentionable people"}
 
 var (
 	errInvalidBlock   = &InvalidInputError{Code: CodeInvalidBlock, Message: "block_id must be a block of this observation"}
@@ -29,10 +45,17 @@ func (e *ObservationThreadExistsError) Error() string {
 	return "this observation already has a discussion"
 }
 
+func isMentionCode(code string) bool {
+	return code == CodeInvalidMention || code == CodeTooManyMentions || code == CodeTooManyAgents
+}
+
 type InvalidInputError struct {
 	Code    string
 	Message string
+	Cause   error
 }
+
+func (e *InvalidInputError) Unwrap() error { return e.Cause }
 
 func (e *InvalidInputError) Error() string {
 	return e.Message
@@ -46,6 +69,7 @@ const (
 	CodeInvalidStatus   = "invalid_status"
 	CodeTooManyMentions = "too_many_mentions"
 	CodeNotAuthor       = "not_author"
+	CodeNotStarter      = "not_starter"
 	CodeUnknownPanel    = "unknown_panel"
 	CodeUnknownVersion  = "unknown_version"
 	CodeInvalidMention  = "invalid_mention"

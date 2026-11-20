@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -60,7 +62,7 @@ func normalBody(kind Kind, raw json.RawMessage) (json.RawMessage, error) {
 	return nil, invalid(CodeBodyNotEditable, "only the body of a text or panel block can be changed")
 }
 
-func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput) (preparedBlock, error) {
+func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput, readable blockFilter) (preparedBlock, error) {
 	width := in.Width
 	if width == "" {
 		width = WidthFull
@@ -80,7 +82,7 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID 
 		if len(in.Body) > 0 {
 			return preparedBlock{}, invalid(CodeInvalidBlock, "a snapshot block takes no body; name the panel block with from_block_id")
 		}
-		frozen, err := s.freeze(ctx, by, observationID, in.FromBlockID)
+		frozen, err := s.freeze(ctx, by, observationID, in.FromBlockID, readable)
 		if err != nil {
 			return preparedBlock{}, err
 		}
@@ -93,7 +95,11 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID 
 	return prepared, nil
 }
 
-func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, sourceID pgtype.UUID) (frozenSnapshot, error) {
+type blockFilter func(dbsqlc.ObservationBlock) bool
+
+func anyBlock(dbsqlc.ObservationBlock) bool { return true }
+
+func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, sourceID pgtype.UUID, readable blockFilter) (frozenSnapshot, error) {
 	notPanel := invalid(CodeInvalidBlock, "from_block_id must name a panel block of this observation")
 	if !sourceID.Valid || !observationID.Valid {
 		return frozenSnapshot{}, notPanel
@@ -104,7 +110,7 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, 
 		return frozenSnapshot{}, notPanel
 	case err != nil:
 		return frozenSnapshot{}, err
-	case source.ObservationID != observationID || Kind(source.Kind) != KindPanel:
+	case source.ObservationID != observationID || Kind(source.Kind) != KindPanel || !readable(source):
 		return frozenSnapshot{}, notPanel
 	}
 	parent, err := s.store.observation(ctx, observationID)
@@ -157,7 +163,7 @@ func wrapBlock(parent dbsqlc.Observation, block dbsqlc.ObservationBlock) (*spec.
 	}
 	from, to := blockRange(body, timePtr(parent.TimeFrom), timePtr(parent.TimeTo), time.Now().UTC())
 	from, to = from.Truncate(storedPrecision), to.Truncate(storedPrecision)
-	d, err := findings.EvidenceSpec(parent.Title, from, to, []json.RawMessage{body.Panel})
+	d, err := findings.EvidenceSpecWith(parent.Title, from, to, []json.RawMessage{body.Panel}, body.Variables)
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, fmt.Errorf("wrap panel block: %w", err)
 	}
@@ -180,11 +186,11 @@ func (s *Service) PanelDashboard(ctx context.Context, by auth.Principal, blockID
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, err
 	}
-	parent, _, _, err := s.open(ctx, by, block.ObservationID)
+	parent, _, abilities, err := s.open(ctx, by, block.ObservationID)
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, err
 	}
-	if Kind(block.Kind) != KindPanel {
+	if Kind(block.Kind) != KindPanel || !visibleTo(block, abilities, actor.Of(by, origin.Origin{}, "")) {
 		return nil, time.Time{}, time.Time{}, ErrNotFound
 	}
 	return wrapBlock(parent, block)
@@ -198,27 +204,58 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 	if _, ok := addedState(abilities); !ok {
 		return Block{}, folders.ErrForbidden
 	}
-	prepared, err := s.prepare(ctx, by, observationID, in)
+	viewer := actor.Of(by, origin.Origin{}, "")
+	prepared, err := s.prepare(ctx, by, observationID, in, func(b dbsqlc.ObservationBlock) bool { return visibleTo(b, abilities, viewer) })
 	if err != nil {
 		return Block{}, err
 	}
 	var added dbsqlc.ObservationBlock
 	var held folders.Abilities
 	var who actor.Actor
+	var readerAt int
 	err = s.write(ctx, by, observationID, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, by actor.Actor) error {
 		state, ok := addedState(abilities)
 		if !ok {
 			return folders.ErrForbidden
 		}
-		var err error
-		added, err = insertBlock(ctx, q, row, prepared, state, by)
+		rows, err := q.BlocksOfObservation(ctx, row.ID)
+		if err != nil {
+			return fmt.Errorf("list observation blocks: %w", err)
+		}
+		placed := prepared
+		placed.position = storedPosition(readableBlocks(rows, abilities, by), prepared.position)
+		if added, err = insertBlock(ctx, q, row, placed, state, by); err != nil {
+			return err
+		}
 		held, who = abilities, by
-		return err
+		if rows, err = q.BlocksOfObservation(ctx, row.ID); err != nil {
+			return fmt.Errorf("list observation blocks: %w", err)
+		}
+		readerAt = readerPosition(readableBlocks(rows, abilities, by), added.Position)
+		return nil
 	})
 	if err != nil {
 		return Block{}, err
 	}
-	return blockOf(added, held, who), nil
+	shown := blockOf(added, held, who)
+	shown.Position = readerAt
+	return shown, nil
+}
+
+func readableBlocks(rows []dbsqlc.ObservationBlock, abilities folders.Abilities, viewer actor.Actor) []dbsqlc.ObservationBlock {
+	return slices.DeleteFunc(slices.Clone(rows), func(b dbsqlc.ObservationBlock) bool { return !visibleTo(b, abilities, viewer) })
+}
+
+func storedPosition(shown []dbsqlc.ObservationBlock, reader *int) *int {
+	if reader == nil || *reader >= len(shown) {
+		return nil
+	}
+	stored := int(shown[max(0, *reader)].Position)
+	return &stored
+}
+
+func readerPosition(shown []dbsqlc.ObservationBlock, stored int32) int {
+	return len(slices.DeleteFunc(slices.Clone(shown), func(b dbsqlc.ObservationBlock) bool { return b.Position >= stored }))
 }
 
 func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
@@ -382,7 +419,7 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 		ID: current.ID, Version: current.Version, FromStates: BlockMachine.From(BlockUpdate),
 		Body: current.Body, Width: current.Width, Position: current.Position,
 	}
-	if len(in.Body) > 0 {
+	if len(in.Body) > 0 && !resendsStoredText(current, in.Body) {
 		body, err := normalBody(Kind(current.Kind), in.Body)
 		if err != nil {
 			return params, err
@@ -400,6 +437,19 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 		params.Position = position
 	}
 	return params, nil
+}
+
+func resendsStoredText(current dbsqlc.ObservationBlock, raw json.RawMessage) bool {
+	if Kind(current.Kind) != KindText {
+		return false
+	}
+	var stored, sent struct {
+		Markdown *string `json:"markdown"`
+	}
+	if json.Unmarshal(current.Body, &stored) != nil || decodeStrict(raw, &sent) != nil {
+		return false
+	}
+	return stored.Markdown != nil && sent.Markdown != nil && *stored.Markdown == *sent.Markdown
 }
 
 func moveBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.ObservationBlock, requested int) (int32, error) {

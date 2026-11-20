@@ -20,10 +20,33 @@ type investigateOptions struct {
 }
 
 type findingSummary struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Markdown string `json:"markdown"`
-	URL      string `json:"url"`
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Markdown string        `json:"markdown"`
+	URL      string        `json:"url"`
+	AskOn    *findingAskOn `json:"ask_on"`
+}
+
+type findingAskOn struct {
+	DashboardID string `json:"dashboard_id"`
+	Title       string `json:"title"`
+}
+
+func printAskOn(out *output, askOn *findingAskOn, prompt string) {
+	if askOn == nil {
+		return
+	}
+	out.line("")
+	out.line("This change is made on the dashboard %s. Ask there:", text(askOn.Title))
+	out.line("  observe --dashboard %s %s", text(askOn.DashboardID), shellWord(text(prompt)))
+}
+
+func shellWord(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+func (f findingSummary) saved() bool {
+	return f.URL != ""
 }
 
 func (a *app) investigateCommand() *cobra.Command {
@@ -98,12 +121,16 @@ func investigatePayload(args []string, o investigateOptions) (map[string]any, er
 	return payload, nil
 }
 
-func printFinding(out *output, f findingSummary) {
+func printFinding(out *output, f findingSummary, requestID string) {
 	out.line("%s", text(f.Title))
 	out.line("")
 	for line := range strings.SplitSeq(strings.TrimSpace(f.Markdown), "\n") {
 		out.line("%s", text(line))
 	}
 	out.line("")
-	out.line("%s", text(f.URL))
+	if f.saved() {
+		out.line("%s", text(f.URL))
+		return
+	}
+	out.line("This answer is kept in the chat only. Save it as an observation: observe save-answer %s", text(requestID))
 }

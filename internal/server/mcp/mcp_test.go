@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -241,6 +242,88 @@ func assertErrorBody(t *testing.T, rec *httptest.ResponseRecorder, status int, c
 	}
 	if body["code"] != code || body["error"] == "" {
 		t.Fatalf("error body %v, want code %q", body, code)
+	}
+}
+
+func assertRPCRefusal(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
+	t.Helper()
+	if rec.Code != status {
+		t.Fatalf("status %d, want %d: %s", rec.Code, status, rec.Body.String())
+	}
+	var body struct {
+		JSONRPC string `json:"jsonrpc"`
+		Error   struct {
+			Message string            `json:"message"`
+			Data    map[string]string `json:"data"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("refusal is not JSON: %s", rec.Body.String())
+	}
+	if body.JSONRPC != "2.0" || body.Error.Message == "" || body.Error.Data["code"] != code {
+		t.Fatalf("refusal %s, want a JSON-RPC error with code %q", rec.Body.String(), code)
+	}
+}
+
+func toolNamesListedFor(t *testing.T, f *fixture, header string, params any) map[string]bool {
+	t.Helper()
+	rec := f.post(rpc(1, "tools/list", params), map[string]string{"Authorization": header})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, tool := range result.Tools {
+		names[tool.Name] = true
+	}
+	return names
+}
+
+func TestToolsThatNeedAPersonAreListedOnlyForPeople(t *testing.T) {
+	f := newFixture(t)
+	personOnly := []string{"pin_dashboard", "unpin_dashboard", "list_pinned_dashboards", "list_inbox", "set_inbox_item_done"}
+	forKey, forPerson := toolNamesListedFor(t, f, goodKey, nil), toolNamesListedFor(t, f, namedOAuth, nil)
+	for _, name := range personOnly {
+		if forKey[name] || !forPerson[name] {
+			t.Errorf("%s: listed for a key = %v, for a person = %v", name, forKey[name], forPerson[name])
+		}
+	}
+	if len(forPerson)-len(forKey) != len(personOnly) {
+		t.Errorf("a key lists %d tools and a person %d", len(forKey), len(forPerson))
+	}
+}
+
+func TestAKeyCallingAPersonOnlyToolStillReachesTheTool(t *testing.T) {
+	f := newFixture(t)
+	res := callTool(t, f, "list_pinned_dashboards", nil)
+	if res.StructuredContent["code"] == "unknown_tool" {
+		t.Fatalf("result = %+v, want the tool to answer", res)
+	}
+}
+
+func TestAListCursorIsIgnoredBecauseTheServerHasNoPages(t *testing.T) {
+	f := newFixture(t)
+	plain := toolNamesListedFor(t, f, goodKey, nil)
+	for _, cursor := range []string{"x", "", "bm90LWEtY3Vyc29y"} {
+		if got := toolNamesListedFor(t, f, goodKey, map[string]any{"cursor": cursor}); len(got) != len(plain) {
+			t.Errorf("cursor %q listed %d tools, want %d", cursor, len(got), len(plain))
+		}
+	}
+}
+
+func TestAJSONRPCBatchIsRefusedByName(t *testing.T) {
+	f := newFixture(t)
+	rec := f.post("["+rpc(1, "tools/list", nil)+"]", nil)
+	assertRPCRefusal(t, rec, http.StatusBadRequest, "invalid_request")
+	if !strings.Contains(rec.Body.String(), "batches are not supported") {
+		t.Errorf("body = %s", rec.Body.String())
 	}
 }
 
@@ -592,10 +675,11 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Tools) != len(f.tools) {
-		t.Fatalf("listed %d tools, registry has %d", len(result.Tools), len(f.tools))
+	forKey := slices.DeleteFunc(slices.Clone(f.tools), func(t tools.Tool) bool { return t.PersonOnly })
+	if len(result.Tools) != len(forKey) {
+		t.Fatalf("listed %d tools, a key should see %d", len(result.Tools), len(forKey))
 	}
-	for _, want := range f.tools {
+	for _, want := range forKey {
 		var got *int
 		for i, g := range result.Tools {
 			if g.Name == want.Name {
@@ -614,8 +698,8 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 		if g.Annotations.ReadOnlyHint == nil || *g.Annotations.ReadOnlyHint != want.ReadOnly {
 			t.Errorf("%s: readOnlyHint %v, want %v", want.Name, g.Annotations.ReadOnlyHint, want.ReadOnly)
 		}
-		if !want.ReadOnly && (g.Annotations.DestructiveHint == nil || *g.Annotations.DestructiveHint) {
-			t.Errorf("%s: destructiveHint %v, want false", want.Name, g.Annotations.DestructiveHint)
+		if !want.ReadOnly && (g.Annotations.DestructiveHint == nil || *g.Annotations.DestructiveHint != want.Destructive) {
+			t.Errorf("%s: destructiveHint %v, want %v", want.Name, g.Annotations.DestructiveHint, want.Destructive)
 		}
 		var gotSchema, wantSchema any
 		if err := json.Unmarshal(g.InputSchema, &gotSchema); err != nil {
@@ -658,6 +742,9 @@ func TestToolErrorIsReturnedAsToolResultAndArgumentsAreNotLogged(t *testing.T) {
 	}
 	if res.StructuredContent["code"] != "invalid_request" {
 		t.Errorf("structured content %v", res.StructuredContent)
+	}
+	if message, _ := res.StructuredContent["message"].(string); message == "" {
+		t.Errorf("a refusal without a message: %v", res.StructuredContent)
 	}
 	logs := f.logs.String()
 	if strings.Contains(logs, "leak_marker_7f3a") || strings.Contains(logs, "value-9c1d") {
@@ -715,7 +802,7 @@ func TestOversizedBodyIsRejected(t *testing.T) {
 		"arguments": map[string]any{"padding": strings.Repeat("a", maxBodyBytes)},
 	})
 	rec := f.post(big, nil)
-	assertErrorBody(t, rec, http.StatusRequestEntityTooLarge, "too_large")
+	assertRPCRefusal(t, rec, http.StatusRequestEntityTooLarge, "too_large")
 }
 
 func TestBodyJustUnderTheLimitIsServed(t *testing.T) {
@@ -1341,7 +1428,7 @@ func TestInitializeLabelIsOnlyOnASuccessfulInitialize(t *testing.T) {
 		h := f.handler.(*handler)
 		h.slots.global = maxTotalInFlight
 		rec := f.post(initialize, nil)
-		assertErrorBody(t, rec, http.StatusServiceUnavailable, "busy")
+		assertRPCRefusal(t, rec, http.StatusServiceUnavailable, "busy")
 		if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
 			t.Errorf("503 carried session id %q", id)
 		}

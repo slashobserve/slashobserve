@@ -19,7 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-const sidecarToken = "Bearer soa_child"
+const sidecarToken = "Bearer sob_child"
 
 var builtIn = claims.Claimer{Kind: revisions.AssignBuiltin, ID: "server-1"}
 
@@ -113,6 +113,25 @@ func TestSidecarSessionAcceptsLoopbackPeersOfBothFamilies(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s: status %d: %s", remote, rec.Code, rec.Body.String())
 		}
+	}
+}
+
+func TestSidecarSessionIsRefusedWhenAProxyOnTheSameHostForwardedTheRequest(t *testing.T) {
+	h, service, _ := newSidecarHandler(t)
+	for _, header := range []string{"X-Forwarded-For", "Forwarded", "X-Real-Ip"} {
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", map[string]any{})))
+		req.RemoteAddr = "127.0.0.1:50000"
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set("MCP-Protocol-Version", "2025-11-25")
+		req.Header.Set("Authorization", sidecarToken)
+		req.Header.Set(header, "203.0.113.9")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		assertErrorBody(t, rec, http.StatusUnauthorized, "unauthenticated")
+	}
+	if len(service.claimed) != 0 {
+		t.Fatalf("claimed through a proxy: %v", service.claimed)
 	}
 }
 

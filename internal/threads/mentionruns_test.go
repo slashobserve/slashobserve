@@ -162,7 +162,7 @@ func TestStartRunsWithoutAnAgentMentionStartsNothingAndKeepsTheMessage(t *testin
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
-	thread, _, run, refusal := r.openWithRun(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "plain note for @[Bo](user:" + boID + ")"})
+	thread, _, run, refusal := r.openWithRun(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "plain note for @[Bo](user:" + r.createUser(t, "Bo", "bo@example.com").String() + ")"})
 	if run != nil || refusal != nil {
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
@@ -549,11 +549,21 @@ func TestHTTPStartRunsIsOptInAndAnswersTheRunOrTheRefusal(t *testing.T) {
 
 	listed := r.call(t, testUser, http.MethodGet, "/threads?target="+dashTarget+"&status=all", nil)
 	listed.expect(t, http.StatusOK, "")
+	carriers := 0
 	for _, m := range listed.at(t, "messages").([]any) {
 		msg := m.(map[string]any)
-		if msg["run"] != nil || msg["run_refusal"] != nil {
-			t.Fatalf("a list read carried a run: %v", msg)
+		if msg["run_refusal"] != nil {
+			t.Fatalf("a list read carried a refusal: %v", msg)
 		}
+		if msg["run"] != nil {
+			carriers++
+			if !strings.HasPrefix(msg["body"].(string), "@observe") {
+				t.Fatalf("a message that started no run carries one: %v", msg)
+			}
+		}
+	}
+	if carriers == 0 {
+		t.Fatal("no message carries the run it started on a list read")
 	}
 }
 

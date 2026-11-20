@@ -10,7 +10,11 @@ import { savedSearchesPage, savedSearchesQuery } from "@/saved-searches/queries"
 import { SavedSearchRowMenu } from "@/saved-searches/saved-search-row-menu"
 import { loadProblemText } from "@/service-accounts/queries"
 
-const kindLabels = { logs: "Logs", traces: "Traces" } as const
+const kindLabels = {
+  logs: "Logs",
+  traces: "Traces",
+  metrics: "Metrics",
+} as const
 
 export function FolderSavedSearches({ folderId }: { folderId: string }) {
   const headingId = useId()

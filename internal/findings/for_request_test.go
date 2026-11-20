@@ -11,9 +11,9 @@ import (
 
 func TestTheFindingOfARequestReachesOnlyWhoCanSeeItsObservation(t *testing.T) {
 	r := newRig(t)
-	private := r.request(t, editor, pgtype.UUID{})
+	private := r.investigation(t, editor, pgtype.UUID{})
 	r.save(t, editor, findings.SaveInput{AgentRequestID: private})
-	shared := r.request(t, editor, r.open)
+	shared := r.investigation(t, editor, r.open)
 	r.save(t, editor, findings.SaveInput{AgentRequestID: shared, DashboardID: r.open})
 
 	cases := []struct {

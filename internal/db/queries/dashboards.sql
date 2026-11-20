@@ -63,7 +63,10 @@ SELECT sqlc.embed(d),
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM threads t
     WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
+  (SELECT count(*) FROM dashboard_view_days w
+    WHERE w.dashboard_id = d.id AND w.day >= @views_since::date)::integer AS view_count,
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -88,6 +91,81 @@ WHERE (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
 ORDER BY d.updated_at DESC, d.id DESC
 LIMIT @row_limit OFFSET @row_offset;
 
+-- name: ListDashboardsByViews :many
+SELECT sqlc.embed(d),
+  v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM threads t
+    WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
+  vc.n AS view_count,
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
+CROSS JOIN LATERAL (
+  SELECT count(*)::integer AS n FROM dashboard_view_days w
+  WHERE w.dashboard_id = d.id AND w.day >= @views_since::date
+) vc
+WHERE (sqlc.narg('cursor_views')::integer IS NULL
+    OR (vc.n, d.updated_at, d.id) < (sqlc.narg('cursor_views')::integer, sqlc.narg('cursor_updated_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+  AND d.folder_id = ANY(@folders::uuid[])
+  AND (sqlc.narg('folder')::uuid IS NULL OR d.folder_id = sqlc.narg('folder')::uuid)
+  AND (sqlc.narg('creator_kind')::text IS NULL
+    OR (d.created_by_kind = sqlc.narg('creator_kind')::text AND d.created_by_id = sqlc.narg('creator_id')::uuid))
+  AND (NOT @only_agent::boolean OR d.created_via = 'agent')
+  AND (NOT @only_mcp::boolean OR d.created_origin = 'mcp')
+  AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
+  AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
+  AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
+  AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+  AND (sqlc.narg('q')::text IS NULL
+    OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
+ORDER BY vc.n DESC, d.updated_at DESC, d.id DESC
+LIMIT @row_limit OFFSET @row_offset;
+
+-- name: ListDashboardsByName :many
+SELECT sqlc.embed(d),
+  v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM threads t
+    WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
+  (SELECT count(*) FROM dashboard_view_days w
+    WHERE w.dashboard_id = d.id AND w.day >= @views_since::date)::integer AS view_count,
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
+WHERE (sqlc.narg('cursor_title')::text IS NULL
+    OR (lower(d.title), d.id) > (sqlc.narg('cursor_title')::text, sqlc.narg('cursor_id')::uuid))
+  AND d.folder_id = ANY(@folders::uuid[])
+  AND (sqlc.narg('folder')::uuid IS NULL OR d.folder_id = sqlc.narg('folder')::uuid)
+  AND (sqlc.narg('creator_kind')::text IS NULL
+    OR (d.created_by_kind = sqlc.narg('creator_kind')::text AND d.created_by_id = sqlc.narg('creator_id')::uuid))
+  AND (NOT @only_agent::boolean OR d.created_via = 'agent')
+  AND (NOT @only_mcp::boolean OR d.created_origin = 'mcp')
+  AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
+  AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
+  AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
+  AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
+    SELECT 1 FROM dashboard_health_status s
+    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+  AND (sqlc.narg('q')::text IS NULL
+    OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
+ORDER BY lower(d.title), d.id
+LIMIT @row_limit OFFSET @row_offset;
+
 -- name: ListDashboardsByFolder :many
 SELECT sqlc.embed(d),
   v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
@@ -96,7 +174,10 @@ SELECT sqlc.embed(d),
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM threads t
     WHERE t.dashboard_id = d.id AND t.status = 'open') AS open_comment_count,
-  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title
+  (SELECT count(*) FROM dashboard_view_days w
+    WHERE w.dashboard_id = d.id AND w.day >= @views_since::date)::integer AS view_count,
+  f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal, lower(f.title)::text AS folder_sort_title,
+  lower(d.title)::text AS title_sort
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 JOIN folders f ON f.id = d.folder_id
@@ -182,7 +263,7 @@ WHERE d.id = @id
 SELECT title FROM dashboards WHERE id = @id FOR UPDATE;
 
 -- name: MoveDashboard :one
-UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
+UPDATE dashboards SET folder_id = @folder_id WHERE id = @id AND folder_id = @from_folder_id RETURNING *;
 
 -- name: NotifyEvent :exec
 SELECT pg_notify(@channel::text, @payload::text);

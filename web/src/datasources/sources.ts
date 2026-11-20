@@ -1,4 +1,11 @@
-import { logsPath, tracesPath } from "@/lib/links"
+import {
+  logsLink,
+  logsPath,
+  metricsLink,
+  metricsPath,
+  tracesLink,
+  tracesPath,
+} from "@/lib/links"
 import { eligibleDatasources } from "@/logs/datasource-picker"
 import {
   isSearchFamily,
@@ -6,26 +13,53 @@ import {
   queryModeLabel,
   type LogsSearch,
 } from "@/logs/search"
+import { metricsDatasourceTypes, type MetricsSearch } from "@/metrics/search"
 import type { SubNavRow } from "@/shell/nav"
 import { traceDatasourceTypes, type TraceSearch } from "@/traces/search"
 
 import type { DatasourceStatus } from "./queries"
 
-export type ExploreKind = "logs" | "traces"
+export type ExploreKind = "logs" | "traces" | "metrics"
+
+export const exploreKinds = ["logs", "traces", "metrics"] as const
+
+export const exploreText = {
+  logs: { page: "Logs", word: "log", sources: "Log sources", path: "/logs" },
+  traces: {
+    page: "Traces",
+    word: "trace",
+    sources: "Trace sources",
+    path: "/traces",
+  },
+  metrics: {
+    page: "Metrics",
+    word: "metric",
+    sources: "Metric sources",
+    path: "/explore/metrics",
+  },
+} as const
+
+export function isSourcePage(kind: ExploreKind, pathname: string): boolean {
+  return pathname.startsWith(`${exploreText[kind].path}/`)
+}
 
 const listedSourceCap = 5
+
+const datasourceTypesOf: Record<ExploreKind, readonly string[]> = {
+  logs: logsDatasourceTypes,
+  traces: traceDatasourceTypes,
+  metrics: metricsDatasourceTypes,
+}
 
 export function sourcesOf(
   kind: ExploreKind,
   list: readonly DatasourceStatus[] | undefined
 ): DatasourceStatus[] {
-  return eligibleDatasources(
-    list,
-    kind === "logs" ? logsDatasourceTypes : traceDatasourceTypes
-  )
+  return eligibleDatasources(list, datasourceTypesOf[kind])
 }
 
 export function sourceLanguage(kind: ExploreKind, type: string): string {
+  if (kind === "metrics") return "PromQL"
   if (kind === "logs") return queryModeLabel(type)
   if (type === "tempo") return "TraceQL"
   if (type === "clickhouse") return "Search"
@@ -38,6 +72,7 @@ export const kqlReferenceUrl =
 const referenceUrls: Record<string, string> = {
   KQL: kqlReferenceUrl,
   LogQL: "https://grafana.com/docs/loki/latest/query/",
+  PromQL: "https://prometheus.io/docs/prometheus/latest/querying/basics/",
   SQL: "https://clickhouse.com/docs/sql-reference",
   TraceQL: "https://grafana.com/docs/tempo/latest/traceql/",
 }
@@ -80,7 +115,7 @@ export function defaultSource(
   const wasUsed = recent.some((uid) =>
     sources.some((source) => source.uid === uid)
   )
-  if (wasUsed || kind === "logs") return ordered[0]
+  if (wasUsed || kind !== "traces") return ordered[0]
   return ordered.find((source) => source.type === "tempo") ?? ordered[0]
 }
 
@@ -99,8 +134,20 @@ export function sourceRows(
   kind: ExploreKind,
   sources: readonly DatasourceStatus[]
 ): SubNavRow[] {
-  const pathOf = kind === "logs" ? logsPath : tracesPath
+  const pathOf = { logs: logsPath, traces: tracesPath, metrics: metricsPath }[
+    kind
+  ]
   return sources.map(({ uid }) => ({ id: uid, paths: [pathOf(uid)] }))
+}
+
+export function exploreLink(
+  kind: ExploreKind,
+  uid: string,
+  search: LogsSearch | TraceSearch | MetricsSearch
+) {
+  if (kind === "logs") return logsLink(uid, search as LogsSearch)
+  if (kind === "traces") return tracesLink(uid, search as TraceSearch)
+  return metricsLink(uid, search as MetricsSearch)
 }
 
 export function logsSwitchSearch(
@@ -115,12 +162,17 @@ export function logsSwitchSearch(
     ask: undefined,
     line: undefined,
     cols: undefined,
+    saved: undefined,
     page: undefined,
   }
 }
 
 export function tracesSwitchSearch(current: TraceSearch): TraceSearch {
   return { ...current, ask: undefined, page: undefined }
+}
+
+export function metricsSwitchSearch(current: MetricsSearch): MetricsSearch {
+  return { ...current, ask: undefined }
 }
 
 export function withoutSource<T extends { ds?: string }>(

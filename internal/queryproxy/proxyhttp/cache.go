@@ -50,6 +50,7 @@ type queryMeta struct {
 	Kind      queryproxy.Kind `json:"kind"`
 	StepMS    int64           `json:"step_ms"`
 	Exemplars string          `json:"exemplars,omitempty"`
+	Executed  string          `json:"executed,omitempty"`
 }
 
 type dataEntry struct {
@@ -61,6 +62,7 @@ type dataEntry struct {
 	to        time.Time
 	step      time.Duration
 	meta      resultMeta
+	canPage   bool
 
 	executedAt time.Time
 }

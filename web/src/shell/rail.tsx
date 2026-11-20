@@ -3,9 +3,11 @@ import { Link, useRouteContext, useRouterState } from "@tanstack/react-router"
 import {
   BotIcon,
   ChartGanttIcon,
+  ChartLineIcon,
   DatabaseIcon,
   HouseIcon,
   InboxIcon,
+  KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
   NotebookTextIcon,
@@ -49,8 +51,10 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
+  "/explore/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
+  "/keys": KeyIcon,
   "/people": UsersIcon,
   "/settings": SettingsIcon,
 }
@@ -190,10 +194,14 @@ export function RailContent({ forced }: { forced: boolean }) {
   const badges = useRailBadges()
   const logs = useExploreSources("logs").sources.length > 1
   const traces = useExploreSources("traces").sources.length > 1
+  const metrics = useExploreSources("metrics").sources.length > 1
   const flyouts: Partial<Record<NavPath, ReactNode>> = {
     "/dashboards": <DashboardsFlyoutItems />,
     ...(logs ? { "/logs": <SourceFlyoutItems kind="logs" /> } : {}),
     ...(traces ? { "/traces": <SourceFlyoutItems kind="traces" /> } : {}),
+    ...(metrics
+      ? { "/explore/metrics": <SourceFlyoutItems kind="metrics" /> }
+      : {}),
   }
 
   function renderItems(list: readonly NavItem[]) {

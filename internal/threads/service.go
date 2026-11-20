@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -185,12 +186,13 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, nil)
 		if err != nil {
 			return err
 		}
-		thread = threadOf(threadRow, at.latestPanels, sc.abilities.Comment)
+		thread = threadOf(threadRow, at.latestPanels, sc.rights(true))
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(messageRow, by, sc, false)
 		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
 			return err
 		}
@@ -247,7 +249,10 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err != nil {
 			return err
 		}
-		recorded, err := s.recordMentions(ctx, q, by, messageRow.ID, mentions)
+		if err := markRead(ctx, q, by, current.ID); err != nil {
+			return err
+		}
+		recorded, err := s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, nil)
 		if err != nil {
 			return err
 		}
@@ -256,6 +261,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 			return err
 		}
 		message = messageOf(messageRow, recorded, by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(messageRow, by, sc, false)
 		message.ReplyTo = quotes[messageRow.ID]
 		if err := (emitter{scope: sc, thread: current, actor: author}).replied(ctx, q, messageRow, recorded); err != nil {
 			return err
@@ -263,12 +269,12 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if hook == nil {
 			return nil
 		}
-		return hook(q, threadOf(current, nil, sc.abilities.Comment), message)
+		return hook(q, threadOf(current, nil, sc.rights(false)), message)
 	})
 	if err != nil {
 		return Thread{}, Message{}, threadGone(err)
 	}
-	thread, err := s.present(ctx, current, sc.abilities.Comment)
+	thread, err := s.present(ctx, current, by, sc)
 	return thread, message, err
 }
 
@@ -281,7 +287,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
-	if messageRow.AuthorKind != string(by.Kind) || messageRow.AuthorID.String() != by.ID {
+	if !writtenBy(messageRow, by) {
 		return Thread{}, Message{}, false, ErrNotAuthor
 	}
 	if !sc.abilities.Comment {
@@ -310,10 +316,14 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 		if messageRow, err = q.EditMessage(ctx, dbsqlc.EditMessageParams{ID: messageID, Body: cleaned}); err != nil {
 			return fmt.Errorf("edit message: %w", err)
 		}
+		before, err := s.mentionsOf(ctx, q, messageRow.ID)
+		if err != nil {
+			return err
+		}
 		if err := q.DeleteMentions(ctx, messageRow.ID); err != nil {
 			return fmt.Errorf("delete mentions: %w", err)
 		}
-		if recorded, err = s.recordMentions(ctx, q, by, messageRow.ID, mentions); err != nil {
+		if recorded, err = s.recordMentions(ctx, q, by, sc.target, messageRow.ID, mentions, before); err != nil {
 			return err
 		}
 		return emitter{scope: sc, thread: row, actor: author}.edited(ctx, q, messageRow)
@@ -321,12 +331,16 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	if err != nil {
 		return Thread{}, Message{}, false, threadGone(err)
 	}
-	message, err := s.presentMessage(ctx, messageRow, recorded, by, sc.abilities.Comment)
+	message, err := s.presentMessage(ctx, messageRow, recorded, by, sc)
 	if err != nil {
 		return Thread{}, Message{}, false, err
 	}
-	thread, err := s.present(ctx, row, sc.abilities.Comment)
+	thread, err := s.present(ctx, row, by, sc)
 	return thread, message, changed, err
+}
+
+func writtenBy(message dbsqlc.ThreadMessage, by auth.Principal) bool {
+	return !message.RunID.Valid && message.AuthorKind == string(by.Kind) && message.AuthorID.String() == by.ID
 }
 
 func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UUID, status string, resolvedByVersion *int) (Thread, bool, error) {
@@ -336,6 +350,15 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	row, sc, err := s.writableThread(ctx, by, id)
 	if err != nil {
 		return Thread{}, false, err
+	}
+	if status == StatusResolved {
+		started, err := s.startedBy(ctx, s.db.Queries(), by, row.ID)
+		if err != nil {
+			return Thread{}, false, err
+		}
+		if !slices.Contains(allowedActions(StatusOpen, sc.rights(started)), string(ActionResolve)) {
+			return Thread{}, false, ErrNotStarter
+		}
 	}
 	params := dbsqlc.SetThreadStatusParams{ID: row.ID, Status: status}
 	if status == StatusResolved {
@@ -378,7 +401,7 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	if err != nil {
 		return Thread{}, false, threadGone(err)
 	}
-	thread, err := s.present(ctx, updated, sc.abilities.Comment)
+	thread, err := s.present(ctx, updated, by, sc)
 	return thread, changed, err
 }
 
@@ -445,17 +468,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
-	ids := make([]pgtype.UUID, len(rows))
-	messageRows := make([]dbsqlc.ThreadMessage, len(rows))
-	for i, r := range rows {
-		ids[i] = r.ThreadMessage.ID
-		messageRows[i] = r.ThreadMessage
-	}
-	mentions, err := s.mentionsByMessage(ctx, s.db.Queries(), ids)
-	if err != nil {
-		return Page{}, err
-	}
-	quotes, err := quotesOf(ctx, s.db.Queries(), messageRows)
+	pd, err := s.pageDataOf(ctx, by, sc, rows)
 	if err != nil {
 		return Page{}, err
 	}
@@ -463,13 +476,56 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
 			seen[r.Thread.ID] = true
-			page.Threads = append(page.Threads, threadOf(r.Thread, latestPanels, sc.abilities.Comment))
+			thread := threadOf(r.Thread, latestPanels, sc.rights(pd.started[r.Thread.ID]))
+			thread.Unread = pd.unread[r.Thread.ID]
+			page.Threads = append(page.Threads, thread)
 		}
-		message := messageOf(r.ThreadMessage, mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
-		message.ReplyTo = quotes[r.ThreadMessage.ID]
+		message := messageOf(r.ThreadMessage, pd.mentions[r.ThreadMessage.ID], by, sc.abilities.Comment)
+		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && pd.others[r.Thread.ID])
+		message.ReplyTo = pd.quotes[r.ThreadMessage.ID]
+		message.Run = pd.runs[r.ThreadMessage.ID]
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
+}
+
+type pageData struct {
+	mentions map[pgtype.UUID][]Mention
+	quotes   map[pgtype.UUID]*ReplyTo
+	others   map[pgtype.UUID]bool
+	runs     map[pgtype.UUID]*StartedRun
+	started  map[pgtype.UUID]bool
+	unread   map[pgtype.UUID]bool
+}
+
+func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, rows []dbsqlc.ListThreadMessagesRow) (pageData, error) {
+	ids := make([]pgtype.UUID, len(rows))
+	messageRows := make([]dbsqlc.ThreadMessage, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ThreadMessage.ID
+		messageRows[i] = r.ThreadMessage
+	}
+	var pd pageData
+	var err error
+	if pd.mentions, err = s.mentionsByMessage(ctx, s.db.Queries(), ids); err != nil {
+		return pageData{}, err
+	}
+	if pd.quotes, err = quotesOf(ctx, s.db.Queries(), messageRows); err != nil {
+		return pageData{}, err
+	}
+	if pd.others, err = s.otherAuthorsOnPage(ctx, by, sc, rows); err != nil {
+		return pageData{}, err
+	}
+	if pd.runs, err = runsOf(ctx, s.db.Queries(), ids); err != nil {
+		return pageData{}, err
+	}
+	if pd.started, err = s.startedAmong(ctx, s.db.Queries(), by, rows); err != nil {
+		return pageData{}, err
+	}
+	if pd.unread, err = s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows)); err != nil {
+		return pageData{}, err
+	}
+	return pd, nil
 }
 
 func (s *Service) latestRevisions(ctx context.Context, commentIDs []string) (map[string]*CommentRevision, error) {
@@ -508,7 +564,25 @@ func (s *Service) ReadMessage(ctx context.Context, by auth.Principal, id pgtype.
 	if err != nil {
 		return Message{}, err
 	}
-	return s.presentMessage(ctx, row, mentions, by, sc.abilities.Comment)
+	message, err := s.presentMessage(ctx, row, mentions, by, sc)
+	if err != nil {
+		return Message{}, err
+	}
+	runs, err := runsOf(ctx, s.db.Queries(), []pgtype.UUID{row.ID})
+	message.Run = runs[row.ID]
+	return message, err
+}
+
+func runsOf(ctx context.Context, q *dbsqlc.Queries, messageIDs []pgtype.UUID) (map[pgtype.UUID]*StartedRun, error) {
+	rows, err := q.RunsOfMessages(ctx, messageIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list the runs of messages: %w", err)
+	}
+	runs := make(map[pgtype.UUID]*StartedRun, len(rows))
+	for _, r := range rows {
+		runs[r.ThreadMessageID] = &StartedRun{ID: r.ID.String(), Status: r.Status, AssignedKind: r.AssignedKind}
+	}
+	return runs, nil
 }
 
 func (s *Service) writableThread(ctx context.Context, by auth.Principal, id pgtype.UUID) (dbsqlc.Thread, scope, error) {
@@ -618,13 +692,16 @@ func (r messageRefs) lock(ctx context.Context, q *dbsqlc.Queries, target Target,
 	return nil
 }
 
-func (s *Service) presentMessage(ctx context.Context, row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Principal, canComment bool) (Message, error) {
+func (s *Service) presentMessage(ctx context.Context, row dbsqlc.ThreadMessage, mentions []Mention, reader auth.Principal, sc scope) (Message, error) {
 	quotes, err := quotesOf(ctx, s.db.Queries(), []dbsqlc.ThreadMessage{row})
 	if err != nil {
 		return Message{}, err
 	}
-	message := messageOf(row, mentions, reader, canComment)
+	message := messageOf(row, mentions, reader, sc.abilities.Comment)
 	message.ReplyTo = quotes[row.ID]
+	if message.CanDelete, err = s.canDeleteOne(ctx, s.db.Queries(), row, reader, sc); err != nil {
+		return Message{}, err
+	}
 	return message, nil
 }
 
@@ -664,9 +741,95 @@ func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
 	return params
 }
 
-func (s *Service) present(ctx context.Context, row dbsqlc.Thread, canComment bool) (Thread, error) {
+func (s *Service) unreadAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadIDs []pgtype.UUID) (map[pgtype.UUID]bool, error) {
+	if by.Kind != auth.KindUser || len(threadIDs) == 0 {
+		return nil, nil
+	}
+	readerID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return nil, fmt.Errorf("reader id: %w", err)
+	}
+	found, err := q.UnreadThreads(ctx, dbsqlc.UnreadThreadsParams{ThreadIds: threadIDs, ReaderKind: string(by.Kind), ReaderID: readerID})
+	if err != nil {
+		return nil, fmt.Errorf("list unread threads: %w", err)
+	}
+	unread := make(map[pgtype.UUID]bool, len(found))
+	for _, id := range found {
+		unread[id] = true
+	}
+	return unread, nil
+}
+
+func markRead(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadID pgtype.UUID) error {
+	if by.Kind != auth.KindUser {
+		return nil
+	}
+	readerID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return fmt.Errorf("reader id: %w", err)
+	}
+	if err := q.MarkThreadRead(ctx, dbsqlc.MarkThreadReadParams{UserID: readerID, ThreadID: threadID}); err != nil {
+		return fmt.Errorf("mark thread read: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) MarkRead(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	row, err := s.db.Queries().GetThreadOfMessage(ctx, id)
+	if err != nil {
+		return threadLookup(err)
+	}
+	if _, err := s.scopeOfThread(ctx, by, row); err != nil {
+		return err
+	}
+	return threadGone(markRead(ctx, s.db.Queries(), by, row.ID))
+}
+
+func (s *Service) startedBy(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, threadID pgtype.UUID) (bool, error) {
+	first, err := q.GetMessage(ctx, threadID)
+	if err != nil {
+		return false, threadLookup(err)
+	}
+	return ownMessage(first, by), nil
+}
+
+func threadIDsOf(rows []dbsqlc.ListThreadMessagesRow) []pgtype.UUID {
+	ids := make([]pgtype.UUID, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.Thread.ID)
+	}
+	return ids
+}
+
+func (s *Service) startedAmong(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]bool, error) {
+	firsts, err := q.ListMessagesByID(ctx, threadIDsOf(rows))
+	if err != nil {
+		return nil, fmt.Errorf("list the first messages of threads: %w", err)
+	}
+	started := make(map[pgtype.UUID]bool, len(firsts))
+	for _, first := range firsts {
+		started[first.ID] = ownMessage(first, by)
+	}
+	return started, nil
+}
+
+func (s *Service) present(ctx context.Context, row dbsqlc.Thread, by auth.Principal, sc scope) (Thread, error) {
+	started, err := s.startedBy(ctx, s.db.Queries(), by, row.ID)
+	if err != nil {
+		return Thread{}, err
+	}
+	unread, err := s.unreadAmong(ctx, s.db.Queries(), by, []pgtype.UUID{row.ID})
+	if err != nil {
+		return Thread{}, err
+	}
+	thread, err := s.presentWithPanels(ctx, row, sc.rights(started))
+	thread.Unread = unread[row.ID]
+	return thread, err
+}
+
+func (s *Service) presentWithPanels(ctx context.Context, row dbsqlc.Thread, r rights) (Thread, error) {
 	if !row.PanelID.Valid {
-		return threadOf(row, nil, canComment), nil
+		return threadOf(row, nil, r), nil
 	}
 	latest, err := s.dashboards.LatestVersion(ctx, row.DashboardID)
 	if err != nil {
@@ -676,7 +839,7 @@ func (s *Service) present(ctx context.Context, row dbsqlc.Thread, canComment boo
 	if err != nil {
 		return Thread{}, err
 	}
-	return threadOf(row, panels, canComment), nil
+	return threadOf(row, panels, r), nil
 }
 
 func (s *Service) latestPanels(ctx context.Context, sc scope) (map[string]struct{}, error) {
@@ -758,9 +921,9 @@ func checkPanelID(panelID string) error {
 }
 
 func checkBody(body string) (string, []Mention, error) {
-	cleaned, ok := revisions.CleanPrompt(body)
-	if !ok {
-		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: fmt.Sprintf("body must be 1 to %d characters without control or bidirectional override characters", maxBodyRunes)}
+	cleaned, err := usertext.Clean("body", body, usertext.Text(maxBodyRunes))
+	if err != nil {
+		return "", nil, &InvalidInputError{Code: CodeInvalidBody, Message: err.Error(), Cause: err}
 	}
 	mentions, err := ParseMentions(cleaned)
 	if err != nil {
@@ -769,22 +932,10 @@ func checkBody(body string) (string, []Mention, error) {
 	return cleaned, mentions, nil
 }
 
-func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, messageID pgtype.UUID, parsed []Mention) ([]Mention, error) {
-	var userIDs []pgtype.UUID
-	for _, m := range parsed {
-		if m.Kind() == mentionUser {
-			userIDs = append(userIDs, m.UserID)
-		}
-	}
-	names := map[pgtype.UUID]string{}
-	if len(userIDs) > 0 {
-		users, err := q.UserMentionNames(ctx, userIDs)
-		if err != nil {
-			return nil, fmt.Errorf("read mentioned users: %w", err)
-		}
-		for _, u := range users {
-			names[u.ID] = capName(cmp.Or(u.Name, u.Email))
-		}
+func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, on Target, messageID pgtype.UUID, parsed, already []Mention) ([]Mention, error) {
+	names, err := s.viewableUserNames(ctx, q, on, parsed)
+	if err != nil {
+		return nil, err
 	}
 	recorded := make([]Mention, 0, len(parsed))
 	for _, m := range parsed {
@@ -812,7 +963,10 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 		default:
 			name, ok := names[m.UserID]
 			if !ok {
-				continue
+				name, ok = nameAmong(already, m.UserID)
+			}
+			if !ok {
+				return nil, errInvalidPerson
 			}
 			m.Name = name
 			params.UserID, params.Name = m.UserID, name
@@ -824,6 +978,41 @@ func (s *Service) recordMentions(ctx context.Context, q *dbsqlc.Queries, by auth
 	}
 	sortMentions(recorded)
 	return recorded, nil
+}
+
+func nameAmong(mentions []Mention, user pgtype.UUID) (string, bool) {
+	for _, m := range mentions {
+		if m.Kind() == mentionUser && m.UserID == user {
+			return m.Name, true
+		}
+	}
+	return "", false
+}
+
+func (s *Service) viewableUserNames(ctx context.Context, q *dbsqlc.Queries, on Target, parsed []Mention) (map[pgtype.UUID]string, error) {
+	var userIDs []pgtype.UUID
+	for _, m := range parsed {
+		if m.Kind() == mentionUser {
+			userIDs = append(userIDs, m.UserID)
+		}
+	}
+	names := map[pgtype.UUID]string{}
+	if len(userIDs) > 0 {
+		users, err := q.UserMentionNames(ctx, userIDs)
+		if err != nil {
+			return nil, fmt.Errorf("read mentioned users: %w", err)
+		}
+		for _, u := range users {
+			visible, err := s.canView(ctx, userPrincipal(u.ID, u.Name, u.Email, u.Role, u.Groups), on)
+			if err != nil {
+				return nil, err
+			}
+			if visible {
+				names[u.ID] = capName(cmp.Or(u.Name, u.Email))
+			}
+		}
+	}
+	return names, nil
 }
 
 func mentionableGrant(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, m Mention) (string, error) {

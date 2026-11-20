@@ -6,6 +6,7 @@ description: Share one dashboard read-only with people who have no account throu
 A public link opens one dashboard read-only for anyone who has the link, with no sign-in.
 Use it for a status screen, a vendor, or a wall TV that has no account.
 The link always shows the dashboard's latest version, so an edit reaches every screen that has it open at its next refresh.
+There is no stored-data snapshot of a past moment, and a public link cannot be framed in another page, because every response carries `X-Frame-Options: DENY` and `frame-ancestors 'none'`; open it in its own window or screen.
 
 ## Who can create one
 
@@ -19,7 +20,8 @@ Some dashboards cannot have a public link:
 - A dashboard whose queries read the viewer's identity through `${__user.*}` has nobody to read on a public link.
   Creating a link for it is refused, and an existing link stops working, and shows as not usable, once a new version starts using `${__user.*}`.
 
-A dashboard has at most 20 links.
+A dashboard has at most 20 unexpired links, and an expired link stops counting.
+Give a link a label of up to 80 characters when you create it, so the list says what each one is for.
 
 ## Variables, expiry and revoke
 
@@ -28,6 +30,7 @@ Each link chooses how its variables behave:
 - **Frozen** links always use the selections stored with the link, whatever the address says.
 - **Free** links let the viewer choose values of query, custom, interval and datasource variables, but only among the options the server lists for that variable, so a viewer cannot type in a label value the dashboard does not offer.
   Textbox, adhoc, group by and constant variables keep the stored selections or the dashboard's defaults.
+  A free link's stored selections are checked against those options when you create it, so a value that is not an option is refused instead of making every panel fail for the viewer.
 
 The viewer can always change the time range and the refresh interval; the query proxy's limits bound every query whatever the range.
 
@@ -41,7 +44,7 @@ People with Manage see **Public links** in the dashboard's Share pane, below "Wh
 Choose how the variables behave: **Frozen** stores the values in the address you are looking at, and a variable the address does not set uses the dashboard's default; **Free** lets viewers choose.
 Then choose an expiry: none, 1 day, 7 days, 30 days, or a date, after which the link stops working at local midnight.
 **Create public link** shows the link's address once, with **Copy** and "Copy it now. It is not shown again."
-The list shows each link's prefix, its variables mode, its expiry, "Expired" or "Not usable: uses the viewer's identity" when it no longer opens, who created it and when, and when it was last viewed.
+The list shows each link's prefix, its variables mode, the values a frozen link holds, its expiry, "Expired" or "Not usable: uses the viewer's identity" when it no longer opens, who created it and when, and when it was last viewed.
 **Revoke** asks for confirmation, then deletes the link.
 
 ## What a public view shows
@@ -53,6 +56,7 @@ The dashboard list, news and geomap panels need the signed-in app, so they show 
 Remote images in text and canvas panels load through the signed-in assets route, so they do not show on a public view.
 Panel data goes through the same query proxy as the app, which runs only the dashboard's saved queries, and each link may have 8 requests in flight.
 An address that is unknown, revoked or expired reads "This link has expired or was turned off."
+A page that is already open shows the same message as soon as a panel refresh finds the link revoked or expired, without a reload.
 
 ## Show it on a wall
 
@@ -70,7 +74,7 @@ TV mode lives in the address, so a TV can open a bookmark straight into it:
 | `kiosk=1` | TV mode; `kiosk` alone or `kiosk=true` work too. |
 | `cycle=rows` | Bring each expanded row to the top of the screen in turn. |
 | `cycle=folder` | Open each dashboard of the same folder in turn, ordered by title. |
-| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600; the default is 60. |
+| `interval=<seconds>` | Seconds between steps of a cycle, from 10 to 3600, the default is 60, and a value outside that range is moved to the nearest limit and shown so in the address (`interval=5` becomes `interval=10`). |
 
 **TV mode for this folder** in the **More** menu starts `cycle=folder`, and is not offered for a personal folder.
 A folder cycle keeps the time range and the auto-refresh, and opens each dashboard with its default variable values.
@@ -85,10 +89,10 @@ Every route except the public ones needs a session or a service-account key with
 
 | Route | Does |
 | --- | --- |
-| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
-| `POST /api/v1/dashboards/{id}/public-links` | Creates a link and returns its token and `url` once. |
+| `GET /api/v1/dashboards/{id}/public-links` | Lists the links, with their prefix, label, variables mode, expiry, creator, last view, their `state` (`active` or `expired`, see [States](../reference/states.md)) and whether they are usable. |
+| `POST /api/v1/dashboards/{id}/public-links` | Creates a link, with an optional `label`, and returns its token and `url` once. |
 | `DELETE /api/v1/dashboards/{id}/public-links/{link_id}` | Revokes a link. |
-| `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text left out, and the datasources it uses; the token is the only credential. |
+| `GET /api/v1/public/{token}` | Returns the latest version's Spec with every query's text, the dashboard's tags and its links left out, and the datasources it uses (uid and type); the token is the only credential. |
 | `GET /api/v1/public/{token}/panels/{panel_id}/data` | Runs one panel's saved queries for the link. |
 | `GET /api/v1/public/{token}/variables/{name}/values` | Lists one variable's values for the link. |
 
@@ -102,5 +106,5 @@ curl -s -X POST "$OBSERVE_SERVER/api/v1/dashboards/$DASHBOARD_ID/public-links" \
 ```
 
 The answer's `url` is the address to share.
-Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 422 `user_scoped`, `invalid_expiry`, `unknown_variable` or `too_many_links`.
+Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 422 `user_scoped`, `invalid_expiry`, `unknown_variable`, `selection_not_allowed` (a free link whose selections hold a value that is not one of the variable's options) or `too_many_links`, and 502 `variable_options_unavailable` when the options could not be read to check them.
 A public route answers 404 `not_found` for a token that is unknown, revoked or expired, and a free link answers 400 `selection_not_allowed` for a value that is not one of the variable's options.

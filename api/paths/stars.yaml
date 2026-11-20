@@ -23,7 +23,7 @@ dashboards-id-star:
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
-        description: The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`).
+        description: The caller is not a signed-in person (`user_session_required`).
         content:
           application/json:
             schema:
@@ -46,7 +46,7 @@ dashboards-id-star:
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
-        description: The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`).
+        description: The caller is not a signed-in person (`user_session_required`).
         content:
           application/json:
             schema:
@@ -95,6 +95,8 @@ stars:
                       starred_at:
                         type: string
                         format: date-time
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":

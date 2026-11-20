@@ -29,6 +29,23 @@ func (q *Queries) CountActiveHealthRepairsBy(ctx context.Context, arg CountActiv
 	return count, err
 }
 
+const countDashboardViews = `-- name: CountDashboardViews :one
+SELECT count(*)::integer FROM dashboard_view_days
+WHERE dashboard_id = $1 AND day >= $2::date
+`
+
+type CountDashboardViewsParams struct {
+	DashboardID pgtype.UUID
+	ViewsSince  pgtype.Date
+}
+
+func (q *Queries) CountDashboardViews(ctx context.Context, arg CountDashboardViewsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countDashboardViews, arg.DashboardID, arg.ViewsSince)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const dashboardsDueForHealth = `-- name: DashboardsDueForHealth :many
 SELECT d.id, d.latest_version, v.spec
 FROM dashboards d
@@ -80,22 +97,28 @@ func (q *Queries) DashboardsDueForHealth(ctx context.Context, arg DashboardsDueF
 }
 
 const healthRepairTarget = `-- name: HealthRepairTarget :one
-SELECT d.folder_id, d.latest_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
+SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = $1
 `
 
 type HealthRepairTargetRow struct {
-	FolderID      pgtype.UUID
-	LatestVersion int32
-	Issues        []byte
+	FolderID       pgtype.UUID
+	LatestVersion  int32
+	CheckedVersion int32
+	Issues         []byte
 }
 
 func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUID) (HealthRepairTargetRow, error) {
 	row := q.db.QueryRow(ctx, healthRepairTarget, dashboardID)
 	var i HealthRepairTargetRow
-	err := row.Scan(&i.FolderID, &i.LatestVersion, &i.Issues)
+	err := row.Scan(
+		&i.FolderID,
+		&i.LatestVersion,
+		&i.CheckedVersion,
+		&i.Issues,
+	)
 	return i, err
 }
 
@@ -280,7 +303,24 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 	return items, nil
 }
 
+const pruneDashboardViewDays = `-- name: PruneDashboardViewDays :execrows
+DELETE FROM dashboard_view_days WHERE day < $1::date
+`
+
+func (q *Queries) PruneDashboardViewDays(ctx context.Context, keptSince pgtype.Date) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneDashboardViewDays, keptSince)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const recordDashboardView = `-- name: RecordDashboardView :exec
+WITH day AS (
+  INSERT INTO dashboard_view_days (dashboard_id, user_id, day)
+  VALUES ($2, $1, (now() AT TIME ZONE 'utc')::date)
+  ON CONFLICT DO NOTHING
+)
 INSERT INTO dashboard_views (user_id, dashboard_id, viewed_at)
 VALUES ($1, $2, now())
 ON CONFLICT (user_id, dashboard_id) DO UPDATE SET viewed_at = EXCLUDED.viewed_at

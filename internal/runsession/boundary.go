@@ -76,7 +76,7 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 		return *first.answer, nil
 	}
 	done := dispatched{start: time.Now()}
-	done.res, done.err = dispatch(ctx)
+	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(ctx, first.adm.ReadsRefused), first.adm.Unchecked))
 	done.took = time.Since(done.start)
 	if done.err == nil {
 		done.content, done.err = json.Marshal(done.res.Content)
@@ -227,9 +227,11 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 		return false, nil
 	}
 	out := settled.Outcome
-	state.IssueCodes = nil
+	state.IssueCodes, state.Failing, state.FailingOther = nil, nil, 0
+	state.RejectedFinding, state.RejectedTransient = false, false
 	if out.Rejected {
-		state.IssueCodes = out.IssueCodes
+		state.IssueCodes, state.Failing, state.FailingOther = out.IssueCodes, out.FailingPanels, out.FailingOther
+		state.RejectedFinding, state.RejectedTransient = out.RejectedFinding, out.Transient
 	}
 	if settled.Stop != nil {
 		return false, sess.end(ctx, endSpec{failure: settled.Stop.Failure, step: settled.Stop.Step})

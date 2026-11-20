@@ -457,3 +457,154 @@ func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
 		}
 	}
 }
+
+func (r *rig) viewDays(t *testing.T, dashboardID string, subject string, daysAgo ...int) {
+	t.Helper()
+	user, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "views", OidcSubject: subject, Email: subject + "@example.com", Name: subject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ago := range daysAgo {
+		r.db.Exec(t, `INSERT INTO dashboard_view_days (dashboard_id, user_id, day) VALUES ($1, $2, current_date - $3::int)`, dashboardID, user.ID.String(), ago)
+	}
+}
+
+func TestListByViewsSortsByPersonDaysInTheWindow(t *testing.T) {
+	r := newRig(t, false)
+	ids := r.seedList(t)
+	r.viewDays(t, ids["Orders"], "ann", 0, 1)
+	r.viewDays(t, ids["Orders"], "bob", 0)
+	r.viewDays(t, ids["Fleet"], "ann", 0, 2, 3)
+	r.viewDays(t, ids["Queues"], "ann", 5)
+	r.viewDays(t, ids["Nodes"], "ann", 30, 90)
+
+	whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, ByViews: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	counts := map[string]int{}
+	for _, item := range whole.Items {
+		got = append(got, item.Title)
+		counts[item.Title] = item.ViewCount
+	}
+	want := []string{"Fleet", "Orders", "Queues", "Nodes", "Checkout Latency"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want %v (equal counts go to the most recently updated)", got, want)
+	}
+	if counts["Fleet"] != 3 || counts["Orders"] != 3 || counts["Queues"] != 1 || counts["Nodes"] != 0 {
+		t.Errorf("counts = %v, want Fleet 3, Orders 3, Queues 1 and Nodes 0 (30 and 90 days ago are outside the window)", counts)
+	}
+
+	var walked []string
+	cursor := ""
+	for range 5 {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: cursor, ByViews: true, SkipTotal: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		walked = append(walked, itemIDs(page.Items)...)
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(walked, want) {
+		t.Errorf("cursor pages = %v, want %v", walked, want)
+	}
+
+	var offsets []string
+	for _, offset := range []int{0, 2, 4} {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByViews: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Total != 5 {
+			t.Errorf("offset %d: total = %d, want 5", offset, page.Total)
+		}
+		offsets = append(offsets, itemIDs(page.Items)...)
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(offsets, want) {
+		t.Errorf("offset pages = %v, want %v", offsets, want)
+	}
+}
+
+func TestListRejectsACursorFromAnotherOrder(t *testing.T) {
+	r := newRig(t, false)
+	r.seedList(t)
+	recent, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byViews, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByViews: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByViews: true, Cursor: recent.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a recency cursor under order views: %v, want ErrInvalidCursor", err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a views cursor under order updated: %v, want ErrInvalidCursor", err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByFolder: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a views cursor under order folder: %v, want ErrInvalidCursor", err)
+	}
+	byName, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: byName.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor under order updated: %v, want ErrInvalidCursor", err)
+	}
+	if _, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, ByName: true, Cursor: byViews.NextCursor}); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a views cursor under order name: %v, want ErrInvalidCursor", err)
+	}
+}
+
+func TestListByNameSortsByLowerCaseTitleAcrossFolders(t *testing.T) {
+	r := newRig(t, false)
+	r.seedList(t)
+
+	whole, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, ByName: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, item := range whole.Items {
+		got = append(got, item.Title)
+	}
+	want := slices.Clone(got)
+	slices.SortStableFunc(want, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	if len(got) != 5 || !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want the five titles sorted ignoring case: %v", got, want)
+	}
+
+	var walked []string
+	cursor := ""
+	for range 5 {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: cursor, ByName: true, SkipTotal: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		walked = append(walked, itemIDs(page.Items)...)
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(walked, want) {
+		t.Errorf("cursor pages = %v, want %v", walked, want)
+	}
+
+	var offsets []string
+	for _, offset := range []int{0, 2, 4} {
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Offset: offset, ByName: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		offsets = append(offsets, itemIDs(page.Items)...)
+	}
+	if want := itemIDs(whole.Items); !slices.Equal(offsets, want) {
+		t.Errorf("offset pages = %v, want %v", offsets, want)
+	}
+}

@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -39,6 +40,31 @@ func TestDetectFolderTitle(t *testing.T) {
 			}
 			if summary.FolderTitle != tt.want {
 				t.Errorf("FolderTitle = %q, want %q", summary.FolderTitle, tt.want)
+			}
+		})
+	}
+}
+
+func TestBadJSONIsDescribedByLineAndColumn(t *testing.T) {
+	tests := []struct {
+		name string
+		doc  string
+		want string
+	}{
+		{"not json", "not json at all", "This is not valid JSON: unexpected text at line 1, column 2."},
+		{"truncated", "{\"title\": \"T\",\n\"panels\": [", "This is not valid JSON: the file ends early, at line 2, column 12. It may be cut off."},
+		{"bad token on a later line", "{\n  \"title\": T\n}", "This is not valid JSON: unexpected text at line 2, column 12."},
+		{"multibyte text counts characters", "{\"é\": é}", "This is not valid JSON: unexpected text at line 1, column 7."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Detect([]byte(tc.doc))
+			var input *InputError
+			if !errors.As(err, &input) || input.Code != codeInvalidJSON {
+				t.Fatalf("err = %v, want an invalid_json input error", err)
+			}
+			if input.Message != tc.want {
+				t.Fatalf("message = %q, want %q", input.Message, tc.want)
 			}
 		})
 	}

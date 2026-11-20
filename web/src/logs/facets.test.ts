@@ -77,6 +77,13 @@ describe("facet counts", () => {
       "Counted over the newest 1,000 lines.",
     ],
     [
+      "index label counted over the sample",
+      facets({ sampled: true, lines_sampled: 1000 }),
+      field({ kind: "label", exact: false }),
+      "sampled",
+      "Counted over the newest 1,000 lines.",
+    ],
+    [
       "approximate",
       facets(),
       field({ exact: false }),
@@ -147,6 +154,15 @@ describe("field list", () => {
     expect(facetsErrorText(new ApiError(500, "internal", "boom")).retry).toBe(
       true
     )
+  })
+
+  it("says a timed out count may need a narrower range and offers a retry", () => {
+    expect(
+      facetsErrorText(new ApiError(504, "query_timeout", "timed out"))
+    ).toEqual({
+      text: "Counting the fields timed out on this range. Retry, or choose a shorter range.",
+      retry: true,
+    })
   })
 })
 
@@ -272,5 +288,19 @@ describe("facets open flag", () => {
     expect(storedFacetsOpen()).toBe(false)
     storeFacetsOpen(true)
     expect(storedFacetsOpen()).toBe(true)
+  })
+})
+
+describe("fieldRows with keyword subfields", () => {
+  it("hides a .keyword row whose text field is listed and keeps a lone one", () => {
+    const rows = fieldRows(
+      ["message", "message.keyword", "host.keyword", "service"],
+      []
+    )
+    expect(rows.map((row) => row.name)).toEqual([
+      "host.keyword",
+      "message",
+      "service",
+    ])
   })
 })

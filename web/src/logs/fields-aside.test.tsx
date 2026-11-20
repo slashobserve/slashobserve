@@ -1,10 +1,11 @@
-import { screen, within } from "@testing-library/react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { screen, waitFor, within } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { ApiError } from "@/api/errors"
 import { datasourceKeys, exploreKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { FieldsAside } from "./fields-aside"
+import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import type { LogFacets } from "./facets"
 import type { LogsSearch } from "./search"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
@@ -78,7 +79,19 @@ function setup({
   facets = esFacets,
   effectiveQuery = search.q,
   openLine = false,
+  drawer = false,
+  linesLoading = false,
+  linesRerunning = false,
+  linesTimedOut = false,
+  seedFacets = true,
+  window = range,
 }: {
+  window?: { from: string; to: string }
+  seedFacets?: boolean
+  linesTimedOut?: boolean
+  linesLoading?: boolean
+  linesRerunning?: boolean
+  drawer?: boolean
   openLine?: boolean
   type?: string
   search?: LogsSearch
@@ -100,33 +113,124 @@ function setup({
     },
     search,
     effectiveQuery,
-    range,
+    range: window,
     run,
     setDraft,
+    results: {
+      isLoading: linesLoading,
+      isFetching: linesLoading || linesRerunning,
+      isPlaceholderData: linesRerunning,
+      isSuccess: !linesLoading && !linesTimedOut,
+      isError: linesTimedOut,
+      error: linesTimedOut
+        ? new ApiError(504, "query_timeout", "query timed out after 15s")
+        : null,
+    },
+    tail: { shown: false },
     detail: { selection: openLine ? {} : null },
   } as unknown as LogsWorkspace
   const queryClient = testQueryClient()
-  queryClient.setQueryData(datasourceKeys.labels("ds", range), {
+  queryClient.setQueryData(datasourceKeys.labels("ds", window), {
     labels: names,
     truncated: false,
   })
-  if (effectiveQuery !== undefined) {
+  if (effectiveQuery !== undefined && seedFacets) {
     queryClient.setQueryData(
-      exploreKeys.facets("ds", { query: effectiveQuery, ...range, limit: 5 }),
+      exploreKeys.facets("ds", { query: effectiveQuery, ...window, limit: 5 }),
       facets
     )
   }
   const view = renderWithProviders(
     <LogsWorkspaceContext value={workspace}>
       <FieldsAside />
+      {drawer ? <FieldsDrawer /> : null}
     </LogsWorkspaceContext>,
     { queryClient }
   )
-  return { ...view, run, setDraft }
+  return { ...view, run, setDraft, queryClient }
+}
+
+function stubNarrow() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
 }
 
 describe("FieldsAside", () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("moves the field list into a drawer when the page is too narrow for the side panel", async () => {
+    stubNarrow()
+    const { user, run } = setup({ drawer: true })
+    expect(screen.queryByRole("complementary")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Fields" }))
+    const drawer = await screen.findByRole("dialog", { name: "Fields" })
+    await user.click(within(drawer).getByRole("button", { name: /log\.level/ }))
+    await user.click(
+      within(drawer).getByRole("button", { name: "Include log.level error" })
+    )
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole("dialog", { name: "Fields" })).toBeNull()
+  })
+
+  it("counts the values only once the lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesLoading: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts a wide range as soon as the lines are in, without waiting for the volume", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ window: { from: "now-7d", to: "now" }, seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+  })
+
+  it("counts a narrow range at once without waiting for the volume", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+  })
+
+  it("does not count the values when the lines timed out, and says the source is slow", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesTimedOut: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(
+        "This source is slow: the fields load when the query answers"
+      )
+    ).toBeVisible()
+  })
+
+  it("counts the values only once a rerun's lines have arrived", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ linesRerunning: true, seedFacets: false })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("counts the values as soon as the lines are in", async () => {
+    const fetcher = vi.fn(async () => Response.json(esFacets))
+    vi.stubGlobal("fetch", fetcher)
+    setup({ seedFacets: false })
+    await waitFor(() => expect(fetcher).toHaveBeenCalled())
+  })
+
+  it("offers no drawer while the side panel fits", () => {
+    setup({ drawer: true })
+    expect(screen.queryByRole("button", { name: "Fields" })).toBeNull()
+  })
 
   it("lists every mapped field, counted or not, under the mapping note", () => {
     setup()
@@ -288,5 +392,26 @@ describe("FieldsAside", () => {
     expect(localStorage.getItem("slashobserve-logs-facets-open")).toBeNull()
     await user.click(screen.getByRole("button", { name: "Show fields" }))
     expect(screen.getByRole("complementary", { name: "Fields" })).toBeVisible()
+  })
+
+  it("widens with the keyboard on the resize handle and remembers the width", async () => {
+    const { user } = setup()
+    const aside = screen.getByRole("complementary", { name: "Fields" })
+    expect(aside).toHaveStyle({ width: "248px" })
+    const grip = screen.getByRole("separator", { name: "Resize fields" })
+    grip.focus()
+    await user.keyboard("{Shift>}{ArrowRight}{/Shift}")
+    expect(aside).toHaveStyle({ width: "288px" })
+    expect(localStorage.getItem("slashobserve-logs-fields-width")).toBe("288")
+    await user.dblClick(grip)
+    expect(aside).toHaveStyle({ width: "248px" })
+  })
+
+  it("opens at the width the person left it", () => {
+    localStorage.setItem("slashobserve-logs-fields-width", "400")
+    setup()
+    expect(screen.getByRole("complementary", { name: "Fields" })).toHaveStyle({
+      width: "400px",
+    })
   })
 })

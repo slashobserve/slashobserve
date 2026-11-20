@@ -22,6 +22,7 @@ import (
 
 const (
 	pingInterval        = 15 * time.Second
+	roleCheckInterval   = 5 * time.Second
 	maxStreamLifetime   = 30 * time.Minute
 	retryMilliseconds   = 3000
 	maxStreamsPerUser   = 20
@@ -37,10 +38,6 @@ type Dashboards interface {
 	LatestVersion(ctx context.Context, id pgtype.UUID) (int, error)
 }
 
-type Sessions interface {
-	Valid(r *http.Request) (bool, error)
-}
-
 type Access interface {
 	Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error)
 }
@@ -48,16 +45,17 @@ type Access interface {
 type Handler struct {
 	broker       *events.Broker
 	dashboards   Dashboards
-	sessions     Sessions
+	principals   Principals
 	access       Access
 	view         gin.HandlerFunc
 	logger       *slog.Logger
 	pingInterval time.Duration
+	roleInterval time.Duration
 	slots        *slots
 }
 
-func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, sessions: sessions, access: access, view: view, logger: logger, pingInterval: pingInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
+func NewHandler(b *events.Broker, d Dashboards, principals Principals, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
+	return &Handler{broker: b, dashboards: d, principals: principals, access: access, view: view, logger: logger, pingInterval: pingInterval, roleInterval: roleCheckInterval, slots: newSlots(maxStreamsPerUser, maxStreamsPerProc)}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -71,6 +69,11 @@ type readyData struct {
 
 type resyncData struct {
 	DashboardID string `json:"dashboard_id"`
+}
+
+type roleChangedData struct {
+	DashboardID string    `json:"dashboard_id"`
+	Role        auth.Role `json:"role"`
 }
 
 func (h *Handler) serve(c *gin.Context) {
@@ -111,7 +114,7 @@ func (h *Handler) serve(c *gin.Context) {
 		!writeEvent(c, "ready", readyData{DashboardID: dashboardID, LatestVersion: latest}) {
 		return
 	}
-	h.pump(c, sub, id)
+	h.pump(c, sub, id, principal.Role)
 }
 
 func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
@@ -130,9 +133,11 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	return 0, false
 }
 
-func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID) {
+func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID, role auth.Role) {
 	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
+	roleCheck := time.NewTicker(h.roleInterval)
+	defer roleCheck.Stop()
 	lifetime := time.NewTimer(maxStreamLifetime)
 	defer lifetime.Stop()
 	failedChecks := 0
@@ -144,6 +149,10 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID)
 				data = resyncData{DashboardID: ev.DashboardID}
 			}
 			if !writeEvent(c, ev.Type, data) {
+				return
+			}
+		case <-roleCheck.C:
+			if !h.reportRoleChange(c, id, &role) {
 				return
 			}
 		case <-ping.C:
@@ -166,27 +175,35 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID)
 	}
 }
 
-func (h *Handler) credentialsValid(c *gin.Context) (valid, failed bool) {
+func (h *Handler) reportRoleChange(c *gin.Context, id pgtype.UUID, known *auth.Role) bool {
+	now, ok := h.currentRole(c)
+	if !ok || now == *known {
+		return true
+	}
+	*known = now
+	return writeEvent(c, events.TypeRoleChanged, roleChangedData{DashboardID: id.String(), Role: now})
+}
+
+func (h *Handler) currentRole(c *gin.Context) (auth.Role, bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
 	defer cancel()
-	ok, err := h.sessions.Valid(c.Request.WithContext(ctx))
-	if err != nil {
-		if c.Request.Context().Err() == nil {
-			h.logger.WarnContext(c.Request.Context(), "re-check event stream credentials", logattrs.Failure("stream_auth_check_failed", err)...)
-		}
-		return c.Request.Context().Err() == nil, true
+	principal, ok, err := h.principals.RequestPrincipal(c.Request.WithContext(ctx))
+	if err != nil || !ok {
+		return "", false
 	}
-	return ok, false
+	return principal.Role, true
 }
 
 func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bool) {
-	valid, failed = h.credentialsValid(c)
-	if !valid || failed {
-		return valid, failed
-	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
 	defer cancel()
-	principal, _ := auth.FromContext(c.Request.Context())
+	principal, ok, err := h.principals.RequestPrincipal(c.Request.WithContext(ctx))
+	if err != nil {
+		return h.checkFailed(c, "re-check event stream credentials", "stream_auth_check_failed", err)
+	}
+	if !ok {
+		return false, false
+	}
 	access, err := h.access.Dashboard(ctx, principal, id)
 	switch {
 	case err == nil:
@@ -194,8 +211,12 @@ func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bo
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		return false, false
 	}
+	return h.checkFailed(c, "re-check event stream dashboard access", "stream_access_check_failed", err, slog.String("dashboard_id", id.String()))
+}
+
+func (h *Handler) checkFailed(c *gin.Context, message, code string, err error, attrs ...any) (valid, failed bool) {
 	if c.Request.Context().Err() == nil {
-		h.logger.WarnContext(c.Request.Context(), "re-check event stream dashboard access", logattrs.Failure("stream_access_check_failed", err, slog.String("dashboard_id", id.String()))...)
+		h.logger.WarnContext(c.Request.Context(), message, logattrs.Failure(code, err, attrs...)...)
 	}
 	return c.Request.Context().Err() == nil, true
 }

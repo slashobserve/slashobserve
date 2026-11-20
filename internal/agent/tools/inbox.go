@@ -13,18 +13,21 @@ import (
 )
 
 const (
-	nameListInbox = "list_inbox"
+	nameListInbox        = "list_inbox"
+	nameSetInboxItemDone = "set_inbox_item_done"
 
 	defaultListInbox = 50
 	maxListInbox     = 100
 
 	codeUserSessionRequired = "user_session_required"
 
-	descListInbox = "List what is asked of the person you work for, newest first: proposals to review, observation blocks waiting for them, mentions, replies in their threads, their agent runs that failed and health repairs of theirs that saved a version. Each item is an activity event as list_activity returns it, plus the reason it needs them (proposal, requested_block, mention, reply, run_failed, repaired; null in the everything view) and whether it is unread. Views: for_you (default, everything that needs them), proposals, mentions (mentions and replies) and everything (all activity by others). unread_count counts unread for_you items and stops at 100. It works only for a signed-in person, never for a service-account key, and it does not mark anything read. Page with next_cursor."
+	descListInbox        = "List what is asked of the person you work for, newest first: proposals to review, observation blocks waiting for them, mentions, replies in their threads, their agent runs that failed and health repairs of theirs that saved a version and their proposals that someone merged or discarded. Each item is an activity event as list_activity returns it, plus target_title (what it is about), excerpt (the start of the comment for a mention or reply, or the reason a proposal was discarded), the reason it needs them (proposal, requested_block, mention, reply, run_failed, repaired, proposal_closed; null in the everything view) and whether it is unread. Views: for_you (default, everything that needs them), proposals (review requests and closed proposals of theirs), mentions (mentions and replies) and everything (all activity by others). Filter: open (default, items not marked done), unread (open items that are unread) or done. unread_count counts unread for_you items and stops at 100. It works only for a signed-in person, never for a service-account key, and it does not mark anything read; set_inbox_item_done marks an item done. Page with next_cursor."
+	descSetInboxItemDone = "Mark one inbox item done for the person you work for, or bring a done item back with done false; seq is the item's seq from list_inbox. A done item leaves the default list and the unread filter, counts as read, and stays done when the inbox is read. Only for a signed-in person, never for a service-account key."
 )
 
 var schemaListInbox = `{"type":"object","properties":{` +
 	`"view":{"type":"string","enum":["` + strings.Join(inboxViewNames(), `","`) + `"],"description":"Which items to list. Default for_you."},` +
+	`"filter":{"type":"string","enum":["` + strings.Join(inboxFilterNames(), `","`) + `"],"description":"open (default) lists items not marked done, unread lists the open items that are unread, done lists the items marked done."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":` + strconv.Itoa(maxListInbox) + `,"description":"Items per page. Default ` + strconv.Itoa(defaultListInbox) + `."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 
@@ -36,16 +39,28 @@ func inboxViewNames() []string {
 	return names
 }
 
+const schemaSetInboxItemDone = `{"type":"object","properties":{"seq":{"type":"integer","minimum":1,"description":"The seq of the item, from list_inbox."},"done":{"type":"boolean","description":"true marks it done (default), false brings it back."}},"required":["seq"],"additionalProperties":false}`
+
+func inboxFilterNames() []string {
+	names := make([]string, len(activity.Triages))
+	for i, t := range activity.Triages {
+		names[i] = string(t)
+	}
+	return names
+}
+
 func init() { registerEntries((*Registry).inboxEntries) }
 
 func (r *Registry) inboxEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listInbox},
+		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listInbox},
+		{Tool{Name: nameSetInboxItemDone, Description: descSetInboxItemDone, InputSchema: json.RawMessage(schemaSetInboxItemDone), MCPOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.setInboxItemDone},
 	}
 }
 
 type listInboxInput struct {
 	View   string `json:"view"`
+	Filter string `json:"filter"`
 	Limit  *int   `json:"limit"`
 	Cursor string `json:"cursor"`
 }
@@ -70,12 +85,20 @@ func (r *Registry) listInbox(ctx context.Context, input json.RawMessage) (Result
 		}
 		view = parsed
 	}
+	triage := activity.TriageOpen
+	if in.Filter != "" {
+		parsed, ok := activity.ParseTriage(in.Filter)
+		if !ok {
+			return invalid("filter must be one of %s", strings.Join(inboxFilterNames(), ", ")), nil
+		}
+		triage = parsed
+	}
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
 	for {
-		page, err := r.deps.Activity.Inbox(ctx, principal, view, in.Cursor, limit)
+		page, err := r.deps.Activity.Inbox(ctx, principal, view, triage, in.Cursor, limit)
 		if err != nil {
 			return inboxFailure(err)
 		}
@@ -87,6 +110,40 @@ func (r *Registry) listInbox(ctx context.Context, input json.RawMessage) (Result
 		}
 		limit = max(len(kept), 1)
 	}
+}
+
+type inboxItemDoneOut struct {
+	Seq  int64 `json:"seq"`
+	Done bool  `json:"done"`
+}
+
+func (r *Registry) setInboxItemDone(ctx context.Context, input json.RawMessage) (Result, error) {
+	if r.deps.Activity == nil {
+		return Result{}, errActivityNotConfigured
+	}
+	var in struct {
+		Seq  int64 `json:"seq"`
+		Done *bool `json:"done"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	if in.Seq < 1 {
+		return invalid("seq must be a positive integer from list_inbox"), nil
+	}
+	done := in.Done == nil || *in.Done
+	principal, _ := auth.FromContext(ctx)
+	if err := r.deps.Activity.SetItemDone(ctx, principal, in.Seq, done); err != nil {
+		if errors.Is(err, activity.ErrUnknownSeq) {
+			return toolError(codeNotFound, "no activity has that seq; use a seq from list_inbox"), nil
+		}
+		return inboxFailure(err)
+	}
+	step := "Marked inbox item " + strconv.FormatInt(in.Seq, 10) + " done"
+	if !done {
+		step = "Brought inbox item " + strconv.FormatInt(in.Seq, 10) + " back"
+	}
+	return success(step, inboxItemDoneOut{Seq: in.Seq, Done: done}), nil
 }
 
 func inboxFailure(err error) (Result, error) {

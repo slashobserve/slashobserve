@@ -32,6 +32,37 @@ describe("toApiError", () => {
     ])
   })
 
+  test("says which folder level or role a forbidden_role refusal needs", () => {
+    const refusal = {
+      error: "your role does not allow this",
+      code: "forbidden_role",
+    }
+    expect(
+      toApiError(response(403), {
+        ...refusal,
+        needed_access: "edit",
+        folder_title: "Payments",
+      }).message
+    ).toBe("your role does not allow this; it needs Edit on Payments")
+    expect(
+      toApiError(response(403), { ...refusal, needed_access: "manage" }).message
+    ).toBe("your role does not allow this; it needs Manage on the folder")
+    expect(
+      toApiError(response(403), { ...refusal, needed_role: "editor" }).message
+    ).toBe("your role does not allow this; it needs the Editor role")
+    expect(toApiError(response(403), refusal).message).toBe(refusal.error)
+  })
+
+  test("leaves the message of any other code alone", () => {
+    expect(
+      toApiError(response(404), {
+        error: "gone",
+        code: "not_found",
+        needed_access: "edit",
+      }).message
+    ).toBe("gone")
+  })
+
   test("falls back to defaults for a body that is not an error object", () => {
     for (const body of [undefined, null, "oops", 42, ["x"]]) {
       const error = toApiError(response(500), body)
@@ -162,6 +193,12 @@ describe("isRetryable", () => {
     for (const status of [400, 401, 403, 404, 409, 422, 500]) {
       expect(isRetryable(new ApiError(status, "x", "x"))).toBe(false)
     }
+  })
+
+  test("does not retry a query that timed out on the server", () => {
+    expect(isRetryable(new ApiError(504, "query_timeout", "timed out"))).toBe(
+      false
+    )
   })
 
   test("does not retry other errors", () => {

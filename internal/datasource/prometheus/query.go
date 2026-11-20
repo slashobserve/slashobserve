@@ -70,6 +70,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	if steps > maxStepPoints {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "step too small: %d steps, max %d", steps, maxStepPoints)
 	}
@@ -97,6 +98,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	form := url.Values{
 		"query":   {text},
 		"time":    {unixSeconds(r.To)},
@@ -137,11 +139,15 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 }
 
 func (d *Datasource) runQuery(ctx context.Context, path string, form url.Values, lim datasource.Limits) ([]datasource.Frame, error) {
-	raw, err := d.do(ctx, http.MethodPost, path, form)
+	raw, warnings, err := d.doWithWarnings(ctx, http.MethodPost, path, form)
 	if err != nil {
 		return nil, err
 	}
-	return convert(raw, lim)
+	frames, err := convert(raw, lim)
+	if err != nil || len(warnings) == 0 {
+		return frames, err
+	}
+	return datasource.MarkPartial(frames, warnings...), nil
 }
 
 func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {

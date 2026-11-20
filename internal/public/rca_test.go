@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,6 +32,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -199,8 +202,12 @@ func TestRCALinkRefusals(t *testing.T) {
 			}
 		})
 	}
-	if _, err := r.service.ListRCALinks(t.Context(), viewer, id, 1); !errors.Is(err, folders.ErrForbidden) {
+	_, err := r.service.ListRCALinks(t.Context(), viewer, id, 1)
+	if !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer listed links: %v", err)
+	}
+	if body := forbidden.BodyOf(err); body.NeededAccess != "manage" || body.FolderTitle == "" {
+		t.Errorf("the refusal names %+v, want Manage on the observation's folder", body)
 	}
 }
 
@@ -218,6 +225,57 @@ func TestARevisionWithAUserScopedSnapshotHasNoLink(t *testing.T) {
 	}
 	if _, err := r.service.CreateRCALink(t.Context(), admin, id, 2, CreateRCAInput{}); err != nil {
 		t.Errorf("a later revision with no scoped snapshot: %v", err)
+	}
+}
+
+func TestRacingRCALinkCreatesCannotPassTheLimit(t *testing.T) {
+	r := newRCARig(t)
+	id := r.published(t)
+	for range maxLinksPerObservation - 1 {
+		r.createLink(t, id, 1, CreateRCAInput{})
+	}
+	const racers = 8
+	var wg sync.WaitGroup
+	var created, refused atomic.Int32
+	for range racers {
+		wg.Go(func() {
+			_, err := r.service.CreateRCALink(t.Context(), admin, id, 1, CreateRCAInput{})
+			switch {
+			case err == nil:
+				created.Add(1)
+			case errors.Is(err, ErrTooManyRCALinks):
+				refused.Add(1)
+			default:
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if created.Load() != 1 || refused.Load() != racers-1 {
+		t.Fatalf("%d racing creates succeeded and %d were refused, want 1 and %d", created.Load(), refused.Load(), racers-1)
+	}
+}
+
+func TestAnOlderRevisionsViewNamesTheNewestRevisionAndTheNewestNamesNone(t *testing.T) {
+	r := newRCARig(t)
+	id := r.published(t)
+	first := r.createLink(t, id, 1, CreateRCAInput{})
+	view, err := r.service.ViewRCA(t.Context(), first.Token)
+	if err != nil || view.SupersededBy != nil {
+		t.Fatalf("the only revision: %+v, %v", view, err)
+	}
+	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+		t.Fatal(err)
+	}
+	second := r.createLink(t, id, 2, CreateRCAInput{})
+	old, err := r.service.ViewRCA(t.Context(), first.Token)
+	if err != nil || old.SupersededBy == nil || *old.SupersededBy != 2 {
+		t.Errorf("revision 1 after revision 2: %+v, %v", old, err)
+	}
+	newest, err := r.service.ViewRCA(t.Context(), second.Token)
+	if err != nil || newest.SupersededBy != nil {
+		t.Errorf("revision 2: %+v, %v", newest, err)
 	}
 }
 

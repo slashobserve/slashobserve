@@ -35,6 +35,18 @@ describe("needsYouAction", () => {
     })
   })
 
+  test("Open shows a closed proposal", () => {
+    expect(
+      needsYouAction(
+        item("proposal_closed", { kind: "proposal", id: proposalId })
+      )
+    ).toEqual({
+      kind: "link",
+      label: "Open",
+      to: { to: `/proposals/${proposalId}` },
+    })
+  })
+
   test("Review opens the observation of a requested block", () => {
     const action = needsYouAction(
       item("requested_block", { kind: "observation", id: observationId })

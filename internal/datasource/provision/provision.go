@@ -42,7 +42,7 @@ func Build(logger *slog.Logger, sources []config.Datasource) (*datasource.Regist
 		}
 	}
 	for _, src := range sources {
-		ds, err := build(src)
+		ds, err := Open(src)
 		if err != nil {
 			closeAll()
 			return nil, &BuildError{UID: src.UID, Message: serverMessage(err), Err: err}
@@ -69,7 +69,7 @@ func mergeHeaders(plain map[string]string, secret map[string]datasource.Secret) 
 	return out
 }
 
-func build(src config.Datasource) (datasource.Datasource, error) {
+func Open(src config.Datasource) (datasource.Datasource, error) {
 	switch {
 	case src.Prometheus != nil:
 		p := src.Prometheus

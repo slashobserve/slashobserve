@@ -110,6 +110,31 @@ export function useMoveDashboard() {
   })
 }
 
+export function useCreateDashboard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { spec: Dashboard; folderId: string }) =>
+      api
+        .POST("/dashboards", {
+          body: {
+            spec: { ...input.spec },
+            folder_id: input.folderId,
+          },
+        })
+        .then(unwrap),
+    onSettled: () =>
+      Promise.all(
+        [
+          dashboardKeys.list(),
+          dashboardKeys.titles(),
+          dashboardKeys.tags(),
+          folderKeys.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+      ),
+  })
+}
+
 export function useDuplicateDashboard(sourceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -161,8 +186,7 @@ export function forgetDashboard(queryClient: QueryClient, id: string) {
 }
 
 export function useAddVersion(id: string) {
-  const queryClient = useQueryClient()
-  const store = useStoreSavedVersion(id)
+  const storeOutcome = useStoreOutcome(id)
   return useMutation({
     mutationKey: dashboardKeys.saves(id),
     mutationFn: (input: {
@@ -182,29 +206,74 @@ export function useAddVersion(id: string) {
             ...(input.propose ? { propose_if_needed: true } : {}),
           },
         })
-        .then((result) => {
-          const body = unwrap(result)
-          if ("proposal_id" in body) {
-            return {
-              kind: "proposed",
-              proposalId: body.proposal_id,
-              revision: body.revision,
-              opened: body.opened,
-            }
-          }
-          return {
-            kind: "saved",
-            envelope: body,
-            version: body.version.version,
-            mergedFrom: body.merged_from ?? null,
-          }
-        }),
-    onSuccess: async (outcome) => {
-      if (outcome.kind === "saved") return store(outcome.envelope)
-      await queryClient.invalidateQueries({
-        queryKey: proposalKeys.list(id, "open"),
-      })
-    },
+        .then((result) => saveOutcomeOf(unwrap(result))),
+    onSuccess: storeOutcome,
+  })
+}
+
+type SavedBody =
+  | (DashboardEnvelope & {
+      merged_from?: { base_version: number; onto_version: number } | null
+    })
+  | { proposal_id: string; revision: number; opened: boolean }
+
+function saveOutcomeOf(body: SavedBody): SaveOutcome {
+  if ("proposal_id" in body) {
+    return {
+      kind: "proposed",
+      proposalId: body.proposal_id,
+      revision: body.revision,
+      opened: body.opened,
+    }
+  }
+  return {
+    kind: "saved",
+    envelope: body,
+    version: body.version.version,
+    mergedFrom: body.merged_from ?? null,
+  }
+}
+
+function useStoreOutcome(id: string) {
+  const queryClient = useQueryClient()
+  const store = useStoreSavedVersion(id)
+  return async (outcome: SaveOutcome) => {
+    if (outcome.kind === "saved") return store(outcome.envelope)
+    await queryClient.invalidateQueries({
+      queryKey: proposalKeys.list(id, "open"),
+    })
+  }
+}
+
+export type PanelPatch = Pick<
+  paths["/dashboards/{id}/panels"]["post"]["requestBody"]["content"]["application/json"],
+  "upsert" | "delete" | "layout"
+>
+
+export function usePatchPanels(id: string) {
+  const storeOutcome = useStoreOutcome(id)
+  return useMutation({
+    mutationKey: dashboardKeys.saves(id),
+    mutationFn: (input: {
+      patch: PanelPatch
+      summary: string
+      parent_version: number
+      propose?: boolean
+      acceptEmpty?: boolean
+    }): Promise<SaveOutcome> =>
+      api
+        .POST("/dashboards/{id}/panels", {
+          params: { path: { id } },
+          body: {
+            ...input.patch,
+            summary: input.summary,
+            parent_version: input.parent_version,
+            ...(input.propose ? { propose_if_needed: true } : {}),
+            ...(input.acceptEmpty ? { accept_empty: true } : {}),
+          },
+        })
+        .then((result) => saveOutcomeOf(unwrap(result))),
+    onSuccess: storeOutcome,
   })
 }
 

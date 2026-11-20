@@ -8,6 +8,8 @@ import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { initials } from "@/shell/initials"
 
+import { isDeactivated } from "./person-lifecycle"
+import { PersonMenu } from "./person-menu"
 import { usersQuery } from "./queries"
 import { PersonRole } from "./role-select"
 import { isOnline } from "./sign-in-policy"
@@ -72,7 +74,7 @@ export function PeopleTable() {
                 >
                   {initials(user.name, user.email).slice(0, 1)}
                 </span>
-                <span className="font-medium wrap-anywhere">{user.name}</span>
+                <span className="font-medium wrap-break-word">{user.name}</span>
               </span>
             </Cell>
             <Cell className="text-muted-foreground">{user.email}</Cell>
@@ -82,7 +84,14 @@ export function PeopleTable() {
             <Cell data-label="Dashboards">{user.dashboard_count}</Cell>
             <Cell data-label="API keys">{user.key_count}</Cell>
             <Cell>
-              {isOnline(user.last_seen_at, now) ? (
+              {isDeactivated(user) ? (
+                <StatusLabel tone="none">
+                  Deactivated
+                  {user.deactivated_by !== null
+                    ? ` by ${user.deactivated_by}`
+                    : null}
+                </StatusLabel>
+              ) : isOnline(user.last_seen_at, now) ? (
                 <StatusLabel tone="ok">Online now</StatusLabel>
               ) : (
                 <span className="text-muted-foreground">
@@ -91,7 +100,12 @@ export function PeopleTable() {
               )}
             </Cell>
             <Cell data-cell="action" className="text-right">
-              <SignOutEverywhereButton user={user} />
+              <span className="inline-flex items-center justify-end gap-2">
+                {isDeactivated(user) ? null : (
+                  <SignOutEverywhereButton user={user} />
+                )}
+                <PersonMenu user={user} />
+              </span>
             </Cell>
           </tr>
         ))}

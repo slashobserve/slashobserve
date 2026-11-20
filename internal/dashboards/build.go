@@ -34,6 +34,7 @@ type Build struct {
 	RequestID     pgtype.UUID
 	DashboardID   pgtype.UUID
 	BaseVersion   int
+	FolderID      pgtype.UUID
 	Spec          *spec.Dashboard
 	Unverified    Unverified
 	PlannedPanels int
@@ -55,6 +56,7 @@ type BuildSave struct {
 	Attempt       int
 	DashboardID   pgtype.UUID
 	BaseVersion   int
+	FolderID      pgtype.UUID
 	Spec          []byte
 	Summary       string
 	PlannedPanels *int
@@ -68,11 +70,7 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 			return Build{}, err
 		}
 		fallback = defaultUpdateSummary
-	} else if _, err := s.creationTarget(ctx, by, pgtype.UUID{}); err != nil {
-		return Build{}, err
-	}
-	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, fallback)
-	if err != nil {
+	} else if _, err := s.creationTarget(ctx, by, in.FolderID); err != nil {
 		return Build{}, err
 	}
 	if in.PlannedPanels != nil {
@@ -92,6 +90,10 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 	if err != nil {
 		return Build{}, err
 	}
+	summary, parsed, canonical, err := validateSave(in.Spec, in.Summary, fallback, prev)
+	if err != nil {
+		return Build{}, err
+	}
 	carried, err := s.verify(ctx, by, prev, prevUnverified, parsed, prev != nil)
 	if err != nil {
 		return Build{}, err
@@ -105,6 +107,7 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 		RequestID:     in.RequestID,
 		DashboardID:   in.DashboardID,
 		BaseVersion:   in.BaseVersion,
+		FolderID:      row.FolderID,
 		Spec:          parsed,
 		Unverified:    carried,
 		PlannedPanels: planned,
@@ -138,6 +141,7 @@ func (s *Service) Build(ctx context.Context, requestID pgtype.UUID) (Build, bool
 		return Build{}, false, fmt.Errorf("get agent request build: %w", err)
 	}
 	build, err := buildOf(row.AgentRequestID, row.DashboardID, row.BaseVersion, row.Spec, row.Unverified, int(row.PlannedPanels), row.Summary, row.Saves, row.UpdatedAt)
+	build.FolderID = row.FolderID
 	return build, err == nil, err
 }
 
@@ -416,13 +420,13 @@ func (s *Service) commitBuild(ctx context.Context, by auth.Principal, build Buil
 	}
 	in := newVersion{spec: build.Spec, canonical: canonical, summary: note.summary, restoredFrom: note.restoredFrom, author: authorOf(by), requestID: build.RequestID, origin: origin.From(ctx), unverified: build.Unverified}
 	if !build.DashboardID.Valid {
-		return s.commitCreate(ctx, by, in, inTx)
+		return s.commitCreate(ctx, by, build.FolderID, in, inTx)
 	}
 	return s.commitRevision(ctx, by, build, in, inTx)
 }
 
-func (s *Service) commitCreate(ctx context.Context, by auth.Principal, in newVersion, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
-	target, err := s.creationTarget(ctx, by, pgtype.UUID{})
+func (s *Service) commitCreate(ctx context.Context, by auth.Principal, folder pgtype.UUID, in newVersion, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
+	target, err := s.creationTarget(ctx, by, folder)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -512,6 +516,7 @@ func (st store) saveBuild(ctx context.Context, in BuildSave, canonical []byte, u
 	params := dbsqlc.UpsertAgentRequestBuildParams{
 		AgentRequestID: in.RequestID,
 		DashboardID:    in.DashboardID,
+		FolderID:       in.FolderID,
 		Spec:           canonical,
 		Summary:        summary,
 		PlannedPanels:  httpapi.Int32(progress.PlannedPanels),

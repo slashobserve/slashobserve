@@ -2,12 +2,14 @@ package observations
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
@@ -22,12 +25,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	defaultLimit = 20
 	maxLimit     = 100
+	maxOffset    = 100000
 
 	maxBodyBytes            = 128 << 10
 	moveIntoPersonalMessage = "an observation cannot move into My Dashboards"
@@ -44,6 +49,9 @@ type ObservationJSON struct {
 	To             *string      `json:"to"`
 	ThreadID       *string      `json:"thread_id"`
 	RunID          *string      `json:"run_id"`
+	DashboardID    *string      `json:"dashboard_id"`
+	Pinned         bool         `json:"pinned"`
+	CanPin         bool         `json:"can_pin"`
 	MessageCount   int          `json:"message_count"`
 	URL            string       `json:"url"`
 	CreatedBy      actor.JSON   `json:"created_by"`
@@ -100,6 +108,7 @@ type envelopeJSON struct {
 type listJSON struct {
 	Observations []ObservationJSON `json:"observations"`
 	NextCursor   *string           `json:"next_cursor"`
+	Total        *int              `json:"total"`
 }
 
 type blockEnvelopeJSON struct {
@@ -138,6 +147,9 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		To:             timeString(o.To),
 		ThreadID:       httpapi.OptionalString(o.ThreadID),
 		RunID:          httpapi.OptionalString(o.RunID),
+		DashboardID:    httpapi.OptionalString(o.DashboardID),
+		Pinned:         o.Pinned,
+		CanPin:         o.CanPin,
 		MessageCount:   o.MessageCount,
 		URL:            url,
 		CreatedBy:      o.Actor.JSON(),
@@ -190,13 +202,51 @@ func SnapshotOf(s Snapshot) SnapshotJSON {
 	}
 }
 
+type PanelChecker interface {
+	CheckPanel(ctx context.Context, by auth.Principal, body PanelBody, fallbackFrom, fallbackTo *time.Time) error
+}
+
 type Handler struct {
 	service *Service
 	logger  *slog.Logger
+	panels  PanelChecker
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+type HandlerOption func(*Handler)
+
+func WithPanelChecker(checker PanelChecker) HandlerOption {
+	return func(h *Handler) { h.panels = checker }
+}
+
+func NewHandler(service *Service, logger *slog.Logger, options ...HandlerOption) *Handler {
+	h := &Handler{service: service, logger: logger}
+	for _, option := range options {
+		option(h)
+	}
+	return h
+}
+
+func (h *Handler) panelRuns(c *gin.Context, raw json.RawMessage, window func(by auth.Principal) (*time.Time, *time.Time, error)) bool {
+	by := httpapi.Caller(c)
+	if h.panels == nil || by.Kind != auth.KindServiceAccount {
+		return true
+	}
+	var body PanelBody
+	if json.Unmarshal(raw, &body) != nil || len(body.Panel) == 0 {
+		return true
+	}
+	from, to, err := window(by)
+	if errors.Is(err, ErrNotFound) {
+		return true
+	}
+	if err == nil {
+		err = h.panels.CheckPanel(c.Request.Context(), by, body, from, to)
+	}
+	if err != nil {
+		h.fail(c, "check observation panel", err)
+		return false
+	}
+	return true
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -205,8 +255,12 @@ func (h *Handler) Register(api auth.Routes) {
 	api.GET("/observations/:id", auth.RoleViewer, h.get)
 	api.PATCH("/observations/:id", auth.RoleViewer, h.update)
 	api.POST("/observations/:id/move", auth.RoleViewer, h.move)
+	api.DELETE("/observations/:id", auth.RoleViewer, h.remove)
 	api.POST("/observations/:id/resolve", auth.RoleViewer, h.resolve)
 	api.POST("/observations/:id/reopen", auth.RoleViewer, h.reopen)
+	api.POST("/observations/:id/pin", auth.RoleViewer, h.pin)
+	api.POST("/observations/:id/dashboard", auth.RoleViewer, h.makeObservationDashboard)
+	api.POST("/blocks/:id/dashboard", auth.RoleViewer, h.makeBlockDashboard)
 	api.POST("/observations/:id/blocks", auth.RoleViewer, h.addBlock)
 	api.PATCH("/blocks/:id", auth.RoleViewer, h.updateBlock)
 	api.DELETE("/blocks/:id", auth.RoleViewer, h.removeBlock)
@@ -283,37 +337,107 @@ func (h *Handler) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, h.envelope(o))
 }
 
+const maxQueryRunes = 200
+
 func (h *Handler) list(c *gin.Context) {
 	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
-	var filter ListFilter
-	if raw, present := c.GetQuery("folder_id"); present {
-		var ok bool
-		if filter.FolderID, ok = optionalUUID(c, "folder_id", &raw); !ok {
-			return
-		}
+	filter, ok := listFilter(c)
+	if !ok {
+		return
 	}
-	if raw, present := c.GetQuery("state"); present {
-		if filter.State = State(raw); filter.State != StateOpen && filter.State != StateResolved {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "state must be open or resolved")
+	if raw, present := c.GetQuery("offset"); present {
+		if c.Query("cursor") != "" {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor and offset cannot be used together")
 			return
 		}
+		offset, err := strconv.Atoi(raw)
+		if err != nil || offset < 0 || offset > maxOffset {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "offset must be an integer from 0 to "+strconv.Itoa(maxOffset))
+			return
+		}
+		listing, err := h.service.Page(c.Request.Context(), httpapi.Caller(c), filter, limit, offset)
+		if err != nil {
+			h.fail(c, "list observations", err)
+			return
+		}
+		body := h.listBody(listing.Observations)
+		body.Total = &listing.Total
+		c.JSON(http.StatusOK, body)
+		return
 	}
 	rows, next, err := h.service.List(c.Request.Context(), httpapi.Caller(c), filter, limit, c.Query("cursor"))
 	if err != nil {
 		h.fail(c, "list observations", err)
 		return
 	}
-	body := listJSON{Observations: make([]ObservationJSON, len(rows))}
-	for i, o := range rows {
-		body.Observations[i] = h.render(o)
-	}
+	body := h.listBody(rows)
 	if next != "" {
 		body.NextCursor = &next
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+func (h *Handler) listBody(rows []Observation) listJSON {
+	body := listJSON{Observations: make([]ObservationJSON, len(rows))}
+	for i, o := range rows {
+		body.Observations[i] = h.render(o)
+	}
+	return body
+}
+
+func listFilter(c *gin.Context) (ListFilter, bool) {
+	var filter ListFilter
+	if raw, present := c.GetQuery("folder_id"); present {
+		var ok bool
+		if filter.FolderID, ok = optionalUUID(c, "folder_id", &raw); !ok {
+			return filter, false
+		}
+	}
+	if raw, present := c.GetQuery("state"); present {
+		if filter.State = State(raw); filter.State != StateOpen && filter.State != StateResolved {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "state must be open or resolved")
+			return filter, false
+		}
+	}
+	filter.Query = c.Query("q")
+	if utf8.RuneCountInString(filter.Query) > maxQueryRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be at most 200 characters")
+		return filter, false
+	}
+	switch raw := c.DefaultQuery("created_by", ""); raw {
+	case "":
+	case "me":
+		filter.CreatedByMe = true
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "created_by must be me")
+		return filter, false
+	}
+	return filter, listOrder(c, &filter)
+}
+
+func listOrder(c *gin.Context, filter *ListFilter) bool {
+	filter.Sort = SortUpdated
+	if raw, present := c.GetQuery("sort"); present {
+		if filter.Sort = Sort(raw); filter.Sort != SortUpdated && filter.Sort != SortCreated && filter.Sort != SortTitle {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "sort must be updated, created or title")
+			return false
+		}
+	}
+	filter.Ascending = filter.Sort == SortTitle
+	switch raw := c.Query("order"); raw {
+	case "":
+	case "asc":
+		filter.Ascending = true
+	case "desc":
+		filter.Ascending = false
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be asc or desc")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) get(c *gin.Context) {
@@ -412,6 +536,18 @@ type resolveRequest struct {
 	Summary string `json:"summary"`
 }
 
+func (h *Handler) remove(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.service.Delete(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		h.fail(c, "delete observation", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (h *Handler) resolve(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -442,6 +578,79 @@ func (h *Handler) reopen(c *gin.Context) {
 	c.JSON(http.StatusOK, h.envelope(o))
 }
 
+type PinJSON struct {
+	DashboardID  string `json:"dashboard_id"`
+	AnnotationID string `json:"annotation_id"`
+}
+
+type pinRequest struct {
+	DashboardID *string `json:"dashboard_id"`
+}
+
+type makeDashboardRequest struct {
+	New bool `json:"new"`
+}
+
+func (h *Handler) pin(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req pinRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	dashboardID, ok := optionalUUID(c, "dashboard_id", req.DashboardID)
+	if !ok {
+		return
+	}
+	pin, created, err := h.service.Pin(c.Request.Context(), httpapi.Caller(c), id, dashboardID)
+	if err != nil {
+		h.fail(c, "pin observation", err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+		c.Header("Location", "/api/v1/annotations/"+pin.AnnotationID)
+	}
+	c.JSON(status, PinJSON(pin))
+}
+
+func (h *Handler) makeObservationDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	h.makeDashboard(c, id, pgtype.UUID{})
+}
+
+func (h *Handler) makeBlockDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	h.makeDashboard(c, pgtype.UUID{}, id)
+}
+
+func (h *Handler) makeDashboard(c *gin.Context, observationID, blockID pgtype.UUID) {
+	var req makeDashboardRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	d, v, created, err := h.service.MakeDashboard(c.Request.Context(), httpapi.Caller(c), observationID, blockID, req.New)
+	if err != nil {
+		h.fail(c, "make dashboard from observation", err)
+		return
+	}
+	if !created {
+		c.JSON(http.StatusOK, dashboards.NewDashboardVersionJSON(d, v))
+		return
+	}
+	c.Header("Location", "/api/v1/dashboards/"+d.ID)
+	c.JSON(http.StatusCreated, dashboards.NewDashboardVersionJSON(d, v))
+}
+
 func (h *Handler) addBlock(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -453,6 +662,12 @@ func (h *Handler) addBlock(c *gin.Context) {
 	}
 	from, ok := optionalUUID(c, "from_block_id", req.FromBlockID)
 	if !ok {
+		return
+	}
+	if Kind(req.Kind) == KindPanel && !h.panelRuns(c, req.Body, func(by auth.Principal) (*time.Time, *time.Time, error) {
+		o, err := h.service.Get(c.Request.Context(), by, id)
+		return o.From, o.To, err
+	}) {
 		return
 	}
 	b, err := h.service.AddBlock(c.Request.Context(), httpapi.Caller(c), id, BlockInput{
@@ -483,6 +698,12 @@ func (h *Handler) updateBlock(c *gin.Context) {
 	}
 	if req.Version == nil {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "version is required")
+		return
+	}
+	if !h.panelRuns(c, req.Body, func(by auth.Principal) (*time.Time, *time.Time, error) {
+		_, from, to, err := h.service.PanelDashboard(c.Request.Context(), by, id)
+		return &from, &to, err
+	}) {
 		return
 	}
 	change := BlockChange{Version: *req.Version, Body: req.Body, Position: req.Position}
@@ -593,35 +814,53 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 	httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 }
 
+type knownFailure struct {
+	err     error
+	status  int
+	code    string
+	message string
+}
+
+var knownFailures = []knownFailure{
+	{ErrNoDashboard, http.StatusConflict, "observation_has_no_dashboard", ErrNoDashboard.Error()},
+	{ErrDashboardNotFound, http.StatusNotFound, "not_found", ErrDashboardNotFound.Error()},
+	{ErrNoPanels, http.StatusConflict, "observation_has_no_panels", ErrNoPanels.Error()},
+	{ErrRunInProgress, http.StatusConflict, "run_in_progress", ErrRunInProgress.Error()},
+	{ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+	{ErrFolderNotFound, http.StatusNotFound, "not_found", ErrFolderNotFound.Error()},
+	{ErrInvalidCursor, http.StatusBadRequest, "invalid_request", "cursor is not valid"},
+	{ErrCursorOrder, http.StatusBadRequest, "invalid_request", ErrCursorOrder.Error()},
+	{ErrNothingToUpdate, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error()},
+	{folders.ErrMoveIntoPersonal, http.StatusConflict, "personal_folder", moveIntoPersonalMessage},
+	{folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
+	{folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
+}
+
 func abortKnown(c *gin.Context, err error) bool {
+	for _, known := range knownFailures {
+		if errors.Is(err, known.err) {
+			httpapi.AbortError(c, known.status, known.code, known.message)
+			return true
+		}
+	}
 	var invalid *InvalidInputError
 	var conflict *ConflictError
 	var refusal *lifecycle.Refusal
+	var badSpec *dashboards.InvalidSpecError
 	switch {
-	case errors.Is(err, ErrNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrNotFound.Error())
-	case errors.Is(err, ErrFolderNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", ErrFolderNotFound.Error())
-	case errors.Is(err, ErrInvalidCursor):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
-	case errors.Is(err, ErrNothingToUpdate):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error())
-	case errors.Is(err, folders.ErrMoveIntoPersonal):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", moveIntoPersonalMessage)
+	case errors.As(err, &badSpec):
+		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)
 	case errors.As(err, &refusal):
 		lifecycle.AbortRefusal(c, refusal)
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: conflict.Error(), Code: codeVersionConflict, Current: BlockOf(conflict.Current)})
-	case errors.Is(err, folders.ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
-	case errors.Is(err, folders.ErrNoAccess):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.As(err, &invalid):
 		issues := invalid.Issues
 		if issues == nil {
 			issues = []spec.Issue{}
 		}
-		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: invalid.Message, Code: invalid.Code, Issues: issues})
+		reason, _ := usertext.ReasonOf(invalid)
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, httpapi.InvalidSpecBody{Error: invalid.Message, Code: invalid.Code, Issues: issues, Reason: string(reason)})
 	default:
 		return false
 	}

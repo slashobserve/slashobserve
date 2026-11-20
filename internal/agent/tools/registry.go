@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -36,6 +37,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/stars"
 	"github.com/slashobserve/slashobserve/internal/threads"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -76,7 +78,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 96 << 10, nameUpdateDashboard: maxSuggestResult, nameGetPanels: MaxModelSpecBytes, nameUpdatePanels: maxSuggestResult, nameGetRunBrief: maxBriefBytes, nameGetProposal: MaxModelSpecBytes}
 
 const defaultNarrowing = "narrow the request"
 
@@ -104,9 +106,12 @@ type Tool struct {
 	AgentOnly   bool
 	Claim       bool
 	MinRole     auth.Role
+	PersonOnly  bool
+	Destructive bool
 
-	InvestigateOnly bool
-	Answers         bool
+	OutputSchema json.RawMessage
+
+	Answers bool
 
 	AgentDescription string
 	AgentInputSchema json.RawMessage
@@ -123,6 +128,7 @@ type Result struct {
 	Discovered *Discovery
 	Refusal    Refusal
 	Edits      Edits
+	Unchecked  string
 }
 
 type Edits struct {
@@ -139,29 +145,33 @@ type Discovery struct {
 }
 
 type Deps struct {
-	Datasources   *datasource.Registry
-	Runner        *queryproxy.Runner
-	Dashboards    *dashboards.Service
-	Threads       *threads.Service
-	Mentions      *threads.MentionRuns
-	Proposals     *proposals.Service
-	Imports       *imports.Service
-	Folders       *folders.Access
-	Findings      *findings.Service
-	Observations  *observations.Service
-	SavedSearches *savedsearches.Service
-	Health        *health.Service
-	Annotations   *annotations.Service
-	Activity      *activity.Store
-	Runs          RunReader
-	Claims        ClaimService
-	RunSessions   RunSessions
-	LiveText      LiveText
-	Search        *search.Service
-	Stars         *stars.Service
-	Provider      llm.Provider
-	PublicURL     *url.URL
-	Logger        *slog.Logger
+	Datasources    *datasource.Registry
+	Runner         *queryproxy.Runner
+	Dashboards     *dashboards.Service
+	Threads        *threads.Service
+	Mentions       *threads.MentionRuns
+	Proposals      *proposals.Service
+	Imports        *imports.Service
+	Folders        *folders.Access
+	Findings       *findings.Service
+	Observations   *observations.Service
+	SavedSearches  *savedsearches.Service
+	Health         *health.Service
+	StartHealthRun func()
+	Annotations    *annotations.Service
+	Activity       *activity.Store
+	Runs           RunDesk
+	Claims         ClaimService
+	RunSessions    RunSessions
+	LiveText       LiveText
+	Search         *search.Service
+	Stars          *stars.Service
+	Viewers        *viewers.Service
+	Home           *homedash.Service
+	Provider       llm.Provider
+	DraftBudget    DraftBudget
+	PublicURL      *url.URL
+	Logger         *slog.Logger
 }
 
 type Mode string
@@ -180,9 +190,9 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	case t.Answers:
 		return mode != ModeSuggest
 	case mode == ModeInvestigate:
-		return t.ReadOnly || t.InvestigateOnly
+		return t.ReadOnly
 	default:
-		return !t.InvestigateOnly
+		return true
 	}
 }
 
@@ -197,9 +207,37 @@ type Run struct {
 	Build         bool
 	Attempt       int
 	From, To      time.Time
+	TimeZone      string
 }
 
 type runKey struct{}
+
+type readsRefusedKey struct{}
+
+func WithReadsRefused(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, readsRefusedKey{}, n)
+}
+
+func ReadsRefused(ctx context.Context) int {
+	n, _ := ctx.Value(readsRefusedKey{}).(int)
+	return n
+}
+
+type Unchecked struct {
+	Datasource string
+	Code       string
+}
+
+type uncheckedKey struct{}
+
+func WithUnchecked(ctx context.Context, unchecked []Unchecked) context.Context {
+	return context.WithValue(ctx, uncheckedKey{}, unchecked)
+}
+
+func UncheckedReads(ctx context.Context) []Unchecked {
+	unchecked, _ := ctx.Value(uncheckedKey{}).([]Unchecked)
+	return unchecked
+}
 
 func WithRun(ctx context.Context, run Run) context.Context {
 	return context.WithValue(ctx, runKey{}, run)
@@ -223,6 +261,7 @@ type Registry struct {
 	deps    Deps
 	entries map[string]entry
 	fields  map[string]surfaceFields
+	aliases map[string]map[string]string
 	tools   []Tool
 	drafts  draftLimiter
 }
@@ -238,8 +277,10 @@ type draftLimiter struct {
 	byCaller map[string]int
 }
 
+func principalKey(p auth.Principal) string { return string(p.Kind) + ":" + p.ID }
+
 func (r *Registry) acquireDraft(p auth.Principal) (release func(), err error) {
-	key := string(p.Kind) + ":" + p.ID
+	key := principalKey(p)
 	l := &r.drafts
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -271,18 +312,21 @@ func New(d Deps) *Registry {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
 	}
-	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}}
+	r := &Registry{deps: d, entries: map[string]entry{}, fields: map[string]surfaceFields{}, aliases: map[string]map[string]string{}}
 	all := r.baseEntries()
 	for _, e := range all {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
+		e.tool.Destructive = destructiveTools[e.tool.Name]
+		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
 		}
 		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
 		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
 		r.fields[e.tool.Name] = surfaceFields{mcp: propertyNames(e.tool.InputSchema), agent: propertyNames(e.tool.AgentInputSchema)}
+		r.aliases[e.tool.Name] = aliasesOf(e.tool.Name, r.fields[e.tool.Name].mcp)
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -309,6 +353,7 @@ func (r *Registry) List() []Tool {
 	for i, t := range r.tools {
 		t.InputSchema = bytes.Clone(t.InputSchema)
 		t.AgentInputSchema = bytes.Clone(t.AgentInputSchema)
+		t.OutputSchema = bytes.Clone(t.OutputSchema)
 		out[i] = t
 	}
 	return out
@@ -349,6 +394,10 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
 	}
+	input, refused, ok := r.canonical(name, input, inRun)
+	if !ok {
+		return refused, nil
+	}
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
 		return Result{}, err
@@ -361,6 +410,13 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		res.Step = callErrorStep(name, eb)
 	}
 	return res, nil
+}
+
+func (r *Registry) canonical(name string, input json.RawMessage, inRun bool) (json.RawMessage, Result, bool) {
+	if inRun {
+		return input, Result{}, true
+	}
+	return r.canonicalInput(name, input)
 }
 
 func (r *Registry) namingFields(name string, inRun bool, res Result) Result {
@@ -511,11 +567,9 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case t.MCPOnly:
 		return Result{}, true
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
-		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name
+		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
-	case inRun && !t.OfferedIn(run.Mode):
-		message = t.Name + " is only for investigate runs"
 	case !inRun && t.AgentOnly:
 		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
 	default:
@@ -547,6 +601,7 @@ func callErrorStep(tool string, eb errorBody) string {
 type errorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+	Note    string `json:"note,omitempty"`
 
 	unknownField bool
 }

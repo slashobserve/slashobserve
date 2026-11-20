@@ -33,7 +33,7 @@ function holdMenuExit() {
   })
 }
 
-function renderMenu() {
+function renderMenu(canComment = true, downloadsReady?: boolean) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
     <>
@@ -43,9 +43,13 @@ function renderMenu() {
         onToggleTableView={() => {}}
         idle
         viewing={false}
-        canComment
+        canComment={canComment}
         canEdit={false}
+        canInvestigate={false}
         composerRef={composer}
+        onDownloadCsv={() => {}}
+        onSavePng={() => {}}
+        downloadsReady={downloadsReady}
       />
       <textarea ref={composer} aria-label="Comment or request" />
       <button type="button">Elsewhere</button>
@@ -102,5 +106,46 @@ describe("PanelMenu", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument()
     )
     expect(elsewhere).toHaveFocus()
+  })
+
+  it("lists the downloads greyed until the panel has its data, so the menu does not grow later", async () => {
+    const { user } = renderMenu(true, false)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: "Download CSV" })
+    ).toHaveAttribute("aria-disabled", "true")
+    expect(
+      screen.getByRole("menuitem", { name: "Save as PNG" })
+    ).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("enables the downloads once the panel is ready", async () => {
+    const { user } = renderMenu(true, true)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: "Download CSV" })
+    ).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("shows Comment greyed with its reason when the person cannot comment", async () => {
+    const { user } = renderMenu(false)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "Comment (needs Comment access on this folder)",
+      })
+    ).toHaveAttribute("aria-disabled", "true")
   })
 })

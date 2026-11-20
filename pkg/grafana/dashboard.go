@@ -98,6 +98,8 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 		return nil, err
 	}
 	c.noteClickHouseAdhoc()
+	c.noteLokiAllValues()
+	c.noteAlertRules()
 	result := &Result{
 		Summary:     src.summary(),
 		Datasources: reg.sources(),
@@ -118,7 +120,7 @@ func (c *converter) convertHead() {
 	d := &c.head
 	d.SpecVersion = spec.Version
 
-	title := strings.TrimSpace(asString(dash["title"]))
+	title := cleanTitle(asString(dash["title"]))
 	if title == "" {
 		title = defaultTitle
 	}
@@ -143,6 +145,9 @@ func (c *converter) convertHead() {
 	c.head.LiveNow = truthy(dash["liveNow"])
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
+	if len(c.src.skipped) > 0 {
+		c.note("panels", "These entries are not panels or rows, or are rows inside a collapsed row, and are not kept.", c.src.skipped...)
+	}
 	if editable, ok := dash["editable"].(bool); ok && !editable {
 		c.note("dashboard options", dashboardOptionsNote, "editable")
 	}

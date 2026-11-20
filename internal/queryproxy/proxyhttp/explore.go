@@ -36,6 +36,7 @@ type exploreRequest struct {
 	PageSize      *int    `json:"page_size"`
 	Page          *int    `json:"page"`
 	Cursor        *string `json:"cursor"`
+	Sort          *string `json:"sort"`
 }
 
 func init() {
@@ -100,6 +101,8 @@ func (h *Handler) explore(c *gin.Context) {
 		h.exploreFail(c, uid, err)
 		return
 	}
+	_, entry.canPage = inst.Datasource.(datasource.PageSource)
+	entry.canPage = entry.canPage && kind == queryproxy.KindInstant
 	writeData(c, entry, false, entry.executedAt, "")
 }
 
@@ -152,6 +155,8 @@ func (r exploreRequest) pagingRule() string {
 	switch {
 	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
 		return queryproxy.PageNeedsSize
+	case r.PageSize == nil && r.Sort != nil:
+		return queryproxy.SortNeedsSize
 	case r.PageSize == nil:
 		return ""
 	case r.Kind == string(queryproxy.KindRange):
@@ -182,6 +187,9 @@ func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user da
 	if r.Cursor != nil {
 		p.Cursor = *r.Cursor
 	}
+	if r.Sort != nil {
+		p.Sort = *r.Sort
+	}
 	return p
 }
 
@@ -205,7 +213,7 @@ func (h *Handler) explorePage(c *gin.Context, inst datasource.Instance, rng data
 		h.fail(c, errTooLarge)
 		return
 	}
-	meta := resultMetaOf(res.Frames).took(time.Since(started))
+	meta := resultMetaOf(queryproxy.KindInstant, res.Frames).took(time.Since(started))
 	meta.truncated, meta.rowsTotal = false, 0
 	meta.page = pageMetaOf(res)
 	entry := dataEntry{frames: frames, queries: []queryMeta{{Ref: exploreQueryRef, Kind: queryproxy.KindInstant}}, kind: queryproxy.KindInstant, from: res.Range.From, to: res.Range.To, meta: meta, executedAt: time.Now()}
@@ -222,6 +230,7 @@ func pageMetaOf(res queryproxy.PageResult) *pageMeta {
 		Next:          res.Next,
 		Prev:          res.Prev,
 		Window:        res.Info.Window,
+		Plain:         res.Info.Plain,
 	}
 	if res.Info.TotalRelation != datasource.TotalUnknown {
 		total := res.Info.Total
@@ -237,9 +246,11 @@ func (r exploreRequest) values() url.Values {
 	if r.Timezone != nil {
 		q.Set(paramTimezone, *r.Timezone)
 	}
+	points := queryproxy.AgentMaxDataPoints
 	if r.MaxDataPoints != nil {
-		q.Set(paramMaxDataPoints, strconv.Itoa(*r.MaxDataPoints))
+		points = *r.MaxDataPoints
 	}
+	q.Set(paramMaxDataPoints, strconv.Itoa(points))
 	return q
 }
 

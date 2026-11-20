@@ -61,6 +61,7 @@ A connected agent also has `writes_7d`, the changes you made through MCP under i
 A comment that mentions an agent hands it work.
 A connected agent's `grant_id` and a service account's `id` are the ids a comment names: `@[Name](grant:<grant_id>)` and `@[Name](service_account:<id>)`, and `@observe` names the Observe Agent.
 The `@` picker of every web composer lists the Observe Agent while a model is connected, then your connected agents, then the service accounts that take runs, all from this one answer.
+Everything you type after the `@` stays in the comment box and filters the list; the list closes at the first space or when nobody matches, so `@observe add a stat panel` typed straight through is a comment that asks the Observe Agent.
 A message that mentions exactly one agent starts a run for it when you send it from a composer that asks the agent, or with `start_runs` over the API, MCP or the CLI.
 [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment) describes the composer, and the run answers in the same thread when it ends.
 
@@ -73,7 +74,7 @@ Retrying or continuing such a run goes to the same agent, and answers `assignee_
 ## Recent work
 
 The page of one agent, at `/agents/<ref>`, ends with a **Recent work** list of the runs behind its seven day counts, newest first.
-Each row shows the run's title, its state (Queued, Running, Stopping, Done, Failed or Canceled), when it was asked and the dashboard or observation it touched.
+Each row shows the run's title, its state (Queued, Running, Stopping, Done, Failed or Canceled), when it was asked, what it cost when a cost was recorded, and the dashboard or observation it touched.
 "Load more" shows the next page, and an agent with no runs says "No runs yet."
 `GET /api/v1/agents/runs?kind=<builtin|grant|service_account>&id=<id>` returns the same list, 20 runs a page by default and at most 50, with the `next_cursor` of one page as the `cursor` of the next.
 The `id` is the grant id or the service account id, and it is refused for `builtin`.

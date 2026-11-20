@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -173,5 +174,46 @@ func TestPublicValuesSeeOnlyEarlierSelections(t *testing.T) {
 	ranWith(t, hn.ds.lastQuery(), "job", "web")
 	if rec := publicGet(router, "/api/v1/public/tok/variables/job/values?"+window); rec.Code != http.StatusOK {
 		t.Fatalf("first variable values: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVariableOptionsShareTheValuesCacheAndTheSlots(t *testing.T) {
+	hn := newHarness(t)
+	d := testDashboard()
+	ctx := auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, ID: "alice", Role: auth.RoleAdmin})
+	for range 2 {
+		if _, err := hn.h.VariableOptions(ctx, hn.id, 1, d, "job", nil); err != nil {
+			t.Fatalf("VariableOptions: %v", err)
+		}
+	}
+	if _, _, variables, _ := hn.ds.counts(); variables != 1 {
+		t.Fatalf("%d variable queries for two identical checks, want 1", variables)
+	}
+	var releases []func()
+	for range maxInFlightPerPrincipal {
+		release, ok := hn.h.slots.acquire("alice")
+		if !ok {
+			t.Fatal("could not hold a principal slot")
+		}
+		releases = append(releases, release)
+	}
+	if _, err := hn.h.VariableOptions(ctx, hn.id, 1, d, "job", nil); err == nil {
+		t.Fatal("a check ran with every slot of the principal held")
+	}
+	for _, release := range releases {
+		release()
+	}
+}
+
+func TestWithoutExecutedKeepsTheCachedEntryIntact(t *testing.T) {
+	entry := dataEntry{queries: []queryMeta{{Ref: "A", Executed: "up{job=\"api\"}"}, {Ref: "B", Executed: "sum(up)"}}}
+	hidden := withoutExecuted(entry)
+	for _, q := range hidden.queries {
+		if q.Executed != "" {
+			t.Fatalf("query %s still carries its text", q.Ref)
+		}
+	}
+	if entry.queries[0].Executed == "" || entry.queries[1].Executed == "" {
+		t.Fatal("the shared cache entry was changed")
 	}
 }

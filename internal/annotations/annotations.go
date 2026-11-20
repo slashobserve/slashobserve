@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"slices"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -15,9 +14,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const (
@@ -26,7 +27,6 @@ const (
 )
 
 const (
-	messageInvalidText  = "text must be 1 to 2000 characters without control or bidirectional override characters"
 	MessageInvalidTags  = "tags must be at most 10 lowercase tags of 1 to 40 letters, digits, _, . or -, starting with a letter or digit"
 	messageInvalidTime  = "time_to must not be before time_from, and both must be RFC 3339 times from 1970-01-01 to 2099-12-31"
 	messageInvalidPanel = "panel_id must be 1 to 64 characters without NUL and needs a dashboard_id"
@@ -49,9 +49,12 @@ var tagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
 type InvalidError struct {
 	Code    string
 	Message string
+	Cause   error
 }
 
 func (e *InvalidError) Error() string { return e.Message }
+
+func (e *InvalidError) Unwrap() error { return e.Cause }
 
 type Annotation struct {
 	ID            string
@@ -296,29 +299,34 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 func (s *Service) mayCreate(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {
 	if !dashboardID.Valid {
 		if !by.Role.AtLeast(auth.RoleEditor) {
-			return ErrForbidden
+			return forbidden.Need(ErrForbidden, forbidden.NeedsRole(string(auth.RoleEditor)))
 		}
 		return nil
 	}
-	abilities, err := s.dashboard(ctx, by, dashboardID)
+	access, err := s.dashboardAccess(ctx, by, dashboardID)
 	if err != nil {
 		return err
 	}
-	if !abilities.Edit {
-		return ErrForbidden
+	if !access.Abilities.Edit {
+		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", access.Folder.Title))
 	}
 	return nil
 }
 
 func (s *Service) dashboard(ctx context.Context, by auth.Principal, id pgtype.UUID) (folders.Abilities, error) {
+	access, err := s.dashboardAccess(ctx, by, id)
+	return access.Abilities, err
+}
+
+func (s *Service) dashboardAccess(ctx context.Context, by auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error) {
 	access, err := s.access.Dashboard(ctx, by, id)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
-		return folders.Abilities{}, ErrNotFound
+		return folders.DashboardAccess{}, ErrNotFound
 	case err != nil:
-		return folders.Abilities{}, err
+		return folders.DashboardAccess{}, err
 	}
-	return access.Abilities, nil
+	return access, nil
 }
 
 func (s *Service) checkPanel(ctx context.Context, in CreateInput) error {
@@ -343,9 +351,9 @@ func (s *Service) checkPanel(ctx context.Context, in CreateInput) error {
 }
 
 func cleanText(raw string) (string, error) {
-	text, ok := revisions.CleanPrompt(raw)
-	if !ok || utf8.RuneCountInString(text) > MaxTextRunes {
-		return "", &InvalidError{Code: "invalid_text", Message: messageInvalidText}
+	text, err := usertext.Clean("text", raw, usertext.Text(MaxTextRunes))
+	if err != nil {
+		return "", &InvalidError{Code: "invalid_text", Message: err.Error(), Cause: err}
 	}
 	return text, nil
 }

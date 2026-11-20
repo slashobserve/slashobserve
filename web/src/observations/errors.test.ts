@@ -6,6 +6,7 @@ import type { components } from "@/api/schema.gen"
 import {
   BlockVersionConflict,
   blockWriteProblem,
+  observationIsMissing,
   unwrapBlockWrite,
 } from "./errors"
 
@@ -142,5 +143,25 @@ describe("unwrapBlockWrite", () => {
       expect(error).not.toBeInstanceOf(BlockVersionConflict)
       expect((error as ApiError).code).toBe("version_conflict")
     }
+  })
+})
+
+describe("observationIsMissing", () => {
+  it("treats an unknown id and a malformed id as missing", () => {
+    expect(observationIsMissing(new ApiError(404, "not_found", "gone"))).toBe(
+      true
+    )
+    expect(
+      observationIsMissing(
+        new ApiError(400, "invalid_request", "Id must be a UUID")
+      )
+    ).toBe(true)
+  })
+
+  it("keeps a server failure as a load problem", () => {
+    expect(observationIsMissing(new ApiError(500, "internal", "boom"))).toBe(
+      false
+    )
+    expect(observationIsMissing(new Error("offline"))).toBe(false)
   })
 })

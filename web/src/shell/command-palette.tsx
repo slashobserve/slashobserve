@@ -14,12 +14,15 @@ import {
   ArrowUpRightIcon,
   BookmarkIcon,
   BotIcon,
+  BookOpenIcon,
   ChartGanttIcon,
+  ChartLineIcon,
   DatabaseIcon,
   FlagIcon,
   HouseIcon,
   InboxIcon,
   KeyIcon,
+  KeyboardIcon,
   LayoutDashboardIcon,
   LogsIcon,
   Loader2Icon,
@@ -38,7 +41,11 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { useExploreSources } from "@/datasources/use-sources"
+import { readRecent } from "@/home/recent"
+import { docsUrl } from "@/lib/docs"
 import { isModChord } from "@/lib/shortcuts"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
 import {
@@ -62,6 +69,7 @@ const pageIcons: Record<PagePath, LucideIcon> = {
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
   "/traces": ChartGanttIcon,
+  "/explore/metrics": ChartLineIcon,
   "/agents": BotIcon,
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
@@ -80,6 +88,7 @@ const resultIcons: Record<ResultEntry["kind"], LucideIcon> = {
 const sourceIcons: Record<SourceEntry["explore"], LucideIcon> = {
   logs: LogsIcon,
   traces: ChartGanttIcon,
+  metrics: ChartLineIcon,
 }
 
 const actionIcons: Record<
@@ -90,6 +99,9 @@ const actionIcons: Record<
   "action:ask": TerminalIcon,
   "action:import": UploadIcon,
   "action:theme": SunMoonIcon,
+  "action:docs": BookOpenIcon,
+  "action:shortcuts": KeyboardIcon,
+  "action:search-all": SearchIcon,
   "action:sign-out": LogOutIcon,
 }
 
@@ -145,6 +157,7 @@ function PaletteBody({ close }: { close: () => void }) {
   const { signOut } = useSignOut()
   const toggleTheme = useToggleTheme()
   const titles = useQuery(dashboardTitlesQuery())
+  const [recentObservations] = useState(() => readRecent("observation"))
   const needle = query.trim()
   const settled = useDebouncedValue(needle, needle, searchDebounceMs)
   const searching = needle.length >= minSearchLength
@@ -156,6 +169,7 @@ function PaletteBody({ close }: { close: () => void }) {
     searching && !search.isError && (settled !== needle || search.isFetching)
   const logSources = useExploreSources("logs").sources
   const traceSources = useExploreSources("traces").sources
+  const metricSources = useExploreSources("metrics").sources
   const sources = useMemo(
     () => [
       ...logSources.map(({ uid, name, type }) => ({
@@ -170,15 +184,22 @@ function PaletteBody({ close }: { close: () => void }) {
         name,
         type,
       })),
+      ...metricSources.map(({ uid, name, type }) => ({
+        explore: "metrics" as const,
+        uid,
+        name,
+        type,
+      })),
     ],
-    [logSources, traceSources]
+    [logSources, traceSources, metricSources]
   )
   const groups = paletteGroups(
     query,
     titles.data ?? [],
     search.data ?? [],
     principal.role,
-    sources
+    sources,
+    recentObservations
   )
 
   const highlighted = useRef<PaletteEntry | undefined>(undefined)
@@ -204,6 +225,12 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: "/", search: {} })
     } else if (entry.id === "action:import") {
       void navigate({ to: "/", search: { tab: "import" } })
+    } else if (entry.id === "action:search-all") {
+      void navigate({ to: "/search", search: { q: needle } })
+    } else if (entry.id === "action:docs") {
+      window.open(docsUrl, "_blank", "noopener")
+    } else if (entry.id === "action:shortcuts") {
+      useShortcutsStore.getState().setOpen(true)
     } else if (entry.id === "action:theme") {
       toggleTheme()
     } else {
@@ -289,7 +316,7 @@ function PaletteBody({ close }: { close: () => void }) {
                           event.stopPropagation()
                           openInNewTab(entry)
                         }}
-                        className="ml-auto flex-none rounded-sm p-0.5 text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 group-data-highlighted/item:opacity-100 hover:text-foreground"
+                        className="ml-auto grid size-6 flex-none place-items-center rounded-sm text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 group-data-highlighted/item:opacity-100 hover:text-foreground"
                       >
                         <ArrowUpRightIcon
                           aria-hidden="true"
@@ -375,14 +402,17 @@ export function CommandPalette() {
   }, [toggle])
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10" />
-        <Dialog.Popup className="fixed top-[12vh] left-1/2 z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-card border bg-popover text-popover-foreground outline-none">
-          <Dialog.Title className="sr-only">Search or jump to</Dialog.Title>
-          <PaletteBody close={() => setOpen(false)} />
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10" />
+          <Dialog.Popup className="fixed top-[12vh] left-1/2 z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-card border bg-popover text-popover-foreground outline-none">
+            <Dialog.Title className="sr-only">Search or jump to</Dialog.Title>
+            <PaletteBody close={() => setOpen(false)} />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <ShortcutsHost />
+    </>
   )
 }

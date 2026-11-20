@@ -85,3 +85,16 @@ func TestAddFilesCountsByBucketAndKind(t *testing.T) {
 		t.Fatalf("total = %d, want 12", v.Total)
 	}
 }
+
+func TestAVolumeCountedOnlyFromAnInstantIsPartial(t *testing.T) {
+	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	h := logvolume.New(from, time.Minute, 3)
+	if h.Volume().Partial() {
+		t.Fatal("a fresh volume is partial")
+	}
+	h.CountedOnlyFrom(from.Add(2 * time.Minute))
+	v := h.Volume()
+	if !v.Partial() || !v.CountedFrom.Equal(from.Add(2*time.Minute)) {
+		t.Fatalf("volume = %+v, want partial from the third bucket", v)
+	}
+}

@@ -13,10 +13,12 @@ inbox:
       `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested.
       `run_failed` is a failed run the caller requested that nobody has continued.
       `repaired` is a health repair the caller started that saved a version.
-      `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none.
-      An item is unread when it is newer than the position `POST /api/v1/inbox/read` stored for the caller, and every item is unread until the caller reads once.
+      `proposal_closed` is a proposal the caller opened that someone else merged or discarded; its `excerpt` is the reason given for a discard.
+      `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` and `proposal_closed` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none.
+      An item is unread when `PUT /api/v1/inbox/items/{seq}` marked it unread, or, when that never touched it, when it is newer than the position `POST /api/v1/inbox/read` stored for the caller; every item is unread until the caller reads once.
       `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more.
-      Items carry no comment, message or finding text, as in the activity log.
+      `target_title` is the title of the dashboard, observation or proposal an item is about, and `excerpt` is the start of the comment for a `mention` or `reply`, or the reason of a discarded proposal for `proposal_closed`, as plain text; the rest of an item carries no comment, message or finding text, as in the activity log.
+      A comment that mentions the caller and replies in a thread the caller wrote in is one `mention` item, not two.
       Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
     parameters:
       - name: view
@@ -25,6 +27,15 @@ inbox:
           type: string
           enum: [for_you, everything, proposals, mentions]
           default: for_you
+      - name: filter
+        in: query
+        description: >-
+          `open`, the default, lists every item the caller has not marked done; `unread` lists the open items that are unread; `done` lists the items the caller marked done with `PUT /api/v1/inbox/items/{seq}`.
+          A done item is read, never counts in `unread_count`, and stays done when the inbox is read.
+        schema:
+          type: string
+          enum: [open, unread, done]
+          default: open
       - name: cursor
         in: query
         description: The `next_cursor` of the previous page.
@@ -45,7 +56,7 @@ inbox:
             schema:
               $ref: "../openapi.yaml#/components/schemas/InboxList"
       "400":
-        description: The `view` is not one of the four (`invalid_view`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`).
+        description: The `view` is not one of the four (`invalid_view`), the `filter` is not `open`, `unread` or `done` (`invalid_filter`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`).
         content:
           application/json:
             schema:
@@ -67,7 +78,6 @@ inbox-read:
     description: >-
       Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread.
       The position only moves forward, so a `seq` older than the stored one changes nothing.
-      Reading one item without the ones before it is not offered.
       Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
     requestBody:
       required: true
@@ -86,6 +96,61 @@ inbox-read:
     responses:
       "204":
         description: The inbox is read up to the event, or already was.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in person (`user_session_required`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: No activity has that `seq` (`unknown_seq`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+inbox-item:
+  put:
+    operationId: setInboxItemState
+    x-surfaces:
+      mcp: [set_inbox_item_done]
+    summary: Mark one inbox item read, unread or done.
+    description: >-
+      Send `unread` to mark the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position; marking a done item unread also takes it out of done.
+      `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here.
+      Send `done: true` to mark it done: it leaves the default list and `filter=unread`, counts as read, and stays done when the inbox is read; `done: false` brings it back to the open list as read.
+      Send exactly one of `unread` and `done`.
+      Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+    parameters:
+      - name: seq
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            maxProperties: 1
+            properties:
+              unread:
+                type: boolean
+              done:
+                type: boolean
+    responses:
+      "204":
+        description: The item is in the requested state.
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

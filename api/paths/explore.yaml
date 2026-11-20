@@ -9,7 +9,7 @@ datasources-uid-query:
     operationId: exploreQuery
     x-surfaces:
       mcp: [query_instant, query_range]
-      cli: [observe logs, observe traces]
+      cli: [observe logs, observe traces, observe metrics query]
     summary: Run one query against a datasource and return its frames.
     description: >-
       The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables.
@@ -27,6 +27,7 @@ datasources-uid-query:
       ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly;
       Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact.
       `prev` is the cursor that produced the page.
+      `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk.
       With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
     requestBody:
       required: true
@@ -61,8 +62,10 @@ datasources-uid-query:
                 type: integer
                 minimum: 10
                 maximum: 11000
-                default: 1000
-                description: Range queries only.
+                default: 200
+                description: >-
+                  Range queries only: the most points per series, 200 by default as for the `query_range` MCP tool.
+                  The step never falls below a Prometheus datasource's `scrapeInterval`.
               limit:
                 type: integer
                 minimum: 1
@@ -81,7 +84,12 @@ datasources-uid-query:
               cursor:
                 type: string
                 maxLength: 2048
-                description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused.
+                description: The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused, and so is one whose `sort` differs from the one sent with it.
+              sort:
+                type: string
+                maxLength: 65
+                pattern: "^-?[A-Za-z_][A-Za-z0-9_]{0,63}$"
+                description: A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first.
     responses:
       "200":
         description: The frames the query returned.
@@ -107,7 +115,7 @@ datasources-uid-query:
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
         description: >-
-          The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`.
+          The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`.
         content:
           application/json:
             schema:
@@ -146,9 +154,11 @@ datasources-uid-log-volume:
     summary: Count the log lines a logs query matches over a range, by level.
     description: >-
       The counts cover every line the query matches over the whole range, not only the lines the logs page shows.
-      The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first.
+      The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first.
+      Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it.
       Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other.
       For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored.
+      Loki counts a range longer than a day one day at a time, newest first, and counts a bucket wider than 30 minutes as the sum of equal windows of at most 30 minutes, because Loki reads a much wider window far more slowly; when the next day would not finish within the query time limit, the server stops, returns the days it counted with `partial` true and `counted_from` set to where the count starts, and leaves the older buckets at zero.
       For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects.
       The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests.
       Viewers and above may call it, service-account keys included.

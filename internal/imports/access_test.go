@@ -78,8 +78,8 @@ func TestImportsOfARestrictedFolderNeverLeak(t *testing.T) {
 				t.Errorf("GET /imports = %d %s", rec.Code, rec.Body)
 			}
 			rec = r.serve(t, by, http.MethodGet, "/dashboards/"+hidden.Dashboard.ID+"/import", nil)
-			if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), roleErrorCode) || strings.Contains(rec.Body.String(), hiddenTitle) {
-				t.Errorf("GET the hidden dashboard's import = %d %s, want 403 %s", rec.Code, rec.Body, roleErrorCode)
+			if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "not_found") || strings.Contains(rec.Body.String(), hiddenTitle) {
+				t.Errorf("GET the hidden dashboard's import = %d %s, want 404 not_found", rec.Code, rec.Body)
 			}
 			rec = r.serve(t, by, http.MethodGet, "/dashboards/"+open.Dashboard.ID+"/import", nil)
 			if rec.Code != http.StatusOK {

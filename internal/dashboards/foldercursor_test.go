@@ -104,6 +104,8 @@ func TestListFiltersParseFolderAndOrder(t *testing.T) {
 		{"defaults to recency", "", http.StatusOK, pgtype.UUID{}, false},
 		{"order updated", "order=updated", http.StatusOK, pgtype.UUID{}, false},
 		{"order folder", "order=folder", http.StatusOK, pgtype.UUID{}, true},
+		{"order views is not by folder", "order=views", http.StatusOK, pgtype.UUID{}, false},
+		{"order name is not by folder", "order=name", http.StatusOK, pgtype.UUID{}, false},
 		{"a folder", "folder=" + cursorFolderID, http.StatusOK, mustUUID(t, cursorFolderID), false},
 		{"a folder with the folder order", "folder=" + cursorFolderID + "&order=folder", http.StatusOK, mustUUID(t, cursorFolderID), true},
 		{"an unknown order", "order=title", http.StatusBadRequest, pgtype.UUID{}, false},
@@ -121,5 +123,77 @@ func TestListFiltersParseFolderAndOrder(t *testing.T) {
 				t.Fatalf("folder %v by folder %t, want %v and %t", params.Folder, params.ByFolder, tt.wantFolder, tt.wantBy)
 			}
 		})
+	}
+}
+
+func TestViewsCursorRoundTrips(t *testing.T) {
+	updated := time.Date(2026, 10, 30, 12, 30, 45, 123456000, time.UTC)
+	got, err := decodeViewsCursor(encodeViewsCursor(7, updated, cursorDashboardID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Views != 7 || !got.UpdatedAt.Equal(updated) || got.ID != mustUUID(t, cursorDashboardID) {
+		t.Fatalf("decoded %+v", got)
+	}
+}
+
+func TestViewsCursorRejectsCursorsOfOtherShapes(t *testing.T) {
+	encode := func(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"a time cursor", httpapi.EncodeTimeCursor(time.Now(), cursorDashboardID)},
+		{"a folder cursor", encodeFolderCursor(false, false, "a", mustUUID(t, cursorFolderID), time.Now(), cursorDashboardID)},
+		{"garbage", "!!not-base64!!"},
+		{"a missing count", encode(`{"u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a negative count", encode(`{"v":-1,"u":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a missing time", encode(`{"v":1,"i":"` + cursorDashboardID + `"}`)},
+		{"a dashboard that is not a UUID", encode(`{"v":1,"u":1,"i":"x"}`)},
+		{"an empty cursor", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := decodeViewsCursor(tt.raw); !errors.Is(err, ErrInvalidCursor) {
+				t.Fatalf("err = %v, want ErrInvalidCursor", err)
+			}
+		})
+	}
+}
+
+func TestViewsCursorIsRejectedAsATimeCursorAndAFolderCursor(t *testing.T) {
+	cursor := encodeViewsCursor(1, time.Now(), cursorDashboardID)
+	if _, ok := httpapi.DecodeTimeCursor(cursor); ok {
+		t.Error("a views cursor was accepted as a time cursor")
+	}
+	if _, err := decodeFolderCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a views cursor was accepted as a folder cursor: %v", err)
+	}
+}
+
+func TestListFiltersParseOrderViews(t *testing.T) {
+	_, params := listFilterStatus(t, "order=views")
+	if !params.ByViews || params.ByFolder {
+		t.Fatalf("by views %t, by folder %t, want true and false", params.ByViews, params.ByFolder)
+	}
+}
+
+func TestListFiltersParseOrderName(t *testing.T) {
+	_, params := listFilterStatus(t, "order=name")
+	if !params.ByName || params.ByViews || params.ByFolder {
+		t.Fatalf("by name %t, by views %t, by folder %t, want true, false and false", params.ByName, params.ByViews, params.ByFolder)
+	}
+}
+
+func TestNameCursorIsRejectedAsATimeViewsAndFolderCursor(t *testing.T) {
+	cursor := encodeNameCursor("checkout", cursorDashboardID)
+	if _, ok := httpapi.DecodeTimeCursor(cursor); ok {
+		t.Error("a name cursor was accepted as a time cursor")
+	}
+	if _, err := decodeViewsCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor was accepted as a views cursor: %v", err)
+	}
+	if _, err := decodeFolderCursor(cursor); !errors.Is(err, ErrInvalidCursor) {
+		t.Errorf("a name cursor was accepted as a folder cursor: %v", err)
 	}
 }

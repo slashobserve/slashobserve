@@ -55,6 +55,7 @@ type commentJSON struct {
 	Body              string               `json:"body"`
 	Status            string               `json:"status"`
 	AllowedActions    []string             `json:"allowed_actions"`
+	Unread            bool                 `json:"unread"`
 	Author            authorJSON           `json:"author"`
 	Actor             actor.JSON           `json:"actor"`
 	CreatedAt         string               `json:"created_at"`
@@ -67,6 +68,7 @@ type commentJSON struct {
 	PanelPresent      bool                 `json:"panel_present"`
 	Mentions          []mentionJSON        `json:"mentions"`
 	CanEdit           bool                 `json:"can_edit"`
+	CanDelete         bool                 `json:"can_delete"`
 	Revision          *commentRevisionJSON `json:"revision"`
 }
 
@@ -127,7 +129,7 @@ func (cm *Comments) createComment(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/dashboards/"+comment.DashboardID+"/comments/"+comment.ID)
-	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
+	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
 func (cm *Comments) listComments(c *gin.Context) {
@@ -153,9 +155,8 @@ func (cm *Comments) listComments(c *gin.Context) {
 		return
 	}
 	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
-	canComment := folders.DashboardFrom(c).Abilities.Comment
 	for _, item := range items {
-		body.Comments = append(body.Comments, newCommentJSON(item, canComment))
+		body.Comments = append(body.Comments, newCommentJSON(item))
 	}
 	c.JSON(http.StatusOK, body)
 }
@@ -182,19 +183,24 @@ func (cm *Comments) patchComment(c *gin.Context) {
 		cm.fail(c, "set comment status", err)
 		return
 	}
-	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment, folders.DashboardFrom(c).Abilities.Comment)})
+	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
 func (cm *Comments) fail(c *gin.Context, action string, err error) {
-	if abortKnown(c, err) {
-		return
-	}
 	var invalid *InvalidInputError
+	var missing *VersionNotFoundError
 	switch {
+	case errors.As(err, &missing):
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": missing.Error(), "code": CodeVersionNotFound, "latest_version": missing.Latest})
+	case abortKnown(c, err):
+	case errors.As(err, &invalid) && isMentionCode(invalid.Code):
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
+	case errors.As(err, &invalid) && invalid.Code != "":
+		httpapi.AbortError(c, http.StatusBadRequest, invalid.Code, invalid.Message)
 	case errors.Is(err, revisions.ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", invalid)
 	default:
 		cm.service.dashboards.Fail(c, action, err)
 	}
@@ -204,18 +210,18 @@ func newAuthorJSON(a Author) authorJSON {
 	return authorJSON(a)
 }
 
-func commentAllowedActions(c Comment, canComment bool) []string {
-	if c.ParentID != "" {
+func commentAllowedActions(c Comment) []string {
+	if c.ParentID != "" || len(c.AllowedActions) == 0 {
 		return []string{}
 	}
-	allowed := allowedActions(c.Status, canComment)
+	allowed := slices.Clone(c.AllowedActions)
 	if c.Revision == nil || (c.Revision.Status != "queued" && c.Revision.Status != "running") {
 		return allowed
 	}
 	return slices.DeleteFunc(allowed, func(a string) bool { return a == string(ActionResolve) })
 }
 
-func newCommentJSON(c Comment, canComment bool) commentJSON {
+func newCommentJSON(c Comment) commentJSON {
 	out := commentJSON{
 		ID:                c.ID,
 		DashboardID:       c.DashboardID,
@@ -224,7 +230,8 @@ func newCommentJSON(c Comment, canComment bool) commentJSON {
 		PanelID:           httpapi.OptionalString(c.PanelID),
 		Body:              c.Body,
 		Status:            c.Status,
-		AllowedActions:    commentAllowedActions(c, canComment),
+		AllowedActions:    commentAllowedActions(c),
+		Unread:            c.Unread,
 		Author:            newAuthorJSON(c.Author),
 		Actor:             c.Actor.JSON(),
 		CreatedAt:         httpapi.FormatTime(c.CreatedAt),
@@ -233,6 +240,7 @@ func newCommentJSON(c Comment, canComment bool) commentJSON {
 		PanelPresent:      c.PanelPresent,
 		Mentions:          newMentionsJSON(c.Mentions),
 		CanEdit:           c.CanEdit,
+		CanDelete:         c.CanDelete,
 	}
 	if c.EditedAt != nil {
 		at := httpapi.FormatTime(*c.EditedAt)

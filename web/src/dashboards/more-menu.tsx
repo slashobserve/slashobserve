@@ -1,8 +1,11 @@
 import {
+  BookOpenIcon,
+  BracesIcon,
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
   PencilIcon,
+  PlusIcon,
   TvIcon,
   TvMinimalPlayIcon,
   Trash2Icon,
@@ -20,19 +23,52 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { docsPageUrl } from "@/lib/docs"
+import { pendingPaneHeading } from "@/components/dock/dock-focus"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 
+import { useCloseControls } from "./controls-sheet"
 import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
+import { HomeDashboardItem } from "./home-dashboard-item"
+import { ExportItems } from "./print/export-items"
 
 import { moreMenuButtonId } from "./edit/layout-store"
 
+export function moreLabel(menu: {
+  mayEdit: boolean
+  canAddPanel: boolean
+  canDuplicate: boolean
+  folderTv: boolean
+}): string {
+  const items = [
+    menu.mayEdit ? "edit details" : null,
+    menu.mayEdit && menu.canAddPanel ? "add panel" : null,
+    menu.mayEdit ? "edit Spec JSON" : null,
+    "open on sign-in",
+    "export",
+    "dashboards as code",
+    "print",
+    "image",
+    menu.canDuplicate ? "duplicate" : null,
+    "TV mode",
+    menu.folderTv ? "TV mode for this folder" : null,
+    "chart hover",
+    menu.mayEdit ? "delete" : null,
+  ]
+  return `More: ${items.filter((item) => item !== null).join(", ")}`
+}
+
 type Props = {
+  dashboardId: string
   mayEdit: boolean
   detailsBlockedBy: string | null
+  onAddPanel: (() => void) | null
+  onEditJson: () => void
   duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
+  exportBlockedBy: string | null
   onEditDetails: () => void
   onDuplicate: (() => void) | null
   onDelete: () => void
@@ -44,10 +80,14 @@ type Props = {
 }
 
 export function MoreMenu({
+  dashboardId,
   mayEdit,
   detailsBlockedBy,
+  onAddPanel,
+  onEditJson,
   duplicateBlockedBy,
   deleteBlockedBy,
+  exportBlockedBy,
   onEditDetails,
   onDuplicate,
   onDelete,
@@ -57,6 +97,7 @@ export function MoreMenu({
   cursorSync,
   onCursorSyncChange,
 }: Props) {
+  const closeControls = useCloseControls()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -64,7 +105,12 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit details, export, duplicate, TV mode, TV mode for this folder, chart hover, delete"
+            aria-label={moreLabel({
+              mayEdit,
+              canAddPanel: onAddPanel !== null,
+              canDuplicate: onDuplicate !== null,
+              folderTv: onTvModeFolder !== null,
+            })}
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -75,6 +121,7 @@ export function MoreMenu({
         align="end"
         className="min-w-max"
         finalFocus={() =>
+          pendingPaneHeading() ??
           !focusMovedOutOfMenu(document.activeElement, document.body)
         }
       >
@@ -89,10 +136,52 @@ export function MoreMenu({
               : `Edit details (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
+        {mayEdit && onAddPanel !== null ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={() => {
+              closeControls()
+              onAddPanel()
+            }}
+          >
+            <PlusIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Add panel"
+              : `Add panel (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={() => {
+              closeControls()
+              onEditJson()
+            }}
+          >
+            <BracesIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Edit Spec JSON"
+              : `Edit Spec JSON (${detailsBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
+        <HomeDashboardItem dashboardId={dashboardId} />
         <DropdownMenuItem onClick={onExport}>
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
         </DropdownMenuItem>
+        <DropdownMenuItem
+          render={
+            <a
+              href={docsPageUrl("use/dashboards-as-code")}
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
+        >
+          <BookOpenIcon aria-hidden="true" />
+          Dashboards as code
+        </DropdownMenuItem>
+        <ExportItems blockedBy={exportBlockedBy} />
         {onDuplicate !== null ? (
           <DropdownMenuItem
             disabled={duplicateBlockedBy !== null}

@@ -23,11 +23,11 @@ description: What SlashObserve protects and what an operator should know.
   A key matches no folder entry, so only an Admin key reaches a restricted folder.
   A My Dashboards folder is hidden from everyone but its owner, Admins included.
 - **Share links need sign-in.**
-  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
+  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "Dashboard not found" after they sign in, the same page as for an id that does not exist.
 - **Public links open one dashboard without sign-in.**
   Someone who manages a dashboard's folder can create a [public link](../use/public-links.md), the one way to show data to people with no session.
   Its token is 32 random bytes, shown once and stored only as a SHA-256 hash with a 12 character prefix, and request logs replace it with `:token`.
-  The routes under `/api/v1/public/` take no query text: they return the latest version's Spec with every query's text left out, and run only that dashboard's saved queries, under the proxy's limits, with 8 requests in flight per link.
+  The routes under `/api/v1/public/` take no query text: they return the latest version's Spec with every query's text, the dashboard's tags and its links left out, and run only that dashboard's saved queries, under the proxy's limits, with 8 requests in flight per link.
   A free link accepts a variable value only when it is one of the options the server lists for it.
   Links are refused for dashboards in My Dashboards and for dashboards whose queries read the viewer's identity, revoking deletes the link at once, and the server answers every public route with `Cache-Control: no-store`.
   A public link cannot be embedded in another site, because framing stays refused.
@@ -37,11 +37,14 @@ description: What SlashObserve protects and what an operator should know.
 ### Credentials stay on the server
 
 Datasource credentials never reach the browser.
-The datasources API returns health only, with no address, user or secret.
+The datasources list returns health only, with no address, user or secret.
+Only an Admin can read a datasource's address and login, and no route returns a stored credential: passwords, tokens, API keys and header values are sealed with `SLASHOBSERVE_SECRET_KEY` and written, never read.
+An address given in the app passes the outbound allowlist and address checks, and only an Admin can add, change or remove a datasource (see [Add datasources in the app](../connect/datasources-in-the-app.md)).
+A query error shows the datasource's own error text, truncated and never naming an address, so people can fix a query from it; that holds for datasources in the file and in the app, so point a datasource only at a store whose error text may be read by everyone who can run a query on it.
 The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
 There are three exceptions.
 
-- The draft preview lets a signed-in user run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+- The draft preview lets a signed-in user who can comment on the dashboard run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
 - The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
   Only the signed-in user who made the request, and a signed-in Admin, can call them, and for a revision only while the caller can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.
@@ -79,6 +82,9 @@ ClickHouse is queried only as a read-only user.
 - **Outbound requests are allowlisted.**
   The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
   A Grafana connection an Admin configures is the exception: it may use `http` and a private address, because the Grafana being migrated usually runs inside the same network.
+  A datasource an Admin adds in the app is the second exception: it may use `http` and a private address, and an IP address or a single-label host while the allowlist is unlocked, because the stores it queries usually run inside the same network.
+  The server checks the allowlist for these datasources every 10 seconds and at start, so a datasource whose domain is removed, or whose IP address is no longer allowed once `SLASHOBSERVE_OUTBOUND_DOMAINS` locks the list, turns Unavailable.
+  It never connects to a link-local, cloud metadata or unspecified address, even when a name resolves to one.
   This covers news feeds, images, map tiles, GeoJSON files and actions.
   Redirects are checked hop by hop, and no cookies or credentials are sent.
   A canvas or field action also needs Edit on the dashboard and a confirmation in the browser, and the server never follows a redirect for it.
@@ -128,7 +134,7 @@ People connect their own MCP clients, such as Claude Code, VS Code and Cursor, t
   Changing `SLASHOBSERVE_PUBLIC_URL` therefore disconnects every connected agent.
 - **A connected agent has exactly the person's role and folder access, read again on every request.**
   Deleting a person disconnects their agents.
-  To cut someone off, remove them at the identity provider and use Sign out everywhere on the People page; a removed person's agents otherwise keep working until their refresh token lapses (30 days unused) or the grant's 90 days end.
+  To cut someone off, remove them at the identity provider and deactivate them on the People page (see [People](../teams/people.md)), which ends their sessions, disconnects their agents and refuses their next sign-in; Sign out everywhere only ends sessions and connections, a connection approved but not yet completed included, and they can sign in again.
 - **The client's name is a self-chosen label.**
   It is frozen when the client registers, shown on the approval page with the host the browser returns to, and never part of an access decision; a client can claim any name, and can only mislabel writes made as the person who approved it.
 - **Abuse limits.**

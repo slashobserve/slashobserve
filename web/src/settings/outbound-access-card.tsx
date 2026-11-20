@@ -1,10 +1,21 @@
 import { useId, useRef, useState, type FormEvent, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import { outboundDomainKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,7 +28,9 @@ import {
   domainDraftError,
   domainProblemText,
   matchText,
+  originText,
   outboundDomainsQuery,
+  removeConsequence,
   useAllowDomain,
   useRemoveDomain,
   type OutboundDomain,
@@ -77,6 +90,11 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
   const remove = useRemoveDomain()
   const removeButtons = useRef(new Map<string, HTMLButtonElement>())
   const input = useRef<HTMLInputElement>(null)
+  const [chosen, setChosen] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const refreshing = useIsFetching({ queryKey: outboundDomainKeys.list() }) > 0
+  const confirming =
+    list.domains.find((entry) => entry.domain === chosen) ?? null
   const { principal } = useRouteContext({ from: "/_authed" })
   const managedByConfig = list.managed_by === "config"
   const isAdmin = roleAtLeast(principal.role, "admin")
@@ -87,6 +105,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
     const index = names.indexOf(domain)
     const neighbour = names[index + 1] ?? names[index - 1]
     remove.mutate(domain, {
+      onSettled: () => setChosen(null),
       onSuccess: () => {
         toast.success(`Removed ${domain}`)
         const next =
@@ -114,7 +133,12 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
               entry={entry}
               locked={locked}
               removing={remove.isPending && remove.variables === entry.domain}
-              onRemove={() => removeDomain(entry.domain)}
+              onRemove={() => {
+                setChosen(entry.domain)
+                void queryClient.invalidateQueries({
+                  queryKey: outboundDomainKeys.list(),
+                })
+              }}
               buttonRef={(button) => {
                 if (button === null) removeButtons.current.delete(entry.domain)
                 else removeButtons.current.set(entry.domain, button)
@@ -123,6 +147,46 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
           ))}
         </ul>
       )}
+      <AlertDialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open && !remove.isPending) setChosen(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="wrap-anywhere">
+              Stop allowing {confirming?.domain}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirming === null ? null : removeConsequence(confirming)} Allow
+              the domain again to undo this.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel aria-disabled={remove.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={remove.isPending || refreshing}
+              focusableWhenDisabled
+              aria-busy={remove.isPending}
+              onClick={() => {
+                if (confirming !== null) removeDomain(confirming.domain)
+              }}
+            >
+              {remove.isPending ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="motion-safe:animate-spin"
+                />
+              ) : null}
+              Remove domain
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {managedByConfig ? (
         <p className="border-t px-4 py-3 text-[13px] text-muted-foreground">
           Set by SLASHOBSERVE_OUTBOUND_DOMAINS on the server. Change it there
@@ -163,10 +227,7 @@ function DomainRow({
           {entry.added_at === null ? null : (
             <>
               {" - "}
-              {entry.added_by === null
-                ? "Added "
-                : `Added by ${entry.added_by} `}
-              <RelativeTime iso={entry.added_at} />
+              {originText(entry)} <RelativeTime iso={entry.added_at} />
             </>
           )}
         </div>

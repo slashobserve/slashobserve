@@ -28,7 +28,7 @@ func TestTitlesAreTrimmedAndBoundedInRunes(t *testing.T) {
 			t.Errorf("%q: %q, %v", in, got, err)
 		}
 	}
-	for _, in := range []string{"", "   ", strings.Repeat("é", 201), "a\x00b"} {
+	for _, in := range []string{"", "   ", strings.Repeat("é", 201), "a\x00b", "\u200b\u200b", "a\x07b", "a\u202eb", "a\nb"} {
 		if _, err := validateTitle(in); err == nil || codeOf(t, err) != CodeInvalidTitle {
 			t.Errorf("%q: %v", in, err)
 		}
@@ -88,6 +88,9 @@ func TestATextBodyIsMarkdownOfOneToEightThousandRunes(t *testing.T) {
 		"empty":          body(""),
 		"blank":          body(" \n\t"),
 		"NUL":            body("a\x00b"),
+		"zero width":     body("\u200b"),
+		"override":       body("a\u202eb"),
+		"bell":           body("a\x07b"),
 		"no markdown":    json.RawMessage(`{}`),
 		"extra key":      json.RawMessage(`{"markdown":"x","html":"y"}`),
 		"not an object":  json.RawMessage(`"x"`),
@@ -199,5 +202,75 @@ func TestAPanelBodyKeepsItsRangeInUTC(t *testing.T) {
 func TestTheSnapshotCapIsTwoMebibytes(t *testing.T) {
 	if MaxSnapshotBytes != 2097152 {
 		t.Errorf("cap %d", MaxSnapshotBytes)
+	}
+}
+
+const servicePanel = `{"type":"timeseries","title":"Rate","datasource":"prom","queries":[{"ref":"A","query":"sum(rate(errors{service=~\"$service\"}[$__rate_interval]))"}]}`
+
+func TestAPanelThatUsesAVariableNeedsItsValueAndNamesTheMissingOne(t *testing.T) {
+	_, err := panelBody(panelBlock(servicePanel))
+	if err == nil || codeOf(t, err) != CodeVariableMissing || !strings.Contains(err.Error(), `"service"`) {
+		t.Fatalf("a panel with an undeclared variable: %v", err)
+	}
+	var refused *InvalidInputError
+	if !errors.As(err, &refused) || len(refused.Issues) == 0 {
+		t.Errorf("the spec issues are kept: %+v", err)
+	}
+}
+
+func TestVariableValuesBecomeVariablesThatAreStoredWithThePanel(t *testing.T) {
+	raw := json.RawMessage(`{"panel":` + servicePanel + `,"variable_values":{"service":["checkout","cart"]}}`)
+	got, err := panelBody(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.VariableValues != nil || len(got.Variables) != 1 {
+		t.Fatalf("variables %+v values %+v", got.Variables, got.VariableValues)
+	}
+	v := got.Variables[0]
+	if v.Name != "service" || v.Type != spec.CustomVariable || !v.Multi || v.Default == nil || !v.Default.List || len(v.Default.Values) != 2 {
+		t.Errorf("variable %+v", v)
+	}
+	stored, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stored), "variable_values") {
+		t.Errorf("stored body keeps the input form: %s", stored)
+	}
+	again, err := panelBody(stored)
+	if err != nil || len(again.Variables) != 1 {
+		t.Fatalf("a stored body reads back: %v %+v", err, again)
+	}
+}
+
+func TestVariableValuesAreCheckedAndNotMixedWithVariables(t *testing.T) {
+	for name, raw := range map[string]string{
+		"an empty list":  `{"panel":` + servicePanel + `,"variable_values":{"service":[]}}`,
+		"an empty value": `{"panel":` + servicePanel + `,"variable_values":{"service":[""]}}`,
+		"both forms":     `{"panel":` + servicePanel + `,"variable_values":{"service":["a"]},"variables":[{"name":"service","type":"constant","value":"a"}]}`,
+	} {
+		if _, err := panelBody(json.RawMessage(raw)); err == nil || codeOf(t, err) != CodeInvalidBlock {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	many := make(map[string][]string)
+	for i := range MaxBlockVariables + 1 {
+		many[fmt.Sprintf("v%d", i)] = []string{"x"}
+	}
+	body, _ := json.Marshal(map[string]any{"panel": json.RawMessage(servicePanel), "variable_values": many})
+	if _, err := panelBody(body); err == nil || codeOf(t, err) != CodeInvalidBlock {
+		t.Errorf("too many variables: %v", err)
+	}
+}
+
+func TestADashboardVariableWithADefaultIsKeptAsSent(t *testing.T) {
+	raw := json.RawMessage(`{"panel":` + servicePanel + `,"variables":[{"name":"service","type":"custom","multi":true,"includeAll":true,"options":[{"text":"checkout","value":"checkout"},{"text":"cart","value":"cart"}],"default":"$__all"}]}`)
+	got, err := panelBody(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Variables) != 1 || got.Variables[0].Default == nil || got.Variables[0].Default.Values[0] != spec.SelectAll {
+		t.Errorf("variables %+v", got.Variables)
 	}
 }

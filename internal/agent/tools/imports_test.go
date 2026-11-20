@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -163,5 +165,138 @@ func TestImportedOutStaysInsideTheResultCapWithALongFolderTitle(t *testing.T) {
 	}
 	if !out.Truncated || len(out.Attention) == 0 || len(out.Attention) >= 400 {
 		t.Fatalf("attention rows = %d, truncated = %t, want a cut list", len(out.Attention), out.Truncated)
+	}
+}
+
+func TestImportRefusesContradictoryOrMalformedUpdateInput(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	tests := []struct {
+		name  string
+		input map[string]any
+	}{
+		{"update with import_as_new", map[string]any{"json": `{"title":"x"}`, "update_dashboard": dashA, "import_as_new": true}},
+		{"update that is not an id", map[string]any{"json": `{"title":"x"}`, "update_dashboard": "checkout"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := json.Marshal(tt.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := r.Call(ctx, nameImportGrafana, input)
+			if err != nil || !res.IsError || errorCode(t, res) != codeInvalidRequest {
+				t.Fatalf("res = %#v, err = %v, want invalid_request", res, err)
+			}
+		})
+	}
+}
+
+func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	r.deps.PublicURL = &url.URL{Scheme: "https", Host: "so.example"}
+	tests := []struct {
+		name      string
+		canUpdate bool
+		want      []string
+	}{
+		{"editable", true, []string{"update_dashboard argument to " + dashA, "import_as_new"}},
+		{"read only", false, []string{"cannot edit it", "import_as_new"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
+			if err != nil || !res.IsError {
+				t.Fatalf("res = %#v, err = %v", res, err)
+			}
+			body, ok := res.Content.(alreadyImportedOut)
+			if !ok || body.Code != codeAlreadyImported || body.Existing.DashboardID != dashA || body.Existing.Version != 3 || body.Existing.CanUpdate != tt.canUpdate || !strings.HasPrefix(body.Existing.URL, "https://so.example/") {
+				t.Fatalf("body = %#v", res.Content)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(body.Message, want) {
+					t.Errorf("error %q lacks %q", body.Message, want)
+				}
+			}
+		})
+	}
+	res, err := r.importFailed(imports.ErrNotFound)
+	if body, ok := res.Content.(importErrorOut); err != nil || !ok || body.Code != codeNotImported {
+		t.Fatalf("res = %#v, err = %v, want not_imported", res, err)
+	}
+}
+
+func TestAnImportRunMayNotUpdateAnExistingDashboard(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	dashboard := `{"title":"Checkout","panels":[]}`
+	input, err := json.Marshal(map[string]any{"json": dashboard, "update_dashboard": dashA})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := r.Call(WithRun(ctx, Run{Mode: ModeCreate, Prompt: "Import this: " + dashboard}), nameImportGrafana, input)
+	if err != nil || !res.IsError || errorCode(t, res) != codeInvalidRequest {
+		t.Fatalf("res = %#v, err = %v, want invalid_request before any save", res, err)
+	}
+}
+
+func TestAnImportRunDoesNotAskTheServerToRefuseAnImportedFile(t *testing.T) {
+	in := importArgs{JSON: "{}"}
+	for _, tt := range []struct {
+		name   string
+		in     importArgs
+		scoped bool
+		want   bool
+	}{
+		{"a connected client", in, false, true},
+		{"a connected client importing as new", importArgs{JSON: "{}", ImportAsNew: true}, false, false},
+		{"a run that creates a dashboard", in, true, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _, ok := tt.in.request("", pgtype.UUID{}, tt.scoped)
+			if !ok || req.RefuseExisting != tt.want {
+				t.Fatalf("RefuseExisting = %v (ok %v), want %v", req.RefuseExisting, ok, tt.want)
+			}
+		})
+	}
+}
+
+func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"})
+	body, ok := res.Content.(importErrorOut)
+	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Message, `"abc"`) || !strings.Contains(body.Message, `"zzz"`) || !strings.Contains(body.Message, "new dashboard") {
+		t.Fatalf("res = %#v, err = %v", res.Content, err)
+	}
+}
+
+func TestImportContentRefusalRefusesWhatTheAgentCannotWrite(t *testing.T) {
+	frame := `"gridPos":{"x":0,"y":0,"w":6,"h":4}`
+	tests := []struct {
+		name   string
+		panel  string
+		refuse bool
+	}{
+		{"html text panel", `{"id":1,"title":"T",` + frame + `,"type":"text","options":{"mode":"html","content":"<b>Hi</b>"}}`, true},
+		{"unsupported panel kept as a placeholder", `{"id":1,"title":"T",` + frame + `,"type":"no-such-grafana-panel"}`, true},
+		{"markdown text panel", `{"id":1,"title":"T",` + frame + `,"type":"text","options":{"mode":"markdown","content":"Hi"}}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converted, err := grafana.Convert([]byte(`{"title":"D","schemaVersion":39,"panels":[`+tt.panel+`]}`), grafana.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, refused := importContentRefusal(converted.Spec)
+			if refused != tt.refuse {
+				t.Fatalf("refused = %v, want %v (res = %#v)", refused, tt.refuse, res)
+			}
+			if body, ok := res.Content.(importErrorOut); refused && (!res.IsError || !ok || body.Code != codeImportContent) {
+				t.Fatalf("res = %#v, want an error with code %q", res, codeImportContent)
+			}
+			if body, _ := res.Content.(importErrorOut); refused && (strings.Contains(body.Message, "observe import") || !strings.Contains(body.Message, "ask a person")) {
+				t.Fatalf("refusal = %q, want it to send the agent to a person, not to another import path", body.Message)
+			}
+		})
 	}
 }

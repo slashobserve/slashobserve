@@ -34,6 +34,20 @@ paths:
     $ref: "./paths/users.yaml#/users-id"
   /users/{id}/sessions:
     $ref: "./paths/users.yaml#/users-id-sessions"
+  /users/{id}/deactivate:
+    $ref: "./paths/users.yaml#/users-id-deactivate"
+  /users/{id}/reactivate:
+    $ref: "./paths/users.yaml#/users-id-reactivate"
+  /invites:
+    $ref: "./paths/invites.yaml#/invites"
+  /invites/{id}:
+    $ref: "./paths/invites.yaml#/invites-id"
+  /teams:
+    $ref: "./paths/teams.yaml#/teams"
+  /teams/{id}:
+    $ref: "./paths/teams.yaml#/teams-id"
+  /teams/{id}/members/{user_id}:
+    $ref: "./paths/teams.yaml#/teams-id-members-userid"
   /outbound-domains:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
@@ -72,6 +86,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version"
   /dashboards/{id}/versions/{version}/restore:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version-restore"
+  /dashboards/{id}/panels:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-panels"
   /dashboards/{id}/duplicate:
     $ref: "./paths/dashboards.yaml#/dashboards-id-duplicate"
   /dashboards/{id}/diff:
@@ -86,6 +102,8 @@ paths:
     $ref: "./paths/proposals.yaml#/proposals-id-discard"
   /dashboards/{id}/views:
     $ref: "./paths/dashboards.yaml#/dashboards-id-views"
+  /dashboards/{id}/viewers:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-viewers"
   /dashboards/{id}/import:
     $ref: "./paths/imports.yaml#/dashboards-id-import"
   /dashboards/{id}/actions:
@@ -98,18 +116,30 @@ paths:
     $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
   /threads:
     $ref: "./paths/threads.yaml#/threads"
+  /threads/mentionable:
+    $ref: "./paths/threads.yaml#/threads-mentionable"
   /threads/{thread_id}/messages:
     $ref: "./paths/threads.yaml#/threads-threadid-messages"
   /threads/{thread_id}/resolve:
     $ref: "./paths/threads.yaml#/threads-threadid-resolve"
   /threads/{thread_id}/reopen:
     $ref: "./paths/threads.yaml#/threads-threadid-reopen"
+  /threads/{thread_id}/read:
+    $ref: "./paths/threads.yaml#/threads-threadid-read"
   /messages/{message_id}:
     $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
+  /datasources/test:
+    $ref: "./paths/datasources.yaml#/datasources-test"
+  /datasources/{uid}:
+    $ref: "./paths/datasources.yaml#/datasources-uid"
+  /datasources/{uid}/config:
+    $ref: "./paths/datasources.yaml#/datasources-uid-config"
+  /datasources/{uid}/recheck:
+    $ref: "./paths/datasources.yaml#/datasources-uid-recheck"
   /datasources/{uid}/lint:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
   /datasources/{uid}/preview:
@@ -138,6 +168,10 @@ paths:
     $ref: "./paths/draft-query.yaml#/datasources-uid-draft-query"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
+  /datasources/{uid}/schema:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-schema"
+  /datasources/{uid}/sample:
+    $ref: "./paths/datasource-discovery.yaml#/datasources-uid-sample"
   /datasources/{uid}/labels:
     $ref: "./paths/names.yaml#/datasources-uid-labels"
   /datasources/{uid}/labels/{name}/values:
@@ -166,6 +200,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-retry"
   /observe/{id}/build/save:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
+  /observe/{id}/observation:
+    $ref: "./paths/observe.yaml#/observe-id-observation"
   /observe/{id}/build/panels/{panel_id}/data:
     $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
   /observe/{id}/build/variables/{name}/values:
@@ -194,6 +230,12 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
   /blocks/{id}:
     $ref: "./paths/observations.yaml#/blocks-id"
+  /observations/{id}/pin:
+    $ref: "./paths/observations.yaml#/observations-id-pin"
+  /observations/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/observations-id-dashboard"
+  /blocks/{id}/dashboard:
+    $ref: "./paths/observations.yaml#/blocks-id-dashboard"
   /blocks/{id}/keep:
     $ref: "./paths/observations.yaml#/blocks-id-keep"
   /blocks/{id}/discard:
@@ -260,6 +302,8 @@ paths:
     $ref: "./paths/webhooks.yaml#/webhooks-id-secret"
   /webhooks/{id}/test:
     $ref: "./paths/webhooks.yaml#/webhooks-id-test"
+  /webhooks/{id}/skip:
+    $ref: "./paths/webhooks.yaml#/webhooks-id-skip"
   /webhooks/{id}/deliveries:
     $ref: "./paths/webhooks.yaml#/webhooks-id-deliveries"
   /repairs:
@@ -268,6 +312,8 @@ paths:
     $ref: "./paths/stars.yaml#/dashboards-id-star"
   /stars:
     $ref: "./paths/stars.yaml#/stars"
+  /me/home-dashboard:
+    $ref: "./paths/home-dashboard.yaml#/me-home-dashboard"
   /dashboards/{id}/public-links:
     $ref: "./paths/public.yaml#/dashboards-id-public-links"
   /dashboards/{id}/public-links/{link_id}:
@@ -312,6 +358,8 @@ paths:
     $ref: "./paths/inbox.yaml#/inbox"
   /inbox/read:
     $ref: "./paths/inbox.yaml#/inbox-read"
+  /inbox/items/{seq}:
+    $ref: "./paths/inbox.yaml#/inbox-item"
 components:
   securitySchemes:
     sessionCookie:
@@ -333,6 +381,25 @@ components:
           type: string
         code:
           type: string
+        reason:
+          type: string
+          description: >-
+            Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
+            The `error` message names the field and says what to change.
+        needed_role:
+          type: string
+          enum: [viewer, commenter, editor, admin]
+          description: On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+        needed_access:
+          type: string
+          enum: [view, comment, edit, manage]
+          description: On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+        folder_title:
+          type: string
+          description: The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder.
+        latest_version:
+          type: integer
+          description: On a `version_not_found` refusal, the dashboard's latest version.
     Issue:
       type: object
       additionalProperties: false
@@ -348,6 +415,8 @@ components:
             `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`)
             and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`).
             A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`).
+            A link address with a scheme other than http, https or mailto is `unsafe_link` (path `/links/{i}/url` or the `url` of the panel, override or canvas element link).
+            A dashboard or panel title that fails the text rule (`docs/reference/text-rules.md`) is reported at `/title` or `/panels/{i}/title` with the code `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`; a title is trimmed before it is stored.
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
             `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal`
@@ -368,9 +437,114 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Issue"
+        reason:
+          type: string
+          description: >-
+            Present when an observation title, summary or text block failed the shared text rule (`docs/reference/text-rules.md`); the same values as `reason` on `Error`.
     Role:
       type: string
       enum: [admin, editor, commenter, viewer]
+    Invite:
+      type: object
+      additionalProperties: false
+      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        invited_by:
+          type: string
+          description: The name of the Admin or service account that sent the invite.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        sign_in_url:
+          type: string
+          description: The address to share with the person; signing in there with the invited email uses the invite.
+    InviteList:
+      type: object
+      additionalProperties: false
+      required: [invites, next_cursor]
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invite"
+        next_cursor:
+          type: string
+          nullable: true
+    TeamMember:
+      type: object
+      additionalProperties: false
+      required: [id, name, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    Team:
+      type: object
+      additionalProperties: false
+      required: [id, name, created_by, created_at, members]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The group name a folder entry uses to share with the team's members.
+        created_by:
+          type: string
+          description: The name of the Admin or service account that created the team.
+        created_at:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+    TeamList:
+      type: object
+      additionalProperties: false
+      required: [teams]
+      properties:
+        teams:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/Team"
+    CreateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+    CreateInviteRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+        role:
+          $ref: "#/components/schemas/Role"
     RoleSource:
       type: string
       enum: [admin_emails, first_user, group, manual, default]
@@ -606,6 +780,9 @@ components:
         - role_group
         - role_set_by
         - role_locked
+        - deactivated_at
+        - deactivated_by
+        - personal_items
       properties:
         id:
           type: string
@@ -651,6 +828,31 @@ components:
         role_locked:
           type: boolean
           description: True when the role cannot be changed through the API.
+        deactivated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+        deactivated_by:
+          type: string
+          nullable: true
+          description: The name of the Admin who deactivated the person.
+        personal_items:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [dashboards, observations, saved_searches]
+          description: What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person.
+          properties:
+            dashboards:
+              type: integer
+              minimum: 0
+            observations:
+              type: integer
+              minimum: 0
+            saved_searches:
+              type: integer
+              minimum: 0
     ConnectedAgent:
       type: object
       additionalProperties: false
@@ -1029,11 +1231,27 @@ components:
     OutboundDomain:
       type: object
       additionalProperties: false
-      required: [domain, added_at, added_by]
+      required: [domain, added_at, added_by, from_connection, used_by]
       properties:
         domain:
           type: string
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
+        from_connection:
+          type: boolean
+          description: True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host.
+        used_by:
+          type: array
+          description: The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, name]
+            properties:
+              kind:
+                type: string
+                enum: [webhook, grafana_connection, datasource]
+              name:
+                type: string
         added_at:
           type: string
           format: date-time
@@ -1343,7 +1561,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1351,6 +1569,10 @@ components:
           type: string
         name:
           type: string
+        source:
+          type: string
+          enum: [file, app]
+          description: "`file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app."
         index:
           type: string
           description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.
@@ -1361,10 +1583,14 @@ components:
           type: boolean
         message:
           type: string
+          description: A fixed sentence naming the kind of failure; absent when healthy.
+        detail:
+          type: string
+          description: The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret.
         checked_at:
           type: string
           format: date-time
-          description: When the server last checked the datasource; checks are cached for 10 seconds.
+          description: When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
         dashboard_count:
           type: integer
           minimum: 0
@@ -1378,6 +1604,235 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DatasourceStatus"
+    DatasourceLimits:
+      type: object
+      additionalProperties: false
+      properties:
+        timeout:
+          type: string
+          description: A duration such as `30s`; empty uses the adapter default.
+        max_series:
+          type: integer
+          minimum: 0
+        max_points:
+          type: integer
+          minimum: 0
+        max_rows:
+          type: integer
+          minimum: 0
+        max_concurrent_queries:
+          type: integer
+          minimum: 0
+          maximum: 1024
+          description: The most queries this datasource runs at once across the fleet; 0 uses the default of 32.
+    DatasourceFieldRoles:
+      type: object
+      additionalProperties: false
+      description: Which fields of an Elasticsearch or OpenSearch index play which role in logs and traces.
+      properties:
+        message:
+          type: string
+        level:
+          type: string
+        service:
+          type: string
+        trace_id:
+          type: string
+        span_id:
+          type: string
+    DatasourceSecrets:
+      type: object
+      additionalProperties: false
+      description: Credentials, written and never read back. A field left out keeps what is stored; a value replaces it.
+      properties:
+        password:
+          type: string
+          description: The basic-auth password, or the ClickHouse password.
+        bearer_token:
+          type: string
+        api_key:
+          type: string
+          description: The Elasticsearch or OpenSearch API key.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Custom request headers by name. Every value is treated as a credential.
+    DatasourceDraft:
+      type: object
+      additionalProperties: false
+      description: >-
+        A datasource definition. Creating needs `uid`, `type` and `address`.
+        Changing and testing a saved datasource take only the fields to change.
+      properties:
+        uid:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+        type:
+          type: string
+          enum: [prometheus, clickhouse, loki, tempo, elasticsearch, opensearch]
+        name:
+          type: string
+          maxLength: 100
+          description: The display name; the uid when empty.
+        grafana_uids:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+          description: Grafana datasource uids this one stands for when dashboards are imported.
+        address:
+          type: string
+          description: An http or https URL, or `host:port` for ClickHouse. A login belongs in `username` and `secrets`, not here.
+        username:
+          type: string
+          description: The basic-auth user, or the ClickHouse user.
+        database:
+          type: string
+          description: ClickHouse only.
+        tls:
+          type: boolean
+          description: ClickHouse only.
+        tenant_id:
+          type: string
+          description: Loki only.
+        scrape_interval:
+          type: string
+          description: Prometheus only, a duration such as `15s`.
+        index:
+          type: string
+          description: Elasticsearch and OpenSearch only.
+        time_field:
+          type: string
+        query_language:
+          type: string
+          enum: ["", kql, lucene]
+        fields:
+          $ref: "#/components/schemas/DatasourceFieldRoles"
+        limits:
+          $ref: "#/components/schemas/DatasourceLimits"
+        secrets:
+          $ref: "#/components/schemas/DatasourceSecrets"
+        clear_secrets:
+          type: array
+          items:
+            type: string
+          description: Credentials to remove, each `password`, `bearer_token`, `api_key` or `header:<name>`.
+    DatasourceConfig:
+      type: object
+      additionalProperties: false
+      required: [uid, type, name, source, address, secrets_set, created_at, updated_at]
+      description: A datasource added in the app, without its credentials.
+      properties:
+        uid:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+          enum: [app]
+        grafana_uids:
+          type: array
+          items:
+            type: string
+        address:
+          type: string
+        username:
+          type: string
+        database:
+          type: string
+        tls:
+          type: boolean
+        tenant_id:
+          type: string
+        scrape_interval:
+          type: string
+        index:
+          type: string
+        time_field:
+          type: string
+        query_language:
+          type: string
+        fields:
+          $ref: "#/components/schemas/DatasourceFieldRoles"
+        limits:
+          $ref: "#/components/schemas/DatasourceLimits"
+        secrets_set:
+          type: array
+          items:
+            type: string
+          description: Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DatasourceTestResult:
+      type: object
+      additionalProperties: false
+      required: [healthy]
+      properties:
+        healthy:
+          type: boolean
+        message:
+          type: string
+          description: A fixed sentence naming the kind of failure; absent when healthy.
+        detail:
+          type: string
+          description: The cause when the server knows it; never an address, user or secret.
+    InvalidDatasourceError:
+      type: object
+      additionalProperties: false
+      required: [error, code, fields]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_datasource]
+        fields:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    DatasourceInUseError:
+      type: object
+      additionalProperties: false
+      required: [error, code, used_by, hidden]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [datasource_in_use]
+        used_by:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, id, title]
+            properties:
+              kind:
+                type: string
+                enum: [dashboard, saved_search]
+              id:
+                type: string
+                format: uuid
+              title:
+                type: string
+        hidden:
+          type: integer
+          minimum: 0
+          description: How many more dashboards and saved searches use it in folders the caller cannot see.
     MetricName:
       type: object
       additionalProperties: false
@@ -1394,6 +1849,96 @@ components:
           type: string
         table:
           type: string
+    DatasourceTables:
+      type: object
+      additionalProperties: false
+      required: [tables, truncated]
+      properties:
+        tables:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceColumns:
+      type: object
+      additionalProperties: false
+      required: [table, columns, truncated]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+        truncated:
+          type: boolean
+        truncated_by:
+          type: string
+          enum: [bytes, limit]
+        next_offset:
+          type: integer
+          minimum: 0
+    DatasourceSpanSchema:
+      type: object
+      additionalProperties: false
+      required: [datasource, columns, rows, attributes]
+      properties:
+        datasource:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        attributes:
+          type: array
+          items:
+            type: string
+        truncated:
+          type: boolean
+    DatasourceSample:
+      type: object
+      additionalProperties: false
+      required: [table, columns, rows]
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items: {}
+        truncated:
+          type: boolean
     Author:
       type: object
       additionalProperties: false
@@ -1443,7 +1988,7 @@ components:
           description: "The one display text: the name; `<name> (via <client>)` over MCP, `(via MCP)` when the client sent no name; `Observe Agent for <name>` when the built-in agent acted."
     ActivityType:
       type: string
-      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.resolved, observation.reopened, observation.published, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept]
+      enum: [dashboard.created, dashboard.version_created, dashboard.restored, dashboard.moved, dashboard.deleted, annotation.created, annotation.updated, annotation.deleted, finding.created, finding.pinned, finding.moved, saved_search.created, saved_search.updated, saved_search.moved, saved_search.deleted, observation.created, observation.updated, observation.moved, observation.deleted, observation.resolved, observation.reopened, observation.published, observation.rca_withdrawn, observation.block_added, observation.block_updated, observation.block_kept, observation.block_discarded, observation.block_removed, proposal.opened, proposal.updated, proposal.merged, proposal.discarded, thread.opened, thread.replied, thread.edited, thread.deleted, thread.resolved, thread.reopened, thread.mentioned, run.queued, run.started, run.succeeded, run.failed, run.canceled, run.canceling, run.released, run.kept, public_link.created, public_link.revoked, user.role_changed, user.signed_out_everywhere, user.invited, user.invite_updated, user.invite_withdrawn, user.deactivated, user.reactivated, user.removed, service_account.created, service_account.updated, service_account.deleted, service_account.key_created, service_account.key_revoked, webhook.created, webhook.updated, webhook.secret_rotated, webhook.deleted, mcp_client.connected, mcp_client.disconnected, outbound_domain.added, outbound_domain.removed, grafana_connection.created, grafana_connection.updated, grafana_connection.deleted, datasource.created, datasource.updated, datasource.deleted]
     ActivityEvent:
       type: object
       additionalProperties: false
@@ -1464,7 +2009,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
             id:
               type: string
               format: uuid
@@ -1503,7 +2048,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -1519,7 +2064,7 @@ components:
           properties:
             kind:
               type: string
-              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run]
+              enum: [dashboard, annotation, finding, saved_search, observation, proposal, thread, run, user, service_account, webhook, mcp_client, outbound_domain, grafana_connection, datasource, public_link]
             id:
               type: string
               format: uuid
@@ -1541,10 +2086,18 @@ components:
         reason:
           type: string
           nullable: true
-          enum: [proposal, requested_block, mention, reply, run_failed, repaired]
+          enum: [proposal, requested_block, mention, reply, run_failed, repaired, proposal_closed]
           description: The first rule the event matches, or null in the `everything` view when it matches none.
         unread:
           type: boolean
+        target_title:
+          type: string
+          nullable: true
+          description: The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists.
+        excerpt:
+          type: string
+          nullable: true
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items.
     InboxList:
       type: object
       additionalProperties: false
@@ -1722,10 +2275,41 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+    HomeDashboard:
+      type: object
+      additionalProperties: false
+      required: [status, dashboard, set_at]
+      properties:
+        status:
+          type: string
+          enum: [none, ok, gone, unreadable]
+          description: "`none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it."
+        dashboard:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, title, folder_id, folder_title]
+          description: Set only when `status` is `ok`.
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            folder_id:
+              type: string
+              format: uuid
+            folder_title:
+              type: string
+        set_at:
+          type: string
+          nullable: true
+          format: date-time
+          description: When the person chose it; null when `status` is `none`.
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, folder, permissions]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions]
       properties:
         id:
           type: string
@@ -1762,6 +2346,10 @@ components:
           type: integer
           minimum: 0
           description: Open comment threads on the dashboard; replies are not counted.
+        view_count:
+          type: integer
+          minimum: 0
+          description: Person-days on which someone opened the dashboard in the last 30 UTC days, today included.
         folder:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
@@ -1990,7 +2578,7 @@ components:
     ProposalSummary:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions]
       description: A proposed change to a dashboard, without its document.
       properties:
         id:
@@ -2006,7 +2594,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
-          description: The summary of the first revision, cut to 200 characters.
+          description: The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary.
         revision:
           type: integer
           minimum: 1
@@ -2050,6 +2638,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2074,7 +2668,7 @@ components:
     Proposal:
       type: object
       additionalProperties: false
-      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, merged_version, behind, latest_version, allowed_actions, spec, changes, conflicts]
+      required: [id, dashboard_id, state, title, revision, base_version, summary, author, actor, origin, origin_client, run_id, created_at, updated_at, closed_at, closed_by, close_reason, merged_version, behind, latest_version, allowed_actions, spec, changes, diff, conflicts]
       description: A proposed change to a dashboard with its head revision's document and what it changes.
       properties:
         id:
@@ -2134,6 +2728,12 @@ components:
             - $ref: "#/components/schemas/Author"
           nullable: true
           description: Who merged or discarded the proposal; null while it is open.
+        close_reason:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal.
         merged_version:
           type: integer
           minimum: 1
@@ -2164,6 +2764,11 @@ components:
           items:
             $ref: "#/components/schemas/ProposalChange"
           description: What the head revision adds, changes, removes or moves compared with `base_version`.
+        diff:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpecChange"
+          description: The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions.
         conflicts:
           type: array
           items:
@@ -2268,6 +2873,7 @@ components:
         - body
         - status
         - allowed_actions
+        - unread
         - author
         - actor
         - created_at
@@ -2280,6 +2886,7 @@ components:
         - panel_present
         - mentions
         - can_edit
+        - can_delete
         - revision
       properties:
         id:
@@ -2313,6 +2920,9 @@ components:
             type: string
             enum: [open, reply, resolve, reopen]
           description: What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md.
+        unread:
+          type: boolean
+          description: Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         author:
           $ref: "#/components/schemas/Author"
         actor:
@@ -2357,6 +2967,9 @@ components:
         can_edit:
           type: boolean
           description: Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this comment; see `can_delete` on a thread message.
         revision:
           type: object
           nullable: true
@@ -2403,6 +3016,7 @@ components:
         - panel_present
         - status
         - allowed_actions
+        - unread
         - created_at
         - updated_at
         - resolved_at
@@ -2451,7 +3065,10 @@ components:
           items:
             type: string
             enum: [reply, resolve, reopen]
-          description: What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`.
+          description: What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`.
+        unread:
+          type: boolean
+          description: Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.
         created_at:
           type: string
           format: date-time
@@ -2488,7 +3105,7 @@ components:
     Message:
       type: object
       additionalProperties: false
-      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, block_id, reply_to]
+      required: [id, thread_id, body, actor, created_at, updated_at, edited_at, mentions, can_edit, can_delete, block_id, reply_to]
       properties:
         id:
           type: string
@@ -2517,7 +3134,10 @@ components:
             $ref: "#/components/schemas/Mention"
         can_edit:
           type: boolean
-          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment.
+          description: Whether the caller may edit this message, which only its author may do and only while the caller can still comment; false for a reply an agent run wrote.
+        can_delete:
+          type: boolean
+          description: Whether the caller may delete this message. Its author may, while they can still comment, unless an agent run wrote it; the first message of a thread also needs that nobody else wrote in the thread. Anyone who manages the target's folder may delete any message.
         block_id:
           type: string
           format: uuid
@@ -2543,7 +3163,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [id, status, assigned_kind]
-          description: The run this write started, set only on the response of a write sent with `start_runs`; null on every list read and edit.
+          description: The run this message started, set on the response of a write sent with `start_runs` and on every read of the message while that run exists; null when the message started no run, and on an edit.
           properties:
             id:
               type: string
@@ -2564,8 +3184,8 @@ components:
           properties:
             code:
               type: string
-              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs]
-              description: "`mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
+              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs, investigation_person_only]
+              description: "`investigation_person_only` when an MCP client or key asks the agent on an observation, which only a person starts from the web app or the CLI, `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
             message:
               type: string
     ThreadPage:
@@ -2587,6 +3207,48 @@ components:
         can_comment:
           type: boolean
           description: Whether the caller may start threads and write messages on the target.
+    MentionablePeople:
+      type: object
+      additionalProperties: false
+      required: [people, more]
+      properties:
+        more:
+          type: boolean
+          description: True when more people match than `limit` returned; narrow `q` to reach them.
+        people:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, email]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have none.
+              email:
+                type: string
+    DashboardViewers:
+      type: object
+      additionalProperties: false
+      required: [viewers]
+      properties:
+        viewers:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                description: The person's name, or their email address when they have no name.
     ThreadEnvelope:
       type: object
       additionalProperties: false
@@ -2653,6 +3315,10 @@ components:
           type: integer
           minimum: 0
           description: The query's resolution; 0 for an instant query.
+        executed:
+          type: string
+          description: >-
+            The query text as it went to the datasource, after variables, macros and the dashboard's ad hoc filters and group by were applied; absent for an expression query and when the response was built before the server kept it.
         exemplars:
           type: string
           enum: [ok, truncated, unavailable, unsupported]
@@ -2702,11 +3368,31 @@ components:
           description: True when a query stopped at its row limit, so more rows exist in the range.
         partial:
           type: boolean
-          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks.
+          description: True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks, or when a time series or trend panel returned only its highest series (see series_total).
+        series_shown:
+          type: integer
+          description: How many series the panel's data holds after the cap; present only when the cap dropped some.
+        series_total:
+          type: integer
+          description: How many series the panel's queries returned before the cap of 50 per query kept the highest peaks; present only when the cap dropped some, and then note says so.
+        warning:
+          type: string
+          description: The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one.
+        hint:
+          type: string
+          description: >-
+            One plain sentence that says why a search returned no rows when the datasource can tell, present only on an empty Elasticsearch or OpenSearch result whose KQL query asks for a keyword value that no document has in the range:
+            it names the value and the values the field does have, and says when one differs only by letter case, because keyword values are case sensitive.
+        note:
+          type: string
+          description: >-
+            One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page:
+            read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter.
+            Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing.
         rows:
           type: integer
           minimum: 0
-          description: The rows across all frames (log lines, traces, spans, table rows); 0 for series data.
+          description: The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0.
         rows_total:
           type: integer
           minimum: 0
@@ -2786,6 +3472,9 @@ components:
           type: integer
           minimum: 1
           description: The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused.
+        plain:
+          type: boolean
+          description: True when the rows are a plain table, not log lines, such as a ClickHouse result with no `Timestamp` column; a client shows them as a table and has no volume to draw.
     PanelDataError:
       type: object
       additionalProperties: false
@@ -2801,7 +3490,7 @@ components:
     LogVolume:
       type: object
       additionalProperties: false
-      required: [step_ms, total, buckets]
+      required: [step_ms, total, buckets, partial]
       properties:
         step_ms:
           type: integer
@@ -2814,6 +3503,13 @@ components:
           description: Every bucket of the aligned range, oldest first, empty buckets included.
           items:
             $ref: "#/components/schemas/LogVolumeBucket"
+        partial:
+          type: boolean
+          description: Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero.
+        counted_from:
+          type: string
+          format: date-time
+          description: Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
     LogVolumeBucket:
       type: object
       additionalProperties: false
@@ -3227,7 +3923,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -3626,6 +4322,20 @@ components:
         updated_at:
           type: string
           format: date-time
+    AnswerSaved:
+      type: object
+      additionalProperties: false
+      required: [observation_id, url, replayed]
+      properties:
+        observation_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          description: The address of the observation, empty when the server has no public URL configured.
+        replayed:
+          type: boolean
+          description: True when the answer was already an observation, so this call changed nothing.
     AgentBuildSaved:
       type: object
       additionalProperties: false
@@ -3742,7 +4452,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         attempts:
           type: integer
           minimum: 0
@@ -3766,7 +4476,7 @@ components:
         url:
           type: string
           nullable: true
-          description: The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`.
+          description: The address of the dashboard, or of the observation for an investigation or for a question whose answer was saved as an observation, set when the status is `succeeded`; null while an answer is only on the request.
         error:
           type: string
           nullable: true
@@ -3914,7 +4624,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Finding"
-          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved."
+          description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it."
     RequestSummary:
       type: object
       additionalProperties: false
@@ -3977,7 +4687,7 @@ components:
         result_kind:
           type: string
           enum: [none, version, partial_version, proposal, suggestion, observation]
-          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version."
+          description: "What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version."
         allowed_actions:
           type: array
           uniqueItems: true
@@ -4091,7 +4801,7 @@ components:
           type: string
           nullable: true
           maxLength: 4000
-          description: An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt.
+          description: An instruction for the continued run, trimmed; 1 to 4000 visible characters without control or bidirectional override characters, the same rule as a prompt.
     InvalidTransition:
       type: object
       additionalProperties: false
@@ -4131,6 +4841,17 @@ components:
           format: uuid
         name:
           type: string
+    FindingAskOn:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: The dashboard's title, for a button such as "Ask this on Checkout".
     Finding:
       type: object
       additionalProperties: false
@@ -4140,6 +4861,7 @@ components:
         - agent_request_id
         - dashboard_id
         - folder_id
+        - ask_on
         - title
         - markdown
         - evidence
@@ -4157,7 +4879,8 @@ components:
         observation_id:
           type: string
           format: uuid
-          description: The observation this finding lives in
+          nullable: true
+          description: The observation this finding lives in; null for the answer to a plain question, which stays on its run until its requester saves it as an observation with `POST /observe/{id}/observation`.
         agent_request_id:
           type: string
           format: uuid
@@ -4173,6 +4896,14 @@ components:
           format: uuid
           nullable: true
           description: The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
+        ask_on:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/FindingAskOn"
+          description: >-
+            The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do.
+            Start an ordinary revision with the same prompt and this `dashboard_id` to make the change.
+            Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null.
         title:
           type: string
           minLength: 1
@@ -4210,7 +4941,8 @@ components:
           format: date-time
         url:
           type: string
-          description: Opens the finding's observation; empty when the server has no public URL configured.
+          nullable: true
+          description: Opens the finding's observation; null while the finding has no observation, or when the server has no public URL configured.
     FindingEnvelope:
       type: object
       additionalProperties: false
@@ -4222,13 +4954,13 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/DashboardFolder"
-          description: The folder of the finding's observation, whose access rule decides who reads the finding.
+          description: The folder of the finding's observation, whose access rule decides who reads the finding; null for an answer that is not an observation yet, which only its requester and an Admin read.
         permissions:
           $ref: "#/components/schemas/Permissions"
     SavedSearchFilters:
       type: object
       additionalProperties: false
-      description: The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others.
+      description: The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others.
       properties:
         columns:
           type: array
@@ -4247,13 +4979,17 @@ components:
           maxLength: 200
         min:
           type: string
-          description: The shortest duration, such as `250ms` or `2s`.
+          description: The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long.
         max:
           type: string
-          description: The longest duration, such as `250ms` or `2s`.
+          description: The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer.
         errors:
           type: boolean
           description: Only traces with an error.
+        mode:
+          type: string
+          enum: [graph, table]
+          description: A metrics search as a time series (`graph`, the default) or as the table of an instant query.
     SavedSearch:
       type: object
       additionalProperties: false
@@ -4264,7 +5000,7 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           minLength: 1
@@ -4300,7 +5036,48 @@ components:
           description: When the search was saved, renamed or moved last.
         url:
           type: string
-          description: The address of the logs or traces page that reopens the search, relative when the server has no public URL configured.
+          description: The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured.
+    SavedSearchReplayed:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, datasource_uid, query, filters, from, to, folder, permissions, actor, created_at, updated_at, url, replayed]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [logs, traces, metrics]
+        title:
+          type: string
+        datasource_uid:
+          type: string
+        query:
+          type: string
+          nullable: true
+        filters:
+          $ref: "#/components/schemas/SavedSearchFilters"
+        from:
+          type: string
+        to:
+          type: string
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+        replayed:
+          type: boolean
+          description: Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy.
     SavedSearchList:
       type: object
       additionalProperties: false
@@ -4320,17 +5097,17 @@ components:
       properties:
         kind:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
         title:
           type: string
           description: 1 to 120 characters after trimming, without control characters.
         datasource_uid:
           type: string
-          description: The uid of a datasource that exists and fits the kind.
+          description: The uid of a datasource that exists and fits the kind, which is Prometheus for metrics.
         query:
           type: string
           nullable: true
-          description: 1 to 8000 characters; required for a logs search.
+          description: 1 to 8000 characters; required for a logs or metrics search.
         filters:
           $ref: "#/components/schemas/SavedSearchFilters"
         from:
@@ -4393,6 +5170,47 @@ components:
           description: >-
             The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise.
             Only the import uses it; the preview checks it and ignores it.
+        update_dashboard:
+          type: string
+          format: uuid
+          description: >-
+            The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard.
+            Needs Edit on the dashboard; the folder is not changed.
+            Only the import uses it; the preview ignores it.
+        refuse_existing:
+          type: boolean
+          description: >-
+            Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid.
+            Ignored with `update_dashboard`, and by the preview.
+    ImportExisting:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, title, version, can_update]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+          description: The dashboard's latest version.
+        can_update:
+          type: boolean
+          description: True when the caller has Edit on the dashboard, so `update_dashboard` is accepted.
+    AlreadyImported:
+      type: object
+      additionalProperties: false
+      required: [error, code, existing]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [already_imported]
+        existing:
+          $ref: "#/components/schemas/ImportExisting"
     ImportSummary:
       type: object
       additionalProperties: false
@@ -4643,7 +5461,7 @@ components:
     ImportPreview:
       type: object
       additionalProperties: false
-      required: [summary, datasources, ready, report, spec]
+      required: [summary, datasources, ready, report, spec, existing]
       properties:
         summary:
           $ref: "#/components/schemas/ImportSummary"
@@ -4651,6 +5469,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ImportSourceDatasource"
+        existing:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ImportExisting"
+          description: The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise.
         ready:
           type: boolean
           description: True when every source datasource has a match, so the import can be saved.
@@ -4991,7 +5814,7 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, name, url, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, created_at, updated_at]
+      required: [id, name, url, format, event_types, owner, enabled, state, disabled_reason, disabled_at, consecutive_failures, next_attempt_at, waiting_events, created_at, updated_at]
       properties:
         id:
           type: string
@@ -5004,10 +5827,12 @@ components:
           type: string
           maxLength: 2048
           description: The https address events are posted to.
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 76
           items:
             $ref: "#/components/schemas/ActivityType"
         owner:
@@ -5034,12 +5859,31 @@ components:
           type: string
           format: date-time
           description: The earliest time of the next attempt; in the past while the webhook has nothing to send.
+        waiting_events:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [count, more]
+          description: How many events the webhook still has to send, while `consecutive_failures` is above 0 and the owner can be read; null otherwise.
+          properties:
+            count:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: The events waiting, counted up to 100, the failing one included.
+            more:
+              type: boolean
+              description: True when more than 100 events are waiting.
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+    WebhookFormat:
+      type: string
+      enum: [generic, slack, teams]
+      description: "`generic` is the signed JSON envelope of the webhooks guide; `slack` posts `{\"text\": ...}` and `teams` an Adaptive Card message, each with one line that names the actor, the event type and its title."
     WebhookList:
       type: object
       additionalProperties: false
@@ -5074,10 +5918,12 @@ components:
           minLength: 1
           maxLength: 2048
           description: An https address on port 443 with a domain name, no user info and no fragment.
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 76
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
@@ -5093,15 +5939,21 @@ components:
           type: string
           minLength: 1
           maxLength: 2048
+        format:
+          $ref: "#/components/schemas/WebhookFormat"
         event_types:
           type: array
           minItems: 1
-          maxItems: 44
+          maxItems: 76
           uniqueItems: true
           items:
             $ref: "#/components/schemas/ActivityType"
         enabled:
           type: boolean
+        owner:
+          type: string
+          enum: [me]
+          description: "`me` makes the caller the webhook's owner; any other value is refused."
     WebhookDelivery:
       type: object
       additionalProperties: false
@@ -5137,8 +5989,17 @@ components:
         error_code:
           type: string
           nullable: true
-          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large]
-          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+          enum: [status, unreachable, blocked_address, domain_not_allowed, too_large, skipped_by_admin]
+          description: Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
+    WebhookSkipResult:
+      type: object
+      additionalProperties: false
+      required: [webhook, skipped]
+      properties:
+        webhook:
+          $ref: "#/components/schemas/Webhook"
+        skipped:
+          $ref: "#/components/schemas/WebhookDelivery"
     WebhookTestResult:
       type: object
       additionalProperties: false
@@ -5423,7 +6284,7 @@ components:
     PublicLink:
       type: object
       additionalProperties: false
-      required: [id, prefix, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
+      required: [id, prefix, label, variables, selections, expires_at, created_by, created_at, last_viewed_at, expired, usable, state]
       properties:
         id:
           type: string
@@ -5431,6 +6292,10 @@ components:
         prefix:
           type: string
           description: The first 12 characters of the token, to tell links apart; the token itself is never shown again.
+        label:
+          type: string
+          maxLength: 80
+          description: What the link is for, set when it was created; empty when none was given.
         variables:
           type: string
           enum: [frozen, free]
@@ -5475,6 +6340,10 @@ components:
       additionalProperties: false
       required: [variables]
       properties:
+        label:
+          type: string
+          maxLength: 80
+          description: Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for.
         variables:
           type: string
           enum: [frozen, free]
@@ -5753,7 +6622,7 @@ components:
           maxLength: 128
         signal:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
     DraftQuery:
       type: object
       additionalProperties: false
@@ -5761,10 +6630,10 @@ components:
       properties:
         query:
           type: string
-          description: LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
+          description: LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`.
         language:
           type: string
-          enum: [logql, clickhouse_sql, traceql, kql, filters]
+          enum: [logql, clickhouse_sql, traceql, promql, kql, filters]
         trace_filters:
           nullable: true
           allOf:
@@ -5813,7 +6682,7 @@ components:
       description: See `docs/reference/states.md`.
     ObservationAction:
       type: string
-      enum: [update, move, resolve, reopen, publish]
+      enum: [update, move, resolve, reopen, publish, delete]
       description: An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
     ObservationBlockKind:
       type: string
@@ -5832,7 +6701,7 @@ components:
     Observation:
       type: object
       additionalProperties: false
-      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
+      required: [id, folder_id, title, state, summary, from, to, thread_id, run_id, dashboard_id, pinned, can_pin, message_count, url, created_by, created_at, updated_at, resolved_at, allowed_actions]
       properties:
         id:
           type: string
@@ -5850,7 +6719,7 @@ components:
           type: string
           nullable: true
           maxLength: 500
-          description: The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve.
+          description: The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve.
         from:
           type: string
           format: date-time
@@ -5870,6 +6739,17 @@ components:
           format: uuid
           nullable: true
           description: The agent request that made the observation, when one did.
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+        pinned:
+          type: boolean
+          description: Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id.
+        can_pin:
+          type: boolean
+          description: Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id.
         message_count:
           type: integer
           minimum: 0
@@ -5928,7 +6808,8 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`;
+            A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`
+            and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added;
             a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`.
         snapshot_id:
           type: string
@@ -5965,7 +6846,7 @@ components:
     ObservationList:
       type: object
       additionalProperties: false
-      required: [observations, next_cursor]
+      required: [observations, next_cursor, total]
       properties:
         observations:
           type: array
@@ -5974,6 +6855,10 @@ components:
         next_cursor:
           type: string
           nullable: true
+        total:
+          type: integer
+          nullable: true
+          description: The number of observations that match the filters, present only when the request has `offset`.
     BlockEnvelope:
       type: object
       additionalProperties: false
@@ -6069,7 +6954,9 @@ components:
         body:
           type: object
           additionalProperties: true
-          description: Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+          description: >-
+            Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block.
+            A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`.
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
         position:
@@ -6098,6 +6985,32 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+    PinObservationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+          description: The dashboard to pin to; the one the observation's run was about when absent.
+    MakeDashboardRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        new:
+          type: boolean
+          description: Make another dashboard even when the caller already made one from this observation or block.
+    ObservationPin:
+      type: object
+      additionalProperties: false
+      required: [dashboard_id, annotation_id]
+      properties:
+        dashboard_id:
+          type: string
+          format: uuid
+        annotation_id:
+          type: string
+          format: uuid
     KeepObservationBlockRequest:
       type: object
       additionalProperties: false
@@ -6295,7 +7208,7 @@ components:
     PublicRCA:
       type: object
       additionalProperties: false
-      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at]
+      required: [revision, title, summary, observation_state, from, to, blocks, published_by, created_at, superseded_by]
       description: A published RCA as a public link shows it, which is the RCA without the observation id and without actor ids.
       properties:
         revision:
@@ -6326,6 +7239,11 @@ components:
         created_at:
           type: string
           format: date-time
+        superseded_by:
+          type: integer
+          minimum: 2
+          nullable: true
+          description: The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation.
   headers:
     Deprecation:
       description: >-
@@ -6339,14 +7257,14 @@ components:
       description: >-
         The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`):
         `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation),
-        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
+        `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
         `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB).
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ValidationError"
     ObservationConflict:
-      description: The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`).
+      description: The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
       content:
         application/json:
           schema:
@@ -6367,6 +7285,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    NotModified:
+      description: The `If-None-Match` header names the current `ETag`, so the body is not sent again.
+      headers:
+        ETag:
+          required: true
+          schema:
+            type: string
     Unauthorized:
       description: Authentication is missing or invalid.
       headers:
@@ -6385,7 +7310,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     NotFound:
-      description: The resource does not exist.
+      description: The resource does not exist, or the caller cannot see it; the two are never told apart.
       content:
         application/json:
           schema:

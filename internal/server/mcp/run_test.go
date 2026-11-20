@@ -185,7 +185,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKind(t *testing.T) {
 					t.Errorf("%s does not carry the agent wording", name)
 				}
 			}
-			for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run", "list_folders"} {
+			for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run", "list_inbox"} {
 				if _, ok := listed[name]; ok {
 					t.Errorf("%s is listed in a run session", name)
 				}
@@ -494,6 +494,16 @@ func TestRunSessionRefusesARunWhoseScopeCannotBeBuilt(t *testing.T) {
 	}
 	if !strings.Contains(f.logs.String(), "run_scope_failed") || !strings.Contains(f.logs.String(), runRequestID) {
 		t.Errorf("the failure is not logged by code and run id: %s", f.logs.String())
+	}
+}
+
+func TestRunSessionOfAnEndedRunIsAnsweredAsConflictAndNotLoggedAsAnError(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	f.runs.scopeErr = tools.ErrRunEnded
+	rec := f.post(runToken, rpc(1, "tools/list", map[string]any{}))
+	assertErrorBody(t, rec, http.StatusConflict, "run_ended")
+	if strings.Contains(f.logs.String(), "run_scope_failed") {
+		t.Errorf("an ended run was logged as a failure: %s", f.logs.String())
 	}
 }
 

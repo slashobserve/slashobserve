@@ -6,23 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	MaxTitleRunes    = 200
-	MaxSummaryRunes  = 500
-	MaxTextRunes     = 8000
-	MaxBlocks        = 100
-	MaxPanelBlocks   = 24
-	MaxSnapshotBytes = 2 << 20
-	MaxRange         = queryproxy.MaxRange
+	MaxTitleRunes     = 200
+	MaxBlockVariables = 20
+	MaxSummaryRunes   = 500
+	MaxTextRunes      = 8000
+	MaxBlocks         = 100
+	MaxPanelBlocks    = 24
+	MaxSnapshotBytes  = 2 << 20
+	MaxRange          = queryproxy.MaxRange
 
 	BlockPanelID = "block"
 
@@ -38,34 +42,27 @@ type TextBody struct {
 }
 
 type PanelBody struct {
-	Panel json.RawMessage `json:"panel"`
-	From  *time.Time      `json:"from,omitempty"`
-	To    *time.Time      `json:"to,omitempty"`
+	Panel          json.RawMessage     `json:"panel"`
+	Variables      []spec.Variable     `json:"variables,omitempty"`
+	VariableValues map[string][]string `json:"variable_values,omitempty"`
+	From           *time.Time          `json:"from,omitempty"`
+	To             *time.Time          `json:"to,omitempty"`
 }
 
 func validateTitle(title string) (string, error) {
-	trimmed := strings.TrimSpace(title)
-	if n := utf8.RuneCountInString(trimmed); n < 1 || n > MaxTitleRunes {
-		return "", invalid(CodeInvalidTitle, "title must be 1 to 200 characters")
+	cleaned, err := usertext.Clean("title", title, usertext.Line(MaxTitleRunes))
+	if err != nil {
+		return "", invalidText(CodeInvalidTitle, err)
 	}
-	if strings.ContainsRune(trimmed, 0) {
-		return "", invalid(CodeInvalidTitle, "title must not contain the NUL character")
-	}
-	return trimmed, nil
+	return cleaned, nil
 }
 
 func validateSummary(summary string) (string, error) {
-	trimmed := strings.TrimSpace(summary)
-	if n := utf8.RuneCountInString(trimmed); n < 1 || n > MaxSummaryRunes {
-		return "", invalid(CodeInvalidSummary, "summary must be 1 to 500 characters")
+	cleaned, err := usertext.Clean("summary", summary, usertext.Line(MaxSummaryRunes))
+	if err != nil {
+		return "", invalidText(CodeInvalidSummary, err)
 	}
-	if strings.ContainsAny(trimmed, "\r\n") {
-		return "", invalid(CodeInvalidSummary, "summary must be one line")
-	}
-	if strings.ContainsRune(trimmed, 0) {
-		return "", invalid(CodeInvalidSummary, "summary must not contain the NUL character")
-	}
-	return trimmed, nil
+	return cleaned, nil
 }
 
 func validateRange(from, to *time.Time) error {
@@ -102,11 +99,8 @@ func textBody(raw json.RawMessage) (TextBody, error) {
 		return TextBody{}, invalid(CodeInvalidBlock, `a text block body is {"markdown": string}`)
 	}
 	markdown := *body.Markdown
-	if strings.TrimSpace(markdown) == "" || utf8.RuneCountInString(markdown) > MaxTextRunes {
-		return TextBody{}, invalid(CodeInvalidBlock, "markdown must be 1 to 8000 characters")
-	}
-	if strings.ContainsRune(markdown, 0) {
-		return TextBody{}, invalid(CodeInvalidBlock, "markdown must not contain the NUL character")
+	if err := usertext.Check("markdown", markdown, usertext.Text(MaxTextRunes)); err != nil {
+		return TextBody{}, invalidText(CodeInvalidBlock, err)
 	}
 	return TextBody{Markdown: markdown}, nil
 }
@@ -119,6 +113,12 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 	if err := validateRange(body.From, body.To); err != nil {
 		return PanelBody{}, err
 	}
+	if err := bakeValues(&body); err != nil {
+		return PanelBody{}, err
+	}
+	if len(body.Variables) > MaxBlockVariables {
+		return PanelBody{}, invalid(CodeInvalidBlock, fmt.Sprintf("a panel block takes at most %d variables", MaxBlockVariables))
+	}
 	if len(body.Panel) > spec.MaxSuggestedPanelBytes {
 		return PanelBody{}, &InvalidInputError{
 			Code:    CodeInvalidPanel,
@@ -127,6 +127,9 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 		}
 	}
 	if issues := panelIssues(body); len(issues) > 0 {
+		if name, ok := MissingVariable(issues); ok {
+			return PanelBody{}, &InvalidInputError{Code: CodeVariableMissing, Message: fmt.Sprintf("the panel uses the variable %q and no value was given for it; give its value in variable_values", name), Issues: issues}
+		}
 		return PanelBody{}, &InvalidInputError{Code: CodeInvalidPanel, Message: "the panel is invalid", Issues: issues}
 	}
 	body.Panel = compact(body.Panel)
@@ -139,20 +142,13 @@ func panelBody(raw json.RawMessage) (PanelBody, error) {
 
 func panelIssues(body PanelBody) []spec.Issue {
 	from, to := validationRange(body)
-	d, err := findings.EvidenceSpec(panelWrapperTitle, from, to, []json.RawMessage{body.Panel})
+	d, err := findings.EvidenceSpecWith(panelWrapperTitle, from, to, []json.RawMessage{body.Panel}, body.Variables)
 	var invalidSpec *spec.ValidationError
 	switch {
 	case errors.As(err, &invalidSpec):
 		return repath(invalidSpec.Issues)
 	case err != nil:
 		return []spec.Issue{{Path: panelIssuePath, Code: spec.CodeSchema, Message: err.Error()}}
-	}
-	canonical, err := json.Marshal(d)
-	if err != nil {
-		return []spec.Issue{{Path: panelIssuePath, Code: spec.CodeSchema, Message: "the panel cannot be encoded"}}
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return repath(issues)
 	}
 	switch panel := d.Panels[0]; {
 	case panel.Type == spec.Text:
@@ -161,6 +157,61 @@ func panelIssues(body PanelBody) []spec.Issue {
 		return []spec.Issue{{Path: panelIssuePath + "/type", Code: spec.CodeSchema, Message: fmt.Sprintf("a %s panel shows no data; a panel block needs a data panel", panel.Type)}}
 	}
 	return nil
+}
+
+var undeclaredVariable = regexp.MustCompile(`undeclared variable "([^"]+)"`)
+
+func MissingVariable(issues []spec.Issue) (string, bool) {
+	for _, issue := range issues {
+		if issue.Code != spec.CodeUnknownVariable {
+			continue
+		}
+		if m := undeclaredVariable.FindStringSubmatch(issue.Message); m != nil {
+			return m[1], true
+		}
+	}
+	return "", false
+}
+
+func bakeValues(body *PanelBody) error {
+	if len(body.VariableValues) == 0 {
+		body.VariableValues = nil
+		return nil
+	}
+	if len(body.Variables) > 0 {
+		return invalid(CodeInvalidBlock, "give either variables or variable_values, not both")
+	}
+	variables, err := ValueVariables(body.VariableValues)
+	if err != nil {
+		return err
+	}
+	body.Variables, body.VariableValues = variables, nil
+	return nil
+}
+
+func ValueVariables(values map[string][]string) ([]spec.Variable, error) {
+	if len(values) > MaxBlockVariables {
+		return nil, invalid(CodeInvalidBlock, fmt.Sprintf("a panel block takes at most %d variables", MaxBlockVariables))
+	}
+	variables := make([]spec.Variable, 0, len(values))
+	for _, name := range slices.Sorted(maps.Keys(values)) {
+		chosen := values[name]
+		if len(chosen) == 0 || slices.Contains(chosen, "") {
+			return nil, invalid(CodeInvalidBlock, fmt.Sprintf("variable_values.%s needs at least one value, none empty", name))
+		}
+		options := make([]spec.VariableOption, len(chosen))
+		for i, v := range chosen {
+			options[i] = spec.VariableOption{Text: v, Value: v}
+		}
+		variables = append(variables, spec.Variable{
+			Name:    name,
+			Type:    spec.CustomVariable,
+			Multi:   len(chosen) > 1,
+			Options: options,
+			Default: &spec.Selection{Values: slices.Clone(chosen), List: len(chosen) > 1},
+		})
+	}
+	return variables, nil
 }
 
 func validationRange(body PanelBody) (time.Time, time.Time) {

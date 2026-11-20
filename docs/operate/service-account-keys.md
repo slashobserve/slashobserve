@@ -6,13 +6,14 @@ description: Create and revoke the keys that the CLI, MCP clients and scripts us
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
 1. Sign in to the web app as an Admin and open `<public url>/keys`, which the **API keys** link on the Agents page also opens (the old `/settings/keys` address redirects).
-2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
+2. Choose **Create key**, name the key, pick a service account or **New service account** (the default, so an existing account is never changed by accident; name it with lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
 3. Choose **Create key** in the panel and copy the key.
    It is shown once, in that panel, with an `export OBSERVE_TOKEN=…` line to paste into your shell.
    The server stores only a hash of the key, so a lost key cannot be recovered; create a new one and revoke the old one.
 
 Keys start with `sok_`.
 Add more keys to an account, and revoke a key, from the same page.
+The table shows each key's role, which is its account's role.
 A revoked or expired key is refused immediately.
 Each key listed over the API has a `state`: `active`, `expiring` within 7 days of its expiry, `expired` or `revoked`; see [States](../reference/states.md).
 The page also shows ready-made client setup snippets for your server's address; they refer to `OBSERVE_TOKEN` and never contain the key.
@@ -20,6 +21,11 @@ The page also shows ready-made client setup snippets for your server's address; 
 Only a signed-in Admin can create service accounts and keys, and only an Admin sees the API keys page; a service-account key cannot create more keys, whatever its role.
 A key acts with its service account's role, which starts as Editor for a new account.
 Choosing another role for an existing account in the Create key panel changes the role of every key of that account.
+
+The **Service accounts** list under the keys shows every account, including one with no keys left, with its role and number of working keys.
+**Delete** removes the account and all its keys: every key stops working at once, and what the account made stays under its name.
+An account from the service-accounts file cannot be deleted here, and `DELETE /api/v1/service-accounts/{id}` answers 409 `provisioned` for it; remove it from the file instead.
+Like creating keys, deleting an account needs an Admin signed in to the web app; a key cannot delete an account.
 
 An account takes runs only when an Admin turns on **Takes agent runs** in the Create key panel, or sets `takes_runs` with `PATCH /api/v1/service-accounts/{id}`; the account then lists as `listening` or `working` while it asks for work.
 The switch applies to every key of the account, like the role, and is saved when you create the key.
@@ -54,7 +60,8 @@ It keeps the key from `keyFile` as the account's one active key named `From file
 The server refuses to start when the file is invalid, or when an account with a listed name already exists but was created in the web app or the API, because it never takes over such an account.
 
 A provisioned account is managed through the file only.
-Changing its role in the web app, or its role or `takes_runs` with `PATCH /api/v1/service-accounts/{id}`, answers 409 `provisioned`, and so does revoking one of its keys.
+Changing its role in the web app, or its role or `takes_runs` with `PATCH /api/v1/service-accounts/{id}`, answers 409 `provisioned`, and so does creating a key for it or revoking one of its keys.
+The web app lists such a key as "from file" and offers no Revoke for it.
 The web app locks its **Takes agent runs** switch.
 To rotate the file key, write a new key to its file and restart the server: the old file key is revoked and the new one replaces it.
 A key that was revoked before cannot come back; write a fresh one.

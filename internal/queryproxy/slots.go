@@ -37,7 +37,7 @@ func NewSlots(totals map[string]int, share func(total int) int) *Slots {
 		share = func(total int) int { return total }
 	}
 	return &Slots{
-		totals:  maps.Clone(totals),
+		totals:  slotTotals(totals),
 		share:   share,
 		process: semaphore.NewWeighted(maxUpstreamCalls),
 		inUse:   map[string]int{},
@@ -45,8 +45,26 @@ func NewSlots(totals map[string]int, share func(total int) int) *Slots {
 	}
 }
 
+func slotTotals(totals map[string]int) map[string]int {
+	out := make(map[string]int, len(totals))
+	maps.Copy(out, totals)
+	return out
+}
+
 func WithSlots(s *Slots) RunnerOption {
 	return func(r *Runner) { r.slots = s }
+}
+
+func (s *Slots) SetTotal(datasourceUID string, total int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if total < 1 {
+		delete(s.totals, datasourceUID)
+	} else {
+		s.totals[datasourceUID] = total
+	}
+	close(s.freed)
+	s.freed = make(chan struct{})
 }
 
 func (s *Slots) limit(datasourceUID string) int {

@@ -3,12 +3,14 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 export type SettingsSectionId =
   | "appearance"
   | "connected-agents"
+  | "home-dashboard"
   | "server"
   | "sign-in"
   | "outbound-access"
   | "agent-access"
   | "grafana"
   | "webhooks"
+  | "audit-log"
 
 type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -26,6 +28,7 @@ const youGroup: SettingsGroup = {
   label: "You",
   sections: [
     { id: "appearance", label: "Appearance" },
+    { id: "home-dashboard", label: "Home dashboard" },
     { id: "connected-agents", label: "Connected agents" },
   ],
 }
@@ -33,12 +36,24 @@ const youGroup: SettingsGroup = {
 const memberWorkspaceSections: readonly SettingsSection[] = [
   { id: "server", label: "Server" },
   { id: "sign-in", label: "Sign-in" },
-  { id: "outbound-access", label: "Outbound access" },
 ]
+
+const outboundAccessSection: SettingsSection = {
+  id: "outbound-access",
+  label: "Outbound access",
+}
 
 const memberGroups: readonly SettingsGroup[] = [
   youGroup,
   { label: "Workspace", sections: memberWorkspaceSections },
+]
+
+const editorGroups: readonly SettingsGroup[] = [
+  youGroup,
+  {
+    label: "Workspace",
+    sections: [...memberWorkspaceSections, outboundAccessSection],
+  },
 ]
 
 const adminGroups: readonly SettingsGroup[] = [
@@ -47,7 +62,9 @@ const adminGroups: readonly SettingsGroup[] = [
     label: "Workspace",
     sections: [
       ...memberWorkspaceSections,
+      outboundAccessSection,
       { id: "agent-access", label: "Agent access" },
+      { id: "audit-log", label: "Audit log" },
     ],
   },
   {
@@ -60,19 +77,39 @@ const adminGroups: readonly SettingsGroup[] = [
 ]
 
 export function settingsGroups(role: Role): readonly SettingsGroup[] {
-  return roleAtLeast(role, "admin") ? adminGroups : memberGroups
+  if (roleAtLeast(role, "admin")) return adminGroups
+  return roleAtLeast(role, "editor") ? editorGroups : memberGroups
+}
+
+const renamedSections: Record<string, SettingsSectionId> = {
+  agent: "server",
+  "grafana-connection": "grafana",
 }
 
 export function selectedSectionId(
   groups: readonly SettingsGroup[],
   hash: string
 ): SettingsSectionId {
-  const id = hash === "agent" ? "server" : hash
+  const id = renamedSections[hash] ?? hash
   return (
     groups
       .flatMap((group) => group.sections)
       .find((section) => section.id === id)?.id ?? "server"
   )
+}
+
+export type SectionNotice = { hash: string; adminOnly: boolean }
+
+export function sectionNotice(
+  groups: readonly SettingsGroup[],
+  hash: string
+): SectionNotice | null {
+  if (hash === "" || hash === "agent") return null
+  const id = renamedSections[hash] ?? hash
+  const known = (list: readonly SettingsGroup[]) =>
+    list.flatMap((group) => group.sections).some((section) => section.id === id)
+  if (known(groups)) return null
+  return { hash, adminOnly: known(adminGroups) }
 }
 
 export function settingsPanel(

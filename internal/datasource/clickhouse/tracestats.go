@@ -2,7 +2,9 @@ package clickhouse
 
 import (
 	"context"
+	"errors"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -37,9 +39,71 @@ func traceStatsFilter(expr string) string {
 	return " AND (" + expr + ")"
 }
 
+var conditionExample = "ServiceName = 'checkout' AND Duration > 1000000"
+
+func checkTraceCondition(expr string) error {
+	tokens, err := macros.TokenizeClickHouse(expr)
+	if err != nil {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "the query must be a condition over otel_traces, such as %s", conditionExample)
+	}
+	depth := 0
+	for _, t := range significantAndComments(tokens) {
+		text := expr[t.Start:t.End]
+		switch {
+		case t.Kind == macros.TokenComment, isPunct(expr, t, ";"):
+			return datasource.Errorf(datasource.ErrInvalidQuery, "the query must be one condition without comments or statements, such as %s", conditionExample)
+		case isPunct(expr, t, "("):
+			depth++
+		case isPunct(expr, t, ")"):
+			depth--
+			if depth < 0 {
+				return datasource.Errorf(datasource.ErrInvalidQuery, "the query has an unmatched closing parenthesis; write one condition such as %s", conditionExample)
+			}
+		case t.Kind == macros.TokenWord && depth == 0 && (strings.EqualFold(text, "SELECT") || strings.EqualFold(text, "WITH")):
+			return datasource.Errorf(datasource.ErrInvalidQuery, "the query is a condition over otel_traces, not a SELECT statement; write something like %s", conditionExample)
+		}
+	}
+	if depth != 0 {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "the query has an unclosed parenthesis; write one condition such as %s", conditionExample)
+	}
+	return nil
+}
+
+func significantAndComments(tokens []macros.Token) []macros.Token {
+	kept := make([]macros.Token, 0, len(tokens))
+	for _, t := range tokens {
+		if t.Kind != macros.TokenWhitespace {
+			kept = append(kept, t)
+		}
+	}
+	return kept
+}
+
+var generatedSQL = regexp.MustCompile(`(?s)(SELECT (?:toStartOfInterval|exp2)\(|\(line \d+, col \d+\): ).*?GROUP BY (?:Time ORDER BY Time|Le ORDER BY Le)`)
+
+func trimGeneratedSQL(err error) error {
+	var ue *datasource.UpstreamError
+	if !errors.As(err, &ue) || !errors.Is(ue.Kind, datasource.ErrInvalidQuery) {
+		return err
+	}
+	trimmed := generatedSQL.ReplaceAllStringFunc(ue.Message, func(m string) string {
+		if strings.HasPrefix(m, "(line ") {
+			return m[:strings.Index(m, "): ")+3] + "..."
+		}
+		return "the query"
+	})
+	return &datasource.UpstreamError{Kind: ue.Kind, Message: trimmed + "; the query is a condition over otel_traces, such as " + conditionExample}
+}
+
 func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRequest) (datasource.TraceStats, error) {
 	if err := req.Range.Validate(); err != nil {
 		return datasource.TraceStats{}, err
+	}
+	if err := checkTraceCondition(req.Query); err != nil {
+		return datasource.TraceStats{}, err
+	}
+	if !macros.WrapsExactly("(" + strings.TrimSpace(req.Query) + ")") {
+		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "the trace filter must have balanced parentheses and no comment that reaches the end of it")
 	}
 	lim := d.limits.Tighten(req.Limits)
 	texts := [2]string{TraceStatsQuery(req.Query, req.Step), DurationHistogramQuery(req.Query)}
@@ -65,7 +129,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 		return group.Wait()
 	})
 	if err != nil {
-		return datasource.TraceStats{}, err
+		return datasource.TraceStats{}, trimGeneratedSQL(err)
 	}
 	return foldTraceStats(req.Range, req.Step, results[0], results[1]), nil
 }

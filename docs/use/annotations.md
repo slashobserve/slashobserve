@@ -27,6 +27,7 @@ Who may do what:
 Time series, candlestick and state timeline panels draw every annotation in their time range.
 A moment is a vertical line in the info colour, and a range is a light band between two lines.
 A small flag at the bottom of each line opens a card when you hover, focus or tap it.
+A key at the top right of the chart names the flag, as Annotation or Annotations, while the chart shows any.
 The card shows the text, the tags, who added it and when, and says `Every dashboard` for a global one.
 Times carry the zone they are shown in, such as `2026-11-18 14:22:00 UTC`.
 The card opens above the flag and is never cut off by the panel's edge; it closes when you scroll or resize.
@@ -56,7 +57,8 @@ The `Add annotation` button and the Cmd-click gesture are hidden in kiosk mode a
 
 ## Filter markers by tag
 
-When the dashboard's annotations have tags, the top row shows an `Annotations` menu on a dashboard that exists; a missing or unreadable dashboard shows none.
+When the markers in the time range you are looking at have tags, the top row shows an `Annotations` menu on a dashboard that exists; a missing or unreadable dashboard shows none.
+The menu lists the tags of the ranges you have opened in this session, so a tag whose markers all lie outside those ranges appears once you widen the range to include one of them.
 Pick one or more tags to keep only the markers that have any of them, or `All annotations` to show every marker again.
 The choice is kept in the address as `ann=deploy,incident`, so a shared link shows the same markers.
 
@@ -112,7 +114,7 @@ A pipeline that needs a key before anyone signs in can get one from the [service
 An MCP client such as Claude Code lists annotations with `list_annotations`, adds one with `create_annotation` and changes the text or tags of one it added with `update_annotation`, so the agent that just deployed can post and correct the marker itself.
 `create_annotation` takes the fields of `POST /api/v1/annotations` and needs Edit on the dashboard, or the Editor role for an annotation on every dashboard.
 `update_annotation` takes an `id` and `text`, `tags` or both, like `PATCH /api/v1/annotations/{id}`.
-The built-in agent reads annotations with `list_annotations` when it investigates, so it can see a deploy beside a spike, and it never adds one.
+The built-in agent reads annotations with `list_annotations` in every run, as the person who asked and only on dashboards they can open, so it can see a deploy beside a spike or say when the last deploy was, and it never adds one.
 No tool deletes an annotation.
 See [MCP](mcp.md).
 

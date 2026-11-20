@@ -2,7 +2,6 @@ package webhooks
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
@@ -25,14 +24,6 @@ type audience struct {
 
 type source struct {
 	store *activity.Store
-}
-
-func (s source) head(ctx context.Context) (cursor, error) {
-	head, _, err := s.store.Start(ctx, "")
-	if err != nil {
-		return cursor{}, fmt.Errorf("read activity head: %w", err)
-	}
-	return cursor{xid: head.Xid(), seq: head.Seq()}, nil
 }
 
 func (s source) audience(ctx context.Context, reader auth.Principal) (audience, error) {

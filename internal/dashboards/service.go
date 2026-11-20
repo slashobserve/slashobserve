@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	maxFolderRetries     = 5
 	maxSummaryLength     = 500
 	maxInt32             = math.MaxInt32
 	defaultCreateSummary = "Create dashboard"
@@ -41,6 +42,7 @@ var (
 	ErrInvalidCursor  = errors.New("invalid cursor")
 	ErrInvalidRange   = errors.New("from must be less than to")
 	ErrBeingCreated   = errors.New("the agent is still creating this dashboard")
+	errFolderMoved    = errors.New("the dashboard changed folders after its access was checked")
 )
 
 type ConflictError struct {
@@ -117,7 +119,7 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, folderI
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary, nil)
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
@@ -172,7 +174,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary, nil)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -293,6 +295,8 @@ type ListParams struct {
 	SkipTotal  bool
 	Folder     pgtype.UUID
 	ByFolder   bool
+	ByViews    bool
+	ByName     bool
 }
 
 type ListItem struct {
@@ -300,7 +304,9 @@ type ListItem struct {
 	Description    string
 	DatasourceUIDs []string
 	OpenComments   int
+	ViewCount      int
 	sortTitle      string
+	titleSort      string
 }
 
 type ListPage struct {
@@ -351,9 +357,14 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 		return ListPage{}, err
 	}
 	var items []ListItem
-	if p.ByFolder {
+	switch {
+	case p.ByFolder:
 		items, err = s.listByFolder(ctx, p, filter)
-	} else {
+	case p.ByViews:
+		items, err = s.listByViews(ctx, p, filter)
+	case p.ByName:
+		items, err = s.listByName(ctx, p, filter)
+	default:
 		items, err = s.listByRecency(ctx, p, filter)
 	}
 	if err != nil {
@@ -370,7 +381,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	}
 	if len(items) > p.Limit {
 		page.Items = items[:p.Limit]
-		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p.ByFolder)
+		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p)
 	}
 	return page, nil
 }
@@ -395,11 +406,40 @@ func (s *Service) listByFolder(ctx context.Context, p ListParams, filter dbsqlc.
 	return s.store.listByFolder(ctx, after, p.Limit+1, p.Offset, filter)
 }
 
-func nextCursor(last ListItem, byFolder bool) string {
-	if !byFolder {
-		return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+func (s *Service) listByViews(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	var after *viewsCursor
+	if p.Cursor != "" {
+		decoded, err := decodeViewsCursor(p.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		after = &decoded
 	}
-	return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+	return s.store.listByViews(ctx, after, p.Limit+1, p.Offset, filter)
+}
+
+func (s *Service) listByName(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	var after *nameCursor
+	if p.Cursor != "" {
+		decoded, err := decodeNameCursor(p.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		after = &decoded
+	}
+	return s.store.listByName(ctx, after, p.Limit+1, p.Offset, filter)
+}
+
+func nextCursor(last ListItem, p ListParams) string {
+	switch {
+	case p.ByFolder:
+		return encodeFolderCursor(last.Folder.Personal, last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+	case p.ByViews:
+		return encodeViewsCursor(last.ViewCount, last.UpdatedAt, last.ID)
+	case p.ByName:
+		return encodeNameCursor(last.titleSort, last.ID)
+	}
+	return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
 }
 
 func (s *Service) DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error) {
@@ -440,6 +480,16 @@ func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, erro
 }
 
 func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
+	for range maxFolderRetries {
+		dash, ver, err := s.moveOnce(ctx, by, id, folderID)
+		if !errors.Is(err, errFolderMoved) {
+			return dash, ver, err
+		}
+	}
+	return Dashboard{}, Version{}, fmt.Errorf("dashboard %s changed folders %d times in a row: %w", id, maxFolderRetries, errFolderMoved)
+}
+
+func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
 	source, err := s.need(ctx, by, id, folders.NeedEdit)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -585,23 +635,28 @@ func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dash
 		if err != nil {
 			return Unverified{}, err
 		}
-		if len(issues) > 0 {
-			return Unverified{}, &InvalidSpecError{Issues: issues}
+		blocking, accepted := acceptEmpty(ctx, next, issues)
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
 		}
-		return CarryUnchanged(prev, prevUnverified, next, panels, variables), nil
-	}
-	if prev == nil || prevUnverified.Empty() {
-		return Unverified{}, s.checkQueries(ctx, by, next)
+		return CarryUnchanged(prev, prevUnverified, next, panels, variables).with(accepted), nil
 	}
 	issues, err := s.runner.CheckSpec(ctx, next, time.Now(), queryproxy.UserFor(by))
 	if err != nil {
 		return Unverified{}, err
 	}
-	carried, blocking := CarryUnverified(prev, prevUnverified, next, issues)
+	blocking, accepted := acceptEmpty(ctx, next, issues)
+	if prev == nil || prevUnverified.Empty() {
+		if len(blocking) > 0 {
+			return Unverified{}, &InvalidSpecError{Issues: blocking}
+		}
+		return accepted, nil
+	}
+	carried, blocking := CarryUnverified(prev, prevUnverified, next, blocking)
 	if len(blocking) > 0 {
 		return Unverified{}, &InvalidSpecError{Issues: blocking}
 	}
-	return carried, nil
+	return carried.with(accepted), nil
 }
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -636,9 +691,9 @@ func (s *Service) conflict(ctx context.Context, id pgtype.UUID) error {
 	return &ConflictError{Latest: latest}
 }
 
-func validateSave(rawSpec []byte, summary, fallback string) (string, *spec.Dashboard, []byte, error) {
+func validateSave(rawSpec []byte, summary, fallback string, previous *spec.Dashboard) (string, *spec.Dashboard, []byte, error) {
 	summary, issues := checkSummary(summary, fallback)
-	parsed, canonical, err := parseSpec(rawSpec)
+	parsed, canonical, err := parseSpec(rawSpec, previous)
 	if err != nil {
 		var invalid *InvalidSpecError
 		if !errors.As(err, &invalid) {
@@ -652,17 +707,17 @@ func validateSave(rawSpec []byte, summary, fallback string) (string, *spec.Dashb
 	return summary, parsed, canonical, nil
 }
 
-func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
+func parseSpec(raw []byte, previous *spec.Dashboard) (*spec.Dashboard, []byte, error) {
 	parsed, err := spec.Parse(raw)
 	if err != nil {
 		return nil, nil, asInvalidSpec(err)
 	}
+	if issues := cleanTitles(parsed, previous); len(issues) > 0 {
+		return nil, nil, &InvalidSpecError{Issues: issues}
+	}
 	canonical, err := json.Marshal(parsed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return nil, nil, &InvalidSpecError{Issues: issues}
 	}
 	return parsed, canonical, nil
 }

@@ -31,7 +31,7 @@ const (
 	maxLayoutPanels = 24
 	maxLayoutGaps   = 8
 
-	noBuildYet            = "this run has no build yet; call create_dashboard first with the title, time, variables and the first panel"
+	noBuildYet            = "this run builds a new dashboard and has no build yet: call create_dashboard first with the title, time, variables and the first panel; it cannot change an existing dashboard, so if the request asks for that, end with save_finding saying the change is asked for on that dashboard, and pass its id as ask_on_dashboard_id when exactly one dashboard is meant"
 	agentOnlyBuildFields  = "finish, planned_panels and row apply only to the built-in agent's builds"
 	importInBuildRun      = "this run is building a dashboard; continue with update_panels"
 	hasBuildAlready       = "this run already has a build; add panels with update_panels"
@@ -97,6 +97,7 @@ type buildSave struct {
 	run           Run
 	requestID     pgtype.UUID
 	dashboardID   pgtype.UUID
+	folderID      pgtype.UUID
 	raw           []byte
 	summary       string
 	planned       *int
@@ -104,6 +105,7 @@ type buildSave struct {
 	finish        bool
 	changes       panelChanges
 	panelIDs      map[string]string
+	before        *spec.Dashboard
 }
 
 func inBuildRun(run Run, scoped bool) bool {
@@ -165,6 +167,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		RequestID:     in.requestID,
 		Attempt:       in.run.Attempt,
 		DashboardID:   in.dashboardID,
+		FolderID:      in.folderID,
 		Spec:          in.raw,
 		Summary:       in.summary,
 		PlannedPanels: in.planned,
@@ -174,8 +177,13 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	}
 	build, err := r.deps.Dashboards.SaveBuild(ctx, in.principal, save)
 	var invalidSpec *dashboards.InvalidSpecError
-	if errors.As(err, &invalidSpec) && in.panelIDs != nil {
-		return buildRejected(invalidSpec.Issues, in.panelIDs), nil
+	if errors.As(err, &invalidSpec) {
+		if ids := panelIDsFor(in); len(ids) > 0 {
+			return buildRejected(invalidSpec.Issues, ids), nil
+		}
+	}
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
 	}
 	if err != nil {
 		return saveFailure(err)
@@ -186,25 +194,32 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	if in.finish {
 		return r.commitBuild(ctx, in, step)
 	}
-	res := success(step, buildAdvice(ctx, buildOut{
+	out := buildAdvice(ctx, buildOut{
 		Build:         buildStateOut{Saves: build.Saves, Panels: progress.Panels, PlannedPanels: progress.PlannedPanels},
 		ChangedPanels: in.changes.shown,
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
-	}, build.Spec, in.changes.edits.Panels))
+	}, build.Spec, in.changes.edits.Panels)
+	out.noteDroppedVariables(in.before, build.Spec)
+	res := success(step, out)
 	res.Edits = in.changes.edits
 	return res, nil
 }
 
 func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep string) (Result, error) {
 	commit, err := r.deps.Dashboards.CommitBuild(ctx, in.principal, in.requestID, in.run.Attempt)
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
+	}
 	if err != nil {
 		return saveFailure(err)
 	}
 	if commit.Proposal != nil {
 		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
 	}
-	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)), nil
+	out := withAdvice(ctx, r.savedOut(commit.Dashboard, commit.Version, &commit.Replayed), commit.Version.Spec)
+	out.noteDroppedVariables(in.before, commit.Version.Spec)
+	return success(finishStep(saveStep, in.changes, commit.Version.Number, versionShape(commit.Version.Spec)), out), nil
 }
 
 func finishStep(saveStep string, changes panelChanges, version int, shape string) string {
@@ -493,7 +508,7 @@ func (r *Registry) hasBuild(ctx context.Context, run Run) (bool, error) {
 	return found, err
 }
 
-func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, run Run, in createInput) (Result, error) {
+func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, run Run, in createInput, folderID pgtype.UUID) (Result, error) {
 	requestID, err := buildRequestID(run)
 	if err != nil {
 		return Result{}, err
@@ -510,13 +525,13 @@ func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, ru
 		return res, err
 	}
 	save := buildSave{
-		principal: principal, run: run, requestID: requestID, plannedBefore: plannedBefore,
+		principal: principal, run: run, requestID: requestID, plannedBefore: plannedBefore, folderID: folderID,
 		raw: raw, summary: summaryOr(in.Summary, defaultCreateSummary),
 		planned: in.PlannedPanels, finish: in.Finish,
 	}
 	if parsed, err := spec.Parse(raw); err == nil {
 		save.changes = changesOf(nil, parsed)
-		save.panelIDs = panelIDsOf(parsed)
+		save.panelIDs = dashboards.PanelIDs(parsed)
 		if res, ok := onePanelPerSave(save.changes); !ok {
 			return res, nil
 		}
@@ -590,14 +605,14 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 	save := buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id, plannedBefore: plannedBefore,
 		raw: raw, summary: summaryOr(in.Summary, defaultUpdateSummary),
-		planned: in.PlannedPanels, finish: in.Finish,
+		planned: in.PlannedPanels, finish: in.Finish, before: base,
 	}
 	if parsed != nil {
 		if issues := importOnlyIssues(parsed, base); len(issues) > 0 {
 			return importOnlyFailure(issues), nil
 		}
 		save.changes = changesOf(base, parsed)
-		save.panelIDs = panelIDsOf(parsed)
+		save.panelIDs = dashboards.PanelIDs(parsed)
 		if res, ok := onePanelPerSave(save.changes); !ok {
 			return res, nil
 		}
@@ -752,7 +767,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 		return res, err
 	}
 	if issues := importOnlyIssues(merged, base); len(issues) > 0 {
-		return buildRejected(issues, panelIDsOf(merged)), nil
+		return buildRejected(issues, dashboards.PanelIDs(merged)), nil
 	}
 	changes := changesOf(base, merged)
 	changes.moved = moved
@@ -766,7 +781,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 	return r.saveToBuild(ctx, buildSave{
 		principal: principal, run: run, requestID: requestID, dashboardID: target.id,
 		raw: raw, summary: in.Summary, planned: in.PlannedPanels, plannedBefore: plannedBefore, finish: in.Finish,
-		changes: changes, panelIDs: panelIDsOf(merged),
+		changes: changes, panelIDs: dashboards.PanelIDs(merged), before: base,
 	})
 }
 
@@ -1108,4 +1123,11 @@ func rowUpsert(id, title string, pos spec.GridPos, panel json.RawMessage) json.R
 	}
 	raw, _ := json.Marshal(row)
 	return raw
+}
+
+func panelIDsFor(in buildSave) map[string]string {
+	if in.panelIDs != nil {
+		return in.panelIDs
+	}
+	return rawPanelIDs(in.raw)
 }

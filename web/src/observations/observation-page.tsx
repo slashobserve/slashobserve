@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
 import { opensByDefault } from "@/components/dock/card-width"
 import { LoadProblem } from "@/components/load-problem"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -19,6 +18,7 @@ import { rcasQuery } from "@/rca/queries"
 import { AddBlockRow } from "./add-block-row"
 import { BlockList, type Reveal } from "./block-list"
 import { DiscussionPane } from "./discussion-pane"
+import { observationIsMissing } from "./errors"
 import { MovePanel } from "./move-panel"
 import { ObservationHeader } from "./observation-header"
 import {
@@ -26,6 +26,7 @@ import {
   useObservationLive,
   type ObservationEnvelope,
 } from "./queries"
+import { plainTitle } from "@/comments/plain-title"
 
 const columnClass = "flex w-full flex-col gap-8"
 
@@ -72,6 +73,9 @@ function LoadedObservation({
   const blocks = observation.blocks ?? []
   const canAdd = permissions.edit || permissions.comment
   const canPublish = observation.allowed_actions.includes("publish")
+  const isPrivate = envelope.folder.personal
+  const mustMoveToPublish =
+    isPrivate && observation.allowed_actions.includes("move")
   const revisions = useQuery(rcasQuery(observation.id))
   const hasRevisions = (revisions.data?.length ?? 0) > 0
   const rcaButton = useRef<HTMLButtonElement>(null)
@@ -137,14 +141,16 @@ function LoadedObservation({
           onMove={() => setMoving(true)}
           moreButtonRef={moreButton}
           extraActions={
-            canPublish || hasRevisions ? (
+            canPublish || mustMoveToPublish || hasRevisions ? (
               <Button
                 ref={rcaButton}
                 variant="outline"
                 size="sm"
                 onClick={() => rca.onOpenChange(true)}
               >
-                {canPublish ? "Publish as RCA" : "RCA revisions"}
+                {canPublish || mustMoveToPublish
+                  ? "Publish as RCA"
+                  : "RCA revisions"}
               </Button>
             ) : null
           }
@@ -183,7 +189,17 @@ function LoadedObservation({
         <RcaPanel
           observation={observation}
           trigger={rcaButton}
+          blocks={blocks}
+          onShowBlock={onShowBlock}
           onClose={() => rca.onOpenChange(false)}
+          privateFolder={
+            mustMoveToPublish
+              ? () => {
+                  rca.onOpenChange(false)
+                  setMoving(true)
+                }
+              : undefined
+          }
         />
       ) : null}
       {moving ? (
@@ -205,7 +221,10 @@ export function ObservationPage({
   rca: RcaControl
 }) {
   const query = useObservation(observationId)
-  const title = query.data?.observation.title
+  const title =
+    query.data === undefined
+      ? undefined
+      : plainTitle(query.data.observation.title)
   useDocumentTitle(
     title === undefined
       ? "Observation - SlashObserve"
@@ -213,7 +232,7 @@ export function ObservationPage({
   )
   if (query.data !== undefined)
     return <LoadedObservation envelope={query.data} rca={rca} />
-  if (query.error instanceof ApiError && query.error.status === 404) {
+  if (observationIsMissing(query.error)) {
     return <ObservationNotFound />
   }
   if (query.isError) {

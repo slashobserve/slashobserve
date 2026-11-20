@@ -92,3 +92,67 @@ describe("the Patterns tab", () => {
     expect(value.update).toHaveBeenCalledWith({ view: undefined })
   })
 })
+
+describe("the results body", () => {
+  it("says so when the server returned rows and none can be shown", () => {
+    const value = workspace({ q: "level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 50 } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByRole("alert").textContent).toContain(
+      "The server returned 50 rows, but none could be shown here."
+    )
+  })
+
+  it("keeps the empty message when the server returned no rows", () => {
+    const value = workspace({ q: "level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 0 } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByText(/^No lines in/)).toBeTruthy()
+  })
+
+  it("shows the server's hint under an empty result", () => {
+    const hint =
+      "No document has log.level = error in this range, but it has ERROR; values are case sensitive, so seen: INFO, ERROR."
+    const value = workspace({ q: "log.level:error" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: false,
+      isPlaceholderData: false,
+      data: { frames: [], meta: { rows: 0, hint } },
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(screen.getByText(hint)).toBeTruthy()
+  })
+})
+
+describe("an unreadable query", () => {
+  it("says nothing ran and shows no failure card", () => {
+    const value = workspace({ q: "message:(foo and bar" })
+    value.results = {
+      fetchStatus: "idle",
+      isFetching: false,
+      isError: true,
+      error: new Error("boom"),
+      isPlaceholderData: false,
+      data: undefined,
+    } as unknown as LogsWorkspace["results"]
+    renderSection(value)
+    expect(
+      screen.getByText(/^Nothing ran, because the query above/)
+    ).toBeTruthy()
+    expect(screen.queryByText("Failed")).toBeNull()
+  })
+})

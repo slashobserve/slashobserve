@@ -60,7 +60,7 @@ var RunMachine = lifecycle.Machine[State, Action]{
 		StateQueued:    "Waiting for a worker.",
 		StateRunning:   "A worker holds its lease and runs the agent.",
 		StateCanceling: "The requester canceled it and its worker is stopping.",
-		StateSucceeded: "It saved its result: a version, a suggestion or a finding saved into an observation.",
+		StateSucceeded: "It saved its result: a version, a suggestion, or a finding written into the investigation's observation or kept on the run until its requester saves it.",
 		StateFailed:    "It stopped without a result; a build it left can be kept or continued.",
 		StateCanceled:  "The requester canceled it; a build it left can be kept or continued.",
 	},
@@ -119,7 +119,7 @@ func (f runFacts) refuses(a Action) bool {
 	case ActionKeepBuild:
 		return !hasBuild || !f.mayEdit
 	case ActionContinue:
-		return f.source == SourceInvestigate || !hasBuild || f.continued
+		return f.source == SourceInvestigate || !hasBuild || f.continued || f.retried
 	case ActionRetry:
 		return !f.retryable()
 	}

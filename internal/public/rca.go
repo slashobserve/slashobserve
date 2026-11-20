@@ -11,11 +11,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -62,14 +64,15 @@ type CreatedRCA struct {
 }
 
 type PublicRCA struct {
-	Revision    int
-	Title       string
-	Summary     string
-	State       string
-	From, To    *time.Time
-	Blocks      json.RawMessage
-	PublishedBy string
-	CreatedAt   time.Time
+	Revision     int
+	Title        string
+	Summary      string
+	State        string
+	From, To     *time.Time
+	Blocks       json.RawMessage
+	PublishedBy  string
+	CreatedAt    time.Time
+	SupersededBy *int
 }
 
 type ResolvedRCA struct {
@@ -88,7 +91,7 @@ func (s *Service) manageRCA(ctx context.Context, by auth.Principal, observationI
 	case placement.Personal:
 		return ErrRCAPersonalFolder
 	case !placement.Abilities.Manage:
-		return folders.ErrForbidden
+		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", placement.Title))
 	}
 	return nil
 }
@@ -129,13 +132,6 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if in.ExpiresAt != nil && !in.ExpiresAt.After(s.now()) {
 		return CreatedRCA{}, ErrInvalidExpiry
 	}
-	count, err := q.CountObservationPublicLinks(ctx, observationID)
-	if err != nil {
-		return CreatedRCA{}, err
-	}
-	if count >= maxLinksPerObservation {
-		return CreatedRCA{}, ErrTooManyRCALinks
-	}
 	creatorID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return CreatedRCA{}, folders.ErrForbidden
@@ -144,7 +140,7 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	if err != nil {
 		return CreatedRCA{}, err
 	}
-	row, err := q.CreateRCAPublicLink(ctx, dbsqlc.CreateRCAPublicLinkParams{
+	row, err := s.insertRCALink(ctx, by, observationID, dbsqlc.CreateRCAPublicLinkParams{
 		RcaID:         rcaID,
 		TokenHash:     hash,
 		DisplayPrefix: displayPrefix(token),
@@ -161,6 +157,27 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 	}
 	link := rcaLinkOf(dbsqlc.ListRCAPublicLinksRow(row), revision, s.now())
 	return CreatedRCA{Link: link, Token: token, URL: links.RCA(s.publicURL, token)}, nil
+}
+
+func (s *Service) insertRCALink(ctx context.Context, by auth.Principal, observationID pgtype.UUID, params dbsqlc.CreateRCAPublicLinkParams) (dbsqlc.CreateRCAPublicLinkRow, error) {
+	var row dbsqlc.CreateRCAPublicLinkRow
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockObservationForLinks(ctx, observationID); err != nil {
+			return err
+		}
+		count, err := q.CountObservationPublicLinks(ctx, observationID)
+		if err != nil {
+			return err
+		}
+		if count >= maxLinksPerObservation {
+			return ErrTooManyRCALinks
+		}
+		if row, err = q.CreateRCAPublicLink(ctx, params); err != nil {
+			return err
+		}
+		return recordLink(ctx, q, activity.TypePublicLinkCreated, by, row.ID)
+	})
+	return row, err
 }
 
 func (s *Service) ListRCALinks(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) ([]RCALink, error) {
@@ -191,14 +208,21 @@ func (s *Service) DeleteRCALink(ctx context.Context, by auth.Principal, observat
 	if err := s.manageRCA(ctx, by, observationID); err != nil {
 		return err
 	}
-	n, err := s.db.Queries().DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := recordLink(ctx, q, activity.TypePublicLinkRevoked, by, linkID); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		n, err := q.DeleteRCAPublicLink(ctx, dbsqlc.DeleteRCAPublicLinkParams{LinkID: linkID, ObservationID: observationID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 func (s *Service) ResolveRCA(ctx context.Context, token string) (ResolvedRCA, error) {
@@ -234,16 +258,25 @@ func (s *Service) ViewRCA(ctx context.Context, token string) (PublicRCA, error) 
 	if err := s.db.Queries().TouchPublicLink(ctx, r.LinkID); err != nil {
 		s.logger.WarnContext(ctx, "record a public link view", logattrs.Failure("internal", err, slog.String("public_link_id", r.LinkID.String()))...)
 	}
+	next, err := s.db.Queries().NextRCARevision(ctx, r.ObservationID)
+	if err != nil {
+		return PublicRCA{}, fmt.Errorf("read the latest RCA revision: %w", err)
+	}
+	var supersededBy *int
+	if latest := int(next.Revision) - 1; latest > r.Revision {
+		supersededBy = &latest
+	}
 	return PublicRCA{
-		Revision:    r.Revision,
-		Title:       r.row.Title,
-		Summary:     r.row.Summary.String,
-		State:       r.row.ObservationState,
-		From:        timeOf(r.row.TimeFrom),
-		To:          timeOf(r.row.TimeTo),
-		Blocks:      content.Blocks,
-		PublishedBy: r.row.CreatedByName,
-		CreatedAt:   r.row.CreatedAt.Time,
+		SupersededBy: supersededBy,
+		Revision:     r.Revision,
+		Title:        r.row.Title,
+		Summary:      r.row.Summary.String,
+		State:        r.row.ObservationState,
+		From:         timeOf(r.row.TimeFrom),
+		To:           timeOf(r.row.TimeTo),
+		Blocks:       content.Blocks,
+		PublishedBy:  r.row.CreatedByName,
+		CreatedAt:    r.row.CreatedAt.Time,
 	}, nil
 }
 

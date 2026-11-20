@@ -41,6 +41,9 @@ var (
 
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrPlacement      = errors.New("a finding is about a dashboard or filed in a folder, not both")
+	ErrRequesterOnly  = errors.New("only the one who asked can use the answer of a run that is not an observation")
+	ErrNotSaved       = errors.New("the answer is not an observation yet; save it as an observation first")
+	ErrAskPlacement   = errors.New("a finding about a dashboard has no other dashboard to ask on")
 )
 
 type Conclusion struct {
@@ -60,14 +63,20 @@ type Author struct{ Kind, ID, Name string }
 type Finding struct {
 	ID, AgentRequestID, DashboardID, AnnotationID string
 	ObservationID, FolderID                       string
+	AskOnID, AskOnTitle                           string
 	Title, Markdown                               string
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
 	CreatedBy                                     Author
+	RequestedBy                                   Author
 	Actor                                         actor.Actor
 	Folder                                        *folders.Folder
 	Abilities                                     folders.Abilities
+}
+
+func (f Finding) Saved() bool {
+	return f.ObservationID != ""
 }
 
 func Title(text string) string {
@@ -117,6 +126,10 @@ func cutRunes(s string, n int) string {
 }
 
 func EvidenceSpec(title string, from, to time.Time, panels []json.RawMessage) (*spec.Dashboard, error) {
+	return EvidenceSpecWith(title, from, to, panels, nil)
+}
+
+func EvidenceSpecWith(title string, from, to time.Time, panels []json.RawMessage, variables []spec.Variable) (*spec.Dashboard, error) {
 	placed := make([]map[string]json.RawMessage, len(panels))
 	for i, raw := range panels {
 		var panel map[string]json.RawMessage
@@ -134,12 +147,16 @@ func EvidenceSpec(title string, from, to time.Time, panels []json.RawMessage) (*
 		panel["id"], panel["gridPos"] = id, grid
 		placed[i] = panel
 	}
-	doc, err := json.Marshal(map[string]any{
+	document := map[string]any{
 		"specVersion": spec.Version,
 		"title":       title,
 		"time":        evidenceTime(from, to),
 		"panels":      placed,
-	})
+	}
+	if len(variables) > 0 {
+		document["variables"] = variables
+	}
+	doc, err := json.Marshal(document)
 	if err != nil {
 		return nil, err
 	}

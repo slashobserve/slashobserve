@@ -407,6 +407,44 @@ describe("setTitle", () => {
   })
 })
 
+describe("setOption", () => {
+  it("sets a field option on the panel itself", () => {
+    const state = apply(dataPanel(), {
+      type: "setOption",
+      key: "lineWidth",
+      value: 4,
+    })
+    expect((state.panel as DataPanel).lineWidth).toBe(4)
+  })
+
+  it("writes nothing when the value equals the Spec default", () => {
+    const state = apply(dataPanel({ lineWidth: 4 }), {
+      type: "setOption",
+      key: "lineWidth",
+      value: 2,
+    })
+    expect("lineWidth" in state.panel).toBe(false)
+  })
+
+  it("removes the option when it is cleared", () => {
+    const state = apply(dataPanel({ description: "Latency" }), {
+      type: "setOption",
+      key: "description",
+      value: undefined,
+    })
+    expect("description" in state.panel).toBe(false)
+  })
+
+  it("leaves a text panel alone", () => {
+    const state = apply(textPanel, {
+      type: "setOption",
+      key: "description",
+      value: "Notes",
+    })
+    expect(state.panel).toEqual(textPanel)
+  })
+})
+
 describe("setDisplay", () => {
   it("sets a key", () => {
     const state = apply(dataPanel(), {

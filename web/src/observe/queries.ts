@@ -12,9 +12,15 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { type ChatListFilters, dashboardKeys, observeKeys } from "@/api/keys"
+import {
+  type ChatListFilters,
+  dashboardKeys,
+  observationKeys,
+  observeKeys,
+} from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
+import { agentZone } from "@/lib/time"
 
 export type ObserveRequest =
   paths["/observe/{id}"]["get"]["responses"][200]["content"]["application/json"]["request"]
@@ -198,12 +204,16 @@ export function useMyRequests(
   return { requests, query }
 }
 
-export function useAgentInfo() {
-  return useQuery({
+export function agentInfoQuery() {
+  return queryOptions({
     queryKey: observeKeys.agent(),
     queryFn: ({ signal }) => api.GET("/agent", { signal }).then(unwrap),
     staleTime: 60_000,
   })
+}
+
+export function useAgentInfo() {
+  return useQuery(agentInfoQuery())
 }
 
 export function observeRequestQuery(id: string) {
@@ -214,7 +224,7 @@ export function observeRequestQuery(id: string) {
         .GET("/observe/{id}", { params: { path: { id } }, signal })
         .then(unwrap)
         .then((body) => body.request),
-    staleTime: 0,
+    staleTime: 2_000,
     refetchIntervalInBackground: true,
     refetchInterval: (query) => {
       if (isTerminal(query.state.data)) return false
@@ -245,6 +255,7 @@ export type ObserveInput = {
   from?: string
   to?: string
   observationId?: string
+  timeZone?: string
 }
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
@@ -271,6 +282,7 @@ export function useCreateObserveRequest() {
       from,
       to,
       observationId,
+      timeZone,
     }: ObserveInput) =>
       api
         .POST("/observe", {
@@ -285,6 +297,7 @@ export function useCreateObserveRequest() {
             ...(observationId === undefined
               ? {}
               : { observation_id: observationId }),
+            time_zone: timeZone ?? agentZone(undefined),
           },
         })
         .then(unwrap)
@@ -361,6 +374,21 @@ export function useCancelRequest(id: string) {
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),
+  })
+}
+
+export function useSaveAnswer(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api
+        .POST("/observe/{id}/observation", { params: { path: { id } } })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+      void queryClient.invalidateQueries({ queryKey: observationKeys.lists() })
+    },
   })
 }
 

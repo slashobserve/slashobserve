@@ -44,6 +44,10 @@ func (f *facetLoki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = w.Write([]byte(`{"fields":[{"label":"http_request_method","type":"string","cardinality":2,"parsers":["logfmt"]},{"label":"detected_level","type":"string","cardinality":3,"parsers":null}],"limit":50}`))
 	case rangePath:
+		if len(f.to(rangePath)) > 1 {
+			_, _ = w.Write([]byte(success("streams", "[]")))
+			return
+		}
 		_, _ = w.Write([]byte(f.streams))
 	default:
 		http.NotFound(w, r)
@@ -178,7 +182,7 @@ func TestLogFacetsSamplesDetectedFields(t *testing.T) {
 		t.Fatalf("detected_fields requests = %+v", detected)
 	}
 	sample := fake.to(rangePath)
-	if len(sample) != 1 || sample[0].params.Get("query") != query || sample[0].params.Get("limit") != "100" || sample[0].params.Get("direction") != "backward" {
+	if len(sample) == 0 || sample[0].params.Get("query") != query || sample[0].params.Get("limit") != "100" || sample[0].params.Get("direction") != "backward" {
 		t.Fatalf("sample requests = %+v", sample)
 	}
 	if n := len(fake.to(volumePath)); n != 2 {
@@ -229,5 +233,20 @@ func TestSelectorOfStopsAtTheFirstPipe(t *testing.T) {
 		if got := fake.to(path)[0].params.Get("query"); got != `{a="b"}` {
 			t.Fatalf("%s query = %q, want the selector before the first pipe outside a string", path, got)
 		}
+	}
+}
+
+func TestLogFacetsAnswerNoFieldsWhenLokiHasNoLabelsForTheRange(t *testing.T) {
+	ds, _ := serveRoutes(t, map[string]string{
+		labelsPath:         `{"status":"success"}`,
+		detectedFieldsPath: `{}`,
+		rangePath:          success("streams", `[]`),
+	})
+	got, err := ds.LogFacets(context.Background(), facetRequest(`{service_name="nope"}`, nil, 5))
+	if err != nil {
+		t.Fatalf("LogFacets: %v", err)
+	}
+	if len(got.Fields) != 0 {
+		t.Fatalf("fields = %+v, want none", got.Fields)
 	}
 }

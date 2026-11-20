@@ -26,26 +26,33 @@ func (q *Queries) CountObservationPublicLinks(ctx context.Context, observationID
 }
 
 const countPublicLinks = `-- name: CountPublicLinks :one
-SELECT count(*)::int FROM public_links WHERE dashboard_id = $1
+SELECT count(*)::int FROM public_links
+WHERE dashboard_id = $1 AND (expires_at IS NULL OR expires_at > $2::timestamptz)
 `
 
-func (q *Queries) CountPublicLinks(ctx context.Context, dashboardID pgtype.UUID) (int32, error) {
-	row := q.db.QueryRow(ctx, countPublicLinks, dashboardID)
+type CountPublicLinksParams struct {
+	DashboardID pgtype.UUID
+	Now         pgtype.Timestamptz
+}
+
+func (q *Queries) CountPublicLinks(ctx context.Context, arg CountPublicLinksParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countPublicLinks, arg.DashboardID, arg.Now)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
 }
 
 const createPublicLink = `-- name: CreatePublicLink :one
-INSERT INTO public_links (dashboard_id, token_hash, display_prefix, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name)
-VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7, $8, $9)
-RETURNING id, dashboard_id, display_prefix, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
+INSERT INTO public_links (dashboard_id, token_hash, display_prefix, label, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8, $9, $10)
+RETURNING id, dashboard_id, display_prefix, label, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
 `
 
 type CreatePublicLinkParams struct {
 	DashboardID   pgtype.UUID
 	TokenHash     []byte
 	DisplayPrefix string
+	Label         string
 	Variables     string
 	Selections    []byte
 	ExpiresAt     pgtype.Timestamptz
@@ -58,6 +65,7 @@ type CreatePublicLinkRow struct {
 	ID            pgtype.UUID
 	DashboardID   pgtype.UUID
 	DisplayPrefix string
+	Label         string
 	Variables     string
 	Selections    []byte
 	ExpiresAt     pgtype.Timestamptz
@@ -73,6 +81,7 @@ func (q *Queries) CreatePublicLink(ctx context.Context, arg CreatePublicLinkPara
 		arg.DashboardID,
 		arg.TokenHash,
 		arg.DisplayPrefix,
+		arg.Label,
 		arg.Variables,
 		arg.Selections,
 		arg.ExpiresAt,
@@ -85,6 +94,7 @@ func (q *Queries) CreatePublicLink(ctx context.Context, arg CreatePublicLinkPara
 		&i.ID,
 		&i.DashboardID,
 		&i.DisplayPrefix,
+		&i.Label,
 		&i.Variables,
 		&i.Selections,
 		&i.ExpiresAt,
@@ -186,17 +196,23 @@ func (q *Queries) DeleteRCAPublicLink(ctx context.Context, arg DeleteRCAPublicLi
 }
 
 const listPublicLinks = `-- name: ListPublicLinks :many
-SELECT id, dashboard_id, display_prefix, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
+SELECT id, dashboard_id, display_prefix, label, variables, selections, expires_at, created_by_kind, created_by_id, created_by_name, created_at, last_viewed_at
 FROM public_links
 WHERE dashboard_id = $1
-ORDER BY created_at DESC, id DESC
+ORDER BY (expires_at IS NOT NULL AND expires_at <= $2::timestamptz), created_at DESC, id DESC
 LIMIT 100
 `
+
+type ListPublicLinksParams struct {
+	DashboardID pgtype.UUID
+	Now         pgtype.Timestamptz
+}
 
 type ListPublicLinksRow struct {
 	ID            pgtype.UUID
 	DashboardID   pgtype.UUID
 	DisplayPrefix string
+	Label         string
 	Variables     string
 	Selections    []byte
 	ExpiresAt     pgtype.Timestamptz
@@ -207,8 +223,8 @@ type ListPublicLinksRow struct {
 	LastViewedAt  pgtype.Timestamptz
 }
 
-func (q *Queries) ListPublicLinks(ctx context.Context, dashboardID pgtype.UUID) ([]ListPublicLinksRow, error) {
-	rows, err := q.db.Query(ctx, listPublicLinks, dashboardID)
+func (q *Queries) ListPublicLinks(ctx context.Context, arg ListPublicLinksParams) ([]ListPublicLinksRow, error) {
+	rows, err := q.db.Query(ctx, listPublicLinks, arg.DashboardID, arg.Now)
 	if err != nil {
 		return nil, err
 	}
@@ -220,6 +236,7 @@ func (q *Queries) ListPublicLinks(ctx context.Context, dashboardID pgtype.UUID) 
 			&i.ID,
 			&i.DashboardID,
 			&i.DisplayPrefix,
+			&i.Label,
 			&i.Variables,
 			&i.Selections,
 			&i.ExpiresAt,
@@ -286,6 +303,24 @@ func (q *Queries) ListRCAPublicLinks(ctx context.Context, rcaID pgtype.UUID) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockDashboardForLinks = `-- name: LockDashboardForLinks :exec
+SELECT 1 FROM dashboards WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockDashboardForLinks(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockDashboardForLinks, id)
+	return err
+}
+
+const lockObservationForLinks = `-- name: LockObservationForLinks :exec
+SELECT 1 FROM observations WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockObservationForLinks(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockObservationForLinks, id)
+	return err
 }
 
 const publicLinkByTokenHash = `-- name: PublicLinkByTokenHash :one

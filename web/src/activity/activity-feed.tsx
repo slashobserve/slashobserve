@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import {
   composerMode,
+  mayInvestigate,
   readerNote,
   useLatestFolderTitle,
   useLatestPermissions,
@@ -33,7 +34,9 @@ import {
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
 import { importForDashboardQuery } from "@/import/record-queries"
+import { annotationActivityQuery } from "@/annotations/queries"
 import { findingsForDashboardQuery } from "@/findings/queries"
+import { dashboardProposalsQuery } from "@/proposals/queries"
 import { fixPrompt } from "@/import/record-summary"
 import { useAgentInfo, useMyRequests } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
@@ -49,7 +52,9 @@ import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { ExternalAgentNote } from "./external-agent-note"
+import { AnnotationEntry } from "./annotation-entry"
 import { FindingEntry } from "./finding-entry"
+import { ProposalEntry } from "./proposal-entry"
 import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
@@ -86,6 +91,7 @@ type Props = {
   composerRef: RefObject<HTMLTextAreaElement | null>
   focusedThreadId?: string
   range: { from: string; to: string }
+  timeZone: string
 }
 
 type PanelRef = { id: string; title: string }
@@ -158,6 +164,9 @@ function changeSignature(entry: TimelineEntry | undefined): string {
       return `${entry.key}:${entry.unverified.length}`
     case "finding":
       return `${entry.key}:${entry.finding.annotation_id ?? ""}`
+    case "proposal":
+    case "annotation":
+      return entry.key
   }
 }
 
@@ -176,6 +185,7 @@ export function ActivityFeed({
   composerRef,
   focusedThreadId,
   range,
+  timeZone,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const comments = useComments(dashboardId)
@@ -187,6 +197,18 @@ export function ActivityFeed({
   const latestUnverified = useLatestUnverified(dashboardId)
   const importRecord = useQuery(importForDashboardQuery(dashboardId)).data
   const findingsData = useQuery(findingsForDashboardQuery(dashboardId)).data
+  const annotationsData = useQuery(annotationActivityQuery(dashboardId)).data
+  const openProposals = useQuery(dashboardProposalsQuery(dashboardId)).data
+  const mergedProposals = useQuery(
+    dashboardProposalsQuery(dashboardId, "merged")
+  ).data
+  const proposalsData = useMemo(
+    () => [
+      ...(openProposals?.proposals ?? []),
+      ...(mergedProposals?.proposals ?? []),
+    ],
+    [openProposals, mergedProposals]
+  )
   const investigations = useMyRequests({
     source: "investigate",
     dashboardId,
@@ -229,6 +251,8 @@ export function ActivityFeed({
           imported,
           investigations,
           findings: findingsData,
+          proposals: proposalsData,
+          annotations: annotationsData,
         }),
         show,
         scopePanelId
@@ -240,6 +264,8 @@ export function ActivityFeed({
       imported,
       investigations,
       findingsData,
+      proposalsData,
+      annotationsData,
       show,
       scopePanelId,
     ]
@@ -343,6 +369,16 @@ export function ActivityFeed({
         )
       case "finding":
         return <FindingEntry entry={entry} />
+      case "proposal":
+        return <ProposalEntry entry={entry} />
+      case "annotation":
+        return (
+          <AnnotationEntry
+            entry={entry}
+            panelTitle={title}
+            onSelectPanel={onSelectPanel}
+          />
+        )
     }
   }
 
@@ -410,15 +446,16 @@ export function ActivityFeed({
           draft={draft}
           onDraftChange={onDraftChange}
           gate={gate}
-          canEdit={permissions.edit}
+          canInvestigate={mayInvestigate(permissions, principal.role)}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
-              : "Write a comment, or tell the agent what to change"
+              : "Write a comment, or type @ to ask the agent"
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}
           range={range}
+          timeZone={timeZone}
           notice={
             mode === "comment-only" ? (
               <RoleNote>{note}</RoleNote>

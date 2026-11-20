@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { ApiError } from "@/api/errors"
 
 import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 
 import {
   lineCountText,
+  logsBodyHeight,
   logsDatasourceFor,
   matchNote,
   previewTime,
@@ -12,6 +15,7 @@ import {
   traceLogLines,
   traceLogsAddress,
   traceLogsWindow,
+  withDeadline,
 } from "./trace-logs"
 
 const traceId = "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -22,6 +26,7 @@ function datasource(uid: string, type: string): DatasourceStatus {
     uid,
     type,
     name: uid,
+    source: "file",
     healthy: true,
     checked_at: "",
     dashboard_count: 0,
@@ -197,5 +202,53 @@ describe("line text", () => {
     ["clickhouse", undefined, "Matched on TraceId in otel_logs."],
   ])("explains the %s match for %o", (type, span, note) => {
     expect(matchNote(type, span)).toBe(note)
+  })
+})
+
+describe("logsBodyHeight", () => {
+  it("never reports less than the minimum body height", () => {
+    expect(logsBodyHeight(0)).toBe(320)
+    expect(logsBodyHeight(120)).toBe(320)
+  })
+
+  it("keeps a larger measured height", () => {
+    expect(logsBodyHeight(540)).toBe(540)
+  })
+})
+
+describe("withDeadline", () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  function hangs(signal: AbortSignal) {
+    return new Promise<string>((_, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason))
+    })
+  }
+
+  it("ends a request that never answers with a timeout error", async () => {
+    const pending = withDeadline(hangs, undefined, 15_000)
+    const settled = expect(pending).rejects.toMatchObject({
+      code: "query_timeout",
+      status: 504,
+    })
+    await vi.advanceTimersByTimeAsync(15_000)
+    await settled
+    await expect(pending).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it("returns the answer of a request that finishes in time", async () => {
+    await expect(
+      withDeadline(() => Promise.resolve("lines"), undefined, 15_000)
+    ).resolves.toBe("lines")
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it("passes a cancel from the caller through as it is", async () => {
+    const caller = new AbortController()
+    const pending = withDeadline(hangs, caller.signal, 15_000)
+    const settled = expect(pending).rejects.not.toBeInstanceOf(ApiError)
+    caller.abort()
+    await settled
   })
 })

@@ -1,9 +1,10 @@
 import type { Folder } from "@/folders/queries"
 import { applyPills, decodePills } from "@/logs/pills"
 import type { LogsSearch } from "@/logs/search"
+import type { MetricsSearch } from "@/metrics/search"
 import type { TraceSearch } from "@/traces/search"
 
-import type { CreateSavedSearch } from "./queries"
+import type { CreateSavedSearch, SavedSearch } from "./queries"
 
 export type SearchDraft = Omit<CreateSavedSearch, "title" | "folder_id">
 
@@ -19,6 +20,20 @@ export function defaultTitle(draft: SearchDraft): string {
   return [...flat].slice(0, titleCodePoints).join("").trimEnd()
 }
 
+export function matchesSaved(
+  draft: SearchDraft,
+  saved: Pick<SavedSearch, "query" | "filters" | "from" | "to">
+): boolean {
+  const columns = (columnsOf: { columns?: string[] } | null | undefined) =>
+    (columnsOf?.columns ?? []).join(",")
+  return (
+    (draft.query ?? null) === saved.query &&
+    draft.from === saved.from &&
+    draft.to === saved.to &&
+    columns(draft.filters) === columns(saved.filters)
+  )
+}
+
 export function saveTargets(folders: readonly Folder[]): {
   choices: Folder[]
   initial: string | null
@@ -29,6 +44,17 @@ export function saveTargets(folders: readonly Folder[]): {
     choices.find((folder) => folder.general) ??
     choices[0]
   return { choices, initial: initial?.id ?? null }
+}
+
+export const noSaveFolderText =
+  "You cannot create in any folder, so there is nowhere to save a search."
+
+export function saveBlockedText(
+  folders: readonly Folder[] | undefined
+): string | undefined {
+  return folders !== undefined && saveTargets(folders).choices.length === 0
+    ? noSaveFolderText
+    : undefined
 }
 
 export type LogsDraft =
@@ -77,5 +103,26 @@ export function tracesDraft(input: {
     },
     from: range.from,
     to: range.to,
+  }
+}
+
+export type MetricsDraft = { draft: SearchDraft } | { blocked: "no-query" }
+
+export function metricsDraft(input: {
+  uid: string
+  search: MetricsSearch
+  range: { from: string; to: string }
+}): MetricsDraft {
+  const { search, range } = input
+  if (search.q === undefined) return { blocked: "no-query" }
+  return {
+    draft: {
+      kind: "metrics",
+      datasource_uid: input.uid,
+      query: search.q,
+      filters: search.mode === "table" ? { mode: "table" } : undefined,
+      from: range.from,
+      to: range.to,
+    },
   }
 }

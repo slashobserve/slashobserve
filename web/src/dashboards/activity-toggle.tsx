@@ -1,5 +1,8 @@
 import { DockToggle } from "@/components/dock/dock-toggle"
 
+import { useCloseControls } from "./controls-sheet"
+import { activityButtonId } from "./pane-openers"
+
 type Props = {
   pressed: boolean
   openCount: number
@@ -13,6 +16,7 @@ export function ActivityToggle({
   disabled,
   onToggle,
 }: Props) {
+  const closeControls = useCloseControls()
   const label = `Activity${
     openCount > 0
       ? `, ${openCount} open ${openCount === 1 ? "comment" : "comments"}`
@@ -20,11 +24,15 @@ export function ActivityToggle({
   }`
   return (
     <DockToggle
+      id={activityButtonId}
       label={label}
       count={openCount}
       pressed={pressed}
       disabled={disabled}
-      onToggle={onToggle}
+      onToggle={() => {
+        closeControls()
+        onToggle()
+      }}
     />
   )
 }

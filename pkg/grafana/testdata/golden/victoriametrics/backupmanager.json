@@ -123,7 +123,7 @@
         "panel_id": "p7",
         "grafana_id": 7,
         "grafana_path": "panels[5]",
-        "title": "Backups errors ",
+        "title": "Backups errors",
         "type": "stat",
         "source_type": "stat",
         "row": "Stats",
@@ -428,7 +428,7 @@
       {
         "subject": "annotations",
         "status": "partial",
-        "reason": "Annotations are not part of SlashObserve.",
+        "reason": "Annotation queries are not imported; SlashObserve annotations are added with the CLI, the HTTP API or an MCP client.",
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"

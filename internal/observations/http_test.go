@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -277,6 +278,18 @@ func TestObservationRoutesAnswerEveryDocumentedError(t *testing.T) {
 		})
 	}
 
+	for _, c := range []struct{ name, path, body, reason string }{
+		{"an invisible title", "/api/v1/observations", fmt.Sprintf(`{"title":"\u200b","folder_id":%q}`, shared), "text_invisible_only"},
+		{"an invisible text block", base + "/blocks", `{"kind":"text","body":{"markdown":"\u200b"}}`, "text_invisible_only"},
+	} {
+		rec := d.send(t, editor, http.MethodPost, c.path, c.body, http.StatusUnprocessableEntity)
+		if got := decode[struct {
+			Reason string `json:"reason"`
+		}](t, rec).Reason; got != c.reason {
+			t.Errorf("%s: reason %q, want %q: %s", c.name, got, c.reason, rec.Body)
+		}
+	}
+
 	conflict := d.send(t, editor, http.MethodPatch, d.blockPath(text.ID), `{"version":99,"width":"half"}`, http.StatusConflict)
 	if current := decode[struct {
 		Current observations.BlockJSON `json:"current"`
@@ -331,4 +344,82 @@ func TestObservationRoutesAnswerEveryDocumentedError(t *testing.T) {
 	}
 	d.freezer.err = nil
 
+}
+
+func TestObservationListSearchesSortsPagesAndCounts(t *testing.T) {
+	d := newDocumented(t)
+	shared := d.shared.String()
+	for _, title := range []string{"Checkout 5xx", "Billing lag", "Checkout latency"} {
+		d.send(t, editor, http.MethodPost, "/api/v1/observations", fmt.Sprintf(`{"title":%q,"folder_id":%q}`, title, shared), http.StatusCreated)
+	}
+	type page struct {
+		Observations []observations.ObservationJSON `json:"observations"`
+		NextCursor   *string                        `json:"next_cursor"`
+		Total        *int                           `json:"total"`
+	}
+	titles := func(p page) []string {
+		var out []string
+		for _, o := range p.Observations {
+			out = append(out, o.Title)
+		}
+		return out
+	}
+
+	found := decode[page](t, d.call(t, viewer, http.MethodGet, "/api/v1/observations?q=CHECKOUT&sort=title&offset=0&limit=10", http.StatusOK))
+	if got := strings.Join(titles(found), ","); got != "Checkout 5xx,Checkout latency" || found.Total == nil || *found.Total != 2 {
+		t.Fatalf("search answered %s with total %v", got, found.Total)
+	}
+	second := decode[page](t, d.call(t, viewer, http.MethodGet, "/api/v1/observations?sort=title&offset=1&limit=1", http.StatusOK))
+	if got := strings.Join(titles(second), ","); got != "Checkout 5xx" || second.Total == nil || *second.Total != 3 {
+		t.Fatalf("second page answered %s with total %v", got, second.Total)
+	}
+	cursor := decode[page](t, d.call(t, viewer, http.MethodGet, "/api/v1/observations?limit=1", http.StatusOK))
+	if cursor.Total != nil {
+		t.Fatalf("a cursor page carries a total: %d", *cursor.Total)
+	}
+	mine := decode[page](t, d.call(t, otherCommen, http.MethodGet, "/api/v1/observations?created_by=me&offset=0", http.StatusOK))
+	if len(mine.Observations) != 0 || mine.Total == nil || *mine.Total != 0 {
+		t.Fatalf("someone who started none sees %+v", mine)
+	}
+
+	for _, c := range []struct{ name, query, code string }{
+		{"a sort that is unknown", "sort=size", "invalid_request"},
+		{"an order that is unknown", "order=sideways", "invalid_request"},
+		{"a created_by that is not me", "created_by=someone", "invalid_request"},
+		{"an offset that is negative", "offset=-1", "invalid_request"},
+		{"an offset with a cursor", "offset=1&cursor=abc", "invalid_request"},
+		{"a cursor with a sort that is not the default", "sort=title&cursor=abc", "invalid_request"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := d.call(t, viewer, http.MethodGet, "/api/v1/observations?"+c.query, http.StatusBadRequest)
+			if got := errorCode(t, rec); got != c.code {
+				t.Errorf("code %q, want %q", got, c.code)
+			}
+		})
+	}
+}
+
+func TestDeletingAnObservationOverHTTP(t *testing.T) {
+	d := newDocumented(t)
+	shared := d.shared.String()
+	o := d.newObservation(t, editor, shared, "").Observation
+	base := "/api/v1/observations/" + o.ID
+
+	if got := decode[envelope](t, d.call(t, editor, http.MethodGet, base, http.StatusOK)).Observation.AllowedActions; !slices.Contains(got, "delete") {
+		t.Fatalf("the person who started it is not offered delete: %v", got)
+	}
+	if rec := d.call(t, viewer, http.MethodDelete, base, http.StatusForbidden); errorCode(t, rec) != "forbidden_role" {
+		t.Errorf("a viewer deleting: %s", rec.Body)
+	}
+	if rec := d.call(t, commenter, http.MethodDelete, base, http.StatusForbidden); errorCode(t, rec) != "forbidden_role" {
+		t.Errorf("a commenter deleting: %s", rec.Body)
+	}
+	d.call(t, editor, http.MethodDelete, base, http.StatusNoContent)
+	if rec := d.call(t, editor, http.MethodGet, base, http.StatusNotFound); errorCode(t, rec) != "not_found" {
+		t.Errorf("reading a deleted observation: %s", rec.Body)
+	}
+	if rec := d.call(t, editor, http.MethodDelete, base, http.StatusNotFound); errorCode(t, rec) != "not_found" {
+		t.Errorf("deleting twice: %s", rec.Body)
+	}
+	d.call(t, editor, http.MethodDelete, "/api/v1/observations/nope", http.StatusBadRequest)
 }

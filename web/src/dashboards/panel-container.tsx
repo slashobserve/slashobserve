@@ -44,6 +44,7 @@ import { useCanvasTool } from "./canvas-tools"
 import { commentOnPanel } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
+import type { PanelLayoutActions } from "./panel-layout-actions"
 import { PanelMenu } from "./panel-menu"
 import { PanelToolbar } from "./panel-toolbar"
 import {
@@ -52,11 +53,13 @@ import {
   stateScope,
   type PanelSource,
 } from "./panel-source"
+import { seriesCapLabel } from "./series-cap"
 import { useAnnotationTagFilter, useSetDashboardSearch } from "./search"
 import { useSelectionStore } from "./selection-store"
 import { useInView } from "./use-in-view"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { UnverifiedLabel } from "./unverified-label"
+import { blockVariables } from "@/observations/panel-input"
 import { sortSelections, VariableLoadError } from "./variables"
 
 function useFramePreparer(
@@ -131,7 +134,9 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  canInvestigate?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
+  layoutActions?: PanelLayoutActions
   focusOnRender: boolean
   onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -173,7 +178,9 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  canInvestigate = false,
   onToggleResponsive,
+  layoutActions,
   focusOnRender,
   onFocused,
   composerRef,
@@ -206,6 +213,11 @@ export const PanelContainer = memo(function PanelContainer({
         ? reusedFilterOf(panel, reused, variables, selections)
         : undefined,
     [panel, reused, variables, selections]
+  )
+  const observationVariables = useMemo(
+    () =>
+      isDataPanel(panel) ? blockVariables(panel, variables, selections) : [],
+    [panel, variables, selections]
   )
   const supported = isRenderable(panel.type)
 
@@ -395,26 +407,23 @@ export const PanelContainer = memo(function PanelContainer({
   }
 
   const data = query.data
+  const downloadsReady = state === "ready"
   const onDownloadCsv = useMemo(
     () =>
-      data && state === "ready"
-        ? () => downloadCsv(prepare(data.frames), panelName)
-        : undefined,
-    [data, state, prepare, panelName]
+      dataPanel === undefined
+        ? undefined
+        : () => {
+            if (data) downloadCsv(prepare(data.frames), panelName)
+          },
+    [dataPanel, data, prepare, panelName]
   )
-  const onSavePng = useMemo(
-    () =>
-      state === "ready"
-        ? () => {
-            const element = bodyRef.current
-            if (!element) return
-            savePanelPng(element, panelName).catch(() =>
-              toast.error("Could not save the panel as PNG")
-            )
-          }
-        : undefined,
-    [state, panelName]
-  )
+  const onSavePng = useCallback(() => {
+    const element = bodyRef.current
+    if (!element) return
+    savePanelPng(element, panelName).catch(() =>
+      toast.error("Could not save the panel as PNG")
+    )
+  }, [panelName])
 
   const panelMenu = (inToolbar: boolean) => (
     <PanelMenu
@@ -425,15 +434,19 @@ export const PanelContainer = memo(function PanelContainer({
       viewing={viewing}
       onDownloadCsv={onDownloadCsv}
       onSavePng={onSavePng}
+      downloadsReady={downloadsReady}
       canComment={canComment}
       canEdit={canEdit}
+      canInvestigate={canInvestigate}
       onToggleResponsive={
         onToggleResponsive && !layoutSession
           ? () => onToggleResponsive(panel)
           : undefined
       }
+      layoutActions={layoutSession ? undefined : layoutActions}
       composerRef={composerRef}
       inToolbar={inToolbar}
+      observationVariables={observationVariables}
     />
   )
 
@@ -463,6 +476,7 @@ export const PanelContainer = memo(function PanelContainer({
             ? panelDatasourceUids(dataPanel ?? panel, selections).join(", ")
             : undefined
         }
+        seriesCap={seriesCapLabel(query.data?.meta)}
         links={links}
         badge={
           <>
@@ -520,11 +534,13 @@ export const PanelContainer = memo(function PanelContainer({
         <PanelToolbar
           panel={panel}
           permissions={permissions}
+          canInvestigate={canInvestigate}
           composerRef={composerRef}
           from={from}
           to={to}
           idle={!layoutSession}
           menu={panelMenu(true)}
+          observationVariables={observationVariables}
         />
       ) : null}
     </div>

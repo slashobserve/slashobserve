@@ -1,6 +1,9 @@
 package datasource
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 type FieldType string
 
@@ -26,13 +29,44 @@ type Frame struct {
 }
 
 type FrameMeta struct {
-	Truncated      bool  `json:"truncated,omitempty"`
-	Partial        bool  `json:"partial,omitempty"`
-	RowsTotal      int   `json:"rows_total,omitempty"`
-	JobsDone       int64 `json:"jobs_done,omitempty"`
-	JobsTotal      int64 `json:"jobs_total,omitempty"`
-	InspectedBytes int64 `json:"inspected_bytes,omitempty"`
-	Bytes          int64 `json:"bytes,omitempty"`
+	Truncated      bool   `json:"truncated,omitempty"`
+	Partial        bool   `json:"partial,omitempty"`
+	Warning        string `json:"warning,omitempty"`
+	Hint           string `json:"hint,omitempty"`
+	RowsTotal      int    `json:"rows_total,omitempty"`
+	JobsDone       int64  `json:"jobs_done,omitempty"`
+	JobsTotal      int64  `json:"jobs_total,omitempty"`
+	InspectedBytes int64  `json:"inspected_bytes,omitempty"`
+	Bytes          int64  `json:"bytes,omitempty"`
+}
+
+const maxWarningBytes = 1024
+
+func MarkPartial(frames []Frame, warnings ...string) []Frame {
+	if len(frames) == 0 {
+		frames = []Frame{{Fields: []Field{}}}
+	}
+	meta := FrameMeta{}
+	if frames[0].Meta != nil {
+		meta = *frames[0].Meta
+	}
+	meta.Partial = true
+	meta.Warning = joinWarnings(meta.Warning, warnings...)
+	frames[0].Meta = &meta
+	return frames
+}
+
+func joinWarnings(have string, more ...string) string {
+	for _, w := range more {
+		if w == "" || strings.Contains(have, w) || len(have)+len(w)+2 > maxWarningBytes {
+			continue
+		}
+		if have != "" {
+			have += "; "
+		}
+		have += w
+	}
+	return have
 }
 
 func MergeMeta(frames []Frame) FrameMeta {
@@ -43,6 +77,10 @@ func MergeMeta(frames []Frame) FrameMeta {
 		}
 		merged.Truncated = merged.Truncated || f.Meta.Truncated
 		merged.Partial = merged.Partial || f.Meta.Partial
+		merged.Warning = joinWarnings(merged.Warning, f.Meta.Warning)
+		if merged.Hint == "" {
+			merged.Hint = f.Meta.Hint
+		}
 		if merged.RowsTotal == 0 {
 			merged.RowsTotal = f.Meta.RowsTotal
 		}

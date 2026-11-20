@@ -391,6 +391,20 @@ func TestCheckSpecResolvesRangeFromNow(t *testing.T) {
 	}
 }
 
+func TestCheckSpecBoundsADashboardRangeLongerThanTheMaximum(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up")})
+	d.Time = spec.TimeRange{From: "now-5y", To: "now"}
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
+		t.Fatalf("issues = %+v, err = %v", issues, err)
+	}
+	want := datasource.TimeRange{From: testNow.Add(-MaxRange), To: testNow}
+	if got := fake.recorded()[0].rng; got != want {
+		t.Fatalf("range = %v, want %v", got, want)
+	}
+}
+
 func TestCheckSpecPanelCallShape(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
@@ -1512,4 +1526,89 @@ func TestCheckChanged(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckSpecChecksARepeatedPanelAsOneCopy(t *testing.T) {
+	repeating := func(p spec.Panel, name string) spec.Panel {
+		p.Repeat = name
+		return p
+	}
+	allJobs := func() spec.Variable {
+		v := queryVariable("job", "prom", "label_values(job)")
+		v.IncludeAll, v.Multi = true, true
+		return v
+	}
+	jobsFake := func() *fakeDatasource {
+		fake := newFake("prometheus")
+		fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+			return []string{"cadvisor", "node"}, nil
+		}
+		fake.onRange = func(_ context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+			if _, err := macros.Expand(macros.PromQL, q.Text, macros.Env{Range: r, Interval: time.Minute, Variables: q.Variables}); err != nil {
+				return nil, datasource.Errorf(datasource.ErrInvalidQuery, "%v", err)
+			}
+			return dataFrames(), nil
+		}
+		return fake
+	}
+	check := func(t *testing.T, fake *fakeDatasource, d *spec.Dashboard) []spec.Issue {
+		t.Helper()
+		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+		issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return issues
+	}
+
+	t.Run("a repeated panel runs with the first value instead of All", func(t *testing.T) {
+		fake := jobsFake()
+		d := dashboardOf([]spec.Panel{repeating(panelOf("p0", spec.Timeseries, "prom", `up{job="$job"}`), "job")}, allJobs())
+		if issues := check(t, fake, d); issues != nil {
+			t.Fatalf("issues = %+v", issues)
+		}
+		got := fake.callsTo("range")[0].query.Variables
+		if !equalVariables(got, []datasource.Variable{{Name: "job", Values: []string{"cadvisor"}}}) {
+			t.Fatalf("variables = %+v", got)
+		}
+	})
+	t.Run("a repeated panel with several selected values runs with the first", func(t *testing.T) {
+		fake := jobsFake()
+		v := allJobs()
+		v.Default = &spec.Selection{Values: []string{"node", "cadvisor"}}
+		d := dashboardOf([]spec.Panel{repeating(panelOf("p0", spec.Timeseries, "prom", `up{job="$job"}`), "job")}, v)
+		if issues := check(t, fake, d); issues != nil {
+			t.Fatalf("issues = %+v", issues)
+		}
+		got := fake.callsTo("range")[0].query.Variables
+		if !equalVariables(got, []datasource.Variable{{Name: "job", Values: []string{"node"}}}) {
+			t.Fatalf("variables = %+v", got)
+		}
+	})
+	t.Run("a panel in a repeated row runs with the first value", func(t *testing.T) {
+		fake := jobsFake()
+		row := spec.Panel{ID: "r", Type: spec.Row, Repeat: "job", Panels: []spec.Panel{panelOf("c", spec.Stat, "prom", `up{job="$job"}`)}}
+		d := dashboardOf([]spec.Panel{row}, allJobs())
+		if issues := check(t, fake, d); issues != nil {
+			t.Fatalf("issues = %+v", issues)
+		}
+		got := fake.callsTo("range")[0].query.Variables
+		if !equalVariables(got, []datasource.Variable{{Name: "job", Values: []string{"cadvisor"}}}) {
+			t.Fatalf("variables = %+v", got)
+		}
+	})
+	t.Run("a panel that does not repeat still fails on All", func(t *testing.T) {
+		d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job="$job"}`)}, allJobs())
+		assertIssues(t, check(t, jobsFake(), d), []wantIssue{
+			{"/panels/0/queries/0/query", CodeQueryInvalid, ""},
+		})
+	})
+	t.Run("a repeated panel still fails when its query is broken", func(t *testing.T) {
+		fake := jobsFake()
+		fake.onRange = failWith(datasource.Errorf(datasource.ErrInvalidQuery, "parse error"))
+		d := dashboardOf([]spec.Panel{repeating(panelOf("p0", spec.Timeseries, "prom", `up{job="$job"}`), "job")}, allJobs())
+		if issues := check(t, fake, d); len(issues) != 1 {
+			t.Fatalf("issues = %+v, want one", issues)
+		}
+	})
 }

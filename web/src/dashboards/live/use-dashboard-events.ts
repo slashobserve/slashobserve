@@ -4,8 +4,9 @@ import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
 import {
@@ -13,9 +14,11 @@ import {
   searchFromState,
   validateDashboardSearch,
 } from "../search"
+import { useDeletedDashboards } from "./deleted-store"
 import { parseEvent, type DashboardEvent } from "./events"
 import {
   backoffDelay,
+  goneOutcome,
   reconnectingGraceMs,
   shouldCheckDashboard,
 } from "./reconnect"
@@ -29,11 +32,13 @@ function versionToastId(dashboardId: string, version: number): string {
 const eventNames = [
   "ready",
   "resync",
+  "role.changed",
   "version.created",
   "dashboard.deleted",
   "comment.created",
   "comment.updated",
   "revision.updated",
+  "proposal.updated",
 ] as const
 
 const hiddenGraceMs = 5 * 60_000
@@ -109,7 +114,8 @@ export function useDashboardEvents(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
         dashboardKeys.comments(dashboardId),
-        dashboardKeys.revisions(dashboardId)
+        dashboardKeys.revisions(dashboardId),
+        proposalKeys.all
       )
 
     function onVersionCreated(
@@ -120,7 +126,8 @@ export function useDashboardEvents(
       invalidate(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
-        dashboardKeys.list()
+        dashboardKeys.list(),
+        dashboardKeys.panels(dashboardId, event.version)
       )
       const saving = queryClient.isMutating({
         mutationKey: dashboardKeys.saves(dashboardId),
@@ -186,13 +193,17 @@ export function useDashboardEvents(
           if (readyCount > 1) {
             invalidate(
               dashboardKeys.comments(dashboardId),
-              dashboardKeys.revisions(dashboardId)
+              dashboardKeys.revisions(dashboardId),
+              proposalKeys.all
             )
           }
           return
         }
         case "resync":
           refetchAll()
+          return
+        case "role.changed":
+          catchUpWithSession(latest.current.router, queryClient)
           return
         case "version.created":
           onVersionCreated(event)
@@ -211,7 +222,7 @@ export function useDashboardEvents(
               : "This dashboard was deleted",
             { id: `deleted-${dashboardId}` }
           )
-          void checkDashboard()
+          void checkDashboard({ deletedBy: event.authorName })
           return
         case "comment.created":
         case "comment.updated":
@@ -220,10 +231,13 @@ export function useDashboardEvents(
         case "revision.updated":
           invalidate(dashboardKeys.revisions(dashboardId))
           return
+        case "proposal.updated":
+          invalidate(proposalKeys.all)
+          return
       }
     }
 
-    async function checkDashboard() {
+    async function checkDashboard(announced?: { deletedBy: string }) {
       try {
         await queryClient.fetchQuery({
           ...latestDashboardQuery(queryClient, dashboardId),
@@ -232,7 +246,15 @@ export function useDashboardEvents(
         })
       } catch (error) {
         if (disposed) return
-        if (!(error instanceof ApiError) || error.status !== 404) return
+        if (!(error instanceof ApiError)) return
+        const outcome = goneOutcome(error, announced !== undefined)
+        if (outcome === "keep") return
+        if (outcome === "deleted") {
+          useDeletedDashboards
+            .getState()
+            .markDeleted(dashboardId, announced?.deletedBy ?? "")
+          return
+        }
         queryClient.removeQueries({
           queryKey: dashboardKeys.latest(dashboardId),
           exact: true,
@@ -326,6 +348,21 @@ export function useDashboardEvents(
       for (const id of toastIds) toast.dismiss(id)
     }
   }, [dashboardId, queryClient])
+
+  const deleted = useDeletedDashboards(
+    (state) => state.deletedBy[dashboardId] !== undefined
+  )
+  const draftHeld = useDeletedDashboards(
+    (state) => state.heldDrafts[dashboardId] === true
+  )
+  useEffect(() => {
+    if (!deleted || draftHeld) return
+    queryClient.removeQueries({
+      queryKey: dashboardKeys.latest(dashboardId),
+      exact: true,
+    })
+    void latest.current.router.invalidate()
+  }, [deleted, draftHeld, dashboardId, queryClient])
 
   return {
     status:

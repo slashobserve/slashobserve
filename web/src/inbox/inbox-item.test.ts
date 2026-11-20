@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  itemExcerpt,
+  threadTarget,
+  groupByTarget,
   groupItems,
   itemLink,
   itemText,
@@ -33,6 +36,8 @@ function item(over: Partial<InboxItem> = {}): InboxItem {
     created_at: "2026-11-11T10:00:00Z",
     reason: null,
     unread: false,
+    target_title: null,
+    excerpt: null,
     ...over,
   }
 }
@@ -112,6 +117,68 @@ describe("itemText", () => {
         data: withData({ object: { kind: "dashboard", id: other } }),
       },
       text: { actor: "Ada", verb: "mentioned you on", object: "a dashboard" },
+    },
+    {
+      name: "a mention names the target by its title",
+      over: {
+        type: "thread.mentioned",
+        target: { kind: "thread", id },
+        data: withData({ object: { kind: "dashboard", id: other } }),
+        target_title: "Checkout latency",
+      },
+      text: {
+        actor: "Ada",
+        verb: "mentioned you on",
+        object: "Checkout latency",
+      },
+    },
+    {
+      name: "a merged proposal names its title and the version it saved",
+      over: {
+        type: "proposal.merged",
+        target: { kind: "proposal", id },
+        data: withData({ title: "Add latency", revision: 2, version: 4 }),
+      },
+      text: {
+        actor: "Ada",
+        verb: "merged your proposal",
+        object: "Add latency as version 4",
+      },
+    },
+    {
+      name: "a merged proposal with no saved version names only its title",
+      over: {
+        type: "proposal.merged",
+        target: { kind: "proposal", id },
+        data: withData({ title: "Add latency", revision: 2, version: null }),
+      },
+      text: {
+        actor: "Ada",
+        verb: "merged your proposal",
+        object: "Add latency",
+      },
+    },
+    {
+      name: "a discarded proposal falls back to the target title",
+      over: {
+        type: "proposal.discarded",
+        target: { kind: "proposal", id },
+        target_title: "Add latency",
+      },
+      text: {
+        actor: "Ada",
+        verb: "discarded your proposal",
+        object: "Add latency",
+      },
+    },
+    {
+      name: "a failed run names its dashboard by title",
+      over: {
+        type: "run.failed",
+        target: { kind: "run", id },
+        target_title: "Checkout",
+      },
+      text: { actor: "", verb: "Your run failed on", object: "Checkout" },
     },
     {
       name: "a reply on an observation",
@@ -394,6 +461,25 @@ describe("itemLink", () => {
   })
 })
 
+describe("itemExcerpt", () => {
+  test("is the excerpt, or null when there is none", () => {
+    expect(itemExcerpt(item({ excerpt: "hello" }))).toBe("hello")
+    expect(itemExcerpt(item({ excerpt: "" }))).toBeNull()
+    expect(itemExcerpt(item({ excerpt: null }))).toBeNull()
+  })
+})
+
+describe("threadTarget", () => {
+  test("is the commented object of a thread item and nothing for other items", () => {
+    const threaded = item({
+      target: { kind: "thread", id },
+      data: withData({ object: { kind: "observation", id: other } }),
+    })
+    expect(threadTarget(threaded)).toBe(`observation:${other}`)
+    expect(threadTarget(item({}))).toBeNull()
+  })
+})
+
 describe("reasonLabel", () => {
   test.each([
     ["proposal", "Proposal"],
@@ -431,6 +517,54 @@ describe("groupItems", () => {
       "Workspace activity",
     ])
     expect(groupItems([])).toEqual([])
+  })
+})
+
+describe("groupByTarget", () => {
+  test("puts the items about one dashboard or observation together under its title, newest group first", () => {
+    const threadOn = (kind: "dashboard" | "observation", ref: string) =>
+      ({
+        type: "thread.mentioned",
+        target: { kind: "thread", id: other },
+        data: withData({ object: { kind, id: ref } }),
+      }) satisfies Partial<InboxItem>
+    const groups = groupByTarget([
+      item({ seq: 6, ...threadOn("dashboard", id), target_title: "Checkout" }),
+      item({
+        seq: 5,
+        ...threadOn("observation", other),
+        target_title: "Slow search",
+      }),
+      item({ seq: 4, ...threadOn("dashboard", id), target_title: "Checkout" }),
+      item({
+        seq: 3,
+        type: "proposal.opened",
+        target: { kind: "proposal", id: other },
+        target_title: "Raise the alert",
+      }),
+    ])
+    expect(
+      groups.map((group) => [group.label, group.items.map((i) => i.seq)])
+    ).toEqual([
+      ["Checkout", [6, 4]],
+      ["Slow search", [5]],
+      ["Raise the alert", [3]],
+    ])
+  })
+
+  test("names a group with no title by what it is about and shows a mention as plain text", () => {
+    const groups = groupByTarget([
+      item({ seq: 2, target: { kind: "observation", id } }),
+      item({
+        seq: 1,
+        target: { kind: "proposal", id: other },
+        target_title: `Ask @[Ada](user:${id})`,
+      }),
+    ])
+    expect(groups.map((group) => group.label)).toEqual([
+      "an observation",
+      "Ask @Ada",
+    ])
   })
 })
 

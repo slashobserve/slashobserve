@@ -2,14 +2,17 @@ package savedsearches
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -30,6 +33,8 @@ var (
 
 	logsDatasources   = []spec.DatasourceType{spec.Loki, spec.ClickHouse, spec.Elasticsearch, spec.OpenSearch}
 	tracesDatasources = []spec.DatasourceType{spec.Tempo, spec.ClickHouse}
+
+	metricsDatasources = []spec.DatasourceType{spec.Prometheus}
 )
 
 func invalid(format string, args ...any) *InvalidInputError {
@@ -37,14 +42,9 @@ func invalid(format string, args ...any) *InvalidInputError {
 }
 
 func cleanTitle(raw string) (string, error) {
-	title := strings.TrimSpace(raw)
-	switch {
-	case title == "":
-		return "", invalid("title is required")
-	case utf8.RuneCountInString(title) > maxTitleRunes:
-		return "", invalid("title must be at most %d characters", maxTitleRunes)
-	case hasControl(title):
-		return "", invalid("title must not contain control characters")
+	title, err := usertext.Clean("title", raw, usertext.Line(maxTitleRunes))
+	if err != nil {
+		return "", &InvalidInputError{Code: CodeInvalid, Message: err.Error(), Cause: err}
 	}
 	return title, nil
 }
@@ -58,10 +58,14 @@ type validated struct {
 	filters Filters
 }
 
+func RangeOrDefault(from, to string) (string, string) {
+	return cmp.Or(from, defaultFrom), cmp.Or(to, defaultTo)
+}
+
 func validate(in CreateInput, now time.Time) (validated, error) {
 	out := validated{CreateInput: in}
-	if in.Kind != KindLogs && in.Kind != KindTraces {
-		return out, invalid("kind must be logs or traces")
+	if !in.Kind.Valid() {
+		return out, invalid("kind must be logs, traces or metrics")
 	}
 	title, err := cleanTitle(in.Title)
 	if err != nil {
@@ -77,12 +81,7 @@ func validate(in CreateInput, now time.Time) (validated, error) {
 	if out.filters, err = parseFilters(in.Kind, in.Filters); err != nil {
 		return out, err
 	}
-	if out.From == "" {
-		out.From = defaultFrom
-	}
-	if out.To == "" {
-		out.To = defaultTo
-	}
+	out.From, out.To = RangeOrDefault(out.From, out.To)
 	for _, t := range []struct {
 		name, expr string
 		roundUp    bool
@@ -99,8 +98,8 @@ func validate(in CreateInput, now time.Time) (validated, error) {
 
 func checkQuery(kind Kind, query *string) error {
 	if query == nil {
-		if kind == KindLogs {
-			return invalid("query is required for a logs search")
+		if kind != KindTraces {
+			return invalid("query is required for a %s search", kind)
 		}
 		return nil
 	}
@@ -109,6 +108,8 @@ func checkQuery(kind Kind, query *string) error {
 		return invalid("query must not be blank")
 	case n > maxQueryRunes:
 		return invalid("query must be at most %d characters", maxQueryRunes)
+	case strings.ContainsRune(*query, 0) || !utf8.ValidString(*query):
+		return invalid("query must be valid text without the NUL character")
 	}
 	return nil
 }
@@ -124,29 +125,42 @@ func parseFilters(kind Kind, raw []byte) (Filters, error) {
 	if err := dec.Decode(&filters); err != nil {
 		return Filters{}, invalid("filters must be an object with only the keys of a %s search: %v", kind, err)
 	}
-	if kind == KindLogs {
+	switch kind {
+	case KindLogs:
 		return filters, checkLogsFilters(filters)
+	case KindMetrics:
+		return filters, checkMetricsFilters(filters)
 	}
 	return filters, checkTraceFilters(filters)
 }
 
+func checkMetricsFilters(f Filters) error {
+	if len(f.Columns) > 0 || f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors {
+		return invalid("a metrics search takes only the filter key mode")
+	}
+	if f.Mode != "" && f.Mode != "graph" && f.Mode != ModeTable {
+		return invalid("mode must be graph or table")
+	}
+	return nil
+}
+
 func checkLogsFilters(f Filters) error {
-	if f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors {
+	if f.Service != "" || f.Span != "" || f.Min != "" || f.Max != "" || f.Errors || f.Mode != "" {
 		return invalid("a logs search takes only the filter key columns")
 	}
 	if len(f.Columns) > maxColumns {
 		return invalid("columns takes at most %d names", maxColumns)
 	}
 	for _, name := range f.Columns {
-		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") {
-			return invalid("a column name is 1 to %d characters without a comma", maxColumnRunes)
+		if n := utf8.RuneCountInString(name); n < 1 || n > maxColumnRunes || strings.Contains(name, ",") || hasControl(name) || !utf8.ValidString(name) {
+			return invalid("a column name is 1 to %d characters without a comma or control characters", maxColumnRunes)
 		}
 	}
 	return nil
 }
 
 func checkTraceFilters(f Filters) error {
-	if len(f.Columns) > 0 {
+	if len(f.Columns) > 0 || f.Mode != "" {
 		return invalid("a traces search takes only the filter keys service, span, min, max and errors")
 	}
 	for _, v := range []struct{ name, value string }{{"service", f.Service}, {"span", f.Span}} {
@@ -159,13 +173,27 @@ func checkTraceFilters(f Filters) error {
 			return invalid("%s must be a duration such as 250ms or 2s", v.name)
 		}
 	}
+	if f.Min != "" && f.Max != "" && durationNanos(f.Min) > durationNanos(f.Max) {
+		return invalid("min must not be greater than max")
+	}
 	return nil
+}
+
+var nanosecondsPer = map[string]float64{"ns": 1, "us": 1e3, "µs": 1e3, "ms": 1e6, "s": 1e9, "m": 60e9, "h": 3600e9}
+
+func durationNanos(text string) float64 {
+	match := durationPattern.FindStringSubmatch(text)
+	n, _ := strconv.ParseFloat(match[1], 64)
+	return n * nanosecondsPer[match[2]]
 }
 
 func fitDatasource(kind Kind, dsType spec.DatasourceType, query *string) error {
 	fits := tracesDatasources
-	if kind == KindLogs {
+	switch kind {
+	case KindLogs:
 		fits = logsDatasources
+	case KindMetrics:
+		fits = metricsDatasources
 	}
 	supported := false
 	for _, t := range fits {

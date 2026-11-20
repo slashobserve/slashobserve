@@ -21,8 +21,8 @@ import { CancelRequestButton } from "@/observe/request-actions"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
-import type { Finding } from "@/findings/queries"
 
+import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
 import { PromptBubble } from "./prompt-bubble"
 import { ResultCard } from "./result-card"
@@ -79,7 +79,8 @@ type Props = {
   onRetried: (request: ObserveRequest) => void
   buildOnScreen?: boolean
   opensRunsIn?: RunOpens
-  answerActions?: (finding: Finding) => ReactNode
+  latest?: boolean
+  answerActions?: ReactNode
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -154,6 +155,7 @@ export function RequestTurn({
   onRetried,
   buildOnScreen = false,
   opensRunsIn = "chat",
+  latest = true,
   answerActions,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -328,12 +330,22 @@ export function RequestTurn({
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
               <>
-                <FindingCard finding={detail.finding} showOpenLink />
-                {answerActions === undefined ? null : (
-                  <div className="flex flex-wrap gap-1">
-                    {answerActions(detail.finding)}
-                  </div>
-                )}
+                <FindingCard
+                  finding={detail.finding}
+                  showOpenLink
+                  saveAnswerOf={
+                    request.requested_by.id === principal.id
+                      ? request.id
+                      : undefined
+                  }
+                />
+                {detail.finding.ask_on !== null ? (
+                  <AskOnDashboard
+                    askOn={detail.finding.ask_on}
+                    prompt={request.prompt}
+                  />
+                ) : null}
+                {answerActions}
               </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
@@ -352,6 +364,7 @@ export function RequestTurn({
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
               partial={savedBuild ? { prompt: request.prompt } : undefined}
+              addMissing={latest}
             />
           ) : null}
           {request.status === "failed" && !savedBuild ? (

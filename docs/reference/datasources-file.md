@@ -5,7 +5,8 @@ description: The YAML file that lists the Prometheus, ClickHouse, Loki, Tempo, E
 
 The datasources file lists the Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers SlashObserve queries.
 It is a single YAML document with a top-level `datasources` list; unknown fields are rejected, and an empty list logs a warning at startup.
-The server reads it once at startup.
+The server reads it once at startup, and its entries show as "from file", read-only, on the Datasources page.
+An Admin can add more datasources in the app; see [Add datasources in the app](../connect/datasources-in-the-app.md).
 
 The file never holds a secret.
 Passwords and tokens are referenced by environment variable name or by file path instead, so the file can live in version control.
@@ -51,6 +52,11 @@ datasources:
 ```
 
 `deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
+
+## Who can query a datasource
+
+Every entry is open to every signed-in person from Viewer up and to every service-account key, through the explore query and the panel editor, under the entry's limits.
+There is no per-team or per-folder datasource access; a restricted folder hides its dashboards, not the datasources they read.
 
 ## Fields common to every entry
 

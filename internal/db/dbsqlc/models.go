@@ -80,6 +80,8 @@ type AgentRequest struct {
 	ThreadContext     pgtype.Text
 	ChatID            pgtype.UUID
 	RetriesID         pgtype.UUID
+	TimeZone          pgtype.Text
+	ThreadRepliedAt   pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -94,6 +96,7 @@ type AgentRequestBuild struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	PlannedPanels  int32
+	FolderID       pgtype.UUID
 }
 
 type AgentWorker struct {
@@ -225,6 +228,37 @@ type DashboardView struct {
 	ViewedAt    pgtype.Timestamptz
 }
 
+type DashboardViewDay struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	Day         pgtype.Date
+}
+
+type DashboardViewer struct {
+	DashboardID pgtype.UUID
+	UserID      pgtype.UUID
+	SeenAt      pgtype.Timestamptz
+}
+
+type Datasource struct {
+	ID          pgtype.UUID
+	Uid         string
+	Type        string
+	Name        string
+	Config      []byte
+	Secrets     []byte
+	SecretNames []string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type DraftQuerySpend struct {
+	PrincipalKey string
+	WindowStart  pgtype.Timestamptz
+	Calls        int32
+}
+
 type Finding struct {
 	ID             pgtype.UUID
 	AgentRequestID pgtype.UUID
@@ -243,6 +277,7 @@ type Finding struct {
 	OriginClient   pgtype.Text
 	FolderID       pgtype.UUID
 	ObservationID  pgtype.UUID
+	AskDashboardID pgtype.UUID
 }
 
 type Folder struct {
@@ -313,6 +348,12 @@ type GrafanaSyncItem struct {
 	Error             pgtype.Text
 }
 
+type HomeDashboard struct {
+	UserID      pgtype.UUID
+	DashboardID pgtype.UUID
+	SetAt       pgtype.Timestamptz
+}
+
 type Import struct {
 	ID              pgtype.UUID
 	DashboardID     pgtype.UUID
@@ -338,6 +379,14 @@ type InboxCursor struct {
 	ReadXid   pgtype.Uint64
 	ReadSeq   int64
 	UpdatedAt pgtype.Timestamptz
+}
+
+type InboxItemState struct {
+	UserID    pgtype.UUID
+	Seq       int64
+	Unread    bool
+	UpdatedAt pgtype.Timestamptz
+	Done      bool
 }
 
 type Instance struct {
@@ -448,6 +497,22 @@ type ObservationBlock struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type ObservationDashboard struct {
+	ObservationID pgtype.UUID
+	BlockID       pgtype.UUID
+	DashboardID   pgtype.UUID
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
+type ObservationPin struct {
+	ObservationID pgtype.UUID
+	DashboardID   pgtype.UUID
+	AnnotationID  pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
 type ObservationRca struct {
 	ID               pgtype.UUID
 	ObservationID    pgtype.UUID
@@ -480,6 +545,7 @@ type OutboundDomain struct {
 	CreatedAt     pgtype.Timestamptz
 	CreatedByID   pgtype.UUID
 	CreatedByName string
+	ForConnection bool
 }
 
 type Proposal struct {
@@ -500,6 +566,7 @@ type Proposal struct {
 	ClosedByName pgtype.Text
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	CloseReason  pgtype.Text
 }
 
 type ProposalRevision struct {
@@ -540,6 +607,7 @@ type PublicLink struct {
 	CreatedAt     pgtype.Timestamptz
 	LastViewedAt  pgtype.Timestamptz
 	RcaID         pgtype.UUID
+	Label         string
 }
 
 type RunSession struct {
@@ -642,6 +710,19 @@ type Snapshot struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
+type Team struct {
+	ID            pgtype.UUID
+	Name          string
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+}
+
+type TeamMember struct {
+	TeamID  pgtype.UUID
+	UserID  pgtype.UUID
+	AddedAt pgtype.Timestamptz
+}
+
 type Thread struct {
 	ID                   pgtype.UUID
 	DashboardID          pgtype.UUID
@@ -692,22 +773,44 @@ type ThreadMessage struct {
 	ObservationBlockID pgtype.UUID
 }
 
+type ThreadRead struct {
+	UserID   pgtype.UUID
+	ThreadID pgtype.UUID
+	ReadAt   pgtype.Timestamptz
+}
+
 type User struct {
-	ID               pgtype.UUID
-	OidcIssuer       string
-	OidcSubject      string
-	Email            string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	LastLoginAt      pgtype.Timestamptz
-	LastSeenAt       pgtype.Timestamptz
-	Role             string
-	RoleSource       string
-	RoleGroup        pgtype.Text
-	ManualRole       pgtype.Text
-	ManualRoleByID   pgtype.UUID
-	ManualRoleByName pgtype.Text
-	Groups           []string
+	ID                pgtype.UUID
+	OidcIssuer        string
+	OidcSubject       string
+	Email             string
+	Name              string
+	CreatedAt         pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+	LastSeenAt        pgtype.Timestamptz
+	Role              string
+	RoleSource        string
+	RoleGroup         pgtype.Text
+	ManualRole        pgtype.Text
+	ManualRoleByID    pgtype.UUID
+	ManualRoleByName  pgtype.Text
+	Groups            []string
+	ThreadsSeenSince  pgtype.Timestamptz
+	DeactivatedAt     pgtype.Timestamptz
+	DeactivatedByID   pgtype.UUID
+	DeactivatedByName pgtype.Text
+	FirstUser         bool
+}
+
+type UserInvite struct {
+	ID            pgtype.UUID
+	Email         string
+	Role          string
+	CreatedByKind string
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
 }
 
 type Webhook struct {
@@ -729,6 +832,7 @@ type Webhook struct {
 	DisabledReason      pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
+	Format              string
 }
 
 type WebhookDelivery struct {

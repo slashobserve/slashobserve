@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import type { TraceRow } from "./trace-rows"
-import { histogramPercentile, p95Label, partialNote } from "./trace-stats"
+import {
+  histogramPercentile,
+  p95Label,
+  noTracesText,
+  partialNote,
+  partialReason,
+} from "./trace-stats"
 
 const histogram = [
   { le_ms: 64, count: 10 },
@@ -69,5 +75,39 @@ describe("partialNote", () => {
     )
     expect(partialNote([row("a", null)], "UTC")).toBeNull()
     expect(partialNote([], "UTC")).toBeNull()
+  })
+})
+
+describe("partialReason", () => {
+  it("says the page holds the newest matches when it is full", () => {
+    expect(partialReason(50, 50, true)).toBe(
+      "Showing the newest 50 traces that match; older matches are on the next pages."
+    )
+  })
+
+  it("blames the time limit when the page is not full", () => {
+    expect(partialReason(12, 50, false)).toBe(
+      "Tempo stopped searching at its time limit, so some matching traces may be missing."
+    )
+  })
+
+  it("points to the next page when the time limit cut a page short", () => {
+    expect(partialReason(12, 50, true)).toBe(
+      "Tempo stopped searching at its time limit, so these are the newest matches it found; the next page searches further back."
+    )
+  })
+})
+
+describe("noTracesText", () => {
+  it("says nothing matched in a complete search", () => {
+    expect(noTracesText(false, "the last 24 hours")).toBe(
+      "No traces match in the last 24 hours."
+    )
+  })
+
+  it("does not claim nothing matched when the search was cut", () => {
+    expect(noTracesText(true, "the last 24 hours")).toBe(
+      "Tempo stopped searching at its time limit before it found a trace in the last 24 hours. Choose a shorter range or add a filter."
+    )
   })
 })

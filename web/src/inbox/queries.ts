@@ -8,7 +8,7 @@ import {
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { inboxKeys, type InboxView } from "@/api/keys"
+import { inboxKeys, type InboxFilter, type InboxView } from "@/api/keys"
 import {
   useActivityStream,
   useDocumentVisible,
@@ -18,13 +18,18 @@ const pageSize = 50
 const countStaleTime = 30_000
 const liveDebounceMs = 1000
 
-export function inboxInfiniteQuery(view: InboxView) {
+export function inboxInfiniteQuery(
+  view: InboxView,
+  filter: InboxFilter = "open"
+) {
   return infiniteQueryOptions({
-    queryKey: inboxKeys.list(view),
+    queryKey: inboxKeys.list(view, filter),
     queryFn: ({ pageParam, signal }) =>
       api
         .GET("/inbox", {
-          params: { query: { view, cursor: pageParam, limit: pageSize } },
+          params: {
+            query: { view, filter, cursor: pageParam, limit: pageSize },
+          },
           signal,
         })
         .then(unwrap),
@@ -51,6 +56,36 @@ export function useMarkInboxRead() {
     networkMode: "always",
     mutationFn: (seq: number) =>
       api.POST("/inbox/read", { body: { seq } }).then(unwrap),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  })
+}
+
+export function useSetInboxItemUnread() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { seq: number; unread: boolean }) =>
+      api
+        .PUT("/inbox/items/{seq}", {
+          params: { path: { seq: input.seq } },
+          body: { unread: input.unread },
+        })
+        .then(unwrap),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+  })
+}
+
+export function useSetInboxItemDone() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { seq: number; done: boolean }) =>
+      api
+        .PUT("/inbox/items/{seq}", {
+          params: { path: { seq: input.seq } },
+          body: { done: input.done },
+        })
+        .then(unwrap),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
   })
 }

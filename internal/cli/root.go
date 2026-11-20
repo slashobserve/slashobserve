@@ -36,6 +36,7 @@ type app struct {
 	continuing      continueOptions
 	retrying        retryOptions
 	list            pageOptions
+	listOrder       string
 	versions        pageOptions
 	show            showOptions
 	remove          deleteOptions
@@ -48,6 +49,7 @@ type app struct {
 	withToken       bool
 	annotating      annotateOptions
 	logs            logsOptions
+	metricsQuery    metricsQueryOptions
 	traces          tracesOptions
 	grafanaConnect  grafanaConnectOptions
 	grafanaImport   grafanaImportOptions
@@ -55,6 +57,7 @@ type app struct {
 	investigating   investigateOptions
 	activity        activityOptions
 	webhooks        webhooksOptions
+	people          peopleOptions
 	savedSearchList savedSearchListOptions
 	savedSearchSave savedSearchSaveOptions
 	savedSearchMove savedSearchMoveOptions
@@ -159,7 +162,7 @@ func (a *app) command() *cobra.Command {
 	a.addPromptFlags(root)
 	a.addOpenFlag(root)
 
-	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand(), a.requestsCommand(), a.datasourcesCommand())
+	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.saveAnswerCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.metricsGroupCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.peopleCommand(), a.teamsCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand(), a.requestsCommand(), a.datasourcesCommand())
 	root.Long += quotedCommandsNote(root)
 	return root
 }

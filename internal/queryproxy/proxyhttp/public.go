@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/public"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -34,6 +36,21 @@ func (d *PublicData) RegisterPublic(g *gin.RouterGroup) {
 	g.GET("/:token/variables/:name/values", d.values)
 }
 
+func (h *Handler) VariableOptions(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error) {
+	rng, _, err := params{}.timeRange(d, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	principal, _ := auth.FromContext(ctx)
+	release, ok := h.slots.acquire(principal.ID)
+	if !ok {
+		return nil, errTooManyInFlight
+	}
+	defer release()
+	entry, _, err := h.variableOptions(ctx, loadedVersion{dashboard: d}, &cachedVersion{id: dashboardID, version: version}, name, valuesRange(rng), selectionsOf(earlier))
+	return entry.values, err
+}
+
 func publicSlot(link public.Resolved) string {
 	return "public:" + link.LinkID.String()
 }
@@ -49,6 +66,7 @@ func (d *PublicData) data(c *gin.Context) {
 		return
 	}
 	p.selections = selections
+	p.hideQueryText = true
 	d.h.serveData(c, p, v, c.Param("panel_id"), &cachedVersion{id: link.DashboardID, version: link.Version})
 }
 

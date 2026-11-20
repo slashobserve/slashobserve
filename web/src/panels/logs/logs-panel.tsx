@@ -32,6 +32,7 @@ import {
   maxEntries,
   messageTokens,
   showsAttributes,
+  withoutLevels,
   type DedupStrategy,
   type Labels,
   type LogDetail,
@@ -222,6 +223,7 @@ type RowProps = {
   commonLabels: Labels
   setSize: number | undefined
   posInSet: number | undefined
+  tabStop: boolean
 }
 
 const rowButtonClasses =
@@ -252,6 +254,7 @@ const LogRow = memo(function LogRow({
   commonLabels,
   setSize,
   posInSet,
+  tabStop,
 }: RowProps) {
   const [open, setOpen] = useState(false)
   const detailsId = useId()
@@ -397,6 +400,7 @@ const LogRow = memo(function LogRow({
       ) : (
         <button
           type="button"
+          tabIndex={tabStop ? 0 : -1}
           aria-expanded={expanded}
           aria-controls={
             expanded ? (controlled ? controlsId : detailsId) : undefined
@@ -533,6 +537,7 @@ export type LogsViewProps = {
   detailsId?: string
   columns?: readonly string[]
   columnSort?: ColumnSort | null
+  hiddenLevels?: ReadonlySet<LogLevelKind>
   onModel?: (model: LogsViewModel) => void
 }
 
@@ -661,6 +666,7 @@ export function LogsView({
   detailsId,
   columns,
   columnSort = null,
+  hiddenLevels,
   onModel,
 }: LogsViewProps) {
   const [view, setView] = useState<ViewState>({
@@ -715,13 +721,12 @@ export function LogsView({
       display.lineFields,
     ]
   )
-  const entries = useMemo(
-    () =>
-      columnSort === null
-        ? modelEntries
-        : sortedByColumn(modelEntries, columnSort, fields, zone),
-    [modelEntries, columnSort, fields, zone]
-  )
+  const entries = useMemo(() => {
+    const visible = withoutLevels(modelEntries, hiddenLevels)
+    return columnSort === null
+      ? visible
+      : sortedByColumn(visible, columnSort, fields, zone)
+  }, [modelEntries, hiddenLevels, columnSort, fields, zone])
   const levelColumn = useMemo(
     () => entries.some((entry) => entry.level !== null),
     [entries]
@@ -780,6 +785,12 @@ export function LogsView({
   const range = windowed
     ? logWindow({ offsets, scrollTop, viewport, overscan })
     : { start: 0, end: entries.length, before: 0, after: 0 }
+  const rendered = entries.slice(range.start, range.end)
+  const [focusedKey, setFocusedKey] = useState<string | null>(null)
+  const tabKey =
+    [focusedKey, selected?.key].find((key) =>
+      rendered.some((entry) => entry.key === key)
+    ) ?? rendered[0]?.key
   const firstMarkedKey = isMarked ? entries.find(isMarked)?.key : undefined
   const dividerKey = newSince ? entries.find(newSince.isFirst)?.key : undefined
 
@@ -861,6 +872,12 @@ export function LogsView({
             aria-label={`${panelTitle} log lines`}
             data-logs-count={entries.length}
             className="m-0 list-none p-0"
+            onFocus={(event) => {
+              const key = (event.target as HTMLElement)
+                .closest("li")
+                ?.getAttribute("data-key")
+              if (key) setFocusedKey(key)
+            }}
             onKeyDown={(event) => {
               if (event.ctrlKey || event.metaKey || event.altKey) return
               const step = event.key === "j" ? 1 : event.key === "k" ? -1 : 0
@@ -876,7 +893,7 @@ export function LogsView({
                 : undefined
             }
           >
-            {entries.slice(range.start, range.end).map((entry, offset) => (
+            {rendered.map((entry, offset) => (
               <LogRow
                 key={entry.key}
                 entry={entry}
@@ -900,6 +917,7 @@ export function LogsView({
                 commonLabels={commonLabels}
                 setSize={windowed ? entries.length : undefined}
                 posInSet={windowed ? range.start + offset + 1 : undefined}
+                tabStop={entry.key === tabKey}
               />
             ))}
           </ul>

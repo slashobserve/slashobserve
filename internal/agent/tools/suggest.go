@@ -57,13 +57,6 @@ func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, r
 	if issues := importOnlyIssues(candidate, run.Base); len(issues) > 0 {
 		return suggestionRejected(issues), nil
 	}
-	canonical, err := json.Marshal(candidate)
-	if err != nil {
-		return Result{}, err
-	}
-	if issues := spec.NULIssues(canonical); len(issues) > 0 {
-		return suggestionRejected(issues), nil
-	}
 	if head.Type.IsData() {
 		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, time.Now(), queryproxy.UserFor(principal), []string{run.PanelID})
 		if err != nil {
@@ -116,5 +109,5 @@ func suggestionFailure(err error) (Result, error) {
 func suggestionRejected(issues []spec.Issue) Result {
 	step := "Suggestion rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
 	kept, truncated := fit(slices.Clone(issues), listBudget)
-	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
+	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated})
 }

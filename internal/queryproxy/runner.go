@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -35,6 +36,8 @@ const (
 	panelDeadline        = 55 * time.Second
 	upstreamWait         = 5 * time.Second
 )
+
+const AgentMaxDataPoints = 200
 
 type Selection struct {
 	Values []string
@@ -76,6 +79,7 @@ type QueryResult struct {
 	Frames         []datasource.Frame
 	Exemplars      []datasource.Frame
 	ExemplarStatus string
+	Executed       string
 }
 
 type Result struct {
@@ -166,6 +170,13 @@ func PanelKind(p *spec.Panel) Kind {
 
 func QueryStep(base, minimum time.Duration, factor int) time.Duration {
 	return max(base, minimum) * time.Duration(max(1, factor))
+}
+
+func minStepOf(ds datasource.Datasource) time.Duration {
+	if src, ok := ds.(datasource.MinStepSource); ok {
+		return src.MinStep()
+	}
+	return 0
 }
 
 func (r *Runner) minInterval(ctx context.Context, req Request, st *varState, panel *spec.Panel, q spec.Query) (time.Duration, error) {
@@ -506,10 +517,28 @@ type preparedQuery struct {
 
 	asksExemplars bool
 	exemplars     func(context.Context) ([]datasource.Frame, error)
+
+	executed atomic.Pointer[string]
+}
+
+func (pq *preparedQuery) noteExpanded(text string) {
+	pq.executed.CompareAndSwap(nil, &text)
 }
 
 func (pq *preparedQuery) result(ref string, out fetched) QueryResult {
-	return QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
+	res := QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
+	if text := pq.executed.Load(); text != nil {
+		res.Executed = *text
+	}
+	return res
+}
+
+func namedTimeZone(d *spec.Dashboard) string {
+	switch d.Timezone {
+	case "", spec.TimezoneUTC, spec.TimezoneBrowser:
+		return ""
+	}
+	return d.Timezone
 }
 
 func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
@@ -523,7 +552,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
+	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User, TimeZone: namedTimeZone(req.Dashboard)}
 	if applies := implicitScope(inst.Datasource.Type(), use); applies != nil {
 		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
 			return nil, err
@@ -539,8 +568,9 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 		return nil, err
 	}
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q), asksExemplars: req.Exemplars && q.Exemplar}
+	dq.OnExpanded = pq.noteExpanded
 	if pq.kind == KindRange {
-		pq.step = QueryStep(baseStep, minimum, q.IntervalFactor)
+		pq.step = QueryStep(baseStep, cmp.Or(minimum, minStepOf(inst.Datasource)), q.IntervalFactor)
 		rng := req.Range
 		if pq.step > baseStep {
 			rng = alignToStep(rng, pq.step)

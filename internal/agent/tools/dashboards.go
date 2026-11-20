@@ -33,6 +33,7 @@ const (
 
 	codeInvalidSpec     = "invalid_spec"
 	codeVersionConflict = "version_conflict"
+	codeVersionNotFound = "version_not_found"
 	codeNotFound        = "not_found"
 	codeProposed        = "proposed"
 
@@ -66,6 +67,7 @@ type dashboardItemOut struct {
 	Tags          []string `json:"tags"`
 	LatestVersion int      `json:"latest_version"`
 	UpdatedAt     string   `json:"updated_at"`
+	ViewCount     int      `json:"view_count"`
 	URL           string   `json:"url"`
 	Folder        string   `json:"folder"`
 }
@@ -79,9 +81,13 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 	var in struct {
 		Limit  *int   `json:"limit"`
 		Cursor string `json:"cursor"`
+		Order  string `json:"order"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	if in.Order != "" && in.Order != "updated" && in.Order != "views" && in.Order != "name" {
+		return invalid("order must be updated, views or name"), nil
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListDashboards, 1, maxListDashboards, "limit")
 	if !ok {
@@ -96,7 +102,7 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views", ByName: in.Order == "name"})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}
@@ -126,6 +132,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			Tags:          nonNilStrings(d.Tags),
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
+			ViewCount:     d.ViewCount,
 			URL:           links.Dashboard(r.deps.PublicURL, d.ID, d.Title),
 			Folder:        d.Folder.Title,
 		}
@@ -154,6 +161,12 @@ type dashboardOut struct {
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
 	Folder                   string          `json:"folder"`
+	ViewCount                *int            `json:"view_count,omitempty"`
+	WindowDays               int             `json:"window_days,omitempty"`
+	SavedBy                  string          `json:"saved_by"`
+	Origin                   string          `json:"origin"`
+	SavedAt                  string          `json:"saved_at"`
+	Summary                  string          `json:"summary"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -232,13 +245,19 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		dash, ver, err = r.deps.Dashboards.GetVersion(ctx, id, version)
 	}
 	if errors.Is(err, dashboards.ErrNotFound) {
+		if res, ok := r.versionNotFound(ctx, id); ok {
+			return res, nil
+		}
 		return toolError(codeNotFound, "dashboard or version not found"), nil
 	}
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
+		return Result{}, err
+	}
+	if err = r.addViewCount(ctx, id, &out); err != nil {
 		return Result{}, err
 	}
 	body, err := json.Marshal(out)
@@ -249,6 +268,18 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), MaxModelSpecBytes)), nil
 	}
 	return success("Read version "+strconv.Itoa(ver.Number), out), nil
+}
+
+func (r *Registry) addViewCount(ctx context.Context, id pgtype.UUID, out *dashboardOut) error {
+	if r.deps.Health == nil {
+		return nil
+	}
+	views, err := r.deps.Health.Views(ctx, id)
+	if err != nil {
+		return err
+	}
+	out.ViewCount, out.WindowDays = &views.Count, views.WindowDays
+	return nil
 }
 
 func (r *Registry) importAttention(ctx context.Context, id pgtype.UUID, version int) ([]Attention, bool, error) {
@@ -287,8 +318,14 @@ type savedOut struct {
 	advice
 }
 
+const (
+	invalidSpecMessage = "the spec was rejected; fix each path in issues and send the call again"
+	conflictMessage    = "the dashboard changed since parent_version; read it again and send your change against latest_version, or settle the listed conflicts"
+)
+
 type invalidSpecOut struct {
 	Code      string       `json:"code"`
+	Message   string       `json:"message"`
 	Issues    []spec.Issue `json:"issues"`
 	Truncated bool         `json:"truncated,omitempty"`
 }
@@ -311,6 +348,7 @@ type proposalRequiredOut struct {
 
 type conflictOut struct {
 	Code          string          `json:"code"`
+	Message       string          `json:"message"`
 	LatestVersion int             `json:"latest_version"`
 	Conflicts     []spec.Conflict `json:"conflicts,omitempty"`
 	Truncated     bool            `json:"truncated,omitempty"`
@@ -376,19 +414,37 @@ func checkSpecPresent(raw json.RawMessage) (Result, bool) {
 	return Result{}, true
 }
 
+func decodeCreateInput(input json.RawMessage, inBuild bool) (createInput, Result, bool) {
+	var in createInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return in, res, false
+	}
+	if res, ok := checkSpecPresent(in.Spec); !ok {
+		return in, res, false
+	}
+	res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuild)
+	return in, res, ok
+}
+
+func importOnlyRefusal(raw json.RawMessage) (Result, bool) {
+	parsed, err := spec.Parse(raw)
+	if err != nil {
+		return Result{}, false
+	}
+	issues := importOnlyIssues(parsed, nil)
+	if len(issues) == 0 {
+		return Result{}, false
+	}
+	return importOnlyFailure(issues), true
+}
+
 func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
 	principal, run, scoped, err := r.saveRun(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	var in createInput
-	if res, ok := decodeInput(input, &in); !ok {
-		return res, nil
-	}
-	if res, ok := checkSpecPresent(in.Spec); !ok {
-		return res, nil
-	}
-	if res, ok := agentOnlyFields(in.Finish, in.PlannedPanels, in.Row, inBuildRun(run, scoped)); !ok {
+	in, res, ok := decodeCreateInput(input, inBuildRun(run, scoped))
+	if !ok {
 		return res, nil
 	}
 	if scoped {
@@ -404,13 +460,16 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
-	if parsed, err := spec.Parse(in.Spec); err == nil {
-		if issues := importOnlyIssues(parsed, nil); len(issues) > 0 {
-			return importOnlyFailure(issues), nil
-		}
+	if res, ok := importOnlyRefusal(in.Spec); ok {
+		return res, nil
 	}
 	if inBuildRun(run, scoped) {
-		return r.buildCreate(ctx, principal, run, in)
+		return r.buildCreate(ctx, principal, run, in, folderID)
+	}
+	if !requestID.Valid {
+		if res, found, err := r.alreadySaved(ctx, principal, folderID, in.Spec); err != nil || found {
+			return res, err
+		}
 	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if res, ok := createFolderFailure(err); ok {
@@ -420,6 +479,56 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		return saveFailure(err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
+}
+
+const identicalSearchLimit = 50
+
+func (r *Registry) alreadySaved(ctx context.Context, principal auth.Principal, folderID pgtype.UUID, raw json.RawMessage) (Result, bool, error) {
+	dash, ver, found, err := r.identicalDashboard(ctx, principal, folderID, raw)
+	if err != nil || !found {
+		return Result{}, false, err
+	}
+	replayed := true
+	return success("Found the dashboard already saved as version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), true, nil
+}
+
+func (r *Registry) identicalDashboard(ctx context.Context, principal auth.Principal, requested pgtype.UUID, raw json.RawMessage) (dashboards.Dashboard, dashboards.Version, bool, error) {
+	parsed, err := spec.Parse(raw)
+	if err != nil || r.deps.Folders == nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, nil
+	}
+	folder, err := r.deps.Folders.CreationFolder(ctx, principal, requested)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, nil
+	}
+	wanted, err := json.Marshal(parsed)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{
+		Limit: identicalSearchLimit, Query: parsed.Title, Folder: folder.ID, ByFolder: true, SkipTotal: true,
+		MadeBy: dashboards.MadeBy{CreatorKind: string(principal.Kind), CreatorID: principal.ID},
+	})
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, false, err
+	}
+	for _, item := range page.Items {
+		if item.Title != parsed.Title {
+			continue
+		}
+		id, err := db.ParseUUID(item.ID)
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		}
+		dash, ver, err := r.deps.Dashboards.Get(ctx, id)
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, false, err
+		}
+		if existing, err := json.Marshal(ver.Spec); err == nil && bytes.Equal(existing, wanted) {
+			return dash, ver, true, nil
+		}
+	}
+	return dashboards.Dashboard{}, dashboards.Version{}, false, nil
 }
 
 func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -469,18 +578,20 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 		ProposeIfNeeded: true,
 	})
 	if err != nil {
-		return saveFailure(err)
+		return r.saveFailureOn(ctx, target.id, err)
 	}
-	return r.saveSucceeded(ctx, saved), nil
+	return r.saveSucceeded(ctx, saved, nil), nil
 }
 
-func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult) Result {
+func (r *Registry) saveSucceeded(ctx context.Context, saved dashboards.SaveResult, before *spec.Dashboard) Result {
 	if saved.Proposal != nil {
 		return r.proposed(saved)
 	}
 	out := r.savedOut(saved.Dashboard, saved.Version, &saved.Replayed)
 	out.MergedFrom = saved.MergedFrom
-	return success(savedStep(saved), withAdvice(ctx, out, saved.Version.Spec))
+	out = withAdvice(ctx, out, saved.Version.Spec)
+	out.noteDroppedVariables(before, saved.Version.Spec)
+	return success(savedStep(saved), out)
 }
 
 func savedStep(saved dashboards.SaveResult) string {
@@ -528,7 +639,7 @@ func (r *Registry) guardImportOnly(ctx context.Context, raw json.RawMessage, tar
 func importOnlyFailure(issues []spec.Issue) Result {
 	step := "Save rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
 	kept, truncated := fit(slices.Clone(issues), listBudget)
-	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
+	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: kept, Truncated: truncated})
 }
 
 func requestIDOf(run Run, scoped bool) (pgtype.UUID, error) {
@@ -640,6 +751,37 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 	}
 }
 
+type versionNotFoundOut struct {
+	Code          string `json:"code"`
+	Message       string `json:"message"`
+	LatestVersion int    `json:"latest_version"`
+}
+
+func (r *Registry) saveFailureOn(ctx context.Context, id pgtype.UUID, err error) (Result, error) {
+	if !errors.Is(err, dashboards.ErrNotFound) {
+		return saveFailure(err)
+	}
+	if res, ok := r.versionNotFound(ctx, id); ok {
+		return res, nil
+	}
+	return saveFailure(err)
+}
+
+func (r *Registry) versionNotFound(ctx context.Context, id pgtype.UUID) (Result, bool) {
+	if r.deps.Folders == nil || r.deps.Dashboards == nil {
+		return Result{}, false
+	}
+	if _, viewable, err := r.viewableDashboard(ctx, id, ""); err != nil || !viewable {
+		return Result{}, false
+	}
+	_, latest, err := r.deps.Dashboards.Get(ctx, id)
+	if err != nil {
+		return Result{}, false
+	}
+	message := fmt.Sprintf("a version you named does not exist on this dashboard; its latest version is %d", latest.Number)
+	return failure("Version not found", versionNotFoundOut{Code: codeVersionNotFound, Message: message, LatestVersion: latest.Number}), true
+}
+
 func saveFailure(err error) (Result, error) {
 	var invalidSpec *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
@@ -651,12 +793,12 @@ func saveFailure(err error) (Result, error) {
 		return failure("Save rejected: "+codeProposalRequired, proposalRequiredOut{Code: codeProposalRequired, Message: message, Removed: removed, Truncated: truncated}), nil
 	case errors.As(err, &invalidSpec):
 		issues, truncated := fit(slices.Clone(invalidSpec.Issues), listBudget)
-		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
+		return failure(saveRejectedStep(invalidSpec.Issues), invalidSpecOut{Code: codeInvalidSpec, Message: invalidSpecMessage, Issues: issues, Truncated: truncated}), nil
 	case errors.As(err, &conflict):
 		kept, truncated := fit(slices.Clone(conflict.Conflicts), listBudget)
-		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
+		return failure(conflictStep(conflict.Conflicts), conflictOut{Code: codeVersionConflict, Message: conflictMessage, LatestVersion: conflict.Latest, Conflicts: kept, Truncated: truncated}), nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
-		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound}), nil
+		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound, Message: "dashboard not found, or you cannot see it"}), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return failure("Save rejected: "+codeForbiddenRole, errorBody{Code: codeForbiddenRole, Message: roleDeniedMessage}), nil
 	}

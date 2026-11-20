@@ -69,6 +69,12 @@ export function facetsErrorText(error: unknown): {
   if (error instanceof ApiError && error.code === "query_invalid") {
     return { text: "Fields need a log query.", retry: false }
   }
+  if (error instanceof ApiError && error.code === "query_timeout") {
+    return {
+      text: "Counting the fields timed out on this range. Retry, or choose a shorter range.",
+      retry: true,
+    }
+  }
   return { text: "The fields could not be counted.", retry: true }
 }
 
@@ -130,6 +136,20 @@ export function fieldsNote(
   return `From the table columns, ${fields}`
 }
 
+const keywordSuffix = ".keyword"
+
+function isShadowSubfield(
+  name: string,
+  all: ReadonlySet<string>,
+  counted: ReadonlyMap<string, FacetField>
+): boolean {
+  return (
+    name.endsWith(keywordSuffix) &&
+    !counted.has(name) &&
+    all.has(name.slice(0, -keywordSuffix.length))
+  )
+}
+
 export function fieldRows(
   names: readonly string[],
   facets: readonly FacetField[]
@@ -137,6 +157,7 @@ export function fieldRows(
   const byName = new Map(facets.map((facet) => [facet.name, facet]))
   const all = new Set([...names, ...byName.keys()])
   return [...all]
+    .filter((name) => !isShadowSubfield(name, all, byName))
     .sort((a, b) => a.localeCompare(b))
     .map((name) => ({ name, facet: byName.get(name) ?? null }))
 }

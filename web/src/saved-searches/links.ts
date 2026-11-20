@@ -1,14 +1,16 @@
-import { logsLink, tracesLink } from "@/lib/links"
+import { logsLink, metricsLink, tracesLink } from "@/lib/links"
 
 import type { SavedSearch } from "./queries"
 
 export type SavedSearchLocation =
-  ReturnType<typeof logsLink> | ReturnType<typeof tracesLink>
+  | ReturnType<typeof logsLink>
+  | ReturnType<typeof tracesLink>
+  | ReturnType<typeof metricsLink>
 
 export function savedSearchLocation(
   saved: Pick<
     SavedSearch,
-    "kind" | "datasource_uid" | "query" | "filters" | "from" | "to"
+    "id" | "kind" | "datasource_uid" | "query" | "filters" | "from" | "to"
   >
 ): SavedSearchLocation {
   const { datasource_uid: uid, filters, from, to } = saved
@@ -18,6 +20,15 @@ export function savedSearchLocation(
     return logsLink(uid, {
       q: query,
       cols: columns.length === 0 ? undefined : columns.join(","),
+      from,
+      to,
+      saved: saved.id,
+    })
+  }
+  if (saved.kind === "metrics") {
+    return metricsLink(uid, {
+      q: query,
+      mode: filters.mode === "table" ? "table" : undefined,
       from,
       to,
     })

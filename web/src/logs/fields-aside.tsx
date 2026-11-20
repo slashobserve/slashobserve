@@ -1,19 +1,42 @@
-import { useId, useMemo, useState } from "react"
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
-import { ChevronRightIcon, FilterXIcon, PanelLeftCloseIcon } from "lucide-react"
+import {
+  ChevronRightIcon,
+  FilterXIcon,
+  ListTreeIcon,
+  PanelLeftCloseIcon,
+} from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
+import {
+  clampFieldsWidth,
+  fieldsDefaultWidth,
+  fieldsMaxWidth,
+  fieldsMinWidth,
+  keyboardFieldsWidth,
+  storedFieldsWidth,
+  storeFieldsWidth,
+} from "./fields-width"
 import {
   barPercent,
   basisNote,
@@ -37,7 +60,6 @@ import {
 } from "./facets"
 import { useLogsWorkspace } from "./workspace"
 
-const asideClass = "max-[1000px]:hidden"
 const iconButtonClass = "size-5 text-muted-foreground"
 
 type Filter = (field: string, value: string, mode: FilterMode) => string | null
@@ -102,7 +124,7 @@ function ValueRow({
           <FilterXIcon aria-hidden="true" />
         </TooltipTrigger>
         <TooltipContent>
-          {excluded === null ? "Cannot edit this query" : "Filter out"}
+          {excluded === null ? "Cannot edit this query" : "Exclude"}
         </TooltipContent>
       </Tooltip>
     </div>
@@ -274,26 +296,43 @@ function FieldGroup({
   )
 }
 
-export function FieldsAside() {
-  const { datasource, search, effectiveQuery, range, setDraft, run, detail } =
+const noRoomQuery = "(max-width: 1000px)"
+
+function subscribeRoom(onChange: () => void) {
+  const media = window.matchMedia(noRoomQuery)
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function useNoRoomForAside(): boolean {
+  return useSyncExternalStore(
+    subscribeRoom,
+    () => window.matchMedia(noRoomQuery).matches,
+    () => false
+  )
+}
+
+function FieldsPanel({
+  onHide,
+  onApplied,
+}: {
+  onHide?: () => void
+  onApplied?: () => void
+}) {
+  const { datasource, search, effectiveQuery, range, setDraft, run, results } =
     useLogsWorkspace()
-  const [shown, setShown] = useState(storedFacetsOpen)
-  const lineOpen = detail.selection !== null
-  const [lineWasOpen, setLineWasOpen] = useState(lineOpen)
-  const [foldedByLine, setFoldedByLine] = useState(lineOpen)
-  if (lineOpen !== lineWasOpen) {
-    setLineWasOpen(lineOpen)
-    setFoldedByLine(lineOpen)
-  }
-  const open = shown && !foldedByLine
   const [filterText, setFilterText] = useState("")
   const [openField, setOpenField] = useState<string | null>(null)
   const uid = datasource.uid
   const type = datasource.type
   const q = search.q
+  const { ready: linesAnswered, slow } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, effectiveQuery, range.from, range.to])
+  )
   const names = useQuery({
     ...labelNamesQuery(uid, { from: range.from, to: range.to }),
-    enabled: open && type !== "clickhouse",
+    enabled: type !== "clickhouse" && linesAnswered,
   })
   const facets = useQuery({
     ...logFacetsQuery(uid, {
@@ -302,7 +341,7 @@ export function FieldsAside() {
       to: range.to,
       limit: topValues,
     }),
-    enabled: open && q !== undefined,
+    enabled: q !== undefined && linesAnswered,
   })
   const base: Base = {
     data: facets.data,
@@ -318,69 +357,43 @@ export function FieldsAside() {
   )
   const groups = splitFields(rows, selected, filterText)
 
-  function toggle(next: boolean) {
-    setShown(next)
-    setFoldedByLine(false)
-    storeFacetsOpen(next)
-  }
-
   const filter: Filter = (field, value, mode) =>
     q === undefined ? null : filterQuery(type, q, field, value, mode)
 
   function apply(query: string) {
     setDraft(query)
     run(query)
-  }
-
-  if (!open) {
-    return (
-      <aside
-        aria-label="Fields, hidden"
-        className={cn("w-9 shrink-0 border-r border-border", asideClass)}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          aria-label="Show fields"
-          aria-expanded={false}
-          className="h-24 w-full rounded-none text-xs"
-          onClick={() => toggle(true)}
-        >
-          <span className="rotate-180 [writing-mode:vertical-rl]">Fields</span>
-        </Button>
-      </aside>
-    )
+    onApplied?.()
   }
 
   const problem = facets.isError ? facetsErrorText(facets.error) : null
-  const loading = rows.length === 0 && (names.isLoading || facets.isLoading)
+  const loading =
+    !slow && rows.length === 0 && (names.isLoading || base.pending)
   return (
-    <aside
-      aria-label="Fields"
-      className={cn(
-        "flex min-h-0 w-[248px] shrink-0 flex-col border-r border-border text-[13px]",
-        asideClass
-      )}
-    >
+    <>
       <div className="flex items-start justify-between gap-1 px-4 pt-3 pb-2">
         <div className="flex min-w-0 flex-col">
           <h2 className="m-0 text-[13px] font-medium">Fields</h2>
           <p className="m-0 text-xs text-muted-foreground">
-            {loading
-              ? "Reading the fields"
-              : fieldsNote(type, datasource.index, rows.length)}
+            {slow
+              ? "This source is slow: the fields load when the query answers"
+              : loading
+                ? "Reading the fields"
+                : fieldsNote(type, datasource.index, rows.length)}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Hide fields"
-          aria-expanded
-          onClick={() => toggle(false)}
-        >
-          <PanelLeftCloseIcon aria-hidden="true" />
-        </Button>
+        {onHide === undefined ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Hide fields"
+            aria-expanded
+            onClick={onHide}
+          >
+            <PanelLeftCloseIcon aria-hidden="true" />
+          </Button>
+        )}
       </div>
       <div className="px-4 pb-2">
         <Input
@@ -443,6 +456,171 @@ export function FieldsAside() {
           </>
         )}
       </div>
+    </>
+  )
+}
+
+function FieldsResizeGrip({
+  width,
+  onWidth,
+}: {
+  width: number
+  onWidth: (width: number) => void
+}) {
+  const drag = useRef<{
+    pointerId: number
+    startX: number
+    startWidth: number
+    latest: number
+  } | null>(null)
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: width,
+      latest: width,
+    }
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const current = drag.current
+    if (!current) return
+    current.latest = clampFieldsWidth(
+      current.startWidth + event.clientX - current.startX
+    )
+    onWidth(current.latest)
+  }
+
+  function endDrag(event: PointerEvent<HTMLDivElement>) {
+    const current = drag.current
+    if (!current) return
+    drag.current = null
+    storeFieldsWidth(current.latest)
+    if (event.currentTarget.hasPointerCapture(current.pointerId)) {
+      event.currentTarget.releasePointerCapture(current.pointerId)
+    }
+    document.body.style.cursor = ""
+    document.body.style.userSelect = ""
+  }
+
+  function change(next: number) {
+    onWidth(next)
+    storeFieldsWidth(next)
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize fields"
+      aria-valuenow={width}
+      aria-valuemin={fieldsMinWidth}
+      aria-valuemax={fieldsMaxWidth}
+      aria-valuetext={`${width} pixels`}
+      tabIndex={0}
+      title="Drag to resize, double-click to reset"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onDoubleClick={() => change(fieldsDefaultWidth)}
+      onKeyDown={(event) => {
+        const next = keyboardFieldsWidth(width, event.key, event.shiftKey)
+        if (next === null) return
+        event.preventDefault()
+        change(next)
+      }}
+      className="group absolute top-0 right-0 bottom-0 z-10 grid w-2 cursor-col-resize touch-none place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="h-9 w-0.5 rounded-[2px] bg-border group-hover:bg-muted-foreground/50" />
+    </div>
+  )
+}
+
+export function FieldsAside() {
+  const { detail } = useLogsWorkspace()
+  const noRoom = useNoRoomForAside()
+  const [width, setWidth] = useState(storedFieldsWidth)
+  const [shown, setShown] = useState(storedFacetsOpen)
+  const lineOpen = detail.selection !== null
+  const [lineWasOpen, setLineWasOpen] = useState(lineOpen)
+  const [foldedByLine, setFoldedByLine] = useState(lineOpen)
+  if (lineOpen !== lineWasOpen) {
+    setLineWasOpen(lineOpen)
+    setFoldedByLine(lineOpen)
+  }
+  const open = shown && !foldedByLine
+
+  function toggle(next: boolean) {
+    setShown(next)
+    setFoldedByLine(false)
+    storeFacetsOpen(next)
+  }
+
+  if (noRoom) return null
+  if (!open) {
+    return (
+      <aside
+        aria-label="Fields, hidden"
+        className="w-9 shrink-0 border-r border-border"
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          aria-label="Show fields"
+          aria-expanded={false}
+          className="h-24 w-full rounded-none text-xs"
+          onClick={() => toggle(true)}
+        >
+          <span className="rotate-180 [writing-mode:vertical-rl]">Fields</span>
+        </Button>
+      </aside>
+    )
+  }
+  return (
+    <aside
+      aria-label="Fields"
+      className="relative flex min-h-0 shrink-0 flex-col border-r border-border text-[13px]"
+      style={{ width }}
+    >
+      <FieldsPanel onHide={() => toggle(false)} />
+      <FieldsResizeGrip width={width} onWidth={setWidth} />
     </aside>
+  )
+}
+
+export function FieldsDrawer() {
+  const noRoom = useNoRoomForAside()
+  const [open, setOpen] = useState(false)
+  if (!noRoom) return null
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="narrow:h-11"
+          />
+        }
+      >
+        <ListTreeIcon aria-hidden="true" />
+        Fields
+      </SheetTrigger>
+      <SheetContent
+        side="left"
+        aria-label="Fields"
+        className="gap-0 text-[13px]"
+      >
+        <FieldsPanel onApplied={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   )
 }

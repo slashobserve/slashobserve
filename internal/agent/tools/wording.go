@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 )
 
 type wording struct{ replacer *strings.Replacer }
@@ -21,8 +23,8 @@ var variants = []variant{
 	{name: "guide", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameGetSpecGuide},
 		mcp:   map[string]string{"{guide_first}": mcpGuideFirst, "{spec_guide_desc}": mcpSpecGuideDesc},
 		agent: map[string]string{"{spec_guide_desc}": agentSpecGuideDesc}},
-	{name: "folder", tools: []string{nameCreateDashboard, nameListObservations},
-		mcp: map[string]string{"{folder_prop}": "," + propFolderID, "{observations_folder_prop}": propObservationsFolderID + ","}},
+	{name: "folder", tools: []string{nameListObservations},
+		mcp: map[string]string{"{observations_folder_prop}": propObservationsFolderID + ","}},
 	{name: "run target", tools: []string{nameUpdateDashboard, nameUpdatePanels, nameGetPanels},
 		mcp: map[string]string{
 			"{target_props}":     propDashID + "," + propParentVersion + ",",
@@ -32,7 +34,7 @@ var variants = []variant{
 		},
 		agent: map[string]string{"{panels_dashboard}": agentPanelsDashboard}},
 	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},
-		mcp: map[string]string{"{upsert_max}": strconv.Itoa(maxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
+		mcp: map[string]string{"{upsert_max}": strconv.Itoa(dashboards.MaxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
 		agent: map[string]string{
 			"{build_note}":     agentBuildNote,
 			"{build_props}":    agentBuildProps,
@@ -100,7 +102,7 @@ const ServerInstructions = "SlashObserve stores each dashboard as an ObserveSpec
 	"List tools page with next_offset or next_cursor. " +
 	"For feedback, read list_comments, fix the dashboard, then reply_to_comment and resolve_comment with the version you saved. " +
 	"list_dashboard_health names the panels that fail; fix them with update_panels. " +
-	"To search logs or traces from a question, draft_query writes a checked query or trace filters for one datasource with at most two model calls; run a query with query_instant."
+	"To search logs, traces or metrics from a question, draft_query writes a checked query or trace filters for one datasource with at most two model calls; run a query with query_instant."
 
 const missingSpec = "spec is required: the complete ObserveSpec document, written by the authoring guide"
 

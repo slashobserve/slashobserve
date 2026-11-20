@@ -164,7 +164,7 @@ func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
 	}
 
 	if got, want := message(t, WithRun(principal, Run{}), nameQueryInstant, `{"datasource":"fake","query":"up","format":"table"}`),
-		`unknown field "format"; query_instant takes cursor, dashboard_title, datasource, from, page, page_size, query, to and variables`; got != want {
+		`unknown field "format"; query_instant takes cursor, dashboard_title, datasource, from, page, page_size, query, sort, to and variables`; got != want {
 		t.Errorf("message = %q, want %q", got, want)
 	}
 	if got, want := message(t, principal, nameListDatasources, `{"x":1}`), `unknown field "x"; list_datasources takes no fields`; got != want {
@@ -290,7 +290,7 @@ func TestLintQueryReportsAnUnavailableDatasource(t *testing.T) {
 	}}
 	r := newTestRegistry(t, ds, nil)
 	res, err := call(t, r, nameLintQuery, `{"datasource":"fake","query":"up"}`)
-	if err != nil || !res.IsError || res.Step != "Could not lint a query on fake: datasource_unavailable" {
+	if err != nil || !res.IsError || res.Step != "Could not lint a query on fake: could not check, datasource_unavailable" {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
 }

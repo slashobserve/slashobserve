@@ -44,6 +44,7 @@ type Datasource struct {
 var (
 	_ datasource.Datasource     = (*Datasource)(nil)
 	_ datasource.ExemplarSource = (*Datasource)(nil)
+	_ datasource.MinStepSource  = (*Datasource)(nil)
 )
 
 func New(opts Options) (*Datasource, error) {
@@ -131,6 +132,8 @@ func parseBaseURL(raw string) (string, error) {
 }
 
 func (d *Datasource) Type() string { return "prometheus" }
+
+func (d *Datasource) MinStep() time.Duration { return d.opts.ScrapeInterval }
 
 func (d *Datasource) Close() error {
 	if d.ownsClient {

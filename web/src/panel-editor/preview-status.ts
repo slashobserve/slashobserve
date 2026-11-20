@@ -22,6 +22,32 @@ export function seriesCount(
   return count
 }
 
+const queryFaultCodes = new Set([
+  "query_invalid",
+  "query_forbidden",
+  "query_too_long",
+  "expression_error",
+  "unknown_datasource",
+  "unknown_macro",
+  "invalid_spec",
+])
+
+export function previewBlocksSave(error: unknown): boolean {
+  return error instanceof ApiError && queryFaultCodes.has(error.code)
+}
+
+export function previewErrorShownInline(
+  error: unknown,
+  inlineRefs: ReadonlySet<string>
+): boolean {
+  return (
+    error instanceof ApiError &&
+    error.code === "query_invalid" &&
+    error.ref !== undefined &&
+    inlineRefs.has(error.ref)
+  )
+}
+
 export function previewErrorText(error: unknown): string {
   if (!(error instanceof ApiError)) return "The preview could not run."
   switch (error.code) {
@@ -57,6 +83,6 @@ export function previewStatusText(status: PreviewStatus, now: number): string {
     case "ok":
       return `Draft ran ${lowerFirst(formatShortRelative(status.executedAt, now))}, ${status.series} series`
     case "error":
-      return status.text
+      return "The draft did not run."
   }
 }

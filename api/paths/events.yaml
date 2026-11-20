@@ -15,7 +15,9 @@ dashboards-id-events:
       `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text.
       `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited.
       `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two.
+      `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text.
       `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping.
+      `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once.
       `event: resync` with data `{"dashboard_id"}` means events may have been missed.
       A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes.
       Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored.

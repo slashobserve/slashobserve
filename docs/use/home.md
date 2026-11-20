@@ -12,6 +12,8 @@ An address of `/` with any other query string opens the chat at `/ask` with that
 ## Ask Observe Agent
 
 The tab holds the chat composer, with the example prompts under the card; sending a prompt opens the chat as on the [chat](chat.md) page.
+The prompts follow your datasources: up to three ask for a dashboard, and up to two ask a question about the system, such as "Which services had the most errors in the last hour?", which the agent answers into an observation.
+The prompt that adds a row to a dashboard names the first dashboard you can edit, so it never offers a dashboard you may only read.
 Under the card, **Recent chats** lists your five newest chats, each with its state, Running, Stopped or Done, and what it saved.
 **All chats** opens the History panel beside the page.
 
@@ -20,7 +22,10 @@ Under the card, **Recent chats** lists your five newest chats, each with its sta
 The tab asks for a **Title** of 1 to 200 characters, an optional **First note** of up to 4,000 characters, and a **Folder**, and **Start observation** makes the observation and opens it.
 A non-empty note becomes the observation's first text block.
 A link in the note to a logs search (`/logs/<datasource>?q=...`), a trace (`/t/<trace id>?ds=<datasource>`) or a dashboard panel (`/d/<dashboard>?panel=<panel id>`) on this app's own address also becomes a panel block, over the range the link carries, at most 10 links and each once; any other link stays text.
-A link that cannot be added, such as a panel that no longer exists or a datasource you cannot read, is skipped, and one message says how many were; the observation still opens.
+A trace link on a ClickHouse datasource becomes a block that reads the trace by its id, as one Tempo trace does.
+A link to a panel that uses variables keeps their definitions, with the values in the link's `var-` parameters, or the dashboard's defaults without them.
+A link that cannot be added is skipped, and one message says how many were and why; the observation still opens.
+The reasons include a panel that no longer exists, a panel that uses a dashboard variable the dashboard no longer defines (`variable_missing`), and what the server answered, such as a datasource you cannot read.
 
 Where [Observe Agent](chat.md) is set up, **Ask Observe Agent to start** is off by default; turned on, it starts an investigation that writes into the new observation from the note, or from the title when the note is empty, and you see what it finds as blocks you can keep or discard.
 If that run cannot start, the observation still exists and a message says the agent did not start.
@@ -49,3 +54,8 @@ Each row shows the agent's mark, "<agent> is working on <title>", how long it ha
 A run on a dashboard or observation you cannot see is listed without its name.
 **Pick up where you left off** lists the five dashboards and observations you opened last in this browser; the list lives in this browser's local storage and never reaches the server.
 A dashboard row adds its problem count from [dashboard health](dashboard-health.md), such as "1 problem", and an observation row says who changed it last and when, such as "you added a block yesterday".
+
+## Start here
+
+The last section of the page, **Start here**, links the places a newcomer can read without asking the agent anything: **Dashboards**, **Logs**, **Traces**, **Observations** and the **Docs**.
+It shows for everyone, so a Viewer who has nothing to work on yet still sees where the team keeps its dashboards and notes.

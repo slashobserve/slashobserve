@@ -20,7 +20,7 @@ import (
 
 const (
 	continuesKeyIndex = "agent_requests_continues_key"
-	retriesKeyIndex   = "agent_requests_retries_key"
+	successorKeyIndex = "agent_requests_successor_key"
 )
 
 var ErrNotRequester = errors.New("only the person or key that asked can do this")
@@ -262,6 +262,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err := s.checkRun(ctx, Source(row.Source), row.DashboardID, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	ctx = WithTimeZone(ctx, row.TimeZone.String)
 	var next dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := checkContinuable(ctx, q, row); err != nil {
@@ -271,7 +272,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 			return err
 		}
 		var err error
-		threadMessage, threadContext := threadOf(row)
+		threadMessage, threadContext := continuedContext(row)
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
@@ -312,7 +313,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 func continueFailure(err error) error {
 	var pgErr *pgconn.PgError
 	switch {
-	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == continuesKeyIndex:
+	case errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && (pgErr.ConstraintName == continuesKeyIndex || pgErr.ConstraintName == successorKeyIndex):
 		return ErrNotContinuable
 	case db.IsForeignKeyViolation(err):
 		return ErrDashboardNotFound
@@ -344,7 +345,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 		return dbsqlc.AgentRequest{}, err
 	}
 	retries := pgtype.UUID{}
-	if state := State(row.State); state == StateFailed || state == StateCanceled {
+	if state := State(row.State); (state == StateFailed || state == StateCanceled) && sameActor(requesterOf(row), by) {
 		retries = row.ID
 	}
 	next, err := s.resubmit(ctx, row, by, assignee, retries)
@@ -357,7 +358,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 
 func isRetriesConflict(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == retriesKeyIndex
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == successorKeyIndex
 }
 
 func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) error {
@@ -375,6 +376,7 @@ func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, bui
 
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
 	threadMessage, threadContext := threadOf(row)
+	ctx = WithTimeZone(ctx, row.TimeZone.String)
 	switch Source(row.Source) {
 	case SourceObserve:
 		chat := observeChat{retries: retries}
@@ -410,6 +412,13 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			RetriesID:       retries,
 		}, nil)
 	}
+}
+
+func continuedContext(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
+	if row.ThreadMessageID.Valid || Source(row.Source) != SourcePrompt {
+		return threadOf(row)
+	}
+	return pgtype.UUID{}, row.ThreadContext.String
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {

@@ -8,7 +8,14 @@ import { cn } from "@/lib/utils"
 import { observationsInfiniteQuery } from "@/observations/queries"
 
 import type { SubNavRow } from "./nav"
-import { SubNavList, subNavLinkClass, subNavMoreClass } from "./sub-nav"
+import {
+  SubNavList,
+  SubNavSkeleton,
+  subNavLinkClass,
+  subNavMoreClass,
+  useReservedRows,
+} from "./sub-nav"
+import { plainTitle } from "@/comments/plain-title"
 
 const shown = 5
 const staleTime = 30_000
@@ -22,6 +29,7 @@ export function useOpenObservationsPage() {
   return {
     observations: page?.observations ?? [],
     more: page?.next_cursor !== null && page?.next_cursor !== undefined,
+    pending: open.isPending,
   }
 }
 
@@ -49,15 +57,25 @@ export function observationRows(
 export function OpenObservations({
   observations,
   more,
+  pending = false,
   currentId,
   onNavigate,
 }: {
   observations: readonly OpenObservation[]
   more: boolean
+  pending?: boolean
   currentId: string | null
   onNavigate?: () => void
 }) {
   const unread = useUnreadIds()
+  const reserved = useReservedRows(
+    "observations",
+    pending,
+    observations.length + (more ? 1 : 0)
+  )
+  if (pending) {
+    return <SubNavSkeleton label="Open observations" rows={reserved} />
+  }
   if (observations.length === 0) return null
 
   return (
@@ -69,7 +87,7 @@ export function OpenObservations({
             <Link
               {...observationLink(observation.id)}
               onClick={onNavigate}
-              title={observation.title}
+              title={plainTitle(observation.title)}
               aria-current={observation.id === currentId ? "page" : undefined}
               className={subNavLinkClass}
             >
@@ -78,7 +96,7 @@ export function OpenObservations({
                 className="size-1.5 flex-none rounded-full bg-status-ok"
               />
               <span className={cn("truncate", isUnread && "font-semibold")}>
-                {observation.title}
+                {plainTitle(observation.title)}
               </span>
               {isUnread ? <span className="sr-only">Unread</span> : null}
             </Link>

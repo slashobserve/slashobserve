@@ -1,28 +1,23 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDatasources } from "@/datasources/queries"
 import { DashboardsSection } from "@/home/dashboards-section"
 import { askLink } from "@/lib/links"
+import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 import { ChatComposer, useOpenSent } from "./chat-composer"
+import { examplePrompts, noDashboards } from "./examples"
 import { composerPlaceholder } from "./prompt-length"
-import { useChooseExample } from "./use-choose-example"
-import { examplePrompts } from "./examples"
 import { RecentChats } from "./recent-chats"
+import { useChooseExample } from "./use-choose-example"
 
 type Props = { initialPrompt?: string; dashboardId?: string }
-
-const noDashboards: readonly {
-  id: string
-  title: string
-  canEdit: boolean
-}[] = []
 
 export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const agent = useAgentInfo()
@@ -32,10 +27,12 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const { choose, pending } = useChooseExample()
   const navigate = useNavigate()
   const openSent = useOpenSent()
+  const { principal } = useRouteContext({ from: "/_authed" })
 
   const examples = examplePrompts({
     types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
     dashboards: dashboards.data ?? noDashboards,
+    canBuild: roleAtLeast(principal.role, "editor"),
   })
   const listed = dashboards.data?.find(
     (dashboard) => dashboard.id === dashboardId
@@ -71,7 +68,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
         What do you want to see?
       </h1>
       {agentOff ? <DashboardsSection /> : null}
-      <div className="w-full max-w-[720px]">
+      <div className="w-full max-w-[720px] min-[1800px]:max-w-[960px]">
         <ChatComposer
           key={initialPrompt ?? ""}
           rows={3}
@@ -98,7 +95,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
         <div
           role="group"
           aria-label="Example prompts"
-          className="flex max-w-[720px] flex-wrap justify-center gap-2"
+          className="flex max-w-[720px] flex-wrap justify-center gap-2 min-[1800px]:max-w-[960px]"
         >
           {examples.map((example) => (
             <Button

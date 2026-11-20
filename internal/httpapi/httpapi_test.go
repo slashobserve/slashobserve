@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 func TestDecodeTimeCursorRejectsMalformedValues(t *testing.T) {
@@ -118,5 +121,55 @@ func TestNonEmptyQuery(t *testing.T) {
 				t.Fatalf("status = %d, want %d", rec.Code, tc.status)
 			}
 		})
+	}
+}
+
+func TestDecodeBodyNamesTheFieldThatBrokeARule(t *testing.T) {
+	type input struct {
+		Version *int   `json:"version"`
+		Body    string `json:"body"`
+	}
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"a fraction for a whole number", `{"version": 1.5}`, "version must be a whole number, not number 1.5"},
+		{"a number for a string", `{"body": 3}`, "body must be a string, not number"},
+		{"an unknown field", `{"vesion": 1}`, `unknown field \"vesion\"`},
+		{"broken JSON", `{"version": `, "request body is not valid JSON"},
+		{"an empty body", ``, "request body is empty"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tc.body))
+			if DecodeBody(c, &input{}, 1024) {
+				t.Fatal("decoded a body that breaks a rule")
+			}
+			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tc.want) || !strings.Contains(rec.Body.String(), `"code":"invalid_request"`) {
+				t.Fatalf("status %d body %s, want 400 invalid_request containing %q", rec.Code, rec.Body.String(), tc.want)
+			}
+		})
+	}
+}
+
+func TestAbortTextAddsTheReasonOfATextError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cases := map[string]struct {
+		err  error
+		body string
+	}{
+		"text error": {&usertext.Error{Field: "title", Reason: usertext.ReasonInvisibleOnly, Rule: usertext.Line(100)}, `"code":"invalid_request","error":"title has no visible character; enter 1 to 100 characters of visible text","reason":"text_invisible_only"`},
+		"other":      {errors.New("boom"), `"code":"invalid_request","error":"boom"}`},
+	}
+	for name, tc := range cases {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		AbortText(c, http.StatusBadRequest, "invalid_request", tc.err)
+		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), tc.body) {
+			t.Errorf("%s: %d %s", name, rec.Code, rec.Body.String())
+		}
 	}
 }

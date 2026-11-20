@@ -6,6 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import {
   dashboardColumns,
+  folderColumn,
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
@@ -51,6 +52,7 @@ function summary(extra: Partial<DashboardSummary> = {}): DashboardSummary {
     },
     datasource_uids: [],
     open_comment_count: 0,
+    view_count: 0,
     folder: {
       id: "5d0c7a2e-2f43-4a4e-9a55-0d0b8f3c1a77",
       title: "Shop",
@@ -92,15 +94,45 @@ async function cellsOf(dashboard: DashboardSummary) {
   return { cells, unmount: view.unmount }
 }
 
+describe("column widths", () => {
+  const all = [...dashboardColumns, folderColumn]
+
+  it("gives Title a minimum width and no fixed width", () => {
+    const title = all.find((c) => c.id === "title")
+    expect(title?.meta?.cellClassName).toMatch(/(^| )min-w-60( |$)/)
+    expect(title?.meta?.cellClassName).not.toMatch(/(^| )w-\d/)
+  })
+
+  it("fixes the width of every other data column in header and cell alike", () => {
+    for (const c of all.filter((c) => c.id !== "title" && c.id !== "actions")) {
+      expect(c.meta?.headerClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
+      expect(c.meta?.cellClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
+    }
+  })
+})
+
+describe("the open in a new tab link", () => {
+  it("is out of the tab order and a target of at least 24 by 24 pixels", async () => {
+    const { cells } = await cellsOf(summary())
+    const link = within(cells[0]).getByRole("link", {
+      name: "Open Checkout service health in a new tab",
+    })
+    expect(link).toHaveAttribute("tabindex", "-1")
+    expect(link).toHaveClass("size-6")
+  })
+})
+
 describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
-    expect(dashboardColumns.map((c) => c.header)).toEqual([
-      "Title",
+    const [title, ...others] = dashboardColumns
+    expect(typeof title.header).toBe("function")
+    expect(others.map((c) => c.header)).toEqual([
       "Health",
       "Made by",
       "Datasources",
       "Open comments",
       "Version",
+      "Views",
       "Updated",
     ])
   })
@@ -115,6 +147,7 @@ describe("dashboardColumns", () => {
       "datasources",
       "openComments",
       "version",
+      "views",
       "updated",
     ])
   })
@@ -216,6 +249,11 @@ describe("dashboard list cells", () => {
     )
     expect(filled.cells[3].textContent).toBe("prom, ch")
     expect(filled.cells[4].textContent).toBe("3")
+  })
+
+  it("shows how many people opened the dashboard in the window", async () => {
+    const { cells } = await cellsOf(summary({ view_count: 12 }))
+    expect(cells[6].textContent).toBe("12")
   })
 
   it("clamps the description to one line and keeps the full text on hover", async () => {

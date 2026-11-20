@@ -75,13 +75,15 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 			return nil, err
 		}
 		names = slices.DeleteFunc(names, func(n string) bool { return n == metricNameLabel })
-		return &datasource.Catalog{Labels: filterSortLimit(names, req.Search, limit)}, nil
+		labels, cut := filterSortLimit(names, req.Search, limit)
+		return &datasource.Catalog{Labels: labels, Truncated: cut}, nil
 	}
 	values, err := d.getStrings(ctx, "/api/v1/label/"+url.PathEscape(req.Label)+"/values", form)
 	if err != nil {
 		return nil, err
 	}
-	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+	shown, cut := filterSortLimit(values, req.Search, limit)
+	return &datasource.Catalog{Values: shown, Truncated: cut}, nil
 }
 
 func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, search string, limit int) (*datasource.Catalog, error) {
@@ -100,7 +102,7 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 		wg.Wait()
 		return nil, err
 	}
-	names = filterSortLimit(names, search, limit)
+	names, cut := filterSortLimit(names, search, limit)
 	wg.Wait()
 	if metadata == nil {
 		metadata = map[string][]metricMetadata{}
@@ -113,7 +115,7 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 			metrics[i].Type, metrics[i].Help, metrics[i].Unit = md[0].Type, md[0].Help, md[0].Unit
 		}
 	}
-	return &datasource.Catalog{Metrics: metrics}, nil
+	return &datasource.Catalog{Metrics: metrics, Truncated: cut}, nil
 }
 
 func (d *Datasource) discoverInventory(ctx context.Context, form url.Values, scope string) (*datasource.Catalog, error) {
@@ -245,7 +247,7 @@ func (d *Datasource) metadata(ctx context.Context, form url.Values) map[string][
 	return out
 }
 
-func filterSortLimit(values []string, search string, limit int) []string {
+func filterSortLimit(values []string, search string, limit int) (kept []string, cut bool) {
 	search = strings.ToLower(search)
 	out := make([]string, 0, len(values))
 	for _, v := range values {
@@ -256,9 +258,9 @@ func filterSortLimit(values []string, search string, limit int) []string {
 	slices.Sort(out)
 	out = slices.Compact(out)
 	if len(out) > limit {
-		out = out[:limit]
+		return out[:limit], true
 	}
-	return out
+	return out, false
 }
 
 func validateLabel(label string) error {

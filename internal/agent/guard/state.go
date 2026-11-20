@@ -15,6 +15,8 @@ type State struct {
 	ChurnedInRow  int             `json:"churned_in_row,omitempty"`
 	Reads         map[string]Read `json:"reads,omitempty"`
 	Saves         map[string]bool `json:"saves,omitempty"`
+	Unchecked     []Unchecked     `json:"unchecked,omitempty"`
+	Absence       Absence         `json:"absence,omitzero"`
 	Turn          Turn            `json:"turn"`
 	Counts        Counts          `json:"counts"`
 }
@@ -23,6 +25,13 @@ type Window struct {
 	Calls    int  `json:"calls"`
 	Stalled  int  `json:"stalled"`
 	Diagnose bool `json:"diagnose,omitempty"`
+	Refused  int  `json:"refused,omitempty"`
+}
+
+type Unchecked struct {
+	Tool       string `json:"tool"`
+	Datasource string `json:"datasource"`
+	Code       string `json:"code"`
 }
 
 type Read struct {
@@ -70,6 +79,7 @@ func (s *State) Restart() {
 	s.Window = Window{}
 	s.Churn, s.ChurnedInRow = nil, 0
 	s.Reads, s.Saves = nil, nil
+	s.Absence = Absence{}
 }
 
 func (s *State) BeginTurn(hasSave bool) {

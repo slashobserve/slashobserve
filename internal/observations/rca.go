@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -27,6 +30,8 @@ const (
 
 	CodePanelFailed        = "panel_failed"
 	CodeRCALimit           = "rca_limit"
+	CodeRCAShared          = "rca_shared"
+	CodeRCAUnchanged       = "rca_unchanged"
 	CodeObservationChanged = "observation_changed"
 	codeQueryFailed        = "query_failed"
 	panelFailedMessage     = "a panel could not be frozen"
@@ -38,9 +43,18 @@ const (
 var (
 	ErrRevisionNotFound   = errors.New("RCA revision not found")
 	ErrRCALimit           = errors.New("an observation keeps at most 50 RCA revisions")
+	ErrRCAShared          = errors.New("this revision still has public links; revoke them before withdrawing it")
 	ErrObservationChanged = errors.New("the observation changed while it was being published; publish again")
 	ErrPublishPersonal    = errors.New("an observation in My Dashboards is private; move it to a shared folder before publishing it")
 )
+
+type RCAUnchangedError struct {
+	Revision int
+}
+
+func (e *RCAUnchangedError) Error() string {
+	return fmt.Sprintf("revision %d already holds this page; change the observation before publishing again", e.Revision)
+}
 
 type PanelFailedError struct {
 	BlockID  string
@@ -145,6 +159,11 @@ func publishable(rows []dbsqlc.ObservationBlock) []dbsqlc.ObservationBlock {
 	return out
 }
 
+func sameFrozenInputs(a, b dbsqlc.Observation) bool {
+	return a.Title == b.Title && a.TimeFrom.Valid == b.TimeFrom.Valid && a.TimeFrom.Time.Equal(b.TimeFrom.Time) &&
+		a.TimeTo.Valid == b.TimeTo.Valid && a.TimeTo.Time.Equal(b.TimeTo.Time)
+}
+
 func sameBlocks(a, b []dbsqlc.ObservationBlock) bool {
 	if len(a) != len(b) {
 		return false
@@ -221,6 +240,9 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 		if err := permit(Machine, State(locked.State), ActionPublish, can(abilities, false)); err != nil {
 			return err
 		}
+		if !sameFrozenInputs(row, locked) {
+			return ErrObservationChanged
+		}
 		var err error
 		published, err = s.insertRCA(ctx, q, locked, live, frozen, who)
 		return err
@@ -247,7 +269,7 @@ func (s *Service) freezePanels(ctx context.Context, by auth.Principal, observati
 			break
 		}
 		group.Go(func() error {
-			snap, err := s.freeze(ctx, by, observationID, b.ID)
+			snap, err := s.freeze(ctx, by, observationID, b.ID, anyBlock)
 			if err != nil {
 				return s.panelFailure(ctx, observationID, b, err)
 			}
@@ -302,6 +324,41 @@ func (s *Service) ListRCAs(ctx context.Context, by auth.Principal, observationID
 		}
 	}
 	return out, nil
+}
+
+func (s *Service) WithdrawRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) error {
+	if revision < 1 || revision > math.MaxInt32 {
+		return ErrRevisionNotFound
+	}
+	err := s.write(ctx, by, observationID, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
+		if err := permit(Machine, State(row.State), ActionPublish, can(abilities, false)); err != nil {
+			return err
+		}
+		rcaID, err := q.LockRCAByRevision(ctx, dbsqlc.LockRCAByRevisionParams{ObservationID: observationID, Revision: httpapi.Int32(revision)})
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrRevisionNotFound
+		case err != nil:
+			return fmt.Errorf("lock RCA revision: %w", err)
+		}
+		links, err := q.LiveRCALinkCount(ctx, rcaID)
+		if err != nil {
+			return fmt.Errorf("count RCA public links: %w", err)
+		}
+		if links > 0 {
+			return ErrRCAShared
+		}
+		if _, err := q.DeleteRCA(ctx, rcaID); err != nil {
+			return fmt.Errorf("delete RCA revision: %w", err)
+		}
+		return appendEvent(ctx, q, activity.TypeObservationRCAWithdrawn, who, observationID, publishedEventData{Title: row.Title, Revision: revision})
+	})
+	if err != nil {
+		return err
+	}
+	s.logger.InfoContext(ctx, "observation revision withdrawn",
+		slog.String("actor_id", by.ID), slog.String("observation_id", observationID.String()), slog.Int("revision", revision))
+	return nil
 }
 
 func (s *Service) GetRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int) (RCA, error) {

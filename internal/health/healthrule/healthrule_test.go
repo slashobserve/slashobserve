@@ -38,3 +38,28 @@ func TestUnopenedBeforeIsNinetyDaysAgo(t *testing.T) {
 		t.Errorf("UnopenedBefore(%v) = %v, want %v", now, got, want)
 	}
 }
+
+func TestViewsSinceIsTheStartOfTheThirtyDayWindowIncludingToday(t *testing.T) {
+	now := time.Date(2026, 11, 19, 23, 30, 0, 0, time.UTC)
+	want := time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)
+	if got := ViewsSince(now); !got.Equal(want) {
+		t.Errorf("ViewsSince(%v) = %v, want %v", now, got, want)
+	}
+}
+
+func TestViewsSinceReadsTheUTCDayOfAZonedTime(t *testing.T) {
+	zone := time.FixedZone("late", -10*3600)
+	now := time.Date(2026, 11, 19, 20, 0, 0, 0, zone)
+	want := time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)
+	if got := ViewsSince(now); !got.Equal(want) {
+		t.Errorf("ViewsSince(%v) = %v, want %v", now, got, want)
+	}
+}
+
+func TestViewsKeptSinceIsNinetyDaysBack(t *testing.T) {
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	want := time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)
+	if got := ViewsKeptSince(now); !got.Equal(want) {
+		t.Errorf("ViewsKeptSince(%v) = %v, want %v", now, got, want)
+	}
+}

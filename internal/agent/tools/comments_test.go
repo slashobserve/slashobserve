@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -23,12 +25,13 @@ const commentRejection = "comment tools are for MCP clients; the server answers 
 
 func commentCalls() map[string]string {
 	return map[string]string{
-		nameListComments:   `{"dashboard_id":"` + dashA + `"}`,
-		nameCreateComment:  `{"target":"dashboard:` + dashA + `","body":"done"}`,
-		nameEditComment:    `{"comment_id":"` + dashB + `","body":"done"}`,
-		nameReopenComment:  `{"comment_id":"` + dashB + `"}`,
-		nameReplyToComment: `{"comment_id":"` + dashB + `","body":"done"}`,
-		nameResolveComment: `{"comment_id":"` + dashB + `","version":1}`,
+		nameListComments:    `{"dashboard_id":"` + dashA + `"}`,
+		nameListMentionable: `{"target":"dashboard:` + dashA + `"}`,
+		nameCreateComment:   `{"target":"dashboard:` + dashA + `","body":"done"}`,
+		nameEditComment:     `{"comment_id":"` + dashB + `","body":"done"}`,
+		nameReopenComment:   `{"comment_id":"` + dashB + `"}`,
+		nameReplyToComment:  `{"comment_id":"` + dashB + `","body":"done"}`,
+		nameResolveComment:  `{"comment_id":"` + dashB + `","version":1}`,
 	}
 }
 
@@ -66,7 +69,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "add_block,claim_run,create_annotation,create_comment,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_observation,get_proposal,get_rca,get_run,get_run_brief,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_folders,list_inbox,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,merge_proposal,move_dashboard,move_observation,pin_dashboard,publish_rca,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,save_search,search_workspace,unpin_dashboard,update_annotation,update_block,update_observation" {
+	if strings.Join(got, ",") != "add_block,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_activity,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,publish_rca,recheck_datasource,rename_folder,reopen_comment,reopen_observation,reply_to_comment,report_run,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_workspace,set_home_dashboard,set_inbox_item_done,start_run,unpin_dashboard,update_annotation,update_block,update_observation" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -261,6 +264,10 @@ func TestCommentItemAuthorFallsBackToEmail(t *testing.T) {
 
 func TestCommentFailure(t *testing.T) {
 	internal := errors.New("database down")
+	threadID, err := db.ParseUUID("5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21")
+	if err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		name     string
 		err      error
@@ -276,8 +283,10 @@ func TestCommentFailure(t *testing.T) {
 		{name: "dashboard not found", err: dashboards.ErrNotFound, wantCode: codeNotFound},
 		{name: "no ability", err: folders.ErrForbidden, wantCode: codeForbiddenRole, wantMsg: roleDeniedMessage},
 		{name: "not the author", err: threads.ErrNotAuthor, wantCode: codeNotAuthor, wantMsg: threads.ErrNotAuthor.Error()},
+		{name: "not the starter", err: threads.ErrNotStarter, wantCode: codeNotStarter, wantMsg: threads.ErrNotStarter.Error()},
 		{name: "unknown panel", err: threads.ErrUnknownPanel, wantCode: codeUnknownPanel, wantMsg: threads.ErrUnknownPanel.Error()},
 		{name: "unknown version", err: threads.ErrUnknownVersion, wantCode: codeUnknownVersion, wantMsg: threads.ErrUnknownVersion.Error()},
+		{name: "observation already has a discussion", err: &threads.ObservationThreadExistsError{ThreadID: threadID}, wantCode: codeThreadExists, wantMsg: "this observation already has a discussion; add to it with reply_to_comment and comment_id 5b0c7a43-2f4e-4a68-9d7b-1c3e5a7f9b21"},
 		{name: "internal", err: internal, wantErr: internal},
 	}
 	for _, tt := range tests {
@@ -681,5 +690,80 @@ func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testi
 		if m.ID == reply.ID && (m.ReplyTo == nil || m.ReplyTo.ID != opened.ID || m.ReplyTo.Excerpt != "is it the cache?") {
 			t.Errorf("the reply quotes %+v", m.ReplyTo)
 		}
+	}
+}
+
+func TestListMentionablePeopleNeedsTheCommentAbilityAndPagesWithMore(t *testing.T) {
+	r := newAccessRig(t)
+	note, err := r.notes.Create(t.Context(), adminCaller, annotations.CreateInput{Text: "deploy v2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := "annotation:" + note.ID
+	for _, p := range []auth.Principal{adminCaller, editorCaller, commenterCaller} {
+		r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
+	}
+	if res := r.call(t, viewerCaller, nameListMentionable, `{"target":"`+target+`"}`); !res.IsError || errorCode(t, res) != "forbidden_role" {
+		t.Fatalf("a viewer = %s", textOf(t, res))
+	}
+	res := r.call(t, commenterCaller, nameListMentionable, `{"target":"`+target+`","limit":1}`)
+	out, ok := res.Content.(mentionableOut)
+	if !ok || len(out.People) != 1 || !out.More || out.People[0].ID == "" || out.People[0].ID == commenterCaller.ID {
+		t.Fatalf("limit 1 = %s", textOf(t, res))
+	}
+	if res := r.call(t, commenterCaller, nameListMentionable, `{"target":"nope"}`); !res.IsError {
+		t.Fatalf("a bad target = %s", textOf(t, res))
+	}
+}
+
+func TestCommentItemNamesTheRunThatWroteTheReply(t *testing.T) {
+	const run = "33333333-3333-4333-8333-333333333333"
+	version := 1
+	thread := threads.Thread{ID: dashA, Version: &version}
+	reply := commentItem(commentRef{thread, threads.Message{ID: dashA, Body: "x", Author: actor.Actor{Name: "Observe Agent", RunID: run}}})
+	person := commentItem(commentRef{thread, threads.Message{ID: dashA, Body: "x", Author: actor.Actor{Name: "Ada"}}})
+	if reply.RunID != run || person.RunID != "" {
+		t.Fatalf("reply run %q, person run %q", reply.RunID, person.RunID)
+	}
+	raw, err := json.Marshal(person)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &top); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := top["run_id"]; ok {
+		t.Fatalf("a person's comment carries a top-level run: %s", raw)
+	}
+}
+
+func TestCommentItemCarriesTheSameActorAsTheRESTAPI(t *testing.T) {
+	const run = "33333333-3333-4333-8333-333333333333"
+	thread := threads.Thread{ID: dashA}
+	for name, author := range map[string]actor.Actor{
+		"agent reply": {Kind: auth.KindUser, ID: dashB, Name: "Ada", RunID: run},
+		"person":      {Kind: auth.KindUser, ID: dashB, Name: "Ada"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := commentItem(commentRef{thread, threads.Message{ID: dashA, Author: author}})
+			if !reflect.DeepEqual(out.Actor, author.JSON()) {
+				t.Fatalf("actor = %+v, want %+v", out.Actor, author.JSON())
+			}
+			raw, err := json.Marshal(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Actor map[string]any `json:"actor"`
+			}
+			if err := json.Unmarshal(raw, &got); err != nil {
+				t.Fatal(err)
+			}
+			runID, ok := got.Actor["run_id"]
+			if !ok || (author.RunID == "") != (runID == nil) {
+				t.Fatalf("actor = %v", got.Actor)
+			}
+		})
 	}
 }

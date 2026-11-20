@@ -23,12 +23,23 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { moveChoices } from "@/folders/move-targets"
+import type { Folder } from "@/folders/queries"
+import { loadProblemText } from "@/service-accounts/queries"
+import { cleanText } from "@/lib/user-text"
 import { dashboardKeys } from "@/api/keys"
 import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator, type Dashboard } from "@/spec"
 
-import { useAddVersion } from "../queries"
+import { useAddVersion, useMoveDashboard } from "../queries"
 import { saveToast } from "../save-outcome"
 import {
   applyDetails,
@@ -46,12 +57,19 @@ import { saveProblemFrom, type Problem } from "./save-problem"
 const rejectedHeading = "The server rejected these details:"
 const invalidHeading = "These details are not a valid Spec:"
 
-type Edits = { title?: string; description?: string; tags?: string }
+type Edits = {
+  title?: string
+  description?: string
+  tags?: string
+  folder?: string
+}
 
 type Props = {
   dashboardId: string
   spec: Dashboard
   version: number
+  folder: { id: string; personal: boolean }
+  folders: readonly Folder[]
   open: boolean
   onOpenChange: (open: boolean) => void
   finalFocus: () => HTMLElement | boolean
@@ -61,23 +79,27 @@ export function DetailsDialog({
   dashboardId,
   spec,
   version,
+  folder,
+  folders,
   open,
   onOpenChange,
   finalFocus,
 }: Props) {
   const queryClient = useQueryClient()
   const save = useAddVersion(dashboardId)
+  const move = useMoveDashboard()
   const ids = useId()
   const titleId = `${ids}-title`
   const descriptionId = `${ids}-description`
   const tagsId = `${ids}-tags`
+  const folderId = `${ids}-folder`
   const titleRef = useRef<HTMLInputElement>(null)
   const reloadRef = useRef<HTMLButtonElement>(null)
   const [edits, setEdits] = useState<Edits>({})
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [preparing, setPreparing] = useState(false)
-  const pending = save.isPending || preparing
+  const pending = save.isPending || preparing || move.isPending
   const titles = useMemo(() => panelTitles(spec), [spec])
 
   const current = detailsOf(spec)
@@ -91,12 +113,19 @@ export function DetailsDialog({
   const next: Details | null =
     titleProblem === null && descriptionProblem === null && !tagsProblem
       ? {
-          title: title.trim(),
+          title: cleanText(title),
           description: description.trim(),
           tags: "tags" in parsedTags ? parsedTags.tags : [],
         }
       : null
-  const unchanged = next !== null && sameDetails(current, next)
+  const folderItems = moveChoices(folders, folder.id).map((choice) => ({
+    value: choice.id,
+    label: choice.title,
+  }))
+  const folderChoice = edits.folder ?? folder.id
+  const folderChanged = folderChoice !== folder.id
+  const detailsChanged = next !== null && !sameDetails(current, next)
+  const unchanged = next !== null && !detailsChanged && !folderChanged
   const shown = (field: keyof Edits, message: string | null) =>
     message !== null && (submitted || edits[field] !== undefined)
       ? message
@@ -113,11 +142,31 @@ export function DetailsDialog({
     setSubmitted(false)
     setProblem(null)
     save.reset()
+    move.reset()
   }
 
   function changeOpen(value: boolean) {
     if (value) onOpenChange(true)
     else if (!pending) close()
+  }
+
+  function moveToChosen() {
+    const target = folderItems.find((item) => item.value === folderChoice)
+    const verb = folder.personal ? "Published" : "Moved"
+    move.mutate(
+      { id: dashboardId, folderId: folderChoice },
+      {
+        onSuccess: () => {
+          toast.success(`${verb} to ${target?.label ?? "the folder"}`)
+          close()
+        },
+        onError: (failure) =>
+          setProblem({
+            kind: "failed",
+            message: `Could not move the dashboard. ${loadProblemText(failure)}`,
+          }),
+      }
+    )
   }
 
   async function send(details: Details, base: Dashboard, parent: number) {
@@ -154,7 +203,8 @@ export function DetailsDialog({
       {
         onSuccess: (outcome) => {
           toast.success(saveToast(outcome))
-          close()
+          if (folderChanged) moveToChosen()
+          else close()
         },
         onError: (failure) =>
           setProblem(saveProblemFrom(failure, rejectedHeading)),
@@ -167,7 +217,8 @@ export function DetailsDialog({
     setSubmitted(true)
     if (next === null || unchanged || pending) return
     setProblem(null)
-    void send(next, spec, version)
+    if (detailsChanged) void send(next, spec, version)
+    else moveToChosen()
   }
 
   function reload() {
@@ -217,7 +268,8 @@ export function DetailsDialog({
             <DialogHeader>
               <DialogTitle>Edit details</DialogTitle>
               <DialogDescription>
-                Saves a new version with this title, description and tags.
+                Saves a new version with this title, description and tags, and
+                moves the dashboard when you choose another folder.
               </DialogDescription>
             </DialogHeader>
             <Field
@@ -285,6 +337,36 @@ export function DetailsDialog({
                 }
               />
             </Field>
+            <Field
+              id={folderId}
+              label="Folder"
+              error={null}
+              hint={
+                folderItems.length > 1
+                  ? undefined
+                  : "There is no other folder you can move it to."
+              }
+            >
+              <Select
+                items={folderItems}
+                value={folderChoice}
+                disabled={pending || folderItems.length < 2}
+                onValueChange={(value) =>
+                  setEdits({ ...edits, folder: value ?? undefined })
+                }
+              >
+                <SelectTrigger id={folderId} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} align="start">
+                  {folderItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             {problem?.kind === "invalid" ? (
               <Alert variant="destructive">
                 <AlertDescription>
@@ -302,7 +384,7 @@ export function DetailsDialog({
                 <AlertDescription>{problem.message}</AlertDescription>
               </Alert>
             ) : null}
-            {pending ? (
+            {save.isPending || preparing ? (
               <p className="text-sm text-muted-foreground">
                 Checking every panel query before saving.
               </p>

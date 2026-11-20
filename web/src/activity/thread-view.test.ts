@@ -37,6 +37,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     body: "text",
     status: "open",
     allowed_actions: ["reply", "resolve"],
+    unread: false,
     author,
     actor,
     created_at: at(0),
@@ -47,6 +48,7 @@ function root(overrides: Partial<Comment> = {}): Comment {
     edited_at: null,
     mentions: [],
     can_edit: false,
+    can_delete: false,
     resolved_by_version: null,
     panel_present: true,
     revision: null,
@@ -144,6 +146,19 @@ describe("threadState", () => {
         gate: noModel,
       })
     ).toEqual({ kind: "note", text: "Finished, nothing changed" })
+  })
+
+  it("reports a proposal instead of saying nothing changed", () => {
+    expect(
+      state({
+        request: request({
+          id: "r1",
+          status: "succeeded",
+          result_kind: "proposal",
+          result_version: null,
+        }),
+      })
+    ).toEqual({ kind: "proposal", requestId: "r1" })
   })
 
   it("keeps the resolved copy over the no-change copy", () => {

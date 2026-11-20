@@ -43,7 +43,7 @@ import { agentSendBlock, oneAgentText, SendButton } from "@/comments/composer"
 import {
   agentMentionsIn,
   mentionedAgents,
-  mentionOptions,
+  type MentionPerson,
 } from "@/comments/mentions"
 import { RunStarted } from "@/comments/run-started"
 import {
@@ -52,9 +52,13 @@ import {
   type SentMessage,
 } from "@/comments/thread-queries"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { useInlineMention } from "@/comments/use-inline-mention"
+import { useMentionPicks } from "@/comments/use-mention-picks"
 import { liveRegionText } from "@/lib/live-region"
 import { describeRange } from "@/lib/time"
-import { isModEnter } from "@/lib/shortcuts"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isModEnter, sendsOnEnter } from "@/lib/shortcuts"
+import { SendHint } from "@/comments/send-hint"
 import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
@@ -62,6 +66,7 @@ import {
   useAgentInfo,
   useCreateObserveRequest,
 } from "@/observe/queries"
+import { cleanText } from "@/lib/user-text"
 import { StopRequestButton } from "@/observe/request-actions"
 import { isAgentUnavailable, maxPromptLength } from "@/revisions/queries"
 
@@ -94,14 +99,16 @@ type Props = {
   draft: string
   onDraftChange: (text: string) => void
   gate: AgentGate
-  canEdit: boolean
+  canInvestigate: boolean
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
   notice?: ReactNode
   runningRequestId?: string
   range: { from: string; to: string }
+  timeZone: string
 }
 
+const noPeople: readonly MentionPerson[] = []
 const counterThreshold = 3500
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
@@ -144,28 +151,30 @@ export function ActivityComposer({
   draft,
   onDraftChange,
   gate,
-  canEdit,
+  canInvestigate,
   placeholder,
   textareaRef,
   notice,
   runningRequestId,
   range,
+  timeZone,
 }: Props) {
   const commands = availableCommands({
     hasDashboard: true,
     surface: "activity",
-    canInvestigate: canEdit,
+    canInvestigate,
   })
   const counterId = useId()
   const textareaId = useId()
   const errorId = useId()
+  const hintId = useId()
   const targetId = useId()
   const openThread = useOpenThread(`dashboard:${dashboardId}`)
   const createRequest = useCreateObserveRequest()
   const queryClient = useQueryClient()
   const agentKind = useActivityStore((state) => state.agentKind)
   const setAgentKind = useActivityStore((state) => state.setAgentKind)
-  const investigating = agentKind === "investigate"
+  const investigating = agentKind === "investigate" && canInvestigate
   const [rangeOn, setRangeOn] = useState(true)
   const [rangeKind, setRangeKind] = useState(agentKind)
   if (rangeKind !== agentKind) {
@@ -176,11 +185,13 @@ export function ActivityComposer({
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
   const [cursor, setCursor] = useState<HistoryCursor>(freshCursor)
-  const [mentioning, setMentioning] = useState(false)
+  const mention = useInlineMention()
   const history = usePromptHistory()
+  const coarse = useCoarsePointer()
   const agent = useAgentInfo()
   const model = agentLabel(agent.data)
   const agents = useMentionableAgents()
+  const picks = useMentionPicks()
   const [started, setStarted] = useState<{
     result: SentMessage
     agentName: string
@@ -202,7 +213,7 @@ export function ActivityComposer({
 
   const panelId =
     target.kind === "panel" && !targetMissing ? target.panelId : null
-  const trimmed = draft.trim()
+  const trimmed = picks.wire(cleanText(draft))
   const length = [...trimmed].length
   const over = length > maxPromptLength
   const showCounter = length >= counterThreshold
@@ -256,7 +267,7 @@ export function ActivityComposer({
     if (step === null) return false
     setCursor(step.cursor)
     setAgentKind("revise")
-    onDraftChange(applyText(step.text))
+    onDraftChange(applyText(picks.adopt(step.text)))
     requestAnimationFrame(() => {
       const element = field.current
       if (element === null) return
@@ -319,16 +330,19 @@ export function ActivityComposer({
       failed(plan.error)
       return
     }
-    createRequest.mutate(plan.input, {
-      onSuccess: () => {
-        history.record(withCommand("investigate", trimmed))
-        succeeded("Sent to the agent")
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(dashboardId),
-        })
-      },
-      onError: (error) => failed(investigateFailureText(error)),
-    })
+    createRequest.mutate(
+      { ...plan.input, timeZone },
+      {
+        onSuccess: () => {
+          history.record(withCommand("investigate", trimmed))
+          succeeded("Sent to the agent")
+          void queryClient.invalidateQueries({
+            queryKey: dashboardKeys.revisions(dashboardId),
+          })
+        },
+        onError: (error) => failed(investigateFailureText(error)),
+      }
+    )
   }
 
   function onSubmit(event: FormEvent) {
@@ -337,7 +351,10 @@ export function ActivityComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (isModEnter(event) && !event.nativeEvent.isComposing) {
+    if (
+      (isModEnter(event) && !event.nativeEvent.isComposing) ||
+      sendsOnEnter(event, coarse)
+    ) {
       event.preventDefault()
       sendNow()
       return
@@ -396,8 +413,17 @@ export function ActivityComposer({
       ]
     : []
 
+  const commentHint =
+    !investigating &&
+    agent.data?.available === true &&
+    trimmed !== "" &&
+    agentMentionsIn(trimmed) === 0
   const describedBy =
-    [showCounter ? counterId : null, failure ? errorId : null]
+    [
+      showCounter ? counterId : null,
+      failure ? errorId : null,
+      commentHint ? hintId : null,
+    ]
       .filter(Boolean)
       .join(" ") || undefined
   const targetItems = panelItems("The whole dashboard", panels)
@@ -432,12 +458,21 @@ export function ActivityComposer({
           readOnly={pending}
           className="field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0"
           onChange={(event) => {
-            onDraftChange(applyText(event.target.value))
+            const { value, selectionStart } = event.target
+            const next = applyText(value)
+            if (next === value) mention.typed(draft, value, selectionStart)
+            onDraftChange(next)
             setCursor(freshCursor)
             if (failure) setFailure(null)
           }}
           onKeyDown={onKeyDown}
         />
+        {commentHint ? (
+          <p id={hintId} className="px-3 pb-1 text-xs text-muted-foreground">
+            This goes to the team as a comment. Type @ and choose Observe Agent
+            to ask the agent to change something.
+          </p>
+        ) : null}
         <div className="flex items-center gap-2 px-2 pb-2">
           <label htmlFor={targetId} className="text-xs text-muted-foreground">
             On
@@ -472,13 +507,16 @@ export function ActivityComposer({
           </Select>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <MentionButton
-              options={mentionOptions([], agents)}
+              agents={agents}
+              people={noPeople}
+              target={`dashboard:${dashboardId}`}
+              onPick={picks.pick}
               field={field}
               value={draft}
               onChange={onDraftChange}
-              open={mentioning}
-              onOpenChange={setMentioning}
-              replaceFrom={null}
+              open={mention.open}
+              onOpenChange={mention.onOpenChange}
+              replaceFrom={mention.replaceFrom}
               disabled={pending}
             />
             {runningRequestId !== undefined ? (
@@ -505,6 +543,7 @@ export function ActivityComposer({
           </div>
         </div>
       </div>
+      <SendHint />
       {model !== null ? (
         <span className="truncate text-xs text-muted-foreground">{model}</span>
       ) : null}

@@ -273,6 +273,22 @@ func TestMetricQueries(t *testing.T) {
 	}
 }
 
+func TestQueryReportsTheExpandedText(t *testing.T) {
+	ds, _ := serve(t, 0, success("matrix", `[]`))
+	var got string
+	query := datasource.Query{
+		Text:       `sum(count_over_time({service_name=~"$service"}[$__interval]))`,
+		Variables:  []datasource.Variable{{Name: "service", Values: []string{"checkout", "payments"}}},
+		OnExpanded: func(text string) { got = text },
+	}
+	if _, err := ds.QueryRange(context.Background(), query, lastHour, 30*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "$service") || strings.Contains(got, "$__interval") || !strings.Contains(got, "checkout") {
+		t.Fatalf("expanded text = %q", got)
+	}
+}
+
 func matrixSeries(id, samples int) string {
 	values := make([]string, samples)
 	for i := range values {
@@ -430,7 +446,7 @@ func TestVariablesAreEscapedForLogQL(t *testing.T) {
 	}{
 		{"quote in an equality matcher", `{service_name="$svc"}`, []datasource.Variable{{Name: "svc", Values: []string{`a"b`}}}, `{service_name="a\"b"}`},
 		{"several values in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", Values: []string{"a.b", "c"}}}, `{service_name=~"(a\\.b|c)"}`},
-		{"all in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", All: true}}, `{service_name=~".*"}`},
+		{"all in a regex matcher", `{service_name=~"$svc"}`, []datasource.Variable{{Name: "svc", All: true}}, `{service_name=~".+"}`},
 		{"line filter", `{a="b"} |= "${needle}"`, []datasource.Variable{{Name: "needle", Values: []string{`x\y`}}}, `{a="b"} |= "x\\y"`},
 		{"range and interval macros", `count_over_time({a="b"}[$__range]) or count_over_time({a="b"}[$__interval])`, nil, `count_over_time({a="b"}[3600s]) or count_over_time({a="b"}[3s])`},
 	}

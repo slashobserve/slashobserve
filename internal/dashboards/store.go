@@ -167,10 +167,15 @@ func isFolderGone(err error) bool {
 
 func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
 	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to})
+		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return ErrNotFound
+			if _, err := q.DashboardFolder(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			} else if err != nil {
+				return fmt.Errorf("read dashboard folder: %w", err)
+			}
+			return errFolderMoved
 		case isFolderGone(err):
 			return ErrFolderNotFound
 		case err != nil:
@@ -460,6 +465,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit, offs
 		Tags:           f.Tags,
 		Problem:        f.Problem,
 		UnopenedBefore: f.UnopenedBefore,
+		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
 		RowOffset:      httpapi.Int32(offset),
 	}
@@ -488,6 +494,7 @@ func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, of
 		Tags:           f.Tags,
 		Problem:        f.Problem,
 		UnopenedBefore: f.UnopenedBefore,
+		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
 		RowOffset:      httpapi.Int32(offset),
 	}
@@ -510,6 +517,77 @@ func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, of
 	return listItemsOf(same), nil
 }
 
+func (st store) listByViews(ctx context.Context, after *viewsCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	params := dbsqlc.ListDashboardsByViewsParams{
+		Folders:        f.Folders,
+		Folder:         f.Folder,
+		CreatorKind:    f.CreatorKind,
+		CreatorID:      f.CreatorID,
+		OnlyAgent:      f.OnlyAgent,
+		OnlyMcp:        f.OnlyMcp,
+		McpClient:      f.McpClient,
+		Datasource:     f.Datasource,
+		Q:              f.Q,
+		Tags:           f.Tags,
+		Problem:        f.Problem,
+		UnopenedBefore: f.UnopenedBefore,
+		ViewsSince:     viewsSince(),
+		RowLimit:       httpapi.Int32(limit),
+		RowOffset:      httpapi.Int32(offset),
+	}
+	if after != nil {
+		params.CursorViews = pgtype.Int4{Int32: after.Views, Valid: true}
+		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.UpdatedAt, Valid: true}
+		params.CursorID = after.ID
+	}
+	rows, err := st.db.Queries().ListDashboardsByViews(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboards by views: %w", err)
+	}
+	same := make([]dbsqlc.ListDashboardsRow, len(rows))
+	for i, r := range rows {
+		same[i] = dbsqlc.ListDashboardsRow(r)
+	}
+	return listItemsOf(same), nil
+}
+
+func (st store) listByName(ctx context.Context, after *nameCursor, limit, offset int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	params := dbsqlc.ListDashboardsByNameParams{
+		Folders:        f.Folders,
+		Folder:         f.Folder,
+		CreatorKind:    f.CreatorKind,
+		CreatorID:      f.CreatorID,
+		OnlyAgent:      f.OnlyAgent,
+		OnlyMcp:        f.OnlyMcp,
+		McpClient:      f.McpClient,
+		Datasource:     f.Datasource,
+		Q:              f.Q,
+		Tags:           f.Tags,
+		Problem:        f.Problem,
+		UnopenedBefore: f.UnopenedBefore,
+		ViewsSince:     viewsSince(),
+		RowLimit:       httpapi.Int32(limit),
+		RowOffset:      httpapi.Int32(offset),
+	}
+	if after != nil {
+		params.CursorTitle = pgtype.Text{String: after.Title, Valid: true}
+		params.CursorID = after.ID
+	}
+	rows, err := st.db.Queries().ListDashboardsByName(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboards by name: %w", err)
+	}
+	same := make([]dbsqlc.ListDashboardsRow, len(rows))
+	for i, r := range rows {
+		same[i] = dbsqlc.ListDashboardsRow(r)
+	}
+	return listItemsOf(same), nil
+}
+
+func viewsSince() pgtype.Date {
+	return pgtype.Date{Time: healthrule.ViewsSince(time.Now()), Valid: true}
+}
+
 func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 	items := make([]ListItem, 0, len(rows))
 	for _, r := range rows {
@@ -524,7 +602,9 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 			Description:    r.Description,
 			DatasourceUIDs: uids,
 			OpenComments:   int(r.OpenCommentCount),
+			ViewCount:      int(r.ViewCount),
 			sortTitle:      r.FolderSortTitle,
+			titleSort:      r.TitleSort,
 		})
 	}
 	return items

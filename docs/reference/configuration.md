@@ -30,7 +30,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | `SLASHOBSERVE_SESSION_TTL`                | `168h`  | A Go duration from `5m` to `720h`. A session lasts this long from sign-in.                                                       |
 | `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none    | Required. Comma-separated domains, or `*` for every account. See [Sign-in with OIDC](../connect/oidc.md).                        |
 | `SLASHOBSERVE_AUTH_PROVIDER_NAME`         | unset   | Optional. The identity provider's display name, up to 64 characters, shown to signed-in clients next to the sign-in rules.       |
-| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses, compared without regard to case, that are always Admins, at most 100. Unset, the earliest person to sign in is the Admin. See [Roles](../teams/roles.md). |
+| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses, compared without regard to case, that are Admins when the person signs in with an address the provider reports as verified, at most 100. Unset, the earliest person to sign in is the Admin. See [Roles](../teams/roles.md). |
 | `SLASHOBSERVE_OIDC_GROUP_ROLES`           | unset   | Optional. Comma-separated `group=role` entries that map identity-provider groups to roles, at most 100. See [Roles](../teams/roles.md).      |
 
 ## Datasources
@@ -43,7 +43,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts that the server creates or updates at every start, each with the key read from its `keyFile`. Unset or empty means none. An account from the file answers 409 `provisioned` to role changes and key revocation in the web app and the API; rotate its key by writing a new one to the file and restarting. See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file). |
+| `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts that the server creates or updates at every start, each with the key read from its `keyFile`. Unset or empty means none. An account from the file answers 409 `provisioned` to role changes, key creation and key revocation in the web app and the API; rotate its key by writing a new one to the file and restarting. See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file). |
 
 ## Activity
 
@@ -97,3 +97,4 @@ See [LLM providers](../connect/llm-providers.md) for how they combine.
 
 `SLASHOBSERVE_API_CONTRACT_CHECK` (`true` or `false`, default `false`) makes the server validate every `/api/v1` request and response against the OpenAPI document.
 It is for the end-to-end test stack only; never set it in production.
+It also turns a request with a query parameter the document does not list into a 500, as [API behavior](api-behavior.md#query-parameters) describes.

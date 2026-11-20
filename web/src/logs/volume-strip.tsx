@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { zonedDateTime } from "@/lib/time"
 import { timeTicks } from "@/lib/time-ticks"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import type { LogLevelKind } from "@/panels/logs/logs-model"
 
@@ -28,6 +29,7 @@ import { exploreErrorText } from "./explore"
 import {
   bucketTotal,
   logVolumeQuery,
+  partialVolumeText,
   selectionEdges,
   selectionText,
   volumeBucketText,
@@ -37,6 +39,7 @@ import {
   volumeKinds,
   volumeLabel,
   volumeTotals,
+  uncountedBuckets,
   type LogVolume,
 } from "./volume"
 import { useLogsWorkspace } from "./workspace"
@@ -79,8 +82,24 @@ export function VolumeStrip({
   from: string
   to: string
 }) {
-  const { update } = useLogsWorkspace()
-  const volume = useQuery(logVolumeQuery(uid, { query, from, to }))
+  const { update, results } = useLogsWorkspace()
+  const { ready, slow } = useAfterMainQuery(
+    results,
+    JSON.stringify([uid, query, from, to])
+  )
+  const volume = useQuery({
+    ...logVolumeQuery(uid, { query, from, to }),
+    enabled: ready,
+  })
+  if (slow) {
+    return (
+      <div className={cn(cardClasses, "min-h-[134px]")}>
+        <p className="flex h-12 items-center text-[13px] text-muted-foreground">
+          This source is slow: the volume starts when the query answers.
+        </p>
+      </div>
+    )
+  }
   if (volume.isError) {
     return (
       <div className={cardClasses}>
@@ -89,7 +108,7 @@ export function VolumeStrip({
           <div
             role="group"
             aria-label="Levels"
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
           >
             <Button
               type="button"
@@ -120,7 +139,7 @@ export function VolumeStrip({
           className="flex h-12 items-center gap-2 text-[13px]"
         >
           <p className="min-w-0 truncate">
-            {volumeFailureText(exploreErrorText(volume.error))}
+            {volumeFailureText(exploreErrorText(volume.error), results.isError)}
           </p>
           <Button
             type="button"
@@ -144,7 +163,12 @@ export function VolumeStrip({
     )
   }
   if (volume.data === undefined) {
-    return <Skeleton aria-hidden="true" className="h-[132px] rounded-card" />
+    return (
+      <Skeleton
+        aria-hidden="true"
+        className="h-[134px] shrink-0 rounded-card"
+      />
+    )
   }
   return (
     <VolumeBars
@@ -172,7 +196,9 @@ function VolumeBars({
   const bucketCount = buckets.length
   const describedBy = useId()
   const brushable = !useCoarsePointer()
-  const [hidden, setHidden] = useState<ReadonlySet<LogLevelKind>>(new Set())
+  const {
+    levels: { hidden, setHidden },
+  } = useLogsWorkspace()
   const [hover, setHover] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; to: number } | null>(null)
   const [selection, setSelection] = useState<BucketSelection | null>(null)
@@ -198,11 +224,9 @@ function VolumeBars({
     : selection
 
   function toggle(kind: LogLevelKind) {
-    setHidden((current) => {
-      const next = new Set(current)
-      if (!next.delete(kind)) next.add(kind)
-      return next
-    })
+    const next = new Set(hidden)
+    if (!next.delete(kind)) next.add(kind)
+    setHidden(next)
   }
 
   function bucketUnder(event: PointerEvent<HTMLDivElement>): number {
@@ -284,6 +308,13 @@ function VolumeBars({
   }
 
   const hovered = hover === null ? undefined : buckets[hover]
+  const uncounted = uncountedBuckets(volume)
+  const hoveredText =
+    hover !== null && hover < uncounted
+      ? "Not counted"
+      : hovered === undefined
+        ? ""
+        : volumeBucketText(hovered)
   const edges =
     selection === null
       ? null
@@ -301,7 +332,7 @@ function VolumeBars({
     <div className={cardClasses}>
       <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <p>{volumeCaption(total, from, to)}</p>
+          <p>{volumeCaption(total, from, to, volume.counted_from)}</p>
           {selection === null ? null : (
             <>
               <p className="text-[13px] text-foreground tabular-nums">
@@ -325,7 +356,7 @@ function VolumeBars({
         <div
           role="group"
           aria-label="Levels"
-          className="flex items-center gap-1"
+          className="flex flex-wrap items-center gap-1"
         >
           <Button
             type="button"
@@ -394,6 +425,13 @@ function VolumeBars({
             )
           })}
         </div>
+        {uncounted === 0 ? null : (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-control bg-muted"
+            style={{ width: `${(uncounted / bucketCount) * 100}%` }}
+          />
+        )}
         {preview === null ? null : (
           <div
             aria-hidden="true"
@@ -438,13 +476,13 @@ function VolumeBars({
             <p className="text-muted-foreground tabular-nums">
               {zonedDateTime(hovered.start, undefined)}
             </p>
-            <p className="tabular-nums">{volumeBucketText(hovered)}</p>
+            <p className="tabular-nums">{hoveredText}</p>
           </div>
         )}
         <p id={describedBy} aria-live="polite" className="sr-only">
           {hovered === undefined
             ? ""
-            : `${zonedDateTime(hovered.start, undefined)}, ${volumeBucketText(hovered)}`}
+            : `${zonedDateTime(hovered.start, undefined)}, ${hoveredText}`}
         </p>
       </div>
       <div
@@ -461,6 +499,11 @@ function VolumeBars({
           </span>
         ))}
       </div>
+      {volume.counted_from === undefined ? null : (
+        <p role="status" className="text-xs leading-4 text-muted-foreground">
+          {partialVolumeText(volume.counted_from, total === 0)}
+        </p>
+      )}
     </div>
   )
 }

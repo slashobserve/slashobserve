@@ -24,6 +24,7 @@ export type DashboardListFilters = {
   problem?: NonNullable<
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
+  order?: "updated" | "name" | "views"
 }
 
 export const dashboardKeys = {
@@ -60,12 +61,14 @@ export const dashboardKeys = {
   diff: (id: string, from: number, to: number) =>
     ["dashboards", id, "diff", from, to] as const,
   comments: (id: string) => ["dashboards", id, "comments"] as const,
+  viewers: (id: string) => ["dashboards", id, "viewers"] as const,
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
   revision: (id: string, revisionId: string) =>
     ["dashboards", id, "revision", revisionId] as const,
   saves: (id: string) => ["dashboards", id, "saves"] as const,
   deletes: (id: string) => ["dashboards", id, "deletes"] as const,
   posts: (id: string) => ["dashboards", id, "posts"] as const,
+  views: (id: string) => ["dashboards", id, "views"] as const,
 }
 
 export const folderKeys = {
@@ -124,6 +127,7 @@ export type NameListParams = {
 export const datasourceKeys = {
   all: ["datasources"] as const,
   list: () => ["datasources", "list"] as const,
+  config: (uid: string) => ["datasources", uid, "config"] as const,
   metrics: (uid: string, search: string) =>
     ["datasources", uid, "metrics", search] as const,
   labels: (uid: string, params: NameListParams) =>
@@ -235,6 +239,7 @@ export type ExploreParams = {
   pageSize?: number
   page?: number
   cursor?: string
+  sort?: string
 }
 
 export type ContextParams = {
@@ -316,7 +321,7 @@ export const findingKeys = {
 }
 
 export type SavedSearchListParams = {
-  kind?: "logs" | "traces"
+  kind?: "logs" | "traces" | "metrics"
   folderId?: string
 }
 
@@ -328,9 +333,12 @@ export const savedSearchKeys = {
 
 export const annotationKeys = {
   all: ["annotations"] as const,
+  ranges: (dashboardId: string) =>
+    ["annotations", dashboardId, "range"] as const,
   range: (dashboardId: string, from: string, to: string) =>
     ["annotations", dashboardId, "range", from, to] as const,
-  tags: (dashboardId: string) => ["annotations", dashboardId, "tags"] as const,
+  activity: (dashboardId: string) =>
+    ["annotations", dashboardId, "activity"] as const,
 }
 
 export type HomeSearch = { q?: string; tag: string[] }
@@ -338,11 +346,17 @@ export type HomeSearch = { q?: string; tag: string[] }
 export const searchKeys = {
   all: ["search"] as const,
   results: (q: string) => ["search", "results", q] as const,
+  page: (q: string, kind: string | null) =>
+    ["search", "page", q, kind] as const,
 }
 
 export const pinKeys = {
   all: ["pins"] as const,
   list: () => ["pins", "list"] as const,
+}
+
+export const homeDashboardKeys = {
+  current: () => ["home-dashboard"] as const,
 }
 
 export const homeKeys = {
@@ -382,9 +396,21 @@ export type ObservationListFilters = {
   folderId?: string
 }
 
+export type ObservationPageParams = {
+  state?: "open" | "resolved"
+  q?: string
+  mine?: boolean
+  sort: "updated" | "created" | "title"
+  order: "asc" | "desc"
+  page: number
+  size: number
+}
+
 export const observationKeys = {
   all: ["observations"] as const,
   lists: () => ["observations", "list"] as const,
+  page: (params: ObservationPageParams) =>
+    ["observations", "list", "page", params] as const,
   list: (filters: ObservationListFilters, limit: number) =>
     ["observations", "list", filters, limit] as const,
   one: (id: string) => ["observations", id] as const,
@@ -394,6 +420,7 @@ export const observationKeys = {
     ["observations", "snapshots", snapshotId] as const,
   changes: (id: string, updatedAt: string) =>
     ["observations", id, "changes", updatedAt] as const,
+  allChanges: (id: string) => ["observations", id, "changes"] as const,
   rcas: (id: string) => ["observations", id, "rcas"] as const,
   rca: (id: string, revision: number) =>
     ["observations", id, "rcas", revision] as const,
@@ -414,16 +441,27 @@ export const proposalKeys = {
   list: (dashboardId: string, state: ProposalState) =>
     ["proposals", "list", dashboardId, state] as const,
   detail: (id: string) => ["proposals", "detail", id] as const,
+  run: (dashboardId: string, runId: string) =>
+    ["proposals", "run", dashboardId, runId] as const,
 }
 
 export type InboxView = "for_you" | "everything" | "proposals" | "mentions"
 
+export type InboxFilter = "open" | "unread" | "done"
+
 export const inboxKeys = {
   all: ["inbox"] as const,
-  list: (view: InboxView) => ["inbox", "list", view] as const,
+  list: (view: InboxView, filter: InboxFilter = "open") =>
+    ["inbox", "list", view, filter] as const,
 }
 
 export const agentKeys = {
   all: ["agents"] as const,
   list: () => ["agents", "list"] as const,
+}
+
+export const auditKeys = {
+  all: ["audit"] as const,
+  list: (actor: string | null, type: string | null, range: string) =>
+    ["audit", "list", actor, type, range] as const,
 }

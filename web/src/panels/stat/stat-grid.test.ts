@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { isWideTile, tileSize, tilesAcross } from "./stat-grid"
+import {
+  fittedValueSize,
+  isWideTile,
+  rowMinHeight,
+  tileSize,
+  tilesAcross,
+} from "./stat-grid"
 
 describe("tilesAcross", () => {
   it("fits as many 120px tiles as the width allows when the height is plentiful", () => {
@@ -65,5 +71,37 @@ describe("isWideTile", () => {
     expect(isWideTile(true, { width: 400, height: 200 })).toBe(true)
     expect(isWideTile(true, { width: 199, height: 40 })).toBe(false)
     expect(isWideTile(true, { width: 200, height: 40 })).toBe(true)
+  })
+})
+
+describe("fittedValueSize", () => {
+  it("keeps the full size when the text fits", () => {
+    expect(fittedValueSize("1.2k", 120)).toBe(28)
+    expect(fittedValueSize("", 120)).toBe(28)
+  })
+
+  it("shrinks a long value so it fits the width", () => {
+    const size = fittedValueSize("system / user", 96)
+    expect(size).toBeLessThan(28)
+    expect(size).toBeGreaterThanOrEqual(12)
+    expect(size * 0.6 * "system / user".length).toBeLessThanOrEqual(96 + 0.001)
+  })
+
+  it("never goes below the readable floor", () => {
+    expect(fittedValueSize("a very long state name indeed", 60)).toBe(12)
+  })
+})
+
+describe("rowMinHeight", () => {
+  it("keeps full rows when they fit", () => {
+    expect(rowMinHeight(200, 2)).toBe(72)
+  })
+
+  it("compacts rows that would not fit at full height but fit compact", () => {
+    expect(rowMinHeight(150, 2)).toBe(56)
+  })
+
+  it("keeps full rows when even compact ones cannot fit, so the grid scrolls", () => {
+    expect(rowMinHeight(100, 3)).toBe(72)
   })
 })

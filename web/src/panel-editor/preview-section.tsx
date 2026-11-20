@@ -25,6 +25,8 @@ import {
 import type { EditablePanel } from "./draft"
 import { withPanel } from "./panel-json"
 import {
+  previewBlocksSave,
+  previewErrorShownInline,
   previewErrorText,
   previewStatusText,
   seriesCount,
@@ -42,10 +44,14 @@ export type PreviewSectionProps = {
   draft: EditablePanel
   timeRange: { from?: string; to?: string }
   selections: Selections | null
+  onSaveBlockedChange: (blocked: boolean) => void
+  inlineErrorRefs: ReadonlySet<string>
 }
 
 const debounceMs = 600
-const chartHeight = 200
+function chartHeightFor(width: number) {
+  return width < 480 ? 140 : 200
+}
 const noSelections: Selections = {}
 
 function ignoreSelection() {}
@@ -141,8 +147,11 @@ function DataPreview({
   timeRange,
   selections,
   width,
+  onSaveBlockedChange,
+  inlineErrorRefs,
 }: DataPreviewProps) {
-  const debounced = useDebouncedValue(draft, stableJson(draft), debounceMs)
+  const draftJson = stableJson(draft)
+  const debounced = useDebouncedValue(draft, draftJson, debounceMs)
   const validate = useSpecValidator()
   const valid = useMemo(
     () => validate !== undefined && draftIsValid(spec, debounced, validate),
@@ -150,6 +159,7 @@ function DataPreview({
   )
   const vars = selections ?? noSelections
   const maxDataPoints = maxDataPointsFor(debounced, width)
+  const chartHeight = chartHeightFor(width)
   const ready = selections !== null && width > 0
 
   const preview = useQuery({
@@ -165,6 +175,15 @@ function DataPreview({
     }),
     enabled: valid && ready,
   })
+
+  const blocksSave =
+    preview.isError &&
+    previewBlocksSave(preview.error) &&
+    draftJson === stableJson(debounced)
+  useEffect(() => {
+    onSaveBlockedChange(blocksSave)
+  }, [blocksSave, onSaveBlockedChange])
+  useEffect(() => () => onSaveBlockedChange(false), [onSaveBlockedChange])
 
   const showGhost =
     isDataPanel(base) &&
@@ -233,9 +252,15 @@ function DataPreview({
         to={timeRange.to}
       />
     )
+  } else if (
+    status.kind === "error" &&
+    previewErrorShownInline(preview.error, inlineErrorRefs)
+  ) {
+    body = <div style={{ height: chartHeight }} />
   } else if (status.kind === "error") {
     body = (
       <div
+        role="alert"
         className="flex items-center justify-center px-4 text-center text-[13px] text-status-critical"
         style={{ height: chartHeight }}
       >
@@ -282,6 +307,8 @@ export function PreviewSection({
   draft,
   timeRange,
   selections,
+  onSaveBlockedChange,
+  inlineErrorRefs,
 }: PreviewSectionProps) {
   const { ref, width } = useContentWidth()
   let content = null
@@ -303,6 +330,8 @@ export function PreviewSection({
           timeRange={timeRange}
           selections={selections}
           width={width}
+          onSaveBlockedChange={onSaveBlockedChange}
+          inlineErrorRefs={inlineErrorRefs}
         />
       )
     ) : (
@@ -311,7 +340,7 @@ export function PreviewSection({
         <StaticPanelBody
           panel={draft}
           width={width}
-          height={chartHeight}
+          height={chartHeightFor(width)}
           vars={selections ?? noSelections}
           from={timeRange.from ?? spec.time.from}
           to={timeRange.to ?? spec.time.to}

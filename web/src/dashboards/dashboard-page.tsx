@@ -12,7 +12,8 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ActivityCard, activityCardId } from "@/activity/activity-card"
+import { ActivityCard } from "@/activity/activity-card"
+import { announcePaneOpening } from "@/components/dock/dock-focus"
 import type { EditGuard } from "@/activity/edit-pane"
 import {
   useActivityLayout,
@@ -35,7 +36,14 @@ import {
   inspectPaneId,
   type InspectTarget,
 } from "@/inspect/inspect-pane"
-import { displayZone, refreshToMs, timeOptionsFor } from "@/lib/time"
+import { preferredZone, usePreferences } from "@/lib/preferences"
+import {
+  displayZone,
+  isRangeTooLong,
+  maxRangeDays,
+  refreshToMs,
+  timeOptionsFor,
+} from "@/lib/time"
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
@@ -48,7 +56,9 @@ import { ShareToggle } from "@/share/share-pane"
 import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
-import { ShortcutsDialog } from "@/shortcuts/shortcuts-dialog"
+import { PanelHostContext } from "@/shell/side-panel"
+import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
+import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
   useDashboardShortcuts,
@@ -64,6 +74,8 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
+import { focusComment } from "./panel-actions"
+import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
   cursorSyncLabel,
@@ -71,7 +83,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { CanvasTools, useCanvasTool, useCanvasToolsShown } from "./canvas-tools"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -95,6 +107,7 @@ import {
   useDashboardEvents,
   type LiveStatus,
 } from "./live/use-dashboard-events"
+import { useDashboardMovedLive } from "./live/use-dashboards-live"
 import { downloadSpec } from "./export-spec"
 import { KioskHint } from "./kiosk/kiosk-hint"
 import { useKiosk } from "./kiosk/use-kiosk"
@@ -108,7 +121,7 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { PanelSource } from "./panel-source"
-import type { DashboardAccess } from "./permissions"
+import { mayInvestigate, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -117,6 +130,9 @@ import {
   useAddVersion,
   type DashboardEnvelope,
 } from "./queries"
+import { useAddPanel } from "./add-panel-action"
+import { SpecJsonPane } from "./spec-json/spec-json-pane"
+import { usePanelLayoutActions } from "./panel-layout-actions"
 import { RefreshPicker } from "./refresh-picker"
 import { withResponsive } from "./responsive"
 import { saveToast } from "./save-outcome"
@@ -136,10 +152,19 @@ import {
   pickerRefreshOptions,
 } from "./time-picker-settings"
 import { TimeRangePicker } from "./time-range-picker"
+import { ZonePicker } from "./zone-picker"
 import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
+import { ExportView } from "./print/export-view"
+import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
+import { useViewsText } from "./views"
+import { activityCardId, paneOpener } from "./pane-openers"
+
+function activityOpener() {
+  return paneOpener("activity")
+}
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -237,6 +262,7 @@ function DashboardView({
   const setSearch = useSetDashboardSearch()
   const { permissions } = access
   const { principal } = useRouteContext({ from: "/_authed" })
+  const canInvestigate = mayInvestigate(permissions, principal.role)
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -275,7 +301,13 @@ function DashboardView({
     [dashboardId, version, latestVersion, permissions.edit]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
+  const preferences = usePreferences()
+  const ownZone = spec.timezone ?? preferredZone(preferences.timeZone)
+  const viewZone = search.tz ?? ownZone
+  const timeOptions = useMemo(
+    () => timeOptionsFor({ ...spec, timezone: viewZone }),
+    [spec, viewZone]
+  )
 
   const source = useMemo<PanelSource>(
     () => ({ kind: "version", dashboardId, version }),
@@ -286,7 +318,7 @@ function DashboardView({
     variables,
     from: search.from,
     to: search.to,
-    timezone: spec.timezone,
+    timezone: viewZone,
     urlVars: search.vars,
   })
   const mixedDatasources = useMemo(
@@ -316,6 +348,10 @@ function DashboardView({
   const timeRange = useMemo(
     () => ({ from: search.from, to: search.to }),
     [search.from, search.to]
+  )
+  const rangeTooLong = useMemo(
+    () => isRangeTooLong(effectiveFrom, effectiveTo, undefined, timeOptions),
+    [effectiveFrom, effectiveTo, timeOptions]
   )
   const refreshValue = effectiveRefresh(search.refresh, spec)
   const refreshMs = refreshToMs(refreshValue)
@@ -369,6 +405,8 @@ function DashboardView({
     },
     [saveVersion, spec, version]
   )
+  const layoutActions = usePanelLayoutActions(dashboardId, spec, version)
+  const addPanel = useAddPanel(dashboardId, spec)
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
   const kiosk = search.kiosk === true
@@ -411,8 +449,16 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const toolsShown = useCanvasToolsShown(permissions)
+  const [specOpen, setSpecOpen] = useState(false)
+  const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
   const chatRequestId =
-    panelInUrl || search.share === true || editing || inspecting || kiosk
+    panelInUrl ||
+    search.share === true ||
+    editing ||
+    inspecting ||
+    kiosk ||
+    specShown
       ? undefined
       : search.chat
   const threadInUrl = search.thread !== undefined
@@ -420,13 +466,15 @@ function DashboardView({
     (open || panelInUrl || search.share === true || threadInUrl) &&
     !editing &&
     !inspecting &&
+    !specShown &&
     !kiosk &&
     chatRequestId === undefined
   const cardLayout = useActivityLayout(editingPanel)
   const chatLayout = useChatPaneLayout()
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
+  const setShortcutsOpen = useShortcutsStore((state) => state.setOpen)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
@@ -434,6 +482,8 @@ function DashboardView({
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const folders = useQuery(foldersQuery()).data ?? []
+  const viewsText = useViewsText(dashboardId)
+  const exporting = useExportStore((state) => state.mode !== null)
   const duplicate = duplicateTargets(folders, envelope.dashboard.folder.id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -518,6 +568,8 @@ function DashboardView({
     )
   }, [layoutEditingWithPanel, setSearch])
 
+  const closeSpec = useCallback(() => setSpecOpen(false), [])
+
   const closeInspect = useCallback(
     () =>
       setSearch((state) => ({
@@ -570,6 +622,7 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
+    comment: () => focusComment(composerRef),
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -647,6 +700,7 @@ function DashboardView({
       closeCard()
       return
     }
+    announcePaneOpening()
     setOpen(true)
     if (search.chat !== undefined) {
       setSearch((state) => ({ ...state, chat: undefined }))
@@ -664,6 +718,7 @@ function DashboardView({
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
     const apply = () => {
+      if (!sharing) announcePaneOpening()
       setSearch((state) => ({ ...state, edit: undefined, share: !sharing }))
       if (!sharing && cardLayout.stacked) scrollPaneIntoView(activityCardId)
     }
@@ -697,7 +752,21 @@ function DashboardView({
         to={effectiveTo}
         quickRanges={pickerQuickRanges(spec)}
         hidden={spec.timePicker?.hidden === true}
+        timezone={ownZone}
+        defaultRange={
+          permissions.edit &&
+          detailsBlockReason({
+            pinned,
+            editingLayout: editing,
+            editingPanel,
+          }) === null
+            ? { spec: envelopeSpec, version: envelopeVersion }
+            : null
+        }
       />
+      {spec.timePicker?.hidden ? null : (
+        <ZonePicker value={viewZone ?? "browser"} dashboardZone={ownZone} />
+      )}
       {spec.timePicker?.hidden ? null : (
         <RefreshPicker
           value={refreshValue}
@@ -715,6 +784,7 @@ function DashboardView({
     <ProposalsButton key="proposals" dashboardId={dashboardId} />,
     <MoreMenu
       key="more"
+      dashboardId={dashboardId}
       mayEdit={permissions.edit}
       detailsBlockedBy={detailsBlockReason({
         pinned,
@@ -726,7 +796,13 @@ function DashboardView({
         editingLayout: editing,
       })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
+      exportBlockedBy={editing ? "finish the layout first" : null}
       onEditDetails={() => setDetailsOpen(true)}
+      onAddPanel={addPanel}
+      onEditJson={() => {
+        announcePaneOpening()
+        setSpecOpen(true)
+      }}
       onDuplicate={
         duplicate.choices.length > 0 ? () => setDuplicating(true) : null
       }
@@ -778,7 +854,7 @@ function DashboardView({
       height={size.height}
       from={search.from}
       to={search.to}
-      timezone={spec.timezone}
+      timezone={viewZone}
       rangeFrom={effectiveFrom}
       rangeTo={effectiveTo}
       selections={item.selections}
@@ -808,8 +884,12 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      canInvestigate={canInvestigate}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
+      }
+      layoutActions={
+        permissions.edit && !editing && !pinned ? layoutActions : undefined
       }
       focusOnRender={
         focusesLinkedPanel && item.first && item.panel.id === linkedPanel
@@ -822,211 +902,268 @@ function DashboardView({
     />
   )
 
+  const annotationActions = {
+    dashboardId,
+    zone: displayZone(undefined, viewZone),
+    panelTitle: annotationPanelTitle,
+    canEdit: permissions.edit && !kiosk,
+    principal,
+  }
+
+  if (exporting) {
+    return (
+      <AnnotationActionsProvider {...annotationActions}>
+        <ExportView
+          spec={spec}
+          folder={access.folder.title}
+          version={version}
+          from={effectiveFrom}
+          to={effectiveTo}
+          states={states}
+          selections={selections}
+          values={values}
+          actions={actionContext}
+          renderPanel={(item, size) => renderPanel(item, size)}
+        />
+      </AnnotationActionsProvider>
+    )
+  }
+
   return (
-    <AnnotationActionsProvider
-      dashboardId={dashboardId}
-      zone={displayZone(undefined, spec.timezone)}
-      panelTitle={annotationPanelTitle}
-      canEdit={permissions.edit && !kiosk}
-      principal={principal}
-    >
-      <div className="flex min-h-svh bg-chrome">
-        {kiosk ? null : <Sidebar rail />}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {kiosk ? null : (
-            <>
-              <PhoneBar title={spec.title} />
-              <CommandPalette />
-            </>
-          )}
-          <div
-            className={cn(
-              pageClass(
-                (cardVisible && cardLayout.stacked) ||
-                  (chatRequestId !== undefined && chatLayout.stacked) ||
-                  (inspecting && inspectLayout.stacked)
-              ),
-              "min-w-0 narrow:flex-1"
-            )}
-          >
-            <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
-              {kiosk ? null : (
-                <DashboardTopRow
-                  title={spec.title}
-                  folder={access.folder}
-                  madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-                  versionControl={
-                    <VersionMenu
-                      dashboardId={dashboardId}
-                      version={version}
-                      latest={latestVersion}
-                      current={envelope.version}
-                      pinned={pinned}
-                      editing={editing}
-                      status={liveStatus}
-                      back={backFromSearch(search)}
-                    />
-                  }
-                  controls={controls}
-                  actions={actions}
-                />
-              )}
-              {kiosk ? null : (
-                <>
-                  <VariablesBar
-                    states={states}
-                    unverified={unverified.variables}
-                    onSelect={select}
-                  />
-                  <DashboardLinks
-                    links={spec.links}
-                    dashboardId={dashboardId}
-                    timeOptions={timeOptions}
-                    scope={{
-                      vars: selections,
-                      from: effectiveFrom,
-                      to: effectiveTo,
-                    }}
-                  />
-                </>
-              )}
-              <LayoutAnnouncer />
-              <main
-                ref={gridBox}
-                className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
-              >
-                <ActionProvider value={actionContext}>
-                  {viewed ? (
-                    <ViewedPanel onBack={closeView}>
-                      {(size) =>
-                        renderPanel(
-                          {
-                            kind: "panel",
-                            key: viewed.id,
-                            panel: viewed,
-                            title: interpolateTitle(
-                              panelTitle(viewed),
-                              selections
-                            ),
-                            selections,
-                            first: true,
-                            gridPos: viewed.gridPos,
-                          },
-                          size,
-                          true
-                        )
-                      }
-                    </ViewedPanel>
-                  ) : (
-                    <DashboardGrid
-                      dashboardId={dashboardId}
-                      spec={spec}
-                      selections={selections}
-                      values={values}
-                      editable={arranging && layout !== undefined}
-                      layout={layout}
-                      onLayoutChange={layout ? setLayout : undefined}
-                      selectedId={selectedId}
-                      newPanelIds={editing ? undefined : seen.fresh}
-                      renderPanel={(item, size) => renderPanel(item, size)}
-                    />
-                  )}
-                </ActionProvider>
-              </main>
-            </div>
-            {cardVisible ? (
-              <ActivityCard
-                dashboardId={dashboardId}
-                apiId={envelope.dashboard.id}
-                spec={spec}
-                version={version}
-                latestVersion={latestVersion}
-                pinned={pinned}
-                canEdit={mayOpenEditor}
-                folder={access.folder}
-                canManage={permissions.manage}
-                madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
-                back={backFromSearch(search)}
-                timeRange={timeRange}
-                selections={ready ? selections : null}
-                composerRef={composerRef}
-                guardRef={editGuard}
-                onSelectPanel={onSelectPanel}
-                onClose={closeCard}
-              />
-            ) : null}
-            {chatRequestId !== undefined ? (
-              <ChatPane requestId={chatRequestId} onClose={closeCard} />
-            ) : null}
-            {inspecting ? (
-              <InspectPane
-                title={panelTitle(inspectPanel)}
-                tab={search.inspectTab ?? "data"}
-                target={
-                  inspectTarget?.panel.id === inspectPanel.id
-                    ? inspectTarget
-                    : null
-                }
-                variables={variables}
-                zone={displayZone(inspectPanel.timezone, spec.timezone)}
-                onClose={closeInspect}
-              />
-            ) : null}
-            <UnsavedBar dashboardId={dashboardId} />
+    <PanelHostContext value={panelHost}>
+      <AnnotationActionsProvider {...annotationActions}>
+        <div className="flex min-h-svh bg-chrome">
+          {kiosk ? null : <Sidebar rail />}
+          <div className="flex min-w-0 flex-1 flex-col">
             {kiosk ? null : (
-              <CanvasTools
-                permissions={permissions}
-                idle={!editing}
-                composerRef={composerRef}
-              />
+              <>
+                <PhoneBar title={spec.title} />
+                <CommandPalette />
+              </>
             )}
-            {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
-            <ShortcutsDialog
-              open={shortcutsOpen}
-              onOpenChange={setShortcutsOpen}
-            />
-            <DetailsDialog
-              dashboardId={dashboardId}
-              spec={envelopeSpec}
-              version={envelopeVersion}
-              open={detailsOpen}
-              onOpenChange={setDetailsOpen}
-              finalFocus={() => findMoreMenuButton() ?? true}
-            />
-            <DuplicateDashboardDialog
-              source={{
-                id: dashboardId,
-                title: spec.title,
-                version: latestVersion,
-              }}
-              targets={duplicate}
-              open={duplicating}
-              onOpenChange={setDuplicating}
-              finalFocus={() => findMoreMenuButton() ?? true}
-            />
-            <DeleteDashboardDialog
-              dashboard={{
-                id: dashboardId,
-                title: spec.title,
-                versions: latestVersion,
-              }}
-              open={deleting}
-              onOpenChange={setDeleting}
-              finalFocus={() => findMoreMenuButton() ?? true}
-              onDeleted={async (alreadyGone) => {
-                toast.success(
-                  alreadyGone
-                    ? `${spec.title} was already deleted`
-                    : `Deleted ${spec.title}`
-                )
-                await navigate({ to: "/dashboards", ignoreBlocker: true })
-                forgetDashboard(queryClient, dashboardId)
-              }}
-            />
+            <div
+              className={cn(
+                pageClass(
+                  (cardVisible && cardLayout.stacked) ||
+                    (chatRequestId !== undefined && chatLayout.stacked) ||
+                    (inspecting && inspectLayout.stacked) ||
+                    (specShown && inspectLayout.stacked)
+                ),
+                "@container min-w-0 @max-[1000px]:has-[[data-panel-host]>aside]:h-auto @max-[1000px]:has-[[data-panel-host]>aside]:min-h-svh @max-[1000px]:has-[[data-panel-host]>aside]:flex-wrap narrow:flex-1"
+              )}
+            >
+              <div className="@container/dash flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+                {kiosk ? null : (
+                  <DashboardTopRow
+                    title={spec.title}
+                    folder={access.folder}
+                    madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                    views={viewsText}
+                    versionControl={
+                      <VersionMenu
+                        dashboardId={dashboardId}
+                        version={version}
+                        latest={latestVersion}
+                        current={envelope.version}
+                        pinned={pinned}
+                        editing={editing}
+                        status={liveStatus}
+                        back={backFromSearch(search)}
+                      />
+                    }
+                    presence={<ViewerNames dashboardId={dashboardId} />}
+                    controls={controls}
+                    actions={actions}
+                  />
+                )}
+                {kiosk ? null : (
+                  <>
+                    <VariablesBar
+                      states={states}
+                      unverified={unverified.variables}
+                      onSelect={select}
+                    />
+                    <DashboardLinks
+                      links={spec.links}
+                      dashboardId={dashboardId}
+                      timeOptions={timeOptions}
+                      scope={{
+                        vars: selections,
+                        from: effectiveFrom,
+                        to: effectiveTo,
+                      }}
+                    />
+                  </>
+                )}
+                {rangeTooLong && !kiosk ? (
+                  <p
+                    role="alert"
+                    className="pr-2.5 pb-2.5 pl-4 text-[13px] text-destructive"
+                  >
+                    The time range is longer than {maxRangeDays} days, so panels
+                    cannot load. Choose a shorter range.
+                  </p>
+                ) : null}
+                <LayoutAnnouncer />
+                <main
+                  ref={gridBox}
+                  data-export-pane=""
+                  className={cn(
+                    "min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4",
+                    toolsShown &&
+                      !kiosk &&
+                      !editingPanel &&
+                      "pb-16 narrow:pb-2.5"
+                  )}
+                >
+                  <ActionProvider value={actionContext}>
+                    {viewed ? (
+                      <ViewedPanel onBack={closeView}>
+                        {(size) =>
+                          renderPanel(
+                            {
+                              kind: "panel",
+                              key: viewed.id,
+                              panel: viewed,
+                              title: interpolateTitle(
+                                panelTitle(viewed),
+                                selections
+                              ),
+                              selections,
+                              first: true,
+                              gridPos: viewed.gridPos,
+                            },
+                            size,
+                            true
+                          )
+                        }
+                      </ViewedPanel>
+                    ) : (
+                      <DashboardGrid
+                        dashboardId={dashboardId}
+                        spec={spec}
+                        selections={selections}
+                        values={values}
+                        editable={arranging && layout !== undefined}
+                        layout={layout}
+                        onLayoutChange={layout ? setLayout : undefined}
+                        selectedId={selectedId}
+                        newPanelIds={editing ? undefined : seen.fresh}
+                        renderPanel={(item, size) => renderPanel(item, size)}
+                      />
+                    )}
+                  </ActionProvider>
+                </main>
+                {kiosk || editingPanel ? null : (
+                  <CanvasTools
+                    permissions={permissions}
+                    canInvestigate={canInvestigate}
+                    idle={!editing}
+                    composerRef={composerRef}
+                  />
+                )}
+              </div>
+              {cardVisible ? (
+                <ActivityCard
+                  dashboardId={dashboardId}
+                  apiId={envelope.dashboard.id}
+                  spec={spec}
+                  version={version}
+                  latestVersion={latestVersion}
+                  pinned={pinned}
+                  canEdit={mayOpenEditor}
+                  folder={access.folder}
+                  canManage={permissions.manage}
+                  madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+                  back={backFromSearch(search)}
+                  timeRange={timeRange}
+                  selections={ready ? selections : null}
+                  composerRef={composerRef}
+                  guardRef={editGuard}
+                  onSelectPanel={onSelectPanel}
+                  onClose={closeCard}
+                />
+              ) : null}
+              {chatRequestId !== undefined ? (
+                <ChatPane
+                  requestId={chatRequestId}
+                  onClose={closeCard}
+                  opener={activityOpener}
+                />
+              ) : null}
+              {inspecting ? (
+                <InspectPane
+                  title={panelTitle(inspectPanel)}
+                  tab={search.inspectTab ?? "data"}
+                  target={
+                    inspectTarget?.panel.id === inspectPanel.id
+                      ? inspectTarget
+                      : null
+                  }
+                  variables={variables}
+                  zone={displayZone(inspectPanel.timezone, viewZone)}
+                  onClose={closeInspect}
+                />
+              ) : null}
+              <div ref={setPanelHost} data-panel-host="" className="contents" />
+              {specOpen ? (
+                <SpecJsonPane
+                  dashboardId={dashboardId}
+                  spec={envelopeSpec}
+                  version={envelopeVersion}
+                  hidden={!specShown}
+                  opener={findMoreMenuButton}
+                  onClose={closeSpec}
+                />
+              ) : null}
+              {kiosk ? <ShortcutsHost /> : null}
+              <UnsavedBar dashboardId={dashboardId} />
+              {kiosk ? <KioskHint offerFullscreen={offerFullscreen} /> : null}
+              <DetailsDialog
+                dashboardId={dashboardId}
+                spec={envelopeSpec}
+                version={envelopeVersion}
+                folder={envelope.dashboard.folder}
+                folders={folders}
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                finalFocus={() => findMoreMenuButton() ?? true}
+              />
+              <DuplicateDashboardDialog
+                source={{
+                  id: dashboardId,
+                  title: spec.title,
+                  version: latestVersion,
+                }}
+                targets={duplicate}
+                open={duplicating}
+                onOpenChange={setDuplicating}
+                finalFocus={() => findMoreMenuButton() ?? true}
+              />
+              <DeleteDashboardDialog
+                dashboard={{
+                  id: dashboardId,
+                  title: spec.title,
+                  versions: latestVersion,
+                }}
+                open={deleting}
+                onOpenChange={setDeleting}
+                finalFocus={() => findMoreMenuButton() ?? true}
+                onDeleted={async (alreadyGone) => {
+                  toast.success(
+                    alreadyGone
+                      ? `${spec.title} was already deleted`
+                      : `Deleted ${spec.title}`
+                  )
+                  await navigate({ to: "/dashboards", ignoreBlocker: true })
+                  forgetDashboard(queryClient, dashboardId)
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </AnnotationActionsProvider>
+      </AnnotationActionsProvider>
+    </PanelHostContext>
   )
 }
 
@@ -1065,6 +1202,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
     pinnedVersion: search.version,
     toastVersions: !panelEditorShowsNewerVersion(search),
   })
+  useDashboardMovedLive(dashboardId)
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
   if (search.version !== undefined) {

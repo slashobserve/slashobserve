@@ -1,4 +1,5 @@
 import type { components } from "@/api/schema.gen"
+import { collapseChats } from "@/chat/chat-list"
 import type { StatusTone } from "@/components/status-label"
 import { importStatus } from "@/import/record-summary"
 import type { InboxItem } from "@/inbox/inbox-item"
@@ -21,7 +22,7 @@ export function newestChats(
   requests: readonly RequestSummary[],
   limit: number
 ): RequestSummary[] {
-  return requests.toSorted(newestFirst).slice(0, limit)
+  return collapseChats(requests.toSorted(newestFirst)).slice(0, limit)
 }
 
 export function needsYou(

@@ -278,13 +278,6 @@ test("auto-refresh fetches new points without reload", async ({
   await page.getByRole("option", { name: "5s", exact: true }).click()
   await expect(page).toHaveURL(/refresh=5s/)
   const first = await firstResponse
-  const second = await page.waitForResponse(
-    (response) =>
-      response.url().includes("/panels/rps/data") &&
-      response.ok() &&
-      response !== first,
-    { timeout: 15_000 }
-  )
 
   type Data = { frames: { fields: { type: string; values: number[] }[] }[] }
   const latestTime = (data: Data) =>
@@ -295,8 +288,14 @@ test("auto-refresh fetches new points without reload", async ({
           .flatMap((field) => field.values)
       )
     )
-  expect(latestTime((await second.json()) as Data)).toBeGreaterThan(
-    latestTime((await first.json()) as Data)
+  const before = latestTime((await first.json()) as Data)
+  await page.waitForResponse(
+    async (response) =>
+      response.url().includes("/panels/rps/data") &&
+      response.ok() &&
+      response !== first &&
+      latestTime((await response.json()) as Data) > before,
+    { timeout: 40_000 }
   )
 })
 

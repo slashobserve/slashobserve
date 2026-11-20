@@ -1,11 +1,16 @@
 package threads
 
 import (
+	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -119,6 +124,33 @@ func TestAMentionRunAnswersInItsThreadAsTheRequesterAndLeavesItOpen(t *testing.T
 	}
 }
 
+func TestAnAgentReplyCanNotBeEditedByTheRequester(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {
+		t.Fatal(err)
+	}
+	reply := r.runReplies(t, thread)[0]
+
+	for _, by := range []auth.Principal{testUser, admin} {
+		if _, _, _, err := r.service.Edit(t.Context(), by, mustParse(t, reply.ID), "EDITED BY REQUESTER"); !errors.Is(err, ErrNotAuthor) {
+			t.Fatalf("%s editing an agent reply: err = %v, want ErrNotAuthor", by.Name, err)
+		}
+	}
+	for _, m := range r.list(t, testUser, target(KindDashboard, dash)).Messages {
+		if m.ID == reply.ID && m.CanEdit {
+			t.Fatalf("the agent reply is listed as editable: %+v", m)
+		}
+		if m.ID != reply.ID && !m.CanEdit {
+			t.Fatalf("the requester's own message must stay editable: %+v", m)
+		}
+	}
+	if got := r.runReplies(t, thread)[0].Body; got != reply.Body {
+		t.Fatalf("reply body = %q, want it unchanged", got)
+	}
+}
+
 func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 	r := newAgentRig(t, true)
 
@@ -142,7 +174,7 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 		{"canceled", false, func(_ *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			run = ended(run, revisions.StateCanceled)
 			run.FailureCode = pgtype.Text{String: string(revisions.FailureCanceled), Valid: true}
-			return run, "The run was canceled."
+			return run, "The run was stopped before it finished."
 		}},
 		{"proposal", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			proposal := r.createProposal(t, run.DashboardID)
@@ -155,17 +187,17 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultProposal)
 			return run, "Opened a proposal: " + title + "."
 		}},
-		{"finding from a dashboard thread", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
-			r.saveFinding(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
+		{"chat-only answer from a dashboard thread carries its text and a link to the chat", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Saved a finding: Checkout is slow."
+			return run, "Answered in the chat of the person who asked.\n\nthe 5xx rate rose\n\nFull answer (only the person who asked and Admins can open it): [the chat](/c/" + run.ID.String() + ")"
 		}},
 		{"finding in an observation thread", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
-			r.saveFinding(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
+			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Wrote the answer into this observation: Checkout is slow."
+			return run, "Wrote the answer into this observation: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
 	}
 	for _, tt := range tests {
@@ -202,6 +234,44 @@ func TestEndingARunTwiceAnswersOnce(t *testing.T) {
 	}
 	if got := r.count(t, `SELECT count(*) FROM activity WHERE type = 'thread.replied'`); got != 1 {
 		t.Fatalf("%d thread.replied rows, want 1", got)
+	}
+}
+
+func TestAReplyAPersonDeletedIsNotPostedAgain(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	finished := succeededWithVersion(run, 2)
+	if err := r.runEnded(t, finished); err != nil {
+		t.Fatal(err)
+	}
+	reply := r.runReplies(t, thread)[0]
+	if err := r.service.Delete(t.Context(), admin, mustParse(t, reply.ID)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.runEnded(t, finished); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v, want the deleted reply to stay deleted", replies)
+	}
+}
+
+func TestARunWhoseReplyFailedIsStillAwaitingItsReply(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	_, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', finished_at = now() WHERE id = $1`, run.ID)
+
+	rows, err := r.db.Queries().ListRunsAwaitingReply(t.Context(), dbsqlc.ListRunsAwaitingReplyParams{
+		Terminal: []string{"succeeded"}, WithinSeconds: 3600, MaxRows: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].ID != run.ID {
+		t.Fatalf("awaiting = %d rows, want the run whose reply was never posted", len(rows))
 	}
 }
 
@@ -267,7 +337,7 @@ func TestARunSkipsItsReplyInsteadOfWaitingForADelete(t *testing.T) {
 	}
 }
 
-func TestARevisionRunFromACommentStillResolvesAndPostsNothing(t *testing.T) {
+func TestARevisionRunFromACommentResolvesItAndAnswersInIt(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	r.addVersion(t, dash, 1)
@@ -279,8 +349,9 @@ func TestARevisionRunFromACommentStillResolvesAndPostsNothing(t *testing.T) {
 	if got := r.threadRow(t, comment.ID).Status; got != StatusResolved {
 		t.Fatalf("thread status = %s, want resolved", got)
 	}
-	if got := r.count(t, `SELECT count(*) FROM thread_messages WHERE run_id IS NOT NULL`); got != 0 {
-		t.Fatalf("%d run replies, want none", got)
+	replies := r.runReplies(t, comment.ID)
+	if len(replies) != 1 || replies[0].Body != "Saved version 2 of this dashboard." {
+		t.Fatalf("run replies = %+v, want the saved-version answer", replies)
 	}
 }
 
@@ -334,5 +405,94 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 				t.Fatalf("thread.replied actor = %s %s, want %s %s", actorKind, actorID, tt.wantKind, tt.wantID)
 			}
 		})
+	}
+}
+
+func TestAFindingAnswerLeadsWithItsFirstParagraphAndNeverCutsAWord(t *testing.T) {
+	tests := []struct {
+		name, title, markdown, want string
+	}{
+		{"skips a heading that repeats the title", "Checkout is slow", "# Checkout is slow\n\nThe 5xx rate rose after the deploy.\n\nSecond paragraph.", "\n\nThe 5xx rate rose after the deploy."},
+		{"is empty when the text says nothing more", "Checkout is slow", "Checkout is slow", ""},
+		{"collapses the lines of a paragraph", "t", "first line\nsecond line", "\n\nfirst line second line"},
+		{"cuts a long paragraph at a word", "t", strings.Repeat("latency ", 100), "\n\n" + strings.TrimSpace(strings.Repeat("latency ", 75)) + "..."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := findingLead(tt.markdown, tt.title); got != tt.want {
+				t.Fatalf("findingLead = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	if got := sentenceEnd(activity.Excerpt(strings.Repeat("word ", 80), maxReplyHeadingRunes)); !strings.HasSuffix(got, "word...") {
+		t.Fatalf("a cut title ends %q, want an ellipsis and no stray full stop", got[len(got)-10:])
+	}
+}
+
+func (r *rig) sweeper() *revisions.Service {
+	return revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithThreads(NewRuns(r.db.DB)))
+}
+
+func (r *rig) endWithoutAReply(t *testing.T, run dbsqlc.AgentRequest) {
+	t.Helper()
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'the model provider returned an error', failure_code = 'provider_error', finished_at = clock_timestamp() WHERE id = $1`, run.ID)
+}
+
+func TestTheSweepAnswersInTheThreadOfARunThatEndedWithoutAReply(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	replies := r.runReplies(t, thread)
+	if len(replies) != 1 || replies[0].Body != "The run failed: the model provider returned an error." {
+		t.Fatalf("replies = %+v, want one failure reply after two sweeps", replies)
+	}
+}
+
+func TestTheSweepRetriesAReplyThatWasSkippedWhileTheTargetWasLocked(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
+		_, err := q.LockDashboardForDelete(t.Context(), dash)
+		return err
+	})
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v while the dashboard was locked, want none", replies)
+	}
+	deleting.finish(t)
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 1 {
+		t.Fatalf("replies = %+v after the lock was released, want one", replies)
+	}
+}
+
+func TestTheSweepLeavesAnOldRunWithoutAReplyAlone(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+	thread, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.endWithoutAReply(t, run)
+	r.db.Exec(t, `UPDATE agent_requests SET finished_at = clock_timestamp() - interval '3 days' WHERE id = $1`, run.ID)
+
+	if err := r.sweeper().Sweep(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if replies := r.runReplies(t, thread); len(replies) != 0 {
+		t.Fatalf("replies = %+v, want none for a run that ended 3 days ago", replies)
 	}
 }

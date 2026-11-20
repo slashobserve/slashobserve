@@ -28,6 +28,7 @@ describe("feedKey", () => {
     [["v"], "view"],
     [["e"], "edit"],
     [["i"], "inspect"],
+    [["c"], "comment"],
     [["Escape"], "close"],
     [["?"], "help"],
     [["t", "z"], "zoomOut"],

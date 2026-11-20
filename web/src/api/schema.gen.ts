@@ -132,7 +132,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a service account and all its keys.
+         * @description Service accounts cannot call this endpoint. Every key of the account stops working at once, and mentions of the account in comments stop pointing at it. What the account made stays, under the name it was saved with. An account from the service-accounts file answers 409 `provisioned`; remove it from the file instead.
+         */
+        delete: operations["deleteServiceAccount"];
         options?: never;
         head?: never;
         /**
@@ -194,7 +198,7 @@ export interface paths {
         };
         /**
          * List everyone who has signed in, newest first.
-         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Service accounts cannot call this endpoint.
+         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Only Admins can call this endpoint, and an Admin service-account key can too.
          */
         get: operations["listUsers"];
         put?: never;
@@ -217,7 +221,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove a deactivated person and their My Dashboards.
+         * @description Admin only, from a person's session; service-account keys cannot. Only a deactivated person can be removed; an active one answers 409 with code not_deactivated. Deleted with them: their My Dashboards folder and the dashboards, observations, findings and saved searches in it (counted in personal_items), their saved prompts, stars, views, inbox state and folder grants. Kept under their stored name: dashboards, versions, observations, comments, proposals and activity in shared folders, and the service accounts and keys they created. A new sign-in with the same identity-provider account afterwards makes a new person.
+         */
+        delete: operations["removePerson"];
         options?: never;
         head?: never;
         /**
@@ -249,6 +257,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a person from signing in or acting, and keep what they made.
+         * @description Admin only, from a person's session; service-account keys cannot. Deletes every session of the person and disconnects every MCP client they connected in the same transaction, and refuses their next sign-in. Their dashboards, observations, comments and folder grants stay; queued agent runs they requested fail when claimed, and webhooks they own stop. Service-account keys they created keep working, because a key acts as its service account. Deactivating a deactivated person answers 200 and changes nothing. Deactivating yourself answers 409 with code cannot_deactivate_self, and the last active Admin answers 409 with code last_admin.
+         */
+        post: operations["deactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a deactivated person sign in again.
+         * @description Admin only, from a person's session; service-account keys cannot. The person can sign in again at once with the role the rules give them; the MCP clients they had connected stay disconnected. Reactivating an active person answers 200 and changes nothing.
+         */
+        post: operations["reactivatePerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the pending invites, newest first.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. An invite stays pending until someone signs in with its email verified by the identity provider.
+         */
+        get: operations["listInvites"];
+        put?: never;
+        /**
+         * Invite an email with the role it gets at its first sign-in.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. No email is sent: share the returned sign_in_url with the person. The role applies at the first sign-in of that email, only when the identity provider says the email is verified, and it then shows as set by the Admin who invited. An invite lets no one in that the sign-in rules would refuse; admin emails and identity-provider group roles still win over it. Inviting an email that already has a pending invite changes its role and answers 200.
+         */
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a pending invite.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The email can still sign in when the sign-in rules allow it, with the role those rules give.
+         */
+        delete: operations["deleteInvite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the teams with their members.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Teams are sorted by name; at most 200 exist.
+         */
+        get: operations["listTeams"];
+        put?: never;
+        /**
+         * Create a team that folders can be shared with by its name.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. A team's name works as a group name in a folder's access list: each member matches a group entry with exactly that name, as if their identity provider sent it. A team never changes a role; roles still come from identity-provider groups only. Names are unique without regard to case, and a name equal to an identity-provider group makes the team's members match that group's entries too.
+         */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Its members lose what the team's name gave them at their next request; folder entries naming it stay and match no one unless a team or an identity-provider group of that name exists.
+         */
+        delete: operations["deleteTeam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Add a person to a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Adding a member twice changes nothing. The person's access follows at their next request.
+         */
+        put: operations["addTeamMember"];
+        post?: never;
+        /**
+         * Remove a person from a team.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. Removing someone who is not a member changes nothing. The person loses what the team gave them at their next request.
+         */
+        delete: operations["removeTeamMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outbound-domains": {
         parameters: {
             query?: never;
@@ -258,13 +429,13 @@ export interface paths {
         };
         /**
          * List the domains the server may fetch content from.
-         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. Service accounts cannot call this endpoint.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. `used_by` names the webhooks and Grafana connections that depend on an entry, for Admins only and empty for Editors; dashboard feeds, actions and assets are fetched on demand and not listed. Editors and Admins may read the list; Viewers and Commenters get `403` with the code `forbidden_role`. Service accounts cannot call this endpoint.
          */
         get: operations["listOutboundDomains"];
         put?: never;
         /**
          * Allow a domain.
-         * @description Any signed-in person may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
+         * @description Only an Admin may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
          */
         post: operations["allowOutboundDomain"];
         delete?: never;
@@ -354,7 +525,7 @@ export interface paths {
         };
         /**
          * List workspace activity, newest first.
-         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries nothing; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.updated`, `observation.resolved` and `observation.reopened` carry `title`; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` carries `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on) and, on a dashboard, `version` and `panel_id` when set; `thread.replied` and `thread.edited` carry `object` and `message_id`; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
+         * @description Lists the activity log: one event for every dashboard create, save, restore, move and delete, every annotation, finding and saved search created, changed or moved, every dashboard proposal opened, updated, merged or discarded, every comment thread opened, answered, edited, resolved or reopened and every mention in one, and every agent run that is queued, started or settled. Events are ordered by their position in the log, newest first, and `seq` is the id of an event. A caller sees an event only when it belongs to a folder the caller can view, when it belongs to no folder and the caller acted, or when it belongs to no folder and the caller is an Admin. A global annotation belongs to General, so everyone who can read global annotations sees its events. An event moves with its dashboard: after a dashboard is moved, its earlier events show only to the viewers of the new folder. Events of a deleted dashboard stay in the folder the dashboard was in. `data` holds ids, numbers, enums, titles and the version summary, never prompt, comment, annotation or finding text, query text or Spec JSON; read the object through its own endpoint for more. The fields of `data` by type: `dashboard.created`, `dashboard.version_created` and `dashboard.restored` carry `version`, `title`, `summary`, `parent_version` (not on a create) and `restored_from` (only on a restore); `dashboard.moved` carries `title`, `from_folder_id` and `to_folder_id`; `dashboard.deleted` carries `title`; `annotation.created` carries `title` (the first 80 characters of the text on one line, empty when the text has no characters to show), `tags`, `panel_id` and `time_to` when set, and `time_from`; `annotation.updated` carries `tags`; `annotation.deleted` carries the same fields as `annotation.created`, never more of the text than the `title`; `public_link.created` and `public_link.revoked` carry `object` (`kind`, `dashboard` or `observation`, and `id`), `title`, `prefix` and `expires_at` when set, never the token; `finding.created` carries `title` and `agent_request_id` when the agent saved it; `finding.pinned` carries `annotation_id`; `finding.moved` carries `title`, `from_folder_id` (null when it was in no folder) and `to_folder_id`; `saved_search.created`, `saved_search.updated` and `saved_search.deleted` carry `title` and `kind`, and `saved_search.moved` also `from_folder_id` and `to_folder_id`; `observation.created`, `observation.resolved`, `observation.reopened` and `observation.deleted` carry `title`; `observation.updated` carries `title` and, when the title changed, `from_title`, the title before; `observation.moved` carries `title`, `from_folder_id` and `to_folder_id`; `observation.published` and `observation.rca_withdrawn` carry `title` and `revision`; `observation.block_added`, `observation.block_updated`, `observation.block_kept`, `observation.block_discarded` and `observation.block_removed` carry `title`, `block_id` and `block_kind`, and `observation.block_added` also carries the block's `state` (`live` or `requested`); `proposal.opened` and `proposal.updated` carry `title`, `revision` and `base_version`; `proposal.merged` carries `title`, `revision` and `version` (null when the change was already in the dashboard and no version was saved); `proposal.discarded` carries `title` and `revision`; `run.queued` carries `source` and `continues_id` when the run continues another; `run.started` carries `source` and `attempt`; `run.succeeded` carries `source` and `result_version` when a version was saved, and, for a health repair that saved a version, also `dashboard_title` and `panels_repaired`, the number of panels the repair prompt named whose queries the saved version changed and no longer lists as unverified; `run.failed` carries `source` and `failure_code`; `run.canceled` carries `source`; `run.canceling` carries `source`; `run.released` carries `source` and `attempt`; `run.kept` carries `source` and `result_version`; `run.succeeded`, `run.failed` and `run.canceled` also carry `cost_usd`, the run's estimated cost in USD, when it is known. `thread.opened` carries `object` (`kind` and `id` of the dashboard, finding, annotation, observation or proposal it is on), `title` (the dashboard or observation title at that time, empty when there is none) and, on a dashboard, `version` and `panel_id` when set; `thread.replied`, `thread.edited` and `thread.deleted` carry `object` and `message_id`, and `thread.deleted` names the thread's first message when the whole thread was deleted; `thread.resolved` carries `object` and `resolved_by_version` when set; `thread.reopened` carries `object`; `thread.mentioned` carries `object`, `message_id` and `mentioned` (`kind`, `id` and `name`). Administrative events have no folder and only an Admin reader sees them, in the list, the stream and webhooks, whatever their actor's role is now. `user.role_changed` carries `name`, `from_role`, `to_role`, `manual`, false when an override was cleared, and `source` (`admin_emails`, `first_user`, `group` or `default`) when the sign-in policy changed the role and no Admin did; `user.signed_out_everywhere` and `user.deactivated` carry `name`, `sessions` and `grants`; `user.reactivated` and `user.removed` carry `name`; `user.invited` carries `email` and `role`, `user.invite_updated` carries `email` and `role` as `{from, to}`, and `user.invite_withdrawn` carries `email`, and the target id of these three is the invite; `service_account.created` carries `name`, `role` and `takes_runs`; `service_account.updated` carries `name` and `role` or `takes_runs` as `{from, to}`; `service_account.deleted` carries `name`; `service_account.key_created` and `service_account.key_revoked` carry `name`, `key_id`, `key_name` and, on create, `expires_at`, never the key; `webhook.created`, `webhook.updated`, `webhook.secret_rotated` and `webhook.deleted` carry `name` and `host`, `webhook.created` also `event_types`, and `webhook.updated` carries `changes`, an object with `{from, to}` for each of `name`, `enabled`, `event_types` and `host` that changed, and `url_changed` when the address changed at all, never the address path or the secret; `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`; `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain; `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token. `datasource.created`, `datasource.updated` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential. Suggestions and build progress are not recorded. The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
          */
         get: operations["listActivity"];
         put?: never;
@@ -465,7 +636,11 @@ export interface paths {
         /** Report the health and dashboard usage of every configured datasource, never its connection details. */
         get: operations["listDatasources"];
         put?: never;
-        post?: never;
+        /**
+         * Add a datasource in the app.
+         * @description Only Admins can call this endpoint. The server saves the definition, encrypts every credential with a key derived from `SLASHOBSERVE_SECRET_KEY`, and starts using the datasource at once; other servers pick it up within 15 seconds. The uid must not belong to any datasource, from the file or the app, so a retried request answers 409 `uid_taken` and never adds a second one. The address host must pass the outbound allowlist like a Grafana connection's: a domain name is added to an unlocked list, and refused when the list is set by configuration and does not hold it. An IP address or a name without a dot cannot be listed, so it is refused when the list is set by configuration. Link-local, unspecified and multicast addresses are always refused. At most 100 datasources can be added in the app.
+         */
+        post: operations["createDatasource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -481,13 +656,13 @@ export interface paths {
         };
         /**
          * List the folders the caller can see.
-         * @description A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone. Folders are sorted by title without regard to case, with General last. Each folder carries the caller's own `permissions` on it.
+         * @description A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone. Folders are sorted by title without regard to case, with General last. Each folder carries the caller's own `permissions` on it. The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
          */
         get: operations["listFolders"];
         put?: never;
         /**
          * Create a folder.
-         * @description Needs the Editor role. The title is trimmed, 1 to 100 characters with no control characters, and unique without regard to case. The caller becomes the folder's creator and manages it, whatever its permissions list.
+         * @description Needs the Editor role. The title is trimmed (spaces and zero-width characters at the ends), 1 to 100 characters on one line with no control, bidirectional override or zero-width characters and at least one visible character, and unique without regard to case; the 400 `invalid_request` carries a `reason` from `docs/reference/text-rules.md`. The caller becomes the folder's creator and manages it, whatever its permissions list.
          */
         post: operations["createFolder"];
         delete?: never;
@@ -560,7 +735,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the dashboards the caller can see, most recently updated first or grouped by folder.
+         * List the dashboards the caller can see, most recently updated first, grouped by folder or most viewed first.
          * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor. Dashboards in folders the caller cannot see are never listed or counted. A `cursor` only works with the `order` it came from; a cursor from the other order is a 400. `next_cursor` is also set on an `offset` page and continues after its last row.
          */
         get: operations["listDashboards"];
@@ -650,7 +825,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Get one version of a dashboard with its Spec. */
+        /**
+         * Get one version of a dashboard with its Spec.
+         * @description The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
+         */
         get: operations["getDashboardVersion"];
         put?: never;
         post?: never;
@@ -677,6 +855,28 @@ export interface paths {
          * @description The stored Spec is parsed again and its datasource references are checked, but its queries are not run, so restoring a known-good state does not fail because an upstream is briefly down. The new version copies the restored version's `unverified` list.
          */
         post: operations["restoreDashboardVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/panels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a new version that adds, replaces, removes or moves panels, running only the queries of what changed.
+         * @description The patch is applied to `parent_version` with the same merge as the `update_panels` tool, then saved like `createDashboardVersion` with `merge: auto`. Only the changed panels and variables run their queries, or every query when `dashboard.time` changes. A retried request with the same parent and body answers 200 with `Idempotent-Replay: true`.
+         */
+        post: operations["patchDashboardPanels"];
         delete?: never;
         options?: never;
         head?: never;
@@ -803,7 +1003,7 @@ export interface paths {
         put?: never;
         /**
          * Close a proposal without saving it.
-         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an empty object.
+         * @description The author of the proposal, or anyone who may merge it, may discard it. The body is empty or an object with an optional `reason`, trimmed and at most 500 characters (400 `invalid_request` beyond that), which the proposal then shows as `close_reason`; the activity event does not carry it.
          */
         post: operations["discardProposal"];
         delete?: never;
@@ -821,13 +1021,43 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Count how many people opened the dashboard in the last 30 days.
+         * @description Needs View on the dashboard. The count is person-days: a person who opens the dashboard on three different UTC days counts three, however often they open it on one day. The window is the last 30 UTC days including today, and the same count is `view_count` on each item of `GET /dashboards`.
+         */
+        get: operations["getDashboardViews"];
         put?: never;
         /**
          * Record that the caller opened the dashboard.
-         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. A service-account key gets 204 and nothing is written, because only people count as opens.
+         * @description Needs View on the dashboard. The web app calls it once each time it loads a dashboard page. It keeps the caller's latest open, at most once every 10 minutes, and the dashboard health list reads it to find dashboards nobody opens. It also records that the caller opened the dashboard on this UTC day, once however often they open it, which `view_count` counts. A service-account key gets 204 and nothing is written, because only people count as opens.
          */
         post: operations["recordDashboardView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/viewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the other people who have the dashboard open now.
+         * @description Needs View on the dashboard. A person is listed while their open dashboard page has reported in during the last 45 seconds, by name and user id, ordered by name; the caller is left out. Everyone who can view a dashboard can see who else is looking at it.
+         */
+        get: operations["listDashboardViewers"];
+        put?: never;
+        /**
+         * Report that the caller has the dashboard open, and list who else does.
+         * @description Needs View on the dashboard. The web app calls it when a dashboard page opens and every 20 seconds while the page is visible; each call keeps the caller listed for 45 seconds and answers with the same list as `GET /api/v1/dashboards/{id}/viewers`. A service-account key gets the list and nothing is recorded, because only people count as viewers.
+         */
+        post: operations["reportDashboardViewer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -845,7 +1075,7 @@ export interface paths {
         };
         /**
          * Get how a dashboard was imported from Grafana.
-         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. Answers 403 `forbidden_role` when the caller cannot see the dashboard's folder.
+         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import. A dashboard in a folder the caller cannot see answers 404 `not_found` too.
          */
         get: operations["getDashboardImport"];
         put?: never;
@@ -889,7 +1119,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -917,7 +1147,7 @@ export interface paths {
         put?: never;
         /**
          * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -944,7 +1174,7 @@ export interface paths {
         head?: never;
         /**
          * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. A caller with only Comment resolves only a thread they started, and anyone else answers 403 `not_starter`; a caller who can edit resolves any thread, and reopening is open to every commenter. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
          */
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
@@ -964,9 +1194,29 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message. A grant that is not yours, revoked or expired, or a service account that takes no runs, answers 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded and shows in the activity log, and notifies no one. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role` or `too_many_runs`. A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. An observation has one thread, its discussion; starting a second answers 409 `observation_thread_exists` with the existing `thread_id`. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. A mention starts no agent run unless the request sets `start_runs`. With `start_runs`, the one agent the message mentions gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role. An annotation or a proposal thread starts no run. More than one agent in a message sent with `start_runs` answers 422 `too_many_agents` and writes nothing; no agent mention starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider; a connected agent or service account needs none), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation). A started run is in `message.run`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream. A thread queues an agent run only with `start_runs`; a comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/threads/mentionable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the people who can be mentioned on a target.
+         * @description Returns the people, other than the caller, who can see the target and whose name or email contains `q`, ordered by name, at most `limit` of them, with `more` true when others match too. Seeing follows the target's folder, so a person without access to it is never listed, and mentioning one answers 422 `invalid_mention`. A person you mention appears in their Inbox as a `mention`. The caller must be able to comment on the target: a viewer gets 403 `forbidden_role`, and a target the caller cannot see answers 404, never 403.
+         */
+        get: operations["listMentionablePeople"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1010,7 +1260,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve a thread.
-         * @description The path takes the thread's id or the id of any of its messages. The body is optional. `version` names the dashboard version that fixed the thread; it must be at least the version the thread is on (422 `invalid_version`) and at most the dashboard's latest version (422 `unknown_version`), and it is refused on a finding or an annotation. Resolving a thread that is already resolved answers 200 with the thread unchanged and records nothing. A real change is recorded as a `thread.resolved` activity event, and on a dashboard thread it sends `comment.updated` to the dashboard's event stream. Needs Comment on the thread's target.
+         * @description The path takes the thread's id or the id of any of its messages. The body is optional. `version` names the dashboard version that fixed the thread; it must be at least the version the thread is on (422 `invalid_version`) and at most the dashboard's latest version (422 `unknown_version`), and it is refused on a finding or an annotation. Resolving a thread that is already resolved answers 200 with the thread unchanged and records nothing. A real change is recorded as a `thread.resolved` activity event, and on a dashboard thread it sends `comment.updated` to the dashboard's event stream. Needs Comment on the thread's target, and a caller with only Comment resolves only a thread they started: for anyone else it answers 403 `not_starter`, and a caller who can edit resolves any thread.
          */
         post: operations["resolveThread"];
         delete?: never;
@@ -1042,6 +1292,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/threads/{thread_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a thread read for the caller.
+         * @description Clears the thread's `unread` for the caller until someone else writes in it again. The web app calls it when a person opens a thread, and a reply by the caller marks the thread read too. Needs View on the thread's target. Only signed-in people may call it: a service-account key gets 403 `forbidden`, and the CLI and MCP have no equivalent because read state belongs to the person.
+         */
+        post: operations["markThreadRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{message_id}": {
         parameters: {
             query?: never;
@@ -1054,12 +1327,16 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a message from a thread.
+         * @description The message's author may delete it while they can still comment on the thread's target, and anyone who manages the target's folder may delete any message, including a reply an agent run wrote. A reply an agent run wrote is never deletable by the person who requested the run unless they manage the folder. Deleting the first message of a thread deletes the whole thread with its replies and mentions, so its author may do that only while nobody else has written in the thread. Everyone else who can see the thread gets 403 `not_author`. The deletion is recorded as a `thread.deleted` activity event naming the message, and on a dashboard thread it sends `comment.updated` naming the thread to the dashboard's event stream. A reply that quoted the message keeps its text and shows no quote. An agent run that was started from the message still finishes, and its reply is dropped when the thread is gone. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["deleteMessage"];
         options?: never;
         head?: never;
         /**
          * Edit the body of your own message.
-         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body; an edit never starts a run. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
+         * @description Only the message's author may edit it, and only while the author can still comment on the thread's target; another caller who can see the thread gets 403 `not_author`. A reply written by an agent run is never editable, not even by the person who requested the run, and answers 403 `not_author` too. The body rules, the mention syntax and the 4000 character limit are those of starting a thread, and the mentions are recorded again from the new body; an edit never starts a run. Sending the body the message already has answers 200 and changes nothing. A real edit sets `edited_at`, is recorded as a `thread.edited` activity event, and on a dashboard thread sends `comment.updated` naming the edited message to the dashboard's event stream. An edit never records a mention event.
          */
         patch: operations["editMessage"];
         trace?: never;
@@ -1077,7 +1354,7 @@ export interface paths {
         };
         /**
          * Run the saved queries of one panel in one dashboard version and return their frames.
-         * @description The queries are fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. An interval variable accepts `$__auto` when its `auto` is set, a constant accepts only its value, and a textbox accepts one value, an empty one included. An adhoc variable takes repeated `var-<name>=key|op|value` filters (at most 20) with `=`, `!=`, `=~` or `!~`, split at the first two `|`. A group by variable takes repeated `var-<name>=<label>` values (at most 20 label names), `var-<name>=` means none, and without the parameter it uses its saved `default`; its labels join every Prometheus aggregation of a query on its datasource that does not name the variable, and a value that is not a label name is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `time`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run. The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query. A failing query fails the whole request, and the error names it in `ref`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+         * @description The queries are fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. An interval variable accepts `$__auto` when its `auto` is set, a constant accepts only its value, and a textbox accepts one value, an empty one included. An adhoc variable takes repeated `var-<name>=key|op|value` filters (at most 20) with `=`, `!=`, `=~` or `!~`, split at the first two `|`. A group by variable takes repeated `var-<name>=<label>` values (at most 20 label names), `var-<name>=` means none, and without the parameter it uses its saved `default`; its labels join every Prometheus aggregation of a query on its datasource that does not name the variable, and a value that is not a label name is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `time`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run. The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query; without one, a Prometheus datasource's `scrapeInterval` is, because a shorter step only repeats samples. `$__interval` and `$__rate_interval` follow the step each query ran with, which `meta.queries[].step_ms` reports. A failing query fails the whole request, and the error names it in `ref`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
          */
         get: operations["getPanelData"];
         put?: never;
@@ -1106,6 +1383,96 @@ export interface paths {
         get: operations["getVariableValues"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a datasource definition against the real datasource without saving it.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+         */
+        post: operations["testDatasource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a datasource added in the app.
+         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        delete: operations["deleteDatasource"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a datasource added in the app.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        patch: operations["updateDatasource"];
+        trace?: never;
+    };
+    "/datasources/{uid}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the definition of a datasource added in the app.
+         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file answers 409 `datasource_read_only`.
+         */
+        get: operations["getDatasourceConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a fresh health check on one datasource now.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         */
+        post: operations["recheckDatasource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1147,7 +1514,7 @@ export interface paths {
         put?: never;
         /**
          * Run an unsaved data panel placed into a saved dashboard version and return its frames.
-         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
+         * @description The draft replaces the panel `panel_id` of the given version, or is added to it as a new top-level panel when the version has none with that id, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel. A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran. The response has the shape of panel data, with `meta.cached` always false.
          */
         post: operations["previewDraftPanel"];
         delete?: never;
@@ -1169,7 +1536,7 @@ export interface paths {
         put?: never;
         /**
          * Run one query against a datasource and return its frames.
-         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
+         * @description The query runs as given against the datasource in the path, with the time and user macros expanded for the range and no variables. `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step. The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included. The response has the shape of panel data, with `meta.cached` always false. `meta.truncated` says the query stopped at the row limit, `meta.partial` that the datasource did not cover the whole range, and `meta.oldest` and `meta.newest` are the time edges of the rows returned. To load older rows, repeat the request with `to` set to `meta.oldest`; to load newer rows, with `from` set to `meta.newest`. On Loki `end` is exclusive and `start` inclusive, so the oldest line is not repeated and the newest one is; on ClickHouse `$__timeFilter` includes both ends. Clients de-duplicate by time plus body. `page_size` turns paging on for an instant query on a logs or trace datasource, and the response then carries `meta.page`: ClickHouse pages by offset with an exact `total`, so any `page` can be asked for directly; Loki and Tempo page by a time cursor, so a page past the first needs the `next` cursor of the page before it, and `total` is the rows walked so far (`gte`) until the last page makes it exact. `prev` is the cursor that produced the page. `sort` orders the whole result of a ClickHouse query before it is paged, not just the page; send it with every page of a walk. With a cursor the time range is pinned from it and `from` and `to` are ignored; without one, send absolute times for a stable total.
          */
         post: operations["exploreQuery"];
         delete?: never;
@@ -1191,7 +1558,7 @@ export interface paths {
         put?: never;
         /**
          * Count the log lines a logs query matches over a range, by level.
-         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, and returns every bucket, oldest first. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description The counts cover every line the query matches over the whole range, not only the lines the logs page shows. The server picks a whole-second step of at least one second so the range fits in at most `buckets` buckets, aligns the range to it, adds one more bucket when the end of the range falls inside a step so the newest lines are counted, and returns every bucket, oldest first. Loki, ClickHouse, Elasticsearch and OpenSearch datasources answer it. Each line is filed as `error`, `warning`, `info` or `other` by its level word: err, eror, error, emerg, fatal, alert, crit, critical and panic are errors; warn and warning are warnings; info, information, informational and notice are info; anything else, or no level, is other. For Loki the query must be a log query that starts with a stream selector; the server counts it with `count_over_time` by the first of the `level`, `lvl`, `severity_text`, `severity` and `detected_level` labels, so a pipeline that extracts `level` with `| json` or `| logfmt` is honored. Loki counts a range longer than a day one day at a time, newest first, and counts a bucket wider than 30 minutes as the sum of equal windows of at most 30 minutes, because Loki reads a much wider window far more slowly; when the next day would not finish within the query time limit, the server stops, returns the days it counted with `partial` true and `counted_from` set to where the count starts, and leaves the older buckets at zero. For ClickHouse the query must be one SELECT; the server drops its top-level `ORDER BY` and `LIMIT` and groups the rows it matches by the result columns `Timestamp` and `SeverityText`, the columns the logs page selects. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logVolume"];
         delete?: never;
@@ -1213,7 +1580,7 @@ export interface paths {
         put?: never;
         /**
          * Count the top values of each label, field or column a logs query matches over a range.
-         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed fields (`kind` `field`) and structured-metadata fields (`kind` `metadata`, a Loki field with no parser) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description Each field answers with its most frequent values and their counts, exact where the datasource can count and from a sample of the newest lines where it cannot; every field says which with `exact`. On Loki the index labels of the matched streams (`kind` `label`) are counted exactly from the index volume API, whose counts are bytes, so those fields carry `unit` `bytes`; parsed fields (`kind` `field`) and structured-metadata fields (`kind` `metadata`, a Loki field with no parser) are counted from the newest `sample` lines of the full query, and the response says so with `sampled` and `lines_sampled`. An index label whose count does not finish within the time limit is counted from the same sample instead, with `exact` false and no `unit`, so it too counts the newest `lines_sampled` lines; the response still answers in time. The Loki query must be a log query that starts with a stream selector; the selector before the first `|` picks the streams. On ClickHouse every field (`kind` `column`) is counted exactly with one `GROUP BY` per field over the query with its top-level `ORDER BY` and `LIMIT` dropped; the query must be one SELECT without UNION, INTERSECT, EXCEPT or LIMIT BY. Without `fields`, Loki counts every index label of the matched streams plus every detected field, and ClickHouse every result column except `Timestamp`, `Body`, `TraceId` and `SpanId`, plus the top 20 keys of `LogAttributes` as `LogAttributes.<key>` when it is a result column. Fields come exact first, then by cardinality ascending, then by name; values by count descending, then by value. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logFacets"];
         delete?: never;
@@ -1257,7 +1624,7 @@ export interface paths {
         };
         /**
          * Read one trace whole from a Tempo or ClickHouse datasource.
-         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
+         * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
         put?: never;
@@ -1347,7 +1714,7 @@ export interface paths {
         put?: never;
         /**
          * Group the lines a logs query matches over a range into patterns with counts.
-         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
+         * @description A pattern is a line template with the variable tokens replaced by `<*>`, with the number of lines it covers, ordered by count descending then by pattern. On Loki with the pattern ingester enabled and a query that is a bare stream selector, the patterns come from Loki's pattern index over the whole range (`source` `loki`): `count` sums Loki's samples over the range, `first` and `last` are the first and last sample buckets, `sample` is empty and `lines_sampled` is 0. Otherwise, on a Loki without the pattern ingester, a Loki query with filters or stages, or ClickHouse, the server reads the newest `sample` lines of the query and clusters them itself (`source` `server`): `count` is the lines of the sample in that pattern, `sample` the newest of them, `first` and `last` the times of its oldest and newest sampled lines, and `lines_sampled` the lines read. Either way every pattern carries a `trend` of 30 equal buckets over the range, and a `level`. `lines_matched` is the sum of every pattern's count, before the `limit` cut, and `truncated` says more patterns exist than `limit`, or that the server clustering read only its first 5,000 lines or folded lines into the nearest of its 500 clusters. The Loki query must be a log query that starts with a stream selector; the ClickHouse query one SELECT that selects `Timestamp` and `Body`, whose top-level `ORDER BY` and `LIMIT` the server replaces. The query runs with the agent tools' limits, nothing is cached, and the call counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included. `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times.
          */
         post: operations["logPatterns"];
         delete?: never;
@@ -1367,7 +1734,7 @@ export interface paths {
         };
         /**
          * Stream new log lines of a logs query as Server-Sent Events.
-         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. The next poll starts one nanosecond after `newest`, so a line is sent once. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
+         * @description The server polls the datasource every second for lines newer than the last line it sent and streams them as they arrive, so the browser holds no credential and runs no query of its own. The stream starts with `retry: 3000` and an `event: ready` whose data is `{"datasource_uid","from"}`. Each poll that found lines sends an `event: lines` whose data is `{"frames","newest","truncated"}`: `frames` holds the lines in the `Frame` shape of a panel data response, every frame with `ref` `A`, oldest first, with a `TimeNs` string field beside `Time`; `newest` is the RFC 3339 time of the newest line; `truncated` is true when the poll hit `limit`, and the next poll then runs at once instead of a second later. `partial` and `warning` are present only when the datasource said the poll did not cover everything, such as a failed shard; the lines found are still sent. The next poll starts one nanosecond after `newest`, so a line is sent once, except that a partial poll leaves the start where it was for up to three polls, so the lines it missed are fetched and the ones already sent are not sent again. A datasource failure sends an `event: error` whose data is `{"error","code"}` with the code the explore query would answer, and the stream ends; a datasource that is unavailable or slow is retried and reported only after five failed polls in a row. The first poll runs before any stream byte, so a query that cannot run answers JSON with the explore query's status instead of a stream. For Loki the query must be a log query that starts with a stream selector; for ClickHouse one SELECT that selects `Timestamp`, whose top-level `ORDER BY` and `LIMIT` the server replaces. A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes. Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot. A caller may hold 5 tails and the process 200. Viewers and above may call it, service-account keys included.
          */
         get: operations["tailLogs"];
         put?: never;
@@ -1390,8 +1757,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Turn a question into a checked log query, TraceQL query or trace filters for one datasource.
-         * @description The server reads the datasource's labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10. Loki answers LogQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
+         * Turn a question into a checked log query, PromQL query, TraceQL query or trace filters for one datasource.
+         * @description The server reads the datasource's metric names, labels, attributes or columns first, then asks the model once with the question and those facts, capped at 12 KiB. The answer is checked with the lint and one sample run over the last 15 minutes of the range under the agent tools' limits; the full query is never run. Only when that check fails does the server make a second model call in the same session to correct it, so a draft spends at most two model calls, and a second failure answers `cannot_translate`. The whole draft has a 60 second deadline. Each caller may have 3 drafts in flight and each server process 10, and each caller may start 60 drafts per clock hour across all servers; the count is kept in the database. Loki answers LogQL, Prometheus answers PromQL, ClickHouse logs answer ClickHouse SQL, ClickHouse traces answer trace filters, and Tempo answers trace filters or, when the question needs more, TraceQL. `signal` defaults to `logs` on Loki, `metrics` on Prometheus and `traces` on Tempo, and ClickHouse requires it. `from` and `to` default to `now-1h` and `now` and take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. Viewers and above may call it, service-account keys included. Without a configured model it answers 503 `agent_unavailable`.
          */
         post: operations["draftQuery"];
         delete?: never;
@@ -1414,6 +1781,50 @@ export interface paths {
          * @description The browser's only path to metric names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_metrics` tool: a Prometheus datasource lists its metrics with their type and help, and a ClickHouse datasource lists the OpenTelemetry metric names of its `otel_metrics_*` tables with the OTel kind as `type` and the table. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the tables, or the columns of one table, of a ClickHouse, Elasticsearch or OpenSearch datasource, or the services and span names of Tempo.
+         * @description It runs the same code, validation and limits as the agent's `get_schema` tool. Without `table` it lists the tables; with `table` it lists that table's columns with their types, and `offset` pages on from a `next_offset`. A Tempo datasource has no tables: it answers the services, span names and attribute names it holds, and a request with `table` or `offset` is a 400. Prometheus and Loki datasources answer 400 `invalid_request`; their label names are read with the labels route. An unknown datasource is a 404 `not_found`. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSchema"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a few rows of a ClickHouse table, or a few log lines or documents of a Loki, Elasticsearch or OpenSearch datasource.
+         * @description It runs the same code, validation and limits as the agent's `sample_rows` tool. `table` is required on ClickHouse; on Loki it is an optional stream selector, and Elasticsearch and OpenSearch read their index pattern without it. Cell values are cut to 300 bytes, and `truncated` is true when columns, cells or rows were dropped to fit. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["getDatasourceSample"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1481,7 +1892,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. A prompt that only asks a question may instead end with a finding, and then the revision succeeds with `result_version` null. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. A prompt that only asks a question may instead end with a finding, and then the revision succeeds with `result_version` null. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -1523,7 +1934,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to propose a change to one panel without saving anything.
-         * @description The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change. A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it is exempt from the one-running-per-dashboard rule, so it neither waits behind nor blocks a revision of the dashboard, but it shares the worker pool and can wait for a free worker. Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`. `version` is the version the proposal is judged inside, and `panel_id` must be a data, text or dashboard list panel of that version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused. `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data, text or dashboard list panel, must not contain the NUL character and may be at most 63 KiB as compact JSON once placed (a request body over 96 KiB is refused). The proposed panel is validated inside the base version with the user's draft, and its queries run with the save rules before the suggestion succeeds. A caller may have 2 suggestions queued or running and the instance 10. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change. A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it is exempt from the one-running-per-dashboard rule, so it neither waits behind nor blocks a revision of the dashboard, but it shares the worker pool and can wait for a free worker. Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`. `version` is the version the proposal is judged inside, and `panel_id` must be a data, text or dashboard list panel of that version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused, and so is text with no visible character such as only zero-width characters (`docs/reference/text-rules.md`). `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data, text or dashboard list panel, must not contain the NUL character and may be at most 63 KiB as compact JSON once placed (a request body over 96 KiB is refused). The proposed panel is validated inside the base version with the user's draft, and its queries run with the save rules before the suggestion succeeds. A caller may have 2 suggestions queued or running and the instance 10. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["createPanelSuggestion"];
         delete?: never;
@@ -1590,7 +2001,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` and `url` set and `dashboard_id` and `result_version` null, and `kind` stays `build`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` and `url` set, keeps its `dashboard_id`, and `result_version` stays null. With `follows_id`, the id of an earlier request of yours that has no dashboard, the request continues that chat: it gets the same `chat_id`, and the agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters). A request with `dashboard_id` is given the earlier turns on that dashboard the same way. `follows_id` and `dashboard_id` exclude each other, and `follows_id` needs `kind` `build`. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. With `follows_id`, the id of an earlier request of yours that has no dashboard, the request continues that chat: it gets the same `chat_id`, and the agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters). A request with `dashboard_id` is given the earlier turns on that dashboard the same way. `follows_id` and `dashboard_id` exclude each other, and `follows_id` needs `kind` `build`. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -1708,7 +2119,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once: the new request is its `retried_by`, and a second call, including one racing the first, is refused instead of queuing a duplicate. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -1733,6 +2144,28 @@ export interface paths {
          * @description Only the principal that made the request may call it; a revision also needs edit access on its dashboard; anyone else gets 404. A new-dashboard request becomes version 1 of a new dashboard in the requester's default folder (a person's My Dashboards, a key's General); a revision becomes the next version of its dashboard and fails with 409 `version_conflict` when someone saved a version after the build started, leaving the build in place. No query runs: every build save was checked when the agent made it, and panels that were unverified then stay unverified. The request stays `failed` with its `failure_code`; it gains `result_version`, `dashboard_id` and `build_saved_at`, and the build is deleted. A repeat call answers 200 with `replayed` true and the version already saved. A `queued` or `running` request answers 409 `build_running`, a build without panels 409 `build_empty`, and a request that is no longer failed with an unsaved build 409 `build_not_savable`. A request without a build, an expired build, or a request of someone else answers 404.
          */
         post: operations["saveObserveRequestBuild"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}/observation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the answer of an agent request as an observation.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         */
+        post: operations["saveObserveRequestAnswer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1818,7 +2251,7 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The `Link` header names the observation as the `successor-version`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFinding"];
         put?: never;
@@ -1908,7 +2341,7 @@ export interface paths {
         };
         /**
          * List the observations in the folders the caller can see, most recently changed first.
-         * @description Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404. The items carry no blocks; read one observation for them.
+         * @description Lists the observations of every folder the caller can view, or of one folder with `folder_id`; a folder the caller cannot view gives 404. The items carry no blocks; read one observation for them. `q` keeps the observations whose title contains it, ignoring case, and `created_by=me` keeps those the caller started. `sort` orders by `updated` (the default, newest first), `created` (newest first) or `title` (A to Z), and `order` reverses or sets the direction. Page with `cursor` (the default order only) or with `offset`, which also returns `total`, the number of observations that match the filters, so a client can show page numbers.
          */
         get: operations["listObservations"];
         put?: never;
@@ -1934,12 +2367,16 @@ export interface paths {
         };
         /**
          * Read one observation with its blocks.
-         * @description Anyone who can view the observation's folder reads every block, requested ones included. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
+         * @description Anyone who can view the observation's folder reads the live blocks. A requested block is returned only to its author and to people who can edit the folder, and `position` stays dense in what the caller sees. `allowed_actions` on the observation and on each block say what the caller may do now. An observation the caller cannot see gives 404, never 403.
          */
         get: operations["getObservation"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an observation with its blocks, snapshots, RCA revisions, public links and discussion.
+         * @description Needs Manage on the folder, or Edit on it for the person who started the observation; `allowed_actions` lists `delete` when the caller may. The delete cannot be undone, and an RCA's public links stop working with it. The activity log keeps the observation's events, ending with `observation.deleted`. It is refused with 409 `run_in_progress` while an investigation on the observation is queued or running, because the run would file a new observation when it finished. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["deleteObservation"];
         options?: never;
         head?: never;
         /**
@@ -1962,7 +2399,7 @@ export interface paths {
         put?: never;
         /**
          * Move an observation to another folder.
-         * @description Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`). Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing. There is no delete route: moving is the way out of a folder.
+         * @description Needs Edit on both folders, and a personal folder takes no moves (409 `personal_folder`). Its discussion, its blocks and its past activity move with it; moving to the folder it is in changes nothing.
          */
         post: operations["moveObservation"];
         delete?: never;
@@ -2028,7 +2465,7 @@ export interface paths {
         put?: never;
         /**
          * Add a block to an observation.
-         * @description With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403. A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's. Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data. An observation holds at most 100 blocks and 24 panel and snapshot blocks together.
+         * @description With Edit on the folder the block is `live`; with only Comment it is `requested`, and an editor keeps or discards it; with only View the answer is 403. A `snapshot` block names a panel block of the same observation in `from_block_id` and freezes its data now, under the draft query limits and the caller's own view, so `user_scoped` says when the data is one person's. Freezing runs queries, so it can answer 429, 502 and 504 with the codes of panel data. An observation holds at most 100 blocks and 24 panel and snapshot blocks together. A panel block added with a service-account key, as the CLI and scripts do, must run and return data in its range, the check the `add_block` tool runs; a panel that fails it answers 422 `invalid_spec` with `issues` and adds nothing. A person's session is not held to it, because the web app shows an empty result before the person saves.
          */
         post: operations["addObservationBlock"];
         delete?: never;
@@ -2058,9 +2495,75 @@ export interface paths {
         head?: never;
         /**
          * Change a block's body, width or position.
-         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A `position` moves the block and shifts the blocks between, which keep their versions.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
+        trace?: never;
+    };
+    "/observations/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin an observation to a dashboard as an annotation.
+         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+         */
+        post: operations["pinObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observations/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from the live panel blocks of an observation.
+         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. An observation without a live panel block answers 409 `observation_has_no_panels`.
+         */
+        post: operations["makeDashboardFromObservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a dashboard from one panel block.
+         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+         */
+        post: operations["makeDashboardFromBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/blocks/{id}/keep": {
@@ -2168,7 +2671,7 @@ export interface paths {
         put?: never;
         /**
          * Publish an observation as the next revision of its RCA.
-         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
+         * @description Needs Edit on the folder, and the folder cannot be a personal one. The RCA is a frozen copy of the page: the title, summary, state and range, the live text blocks as Markdown and the snapshot blocks with their frozen panel and data, in page order; live panel blocks are frozen to snapshots in the same step and requested blocks are left out. A published revision never changes, and an observation keeps a limited number of revisions (409 `rca_limit`). A page with no live panel block that equals its latest revision (title, summary, state, range and blocks) answers 409 `rca_unchanged`, so a retry never makes a copy; a page with a live panel always publishes, because its data may have moved. A panel that cannot be frozen answers 422 `panel_failed` with `issues` that name the block, and frozen data over 2 MiB answers 422 `snapshot_too_large`.
          */
         post: operations["publishRca"];
         delete?: never;
@@ -2194,7 +2697,11 @@ export interface paths {
         get: operations["getRca"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Withdraw one published revision of an observation's RCA.
+         * @description Needs Edit on the folder, and the same states as publishing. A revision with a live public link is refused with 409 `rca_shared`, because a public link is a person's decision: a person revokes the links first, with Manage on the folder, and then withdraws it. Withdrawing deletes the revision and cannot be undone; the activity log keeps `observation.rca_withdrawn` with the title and the revision. No MCP tool deletes anything, so an agent cannot call this.
+         */
+        delete: operations["withdrawRca"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2258,14 +2765,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the saved logs and trace searches the caller can view, most recently changed first.
-         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only logs or only trace searches, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs or traces page that reopens it.
+         * List the saved logs, trace and metrics searches the caller can view, most recently changed first.
+         * @description Lists every saved search in the folders the caller can view, newest `updated_at` first. `kind` keeps only one kind of search, and `folder_id` keeps one folder; a folder the caller cannot view gives 404. Each item carries the `folder` it is saved in, what the caller may do with it in `permissions`, and the `url` of the logs, traces or metrics page that reopens it.
          */
         get: operations["listSavedSearches"];
         put?: never;
         /**
-         * Save a logs or trace search in a folder.
-         * @description Saves what the logs page or the trace view shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search or the filters of a trace search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse. A logs search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
+         * Save a logs, trace or metrics search in a folder.
+         * @description Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written. It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General. Everyone who can view that folder can read it. The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus. A logs or metrics search needs a `query`; a traces search may have one, except on ClickHouse, which takes none. A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`. A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy. The kind, datasource, query, filters and range never change afterwards: save a new search instead.
          */
         post: operations["createSavedSearch"];
         delete?: never;
@@ -2371,7 +2878,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a Grafana dashboard without saving it or running any query.
-         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
+         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `existing` names the dashboard that already holds the file's Grafana uid when the caller can see it, so a client can offer to update it instead of making a duplicate. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder.
          */
         post: operations["previewImport"];
         delete?: never;
@@ -2395,7 +2902,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`. The folder is `folder` from the body, else the Grafana export's `meta.folderTitle`, else the caller's default folder (a person's My Dashboards, a key's General); General and My Dashboards both mean the default. A folder that does not exist is created when the caller is an Editor or above and the caller becomes its creator. Otherwise, or when the folder exists but the caller cannot see it or create in it, the dashboard goes to the default folder and `folder_note` says so. Answers 403 `forbidden_role` when the caller cannot create dashboards in any folder, and 404 `not_found` when a folder disappears while the dashboard is saved. The record's `grafana_uid` is the dashboard's Grafana uid when no earlier import holds it, so `GET /grafana/resolve/{uid}` finds this dashboard. With `update_dashboard`, the converted Spec is saved as the next version of that earlier import's dashboard instead, and the answer is 200 with the same body as a new import; it needs Edit on the dashboard and a file with the Grafana uid the dashboard was imported from (409 `grafana_uid_mismatch` otherwise; a dashboard imported from a file without a uid takes any file) (404 `not_found` when the caller cannot see it, 403 when they cannot edit it, 404 `not_imported` when no import made it). With `refuse_existing`, a file whose Grafana uid an earlier import holds, in a dashboard the caller can see, answers 409 `already_imported` instead of making a second dashboard, so a client that retries or reruns an import cannot duplicate it; the MCP tool and the CLI send it unless told to import as new.
          */
         post: operations["createImport"];
         delete?: never;
@@ -2455,7 +2962,7 @@ export interface paths {
         put?: never;
         /**
          * Save one dashboard file from a dashboards-as-code directory.
-         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, and 409 `version_conflict` when another save landed during the apply.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), and 409 `version_conflict` when another save landed during the apply.
          */
         post: operations["applyDashboardFile"];
         delete?: never;
@@ -2758,8 +3265,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a webhook's name, address, event types or state.
-         * @description Only Admins can call this endpoint. The caller becomes the webhook's owner, so it delivers only what the caller can read from now on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
+         * Change a webhook's name, address, format, event types or state.
+         * @description Only Admins can call this endpoint. The owner stays as it is. `owner: "me"` makes the caller the owner on purpose, so the webhook then delivers only what the caller can read, including the caller's personal folder. A webhook disabled with reason `owner` moves to the caller when `enabled: true` turns it on. A new address is checked against the outbound allowlist and resets the failure count. `enabled: true` clears the disable reason and the failure count and resumes delivery from the webhook's position in the log, still limited to events of the last 24 hours; `enabled: false` disables it with reason `manual`.
          */
         patch: operations["updateWebhook"];
         trace?: never;
@@ -2777,7 +3284,7 @@ export interface paths {
         put?: never;
         /**
          * Replace a webhook's signing secret.
-         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The caller becomes the webhook's owner. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
+         * @description Only Admins can call this endpoint. The old secret stops working at once and the new one is returned once. The owner stays as it is. A webhook disabled with reason `secret_unreadable` still needs `enabled: true` through `updateWebhook` afterwards.
          */
         post: operations["rotateWebhookSecret"];
         delete?: never;
@@ -2802,6 +3309,28 @@ export interface paths {
          * @description Only Admins can call this endpoint. The server sends a signed `webhook.test` event with no `event` and waits for the answer, up to 10 seconds. It works on a disabled webhook, records the attempt in the delivery history and changes nothing else. A receiver that cannot be reached or answers with an error still gives 200, with `outcome` `failed` and its `error_code`.
          */
         post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/{id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pass over the oldest event a failing webhook is stuck on.
+         * @description Only Admins can call this endpoint. A webhook delivers in order, so one event the receiver keeps refusing holds back every event behind it. This moves the webhook's position past the oldest event it still has to send, records that event as a `skipped` attempt with the error `skipped_by_admin`, clears the failure count and makes the webhook send the next event at once. The skipped event is never sent to this receiver. It answers 409 `nothing_to_skip` when the webhook is not retrying or has no event left to send, and 409 `webhook_busy` while a server is delivering for it; try again after a few seconds.
+         */
+        post: operations["skipWebhookEvent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2900,6 +3429,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/home-dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the dashboard that opens for the signed-in person after sign-in.
+         * @description `status` says whether it is set and still usable. `gone` and `unreadable` keep the choice so the web app can tell the person, and the person clears it or picks another. Only signed-in people have one: a service-account key gets 403 `user_session_required`.
+         */
+        get: operations["getHomeDashboard"];
+        /**
+         * Choose the dashboard that opens after sign-in.
+         * @description It replaces the earlier choice, and choosing the same dashboard again changes nothing. The caller must be able to view the dashboard, otherwise 404 `not_found`. A service-account key gets 403 `user_session_required`.
+         */
+        put: operations["setHomeDashboard"];
+        post?: never;
+        /**
+         * Clear the home dashboard so Home opens after sign-in.
+         * @description Clearing when none is set changes nothing. A service-account key gets 403 `user_session_required`.
+         */
+        delete: operations["clearHomeDashboard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/public-links": {
         parameters: {
             query?: never;
@@ -2917,7 +3474,7 @@ export interface paths {
         put?: never;
         /**
          * Create a public link that opens the dashboard read-only without sign-in.
-         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A dashboard has at most 20 links.
+         * @description Needs Manage on the dashboard's folder, because the link widens access beyond the folder's permission list; service-account keys with that level may call it too. The link always shows the dashboard's latest version. The response carries the token and the link's URL once; the server keeps only the token's SHA-256 and a 12 character prefix, so a lost token cannot be shown again. `frozen` variables always use `selections`; `free` variables let the viewer choose values of query, custom, interval and datasource variables among the options the server computes, starting from `selections`. A `free` link's `selections` are checked against the options the server computes for each variable when the link is created, so a value that is not an option is refused with 422 `selection_not_allowed` instead of producing a link whose panels all fail; a `frozen` link keeps whatever it is given. A dashboard has at most 20 unexpired links; an expired link no longer counts. An optional `label` of up to 80 characters says what the link is for; a longer one or one with a control character is refused with 400 `invalid_request`.
          */
         post: operations["createPublicLink"];
         delete?: never;
@@ -2961,7 +3518,7 @@ export interface paths {
         };
         /**
          * Read the dashboard a public link shows.
-         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text: every panel query's `query` and every variable's `query` are left out. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
+         * @description Needs no session or key: the token in the path is the only credential. Returns the latest version's Spec without query text, tags and links: every panel query's `query` and every variable's `query` are left out, and so are the dashboard's `tags` and `links`. `datasources` lists the uid and type of each datasource the Spec can reach, so the page needs no other call. A token that is malformed, unknown, revoked or expired, or whose dashboard's latest version reads the viewer's identity, answers 404 `not_found`. Opening the link records its last view, at most once a minute.
          */
         get: operations["getPublicDashboard"];
         put?: never;
@@ -3098,7 +3655,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -3350,7 +3907,7 @@ export interface paths {
         };
         /**
          * List what asks something of the signed-in person, newest first.
-         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when it is newer than the position `POST /api/v1/inbox/read` stored for the caller, and every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. Items carry no comment, message or finding text, as in the activity log. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `proposal_closed` is a proposal the caller opened that someone else merged or discarded; its `excerpt` is the reason given for a discard. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` and `proposal_closed` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when `PUT /api/v1/inbox/items/{seq}` marked it unread, or, when that never touched it, when it is newer than the position `POST /api/v1/inbox/read` stored for the caller; every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. `target_title` is the title of the dashboard, observation or proposal an item is about, and `excerpt` is the start of the comment for a `mention` or `reply`, or the reason of a discarded proposal for `proposal_closed`, as plain text; the rest of an item carries no comment, message or finding text, as in the activity log. A comment that mentions the caller and replies in a thread the caller wrote in is one `mention` item, not two. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         get: operations["listInbox"];
         put?: never;
@@ -3372,9 +3929,29 @@ export interface paths {
         put?: never;
         /**
          * Mark the inbox read up to one event.
-         * @description Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread. The position only moves forward, so a `seq` older than the stored one changes nothing. Reading one item without the ones before it is not offered. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description Stores the caller's read position at the event with this `seq`: that event and everything older is read, and everything newer is unread. The position only moves forward, so a `seq` older than the stored one changes nothing. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         post: operations["markInboxRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/inbox/items/{seq}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark one inbox item read, unread or done.
+         * @description Send `unread` to mark the item with this `seq` read or unread for the caller, whatever its place relative to the stored read position; marking a done item unread also takes it out of done. `POST /api/v1/inbox/read` later sets every item up to its `seq` to read, including those marked unread here. Send `done: true` to mark it done: it leaves the default list and `filter=unread`, counts as read, and stays done when the inbox is read; `done: false` brings it back to the open list as read. Send exactly one of `unread` and `done`. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         */
+        put: operations["setInboxItemState"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3388,10 +3965,26 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
+            reason?: string;
+            /**
+             * @description On a `forbidden_role` refusal of a route with a role floor, the lowest role that may call it.
+             * @enum {string}
+             */
+            needed_role?: "viewer" | "commenter" | "editor" | "admin";
+            /**
+             * @description On a `forbidden_role` refusal for a folder level, the level the caller needs on the folder named by `folder_title`.
+             * @enum {string}
+             */
+            needed_access?: "view" | "comment" | "edit" | "manage";
+            /** @description The title of the folder that `needed_access` refers to; only sent to a caller who can see that folder. */
+            folder_title?: string;
+            /** @description On a `version_not_found` refusal, the dashboard's latest version. */
+            latest_version?: number;
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override or an expression names a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/queries/{j}/expression` for an expression query, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override or an expression names a query ref the panel does not have), `threshold_value_missing` (a threshold other than the first omits its value), `duplicate_element_id` (a canvas panel repeats an element id, path `/panels/{i}/display/elements/{k}/id`) and `unknown_element` (a canvas connection names no element, path `/panels/{i}/display/connections/{k}/from` or `/to`). A `timezone` the server cannot load is `unknown_timezone` (path `/timezone`). A link address with a scheme other than http, https or mailto is `unsafe_link` (path `/links/{i}/url` or the `url` of the panel, override or canvas element link). A dashboard or panel title that fails the text rule (`docs/reference/text-rules.md`) is reported at `/title` or `/panels/{i}/title` with the code `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`; a title is trimmed before it is stored. Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/queries/{j}/expression` for an expression query, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
             code: string;
             message: string;
         };
@@ -3399,9 +3992,56 @@ export interface components {
             error: string;
             code: string;
             issues: components["schemas"]["Issue"][];
+            /** @description Present when an observation title, summary or text block failed the shared text rule (`docs/reference/text-rules.md`); the same values as `reason` on `Error`. */
+            reason?: string;
         };
         /** @enum {string} */
         Role: "admin" | "editor" | "commenter" | "viewer";
+        Invite: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            /** @description The name of the Admin or service account that sent the invite. */
+            invited_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description The address to share with the person; signing in there with the invited email uses the invite. */
+            sign_in_url: string;
+        };
+        InviteList: {
+            invites: components["schemas"]["Invite"][];
+            next_cursor: string | null;
+        };
+        TeamMember: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+        };
+        Team: {
+            /** Format: uuid */
+            id: string;
+            /** @description The group name a folder entry uses to share with the team's members. */
+            name: string;
+            /** @description The name of the Admin or service account that created the team. */
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            members: components["schemas"]["TeamMember"][];
+        };
+        TeamList: {
+            teams: components["schemas"]["Team"][];
+        };
+        CreateTeamRequest: {
+            name: string;
+        };
+        CreateInviteRequest: {
+            email: string;
+            role: components["schemas"]["Role"];
+        };
         /**
          * @description Where a person's role comes from. admin_emails, first_user and group are decided by the server settings or the identity provider and cannot be changed through the API.
          * @enum {string}
@@ -3538,6 +4178,19 @@ export interface components {
             role_set_by: string | null;
             /** @description True when the role cannot be changed through the API. */
             role_locked: boolean;
+            /**
+             * Format: date-time
+             * @description When an Admin deactivated the person; null for an active person. A deactivated person cannot sign in, and their sessions and connected agents are gone.
+             */
+            deactivated_at: string | null;
+            /** @description The name of the Admin who deactivated the person. */
+            deactivated_by: string | null;
+            /** @description What is in the person's My Dashboards and is deleted if they are removed; present only for a deactivated person. */
+            personal_items: {
+                dashboards: number;
+                observations: number;
+                saved_searches: number;
+            } | null;
         };
         ConnectedAgent: {
             /** Format: uuid */
@@ -3748,6 +4401,14 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
+            /** @description True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host. */
+            from_connection: boolean;
+            /** @description The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
+            used_by: {
+                /** @enum {string} */
+                kind: "webhook" | "grafana_connection" | "datasource";
+                name: string;
+            }[];
             /**
              * Format: date-time
              * @description Null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS`.
@@ -3914,15 +4575,23 @@ export interface components {
             uid: string;
             type: string;
             name: string;
+            /**
+             * @description `file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app.
+             * @enum {string}
+             */
+            source: "file" | "app";
             /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
             healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
+            /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
+            detail?: string;
             /**
              * Format: date-time
-             * @description When the server last checked the datasource; checks are cached for 10 seconds.
+             * @description When the server last checked the datasource; checks are cached for 10 seconds, and `POST /datasources/{uid}/recheck` runs a new one.
              */
             checked_at: string;
             /** @description Dashboards whose latest version uses this datasource. */
@@ -3931,12 +4600,163 @@ export interface components {
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];
         };
+        DatasourceLimits: {
+            /** @description A duration such as `30s`; empty uses the adapter default. */
+            timeout?: string;
+            max_series?: number;
+            max_points?: number;
+            max_rows?: number;
+            /** @description The most queries this datasource runs at once across the fleet; 0 uses the default of 32. */
+            max_concurrent_queries?: number;
+        };
+        /** @description Which fields of an Elasticsearch or OpenSearch index play which role in logs and traces. */
+        DatasourceFieldRoles: {
+            message?: string;
+            level?: string;
+            service?: string;
+            trace_id?: string;
+            span_id?: string;
+        };
+        /** @description Credentials, written and never read back. A field left out keeps what is stored; a value replaces it. */
+        DatasourceSecrets: {
+            /** @description The basic-auth password, or the ClickHouse password. */
+            password?: string;
+            bearer_token?: string;
+            /** @description The Elasticsearch or OpenSearch API key. */
+            api_key?: string;
+            /** @description Custom request headers by name. Every value is treated as a credential. */
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        /** @description A datasource definition. Creating needs `uid`, `type` and `address`. Changing and testing a saved datasource take only the fields to change. */
+        DatasourceDraft: {
+            uid?: string;
+            /** @enum {string} */
+            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
+            /** @description The display name; the uid when empty. */
+            name?: string;
+            /** @description Grafana datasource uids this one stands for when dashboards are imported. */
+            grafana_uids?: string[];
+            /** @description An http or https URL, or `host:port` for ClickHouse. A login belongs in `username` and `secrets`, not here. */
+            address?: string;
+            /** @description The basic-auth user, or the ClickHouse user. */
+            username?: string;
+            /** @description ClickHouse only. */
+            database?: string;
+            /** @description ClickHouse only. */
+            tls?: boolean;
+            /** @description Loki only. */
+            tenant_id?: string;
+            /** @description Prometheus only, a duration such as `15s`. */
+            scrape_interval?: string;
+            /** @description Elasticsearch and OpenSearch only. */
+            index?: string;
+            time_field?: string;
+            /** @enum {string} */
+            query_language?: "" | "kql" | "lucene";
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            secrets?: components["schemas"]["DatasourceSecrets"];
+            /** @description Credentials to remove, each `password`, `bearer_token`, `api_key` or `header:<name>`. */
+            clear_secrets?: string[];
+        };
+        /** @description A datasource added in the app, without its credentials. */
+        DatasourceConfig: {
+            uid: string;
+            type: string;
+            name: string;
+            /** @enum {string} */
+            source: "app";
+            grafana_uids?: string[];
+            address: string;
+            username?: string;
+            database?: string;
+            tls?: boolean;
+            tenant_id?: string;
+            scrape_interval?: string;
+            index?: string;
+            time_field?: string;
+            query_language?: string;
+            fields?: components["schemas"]["DatasourceFieldRoles"];
+            limits?: components["schemas"]["DatasourceLimits"];
+            /** @description Which credentials are stored, each `password`, `bearer_token`, `api_key` or `header:<name>`. Their values are never returned. */
+            secrets_set: string[];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        DatasourceTestResult: {
+            healthy: boolean;
+            /** @description A fixed sentence naming the kind of failure; absent when healthy. */
+            message?: string;
+            /** @description The cause when the server knows it; never an address, user or secret. */
+            detail?: string;
+        };
+        InvalidDatasourceError: {
+            error: string;
+            /** @enum {string} */
+            code: "invalid_datasource";
+            fields: {
+                field: string;
+                message: string;
+            }[];
+        };
+        DatasourceInUseError: {
+            error: string;
+            /** @enum {string} */
+            code: "datasource_in_use";
+            used_by: {
+                /** @enum {string} */
+                kind: "dashboard" | "saved_search";
+                /** Format: uuid */
+                id: string;
+                title: string;
+            }[];
+            /** @description How many more dashboards and saved searches use it in folders the caller cannot see. */
+            hidden: number;
+        };
         MetricName: {
             name: string;
             type?: string;
             help?: string;
             unit?: string;
             table?: string;
+        };
+        DatasourceTables: {
+            tables: {
+                name: string;
+                kind?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceColumns: {
+            table: string;
+            columns: {
+                name: string;
+                type?: string;
+            }[];
+            truncated: boolean;
+            /** @enum {string} */
+            truncated_by?: "bytes" | "limit";
+            next_offset?: number;
+        };
+        DatasourceSpanSchema: {
+            datasource: string;
+            columns: string[];
+            rows: unknown[][];
+            attributes: string[];
+            truncated?: boolean;
+        };
+        DatasourceSample: {
+            table: string;
+            columns: string[];
+            rows: unknown[][];
+            truncated?: boolean;
         };
         Author: {
             /** @enum {string} */
@@ -3966,7 +4786,7 @@ export interface components {
             label: string;
         };
         /** @enum {string} */
-        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept";
+        ActivityType: "dashboard.created" | "dashboard.version_created" | "dashboard.restored" | "dashboard.moved" | "dashboard.deleted" | "annotation.created" | "annotation.updated" | "annotation.deleted" | "finding.created" | "finding.pinned" | "finding.moved" | "saved_search.created" | "saved_search.updated" | "saved_search.moved" | "saved_search.deleted" | "observation.created" | "observation.updated" | "observation.moved" | "observation.deleted" | "observation.resolved" | "observation.reopened" | "observation.published" | "observation.rca_withdrawn" | "observation.block_added" | "observation.block_updated" | "observation.block_kept" | "observation.block_discarded" | "observation.block_removed" | "proposal.opened" | "proposal.updated" | "proposal.merged" | "proposal.discarded" | "thread.opened" | "thread.replied" | "thread.edited" | "thread.deleted" | "thread.resolved" | "thread.reopened" | "thread.mentioned" | "run.queued" | "run.started" | "run.succeeded" | "run.failed" | "run.canceled" | "run.canceling" | "run.released" | "run.kept" | "public_link.created" | "public_link.revoked" | "user.role_changed" | "user.signed_out_everywhere" | "user.invited" | "user.invite_updated" | "user.invite_withdrawn" | "user.deactivated" | "user.reactivated" | "user.removed" | "service_account.created" | "service_account.updated" | "service_account.deleted" | "service_account.key_created" | "service_account.key_revoked" | "webhook.created" | "webhook.updated" | "webhook.secret_rotated" | "webhook.deleted" | "mcp_client.connected" | "mcp_client.disconnected" | "outbound_domain.added" | "outbound_domain.removed" | "grafana_connection.created" | "grafana_connection.updated" | "grafana_connection.deleted" | "datasource.created" | "datasource.updated" | "datasource.deleted";
         /** @description One entry of the activity log. */
         ActivityEvent: {
             /**
@@ -3977,7 +4797,7 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "datasource" | "public_link";
                 /**
                  * Format: uuid
                  * @description The id of the dashboard, annotation, finding, saved search, observation, proposal, comment thread or agent request the event is about.
@@ -4011,7 +4831,7 @@ export interface components {
             type: components["schemas"]["ActivityType"];
             target: {
                 /** @enum {string} */
-                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run";
+                kind: "dashboard" | "annotation" | "finding" | "saved_search" | "observation" | "proposal" | "thread" | "run" | "user" | "service_account" | "webhook" | "mcp_client" | "outbound_domain" | "grafana_connection" | "datasource" | "public_link";
                 /** Format: uuid */
                 id: string;
             };
@@ -4027,8 +4847,12 @@ export interface components {
              * @description The first rule the event matches, or null in the `everything` view when it matches none.
              * @enum {string|null}
              */
-            reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | null;
+            reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | null;
             unread: boolean;
+            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists. */
+            target_title: string | null;
+            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, or the error of a failed run, as plain text of at most 200 characters; null for other items. */
+            excerpt: string | null;
         };
         InboxList: {
             items: components["schemas"]["InboxItem"][];
@@ -4127,6 +4951,27 @@ export interface components {
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
         };
+        HomeDashboard: {
+            /**
+             * @description `none` when no home dashboard is set, `ok` when it opens, `gone` when the dashboard was deleted and `unreadable` when the person can no longer see it.
+             * @enum {string}
+             */
+            status: "none" | "ok" | "gone" | "unreadable";
+            /** @description Set only when `status` is `ok`. */
+            dashboard: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** Format: uuid */
+                folder_id: string;
+                folder_title: string;
+            } | null;
+            /**
+             * Format: date-time
+             * @description When the person chose it; null when `status` is `none`.
+             */
+            set_at: string | null;
+        };
         DashboardListItem: {
             /** Format: uuid */
             id: string;
@@ -4145,6 +4990,8 @@ export interface components {
             datasource_uids: string[];
             /** @description Open comment threads on the dashboard; replies are not counted. */
             open_comment_count: number;
+            /** @description Person-days on which someone opened the dashboard in the last 30 UTC days, today included. */
+            view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
         };
@@ -4269,7 +5116,7 @@ export interface components {
             dashboard_id: string;
             /** @enum {string} */
             state: "open" | "merged" | "discarded";
-            /** @description The summary of the first revision, cut to 200 characters. */
+            /** @description The summary of the head revision, cut to 200 characters; it changes when the author saves again with a summary. */
             title: string;
             /** @description The head revision; every save by the author while the proposal is open adds one. */
             revision: number;
@@ -4295,6 +5142,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4337,6 +5186,8 @@ export interface components {
             closed_at: string | null;
             /** @description Who merged or discarded the proposal; null while it is open. */
             closed_by: components["schemas"]["Author"] | null;
+            /** @description Why the proposal was discarded, when the person or agent who discarded it gave a reason; null otherwise and always null for a merged proposal. */
+            close_reason: string | null;
             /** @description The version the merge saved; null while the proposal is open or discarded, and for a merge whose change was already in the dashboard. */
             merged_version: number | null;
             /** @description True when `latest_version` is newer than `base_version`. Computed on every read. */
@@ -4350,6 +5201,8 @@ export interface components {
             };
             /** @description What the head revision adds, changes, removes or moves compared with `base_version`. */
             changes: components["schemas"]["ProposalChange"][];
+            /** @description The field-level changes of the head revision against `base_version`, the same shape `GET /dashboards/{id}/diff` returns for two versions. */
+            diff: components["schemas"]["SpecChange"][];
             /** @description While the proposal is open and behind, the units that both it and the newer versions changed, which a merge needs a choice for; empty otherwise. */
             conflicts: components["schemas"]["MergeConflict"][];
         };
@@ -4417,6 +5270,8 @@ export interface components {
             status: "open" | "resolved";
             /** @description What the caller may do with this thread now, on its first comment; empty on a reply. `resolve` is absent while the thread's agent run is queued or running. See docs/reference/states.md. */
             allowed_actions: ("open" | "reply" | "resolve" | "reopen")[];
+            /** @description Whether the thread, on its first comment, holds a message from someone else, or an agent run's reply, that the caller has not read; always false on a reply and for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
+            unread: boolean;
             author: components["schemas"]["Author"];
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
@@ -4441,6 +5296,8 @@ export interface components {
             mentions: components["schemas"]["Mention"][];
             /** @description Whether the caller may edit this comment's body, which only its author may do and only while the caller can still comment. */
             can_edit: boolean;
+            /** @description Whether the caller may delete this comment; see `can_delete` on a thread message. */
+            can_delete: boolean;
             /** @description The latest revision requested for this comment, or null when none was requested. */
             revision: {
                 /** Format: uuid */
@@ -4485,8 +5342,10 @@ export interface components {
             panel_present: boolean;
             /** @enum {string} */
             status: "open" | "resolved";
-            /** @description What the caller may do with the thread now; empty for a caller who may not comment. See `docs/reference/states.md`. */
+            /** @description What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`. */
             allowed_actions: ("reply" | "resolve" | "reopen")[];
+            /** @description Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it. */
+            unread: boolean;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -4522,8 +5381,10 @@ export interface components {
              */
             edited_at: string | null;
             mentions: components["schemas"]["Mention"][];
-            /** @description Whether the caller may edit this message, which only its author may do and only while the caller can still comment. */
+            /** @description Whether the caller may edit this message, which only its author may do and only while the caller can still comment; false for a reply an agent run wrote. */
             can_edit: boolean;
+            /** @description Whether the caller may delete this message. Its author may, while they can still comment, unless an agent run wrote it; the first message of a thread also needs that nobody else wrote in the thread. Anyone who manages the target's folder may delete any message. */
+            can_delete: boolean;
             /**
              * Format: uuid
              * @description The block of the observation this message is about; null for the whole observation, on every other target, and after the block was deleted.
@@ -4537,7 +5398,7 @@ export interface components {
                 /** @description The first 200 characters of the quoted message's current text. */
                 excerpt: string;
             } | null;
-            /** @description The run this write started, set only on the response of a write sent with `start_runs`; null on every list read and edit. */
+            /** @description The run this message started, set on the response of a write sent with `start_runs` and on every read of the message while that run exists; null when the message started no run, and on an edit. */
             run?: {
                 /** Format: uuid */
                 id: string;
@@ -4552,10 +5413,10 @@ export interface components {
             /** @description Why a write sent with `start_runs` stored the message and started no run; null otherwise. */
             run_refusal?: {
                 /**
-                 * @description `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full.
+                 * @description `investigation_person_only` when an MCP client or key asks the agent on an observation, which only a person starts from the web app or the CLI, `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full.
                  * @enum {string}
                  */
-                code: "mention_target_unsupported" | "agent_unavailable" | "forbidden_role" | "too_many_runs";
+                code: "mention_target_unsupported" | "agent_unavailable" | "forbidden_role" | "too_many_runs" | "investigation_person_only";
                 message: string;
             } | null;
         };
@@ -4565,6 +5426,25 @@ export interface components {
             next_cursor: string | null;
             /** @description Whether the caller may start threads and write messages on the target. */
             can_comment: boolean;
+        };
+        MentionablePeople: {
+            /** @description True when more people match than `limit` returned; narrow `q` to reach them. */
+            more: boolean;
+            people: {
+                /** Format: uuid */
+                id: string;
+                /** @description The person's name, or their email address when they have none. */
+                name: string;
+                email: string;
+            }[];
+        };
+        DashboardViewers: {
+            viewers: {
+                /** Format: uuid */
+                id: string;
+                /** @description The person's name, or their email address when they have no name. */
+                name: string;
+            }[];
         };
         ThreadEnvelope: {
             thread: components["schemas"]["Thread"];
@@ -4595,6 +5475,8 @@ export interface components {
             kind: "range" | "instant";
             /** @description The query's resolution; 0 for an instant query. */
             step_ms: number;
+            /** @description The query text as it went to the datasource, after variables, macros and the dashboard's ad hoc filters and group by were applied; absent for an expression query and when the response was built before the server kept it. */
+            executed?: string;
             /**
              * @description Present only when the query asked for exemplars (`exemplar: true` on a Prometheus range query, on the panel data and preview routes). `ok` has all of them, `truncated` has the 2,000 newest after thinning to one per step, `unavailable` means the exemplar call failed or timed out and the panel still succeeded, and `unsupported` means the datasource or the query kind has no exemplars.
              * @enum {string}
@@ -4632,9 +5514,19 @@ export interface components {
             source_panel?: string;
             /** @description True when a query stopped at its row limit, so more rows exist in the range. */
             truncated: boolean;
-            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks. */
+            /** @description True when a datasource answered without covering the whole range, such as Tempo searching only some of its blocks, or when a time series or trend panel returned only its highest series (see series_total). */
             partial: boolean;
-            /** @description The rows across all frames (log lines, traces, spans, table rows); 0 for series data. */
+            /** @description How many series the panel's data holds after the cap; present only when the cap dropped some. */
+            series_shown?: number;
+            /** @description How many series the panel's queries returned before the cap of 50 per query kept the highest peaks; present only when the cap dropped some, and then note says so. */
+            series_total?: number;
+            /** @description The datasource's own text for why the answer is partial, such as a Prometheus warning that a store did not answer; present only when it gave one. */
+            warning?: string;
+            /** @description One plain sentence that says why a search returned no rows when the datasource can tell, present only on an empty Elasticsearch or OpenSearch result whose KQL query asks for a keyword value that no document has in the range: it names the value and the values the field does have, and says when one differs only by letter case, because keyword values are case sensitive. */
+            hint?: string;
+            /** @description One plain sentence that says why a result is incomplete and how to get more, present only when `truncated` or `partial` is true or a page has a next page: read the next page with `page.next` as `cursor`, repeat an instant query of a logs or trace datasource with `page_size`, narrow `from` and `to`, or add a filter. Only the explore instant query and the MCP tool `query_instant` offer `page_size`, so the other responses name only narrowing. */
+            note?: string;
+            /** @description The rows across all frames (log lines, traces, spans, table rows); an instant query counts one row per sample, so a vector of series counts one row per series, and a range query of series data counts 0. */
             rows: number;
             /** @description Present only when the datasource reports how many rows matched in the range. */
             rows_total?: number;
@@ -4681,6 +5573,8 @@ export interface components {
             prev?: string;
             /** @description The largest row offset this store pages to, present only on stores with such a cap, such as an Elasticsearch index's `max_result_window`; a numbered page past it is refused. */
             window?: number;
+            /** @description True when the rows are a plain table, not log lines, such as a ClickHouse result with no `Timestamp` column; a client shows them as a table and has no volume to draw. */
+            plain?: boolean;
         };
         PanelDataError: {
             error: string;
@@ -4695,6 +5589,13 @@ export interface components {
             total: number;
             /** @description Every bucket of the aligned range, oldest first, empty buckets included. */
             buckets: components["schemas"]["LogVolumeBucket"][];
+            /** @description Whether the datasource ran out of time before it counted the whole range; the buckets before `counted_from` were not counted and read zero. */
+            partial: boolean;
+            /**
+             * Format: date-time
+             * @description Present only when `partial` is true, the start of the oldest bucket that was counted, or the end of the range when nothing was.
+             */
+            counted_from?: string;
         };
         LogVolumeBucket: {
             /**
@@ -4907,7 +5808,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5104,6 +6005,14 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        AnswerSaved: {
+            /** Format: uuid */
+            observation_id: string;
+            /** @description The address of the observation, empty when the server has no public URL configured. */
+            url: string;
+            /** @description True when the answer was already an observation, so this call changed nothing. */
+            replayed: boolean;
+        };
         AgentBuildSaved: {
             /** Format: uuid */
             dashboard_id: string;
@@ -5149,7 +6058,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5160,7 +6069,7 @@ export interface components {
             allowed_actions: ("cancel" | "keep_build" | "continue" | "retry" | "pin" | "archive")[];
             /** @description The version the request saved, set when the status is `succeeded` unless the agent answered with a finding and, once the requester saved a stopped build, when it is `failed`. */
             result_version: number | null;
-            /** @description The address of the dashboard, or of the finding for an investigation or a request that answered a question, set when the status is `succeeded`. */
+            /** @description The address of the dashboard, or of the observation for an investigation or for a question whose answer was saved as an observation, set when the status is `succeeded`; null while an answer is only on the request. */
             url: string | null;
             /** @description Why the request failed, set when the status is `failed`. */
             error: string | null;
@@ -5261,7 +6170,7 @@ export interface components {
              * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
              */
             observation_id: string | null;
-            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. */
+            /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it. */
             finding: components["schemas"]["Finding"] | null;
         };
         RequestSummary: {
@@ -5284,7 +6193,7 @@ export interface components {
              */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             /**
-             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding). A finding wins over a version.
+             * @description What the request left behind: `none`, `version` (a saved dashboard version), `partial_version` (the requester kept the build of a stopped request as a version), `proposal` (reserved), `suggestion` or `observation` (a finding: written into the investigation's observation, or kept on the run with `observation_id` null until its requester saves it with `POST /observe/{id}/observation`). A finding wins over a version.
              * @enum {string}
              */
             result_kind: "none" | "version" | "partial_version" | "proposal" | "suggestion" | "observation";
@@ -5356,7 +6265,7 @@ export interface components {
             finished_at: string | null;
         };
         ContinueObserveRequest: {
-            /** @description An instruction for the continued run, trimmed; 1 to 4000 characters without control or bidirectional override characters, the same rule as a prompt. */
+            /** @description An instruction for the continued run, trimmed; 1 to 4000 visible characters without control or bidirectional override characters, the same rule as a prompt. */
             note?: string | null;
         };
         /** @description The answer to an action the object's state does not allow. */
@@ -5379,14 +6288,20 @@ export interface components {
             id: string;
             name: string;
         };
+        FindingAskOn: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The dashboard's title, for a button such as "Ask this on Checkout". */
+            title: string;
+        };
         Finding: {
             /** Format: uuid */
             id: string;
             /**
              * Format: uuid
-             * @description The observation this finding lives in
+             * @description The observation this finding lives in; null for the answer to a plain question, which stays on its run until its requester saves it as an observation with `POST /observe/{id}/observation`.
              */
-            observation_id: string;
+            observation_id: string | null;
             /**
              * Format: uuid
              * @description The investigation that saved the finding; null for a finding saved over MCP, or after the request was deleted.
@@ -5402,6 +6317,8 @@ export interface components {
              * @description The folder of the finding's observation when the finding has no dashboard; null when it is on a dashboard.
              */
             folder_id: string | null;
+            /** @description The one dashboard the agent resolved for a request made on Home that asks to change an existing dashboard, which a Home request cannot do. Start an ordinary revision with the same prompt and this `dashboard_id` to make the change. Null when the finding is about a dashboard, when the agent named none or several, and for a reader who cannot view the dashboard; the list routes always leave it null. */
+            ask_on: components["schemas"]["FindingAskOn"] | null;
             title: string;
             /** @description The finding as Markdown of at most 400 words. */
             markdown: string;
@@ -5426,33 +6343,38 @@ export interface components {
             actor: components["schemas"]["Actor"];
             /** Format: date-time */
             created_at: string;
-            /** @description Opens the finding's observation; empty when the server has no public URL configured. */
-            url: string;
+            /** @description Opens the finding's observation; null while the finding has no observation, or when the server has no public URL configured. */
+            url: string | null;
         };
         FindingEnvelope: {
             finding: components["schemas"]["Finding"];
-            /** @description The folder of the finding's observation, whose access rule decides who reads the finding. */
+            /** @description The folder of the finding's observation, whose access rule decides who reads the finding; null for an answer that is not an observation yet, which only its requester and an Admin read. */
             folder: components["schemas"]["DashboardFolder"] | null;
             permissions: components["schemas"]["Permissions"];
         };
-        /** @description The filters of a search beyond its query. A logs search takes only `columns`; a traces search takes the others. */
+        /** @description The filters of a search beyond its query. A logs search takes only `columns`, a metrics search only `mode`, and a traces search the others. */
         SavedSearchFilters: {
             /** @description The visible columns of a logs search, in order. */
             columns?: string[];
             service?: string;
             span?: string;
-            /** @description The shortest duration, such as `250ms` or `2s`. */
+            /** @description The shortest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is that long. */
             min?: string;
-            /** @description The longest duration, such as `250ms` or `2s`. */
+            /** @description The longest span duration, such as `250ms` or `2s`. A trace matches when one span that also fits the service and span name is no longer. */
             max?: string;
             /** @description Only traces with an error. */
             errors?: boolean;
+            /**
+             * @description A metrics search as a time series (`graph`, the default) or as the table of an instant query.
+             * @enum {string}
+             */
+            mode?: "graph" | "table";
         };
         SavedSearch: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             title: string;
             datasource_uid: string;
             /** @description The query as it runs, with the filter pills folded in; null for a trace search made of filters only. */
@@ -5472,8 +6394,30 @@ export interface components {
              * @description When the search was saved, renamed or moved last.
              */
             updated_at: string;
-            /** @description The address of the logs or traces page that reopens the search, relative when the server has no public URL configured. */
+            /** @description The address of the logs, traces or metrics page that reopens the search, relative when the server has no public URL configured. */
             url: string;
+        };
+        SavedSearchReplayed: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "logs" | "traces" | "metrics";
+            title: string;
+            datasource_uid: string;
+            query: string | null;
+            filters: components["schemas"]["SavedSearchFilters"];
+            from: string;
+            to: string;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
+            actor: components["schemas"]["Actor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            url: string;
+            /** @description Always true; the search this key already saved with the same title, datasource, query, filters, range and folder, returned instead of a second copy. */
+            replayed: boolean;
         };
         SavedSearchList: {
             saved_searches: components["schemas"]["SavedSearch"][];
@@ -5481,12 +6425,12 @@ export interface components {
         };
         CreateSavedSearchRequest: {
             /** @enum {string} */
-            kind: "logs" | "traces";
+            kind: "logs" | "traces" | "metrics";
             /** @description 1 to 120 characters after trimming, without control characters. */
             title: string;
-            /** @description The uid of a datasource that exists and fits the kind. */
+            /** @description The uid of a datasource that exists and fits the kind, which is Prometheus for metrics. */
             datasource_uid: string;
-            /** @description 1 to 8000 characters; required for a logs search. */
+            /** @description 1 to 8000 characters; required for a logs or metrics search. */
             query?: string | null;
             filters?: components["schemas"]["SavedSearchFilters"];
             /**
@@ -5520,6 +6464,28 @@ export interface components {
             } | null;
             /** @description The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise. Only the import uses it; the preview checks it and ignores it. */
             folder?: string;
+            /**
+             * Format: uuid
+             * @description The id of a dashboard an earlier import made, to save this JSON as its next version instead of making a new dashboard. Needs Edit on the dashboard; the folder is not changed. Only the import uses it; the preview ignores it.
+             */
+            update_dashboard?: string;
+            /** @description Answer 409 `already_imported`, with `existing`, instead of making a second dashboard when the caller can see a dashboard that already holds this Grafana uid. Ignored with `update_dashboard`, and by the preview. */
+            refuse_existing?: boolean;
+        };
+        ImportExisting: {
+            /** Format: uuid */
+            dashboard_id: string;
+            title: string;
+            /** @description The dashboard's latest version. */
+            version: number;
+            /** @description True when the caller has Edit on the dashboard, so `update_dashboard` is accepted. */
+            can_update: boolean;
+        };
+        AlreadyImported: {
+            error: string;
+            /** @enum {string} */
+            code: "already_imported";
+            existing: components["schemas"]["ImportExisting"];
         };
         ImportSummary: {
             /** @enum {string} */
@@ -5634,6 +6600,8 @@ export interface components {
         ImportPreview: {
             summary: components["schemas"]["ImportSummary"];
             datasources: components["schemas"]["ImportSourceDatasource"][];
+            /** @description The dashboard that already holds this Grafana uid, when the caller can see it; null otherwise. */
+            existing: components["schemas"]["ImportExisting"] | null;
             /** @description True when every source datasource has a match, so the import can be saved. */
             ready: boolean;
             report: components["schemas"]["ImportReport"];
@@ -5822,6 +6790,7 @@ export interface components {
             name: string;
             /** @description The https address events are posted to. */
             url: string;
+            format: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
             owner: components["schemas"]["Actor"];
             enabled: boolean;
@@ -5843,11 +6812,23 @@ export interface components {
              * @description The earliest time of the next attempt; in the past while the webhook has nothing to send.
              */
             next_attempt_at: string;
+            /** @description How many events the webhook still has to send, while `consecutive_failures` is above 0 and the owner can be read; null otherwise. */
+            waiting_events: {
+                /** @description The events waiting, counted up to 100, the failing one included. */
+                count: number;
+                /** @description True when more than 100 events are waiting. */
+                more: boolean;
+            } | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             updated_at: string;
         };
+        /**
+         * @description `generic` is the signed JSON envelope of the webhooks guide; `slack` posts `{"text": ...}` and `teams` an Adaptive Card message, each with one line that names the actor, the event type and its title.
+         * @enum {string}
+         */
+        WebhookFormat: "generic" | "slack" | "teams";
         WebhookList: {
             webhooks: components["schemas"]["Webhook"][];
         };
@@ -5860,13 +6841,20 @@ export interface components {
             name: string;
             /** @description An https address on port 443 with a domain name, no user info and no fragment. */
             url: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types: components["schemas"]["ActivityType"][];
         };
         UpdateWebhookRequest: {
             name?: string;
             url?: string;
+            format?: components["schemas"]["WebhookFormat"];
             event_types?: components["schemas"]["ActivityType"][];
             enabled?: boolean;
+            /**
+             * @description `me` makes the caller the webhook's owner; any other value is refused.
+             * @enum {string}
+             */
+            owner?: "me";
         };
         WebhookDelivery: {
             /** @description The attempt's id, ordered by time. */
@@ -5888,10 +6876,14 @@ export interface components {
             /** @enum {string} */
             outcome: "delivered" | "failed" | "skipped";
             /**
-             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit.
+             * @description Null when delivered. `too_large` is `skipped`, because the event can never fit the 64 KiB request limit; `skipped_by_admin` is `skipped`, because an Admin chose to pass the event over.
              * @enum {string|null}
              */
-            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | null;
+            error_code: "status" | "unreachable" | "blocked_address" | "domain_not_allowed" | "too_large" | "skipped_by_admin" | null;
+        };
+        WebhookSkipResult: {
+            webhook: components["schemas"]["Webhook"];
+            skipped: components["schemas"]["WebhookDelivery"];
         };
         WebhookTestResult: {
             delivery: components["schemas"]["WebhookDelivery"];
@@ -6024,6 +7016,8 @@ export interface components {
             id: string;
             /** @description The first 12 characters of the token, to tell links apart; the token itself is never shown again. */
             prefix: string;
+            /** @description What the link is for, set when it was created; empty when none was given. */
+            label: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections: components["schemas"]["PublicLinkSelections"];
@@ -6053,6 +7047,8 @@ export interface components {
             state: "expired" | "active";
         };
         CreatePublicLinkRequest: {
+            /** @description Optional name for the link, up to 80 characters without control characters, so a list of links says what each is for. */
+            label?: string;
             /** @enum {string} */
             variables: "frozen" | "free";
             selections?: components["schemas"]["PublicLinkSelections"];
@@ -6209,13 +7205,13 @@ export interface components {
             from?: string;
             to?: string;
             /** @enum {string} */
-            signal?: "logs" | "traces";
+            signal?: "logs" | "traces" | "metrics";
         };
         DraftQuery: {
-            /** @description LogQL, ClickHouse SQL, TraceQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
+            /** @description LogQL, ClickHouse SQL, TraceQL, PromQL or KQL (or a `lucene:` or Query DSL body); empty when `language` is `filters`. */
             query: string;
             /** @enum {string} */
-            language: "logql" | "clickhouse_sql" | "traceql" | "kql" | "filters";
+            language: "logql" | "clickhouse_sql" | "traceql" | "promql" | "kql" | "filters";
             /** @description The Traces form's fields; null unless `language` is `filters`. */
             trace_filters: components["schemas"]["TraceFilters"] | null;
             explanation: string;
@@ -6246,7 +7242,7 @@ export interface components {
          * @description An action the caller may take in the observation's state, in the order of `docs/reference/states.md`; `publish` is taken through the RCA routes.
          * @enum {string}
          */
-        ObservationAction: "update" | "move" | "resolve" | "reopen" | "publish";
+        ObservationAction: "update" | "move" | "resolve" | "reopen" | "publish" | "delete";
         /** @enum {string} */
         ObservationBlockKind: "text" | "panel" | "snapshot" | "run";
         /**
@@ -6268,7 +7264,7 @@ export interface components {
             folder_id: string;
             title: string;
             state: components["schemas"]["ObservationState"];
-            /** @description The one-line summary given when it was resolved; kept when it is reopened; null until the first resolve. */
+            /** @description The one-line summary given when it was resolved; kept when it is reopened, so read it with `state`, and an RCA published while the observation is open carries none; null until the first resolve. */
             summary: string | null;
             /**
              * Format: date-time
@@ -6287,6 +7283,15 @@ export interface components {
              * @description The agent request that made the observation, when one did.
              */
             run_id: string | null;
+            /**
+             * Format: uuid
+             * @description The dashboard the run that made the observation was about, the one a pin goes to by default; set only when the observation is read by id.
+             */
+            dashboard_id: string | null;
+            /** @description Whether the observation is pinned to `dashboard_id`; set only when the observation is read by id. */
+            pinned: boolean;
+            /** @description Whether the caller may pin the observation to `dashboard_id`, which needs edit access to that dashboard; set only when the observation is read by id. */
+            can_pin: boolean;
             /** @description How many messages the observation's discussion thread holds, replies included; 0 while it has no thread. */
             message_count: number;
             /** @description `<SLASHOBSERVE_PUBLIC_URL>/o/<id>`. */
@@ -6317,7 +7322,7 @@ export interface components {
             width: components["schemas"]["ObservationBlockWidth"];
             /** @description Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read. */
             version: number;
-            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos`; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
+            /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos` and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
             body: {
                 [key: string]: unknown;
             };
@@ -6343,6 +7348,8 @@ export interface components {
         ObservationList: {
             observations: components["schemas"]["Observation"][];
             next_cursor: string | null;
+            /** @description The number of observations that match the filters, present only when the request has `offset`. */
+            total: number | null;
         };
         BlockEnvelope: {
             block: components["schemas"]["ObservationBlock"];
@@ -6398,7 +7405,7 @@ export interface components {
              * @enum {string}
              */
             kind: "text" | "panel" | "snapshot";
-            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. */
+            /** @description Required for `text` and `panel`, and absent for `snapshot`; see `body` of a block. A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`. */
             body?: {
                 [key: string]: unknown;
             };
@@ -6420,6 +7427,23 @@ export interface components {
             width?: components["schemas"]["ObservationBlockWidth"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
+        };
+        PinObservationRequest: {
+            /**
+             * Format: uuid
+             * @description The dashboard to pin to; the one the observation's run was about when absent.
+             */
+            dashboard_id?: string;
+        };
+        MakeDashboardRequest: {
+            /** @description Make another dashboard even when the caller already made one from this observation or block. */
+            new?: boolean;
+        };
+        ObservationPin: {
+            /** Format: uuid */
+            dashboard_id: string;
+            /** Format: uuid */
+            annotation_id: string;
         };
         KeepObservationBlockRequest: {
             version: number;
@@ -6543,10 +7567,12 @@ export interface components {
             published_by: string;
             /** Format: date-time */
             created_at: string;
+            /** @description The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation. */
+            superseded_by: number | null;
         };
     };
     responses: {
-        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
+        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
         ObservationInvalid: {
             headers: {
                 [name: string]: unknown;
@@ -6555,7 +7581,7 @@ export interface components {
                 "application/json": components["schemas"]["ValidationError"];
             };
         };
-        /** @description The action is not allowed in the observation's state (`invalid_transition`), or the target folder is My Dashboards (`personal_folder`). */
+        /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). */
         ObservationConflict: {
             headers: {
                 [name: string]: unknown;
@@ -6582,6 +7608,14 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description The `If-None-Match` header names the current `ETag`, so the body is not sent again. */
+        NotModified: {
+            headers: {
+                ETag: string;
+                [name: string]: unknown;
+            };
+            content?: never;
+        };
         /** @description Authentication is missing or invalid. */
         Unauthorized: {
             headers: {
@@ -6601,7 +7635,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The resource does not exist. */
+        /** @description The resource does not exist, or the caller cannot see it; the two are never told apart. */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -6888,6 +7922,7 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceAccountList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -6919,6 +7954,40 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteServiceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service account and its keys are deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -7017,6 +8086,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The account comes from the service-accounts file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -7085,6 +8163,32 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    removePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
     updatePersonRole: {
         parameters: {
             query?: never;
@@ -7143,6 +8247,320 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    deactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, deactivated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reactivatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, active. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listInvites: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of pending invites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description The pending invite for this email, with the new role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            /** @description The invite is created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Someone with this email has already signed in (`already_member`); change their role instead. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The email's domain is not in `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` (`email_domain_not_allowed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invite is withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every team. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description The team is created with no members. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A team with this name exists (`team_exists`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description 200 teams already exist (`too_many_teams`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    addTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team with its members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    removeTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The team with its members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     listOutboundDomains: {
         parameters: {
             query?: never;
@@ -7161,6 +8579,7 @@ export interface operations {
                     "application/json": components["schemas"]["OutboundDomainList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -7181,6 +8600,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description A Grafana connection had already added the domain, so it is now kept as an entry of its own and no longer leaves with the connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundDomain"];
+                };
+            };
             /** @description The domain is allowed. */
             201: {
                 headers: {
@@ -7193,7 +8621,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`). */
+            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain was already allowed by hand (`domain_exists`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7444,6 +8872,12 @@ export interface operations {
                 type?: components["schemas"]["ActivityType"][];
                 /** @description RFC 3339 time; only events created at or after it. */
                 since?: string;
+                /** @description RFC 3339 time; only events created at or before it. */
+                until?: string;
+                /** @description Only events made by this person or service account. */
+                actor_id?: string;
+                /** @description `admin` returns only the audit events, the administrative events and the public link events, and answers 403 `forbidden_role` to a caller who is not an Admin. */
+                scope?: "admin";
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
@@ -7617,7 +9051,7 @@ export interface operations {
                      * @description The end of a range annotation, not before `time_from`.
                      */
                     time_to?: string | null;
-                    /** @description 1 to 2000 characters once trimmed, without control or bidirectional override characters. */
+                    /** @description 1 to 2000 visible characters once trimmed, without control or bidirectional override characters. */
                     text: string;
                     tags?: string[];
                 };
@@ -7764,7 +9198,63 @@ export interface operations {
                     "application/json": components["schemas"]["DatasourceList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The datasource is saved and in use; credentials are not returned. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix), 100 datasources already exist (`too_many_datasources`), or the outbound allowlist is full (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -7780,6 +9270,7 @@ export interface operations {
             /** @description The visible folders. */
             200: {
                 headers: {
+                    ETag: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7788,6 +9279,8 @@ export interface operations {
                     };
                 };
             };
+            304: components["responses"]["NotModified"];
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -8044,8 +9537,8 @@ export interface operations {
                 q?: string;
                 /** @description Only dashboards in this folder; a folder that does not exist or that the caller cannot see gives an empty page, not an error. */
                 folder?: string;
-                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. */
-                order?: "updated" | "folder";
+                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. `views` sorts by `view_count`, most viewed first, then by most recent update. `name` sorts by lower-case title, then by id. */
+                order?: "updated" | "folder" | "views" | "name";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
                 /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them. The same rules as `GET /health`. */
@@ -8143,6 +9636,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -8364,12 +9858,14 @@ export interface operations {
             /** @description The dashboard summary and the requested version. */
             200: {
                 headers: {
+                    ETag: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardWithVersion"];
                 };
             };
+            304: components["responses"]["NotModified"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
@@ -8405,6 +9901,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    patchDashboardPanels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Complete panels matched by id; an existing id replaces that panel and keeps its position without `gridPos`, a new id adds one. */
+                    upsert?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Ids of panels to remove; a row only with all of its children. */
+                    delete?: string[];
+                    /** @description Moves of existing panels. */
+                    layout?: {
+                        id: string;
+                        gridPos?: {
+                            [key: string]: unknown;
+                        };
+                        /** @description Id of the row to move the panel into; an empty string moves it to the top level. */
+                        row?: string;
+                    }[];
+                    /** @description The complete variable list; replaces the existing one. */
+                    variables?: {
+                        [key: string]: unknown;
+                    }[];
+                    /** @description Dashboard-level values to replace; a key left out is kept. */
+                    dashboard?: {
+                        time?: {
+                            [key: string]: unknown;
+                        };
+                        title?: string;
+                        tags?: string[];
+                        links?: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                    summary: string;
+                    parent_version: number;
+                    /**
+                     * @description Save the change as a proposal when the caller can comment but not edit, or their connection is in propose mode, instead of answering 403.
+                     * @default false
+                     */
+                    propose_if_needed?: boolean;
+                    /**
+                     * @description Save a panel whose valid queries return no data for the dashboard's time range, which is refused as `query_empty` otherwise; the version lists the panel as unverified. A query that fails is still refused. Only a signed-in person may set it; a service-account key gets 403 `user_session_required`.
+                     * @default false
+                     */
+                    accept_empty?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The request repeats the latest version, so that version is returned. */
+            200: {
+                headers: {
+                    "Idempotent-Replay": "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The new version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardVersionSaved"];
+                };
+            };
+            /** @description The change became a proposal, or a revision of the caller's open one; no version was saved. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCreated"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -8499,6 +10093,8 @@ export interface operations {
         parameters: {
             query?: {
                 state?: "open" | "merged" | "discarded" | "all";
+                /** @description Only the proposal that the agent request with this id opened, which is how a run finds its proposal however many others the dashboard has; a value that is not a UUID is 400. */
+                run_id?: string;
                 limit?: number;
                 cursor?: string;
             };
@@ -8599,7 +10195,10 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    /** @description Why the proposal is discarded. */
+                    reason?: string;
+                };
             };
         };
         responses: {
@@ -8620,6 +10219,36 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    getDashboardViews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The count and the window it covers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        view_count: number;
+                        window_days: number;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     recordDashboardView: {
         parameters: {
             query?: never;
@@ -8637,6 +10266,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listDashboardViewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The people looking at the dashboard now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardViewers"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    reportDashboardViewer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The other people looking at the dashboard now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardViewers"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -8907,7 +10590,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            /** @description The dashboard, the version or the comment named by `parent_id` does not exist. */
+            /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -8917,7 +10600,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The panel id does not exist in that version's Spec (`unknown_panel`). */
+            /** @description The panel id does not exist in that version's Spec (`unknown_panel`), or a mention is refused: `invalid_mention` (a person who does not exist or cannot see the dashboard, an agent that is not the caller's own, or a service account that takes no runs), `too_many_mentions` or `too_many_agents`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9092,6 +10775,46 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    listMentionablePeople: {
+        parameters: {
+            query: {
+                /** @description The object the comment is on, as `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`. */
+                target: string;
+                /** @description Text to look for in the name or the email, ignoring case. Empty lists the first people by name. */
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The people, possibly none. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MentionablePeople"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `target` is not `<kind>:<id>` (`invalid_target`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     replyToThread: {
         parameters: {
             query?: never;
@@ -9203,6 +10926,65 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    markThreadRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The thread is read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The message, or the whole thread when it was the first message, is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller may not delete this message (`not_author`), or can no longer comment on the target (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -9391,6 +11173,216 @@ export interface operations {
             504: components["responses"]["QueryTimeout"];
         };
     };
+    testDatasource: {
+        parameters: {
+            query?: {
+                /** @description The uid of a saved app datasource to start from. */
+                base?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The result of the health check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource is removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceInUseError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasourceDraft"];
+            };
+        };
+        responses: {
+            /** @description The changed datasource; credentials are not returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or the new address is not allowed by the outbound allowlist (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_datasource`, with the fields to fix). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidDatasourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDatasourceConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The definition without credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceConfig"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The datasource is from the file (`datasource_read_only`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    recheckDatasource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The datasource's status after the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     lintDatasourceQuery: {
         parameters: {
             query?: never;
@@ -9488,7 +11480,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The datasource, dashboard or version does not exist (`not_found`), or the version has no panel `panel_id` (`panel_not_found`). */
+            /** @description The datasource, dashboard or version does not exist (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -9557,8 +11549,8 @@ export interface operations {
                     /** @description The browser's IANA time zone, used to resolve relative times such as `now/d`. */
                     timezone?: string;
                     /**
-                     * @description Range queries only.
-                     * @default 1000
+                     * @description Range queries only: the most points per series, 200 by default as for the `query_range` MCP tool. The step never falls below a Prometheus datasource's `scrapeInterval`.
+                     * @default 200
                      */
                     max_data_points?: number;
                     /** @description The most rows the query may return; lowers the 1,000 row limit. Cannot be sent with `page_size`. */
@@ -9570,8 +11562,10 @@ export interface operations {
                      * @default 1
                      */
                     page?: number;
-                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused. */
+                    /** @description The `next` or `prev` value of an earlier page of the same query. Needs `page_size`. A cursor from another datasource, query or range is refused, and so is one whose `sort` differs from the one sent with it. */
                     cursor?: string;
+                    /** @description A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first. */
+                    sort?: string;
                 };
             };
         };
@@ -9605,7 +11599,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; the body carries no `ref`. */
+            /** @description The query cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB) or `unknown_macro`; on Tempo also `time_range_in_future` for a range that starts after now and `time_range_too_long` for a range over Tempo's search limit, 7 days by default, with the limit in the text; the body carries no `ref`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10564,7 +12558,7 @@ export interface operations {
                     "application/json": components["schemas"]["CannotTranslate"];
                 };
             };
-            /** @description Too many drafts are in flight (`too_many_requests` for the caller, `agent_busy` for the server process). */
+            /** @description The caller has 3 drafts in flight or has used the 60 drafts of this clock hour (`too_many_requests`, and the message says which and how long to wait), or the server process has 10 in flight (`agent_busy`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -10630,6 +12624,75 @@ export interface operations {
                         metrics: components["schemas"]["MetricName"][];
                         truncated: boolean;
                     };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    getDatasourceSchema: {
+        parameters: {
+            query?: {
+                /** @description The table whose columns to list. */
+                table?: string;
+                /** @description How many items to skip, from a previous answer's `next_offset`. */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of tables, or of columns, or the Tempo services and span names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceTables"] | components["schemas"]["DatasourceColumns"] | components["schemas"]["DatasourceSpanSchema"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    getDatasourceSample: {
+        parameters: {
+            query?: {
+                table?: string;
+                /** @description Maximum rows to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` rows with their column names. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasourceSample"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -11091,6 +13154,8 @@ export interface operations {
                      * @description Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
                      */
                     observation_id?: string;
+                    /** @description The IANA time zone the person reads times in, such as `Asia/Kolkata`; the answer gives times in it, labelled. Without it times are UTC. */
+                    time_zone?: string;
                 };
             };
         };
@@ -11455,6 +13520,51 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    saveObserveRequestAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The answer was already an observation; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerSaved"];
+                };
+            };
+            /** @description The answer became an observation. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerSaved"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request has no answer to save (`no_answer`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     getBuildPanelData: {
         parameters: {
             query?: {
@@ -11670,8 +13780,8 @@ export interface operations {
             200: {
                 headers: {
                     Deprecation: components["headers"]["Deprecation"];
-                    /** @description `</api/v1/observations/{observation_id}>; rel="successor-version"` */
-                    Link: string;
+                    /** @description `</api/v1/observations/{observation_id}>; rel="successor-version"`, absent while the finding has no observation */
+                    Link?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11720,7 +13830,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`). */
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11870,9 +13980,17 @@ export interface operations {
             query?: {
                 folder_id?: string;
                 state?: components["schemas"]["ObservationState"];
+                /** @description Title text to look for, at most 200 characters; `%` and `_` match themselves. */
+                q?: string;
+                created_by?: "me";
+                sort?: "updated" | "created" | "title";
+                /** @description `desc` by default, and `asc` when `sort` is `title`. */
+                order?: "asc" | "desc";
                 limit?: number;
-                /** @description The `next_cursor` of the previous page. */
+                /** @description The `next_cursor` of the previous page. It works only with the default order and not with `offset`. */
                 cursor?: string;
+                /** @description How many matching observations to skip; the response then carries `total`. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -11959,6 +14077,32 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The observation and everything that belongs to it are deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["ObservationConflict"];
             500: components["responses"]["Internal"];
         };
     };
@@ -12220,6 +14364,149 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    pinObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinObservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The observation was already pinned to that dashboard; this is its annotation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            /** @description The annotation made for the observation. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationPin"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromObservation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this observation, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The observation has no live panel block (`observation_has_no_panels`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    makeDashboardFromBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MakeDashboardRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the caller already made from this block, with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
     keepObservationBlock: {
         parameters: {
             query?: never;
@@ -12451,7 +14738,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), or it changed while it was being published (`observation_changed`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12490,6 +14777,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    withdrawRca: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The revision is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The revision still has public links (`rca_shared`), or the observation's state does not allow it (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -12605,7 +14927,7 @@ export interface operations {
     listSavedSearches: {
         parameters: {
             query?: {
-                kind?: "logs" | "traces";
+                kind?: "logs" | "traces" | "metrics";
                 folder_id?: string;
                 limit?: number;
                 /** @description The `next_cursor` of the previous page. */
@@ -12645,6 +14967,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The search this key had already saved, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedSearchReplayed"];
+                };
+            };
             /** @description The saved search. */
             201: {
                 headers: {
@@ -12659,7 +14990,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
-            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`) or does not fit the kind (`unsupported_datasource`). */
+            /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13000,13 +15331,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The dashboard the request already created, when no import made it. */
+            /** @description The dashboard the request already created, when no import made it, or the updated dashboard with its import record when `update_dashboard` was given. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DashboardWithVersion"];
+                    "application/json": components["schemas"]["DashboardWithVersion"] | components["schemas"]["ImportedDashboard"];
                 };
             };
             /** @description The new dashboard, its first version and the import record. */
@@ -13023,6 +15354,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlreadyImported"] | components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The importer's codes as for the preview (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`, `invalid_mapping`), `datasources_unresolved` while a source datasource has no match (`datasources` lists every one, `candidates` the choices), or `invalid_spec` when the converted Spec cannot be saved (for example a NUL character; `issues` lists the problems). */
             422: {
@@ -13191,6 +15531,7 @@ export interface operations {
                     "application/json": components["schemas"]["GrafanaConnectionList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -13728,6 +16069,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebhookList"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
@@ -13925,6 +16267,42 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    skipWebhookEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The webhook after the skip and the attempt that records it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookSkipResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The webhook has no failing event to skip (`nothing_to_skip`), or is delivering right now (`webhook_busy`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
     listWebhookDeliveries: {
         parameters: {
             query?: {
@@ -14045,7 +16423,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -14078,7 +16456,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in person (`user_session_required`), or cannot see the dashboard (`forbidden_role`). */
+            /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -14119,6 +16497,107 @@ export interface operations {
                         }[];
                     };
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The home dashboard choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The choice after the write. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeDashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    clearHomeDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No home dashboard is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
@@ -14211,7 +16690,7 @@ export interface operations {
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), or the dashboard already has 20 links (`too_many_links`). */
+            /** @description The latest version reads the viewer's identity (`user_scoped`), `expires_at` is not in the future (`invalid_expiry`), `selections` names a variable the latest version does not declare (`unknown_variable`), a `free` link's `selections` holds a value that is not one of its variable's options (`selection_not_allowed`), or the dashboard already has 20 unexpired links (`too_many_links`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -14221,6 +16700,15 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+            /** @description A `free` link's selections could not be checked because a variable's options could not be read from its datasource (`variable_options_unavailable`); try again or create a `frozen` link. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     deletePublicLink: {
@@ -14888,6 +17376,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentsOverview"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description The caller is not a signed-in person (`user_session_required`). */
             403: {
@@ -15003,6 +17492,8 @@ export interface operations {
         parameters: {
             query?: {
                 view?: "for_you" | "everything" | "proposals" | "mentions";
+                /** @description `open`, the default, lists every item the caller has not marked done; `unread` lists the open items that are unread; `done` lists the items the caller marked done with `PUT /api/v1/inbox/items/{seq}`. A done item is read, never counts in `unread_count`, and stays done when the inbox is read. */
+                filter?: "open" | "unread" | "done";
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
@@ -15022,7 +17513,7 @@ export interface operations {
                     "application/json": components["schemas"]["InboxList"];
                 };
             };
-            /** @description The `view` is not one of the four (`invalid_view`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`). */
+            /** @description The `view` is not one of the four (`invalid_view`), the `filter` is not `open`, `unread` or `done` (`invalid_filter`), the `cursor` is not one this server issued (`invalid_cursor`), or the `limit` is not an integer from 1 to 100 (`invalid_limit`). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -15064,6 +17555,54 @@ export interface operations {
         };
         responses: {
             /** @description The inbox is read up to the event, or already was. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in person (`user_session_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No activity has that `seq` (`unknown_seq`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setInboxItemState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                seq: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    unread?: boolean;
+                    done?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The item is in the requested state. */
             204: {
                 headers: {
                     [name: string]: unknown;

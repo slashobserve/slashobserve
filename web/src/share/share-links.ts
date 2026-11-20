@@ -13,6 +13,10 @@ export type ShareOptions = { time: boolean; variables: boolean }
 
 const timeKeys = ["from", "to"]
 
+export function offersVariables(spec: Pick<Dashboard, "variables">): boolean {
+  return (spec.variables ?? []).length > 0
+}
+
 type LinkQuery = Record<string, string | string[] | number>
 
 function linkSearch(
@@ -86,4 +90,10 @@ export function panelShareUrl(
     ...linkSearch(search, options),
     panel: panelId,
   })
+}
+
+export function linkHint(personal: boolean): string {
+  return personal
+    ? "Only you can open this link until you publish the dashboard."
+    : 'Links need sign-in. Someone without access to the folder sees "Dashboard not found".'
 }

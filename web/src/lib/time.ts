@@ -23,6 +23,8 @@ const timeExpression = new RegExp(
   `^(now([+-][1-9][0-9]*[smhdwMy])?(\\/(fy|fQ|[smhdwMy]))?|${rfc3339Source})$`
 )
 const epochMillis = /^[0-9]{10,15}$/
+const epochSecondsLength = 10
+const earliestEpochMs = Date.UTC(2000, 0, 1)
 const relativeExpression =
   /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/(fy|fQ|[smhdwMy]))?$/
 const localDateTime =
@@ -32,26 +34,52 @@ export function isTimeValue(value: string): boolean {
   return timeExpression.test(value) || epochMillis.test(value)
 }
 
-export function parseUserTime(input: string): string | null {
-  const text = input.trim()
-  if (isTimeValue(text)) return text
+type UserTime = { value: string } | { problem: "invalid" | "early" }
+
+function localTimeMs(text: string, zone: string | undefined): number | null {
   const match = localDateTime.exec(text)
   if (!match) return null
   const [year, month, day, hour, minute, second] = match
     .slice(1)
     .map((part) => (part === undefined ? 0 : Number(part)))
-  const date = new Date(year, month - 1, day, hour, minute, second)
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute ||
-    date.getSeconds() !== second
-  ) {
-    return null
+  const ms =
+    zone === undefined
+      ? new Date(year, month - 1, day, hour, minute, second).getTime()
+      : fromLocal(zone, year, month - 1, day, hour, minute, second)
+  const wanted = `${match[1]}-${match[2]}-${match[3]} ${pad(hour)}:${pad(minute)}:${pad(second)}`
+  return Number.isNaN(ms) || zonedDateTime(ms, zone) !== wanted ? null : ms
+}
+
+function readUserTime(input: string, zone: string | undefined): UserTime {
+  const text = input.trim()
+  if (epochMillis.test(text)) {
+    const ms =
+      text.length === epochSecondsLength ? Number(text) * 1000 : Number(text)
+    return ms >= earliestEpochMs ? { value: String(ms) } : { problem: "early" }
   }
-  return String(date.getTime())
+  if (isTimeValue(text)) return { value: text }
+  const ms = localTimeMs(text, zone)
+  if (ms === null) return { problem: "invalid" }
+  return ms >= earliestEpochMs ? { value: String(ms) } : { problem: "early" }
+}
+
+export function parseUserTime(
+  input: string,
+  zone: string | undefined
+): string | null {
+  const read = readUserTime(input, zone)
+  return "value" in read ? read.value : null
+}
+
+export function userTimeProblem(
+  input: string,
+  zone: string | undefined
+): string | null {
+  const read = readUserTime(input, zone)
+  if ("value" in read) return null
+  return read.problem === "early"
+    ? "Times before the year 2000 are not accepted."
+    : "Enter a time like now-6h, now/d or 2026-10-17 09:00."
 }
 
 function pad(value: number): string {
@@ -108,6 +136,22 @@ export function displayZone(
   return zone === "utc" ? "UTC" : knownZone(zone)
 }
 
+export function isZoneChoice(zone: string): boolean {
+  return zone === "browser" || zone === "utc" || knownZone(zone) !== undefined
+}
+
+export function zoneChoices(): string[] {
+  const named = Intl.supportedValuesOf("timeZone").filter(
+    (zone) => zone !== "UTC"
+  )
+  return ["browser", "utc", ...named]
+}
+
+export function zoneChoiceLabel(zone: string): string {
+  if (zone === "browser") return "Browser time"
+  return zone === "utc" ? "UTC" : zone
+}
+
 type TimeUnit = "s" | "m" | "h" | "d" | "w" | "M" | "y"
 
 const unitNames: Record<TimeUnit, string> = {
@@ -136,6 +180,22 @@ function describeRelativeRange(from: string, to: string): string | null {
   return `Last ${durationText(count, match[3])}`
 }
 
+function agoText(value: string): string | null {
+  if (value === "now") return "now"
+  const match = /^now-([1-9][0-9]*)([smhdwMy])$/.exec(value)
+  if (!match) return null
+  const count = Number(match[1])
+  if (!Number.isSafeInteger(count) || count > maxRelativeCount) return null
+  if (!isTimeUnit(match[2])) return null
+  return `${durationText(count, match[2])} ago`
+}
+
+function describeAgoRange(from: string, to: string): string | null {
+  const start = agoText(from)
+  const end = agoText(to)
+  return start === null || end === null ? null : `${start} to ${end}`
+}
+
 function durationText(count: number, unit: TimeUnit): string {
   return `${count} ${unitNames[unit]}${count === 1 ? "" : "s"}`
 }
@@ -159,6 +219,7 @@ export function describeRange(
   return (
     quick?.label ??
     describeRelativeRange(from, to) ??
+    describeAgoRange(from, to) ??
     describeInstantRange(from, to) ??
     `${formatTimeValue(from)} to ${formatTimeValue(to)}`
   )
@@ -192,7 +253,16 @@ function describeInstantRange(from: string, to: string): string | null {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`
   const endText =
     day(start) === day(end) ? clock(end) : `${day(end)}, ${clock(end)}`
-  return `${day(start)}, ${clock(start)} to ${endText}`
+  return `${day(start)}, ${clock(start)} to ${endText} ${browserZoneName(end)}`
+}
+
+export function browserZoneName(at: Date): string {
+  const part = new Intl.DateTimeFormat(undefined, {
+    timeZoneName: "short",
+  })
+    .formatToParts(at)
+    .find((item) => item.type === "timeZoneName")
+  return part?.value ?? "local time"
 }
 
 const absoluteUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }
@@ -219,6 +289,13 @@ type TimeSettings = Pick<
 
 function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+export function agentZone(timezone: string | undefined): string {
+  if (timezone === "utc") return "UTC"
+  return timezone === "browser"
+    ? browserZone()
+    : (knownZone(timezone) ?? browserZone())
 }
 
 export function requestZone(timezone: string | undefined): string | undefined {
@@ -464,6 +541,20 @@ export function isAbsoluteOrdered(
   const end = resolveTime(to, now, true)
   if (Number.isNaN(start) || Number.isNaN(end)) return true
   return start < end
+}
+
+export const maxRangeDays = 400
+
+export function isRangeTooLong(
+  from: string,
+  to: string,
+  now = Date.now(),
+  options: TimeOptions = {}
+): boolean {
+  const start = resolveTime(from, now, false, options)
+  const end = resolveTime(to, now, true, options)
+  if (Number.isNaN(start) || Number.isNaN(end)) return false
+  return end - start > maxRangeDays * 86_400_000
 }
 
 const relativeUnits: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] =

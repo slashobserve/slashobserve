@@ -1,5 +1,10 @@
 import { createContext, useContext, useMemo } from "react"
-import { queryOptions, useQuery } from "@tanstack/react-query"
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -24,11 +29,45 @@ export function datasourcesQuery() {
   })
 }
 
+type DatasourceList = components["schemas"]["DatasourceList"]
+
+export function useRecheckDatasource() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (uid: string) =>
+      api
+        .POST("/datasources/{uid}/recheck", { params: { path: { uid } } })
+        .then(unwrap),
+    onSuccess: (status) =>
+      queryClient.setQueryData<DatasourceList>(datasourceKeys.list(), (list) =>
+        list === undefined
+          ? list
+          : {
+              datasources: list.datasources.map((datasource) =>
+                datasource.uid === status.uid ? status : datasource
+              ),
+            }
+      ),
+  })
+}
+
+const unhealthyPollMs = 15_000
+
+export function pollWhileUnhealthy(
+  list: DatasourceList | undefined
+): number | false {
+  return list?.datasources?.some((datasource) => !datasource.healthy)
+    ? unhealthyPollMs
+    : false
+}
+
 export function useDatasources() {
   const provided = useContext(ProvidedDatasources)
   const query = useQuery({
     ...datasourcesQuery(),
     staleTime: 60_000,
+    refetchInterval: (current) => pollWhileUnhealthy(current.state.data),
     enabled: provided === undefined,
   })
   const listed = useMemo(() => provided?.map(listedOnly), [provided])
@@ -40,6 +79,7 @@ function listedOnly(ref: DatasourceRef): DatasourceStatus {
     uid: ref.uid,
     type: ref.type,
     name: ref.uid,
+    source: "file",
     healthy: true,
     checked_at: "",
     dashboard_count: 0,

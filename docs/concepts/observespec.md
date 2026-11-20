@@ -25,8 +25,12 @@ Three choices in the format follow from how dashboards are used here:
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
 
-**Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing.
+**Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing, and **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI (see [Dashboards as code](../use/dashboards-as-code.md)).
 **Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
+**Edit Spec JSON** in the same menu opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
+It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`, and **Save as version N** saves it with the note you give, or "Edit the dashboard JSON", running every panel query as any whole-document save does.
+A version saved by someone else meanwhile is merged when it changed other things; when it changed the same things the pane lists them with **Reload version N**.
+Closing the pane with unsaved edits asks "Discard your JSON edits?".
 
 ## An example
 
@@ -196,6 +200,7 @@ The legend of a `timeseries` or `trend` panel:
 - hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
+A panel with one series shows its legend only when `legendValues` is not empty, since the legend then carries the values.
 
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series:
 
@@ -258,7 +263,7 @@ A `traces` panel filters the spans it draws.
 A span matches when it satisfies every filter that is set: `spanSearch` (text found, in any case, in its service, operation, id, attribute keys or attribute values), `serviceNames` and `spanNames` (the span's service or operation is one of the names, or none of them with `excludeServices` or `excludeSpanNames`, which compare whole names), and `minSpanDuration` and `maxSpanDuration` (milliseconds, ends included).
 The spans that do not match are dimmed and a note counts the matches, and `matchesOnly: true` hides them instead, keeping the indentation of the spans that stay.
 
-`criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out.
+`criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out; a span that ends after its parent, or starts after the parent ended, still counts.
 When both options are on, only the spans that match and sit on the critical path stay.
 The agent prompt does not list these options.
 
@@ -282,7 +287,7 @@ A timeline written without `fill` is opaque and one written without `lineWidth` 
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
 
-- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.
+- `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the field's name when it has a single row, else the row's time, else its row number.
 - `fields` picks the fields to show: a field name, or a pattern written between slashes such as `/^cpu/`, and `/.*/` for every field, text fields included.
   When `fields` is absent the panel shows the number fields.
   Time fields are never shown as values.
@@ -535,6 +540,8 @@ A name that is not known is left as written.
 ### Data links
 
 A link with `oneClick: true` is a data link on stat, gauge, bar gauge and table panels: when it is the only data link, the whole tile, bar, gauge or cell is the link.
+A link `url` is a relative address or starts with `http:`, `https:` or `mailto:`; any other scheme, `javascript:` and `data:` included, is refused with `unsafe_link` at `/links/N/url` (dashboard links) or at the `url` of the panel, override or canvas element link.
+A `url` that starts with a variable is checked when it is drawn, and a link whose address is unsafe then is not shown.
 A link `url` may use `${__url_time_range}`, which becomes `from=...&to=...` for the time range of the page, and `${__all_variables}`, which becomes `var-<name>=<value>` for every dashboard variable's selection (an All selection is written as `$__all`), next to `${name:queryparam}` for one variable.
 A link to `/dashboards/by-title?title=<title>` opens the one dashboard you can see with that title (an exact match first, else a match that differs only in case) and carries `from`, `to` and the `var-` parameters over; when several dashboards or none match, it opens the dashboards list filtered by the title.
 On those panels a field's actions show in the same menu after its links (a bar gauge shows its actions in a menu of their own), and a `oneClick` action that is the field's only link or action runs from the whole tile, gauge, bar or cell, after the same confirm dialog a menu item opens.

@@ -4,7 +4,6 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
 import { DashboardLoadError } from "@/dashboards/load-error"
-import { DashboardNoAccess } from "@/dashboards/no-access"
 import { DashboardNotFound } from "@/dashboards/not-found"
 import { DashboardPage } from "@/dashboards/dashboard-page"
 import { DashboardPageSkeleton } from "@/dashboards/dashboard-page-skeleton"
@@ -19,8 +18,10 @@ import {
   type DashboardSearchParams,
 } from "@/dashboards/search"
 import { useRecordRecent } from "@/home/recent"
+import { datasourcesQuery } from "@/datasources/queries"
 import { useRecordView } from "@/health/record-view"
 import { dashboardLink } from "@/lib/links"
+import { agentInfoQuery } from "@/observe/queries"
 
 export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
   validateSearch: (raw: Record<string, unknown>): DashboardSearchParams =>
@@ -38,6 +39,8 @@ export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
     version: validateDashboardSearch(search).version,
   }),
   loader: async ({ context, params, deps }) => {
+    void context.queryClient.prefetchQuery(datasourcesQuery())
+    void context.queryClient.prefetchQuery(agentInfoQuery())
     const latest = latestDashboardQuery(context.queryClient, params.dashboardId)
     if (deps.version === undefined) {
       await context.queryClient.ensureQueryData(latest)
@@ -58,13 +61,6 @@ export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
       (error.status === 404 || error.status === 400)
     ) {
       return <DashboardNotFound />
-    }
-    if (
-      error instanceof ApiError &&
-      error.status === 403 &&
-      error.code === "forbidden_role"
-    ) {
-      return <DashboardNoAccess />
     }
     return <DashboardRouteError error={error} reset={reset} />
   },

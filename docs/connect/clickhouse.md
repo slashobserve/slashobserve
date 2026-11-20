@@ -15,6 +15,13 @@ A ClickHouse entry takes the fields common to every datasource, described in the
 | `passwordEnv`, `passwordFile` | Exactly one is required.                                        |
 | `tls`                         | `true` to connect over TLS (TLS 1.2 or newer). Default `false`. |
 
+## Large numbers
+
+A result carries numbers as floating point, which holds integers exactly only up to 2^53.
+In a table, a column with an integer above 2^53 or a decimal whose whole part is above 2^53 comes back as a string column holding every digit.
+In a time series such a value is still plotted as a number, rounded, and the frame carries `meta.warning` saying so.
+Select the column as a string, for example `toString(id)`, to keep the digits in a series.
+
 ## ClickHouse needs a read-only user
 
 SlashObserve queries ClickHouse only as a user with `readonly = 2`, and it refuses a user that is not read-only.

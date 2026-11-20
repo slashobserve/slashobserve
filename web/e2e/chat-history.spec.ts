@@ -86,7 +86,11 @@ function historyList(requests: ListedRequest[], nextCursor: string | null) {
 }
 
 function isHistoryList(url: URL) {
-  return url.pathname === "/api/v1/observe" && !url.searchParams.has("source")
+  return (
+    url.pathname === "/api/v1/observe" &&
+    !url.searchParams.has("source") &&
+    !url.searchParams.has("chat_id")
+  )
 }
 
 async function mockHistoryList(

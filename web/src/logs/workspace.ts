@@ -6,8 +6,14 @@ import type { InputMode } from "@/ask/input-mode"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import type { TimeRangeValue } from "@/dashboards/time-range-picker"
 import type { DatasourceStatus } from "@/datasources/queries"
-import { defaultPageSize, pagesByOffset, type PageSize } from "@/lib/paging"
+import {
+  defaultPageSize,
+  lastReachablePage,
+  pagesByOffset,
+  type PageSize,
+} from "@/lib/paging"
 import { usePageCursors } from "@/lib/use-page-cursors"
+import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { exploreQuery } from "./explore"
@@ -68,7 +74,9 @@ export function useLogsResults({
   ])
   const cursors = usePageCursors(scope, byOffset)
   const requested = search.page ?? 1
-  const page = cursors.reachable(requested) ? requested : 1
+  const page = cursors.reachable(requested)
+    ? Math.min(requested, lastReachablePage(datasource.type, pageSize))
+    : 1
   const results = useQuery({
     ...exploreQuery(
       datasource.uid,
@@ -82,10 +90,14 @@ export function useLogsResults({
     ),
     enabled: query !== undefined,
   })
-  const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
+  const [lost, setLost] = useState<{
+    scope: string
+    page: number
+    landed: number
+  } | null>(null)
   if (page !== requested && lost?.scope !== scope) {
-    setLost({ scope, page: requested })
-  } else if (page === requested && requested !== 1 && lost !== null) {
+    setLost({ scope, page: requested, landed: page })
+  } else if (page === requested && lost !== null && requested !== lost.landed) {
     setLost(null)
   }
   const fresh =
@@ -97,7 +109,9 @@ export function useLogsResults({
   const { remember } = cursors
 
   useEffect(() => {
-    if (page !== requested) update({ page: undefined }, { replace: true })
+    if (page !== requested) {
+      update({ page: page === 1 ? undefined : page }, { replace: true })
+    }
   }, [page, requested, update])
 
   useEffect(() => {
@@ -131,7 +145,7 @@ export type LogsWorkspace = {
   update: (next: Partial<LogsSearch>, options?: { replace?: boolean }) => void
   draft: string
   setDraft: (text: string) => void
-  run: (text?: string, asked?: string) => void
+  run: (text?: string, asked?: string, alongside?: Partial<LogsSearch>) => void
   range: TimeRangeValue
   results: UseQueryResult<PanelDataResponse>
   paging: LogsPaging
@@ -147,6 +161,10 @@ export type LogsWorkspace = {
   focusQuery: () => void
   registerQueryFocus: (focus: () => void) => void
   labels: { open: boolean; setOpen: (open: boolean) => void }
+  levels: {
+    hidden: ReadonlySet<LogLevelKind>
+    setHidden: (next: ReadonlySet<LogLevelKind>) => void
+  }
   detail: LogDetailState
 }
 

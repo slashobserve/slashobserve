@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 
-import { api } from "./client"
+import { api, setRoleRefusedHandler } from "./client"
 import { NetworkError } from "./errors"
 
 const baseUrl = "http://localhost/api/v1"
@@ -20,5 +20,24 @@ describe("api client", () => {
     const abort = new DOMException("aborted", "AbortError")
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abort))
     await expect(api.GET("/auth/session", { baseUrl })).rejects.toBe(abort)
+  })
+
+  test("tells the role handler about a forbidden_role refusal and no other 403", async () => {
+    const handler = vi.fn()
+    setRoleRefusedHandler(handler)
+    const reply = (body: object) =>
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    vi.stubGlobal("fetch", reply({ error: "no", code: "csrf_rejected" }))
+    await api.GET("/auth/session", { baseUrl })
+    expect(handler).not.toHaveBeenCalled()
+    vi.stubGlobal("fetch", reply({ error: "no", code: "forbidden_role" }))
+    await api.GET("/auth/session", { baseUrl })
+    expect(handler).toHaveBeenCalledTimes(1)
+    setRoleRefusedHandler(() => {})
   })
 })

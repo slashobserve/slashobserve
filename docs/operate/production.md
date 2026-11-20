@@ -20,10 +20,17 @@ That address matters beyond links:
 - It is the trusted origin for the cross-origin check on cookie-authenticated writes.
 
 Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
-It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
+It is a Server-Sent Events stream that sends a ping every 15 seconds, tells the page within 5 seconds when the person's own role changes, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
 The server ignores `X-Forwarded-For`.
+
+Serve the proxy over HTTP/2.
+The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).
+Over HTTP/2 they load in one wave.
+Files under `/assets/` ship brotli-compressed at build time and the server sends that copy to a browser that accepts `br`, which makes the largest file, the shared vendor chunk, about 19 percent smaller than gzip (200 KB against 246 KB); every other response is compressed with gzip.
+A proxy that recompresses responses must pass `Content-Encoding: br` through and key its cache on `Accept-Encoding`, which the server lists in `Vary`.
+Files under `/assets/` carry a content hash in their name and `Cache-Control: immutable`, so a proxy can cache them for a year.
 
 ## Health endpoints
 

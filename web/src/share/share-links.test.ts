@@ -4,7 +4,13 @@ import { parseSearch } from "@/lib/search"
 
 import type { Panel } from "@/spec"
 
-import { dashboardShareUrl, panelChoices, panelShareUrl } from "./share-links"
+import {
+  dashboardShareUrl,
+  linkHint,
+  offersVariables,
+  panelChoices,
+  panelShareUrl,
+} from "./share-links"
 
 const origin = "https://observe.example.com"
 const search = {
@@ -164,5 +170,31 @@ describe("panelShareUrl", () => {
     expect(panelShareUrl(origin, shop, "p99", search, neither)).toBe(
       `${origin}/d/dash-1/shop-health?panel=p99`
     )
+  })
+})
+
+describe("linkHint", () => {
+  it("tells the sharer a recipient without access sees the not found page", () => {
+    expect(linkHint(false)).toBe(
+      'Links need sign-in. Someone without access to the folder sees "Dashboard not found".'
+    )
+  })
+
+  it("says only the owner can open a link to a personal dashboard", () => {
+    expect(linkHint(true)).toBe(
+      "Only you can open this link until you publish the dashboard."
+    )
+  })
+})
+
+describe("offersVariables", () => {
+  it("offers the option only when the dashboard declares a variable", () => {
+    expect(offersVariables({})).toBe(false)
+    expect(offersVariables({ variables: [] })).toBe(false)
+    expect(
+      offersVariables({
+        variables: [{ name: "env", type: "custom", options: ["a"] }],
+      })
+    ).toBe(true)
   })
 })

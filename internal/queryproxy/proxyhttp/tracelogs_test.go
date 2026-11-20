@@ -176,7 +176,7 @@ func TestTraceLogsRejectInvalidBodies(t *testing.T) {
 		{"limit 0", map[string]any{"trace_id": traceID, "from": exploreFrom, "to": exploreTo, "limit": 0}, "limit must be from 1 to 1000"},
 		{"limit 1001", map[string]any{"trace_id": traceID, "from": exploreFrom, "to": exploreTo, "limit": 1001}, "limit must be from 1 to 1000"},
 		{"from after to", map[string]any{"trace_id": traceID, "from": exploreTo, "to": exploreFrom}, "invalid request: from must be before to"},
-		{"unknown field", map[string]any{"trace_id": traceID, "from": exploreFrom, "to": exploreTo, "query": "x"}, "request body must be valid JSON with known fields"},
+		{"unknown field", map[string]any{"trace_id": traceID, "from": exploreFrom, "to": exploreTo, "query": "x"}, `unknown field "query"; remove it or check the field names in the API reference`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -24,7 +24,7 @@ The panel starts with the first three words of the prompt as the name and the wh
 
 A name is 1 to 64 characters: letters, numbers, spaces, `-` and `_`, starting and ending with a letter or number.
 Runs of spaces collapse to one.
-The text is 1 to 4000 characters and cannot contain control characters other than newlines and tabs, or the bidirectional override characters.
+The text is 1 to 4000 characters with at least one visible character, and cannot contain control characters other than newlines and tabs, or the bidirectional override characters; see [Text rules](../reference/text-rules.md).
 A name is unique among your own prompts and among shared prompts, ignoring case, so you cannot share a prompt whose name another shared prompt already has.
 A person can keep 100 prompts.
 
@@ -60,14 +60,14 @@ An Admin can also edit and delete any shared prompt, but cannot see another pers
 
 ## Who can use them
 
-| Role      | Saved prompts                                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Admin     | Create, run and change their own, and change or delete any shared prompt.                                                |
-| Editor    | Create, run and change their own, and run shared prompts.                                                                |
-| Commenter | List and run shared prompts. Cannot create, change or delete one: the API refuses it and the web app has no Save button. |
-| Viewer    | List and run shared prompts. Cannot create, change or delete one: the API refuses it and the web app has no Save button. |
+| Role      | Saved prompts                                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin     | Create, run and change their own, and change or delete any shared prompt.                                                               |
+| Editor    | Create, run and change their own, and run shared prompts.                                                                               |
+| Commenter | See and run shared prompts, which start a dashboard in their own My Dashboards. The API refuses a change. |
+| Viewer    | See and run shared prompts, which start a dashboard in their own My Dashboards. The API refuses a change. |
 
-Running a prompt starts a chat like any other: a new dashboard goes to your My Dashboards, where only you see it until you publish it (see [Chat](../use/chat.md)).
-There is no note on the chat page for a Commenter or a Viewer: the list is the same for every role.
+Running a prompt starts a new dashboard, which needs Edit on some folder, and every person has Edit on their own My Dashboards (see [Roles](roles.md) and [Folders and access](folders.md)).
+A Commenter or Viewer therefore sees and runs every shared prompt, and keeps no prompts of their own.
 Creating and editing prompts stays with Editors and Admins.
 A key can run shared prompts with `observe run` when its service account is an Editor or Admin.

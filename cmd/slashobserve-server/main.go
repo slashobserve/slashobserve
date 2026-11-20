@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -31,8 +32,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
+	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/discoveryhttp"
+	"github.com/slashobserve/slashobserve/internal/draftbudget"
 	"github.com/slashobserve/slashobserve/internal/drafthttp"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
@@ -43,6 +47,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/health"
+	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/links"
@@ -73,6 +78,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
 	"github.com/slashobserve/slashobserve/internal/threads"
 	"github.com/slashobserve/slashobserve/internal/users"
+	"github.com/slashobserve/slashobserve/internal/viewers"
 	"github.com/slashobserve/slashobserve/internal/webhooks"
 )
 
@@ -206,6 +212,18 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
+func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
+	}
+	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
+		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+	}); err != nil {
+		return serviceAccountsExit(err)
+	}
+	return nil
+}
+
 func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Queries, logger *slog.Logger) (*auth.Service, error) {
 	rolePolicy, err := rolePolicyOf(cfg)
 	if err != nil {
@@ -216,7 +234,7 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		IssuerURL:           cfg.OIDCIssuerURL,
 		InternalURL:         cfg.OIDCInternalURL,
 		ClientID:            cfg.OIDCClientID,
-		ClientSecret:        cfg.OIDCClientSecret,
+		ClientSecret:        cfg.OIDCClientSecret.Reveal(),
 		SessionTTL:          cfg.SessionTTL,
 		AllowedEmailDomains: cfg.AllowedEmailDomains,
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
@@ -228,9 +246,6 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 		return nil, withheld("auth_setup_failed", err)
 	}
 	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
-	if err := service.ReconcileRoles(ctx); err != nil {
-		return nil, withheld("role_reconcile_failed", err)
-	}
 	if cfg.AllowAnyEmailDomain {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
@@ -305,10 +320,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
-		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
-	}); err != nil {
-		return serviceAccountsExit(err)
+	authService.RecordChanges(database, activity.AuthChanges{})
+	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+		return err
 	}
 
 	folderAccess := folders.NewAccess(database)
@@ -329,22 +343,25 @@ func run() error {
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger)
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService))
 	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}
-	findingURL := func(f findings.Finding) string { return links.Observation(cfg.PublicURL, f.ObservationID) }
-	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService))
+	findingURL := savedFindingURL(cfg.PublicURL)
+	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
+	viewersService := viewers.New(database)
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
+	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
 	observeOpts := revisions.ObserveOptions{
 		DashboardURL:   func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		ObservationURL: func(id string) string { return links.Observation(cfg.PublicURL, id) },
 		Finding:        findingOfRequest(findingsService, findingURL),
+		SaveAnswer:     saveAnswerOf(findingsService),
 		LiveText:       liveText.Text,
 	}
 	revisionOpts := []revisions.Option{
@@ -369,30 +386,35 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
+	var startHealthRun func()
 	toolRegistry := tools.New(tools.Deps{
-		Datasources:   registry,
-		Runner:        runner,
-		Dashboards:    dashboardsService,
-		Threads:       threadsService,
-		Mentions:      mentionRuns,
-		Proposals:     proposalsService,
-		Imports:       importsService,
-		Folders:       folderAccess,
-		Findings:      findingsService,
-		Observations:  observationsService,
-		SavedSearches: savedSearchesService,
-		Health:        healthService,
-		Annotations:   annotationsService,
-		Activity:      activityStore,
-		Runs:          revisions.NewRunReader(queue, observeOpts),
-		Claims:        claimsService,
-		RunSessions:   runSessions,
-		LiveText:      liveText,
-		Search:        searchService,
-		Stars:         stars.New(database, folderAccess),
-		Provider:      llmProvider,
-		PublicURL:     cfg.PublicURL,
-		Logger:        logger,
+		StartHealthRun: func() { startHealthRun() },
+		Datasources:    registry,
+		Runner:         runner,
+		Dashboards:     dashboardsService,
+		Threads:        threadsService,
+		Mentions:       mentionRuns,
+		Proposals:      proposalsService,
+		Imports:        importsService,
+		Folders:        folderAccess,
+		Findings:       findingsService,
+		Observations:   observationsService,
+		SavedSearches:  savedSearchesService,
+		Health:         healthService,
+		Annotations:    annotationsService,
+		Activity:       activityStore,
+		Runs:           revisions.NewRunDesk(queue, observeOpts),
+		Claims:         claimsService,
+		RunSessions:    runSessions,
+		LiveText:       liveText,
+		Search:         searchService,
+		Stars:          stars.New(database, folderAccess),
+		Viewers:        viewersService,
+		Home:           homedash.New(database, folderAccess),
+		Provider:       llmProvider,
+		DraftBudget:    draftbudget.New(database),
+		PublicURL:      cfg.PublicURL,
+		Logger:         logger,
 	})
 
 	if llmProvider != nil {
@@ -422,6 +444,7 @@ func run() error {
 	defer stopScheduler()
 	healthCtx, stopHealthRuns := context.WithCancel(ctx)
 	healthHandler := health.NewHandler(healthCtx, healthService, health.NewRepairs(healthService, revisionsService), jobs)
+	startHealthRun = healthHandler.StartRun
 	defer func() {
 		stopHealthRuns()
 		healthHandler.Wait()
@@ -443,20 +466,30 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
+	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
+		DB: database, Registry: registry, Slots: slots, Key: sealed.Key(cfg.SecretKey.Reveal()),
+		Domains: outbound, OutboundLocked: cfg.OutboundDomainsLocked, Access: folderAccess, Logger: logger,
+	})
+	if err := datasourceAdmin.Load(ctx); err != nil {
+		return withheld("datasources_load_failed", err)
+	}
+	stopDatasourceSync := startBackground(ctx, "datasource sync", datasourceAdmin.Run, logger)
+	defer stopDatasourceSync()
+
 	grafanaCtx, stopGrafana := context.WithCancel(ctx)
 	grafanaService := grafanaconn.New(grafanaCtx, grafanaconn.Deps{
 		DB: database, Egress: egressClient, Domains: outbound, Imports: importsService, Access: folderAccess,
-		Principals: authService, InstanceID: serverID, SecretKey: cfg.SecretKey, Logger: logger,
+		Principals: authService, InstanceID: serverID, SecretKey: []byte(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
-		DB: database, Activity: activityStore, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey), Logger: logger,
+		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
 	stopWebhooks := startBackground(ctx, "webhook worker", webhooks.NewWorker(webhooks.WorkerDeps{
-		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey),
+		DB: database, Activity: activityStore, Principals: authService, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()),
 		Followers: broker, InstanceID: serverID, Logger: logger,
 	}).Run, logger)
 	defer stopWebhooks()
@@ -486,9 +519,9 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			findings.NewHandler(findingsService, findingURL, logger),
-			observations.NewHandler(observationsService, logger),
+			observations.NewHandler(observationsService, logger, observations.WithPanelChecker(toolRegistry)),
 			observations.NewRCAHandler(observationsService, logger),
-			savedsearches.NewHandler(savedSearchesService, logger),
+			savedsearches.NewHandler(savedSearchesService, logger, savedsearches.WithSaveGuard(toolRegistry)),
 			proxyhttp.NewFindingData(proxyHandler, findingsService),
 			proxyhttp.NewObservationData(proxyHandler, observationsService),
 			users.NewHandler(database, authService, folderAccess, logger),
@@ -500,10 +533,14 @@ func run() error {
 			annotationsHandler,
 			dashprovision.NewHandler(provisioner, logger),
 			stars.NewHandler(stars.New(database, folderAccess), folderAccess.RequireDashboard(folders.NeedView), logger),
+			viewers.NewHandler(viewersService, folderAccess, logger),
+			homedash.NewHandler(homedash.New(database, folderAccess), logger),
 			publicLinksHandler,
 			dashprovision.NewApplyHandler(dashprovision.NewApplier(database, dashboardsService, folderAccess), logger),
 			healthHandler,
 			drafthttp.NewHandler(toolRegistry, logger),
+			discoveryhttp.NewHandler(toolRegistry, logger),
+			datasourceadmin.NewHandler(datasourceAdmin, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},
@@ -531,6 +568,15 @@ func run() error {
 	return nil
 }
 
+func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
+	return func(f findings.Finding) string {
+		if !f.Saved() {
+			return ""
+		}
+		return links.Observation(publicURL, f.ObservationID)
+	}
+}
+
 func findingOfRequest(service *findings.Service, findingURL func(f findings.Finding) string) func(context.Context, auth.Principal, pgtype.UUID) (json.RawMessage, bool, error) {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
 		f, found, err := service.ForRequest(ctx, by, requestID)
@@ -539,6 +585,21 @@ func findingOfRequest(service *findings.Service, findingURL func(f findings.Find
 		}
 		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f)))
 		return raw, err == nil, err
+	}
+}
+
+func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
+	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
+		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
+		switch {
+		case errors.Is(err, findings.ErrNotFound):
+			return revisions.SavedAnswer{}, revisions.ErrNoAnswer
+		case errors.Is(err, findings.ErrRequesterOnly):
+			return revisions.SavedAnswer{}, revisions.ErrNotRequester
+		case err != nil:
+			return revisions.SavedAnswer{}, err
+		}
+		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
 	}
 }
 

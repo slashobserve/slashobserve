@@ -402,10 +402,15 @@ func (hn *harness) previewAs(kind auth.PrincipalKind, uid string, edit func(*spe
 	if edit != nil {
 		edit(&panel)
 	}
+	return hn.previewPanel(kind, uid, "p_ts", panel)
+}
+
+func (hn *harness) previewPanel(kind auth.PrincipalKind, uid, panelID string, panel spec.Panel) *httptest.ResponseRecorder {
+	hn.t.Helper()
 	body, err := json.Marshal(map[string]any{
 		"dashboard_id": hn.id.String(),
 		"version":      1,
-		"panel_id":     "p_ts",
+		"panel_id":     panelID,
 		"panel":        panel,
 		"from":         "1760000000123",
 		"to":           "1760021600456",
@@ -489,6 +494,27 @@ func holdPrincipalSlots(t *testing.T, hn *harness, principal string) {
 		}
 		t.Cleanup(release)
 	}
+}
+
+func TestPreviewAddsAPanelTheVersionDoesNotHave(t *testing.T) {
+	hn := newPreviewHarness(t)
+	added := spec.Panel{ID: "p_new", Type: spec.Timeseries, Title: "new", Datasource: "prom", GridPos: spec.GridPos{Y: 8, W: 12, H: 8}, Queries: []spec.Query{{Query: "up"}}}
+	if rec := hn.previewPanel(auth.KindUser, "prom", "p_new", added); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 1 {
+		t.Fatalf("the datasource ran %d queries, want only the new panel's", ranges)
+	}
+
+	rec := hn.previewPanel(auth.KindUser, "prom", "p_other", added)
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got := decodeError(t, rec).Error; got != "the panel's id must be p_other" {
+		t.Fatalf("message = %q", got)
+	}
+
+	overlapping := added
+	overlapping.GridPos.Y = 0
+	expectError(t, hn.previewPanel(auth.KindUser, "prom", "p_new", overlapping), http.StatusUnprocessableEntity, "invalid_spec")
 }
 
 func TestPreviewRefusesAQueryOverridingTheDatasource(t *testing.T) {
@@ -1917,7 +1943,7 @@ func TestPanelDataAndVariableValuesNeedViewOnTheDashboard(t *testing.T) {
 	}
 }
 
-func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
+func TestPreviewNeedsCommentOnTheDashboard(t *testing.T) {
 	cases := []struct {
 		name       string
 		abilities  folders.Abilities
@@ -1925,8 +1951,9 @@ func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
 		wantStatus int
 		wantCode   string
 	}{
-		{"viewer may not preview", folders.Abilities{View: true, Comment: true}, nil, http.StatusForbidden, "forbidden_role"},
-		{"viewer with an edit grant may preview", folders.Abilities{View: true, Edit: true}, nil, http.StatusOK, ""},
+		{"viewer may not preview", folders.Abilities{View: true}, nil, http.StatusForbidden, "forbidden_role"},
+		{"commenter may preview to suggest an edit", folders.Abilities{View: true, Comment: true}, nil, http.StatusOK, ""},
+		{"editor may preview", folders.Abilities{View: true, Comment: true, Edit: true}, nil, http.StatusOK, ""},
 		{"hidden dashboard is not found", folders.Abilities{}, folders.ErrNoAccess, http.StatusNotFound, "not_found"},
 		{"missing dashboard is not found", folders.Abilities{}, folders.ErrNotFound, http.StatusNotFound, "not_found"},
 		{"role without access is forbidden", folders.Abilities{}, folders.ErrForbidden, http.StatusForbidden, "forbidden_role"},
@@ -2114,4 +2141,58 @@ func TestBuildPanelThatDoesNotExistIsPanelNotFound(t *testing.T) {
 	hn := newHarness(t)
 	hn.withBuild(testDashboard())
 	expectError(t, hn.buildGet("/panels/missing/data?"+window, auth.KindUser), http.StatusNotFound, "panel_not_found")
+}
+
+func TestTimeSeriesPanelDataKeepsTheHighestSeriesAndSaysSo(t *testing.T) {
+	hn := newHarness(t)
+	total := queryproxy.MaxPanelSeries + 30
+	hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		frames := make([]datasource.Frame, total)
+		for i := range frames {
+			frames[i] = datasource.Frame{Labels: map[string]string{"route": strconv.Itoa(i)}, Fields: []datasource.Field{
+				{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000000)}},
+				{Name: "Value", Type: datasource.FieldNumber, Values: []any{float64(i)}},
+			}}
+		}
+		return frames, nil
+	}
+	body := decodeData(t, hn.get(hn.dataPath("p_ts", window+"&var-job=api"), ""))
+	var frames []struct {
+		Labels map[string]string `json:"labels"`
+	}
+	if err := json.Unmarshal(body.Frames, &frames); err != nil {
+		t.Fatal(err)
+	}
+	if len(frames) != queryproxy.MaxPanelSeries || frames[0].Labels["route"] != "30" {
+		t.Fatalf("%d frames, first route %q", len(frames), frames[0].Labels["route"])
+	}
+	if body.Meta.SeriesShown != queryproxy.MaxPanelSeries || body.Meta.SeriesTotal != total || !body.Meta.Partial {
+		t.Fatalf("meta = %+v", body.Meta)
+	}
+	if body.Meta.Note != queryproxy.SeriesCapNote(queryproxy.MaxPanelSeries, total) {
+		t.Fatalf("note = %q", body.Meta.Note)
+	}
+}
+
+func TestTablePanelDataIsNotCappedBySeries(t *testing.T) {
+	hn := newHarness(t)
+	total := queryproxy.MaxPanelSeries + 30
+	hn.ds.onInstant = func(context.Context, datasource.TimeRange) ([]datasource.Frame, error) {
+		frames := make([]datasource.Frame, total)
+		for i := range frames {
+			frames[i] = datasource.Frame{Fields: []datasource.Field{
+				{Name: "Time", Type: datasource.FieldTime, Values: []any{time.UnixMilli(1760000000000)}},
+				{Name: "Value", Type: datasource.FieldNumber, Values: []any{float64(i)}},
+			}}
+		}
+		return frames, nil
+	}
+	body := decodeData(t, hn.get(hn.dataPath("p_tbl", window+"&var-job=api"), ""))
+	var frames []json.RawMessage
+	if err := json.Unmarshal(body.Frames, &frames); err != nil {
+		t.Fatal(err)
+	}
+	if len(frames) != total || body.Meta.SeriesTotal != 0 || body.Meta.Partial {
+		t.Fatalf("%d frames, meta %+v", len(frames), body.Meta)
+	}
 }

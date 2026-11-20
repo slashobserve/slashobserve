@@ -49,6 +49,7 @@ import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
 import { useExploreSources } from "@/datasources/use-sources"
+import { foldersQuery } from "@/folders/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import {
   defaultPageSize,
@@ -57,15 +58,17 @@ import {
   type PageSize,
 } from "@/lib/paging"
 import { isModEnter } from "@/lib/shortcuts"
+import { tracesLink } from "@/lib/links"
 import { lowerFirst } from "@/lib/text"
 import { describeRange } from "@/lib/time"
+import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { usePageCursors } from "@/lib/use-page-cursors"
 import { cn } from "@/lib/utils"
 import { exploreErrorText, exploreQuery, offlineText } from "@/logs/explore"
 import { ExploreFailure } from "@/logs/explore-failure"
 import { usePhone } from "@/logs/logs-results"
 import { useAgentInfo } from "@/observe/queries"
-import { tracesDraft } from "@/saved-searches/draft"
+import { saveBlockedText, tracesDraft } from "@/saved-searches/draft"
 import { savedSearchLocation } from "@/saved-searches/links"
 import { savedSearchesQuery } from "@/saved-searches/queries"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
@@ -73,10 +76,19 @@ import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
 import { loadProblemText } from "@/service-accounts/queries"
 import { TopRowActions } from "@/shell/top-row-actions"
 
+import { AddToDashboardAction } from "./add-to-dashboard-action"
+import { AddToObservationAction } from "./add-to-observation-action"
 import { traceSearchFromAnswer } from "./ask-answer"
 import { ComparePanel } from "./compare-panel"
 import type { Selection } from "./scatter"
-import { tracesTimeRange, type TraceSearch } from "./search"
+import {
+  askAfterSubmit,
+  changesQuery,
+  linkWithoutPage,
+  rangeInFuture,
+  tracesTimeRange,
+  type TraceSearch,
+} from "./search"
 import {
   attributeFilter,
   keepSelectionSearch,
@@ -86,15 +98,20 @@ import {
 } from "./search-query"
 import { isRelativeRange, liveBlockedText, liveRefreshMs } from "./live-refresh"
 import { traceFilterChips } from "./trace-filters"
+import { tracePanelQuery, tracePanelTitle, tracesPanelFor } from "./trace-panel"
+import { shorterRange, traceQLProblem } from "./trace-query-problem"
 import { TraceSearchForm } from "./trace-search-form"
 import { durationText, traceRows, type TraceRow } from "./trace-rows"
 import {
   histogramPercentile,
   p95Label,
+  noTracesText,
   partialNote,
+  partialReason,
   traceStatsQuery,
 } from "./trace-stats"
-import { TraceTable } from "./trace-table"
+import { decodeSort, encodeSort } from "./trace-rows"
+import { TraceTable, type TraceSortControl } from "./trace-table"
 
 const skeletonRows = [0, 1, 2, 3, 4]
 const askPlaceholder =
@@ -145,6 +162,8 @@ export function TracesPage({ uid }: { uid: string }) {
     }
   }, [rememberedUid])
   const range = tracesTimeRange(search)
+  const folders = useQuery(foldersQuery())
+  const saveBlocked = saveBlockedText(folders.data)
   const [saving, setSaving] = useState(false)
   const [live, setLive] = useState(false)
   const saveTrigger = useRef<HTMLButtonElement>(null)
@@ -189,6 +208,18 @@ export function TracesPage({ uid }: { uid: string }) {
         <p className="text-[13px] text-muted-foreground">
           No trace source has the uid {uid}.
         </p>
+        <ul className="mt-2 flex flex-col gap-1 text-[13px]">
+          {sources.map((source) => (
+            <li key={source.uid}>
+              <Link
+                {...tracesLink(source.uid)}
+                className="underline underline-offset-3"
+              >
+                Open {source.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
         <Link
           to="/traces"
           className="mt-2 inline-block text-[13px] underline underline-offset-3"
@@ -209,6 +240,12 @@ export function TracesPage({ uid }: { uid: string }) {
         live={live}
         onLiveChange={setLive}
         saveTrigger={saveTrigger}
+        saveBlocked={saveBlocked}
+        shareHref={
+          datasource.type === "tempo"
+            ? linkWithoutPage(window.location.href)
+            : window.location.href
+        }
         onSave={() => setSaving(true)}
       />
       <SaveSearchDialog
@@ -233,9 +270,9 @@ export function TracesPage({ uid }: { uid: string }) {
   )
 }
 
-async function copyLink() {
+async function copyLink(href: string) {
   try {
-    await navigator.clipboard.writeText(window.location.href)
+    await navigator.clipboard.writeText(href)
     toast.success("Link copied")
   } catch {
     toast.error("Could not copy. Select the text and press Ctrl+C or Cmd+C.")
@@ -275,6 +312,8 @@ function TraceSearchActions({
   live,
   onLiveChange,
   saveTrigger,
+  saveBlocked,
+  shareHref,
   onSave,
 }: {
   range: { from: string; to: string }
@@ -282,6 +321,8 @@ function TraceSearchActions({
   live: boolean
   onLiveChange: (next: boolean) => void
   saveTrigger: RefObject<HTMLButtonElement | null>
+  saveBlocked: string | undefined
+  shareHref: string
   onSave: () => void
 }) {
   const phone = usePhone()
@@ -302,7 +343,7 @@ function TraceSearchActions({
           onClick={() => onLiveChange(!live)}
         >
           <RadioIcon aria-hidden="true" />
-          {live ? "Stop live" : "Live"}
+          {live ? "Stop live tail" : "Live tail"}
         </Button>
         {phone ? (
           <DropdownMenu>
@@ -320,7 +361,12 @@ function TraceSearchActions({
               <MoreHorizontalIcon aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem className="min-h-11" onClick={onSave}>
+              <DropdownMenuItem
+                className="min-h-11"
+                disabled={saveBlocked !== undefined}
+                title={saveBlocked}
+                onClick={onSave}
+              >
                 <BookmarkIcon aria-hidden="true" />
                 Save search
               </DropdownMenuItem>
@@ -335,7 +381,7 @@ function TraceSearchActions({
               </DropdownMenuSub>
               <DropdownMenuItem
                 className="min-h-11"
-                onClick={() => void copyLink()}
+                onClick={() => void copyLink(shareHref)}
               >
                 <LinkIcon aria-hidden="true" />
                 Copy link
@@ -350,13 +396,15 @@ function TraceSearchActions({
               ref={saveTrigger}
               type="button"
               variant="ghost"
+              disabled={saveBlocked !== undefined}
+              title={saveBlocked}
               onClick={onSave}
             >
               <BookmarkIcon aria-hidden="true" />
               <span className="@max-[780px]/top:sr-only">Save search</span>
             </Button>
             <CopyButton
-              text={window.location.href}
+              text={shareHref}
               label="Copy link"
               variant="ghost"
               size="icon"
@@ -450,7 +498,7 @@ function TraceSearchWorkspace({
     event.currentTarget.querySelector("form")?.requestSubmit()
   }
 
-  const answered = ask.answer !== null || ask.fromQuestion !== null
+  const answered = search.ask !== undefined
 
   const chips = traceFilterChips(search)
   const explanation = ask.answer?.explanation ?? ""
@@ -558,7 +606,7 @@ function TraceSearchWorkspace({
                 value={search}
                 onSubmit={(next) => {
                   ask.clearProblem()
-                  update(next)
+                  update({ ...next, ask: askAfterSubmit(search, next) })
                 }}
                 serviceRef={serviceRef}
               />
@@ -577,9 +625,9 @@ function TraceSearchWorkspace({
               <span className="text-xs text-muted-foreground">
                 or press Ctrl+Enter or Cmd+Enter
               </span>
-              {ask.fromQuestion !== null ? (
+              {search.ask !== undefined ? (
                 <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  From: {ask.fromQuestion}
+                  From: {search.ask}
                 </span>
               ) : null}
               {answered || ask.problem !== null ? (
@@ -617,7 +665,12 @@ function TraceSearchWorkspace({
       <TraceResults
         datasource={datasource}
         search={search}
-        update={update}
+        update={(next, options) => {
+          if (changesQuery(next)) {
+            setMode("code", false)
+            update({ ask: undefined, ...next }, options)
+          } else update(next, options)
+        }}
         live={live}
       />
     </>
@@ -648,6 +701,7 @@ function TraceResults({
   live: boolean
 }) {
   const range = tracesTimeRange(search)
+  const [openedAt] = useState(Date.now)
   const polling = {
     refetchInterval: liveRefreshMs(live, range),
     refetchIntervalInBackground: false,
@@ -664,6 +718,7 @@ function TraceResults({
     base.from,
     base.to,
     pageSize,
+    base.sort,
   ])
   const cursors = usePageCursors(scope, byOffset)
   const requested = search.page ?? 1
@@ -672,16 +727,20 @@ function TraceResults({
     { ...base, page },
     byOffset ? undefined : cursors.cursorFor(page)
   )
+  const future = rangeInFuture(range, openedAt)
   const results = useQuery({
     ...exploreQuery(datasource.uid, params),
     ...polling,
+    enabled: !future,
   })
+  const { ready: statsReady } = useAfterMainQuery(results, scope)
   const stats = useQuery({
     ...traceStatsQuery(datasource.uid, {
       query: traceStatsFilter(datasource.type, search),
       ...range,
     }),
     ...polling,
+    enabled: !future && statsReady,
   })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
@@ -711,15 +770,43 @@ function TraceResults({
     results.data ??
     (results.isError && lastGood?.scope === scope ? lastGood.data : undefined)
 
+  if (future) {
+    return (
+      <p role="status" className="text-[13px]">
+        <StatusLabel tone="warning">
+          This time range starts in the future, so no trace can match. Pick an
+          earlier range.
+        </StatusLabel>
+      </p>
+    )
+  }
   if (results.fetchStatus === "paused" && !data) {
     return <p className="text-[13px] text-muted-foreground">{offlineText}</p>
   }
-  const failure = results.isError ? (
-    <ExploreFailure
-      text={exploreErrorText(results.error)}
-      onRetry={() => void results.refetch()}
-    />
-  ) : null
+  const failureText = results.isError
+    ? traceQLProblem(exploreErrorText(results.error), base.query)
+    : null
+  const shorter = failureText === null ? null : shorterRange(failureText)
+  const failure =
+    failureText === null ? null : (
+      <div className="flex flex-col gap-2">
+        <ExploreFailure
+          text={failureText}
+          onRetry={() => void results.refetch()}
+        />
+        {shorter !== null ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="self-start"
+            onClick={() => update({ from: shorter.from, to: "now" })}
+          >
+            {shorter.label}
+          </Button>
+        ) : null}
+      </div>
+    )
   if (!data) return failure ?? <ResultSkeleton />
   const rows = traceRows(data.frames)
   const meta = data.meta
@@ -749,8 +836,14 @@ function TraceResults({
     return (
       <div className="flex flex-col gap-3">
         {failure}
-        <p className="text-[13px] text-muted-foreground">
-          No traces match in {lowerFirst(describeRange(range.from, range.to))}.
+        <p
+          role={meta.partial ? "status" : undefined}
+          className="text-[13px] text-muted-foreground"
+        >
+          {noTracesText(
+            meta.partial,
+            lowerFirst(describeRange(range.from, range.to))
+          )}
         </p>
         {state.hasPrev ? pageBar : null}
       </div>
@@ -773,7 +866,8 @@ function TraceResults({
       {stats.isError ? (
         <p role="status" className="text-[13px]">
           <StatusLabel tone="critical">
-            Stats failed: {exploreErrorText(stats.error)}
+            Stats failed:{" "}
+            {traceQLProblem(exploreErrorText(stats.error), base.query)}
           </StatusLabel>
         </p>
       ) : null}
@@ -784,8 +878,7 @@ function TraceResults({
         >
           <StatusLabel tone="warning">Partial</StatusLabel>
           <p className="min-w-0 flex-1">
-            Tempo stopped searching at its time limit, so older traces may be
-            missing.
+            {partialReason(rows.length, pageSize, state.hasNext)}
             {covered !== null ? ` ${covered.text}` : null}
           </p>
           {covered !== null ? (
@@ -810,6 +903,7 @@ function TraceResults({
           rows={rows}
           p95={p95}
           label={label}
+          fitWindow={meta.partial}
         />
         {pageBar}
       </div>
@@ -859,6 +953,7 @@ function SelectableTraceTable({
   rows,
   p95,
   label,
+  fitWindow,
 }: {
   datasource: DatasourceStatus
   search: TraceSearch
@@ -866,9 +961,28 @@ function SelectableTraceTable({
   rows: TraceRow[]
   p95: number | null | undefined
   label: string
+  fitWindow: boolean
 }) {
   const range = tracesTimeRange(search)
+  const panel = tracesPanelFor({
+    id: "traces",
+    title: tracePanelTitle(search),
+    datasource: datasource.uid,
+    type: datasource.type,
+    query: tracePanelQuery(datasource.type, search),
+    y: 0,
+  })
   const [selection, setSelection] = useState<Selection | null>(null)
+  const sortControl: TraceSortControl | undefined =
+    datasource.type === "clickhouse"
+      ? {
+          value: decodeSort(search.sort),
+          onChange: (next) => {
+            setSelection(null)
+            update({ sort: encodeSort(next) })
+          },
+        }
+      : undefined
 
   function keep(next: Partial<TraceSearch>) {
     setSelection(null)
@@ -882,6 +996,14 @@ function SelectableTraceTable({
       range={range}
       p95Ms={p95}
       p95Label={label}
+      fitWindow={fitWindow}
+      sortControl={sortControl}
+      headerActions={
+        <>
+          <AddToDashboardAction panel={panel} />
+          <AddToObservationAction range={range} panel={panel} />
+        </>
+      }
       footerNote={
         p95 === undefined || p95 === null
           ? undefined

@@ -5,10 +5,11 @@ import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useLatestPermissions } from "@/dashboards/permissions"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
+import { sentence, useSaveAnswer } from "@/observe/queries"
 
 import { EvidencePanel } from "./evidence-panel"
 import {
@@ -34,18 +35,30 @@ function toastError(error: Error) {
 }
 
 function PinAction({ finding }: { finding: Finding }) {
-  const pin = usePinFinding(finding)
   if (finding.dashboard_id === null) return null
+  return <PinOnDashboard finding={finding} dashboardId={finding.dashboard_id} />
+}
+
+function PinOnDashboard({
+  finding,
+  dashboardId,
+}: {
+  finding: Finding
+  dashboardId: string
+}) {
+  const pin = usePinFinding(finding)
+  const mayPin = useLatestPermissions(dashboardId).edit
   if (pin.isSuccess || finding.annotation_id !== null) {
     return (
       <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
         <span>Pinned to the dashboard</span>
-        <Link {...dashboardLink(finding.dashboard_id)} className={linkClass}>
+        <Link {...dashboardLink(dashboardId)} className={linkClass}>
           Open dashboard
         </Link>
       </p>
     )
   }
+  if (!mayPin) return null
   return (
     <Button
       variant="outline"
@@ -84,6 +97,34 @@ function MakeDashboardAction({ finding }: { finding: Finding }) {
   )
 }
 
+function SaveAnswerAction({ requestId }: { requestId: string }) {
+  const save = useSaveAnswer(requestId)
+  if (save.isSuccess) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
+        <span>Saved as an observation</span>
+        <Link
+          {...observationLink(save.data.observation_id)}
+          className={linkClass}
+        >
+          Open observation
+        </Link>
+      </p>
+    )
+  }
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={save.isPending}
+      aria-busy={save.isPending}
+      onClick={() => save.mutate(undefined, { onError: toastError })}
+    >
+      {save.isPending ? "Saving" : "Save as observation"}
+    </Button>
+  )
+}
+
 const variants = {
   card: {
     frame: "gap-3 rounded-card border px-3.5 py-3",
@@ -102,14 +143,18 @@ type FindingVariant = keyof typeof variants
 export function FindingCard({
   finding,
   showOpenLink,
+  saveAnswerOf,
   variant = "card",
 }: {
   finding: Finding
   showOpenLink: boolean
+  saveAnswerOf?: string
   variant?: FindingVariant
 }) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const layout = variants[variant]
+  const observationId = finding.observation_id
+  const mayAct = observationId !== null || saveAnswerOf !== undefined
   return (
     <div className={cn("flex flex-col", layout.frame)}>
       <div className={layout.text}>
@@ -146,8 +191,13 @@ export function FindingCard({
         )}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <PinAction finding={finding} />
-        {panels.length > 0 ? <MakeDashboardAction finding={finding} /> : null}
+        {observationId !== null ? <PinAction finding={finding} /> : null}
+        {panels.length > 0 && mayAct ? (
+          <MakeDashboardAction finding={finding} />
+        ) : null}
+        {observationId === null && saveAnswerOf !== undefined ? (
+          <SaveAnswerAction requestId={saveAnswerOf} />
+        ) : null}
         <CopyButton
           text={finding.markdown}
           label="Copy answer"
@@ -156,9 +206,9 @@ export function FindingCard({
         >
           Copy answer
         </CopyButton>
-        {showOpenLink ? (
+        {showOpenLink && observationId !== null ? (
           <Link
-            {...observationLink(finding.observation_id)}
+            {...observationLink(observationId)}
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           >
             Open observation

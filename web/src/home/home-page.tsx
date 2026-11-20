@@ -4,12 +4,14 @@ import { TopRowActions } from "@/shell/top-row-actions"
 
 import { NeedsYouList, PickUpList, WorkingNowList } from "./activity-lists"
 import { homeDate } from "./home-date"
+import { HomeDashboardNotice } from "./home-dashboard-notice"
 import type { HomeTab } from "./home-tab"
 import {
   OpenObservationsList,
   RecentChatsList,
   RecentImportsList,
 } from "./tab-lists"
+import { StartHere } from "./start-here"
 import { ExampleChips, TaskCard } from "./task-card"
 
 type Props = {
@@ -25,13 +27,14 @@ export function HomePage({ tab, onTabChange }: Props) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 pt-[26px] pb-5 narrow:pt-2.5">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8 pt-[26px] pb-5 min-[1800px]:max-w-[960px] narrow:pt-2.5">
       <TopRowActions>
         <span className="text-xs text-muted-foreground narrow:hidden">
           {homeDate(new Date())}
         </span>
       </TopRowActions>
       <div className="flex flex-col gap-4">
+        <HomeDashboardNotice />
         <div>
           <h1 className="text-xl font-semibold tracking-[-0.01em]">
             What are you working on?
@@ -50,6 +53,7 @@ export function HomePage({ tab, onTabChange }: Props) {
       <NeedsYouList />
       <WorkingNowList />
       <PickUpList />
+      <StartHere />
     </div>
   )
 }

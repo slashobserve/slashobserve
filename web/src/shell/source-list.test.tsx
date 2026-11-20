@@ -8,6 +8,7 @@ import { useListedSources } from "@/datasources/use-sources"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { SourceList } from "./source-list"
+import { storeRows } from "./sub-nav"
 
 function source(
   uid: string,
@@ -18,6 +19,7 @@ function source(
     uid,
     type: "loki",
     name,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
@@ -48,15 +50,31 @@ function renderList(
 }
 
 function setRecentAtLoad(logs: string[]) {
-  const loaded = { logs, traces: [] }
+  const loaded = { logs, traces: [], metrics: [] }
   useSourceMemory.setState({ ...loaded, atLoad: loaded })
 }
 
 beforeEach(() => {
+  localStorage.clear()
   setRecentAtLoad([])
 })
 
 describe("SourceList", () => {
+  it("holds the rows of the last visit while the datasources load", () => {
+    storeRows("logs", 3)
+    const { container } = renderWithProviders(
+      <SourceList
+        kind="logs"
+        shown={[]}
+        more={false}
+        pending
+        currentId={null}
+      />
+    )
+    expect(container.querySelectorAll("li")).toHaveLength(3)
+    expect(screen.queryByRole("link")).toBeNull()
+  })
+
   it("lists the sources recent first, then by name", async () => {
     setRecentAtLoad(["c"])
     renderList([

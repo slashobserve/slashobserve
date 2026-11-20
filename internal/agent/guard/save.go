@@ -21,6 +21,7 @@ var (
 	ErrMalformed = errors.New("save result is malformed")
 
 	plainCode = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
+	panelID   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
 )
 
 type Saved struct {
@@ -39,6 +40,12 @@ type Outcome struct {
 	NotFound   bool
 	Rejected   bool
 	IssueCodes []string
+
+	RejectedFinding bool
+	Transient       bool
+
+	FailingPanels []string
+	FailingOther  int
 }
 
 type Settled struct {
@@ -59,9 +66,12 @@ type saveBody struct {
 	ProposalID    string          `json:"proposal_id"`
 	Build         *struct{}       `json:"build"`
 	Panel         json.RawMessage `json:"panel"`
-	Issues        []struct {
-		Code string `json:"code"`
-	} `json:"issues"`
+	FailingPanels []string        `json:"failing_panels"`
+	Issues        []issueBody     `json:"issues"`
+}
+
+type issueBody struct {
+	Code string `json:"code"`
 }
 
 func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error) {
@@ -82,6 +92,8 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 }
 
 func (s *State) settleRead(c Call, res tools.Result) Settled {
+	s.noteChecked(c, res)
+	s.noteAbsenceRead(c, res)
 	key := Key(c.Name, c.Input)
 	entry, ok := s.Reads[key]
 	if !ok || res.IsError || tools.Phase(c.Name) == tools.PhaseQuery {
@@ -114,7 +126,15 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{Outcome: Outcome{NotFound: true}}, nil
 	}
 	s.Rejections++
-	return Settled{Outcome: Outcome{Rejected: true, IssueCodes: body.issueCodes()}}, nil
+	failing, other := body.failingPanels()
+	return Settled{Outcome: Outcome{
+		Rejected:        true,
+		IssueCodes:      body.issueCodes(),
+		FailingPanels:   failing,
+		FailingOther:    other,
+		RejectedFinding: s.Mode == tools.ModeInvestigate || c.label() == toolSaveFinding,
+		Transient:       body.onlyUnreachable(),
+	}}, nil
 }
 
 func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settled, error) {
@@ -160,6 +180,26 @@ func (s *State) classifyBuildSave(res tools.Result) Settled {
 		}}
 	}
 	return Settled{Outcome: Outcome{Built: true}, Note: note}
+}
+
+func (b saveBody) failingPanels() (ids []string, other int) {
+	var seen []string
+	for _, id := range b.FailingPanels {
+		if slices.Contains(seen, id) {
+			continue
+		}
+		seen = append(seen, id)
+		if panelID.MatchString(id) {
+			ids = append(ids, id)
+		} else {
+			other++
+		}
+	}
+	return ids, other
+}
+
+func (b saveBody) onlyUnreachable() bool {
+	return len(b.Issues) > 0 && !slices.ContainsFunc(b.Issues, func(issue issueBody) bool { return !tools.CouldNotCheck(issue.Code) })
 }
 
 func (b saveBody) issueCodes() []string {

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest"
 
 import type { MergeConflict, Proposal, ProposalSummary } from "./queries"
-import { changeRows, choicesFrom, stateLine, unitKey } from "./proposal-view"
+import {
+  changeRows,
+  choicesFrom,
+  conflictText,
+  dashboardLinkOf,
+  droppedText,
+  stateLine,
+  unitKey,
+} from "./proposal-view"
 
 const ada = {
   kind: "user" as const,
@@ -35,6 +43,7 @@ function summary(over: Partial<ProposalSummary> = {}): ProposalSummary {
     updated_at: "2026-11-11T10:00:00Z",
     closed_at: null,
     closed_by: null,
+    close_reason: null,
     merged_version: null,
     behind: false,
     latest_version: 3,
@@ -64,6 +73,7 @@ function proposal(over: Partial<Proposal> = {}): Proposal {
       ],
     },
     changes: [],
+    diff: [],
     conflicts: [],
     ...over,
   }
@@ -128,8 +138,25 @@ describe("changeRows", () => {
         label: "Variable env",
         change: "conflict",
         conflict: clash,
+        dashboardTitle: null,
+        proposalTitle: null,
       },
     ])
+  })
+
+  it("carries both sides' titles for a panel conflict", () => {
+    const clash = conflict({ id: "p-errors" })
+    const rows = changeRows(
+      proposal({
+        changes: [{ kind: "panel", id: "p-errors", change: "changed" }],
+        conflicts: [clash],
+      }),
+      new Map([["p-errors", "Errors (admin edit)"]])
+    )
+    expect(rows[0]).toMatchObject({
+      dashboardTitle: "Errors (admin edit)",
+      proposalTitle: "Errors",
+    })
   })
 
   it("gives a row without a conflict a null conflict", () => {
@@ -188,6 +215,33 @@ describe("choicesFrom", () => {
   })
 })
 
+describe("droppedText", () => {
+  it("names each unit whose dashboard side was kept", () => {
+    const conflicts = [
+      conflict(),
+      conflict({ kind: "variable", id: "env" }),
+      conflict({ kind: "setting", id: "refresh" }),
+    ]
+    expect(
+      droppedText(proposal({ conflicts }), {
+        "panel:p-errors": "ours",
+        "variable:env": "ours",
+        "setting:refresh": "ours",
+      })
+    ).toBe(
+      'The proposed change to panel "Errors", variable "env", the refresh setting was dropped; the dashboard keeps its own.'
+    )
+  })
+
+  it("says nothing when every conflict took the proposal's side", () => {
+    expect(
+      droppedText(proposal({ conflicts: [conflict()] }), {
+        "panel:p-errors": "theirs",
+      })
+    ).toBeNull()
+  })
+})
+
 describe("stateLine", () => {
   it.each([
     [summary(), "Open, based on version 3"],
@@ -205,7 +259,7 @@ describe("stateLine", () => {
     ],
     [
       summary({ state: "merged", merged_version: null, closed_by: ada }),
-      "Merged; the dashboard already had this change",
+      "Merged without a new version; nothing from this proposal was added to the dashboard",
     ],
     [
       summary({ state: "discarded", closed_by: { ...ada, name: "Grace" } }),
@@ -213,5 +267,47 @@ describe("stateLine", () => {
     ],
   ])("reads %#", (item, expected) => {
     expect(stateLine(item)).toBe(expected)
+  })
+})
+
+describe("conflictText", () => {
+  it("names the panel by its title, not its id", () => {
+    expect(conflictText(conflict(), "Request rate")).toBe(
+      'Panel "Request rate" was changed on the dashboard and in this proposal.'
+    )
+    expect(
+      conflictText(conflict({ reason: "changed_and_removed" }), "Request rate")
+    ).toBe(
+      'Panel "Request rate" was removed on one side and changed on the other.'
+    )
+  })
+
+  it("keeps the server's text for a change that cannot merge", () => {
+    expect(
+      conflictText(conflict({ reason: "invalid", message: "bad query" }), "x")
+    ).toBe("bad query")
+  })
+})
+
+describe("dashboardLinkOf", () => {
+  it.each([
+    [summary(), 3, "Open the dashboard at version 3"],
+    [
+      summary({ state: "discarded", closed_by: ada }),
+      3,
+      "Open the dashboard at version 3",
+    ],
+    [
+      summary({ state: "merged", merged_version: 8, closed_by: ada }),
+      8,
+      "Open the dashboard at version 8",
+    ],
+    [
+      summary({ state: "merged", merged_version: null, closed_by: ada }),
+      null,
+      "Open the dashboard",
+    ],
+  ])("points %#", (item, version, label) => {
+    expect(dashboardLinkOf(item)).toEqual({ version, label })
   })
 })

@@ -141,6 +141,7 @@ func TestEveryEndedRunIsCountedByItsKindAndOutcome(t *testing.T) {
 
 			startWorker(t, svc, d, revisions.WorkerOptions{})
 			waitForStatus(t, svc, dash, rev.ID, tc.status)
+			waitFor(t, "the ended run to be counted", func() bool { return len(metrics.recordedRuns()) > 0 })
 
 			if got := metrics.recordedRuns(); len(got) != 1 || got[0] != tc.want {
 				t.Fatalf("ended runs = %+v, want %+v once", got, tc.want)

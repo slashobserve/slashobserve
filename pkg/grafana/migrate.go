@@ -84,7 +84,7 @@ func isLegacyRepeatClone(row map[string]any) bool {
 }
 
 func newNode(raw map[string]any, path string) *panelNode {
-	n := &panelNode{raw: raw, path: path, title: asString(raw["title"])}
+	n := &panelNode{raw: raw, path: path, title: cleanTitle(asString(raw["title"]))}
 	n.typ, n.sourceType = panelTypeOf(raw)
 	n.row = n.typ == "row"
 	n.collapsed = n.row && truthy(raw["collapsed"])
@@ -108,20 +108,22 @@ func parseGridPos(v any) gridPos {
 	return gridPos{x: read("x", 0), y: read("y", 0), w: read("w", defaultPanelWidth), h: read("h", defaultPanelHeight)}
 }
 
-func buildNodes(d map[string]any) ([]*panelNode, bool) {
+func buildNodes(d map[string]any) (nodes []*panelNode, legacy bool, skipped []string) {
 	panels, _ := asArray(d["panels"])
 	rows, _ := asArray(d["rows"])
 	if len(panels) == 0 && len(rows) > 0 {
-		return legacyNodes(rows), true
+		nodes = legacyNodes(rows, &skipped)
+		return nodes, true, skipped
 	}
-	return newStyleNodes(panels, "panels"), false
+	return newStyleNodes(panels, "panels", &skipped), false, skipped
 }
 
-func newStyleNodes(items []any, base string) []*panelNode {
+func newStyleNodes(items []any, base string, skipped *[]string) []*panelNode {
 	nodes := make([]*panelNode, 0, len(items))
 	for i, item := range items {
 		raw, ok := asObject(item)
 		if !ok {
+			*skipped = append(*skipped, fmt.Sprintf("%s[%d]", base, i))
 			continue
 		}
 		n := newNode(raw, fmt.Sprintf("%s[%d]", base, i))
@@ -132,12 +134,15 @@ func newStyleNodes(items []any, base string) []*panelNode {
 				children = nil
 			}
 			for j, child := range children {
+				childPath := fmt.Sprintf("%s.panels[%d]", n.path, j)
 				childRaw, ok := asObject(child)
 				if !ok {
+					*skipped = append(*skipped, childPath)
 					continue
 				}
-				cn := newNode(childRaw, fmt.Sprintf("%s.panels[%d]", n.path, j))
+				cn := newNode(childRaw, childPath)
 				if cn.row {
+					*skipped = append(*skipped, childPath)
 					continue
 				}
 				n.children = append(n.children, cn)
@@ -206,13 +211,17 @@ type legacyBuilder struct {
 	y         int
 	nextRowID int
 	showRows  bool
+	skipped   *[]string
 }
 
-func legacyNodes(rows []any) []*panelNode {
-	b := &legacyBuilder{nextRowID: legacyMaxPanelID(rows) + 1, showRows: legacyShowsRows(rows)}
+func legacyNodes(rows []any, skipped *[]string) []*panelNode {
+	b := &legacyBuilder{nextRowID: legacyMaxPanelID(rows) + 1, showRows: legacyShowsRows(rows), skipped: skipped}
 	for i, r := range rows {
+		path := fmt.Sprintf("rows[%d]", i)
 		if row, ok := asObject(r); ok {
-			b.addRow(row, fmt.Sprintf("rows[%d]", i))
+			b.addRow(row, path)
+		} else {
+			*skipped = append(*skipped, path)
 		}
 	}
 	return b.out
@@ -235,7 +244,7 @@ func (b *legacyBuilder) addRow(row map[string]any, path string) {
 			collapsed:  collapsed,
 			typ:        "row",
 			sourceType: "row",
-			title:      asString(row["title"]),
+			title:      cleanTitle(asString(row["title"])),
 			grafanaID:  &id,
 			pos:        gridPos{x: 0, y: b.y, w: gridColumns, h: 1},
 		}
@@ -253,11 +262,13 @@ func (b *legacyBuilder) addPanels(row map[string]any, path string, rowNode *pane
 	items, _ := asArray(row["panels"])
 	x, lineHeight, packed := 0, 0, 0
 	for j, item := range items {
+		panelPath := fmt.Sprintf("%s.panels[%d]", path, j)
 		p, ok := asObject(item)
 		if !ok {
+			*b.skipped = append(*b.skipped, panelPath)
 			continue
 		}
-		n := newNode(p, fmt.Sprintf("%s.panels[%d]", path, j))
+		n := newNode(p, panelPath)
 		span := legacyDefaultSpan
 		if f, ok := asFloat(p["span"]); ok && f > 0 {
 			span = int(math.Floor(f))

@@ -104,6 +104,14 @@ const errorSearch = {
   updated_at: "2026-11-06T09:30:00Z",
 }
 
+class IdleEventSource {
+  static readonly CLOSED = 2
+  readyState = 1
+  onerror: (() => void) | null = null
+  addEventListener() {}
+  close() {}
+}
+
 type Extras = { observations?: unknown[]; searches?: unknown[] }
 
 function mockServer(
@@ -113,6 +121,7 @@ function mockServer(
 ) {
   const listed: URLSearchParams[] = []
   const requested: URL[] = []
+  vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
@@ -199,6 +208,13 @@ afterEach(() => {
 })
 
 describe("FolderPage", () => {
+  it("titles the tab with the folder's name", async () => {
+    mockServer(folder(), [checkout])
+    renderFolderPage()
+    await screen.findByRole("link", { name: "Checkout service health" })
+    expect(document.title).toBe("Shop - SlashObserve")
+  })
+
   it("lists only this folder's dashboards, with no Folder filter or folder row", async () => {
     const listed = mockServer(folder(), [checkout])
     renderFolderPage()
@@ -226,6 +242,35 @@ describe("FolderPage", () => {
     ).toBeInTheDocument()
     expect(
       screen.queryByText("No dashboards match these filters.")
+    ).not.toBeInTheDocument()
+  })
+
+  it("tells someone with View access what they can do in an empty folder instead of offering the chat", async () => {
+    mockServer(
+      folder({
+        dashboard_count: 0,
+        level: "view",
+        permissions: {
+          comment: false,
+          edit: false,
+          manage: false,
+          create: false,
+        },
+      }),
+      []
+    )
+    renderFolderPage()
+
+    expect(
+      await screen.findByText(
+        "Your access: View. Someone with Edit on Shop adds dashboards here."
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Open the chat" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Import from Grafana" })
     ).not.toBeInTheDocument()
   })
 

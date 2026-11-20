@@ -1201,7 +1201,7 @@
         "panel_id": "p34",
         "grafana_id": 34,
         "grafana_path": "panels[20].panels[3]",
-        "title": "Pending datapoints ",
+        "title": "Pending datapoints",
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",
@@ -1864,7 +1864,7 @@
       {
         "subject": "annotations",
         "status": "partial",
-        "reason": "Annotations are not part of SlashObserve.",
+        "reason": "Annotation queries are not imported; SlashObserve annotations are added with the CLI, the HTTP API or an MCP client.",
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]",

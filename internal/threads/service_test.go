@@ -349,23 +349,30 @@ func TestEditRecordsMentionsAgainAndAppendsOnlyAnEditedEvent(t *testing.T) {
 	}
 }
 
-func TestOnlyRealUsersAreRecordedAsMentions(t *testing.T) {
+func TestOnlyRealPeopleWhoCanSeeTheTargetCanBeMentioned(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	ghost := "@[Ghost](user:99999999-9999-4999-8999-999999999999)"
 	present := r.createUser(t, "Real", "real@example.com")
 
-	_, message := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: ghost + " @[Real](user:" + present.String() + ")"})
+	_, message := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@[Real](user:" + present.String() + ")"})
 	if len(message.Mentions) != 1 || message.Mentions[0].UserID != present {
 		t.Fatalf("mentions = %+v", message.Mentions)
 	}
 	if got := activityTypes(r.activity(t)); strings.Join(got, ",") != "thread.opened,thread.mentioned" {
 		t.Errorf("activity = %v, want one mention event for the real user", got)
 	}
-	_, _, err := r.service.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: strings.Repeat("@observe ", 3) + manyTokens(21)}, nil)
 	var invalid *InvalidInputError
+	_, _, err := r.service.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "hi " + ghost}, nil)
+	if !errors.As(err, &invalid) || invalid.Code != CodeInvalidMention {
+		t.Errorf("a user that does not exist: err = %v, want invalid_mention", err)
+	}
+	_, _, err = r.service.Open(t.Context(), testUser, OpenInput{Target: target(KindDashboard, dash), Body: strings.Repeat("@observe ", 3) + manyTokens(21)}, nil)
 	if !errors.As(err, &invalid) || invalid.Code != CodeTooManyMentions {
 		t.Errorf("21 mentions: err = %v", err)
+	}
+	if got := r.count(t, `SELECT count(*) FROM threads`); got != 1 {
+		t.Errorf("%d threads, want only the first", got)
 	}
 }
 
@@ -400,7 +407,7 @@ func TestStatusChangesReportChangeAndRecordTheResolver(t *testing.T) {
 	r := newRig(t)
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
-	thread, first := r.open(t, testUser, OpenInput{Target: target(KindDashboard, dash), Version: new(1), Body: "root"})
+	thread, first := r.open(t, commenter, OpenInput{Target: target(KindDashboard, dash), Version: new(1), Body: "root"})
 	id := mustParse(t, first.ID)
 
 	resolved, changed, err := r.service.SetStatus(t.Context(), commenter, id, StatusResolved, new(2))
@@ -477,6 +484,9 @@ func TestEveryEventTypeAppendsItsDataWithoutBodyText(t *testing.T) {
 		if got, _ := row.Data["object"].(map[string]any); got["kind"] != object["kind"] || got["id"] != object["id"] {
 			t.Errorf("row %d object = %v", i, row.Data["object"])
 		}
+	}
+	if rows[0].Data["title"] == nil || rows[0].Data["title"] == "" || rows[1].Data["title"] != nil {
+		t.Errorf("only the opened event names its object: %v, %v", rows[0].Data["title"], rows[1].Data["title"])
 	}
 	if rows[0].ActorID != testUserID || rows[0].Data["version"] != float64(1) || rows[0].Data["panel_id"] != "rps" {
 		t.Errorf("opened = %+v", rows[0])

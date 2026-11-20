@@ -288,17 +288,19 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(composerBox(page)).toHaveValue("Still typing")
     })
 
-    test("renders comment text as text", async ({ page, request }) => {
+    test("renders comment Markdown and never raw HTML", async ({
+      page,
+      request,
+    }) => {
       const { id } = await createOverview(request)
-      const body = "<b>bold</b> **x**"
-      await createComment(request, id, 1, "rps", body)
+      await createComment(request, id, 1, "rps", "<b>bold</b> **x**")
       await openCard(page, id)
 
-      const entry = entries(page).filter({ hasText: "**x**" })
+      const entry = entries(page).filter({ hasText: "bold" })
       await expect(entry).toHaveCount(1)
-      await expect(entry.getByText(body, { exact: true })).toBeVisible()
+      await expect(entry.locator("strong")).toHaveText("x")
       await expect(entry.locator("b")).toHaveCount(0)
-      await expect(entry.locator("strong")).toHaveCount(0)
+      await expect(entry).not.toContainText("**")
     })
 
     test("scopes to a panel and filters", async ({ page, request }) => {
@@ -543,7 +545,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       await expect(
-        card(page).getByText("Comments and saved versions.")
+        card(page).getByText(
+          "Comments, proposals, annotations and saved versions."
+        )
       ).toBeVisible()
       await expect(composerBox(page)).toHaveAttribute(
         "placeholder",

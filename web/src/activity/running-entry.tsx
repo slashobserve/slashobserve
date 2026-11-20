@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { RunningFor } from "@/chat/run-duration"
 import { StepTimeline } from "@/chat/step-timeline"
+import { announcePaneOpening } from "@/components/dock/dock-focus"
 import { observeAgentMark } from "@/lib/author"
 import { buildStatusText } from "@/observe/build"
 import { isTerminal, observeRequestQuery } from "@/observe/queries"
@@ -96,6 +97,7 @@ export function RunningEntry({ entry }: Props) {
             from="/d/$dashboardId/{-$slug}"
             to="."
             search={(prev) => ({ ...prev, chat: request.id })}
+            onClick={announcePaneOpening}
             className="flex-none rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Open chat

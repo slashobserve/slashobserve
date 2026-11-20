@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/kql"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -122,14 +123,33 @@ func TestPromQLVariables(t *testing.T) {
 	})
 }
 
+func TestSearchVariableListsAreAnOrKQLAndLuceneBothRead(t *testing.T) {
+	for _, d := range []macros.Dialect{macros.Elasticsearch, macros.OpenSearch} {
+		got, err := macros.Expand(d, `service.name:$svc`, envWith(val("svc", "a", "b")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		root, diags := kql.Parse(got.Text)
+		if len(diags) != 0 || root == nil {
+			t.Fatalf("KQL does not parse %q: %v", got.Text, diags)
+		}
+		if !strings.Contains(got.Text, `"a" OR "b"`) {
+			t.Errorf("%q has no uppercase OR, which Lucene needs", got.Text)
+		}
+		if strings.Contains(got.Text, " or ") {
+			t.Errorf("%q has a lowercase or, which Lucene reads as a term", got.Text)
+		}
+	}
+}
+
 func TestSearchVariables(t *testing.T) {
 	adhoc := datasource.Variable{Name: "f", Adhoc: true, Filters: []datasource.AdhocFilter{{Key: "a", Op: "=", Value: "b"}}}
 	runExpandCases(t, []expandCase{
 		{name: "one value in code is quoted", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "checkout")), want: `service.name:"checkout"`},
-		{name: "two values in code become an or group", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
-		{name: "all with values in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(all("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "two values in code become an or group", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" OR "b")`},
+		{name: "all with values in code", d: macros.Elasticsearch, query: `service.name:$svc`, env: envWith(all("svc", "a", "b")), want: `service.name:("a" OR "b")`},
 		{name: "quote and backslash are escaped in code", d: macros.Elasticsearch, query: `message:${m}`, env: envWith(val("m", `a"b\c`)), want: `message:"a\"b\\c"`},
-		{name: "opensearch shares the rules", d: macros.OpenSearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" or "b")`},
+		{name: "opensearch shares the rules", d: macros.OpenSearch, query: `service.name:$svc`, env: envWith(val("svc", "a", "b")), want: `service.name:("a" OR "b")`},
 		{name: "one value inside a string", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", `it "quoted"`)), want: `message:"it \"quoted\""`},
 		{name: "two values inside a string are refused", d: macros.Elasticsearch, query: `message:"$x"`, env: envWith(val("x", "a", "b")), err: true},
 		{name: "pipe format inside a string", d: macros.Elasticsearch, query: `message:"${x:pipe}"`, env: envWith(val("x", "a", "b")), want: `message:"a|b"`},
@@ -960,6 +980,15 @@ func TestLexerContextCorpus(t *testing.T) {
 		{name: "promql negative regex raw with metacharacters", d: macros.PromQL, query: `up{a!~'${v:raw}'}`, env: envWith(val("v", "(?s).*")), err: true},
 		{name: "promql equality raw keeps metacharacters", d: macros.PromQL, query: `up{a="${v:raw}"}`, env: envWith(val("v", "a.*")), want: `up{a="a.*"}`},
 		{name: "promql all in regex is dot star", d: macros.PromQL, query: `up{a=~"$v"}`, env: envWith(all("v", "x", "y")), want: `up{a=~".*"}`},
+		{name: "logql all in stream selector is not empty compatible", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v", "x", "y")), want: `{app=~".+"}`},
+		{name: "logql all with no options", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(all("v")), want: `{app=~".+"}`},
+		{name: "logql all with explicit regex format", d: macros.LogQL, query: `{app=~"${v:regex}"}`, env: envWith(all("v", "x")), want: `{app=~".+"}`},
+		{name: "logql all in a label filter keeps lines without the label", d: macros.LogQL, query: `{app="x"} | logfmt | level=~"$v"`, env: envWith(all("v", "x")), want: `{app="x"} | logfmt | level=~".*"`},
+		{name: "logql all in a line filter", d: macros.LogQL, query: `{app="x"} |~ "$v"`, env: envWith(all("v", "x")), want: `{app="x"} |~ ".*"`},
+		{name: "logql all in a selector of a metric query", d: macros.LogQL, query: `sum(rate({app=~"$v"}[5m]))`, env: envWith(all("v", "x")), want: `sum(rate({app=~".+"}[5m]))`},
+		{name: "logql all in the selector and the pipeline of one query", d: macros.LogQL, query: `{app=~"$v"} | json | level=~"$v"`, env: envWith(all("v", "x")), want: `{app=~".+"} | json | level=~".*"`},
+		{name: "logql all after a quoted brace", d: macros.LogQL, query: `{app="}"} | json | level=~"$v"`, env: envWith(all("v", "x")), want: `{app="}"} | json | level=~".*"`},
+		{name: "logql selected values keep the alternation", d: macros.LogQL, query: `{app=~"$v"}`, env: envWith(val("v", "x", "y")), want: `{app=~"(x|y)"}`},
 	}
 	runExpandCases(t, cases)
 }

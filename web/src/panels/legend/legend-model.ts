@@ -20,12 +20,31 @@ export type LegendSource = {
   hidden?: boolean
 }
 
+export const maxStateLegendEntries = 12
+
+export function capLegend<T>(
+  items: readonly T[],
+  max: number
+): { shown: T[]; more: number } {
+  return {
+    shown: items.slice(0, max),
+    more: Math.max(0, items.length - max),
+  }
+}
+
 export function effectiveLegendMode(
   legendMode: LegendMode | undefined,
   legendValues: readonly AnyReducer[]
 ): LegendMode {
   if (legendMode) return legendMode
   return legendValues.length > 0 ? "table" : "list"
+}
+
+export function legendWorthShowing(
+  seriesCount: number,
+  legendValues: readonly AnyReducer[]
+): boolean {
+  return seriesCount > 1 || (seriesCount === 1 && legendValues.length > 0)
 }
 
 function isEmpty(source: LegendSource): boolean {

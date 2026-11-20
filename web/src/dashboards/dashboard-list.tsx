@@ -21,17 +21,21 @@ import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FolderHeaderRow } from "@/folders/folder-header-row"
+import { moveChoices } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
 import { importedFilter } from "@/health/health-labels"
 import { ListHealthProvider, useListHealthLoad } from "@/health/list-health"
 import { RepairQueue } from "@/import/repair/repair-page"
 import { roleAtLeast } from "@/lib/roles"
+import { docsPageUrl } from "@/lib/docs"
 import { cn } from "@/lib/utils"
+import { levelLabels } from "@/folders/grants"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   actionsColumn,
   dashboardColumns,
+  folderColumn,
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
@@ -57,6 +61,9 @@ import {
   withoutPage,
   type ListSearch,
 } from "./list-filters"
+import { BulkMoveBar } from "./bulk-move-bar"
+import { useDashboardListLive } from "./live/use-dashboards-live"
+import { ListSelectionProvider, type ListSelection } from "./list-selection"
 import { ListPagination } from "./list-pagination"
 import {
   listOffset,
@@ -66,11 +73,18 @@ import {
   pageRange,
   withOffset,
 } from "./list-pages"
+import { SortMenu } from "./sort-menu"
 
 const skeletonRows = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
-const listColumns = [...dashboardColumns, actionsColumn]
+const groupedColumns = [...dashboardColumns, actionsColumn]
+const flatColumns = [
+  dashboardColumns[0],
+  folderColumn,
+  ...dashboardColumns.slice(1),
+  actionsColumn,
+]
 const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
 function useDashboardList(search: ListSearch, page: number) {
@@ -91,7 +105,7 @@ function useDashboardList(search: ListSearch, page: number) {
               tag: filters.tags,
               folder: filters.folder,
               problem: filters.problem,
-              order: "folder",
+              order: filters.order ?? "folder",
             },
           },
           signal,
@@ -104,10 +118,10 @@ function useDashboardList(search: ListSearch, page: number) {
   })
 }
 
-function useListTable(data: DashboardSummary[]) {
+function useListTable(data: DashboardSummary[], flat: boolean) {
   return useTable({
     features: listFeatures,
-    columns: listColumns,
+    columns: flat ? flatColumns : groupedColumns,
     data,
     getRowId: dashboardRowId,
   })
@@ -202,6 +216,12 @@ function FilterRow({
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
       />
+      {search.kind === importedFilter ? null : (
+        <SortMenu
+          value={search.sort}
+          onChange={(sort) => onSearchChange({ ...search, sort })}
+        />
+      )}
       <span className="ml-auto flex items-center gap-x-2 text-xs text-muted-foreground">
         <span role="status" className="flex items-center gap-x-2">
           {summary}
@@ -223,6 +243,23 @@ function FilterRow({
       </span>
     </div>
   )
+}
+
+function flatRows(table: ListTable): ReactNode[] {
+  return table.getRowModel().rows.map((row) => (
+    <tr key={row.id} data-dashboard-id={row.id} className="group/row">
+      {row.getAllCells().map((cell) => (
+        <Cell
+          key={cell.id}
+          data-cell={cell.column.id === actionsColumn.id ? "action" : undefined}
+          data-label={cell.column.columnDef.meta?.stackedLabel}
+          className={cell.column.columnDef.meta?.cellClassName}
+        >
+          <table.FlexRender cell={cell} />
+        </Cell>
+      ))}
+    </tr>
+  ))
 }
 
 function sectionRows(
@@ -302,6 +339,7 @@ export function DashboardList({
   folderId,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
+  useDashboardListLive()
   const folderLocked = folderId !== undefined
   const page = search.page ?? 1
   const query = useDashboardList(
@@ -316,7 +354,8 @@ export function DashboardList({
   )
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
-  const table = useListTable(dashboards)
+  const flat = search.sort !== undefined
+  const table = useListTable(dashboards, flat)
   const allFolders = folderResult.data
   const folders = useMemo(
     () =>
@@ -325,22 +364,75 @@ export function DashboardList({
         : allFolders,
     [allFolders, folderLocked, folderId]
   )
+  const readOnlyFolder = folders?.find(
+    (folder) => folderLocked && !folder.permissions.edit
+  )
   const filtered = hasFilters(search)
   const loaded = query.data !== undefined
   const settled = loaded && !query.isPlaceholderData
   const clampTo = settled ? pageOutOfRange(page, total) : null
   const sections = useMemo(
     () =>
-      loaded && folders !== undefined && clampTo === null
+      !flat && loaded && folders !== undefined && clampTo === null
         ? groupPage(folders, dashboards, {
             offset: dataOffset,
             total,
             filtered,
           })
         : null,
-    [loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
+    [flat, loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
   )
+  const ready = flat
+    ? loaded && folders !== undefined && clampTo === null
+    : sections !== null
+  const rowCount = flat ? dashboards.length : (sections?.length ?? 0)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const selectionScope = JSON.stringify([search, page, folderId])
+  const [chosen, setChosen] = useState<{
+    scope: string
+    ids: ReadonlySet<string>
+  }>({ scope: selectionScope, ids: new Set() })
+  const canMoveInBulk =
+    folders !== undefined && moveChoices(folders, null).length > 0
+  const selectable = useMemo(
+    () =>
+      canMoveInBulk && !query.isPlaceholderData
+        ? dashboards
+            .filter((dashboard) => dashboard.permissions.edit)
+            .map((dashboard) => dashboard.id)
+        : [],
+    [canMoveInBulk, query.isPlaceholderData, dashboards]
+  )
+  const selected = useMemo(
+    () =>
+      chosen.scope === selectionScope
+        ? new Set(selectable.filter((id) => chosen.ids.has(id)))
+        : new Set<string>(),
+    [chosen, selectionScope, selectable]
+  )
+  const selection: ListSelection | null =
+    selectable.length === 0
+      ? null
+      : {
+          selectable,
+          selected,
+          toggle: (id) => {
+            const ids = new Set(selected)
+            if (!ids.delete(id)) ids.add(id)
+            setChosen({ scope: selectionScope, ids })
+          },
+          togglePage: () =>
+            setChosen({
+              scope: selectionScope,
+              ids:
+                selected.size === selectable.length
+                  ? new Set()
+                  : new Set(selectable),
+            }),
+        }
+  const selectedDashboards = dashboards.filter((dashboard) =>
+    selected.has(dashboard.id)
+  )
   const noDashboards =
     folders !== undefined &&
     loaded &&
@@ -349,10 +441,10 @@ export function DashboardList({
     !filtered &&
     clampTo === null &&
     (folderLocked || !hasPeopleFolders(folders))
-  const empty = sections !== null && (noDashboards || sections.length === 0)
+  const empty = ready && (noDashboards || rowCount === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending
-  const showTable = pending || clampTo !== null || (sections !== null && !empty)
+  const showTable = pending || clampTo !== null || (ready && !empty)
   const failedQuery = query.isError
     ? query
     : folderResult.isError
@@ -362,11 +454,11 @@ export function DashboardList({
   const retryRef = useRef<HTMLButtonElement>(null)
   const focusIntent = useRef<number | null>(null)
 
-  const { q, made_by: madeBy, datasource, folder, kind } = search
+  const { q, made_by: madeBy, datasource, folder, kind, sort } = search
   const tags = search.tag?.join(",")
   useEffect(() => {
     focusIntent.current = null
-  }, [q, madeBy, datasource, tags, folder, kind])
+  }, [q, madeBy, datasource, tags, folder, kind, sort])
 
   useEffect(() => {
     if (clampTo === null) return
@@ -406,11 +498,11 @@ export function DashboardList({
   const range = pageRange(page, total)
   const summary = query.isPaused
     ? "Offline. The list loads when you are back online."
-    : query.isPlaceholderData || sections === null
+    : query.isPlaceholderData || !ready
       ? undefined
-      : folderLocked && pageCount === 1
+      : (folderLocked || flat) && pageCount === 1
         ? dashboardCountText(total)
-        : listSummary(total, sections.length, page)
+        : listSummary(total, sections?.length ?? 0, page)
 
   const offerImported =
     roleAtLeast(principal.role, "editor") || kind === importedFilter
@@ -440,131 +532,168 @@ export function DashboardList({
 
   return (
     <ListHealthProvider ids={healthIds}>
-      {noDashboards ? null : (
-        <FilterRow
-          key={resetKey}
-          search={search}
-          onSearchChange={onFilterChange}
-          summary={summary}
-          folderLocked={folderLocked}
-          offerImported={offerImported}
-        />
-      )}
-      {failedQuery === null ? null : (
-        <div className="mb-4">
-          <LoadProblem
-            title={
-              failedQuery === query
-                ? "Could not load dashboards"
-                : "Could not load folders"
-            }
-            detail={loadProblemText(failedQuery.error)}
-            retrying={failedQuery.isFetching}
-            onRetry={() => void failedQuery.refetch()}
-            retryRef={retryRef}
+      <>
+        {noDashboards ? null : (
+          <FilterRow
+            key={resetKey}
+            search={search}
+            onSearchChange={onFilterChange}
+            summary={summary}
+            folderLocked={folderLocked}
+            offerImported={offerImported}
           />
-        </div>
-      )}
-      {empty ? (
-        <section className="flex flex-col items-center gap-2 py-16 text-center">
-          {noDashboards ? (
-            <>
-              <h2 className="text-lg font-semibold">No dashboards yet</h2>
-              <p className="text-sm text-muted-foreground">
-                Ask for one in the chat and it shows up here.
-              </p>
-              <div className="flex gap-2">
-                <Link
-                  to="/ask"
-                  className={cn(buttonVariants({ variant: "outline" }))}
+        )}
+        {failedQuery === null ? null : (
+          <div className="mb-4">
+            <LoadProblem
+              title={
+                failedQuery === query
+                  ? "Could not load dashboards"
+                  : "Could not load folders"
+              }
+              detail={loadProblemText(failedQuery.error)}
+              retrying={failedQuery.isFetching}
+              onRetry={() => void failedQuery.refetch()}
+              retryRef={retryRef}
+            />
+          </div>
+        )}
+        {empty ? (
+          <section className="flex flex-col items-center gap-2 py-16 text-center">
+            {noDashboards && readOnlyFolder !== undefined ? (
+              <>
+                <h2 className="text-lg font-semibold">No dashboards yet</h2>
+                <p className="text-sm text-muted-foreground">
+                  {`Your access: ${levelLabels[readOnlyFolder.level]}. Someone with Edit on ${readOnlyFolder.title} adds dashboards here.`}
+                </p>
+              </>
+            ) : noDashboards ? (
+              <>
+                <h2 className="text-lg font-semibold">No dashboards yet</h2>
+                <p className="text-sm text-muted-foreground">
+                  Ask for one in the chat and it shows up here.
+                </p>
+                <div className="flex gap-2">
+                  <Link
+                    to="/ask"
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    Open the chat
+                  </Link>
+                  <Link
+                    to="/import"
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    Import from Grafana
+                  </Link>
+                </div>
+                <a
+                  href={docsPageUrl("get-started/first-dashboard")}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                 >
-                  Open the chat
-                </Link>
-                <Link
-                  to="/import"
-                  className={cn(buttonVariants({ variant: "outline" }))}
+                  Read about this in the docs
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-semibold">
+                  {kindOnly
+                    ? kind === "any"
+                      ? "Every dashboard passed its last check."
+                      : "No dashboard has this problem."
+                    : "No dashboards match these filters."}
+                </h2>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResetKey((key) => key + 1)
+                    onSearchChange({})
+                  }}
                 >
-                  Import from Grafana
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-lg font-semibold">
-                {kindOnly
-                  ? kind === "any"
-                    ? "Every dashboard passed its last check."
-                    : "No dashboard has this problem."
-                  : "No dashboards match these filters."}
-              </h2>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setResetKey((key) => key + 1)
-                  onSearchChange({})
-                }}
-              >
-                Clear filters
-              </Button>
-            </>
-          )}
-        </section>
-      ) : null}
-      {showTable ? (
-        <>
-          <TableCard
-            minWidth={960}
-            labelledBy={labelledBy}
-            ref={regionRef}
-            stackOnNarrow
-          >
-            <thead>
-              {table.getHeaderGroups().map((group) => (
-                <tr key={group.id}>
-                  {group.headers.map((header) => (
-                    <HeaderCell
-                      key={header.id}
-                      className={header.column.columnDef.meta?.headerClassName}
-                    >
-                      <table.FlexRender header={header} />
-                    </HeaderCell>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody
-              aria-busy={pending || query.isPlaceholderData || clampTo !== null}
+                  Clear filters
+                </Button>
+              </>
+            )}
+          </section>
+        ) : null}
+        {selectedDashboards.length > 0 && folders !== undefined ? (
+          <BulkMoveBar
+            selected={selectedDashboards}
+            folders={folders}
+            onClear={() => setChosen({ scope: selectionScope, ids: new Set() })}
+            onMoved={(moved) => {
+              const left = new Set(selected)
+              for (const id of moved) left.delete(id)
+              setChosen({ scope: selectionScope, ids: left })
+              regionRef.current?.focus({ preventScroll: true })
+            }}
+          />
+        ) : null}
+        {showTable ? (
+          <ListSelectionProvider value={selection}>
+            <TableCard
+              minWidth={700}
+              labelledBy={labelledBy}
+              ref={regionRef}
+              stackOnNarrow
             >
-              {sections === null ? (
-                <SkeletonRows table={table} />
-              ) : (
-                sectionRows(
-                  sections,
-                  collapsed,
-                  toggleFolder,
-                  table,
-                  folderLocked
-                )
-              )}
-            </tbody>
-          </TableCard>
-          {loaded && pageCount > 1 && clampTo === null ? (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {query.isPlaceholderData
-                  ? null
-                  : `${range.first}-${range.last} of ${total}`}
-              </p>
-              <ListPagination
-                page={page}
-                pageCount={pageCount}
-                search={search}
-                onNavigate={onNavigate}
-              />
-            </div>
-          ) : null}
-        </>
-      ) : null}
+              <thead>
+                {table.getHeaderGroups().map((group) => (
+                  <tr key={group.id}>
+                    {group.headers.map((header) => (
+                      <HeaderCell
+                        key={header.id}
+                        className={
+                          header.column.columnDef.meta?.headerClassName
+                        }
+                      >
+                        <table.FlexRender header={header} />
+                      </HeaderCell>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody
+                aria-busy={
+                  pending || query.isPlaceholderData || clampTo !== null
+                }
+              >
+                {!ready ? (
+                  <SkeletonRows table={table} />
+                ) : sections === null ? (
+                  flatRows(table)
+                ) : (
+                  sectionRows(
+                    sections,
+                    collapsed,
+                    toggleFolder,
+                    table,
+                    folderLocked
+                  )
+                )}
+              </tbody>
+            </TableCard>
+            {loaded && pageCount > 1 && clampTo === null ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {query.isPlaceholderData
+                    ? null
+                    : `${range.first}-${range.last} of ${total}`}
+                </p>
+                <ListPagination
+                  page={page}
+                  pageCount={pageCount}
+                  search={search}
+                  onNavigate={onNavigate}
+                />
+              </div>
+            ) : null}
+          </ListSelectionProvider>
+        ) : null}
+      </>
     </ListHealthProvider>
   )
 }

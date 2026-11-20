@@ -5,6 +5,7 @@ description: Import a Grafana dashboard from the web page, the CLI or MCP, and h
 
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
 The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
+The tool, and the built-in agent that uses it, refuse JSON that converts to an HTML text panel, a placeholder panel or a panel action with the code `import_content_not_allowed`, because the agent and MCP clients never write those; the web page and `observe import` keep them.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
 Home's **Import a dashboard** tab starts the web page: paste the JSON or choose a file there and Home opens the page with it; see [Home](home.md).
 
@@ -13,6 +14,7 @@ On Home, an Admin pastes the link in the **Grafana dashboard** field and chooses
 `POST /api/v1/grafana/link` takes the link as `url`, fetches the dashboard with the connection's token and returns it as `json`, which `POST /api/v1/imports/preview` and `POST /api/v1/imports` take as they are.
 It is only for Admins, because the token is an Admin's credential and could read every dashboard it is allowed to; everyone else pastes the JSON.
 The link must be a `/d/<uid>` or `/d-solo/<uid>` link under the connection's address, and the server fetches only from the hosts of stored connections.
+The fetch never adds the connection's domain to the [outbound allowlist](../operate/outbound-access.md); when an Admin has removed it, the link answers `403 outbound_domain_not_allowed` until it is allowed again.
 A link with no matching connection answers `404 no_connection`, a Grafana page that is not a dashboard `422 not_a_dashboard_link`, a dashboard the token cannot read `404 dashboard_not_found`, and a Grafana that fails or refuses the token `502 grafana_unavailable`.
 
 To bring over every dashboard of a running Grafana in one run, with its folders, see [Switch from Grafana](switch-from-grafana.md).
@@ -25,6 +27,13 @@ An import cannot be saved while a datasource has no match, and SlashObserve neve
 SlashObserve imports Prometheus, ClickHouse, Loki, Tempo, Elasticsearch (the `elasticsearch` plugin) and OpenSearch (the `grafana-opensearch-datasource` plugin) datasources.
 A Grafana datasource whose type has no configured datasource here does not block the import: its panels import as placeholders that say so, such as "No Loki datasource is configured.".
 A datasource of another type, such as InfluxDB, imports its panels as placeholders that say "Influxdb is not supported yet.".
+
+## Import a Spec you exported
+
+A dashboard exported with **Export spec JSON** is an ObserveSpec, not a Grafana dashboard.
+Drop or paste it on the import page and the page recognises it by its `specVersion`, skips the Grafana conversion and datasource matching, and creates the dashboard from the Spec as it is, in the folder you pick, as version 1.
+The server validates it and runs every query as it does for [`observe dashboards apply`](cli.md), and a Spec it refuses is reported with the first problem.
+No import report is made, because nothing was converted.
 
 ## Choose the folder
 
@@ -44,6 +53,7 @@ When no folder has the title, an Editor or Admin creates it.
 When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error, even with `-q`).
 
 The **Folder** card on the web page lists the folders where you may create dashboards, except General, because a title of `General` means your default folder, which **Automatic** already gives you.
+The page starts on the shared folder you last imported or created a dashboard into in this browser, as long as you can still create in it; pick **Automatic** to use the export's folder or your My Dashboards instead.
 After an import the page says "In folder `<title>`" and shows the `folder_note` when the dashboard did not go where the request or the export asked.
 The folder is chosen before the dashboard is saved, so an import that then fails can leave a new, empty folder behind; delete it from its settings page.
 
@@ -53,11 +63,13 @@ The folder is chosen before the dashboard is saved, so an import that then fails
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
+The preview before that runs no query, so its **Needs a look** count covers only what the importer already knows, and the page says so; panels whose queries fail show up as unverified after the import.
 Failing queries mark their panels and variables unverified in the import report instead of failing the import.
 The **Imported, not verified** problem filter on the [dashboards list](dashboard-health.md#in-the-dashboards-list) lists every dashboard that still has unverified panels or variables and sends them to the agent.
 
 Later saves keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged, and so does its panel type, time override (`timeFrom` and `timeShift`), `maxDataPoints` and `interval`; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 A save with `update_dashboard` runs every query.
+A panel or row that repeats on a variable is checked as one copy, with the first value the variable offers or the first value selected, the way the dashboard draws each copy with a single value; its query is not run with All, so a healthy repeated panel is not marked unverified.
 A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query; either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 
 ### The import report
@@ -70,11 +82,20 @@ A very large dashboard lists at most 200 options per block and 10,000 in all, ke
 
 A value SlashObserve does not support, such as a delay in days or a time zone name the server does not know, is left out and listed in the import report.
 
+Query-based annotations are not imported, and the report says so under the dashboard's annotations; add SlashObserve annotations with the CLI, the HTTP API or an MCP client (see [Annotations](annotations.md)).
+When any panel carried Grafana alert rules (an alert list of Grafana-managed alerts, or a legacy graph alert), one dashboard note named "alert rules" lists those panels and says that alert rules, contact points and silences are not imported, so alerting stays on Prometheus rules and Alertmanager.
+
 ### The stored original and Grafana links
 
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 The import record's `grafana_uid` holds the dashboard's Grafana uid, so `GET /api/v1/grafana/resolve/{uid}` finds the dashboard from an old Grafana link.
 Only the first import of a uid holds it, and only a uid of 1 to 40 letters, digits, `-` or `_`; importing the same uid again makes a separate dashboard whose record has an empty `grafana_uid`, until the dashboard holding it is deleted.
+
+The preview's `existing` field names that dashboard when you can see it, and the import page then says "Already imported as `<title>` (version `<n>`)" and, when you can edit it, offers **Update `<title>`**.
+Updating saves the file as the dashboard's next version and refreshes its import record, so edits made since stay in the version history; **Import as new dashboard** still makes a second copy.
+The API takes the same choice as `update_dashboard` on `POST /api/v1/imports`, which answers 200 instead of 201.
+An update only takes the file the dashboard was imported from: a file with another Grafana uid answers 409 `grafana_uid_mismatch` naming both uids and changes nothing, so import it as a new dashboard instead.
+A client that must never make a second copy sets `refuse_existing` on the same request, and gets 409 `already_imported` with `existing` instead; the MCP tool `import_grafana_dashboard` (outside the built-in agent's runs) and `observe import` set it unless told `import_as_new` or `--as-new`, and take `update_dashboard` or `--update <dashboard id>` for the update.
 
 ## Dashboard settings
 
@@ -89,6 +110,7 @@ A dashboard's time settings, links and editability import as follows.
 | Links to other dashboards by tag | Links that list the matching dashboards | |
 | Links to an address | Links that keep their keep-time and include-variables options | |
 | A link's tooltip | Imported as written | It is cut to 200 characters and reported when cut. |
+| The dashboard, panel and row titles | Trimmed, with line breaks and other control characters turned into a space and zero-width and bidirectional override characters removed | A title that is empty afterwards becomes `Imported dashboard`, `Row` or no panel title. The [text rules](../reference/text-rules.md) then accept it. |
 | Link icons other than Grafana's default, and placement in the controls menu | Reported | The link is shown inline. |
 | A dashboard that is not editable in Grafana (`editable: false`) | Editable by anyone with Edit access to its folder | The report says so. |
 
@@ -140,6 +162,9 @@ On another datasource, or when the dashboard already holds 20 variables, `enable
 ### Loki and Tempo variables
 
 A Loki query variable imports as written, and one saved in the label values form becomes `label_values(<stream>, <label>)`; a Loki label names variable and any Tempo query variable keep their saved values as a fixed list, and an ad hoc variable on Loki or Tempo is dropped and reported.
+
+While a Loki variable selects All, `${var}` in a stream selector becomes `.+`, because Loki refuses a selector whose matchers all match an empty value; in a label or line filter after the selector it stays `.*`.
+A custom All value that matches an empty value, such as `.*`, is kept as written and reported when a Loki query uses the variable, so change it to `.+`.
 
 ## Queries
 
@@ -284,6 +309,7 @@ A time series, state timeline or status history panel's single time zone (`optio
 ### Layout and panels that reuse another panel
 
 Panels in a collapsed row keep their layout relative to the topmost one, whatever order they were saved in.
+An entry of a panel list that is not an object, and a row inside a collapsed row, are not kept, and the report lists each one by its path under "panels".
 
 Grafana's `-- Dashboard --` query, which shows another panel's results, imports as a query that reuses that panel (see [Reusing another panel's results](../concepts/observespec.md#reusing-another-panels-results)), and panels that reuse another are converted after all the others.
 Its `withTransforms` setting is kept, and `adHocFiltersEnabled` imports as `adHocFilters`, which filters the reused rows by the dashboard's ad hoc filters.
@@ -302,7 +328,7 @@ An axis color mode other than `series` is Grafana's default, `text`.
 
 A candlestick imports its up, down and flat candle colors; a flat candle, whose open equals its close, otherwise takes the up color.
 
-The annotation lane options of a time series panel (`options.annotations.multiLane` and `clustering`) import without a note, because Grafana 12.3 does not define them and SlashObserve draws no annotations.
+The annotation lane options of a time series panel (`options.annotations.multiLane` and `clustering`) import without a note, because Grafana 12.3 does not define them and SlashObserve draws annotations as markers, not lanes.
 
 ### State timeline and status history
 
@@ -458,6 +484,7 @@ These Grafana panel types import as follows.
 | Grafana panel | Imports as | Notes |
 | --- | --- | --- |
 | Annotation list, live panel and Alertmanager panel | A placeholder that gives the reason | Annotations, live streaming and alert rules are not part of SlashObserve. |
+| Library panel | A normal panel when the export carries its definition (a dashboard exported for sharing externally), else a placeholder that says library panels are not supported | SlashObserve has no library panels; an imported one is copied into the dashboard. |
 | `welcome` | A text panel with a one-line note | |
 | `gettingstarted` | A text checklist that links these docs | |
 | `datagrid` | A table that shows the frame its `selectedSeries` names | It shows the first frame when `selectedSeries` is empty. |

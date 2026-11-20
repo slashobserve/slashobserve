@@ -131,7 +131,7 @@ func (h *Handler) preview(c *gin.Context) {
 }
 
 func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgtype.UUID) (string, bool) {
-	if !h.requireEdit(c, principal, id) {
+	if !h.requireComment(c, principal, id) {
 		return "", false
 	}
 	uid := c.Param("uid")
@@ -142,10 +142,10 @@ func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgt
 	return uid, true
 }
 
-func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtype.UUID) bool {
+func (h *Handler) requireComment(c *gin.Context, principal auth.Principal, id pgtype.UUID) bool {
 	access, err := h.access.Dashboard(c.Request.Context(), principal, id)
 	switch {
-	case err == nil && access.Abilities.Edit:
+	case err == nil && access.Abilities.Comment:
 		return true
 	case err == nil, errors.Is(err, folders.ErrForbidden):
 		abortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
@@ -158,32 +158,31 @@ func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtyp
 }
 
 func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewRequest, uid string) (d *spec.Dashboard, draft *spec.Panel, ok bool) {
-	d, err := spec.WithPanel(saved, req.PanelID, req.Panel)
+	d, pointer, err := withDraftPanel(saved, req)
 	var invalid *spec.ValidationError
+	var patchErr *spec.PatchError
 	switch {
 	case err == nil:
-	case errors.Is(err, spec.ErrNoPanel):
-		abortError(c, http.StatusNotFound, string(queryproxy.CodePanelNotFound), "panel not found")
-		return nil, nil, false
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "the draft panel is not valid", invalid.Issues)
+		return nil, nil, false
+	case errors.As(err, &patchErr):
+		httpapi.AbortInvalidSpec(c, "the draft panel is not valid", patchErr.Issues)
 		return nil, nil, false
 	default:
 		h.internalFailure(c, uid, err)
 		return nil, nil, false
 	}
-	original, _ := saved.FindPanel(req.PanelID)
-	entries := d.AllPanels()
-	at := slices.IndexFunc(entries, func(e spec.PanelEntry) bool { return e.Pointer == original.Pointer })
-	if at < 0 {
-		h.internalFailure(c, uid, errInternal)
-		return nil, nil, false
-	}
-	draft = entries[at].Panel
 	invalidRequest := func(message string) (*spec.Dashboard, *spec.Panel, bool) {
 		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
 		return nil, nil, false
 	}
+	entries := d.AllPanels()
+	at := slices.IndexFunc(entries, func(e spec.PanelEntry) bool { return e.Pointer == pointer })
+	if at < 0 {
+		return invalidRequest("the panel's id must be " + req.PanelID)
+	}
+	draft = entries[at].Panel
 	switch {
 	case !draft.Type.IsData() || len(draft.Queries) == 0:
 		return invalidRequest("only data panels can be previewed")
@@ -197,6 +196,15 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		return invalidRequest(queryDatasourceMessage(uid))
 	}
 	return d, draft, true
+}
+
+func withDraftPanel(saved *spec.Dashboard, req previewRequest) (d *spec.Dashboard, pointer string, err error) {
+	if original, found := saved.FindPanel(req.PanelID); found {
+		d, err = spec.WithPanel(saved, req.PanelID, req.Panel)
+		return d, original.Pointer, err
+	}
+	d, err = spec.ApplyPanelPatch(saved, spec.PanelPatch{Upsert: []json.RawMessage{req.Panel}})
+	return d, "/panels/" + strconv.Itoa(len(saved.Panels)), err
 }
 
 func isOtherUID(ref, uid string) bool {

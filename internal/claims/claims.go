@@ -27,7 +27,6 @@ const (
 	touchEvery           = 15 * time.Second
 	maxClientRunes       = 200
 	maxNoteRunes         = 500
-	defaultRunTime       = time.Hour
 )
 
 var (
@@ -83,11 +82,11 @@ func New(c Config) *Service {
 	}
 }
 
-func (s *Service) runTime() time.Duration {
+func (s *Service) tokenExpiry() time.Time {
 	if s.runTimeout > 0 {
-		return s.runTimeout
+		return time.Now().Add(s.runTimeout)
 	}
-	return defaultRunTime
+	return time.Now().Add(revisions.LeaseTTL)
 }
 
 type Claimer struct {

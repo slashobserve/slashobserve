@@ -13,11 +13,13 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/events"
 )
 
 const (
 	foreignKeyViolation = "23503"
 	maxTitleRunes       = 200
+	maxReasonRunes      = 500
 )
 
 type Author struct {
@@ -42,6 +44,7 @@ type Item struct {
 	UpdatedAt      time.Time
 	ClosedAt       *time.Time
 	ClosedBy       *Author
+	CloseReason    *string
 	MergedVersion  *int
 	Behind         bool
 	LatestVersion  int
@@ -133,16 +136,33 @@ func appendEvent(ctx context.Context, q *dbsqlc.Queries, typ string, who actor.A
 		Owner:    activity.OnDashboard(dashboardID),
 		Actor:    who,
 		Data:     data,
-	}, nil)
+	}, &events.Event{
+		Type:        events.TypeProposalUpdated,
+		DashboardID: dashboardID.String(),
+		ProposalID:  id.String(),
+		Status:      string(stateAfter(typ)),
+		Author:      events.NewAuthor(string(who.Kind), who.ID, who.Name),
+	})
 	return err
 }
 
-func closeProposal(ctx context.Context, q *dbsqlc.Queries, h head, state State, by actor.Columns) error {
+func stateAfter(activityType string) State {
+	switch activityType {
+	case activity.TypeProposalMerged:
+		return StateMerged
+	case activity.TypeProposalDiscarded:
+		return StateDiscarded
+	}
+	return StateOpen
+}
+
+func closeProposal(ctx context.Context, q *dbsqlc.Queries, h head, state State, by actor.Columns, reason string) error {
 	rows, err := q.CloseProposal(ctx, dbsqlc.CloseProposalParams{
 		State:        string(state),
 		ClosedByKind: pgtype.Text{String: by.Kind, Valid: true},
 		ClosedByID:   by.ID,
 		ClosedByName: pgtype.Text{String: by.Name, Valid: true},
+		CloseReason:  pgtype.Text{String: reason, Valid: reason != ""},
 		ID:           h.row.ID,
 		Revision:     h.row.Revision,
 	})
@@ -183,6 +203,9 @@ func itemOf(p dbsqlc.Proposal, baseVersion int, summary string, merged pgtype.In
 		CreatedAt:    p.CreatedAt.Time.UTC(),
 		UpdatedAt:    p.UpdatedAt.Time.UTC(),
 		ClosedAt:     timePtr(p.ClosedAt),
+	}
+	if p.CloseReason.Valid {
+		item.CloseReason = &p.CloseReason.String
 	}
 	if p.ClosedByKind.Valid {
 		closer := authorOf(p.ClosedByKind.String, p.ClosedByID, p.ClosedByName.String)

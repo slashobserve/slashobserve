@@ -23,11 +23,24 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 		edit(&in)
 		return in
 	}
+	metrics := func(edit func(*CreateInput)) CreateInput {
+		in := CreateInput{Kind: KindMetrics, Title: "Requests", DatasourceUID: "prom", Query: ptr(`sum(rate(http_requests_total[5m]))`)}
+		edit(&in)
+		return in
+	}
 	cases := []struct {
 		name string
 		in   CreateInput
 		want string
 	}{
+		{"a metrics search", metrics(func(*CreateInput) {}), ""},
+		{"a metrics search in table mode", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), ""},
+		{"a metrics search in graph mode", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"graph"}`) }), ""},
+		{"a metrics search without a query", metrics(func(in *CreateInput) { in.Query = nil }), "query is required for a metrics search"},
+		{"a metrics search with a mode that is not one", metrics(func(in *CreateInput) { in.Filters = []byte(`{"mode":"pie"}`) }), "mode must be graph or table"},
+		{"a trace filter on a metrics search", metrics(func(in *CreateInput) { in.Filters = []byte(`{"service":"x"}`) }), "only the filter key mode"},
+		{"a mode on a logs search", logs(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), "only the filter key columns"},
+		{"a mode on a traces search", traces(func(in *CreateInput) { in.Filters = []byte(`{"mode":"table"}`) }), "only the filter keys"},
 		{"a logs search", logs(func(*CreateInput) {}), ""},
 		{"a logs search with columns", logs(func(in *CreateInput) { in.Filters = []byte(`{"columns":["level","msg"]}`) }), ""},
 		{"a logs search with null filters", logs(func(in *CreateInput) { in.Filters = []byte(`null`) }), ""},
@@ -38,14 +51,19 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 			in.From, in.To = "now-6h", "now-5m"
 		}), ""},
 		{"absolute times", logs(func(in *CreateInput) { in.From, in.To = "2026-11-01T08:00:00Z", "2026-11-01T09:00:00Z" }), ""},
-		{"an unknown kind", logs(func(in *CreateInput) { in.Kind = "metrics" }), "kind must be"},
-		{"an empty title", logs(func(in *CreateInput) { in.Title = "  " }), "title is required"},
+		{"an unknown kind", logs(func(in *CreateInput) { in.Kind = "sql" }), "kind must be logs, traces or metrics"},
+		{"an empty title", logs(func(in *CreateInput) { in.Title = "  " }), "title must not be empty"},
+		{"an invisible title", logs(func(in *CreateInput) { in.Title = "\u200b" }), "no visible character"},
+		{"a title with an override", logs(func(in *CreateInput) { in.Title = "a\u202eb" }), "bidirectional override"},
 		{"a long title", logs(func(in *CreateInput) { in.Title = strings.Repeat("é", 121) }), "title must be at most 120"},
 		{"a title with a control character", logs(func(in *CreateInput) { in.Title = "a\nb" }), "control characters"},
 		{"a datasource uid that is not one", logs(func(in *CreateInput) { in.DatasourceUID = "-bad" }), "datasource_uid"},
 		{"a logs search without a query", logs(func(in *CreateInput) { in.Query = nil }), "query is required"},
 		{"a blank query", traces(func(in *CreateInput) { in.Query = ptr(" ") }), "query must not be blank"},
 		{"a long query", logs(func(in *CreateInput) { in.Query = ptr(strings.Repeat("x", 8001)) }), "query must be at most 8000"},
+		{"a query with a NUL character", logs(func(in *CreateInput) { in.Query = ptr("{a=\"b\"}\x00") }), "without the NUL character"},
+		{"a multiline query", logs(func(in *CreateInput) { in.Query = ptr("SELECT 1\n\tFROM t") }), ""},
+		{"a column with a NUL character", logs(func(in *CreateInput) { in.Filters = []byte(`{"columns":["a\u0000"]}`) }), "control characters"},
 		{"an unknown filter key", logs(func(in *CreateInput) { in.Filters = []byte(`{"colums":["a"]}`) }), "only the keys"},
 		{"filters that are not an object", logs(func(in *CreateInput) { in.Filters = []byte(`[1]`) }), "only the keys"},
 		{"a trace filter on a logs search", logs(func(in *CreateInput) { in.Filters = []byte(`{"service":"x"}`) }), "only the filter key columns"},
@@ -58,6 +76,8 @@ func TestValidateAppliesEveryRule(t *testing.T) {
 		{"a long service filter", traces(func(in *CreateInput) { in.Filters = []byte(`{"service":"` + strings.Repeat("s", 201) + `"}`) }), "service must be"},
 		{"a span filter with a control character", traces(func(in *CreateInput) { in.Filters = []byte(`{"span":"a\u0007b"}`) }), "span must be"},
 		{"a duration that is not one", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"fast"}`) }), "min must be a duration"},
+		{"a minimum above the maximum", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"2s","max":"500ms"}`) }), "min must not be greater than max"},
+		{"a minimum above the maximum in another unit", traces(func(in *CreateInput) { in.Filters = []byte(`{"min":"1m","max":"59s"}`) }), "min must not be greater than max"},
 		{"a maximum duration that is not one", traces(func(in *CreateInput) { in.Filters = []byte(`{"max":"5"}`) }), "max must be a duration"},
 		{"a time that does not parse", logs(func(in *CreateInput) { in.From = "yesterday" }), "from:"},
 		{"an end that does not parse", logs(func(in *CreateInput) { in.To = "now-" }), "to:"},
@@ -111,6 +131,9 @@ func TestFitDatasourceMatchesTheTypeToTheKind(t *testing.T) {
 		{"clickhouse traces with a query", KindTraces, spec.ClickHouse, query, CodeInvalid},
 		{"loki traces", KindTraces, spec.Loki, nil, CodeUnsupportedDatasource},
 		{"elasticsearch traces", KindTraces, spec.Elasticsearch, nil, CodeUnsupportedDatasource},
+		{"prometheus metrics", KindMetrics, spec.Prometheus, query, ""},
+		{"loki metrics", KindMetrics, spec.Loki, query, CodeUnsupportedDatasource},
+		{"clickhouse metrics", KindMetrics, spec.ClickHouse, query, CodeUnsupportedDatasource},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -137,5 +160,16 @@ func TestAddressCarriesWhatReopensTheSearch(t *testing.T) {
 	traces := SavedSearch{Kind: KindTraces, DatasourceUID: "tempo", From: "now-1h", To: "now", Filters: Filters{Service: "checkout", Min: "250ms", Errors: true}}
 	if got, want := traces.address().Encode(), "errors=1&from=now-1h&min=250ms&service=checkout&to=now"; got != want {
 		t.Errorf("traces address %q, want %q", got, want)
+	}
+	graph := SavedSearch{Kind: KindMetrics, DatasourceUID: "prom", Query: ptr("up"), From: "now-6h", To: "now"}
+	if got, want := graph.address().Encode(), "from=now-6h&q=up&to=now"; got != want {
+		t.Errorf("metrics graph address %q, want %q", got, want)
+	}
+	table := SavedSearch{Kind: KindMetrics, DatasourceUID: "prom", Query: ptr("up"), From: "now-1h", To: "now", Filters: Filters{Mode: "table"}}
+	if got, want := table.address().Encode(), "from=now-1h&mode=table&q=up&to=now"; got != want {
+		t.Errorf("metrics table address %q, want %q", got, want)
+	}
+	if got, want := URL(nil, table), "/explore/metrics/prom?from=now-1h&mode=table&q=up&to=now"; got != want {
+		t.Errorf("metrics url %q, want %q", got, want)
 	}
 }

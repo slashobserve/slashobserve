@@ -20,13 +20,15 @@ import (
 )
 
 const (
-	signalLogs   = "logs"
-	signalTraces = "traces"
+	signalLogs    = "logs"
+	signalTraces  = "traces"
+	signalMetrics = "metrics"
 
 	languageLogQL         = "logql"
 	languageClickHouseSQL = "clickhouse_sql"
 	languageKQL           = "kql"
 	languageTraceQL       = "traceql"
+	languagePromQL        = "promql"
 	languageFilters       = "filters"
 
 	maxExplanationRunes = 300
@@ -34,6 +36,7 @@ const (
 	sampleWindow        = 15 * time.Minute
 
 	warnNoSampleMatches = "No matches in the last 15 minutes."
+	warnNoSampleSeries  = "No series in the last 15 minutes."
 )
 
 var durationPattern = regexp.MustCompile(`^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$`)
@@ -68,6 +71,8 @@ func languageFor(dsType spec.DatasourceType, signal string, hasQuery bool) (stri
 		return language, true
 	}
 	switch {
+	case dsType == spec.Prometheus && signal == signalMetrics && hasQuery:
+		return languagePromQL, true
 	case dsType == spec.ClickHouse && signal == signalTraces && !hasQuery:
 		return languageFilters, true
 	case dsType == spec.Tempo && signal == signalTraces && hasQuery:
@@ -80,6 +85,8 @@ func languageFor(dsType spec.DatasourceType, signal string, hasQuery bool) (stri
 
 func languageRule(dsType spec.DatasourceType, signal string) string {
 	switch {
+	case dsType == spec.Prometheus:
+		return "answer: a PromQL query in submit_query's query; it is evaluated at the end of the time range."
 	case dsType == spec.Loki:
 		return "answer: a LogQL log query in submit_query's query."
 	case dsType == spec.ClickHouse && signal == signalLogs:
@@ -111,8 +118,8 @@ const (
 	propTraceFilters = `"trace_filters":{"type":"object","additionalProperties":false,"properties":{` +
 		`"service":{"type":"string","maxLength":200,"description":"Exact service name from the context."},` +
 		`"span":{"type":"string","maxLength":200,"description":"Exact span name."},` +
-		`"min":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Minimum duration, such as 250ms."},` +
-		`"max":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Maximum duration, such as 2s."},` +
+		`"min":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Minimum span duration, such as 250ms. One span must fit this and the service and span name, so the trace itself may be longer."},` +
+		`"max":{"type":"string","pattern":"^(\\d+(?:\\.\\d+)?)(ns|us|µs|ms|s|m|h)$","description":"Maximum span duration, such as 2s. One span must fit this and the service and span name."},` +
 		`"errors":{"type":"boolean","description":"Only traces with an error span."}},"description":"The trace search form's fields; set only the ones the question needs."}`
 
 	schemaCannotTranslate = `{"type":"object","properties":{"reason":{"type":"string","minLength":1,"maxLength":300,"description":"One sentence saying why the data cannot answer the question."}},"required":["reason"],"additionalProperties":false}`
@@ -285,7 +292,7 @@ func (r *Registry) checkQuery(ctx context.Context, run draftRun, query string) (
 	case failure != "":
 		return nil, &checkFailure{text: failure}
 	case empty:
-		warnings = append(warnings, warnNoSampleMatches)
+		warnings = append(warnings, emptySampleWarning(run.dsType))
 	}
 	return append(warnings, draftWarnings(run.dsType, query)...), nil
 }
@@ -293,4 +300,11 @@ func (r *Registry) checkQuery(ctx context.Context, run draftRun, query string) (
 func resultMessage(res Result) string {
 	body, _ := res.Content.(errorBody)
 	return body.Message
+}
+
+func emptySampleWarning(dsType spec.DatasourceType) string {
+	if dsType == spec.Prometheus {
+		return warnNoSampleSeries
+	}
+	return warnNoSampleMatches
 }

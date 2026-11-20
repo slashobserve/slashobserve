@@ -9,7 +9,7 @@ import {
   useState,
   type Ref,
 } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -23,9 +23,10 @@ import { Label } from "@/components/ui/label"
 import {
   asDashboardSpec,
   latestDashboardQuery,
-  useAddVersion,
+  usePatchPanels,
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
+import { useDeletedBy } from "@/dashboards/live/deleted-store"
 import { useLatestPermissions } from "@/dashboards/permissions"
 import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
@@ -51,6 +52,7 @@ import {
   changeSummary,
   defaultSaveSummary,
   normalisePanel,
+  overlappingChanges,
   panelChanges,
   rebasePanel,
 } from "./changes"
@@ -62,18 +64,27 @@ import {
   startDraft,
   type EditablePanel,
 } from "./draft"
+import { restoreBackup, useDraftBackup } from "./draft-backup"
+import { useDraftTitles } from "./draft-title"
 import { EditorFooter } from "./editor-footer"
 import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
-import { parsePanelJson, withPanel } from "./panel-json"
+import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
+import { withNewPanel } from "./new-panel"
+import { parsePanelJson } from "./panel-json"
 import { PreviewSection } from "./preview-section"
+import { saveBlockedText } from "./save-blocked"
 import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
 import {
+  onlyEmptyResult,
+  onlyGridOverlap,
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
+  querySources,
+  transientLines,
   withoutQuery,
   type Problem,
 } from "./save-problem"
@@ -90,6 +101,7 @@ type Props = {
   dashboardId: string
   spec: Dashboard
   panel: EditablePanel
+  adding?: boolean
   version: number
   latestVersion: number
   readOnly: boolean
@@ -105,7 +117,7 @@ type Props = {
   onDiscard: () => void
 }
 
-const savingText = "Saving and running every panel query."
+const savingText = "Saving and running this panel's queries."
 const readOnlyAskReason = "Open the latest version to ask the agent."
 
 function focusIsFree() {
@@ -119,6 +131,7 @@ export default function PanelEditor({
   dashboardId,
   spec,
   panel,
+  adding = false,
   version,
   latestVersion,
   readOnly,
@@ -135,7 +148,7 @@ export default function PanelEditor({
 }: Props) {
   const datasourceId = useId()
   const queryClient = useQueryClient()
-  const save = useAddVersion(dashboardId)
+  const save = usePatchPanels(dashboardId)
   const navigate = useNavigate()
   const permissions = useLatestPermissions(dashboardId)
   const propose = !permissions.edit && permissions.comment
@@ -172,6 +185,7 @@ export default function PanelEditor({
     [draft.base, draft.panel]
   )
   const dirty = changes.length > 0
+  const backup = useDraftBackup(dashboardId, draft, dirty)
   const [jsonValid, setJsonValid] = useState(true)
   const [metricsOpen, setMetricsOpen] = useState(false)
   const [activeRef, setActiveRef] = useState("")
@@ -217,6 +231,23 @@ export default function PanelEditor({
         problem?.kind === "conflict" ? problem.latest : 0
       )
   const conflicted = problem?.kind === "conflict"
+  const newestBody = useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId),
+    enabled: newer > 0 && !readOnly,
+  }).data
+  const newestPanel =
+    newestBody && newestBody.version.version >= newer
+      ? findPanel(asDashboardSpec(newestBody.version.spec), draft.panel.id)
+          ?.panel
+      : undefined
+  const newerAuthor = newerVersionAuthor(newestBody, newer)
+  const overlaps = useMemo(
+    () =>
+      newestPanel && isEditablePanel(newestPanel)
+        ? overlappingChanges(draft.base, draft.panel, newestPanel)
+        : [],
+    [newestPanel, draft.base, draft.panel]
+  )
   const hadNewer = useRef(false)
   useEffect(() => {
     if (conflicted) noticeRef.current?.focus()
@@ -236,9 +267,34 @@ export default function PanelEditor({
       ?.scrollIntoView({ block: "nearest" })
   }, [issuesByQuery])
 
+  const [runBlocked, setRunBlocked] = useState(false)
+  const [inlineErrorRefs, setInlineErrorRefs] = useState<ReadonlySet<string>>(
+    () => new Set()
+  )
+  const setInlineError = useCallback((ref: string, shown: boolean) => {
+    setInlineErrorRefs((current) => {
+      if (current.has(ref) === shown) return current
+      const next = new Set(current)
+      if (shown) next.add(ref)
+      else next.delete(ref)
+      return next
+    })
+  }, [])
+  const showDraftTitle = useDraftTitles((state) => state.show)
+  const draftPanelId = draft.panel.id
+  const draftTitle = draft.panel.title
+  useEffect(() => {
+    showDraftTitle(draftPanelId, draftTitle)
+  }, [showDraftTitle, draftPanelId, draftTitle])
+  useEffect(
+    () => () => showDraftTitle(draftPanelId, undefined),
+    [showDraftTitle, draftPanelId]
+  )
   const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
+  const deleted = useDeletedBy(dashboardId) !== undefined
+  const blockedText = saveBlockedText({ deleted, jsonBlocked, runBlocked })
   const titleOk = current.title === undefined || current.title.trim() !== ""
   const queriesOk = isDataPanel(current)
     ? current.queries.every(
@@ -253,14 +309,16 @@ export default function PanelEditor({
     validate !== undefined &&
     dirty &&
     !locked &&
-    !jsonBlocked &&
+    blockedText === null &&
     queriesOk &&
     titleOk
 
   function submit(
     source: Dashboard,
     parent: number,
-    panelToSave: EditablePanel
+    panelToSave: EditablePanel,
+    acceptEmpty = false,
+    replaced = false
   ) {
     if (!validate) return
     const entry = findPanel(source, panelToSave.id)
@@ -283,20 +341,19 @@ export default function PanelEditor({
       )
       return
     }
-    const placed = withPanel(source, parsed.panel.id, parsed.panel)
-    if (!placed) {
-      setProblem({ kind: "gone" })
-      return
-    }
     setProblem(null)
+    const title = normalised.title || normalised.id
     save.mutate(
       {
-        spec: placed,
+        patch: { upsert: [{ ...parsed.panel }] },
         summary:
           note.trim() ||
-          defaultSaveSummary(changes, normalised.title || normalised.id),
+          (adding
+            ? `Add "${title}"`
+            : defaultSaveSummary(changes, entry.panel.title || entry.panel.id)),
         parent_version: parent,
         propose,
+        acceptEmpty,
       },
       {
         onSuccess: (outcome) => {
@@ -324,9 +381,32 @@ export default function PanelEditor({
               })
               return
             }
+            if (
+              error.status === 422 &&
+              adding &&
+              !replaced &&
+              onlyGridOverlap(error.issues)
+            ) {
+              void applyToLatest(acceptEmpty, true)
+              return
+            }
             if (error.status === 422) {
               if (error.issues.length > 0 && error.issues.every(isTransient)) {
-                setProblem({ kind: "transient" })
+                setProblem({
+                  kind: "transient",
+                  lines: transientLines(
+                    error.issues,
+                    entry.pointer,
+                    querySources(
+                      normalised,
+                      (ref) => resolveDatasource(ref).uid
+                    )
+                  ),
+                })
+                return
+              }
+              if (onlyEmptyResult(error.issues)) {
+                setProblem({ kind: "empty", message: error.issues[0].message })
                 return
               }
               setProblem({
@@ -364,7 +444,13 @@ export default function PanelEditor({
         ...latestDashboardQuery(queryClient, dashboardId),
         staleTime: 0,
       })
-      const latestSpec = asDashboardSpec(latest.version.spec)
+      const savedSpec = asDashboardSpec(latest.version.spec)
+      const latestSpec =
+        adding &&
+        isDataPanel(draft.base) &&
+        findPanel(savedSpec, draft.base.id) === undefined
+          ? withNewPanel(savedSpec, draft.base)
+          : savedSpec
       const entry = findPanel(latestSpec, draft.panel.id)
       if (!entry) {
         setProblem({ kind: "gone" })
@@ -395,9 +481,15 @@ export default function PanelEditor({
     }
   }
 
-  function applyToLatest() {
+  function applyToLatest(acceptEmpty = false, replaced = false) {
     return withLatestPanel(({ spec: latestSpec, version: latestOf, panel }) =>
-      submit(latestSpec, latestOf, rebasePanel(draft.base, draft.panel, panel))
+      submit(
+        latestSpec,
+        latestOf,
+        rebasePanel(draft.base, draft.panel, panel),
+        acceptEmpty,
+        replaced
+      )
     )
   }
 
@@ -412,18 +504,23 @@ export default function PanelEditor({
     else submit(spec, draft.baseVersion, draft.panel)
   }
 
+  function saveAnyway() {
+    if (newer > 0) void applyToLatest(true)
+    else submit(spec, draft.baseVersion, draft.panel, true)
+  }
+
   const registerJsonGuard = useCallback((guard: LeaveGuard) => {
     jsonGuard.current = guard
   }, [])
 
-  const footerSummary = jsonBlocked
-    ? "Fix the JSON to save."
-    : propose
+  const footerSummary =
+    blockedText ??
+    (propose
       ? `${changeSummary(changes)}. An editor merges your change`
-      : changeSummary(changes)
+      : changeSummary(changes))
   let saveLabel = `Save as version ${latestVersion + 1}`
   if (propose) saveLabel = "Propose change"
-  else if (newer > 0) saveLabel = `Apply my changes to version ${newer}`
+  else if (newer > 0) saveLabel = `Save my changes as version ${newer + 1}`
 
   const data = isDataPanel(current) ? current : null
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
@@ -440,6 +537,34 @@ export default function PanelEditor({
         ref={bodyRef}
         className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3.5"
       >
+        {backup.kept ? (
+          <Alert>
+            <AlertTitle>Your unsaved changes were kept.</AlertTitle>
+            <AlertDescription>
+              <p>They were still open when your session ended.</p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    const kept = backup.kept
+                    backup.drop()
+                    if (kept) {
+                      dispatch({
+                        type: "replace",
+                        panel: restoreBackup(kept, draft.panel),
+                      })
+                    }
+                  }}
+                >
+                  Restore my changes
+                </Button>
+                <Button size="xs" variant="outline" onClick={backup.drop}>
+                  Discard them
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <PreviewSection
           dashboardId={dashboardId}
           spec={spec}
@@ -449,6 +574,8 @@ export default function PanelEditor({
           draft={draft.panel}
           timeRange={timeRange}
           selections={selections}
+          onSaveBlockedChange={setRunBlocked}
+          inlineErrorRefs={inlineErrorRefs}
         />
         <div className={view === "editor" ? "contents" : "hidden"}>
           <AskAgent
@@ -506,6 +633,7 @@ export default function PanelEditor({
                   onRemoved={(ref) =>
                     setProblem((current) => withoutQuery(current, ref))
                   }
+                  onInlineErrorChange={setInlineError}
                   focusFirst={focusFirstQuery}
                   editorRefs={editorRefs}
                   beforeAdd={
@@ -529,6 +657,7 @@ export default function PanelEditor({
                 draft={draft.panel}
                 dispatch={dispatch}
                 readOnly={locked}
+                onOpenJson={() => onViewChange("json")}
               />
             </div>
           </>
@@ -559,14 +688,11 @@ export default function PanelEditor({
                   onReload={() => void reload()}
                 />
               ) : (
-                <>
-                  <AlertTitle>
-                    Version {newer} was saved while you were editing.
-                  </AlertTitle>
-                  <AlertDescription>
-                    Your changes stay here until you apply them to that version.
-                  </AlertDescription>
-                </>
+                <NewerVersionNotice
+                  version={newestBody?.version.version ?? newer}
+                  author={newerAuthor}
+                  overlaps={overlaps}
+                />
               )}
             </Alert>
           ) : null}
@@ -575,6 +701,7 @@ export default function PanelEditor({
               problem={problem}
               panelId={current.id}
               onRetry={saveDraft}
+              onSaveAnyway={saveAnyway}
             />
           ) : null}
         </div>

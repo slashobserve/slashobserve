@@ -231,9 +231,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         )
         expect(newer).toBe(3)
 
-        const apply = editor(page).getByRole("button", {
-          name: "Apply my changes to version 3",
-        })
+        const apply = page
+          .getByRole("complementary", { name: "Edit Mine" })
+          .getByRole("button", { name: "Save my changes as version 4" })
         await expect(apply).toBeVisible({ timeout: 15_000 })
         await apply.click()
 

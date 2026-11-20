@@ -14,6 +14,8 @@ import { dashboardLink, observationLink } from "@/lib/links"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import type { AgentRef } from "./agent-ref"
+import { costText } from "./stats"
+import { plainTitle } from "@/comments/plain-title"
 
 type AgentRun = components["schemas"]["AgentRun"]
 
@@ -80,6 +82,7 @@ function RunRow({ run, showPerson }: { run: AgentRun; showPerson: boolean }) {
       <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
         <RelativeTime iso={run.created_at} />
         {showPerson ? <span>by {run.requested_by.name}</span> : null}
+        {run.cost_usd === null ? null : <span>{costText(run.cost_usd)}</span>}
         {run.dashboard !== null ? (
           <Link
             {...dashboardLink(run.dashboard.id, run.dashboard.title)}
@@ -93,7 +96,7 @@ function RunRow({ run, showPerson }: { run: AgentRun; showPerson: boolean }) {
             {...observationLink(run.observation.id)}
             className="underline underline-offset-4"
           >
-            {run.observation.title}
+            {plainTitle(run.observation.title)}
           </Link>
         ) : null}
       </p>

@@ -11,6 +11,8 @@ import { Unsupported } from "../unsupported"
 import {
   framesWithX,
   noXFieldReason,
+  tableFallbackNote,
+  tableFallbackNoteHeight,
   trendSource,
   xAxisFor,
   xFieldName,
@@ -48,7 +50,18 @@ const TrendPanel: PanelRenderer = (props) => {
   }
   if (aligned.series.length === 0 || aligned.xs.length === 0) {
     const Table = dataRenderers.table
-    return Table ? <Table {...props} /> : <Unsupported />
+    if (!Table) return <Unsupported />
+    return (
+      <div className="flex size-full flex-col">
+        <p
+          className="m-0 shrink-0 overflow-y-auto px-3 pt-2 text-xs text-muted-foreground"
+          style={{ height: tableFallbackNoteHeight }}
+        >
+          {tableFallbackNote}
+        </p>
+        <Table {...props} height={props.height - tableFallbackNoteHeight} />
+      </div>
+    )
   }
   return (
     <TimeseriesChart

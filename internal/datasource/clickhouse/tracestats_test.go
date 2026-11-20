@@ -70,6 +70,18 @@ func TestGuardRefusesASecondStatementInTheFilter(t *testing.T) {
 	}
 }
 
+func TestTraceStatsRefusesAFilterThatStepsOutOfItsParentheses(t *testing.T) {
+	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	req := datasource.TraceStatsRequest{Range: datasource.TimeRange{From: from, To: from.Add(time.Hour)}, Step: time.Minute}
+	for _, expr := range []string{"1=0) OR (1=1", "ServiceName = 'a')) OR ((1=1", "(ServiceName = 'a' --"} {
+		req.Query = expr
+		_, err := (&Datasource{}).TraceStats(t.Context(), req)
+		if !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Errorf("%q: err = %v, want an invalid query", expr, err)
+		}
+	}
+}
+
 func TestFoldTraceStatsFillsBucketsAndConvertsNanoseconds(t *testing.T) {
 	from := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
 	rng := datasource.TimeRange{From: from, To: from.Add(150 * time.Second)}
@@ -113,5 +125,51 @@ func TestFoldTraceStatsWithNoRowsIsEmptyButFilled(t *testing.T) {
 	}
 	if !strings.HasPrefix(TraceStatsQuery("", time.Minute), "SELECT ") {
 		t.Fatal("the grouped query is not a SELECT")
+	}
+}
+
+func TestTraceConditionRefusesWhatIsNotACondition(t *testing.T) {
+	good := []string{"", "  ", checkoutFilter, "TraceId IN (SELECT TraceId FROM otel_traces WHERE Duration > 5)", "SpanAttributes['http.route'] = '/x;y'", "(a = 1) OR (b = 2)"}
+	for _, expr := range good {
+		if err := checkTraceCondition(expr); err != nil {
+			t.Errorf("checkTraceCondition(%q) = %v, want nil", expr, err)
+		}
+	}
+	bad := []string{"SELECT 1", "select 1", "WITH 1 AS x SELECT x", "a = 1; SELECT 1", "a = 1 -- tail", "a = 1) OR (1 = 1", "(a = 1", "a = 'open"}
+	for _, expr := range bad {
+		err := checkTraceCondition(expr)
+		if !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Errorf("checkTraceCondition(%q) = %v, want an invalid query error", expr, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "ServiceName = 'checkout'") {
+			t.Errorf("checkTraceCondition(%q) = %v, want the example condition", expr, err)
+		}
+	}
+}
+
+func TestTraceStatsErrorsDoNotEchoTheGeneratedSQL(t *testing.T) {
+	grouped := TraceStatsQuery("service = checkout", time.Minute)
+	histogram := DurationHistogramQuery("service = checkout")
+	cases := map[string]string{
+		"unknown identifier": "Unknown expression or function identifier `service` in scope " + strings.ReplaceAll(grouped, "\n", " ") + ". Maybe you meant: ['ServiceName']",
+		"syntax error":       "Syntax error: failed at position 140 (=) (line 2, col 20): = checkout GROUP BY Time ORDER BY Time. Expected one of: token",
+		"histogram":          "Unknown identifier in scope " + histogram + ". Maybe you meant: ['ServiceName']",
+	}
+	for name, message := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := trimGeneratedSQL(datasource.Errorf(datasource.ErrInvalidQuery, "%s", message))
+			for _, leak := range []string{"toStartOfInterval", "otel_traces WHERE", "GROUP BY", "countIf", "exp2"} {
+				if strings.Contains(got.Error(), leak) {
+					t.Errorf("error still names %q: %v", leak, got)
+				}
+			}
+			if !strings.Contains(got.Error(), "ServiceName = 'checkout'") {
+				t.Errorf("error = %v, want the example condition", got)
+			}
+		})
+	}
+	if got := trimGeneratedSQL(datasource.Errorf(datasource.ErrTimeout, "query timed out")); got.Error() != "query timed out" {
+		t.Errorf("a timeout must pass through, got %v", got)
 	}
 }

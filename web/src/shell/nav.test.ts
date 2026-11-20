@@ -40,12 +40,13 @@ describe("isNavItemActive", () => {
     expect(isNavItemActive("/settings", "/settings")).toBe(true)
   })
 
-  test("Agents covers its list, an agent's page and the API keys page", () => {
+  test("Agents covers its list and an agent's page, and API keys has its own item", () => {
     expect(isNavItemActive("/agents", "/agents")).toBe(true)
     expect(isNavItemActive("/agents", "/agents/grant-abc")).toBe(true)
-    expect(isNavItemActive("/agents", "/keys")).toBe(true)
+    expect(isNavItemActive("/agents", "/keys")).toBe(false)
+    expect(isNavItemActive("/keys", "/keys")).toBe(true)
     expect(isNavItemActive("/agents", "/agents-x")).toBe(false)
-    expect(isNavItemActive("/agents", "/keysx")).toBe(false)
+    expect(isNavItemActive("/keys", "/keysx")).toBe(false)
     expect(isNavItemActive("/settings", "/keys")).toBe(false)
   })
 
@@ -172,7 +173,7 @@ describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all eleven pages and neither the chat nor API keys is one of them", () => {
+  test("an Admin sees all twelve pages, API keys among them, and the chat is not one of them", () => {
     expect(labels("admin")).toEqual([
       "Home",
       "Inbox",
@@ -180,8 +181,10 @@ describe("visibleNavItems", () => {
       "Dashboards",
       "Logs",
       "Traces",
+      "Metrics",
       "Agents",
       "Datasources",
+      "API keys",
       "People",
       "Settings",
     ])
@@ -197,6 +200,7 @@ describe("visibleNavItems", () => {
         "Dashboards",
         "Logs",
         "Traces",
+        "Metrics",
         "Agents",
         "Settings",
       ])

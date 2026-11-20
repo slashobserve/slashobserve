@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react"
+import { act, fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, observeKeys } from "@/api/keys"
@@ -16,6 +16,7 @@ function status(uid: string, type: string): DatasourceStatus {
     type,
     name: uid,
     index: type === "elasticsearch" ? "logs-*" : undefined,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-07T12:00:00Z",
     dashboard_count: 0,
@@ -29,13 +30,19 @@ function setup({
   agentAvailable = true,
   labelsOpen = false,
   runFailed = false,
+  mapped = [],
+  query,
+  linesAnswered = true,
 }: {
+  query?: string
+  linesAnswered?: boolean
   type?: string
   draft?: string
   mode?: InputMode
   agentAvailable?: boolean
   labelsOpen?: boolean
   runFailed?: boolean
+  mapped?: string[]
 } = {}) {
   const run = vi.fn()
   const setMode = vi.fn()
@@ -46,13 +53,13 @@ function setup({
   const workspace = {
     datasource: status("ds", type),
     datasources: [],
-    search: {},
+    search: { q: query },
     update,
     draft,
     setDraft,
     run,
     range: { from: "now-1h", to: "now" },
-    results: { isError: runFailed },
+    results: { isError: runFailed, isSuccess: linesAnswered && !runFailed },
     mode,
     setMode,
     announce: vi.fn(),
@@ -70,6 +77,12 @@ function setup({
     labels: ["service_name", "level"],
     truncated: false,
   })
+  if (query === undefined) {
+    queryClient.setQueryData(
+      datasourceKeys.labels("ds", { from: "now-1h", to: "now" }),
+      { labels: mapped, truncated: false }
+    )
+  }
   const view = renderWithProviders(
     <LogsWorkspaceContext value={workspace}>
       <QueryBar.ModeSwitch />
@@ -87,6 +100,23 @@ afterEach(() => {
 const brokenQuery = "log.level : (error or warn and message : payment"
 
 describe("QueryBar", () => {
+  it("asks for the field names only once the lines have arrived", async () => {
+    const fetcher = vi.fn(async () =>
+      Response.json({ labels: ["service_name"], truncated: false })
+    )
+    vi.stubGlobal("fetch", fetcher)
+    const waiting = setup({
+      type: "loki",
+      query: '{a="b"}',
+      linesAnswered: false,
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fetcher).not.toHaveBeenCalled()
+    waiting.unmount()
+    setup({ type: "loki", query: '{a="b"}' })
+    await waitFor(() => expect(fetcher).toHaveBeenCalled())
+  })
+
   it.each([
     ["elasticsearch", "KQL"],
     ["opensearch", "KQL"],
@@ -354,6 +384,39 @@ describe("QueryBar", () => {
     expect(setDraft).toHaveBeenCalledWith("a : 1")
   })
 
+  it("offers the mapped field that ends the same way as an unknown one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          diagnostics: [
+            {
+              severity: "warning",
+              message: 'unknown field "service.name"',
+              start: 0,
+              end: 12,
+            },
+          ],
+        })
+      )
+    )
+    const { user, setDraft } = setup({
+      type: "opensearch",
+      draft: "service.name:checkout and a:1",
+      mapped: ["resource.service.name", "resource.service.name.keyword", "a"],
+    })
+    await user.click(
+      await screen.findByRole(
+        "button",
+        { name: "Use resource.service.name" },
+        { timeout: 3000 }
+      )
+    )
+    expect(setDraft).toHaveBeenCalledWith(
+      "resource.service.name : checkout and a : 1"
+    )
+  })
+
   it("offers no removal when the clause sits inside an or", async () => {
     vi.stubGlobal(
       "fetch",
@@ -398,18 +461,25 @@ describe("QueryBar", () => {
       })
     }
 
-    it("fills the query, range, columns and filters and says what it did", async () => {
+    it("fills the query, range, columns and filters in one write and says what it did", async () => {
       const { run, setDraft, update } = setup()
       expect(await paste(link)).toBe(false)
       expect(setDraft).toHaveBeenCalledWith("level:error")
-      expect(run).toHaveBeenCalledWith("level:error")
-      const written = update.mock.calls[0][0] as Record<string, string>
+      expect(update).not.toHaveBeenCalled()
+      expect(run).toHaveBeenCalledTimes(1)
+      const [text, asked, written] = run.mock.calls[0] as [
+        string,
+        undefined,
+        Record<string, string>,
+      ]
+      expect(text).toBe("level:error")
+      expect(asked).toBeUndefined()
       expect(written).toMatchObject({
-        q: "level:error",
         from: "now-15m",
         to: "now",
         cols: "message,log.level",
       })
+      expect(written).not.toHaveProperty("q")
       expect(decodePills(written.f)).toMatchObject([
         { kind: "is", field: "service.name", value: "checkout" },
       ])
@@ -445,6 +515,34 @@ describe("QueryBar", () => {
       await paste("level:error")
       expect(setDraft).toHaveBeenCalledWith("level:errorlevel:error")
       expect(update).not.toHaveBeenCalled()
+    })
+
+    it("imports a link pasted into the Ask field and switches to the query", async () => {
+      const { run, setMode } = setup({ mode: "ask" })
+      const field = await screen.findByLabelText("Question")
+      fireEvent.paste(field, { clipboardData: { getData: () => link } })
+      expect(setMode).toHaveBeenCalledWith("code", false)
+      expect(run).toHaveBeenCalledWith(
+        "level:error",
+        undefined,
+        expect.objectContaining({ from: "now-15m", to: "now" })
+      )
+    })
+
+    it("imports a link typed into the Ask field instead of asking the model", async () => {
+      const ask = vi.fn()
+      vi.stubGlobal("fetch", ask)
+      const { run, setMode, user } = setup({ mode: "ask" })
+      const field = await screen.findByLabelText("Question")
+      fireEvent.change(field, { target: { value: link } })
+      await user.click(screen.getByRole("button", { name: "Ask" }))
+      expect(ask).not.toHaveBeenCalled()
+      expect(setMode).toHaveBeenCalledWith("code", false)
+      expect(run).toHaveBeenCalledWith(
+        "level:error",
+        undefined,
+        expect.objectContaining({ from: "now-15m", to: "now" })
+      )
     })
 
     it("pastes the link as plain text on Loki", async () => {

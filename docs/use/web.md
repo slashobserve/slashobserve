@@ -1,6 +1,6 @@
 ---
 title: Addresses and viewing tools in the web app
-description: The short addresses of Home, the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with a pointer to TV mode, the sidebar, and the light and dark theme.
+description: The short addresses of Home, the inbox, dashboards, folders, chats, builds, observations, proposals, agents, logs and traces, their title slugs and old forms, selecting a panel to act on it and arranging panels, the tools for viewing a dashboard at full size, in Inspect and on a phone, with the dashboards list and a dashboard's More menu, a pointer to TV mode, the sidebar, and the light and dark theme.
 ---
 
 Every page that belongs to one dashboard, folder or agent request has a short address you can paste into an incident, a runbook or a chat:
@@ -14,8 +14,8 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/o/<observation id>` | One observation, its blocks and its discussion; `rca=1` in the query string opens the Publish as RCA panel. |
 | `/proposals/<proposal id>` | One [proposal](../concepts/proposals.md) with its changes, Merge and Discard. |
 | `/agents` | The Observe Agent, your connected agents and the service accounts that take runs; `/agents/<ref>` opens one. |
-| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its history, and `thread=<thread id>` opens the activity pane on that comment thread. |
-| `/f/<folder id>` | A folder's settings. |
+| `/d/<dashboard id>/<slug>` | A dashboard; `/d/<dashboard id>/versions` opens its version history, headed "Versions of <title>", and `thread=<thread id>` opens the activity pane on that comment thread. |
+| `/f/<folder id>` | A folder: its dashboards with the same search and filters as the Dashboards list, its observations and its saved searches, and **Folder settings** for its name, access and deletion where you can manage it. |
 | `/c/<request id>` | The conversation of an agent request. |
 | `/chats` | Your chats with the Observe Agent; `q` and `state` in the query string reopen a search, and `scope=all` opens an Admin's Everyone view. |
 | `/b/<request id>` | The live view of an agent request's build. |
@@ -23,15 +23,25 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/logs/<datasource uid>` | The logs page for one source; `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
+| `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to` and `mode` in the query string reopen a query. |
 | `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
 
-`/logs` and `/traces` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
+`/logs`, `/traces` and `/explore/metrics` list their sources and saved searches; an address there that carries a search opens the source you used last on this browser, even though the source lists keep the order they had when the app loaded, and an address with `?ds=<datasource uid>` redirects to the source's own page with the rest of its query string.
 
-[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view.
+[Logs and traces](logs-and-traces.md) describes the logs page, the trace search and the trace view, and [Metrics](metrics.md) describes the metrics page.
 
 The lists keep their names: `/dashboards` lists dashboards, `/` opens Home, and `/` with a query string other than `tab` opens the chat at `/ask` with its query string kept.
+
+An address that nothing answers opens **Page not found** inside the app, with the sidebar and the top bar, the address it could not find and links to Home and the dashboards; a signed-out visitor signs in first and then sees it.
+A folder's page names the folder in the breadcrumb and in the tab title, such as "Dashboards / Checkout" and "Checkout - SlashObserve".
+
+## When your session ends
+
+When an Admin uses Sign out everywhere, or the server drops your session, the next page or save sends you to the sign-in page, which says "Your session was ended, so you were signed out."
+After you sign in you return to the page you were on.
+Signing out yourself shows no such note.
 
 ## Public links
 
@@ -68,6 +78,38 @@ The server redirects only when the id is a UUID, and the web app does the same f
 A Grafana dashboard's own address, `/d/<grafana uid>` or `/d/<grafana uid>/<slug>`, redirects with `302 Found` to `/d/<id>` of the dashboard imported from that uid, keeping the slug and the query string.
 It resolves only for a signed-in caller who can see the dashboard: a signed-out visitor signs in first and comes back to it, and a uid nobody imported, or whose dashboard is in a folder you cannot see, opens the app's not-found page.
 
+## The dashboards list
+
+`/dashboards` lists the dashboards you can see, folder by folder.
+**Create dashboard** opens the chat at `/ask`, where you describe the dashboard you want; the page has no blank-canvas form.
+**New folder**, offered to an Editor or an Admin, asks for a name and creates a folder you own; it appears in the list as soon as it is created.
+Each row has a **More** menu, offered where you may edit the dashboard or duplicate it: **Duplicate...** asks for a title and a folder, a list of the folders you may move it to (the current one is marked), **New folder** for an Editor or an Admin, and **Delete dashboard...** with a confirmation, which needs Edit on the folder.
+The box above the list filters by title, and the folder and tag menus narrow it further.
+
+Where you may edit dashboards and there is a shared folder you can move into, every row you may move has a checkbox, and the checkbox in the header selects all of them on the page.
+A bar above the list then shows how many are selected, a **Move to folder** menu of the shared folders you can edit, **Move** and **Clear selection**.
+**Move** moves each selected dashboard with one request, as a row's **Move to folder** does, skips the ones already in that folder and says how many moved and which failed and why; the ones that failed stay selected.
+The selection is kept for the page and filters you are on and cleared when you change either.
+An agent does the same with one `move_dashboard` call for each dashboard.
+
+## The More menu of a dashboard
+
+The **More** button at the right of a dashboard's header opens:
+
+- **Edit details**, when you can edit the dashboard, changes the title, description and tags and saves them as a new version, and has a **Folder** menu of the shared folders you can edit: choosing another one moves the dashboard, after the new version when you changed both, and a move alone saves no version.
+- **Add panel**, when a datasource is configured, adds a panel, see [Edit a panel](edit-panel.md).
+- **Edit Spec JSON** edits the whole Spec and saves it as a version, see [Versions](../concepts/versions.md).
+- **Open on sign-in** makes the dashboard open in place of Home, see [Home dashboard](#home-dashboard); it reads **Stop opening on sign-in** when it already does.
+- **Export spec JSON** downloads the dashboard's Spec as `<title>-v<version>.json`.
+- **Print or save as PDF** and **Download as image** lay the dashboard out for paper or draw it as one PNG, see [Print a dashboard or download it as an image](#print-a-dashboard-or-download-it-as-an-image).
+- **Duplicate...** copies the dashboard under a title and into a folder you choose, which starts as the dashboard's own folder when you may create there, else your My Dashboards folder, else General.
+- **TV mode**, also `d` then `k`, starts [TV mode](public-links.md#show-it-on-a-wall); **TV mode for this folder** cycles through the folder's dashboards and is left out in a personal folder.
+- **Chart hover**, also Cmd/Ctrl+O, chooses how hovering one time chart shows on the others: **This chart only**, **Shared crosshair** or **Shared tooltip**.
+  A choice that differs from the dashboard's saved `cursorSync` goes into the address as `cursor` and is not saved to the dashboard.
+- **Delete dashboard...**, when you can edit the dashboard, asks for confirmation.
+
+While you have unsaved layout moves, the items that would change the dashboard say "finish the layout first".
+
 ## Dashboards on the Ask page and pins
 
 The chat page at `/ask` lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
@@ -78,11 +120,50 @@ Arrow keys move through the results and Enter opens one.
 
 Pin a dashboard with the pin button in its header, labelled **Pin to sidebar**; it then reads **Unpin from sidebar**, and pressing it again unpins the dashboard.
 A pinned dashboard appears in the sidebar under **Dashboards**, indented, newest pin first, and the one you have open is highlighted while **Dashboards** itself turns semibold instead of highlighted.
-The sidebar lists ten pins and then a **More** link to the dashboards list, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
+The sidebar lists ten pins and then **Show all pins**, which lists every pin in place until you choose **Show fewer pins**, and the phone menu lists them too; on the icon rail, **Dashboards** opens a menu with a **Dashboards** link and your pins.
 Pins belong to you and are stored on the server, so they follow you to every browser, and `GET /api/v1/stars` lists them; the API keeps its original `stars` name.
 Only people pin: a service-account key gets `403 user_session_required`.
 A pinned dashboard in a folder you can no longer see leaves the sidebar, and deleting a dashboard removes its pins.
 Recently viewed dashboards stay in this browser's local storage, at most 20, and never reach the server.
+
+## How often a dashboard is opened
+
+The dashboards list has a **Views** column and the dashboard's header says how many views it had, such as **12 views in 30 days**.
+A view is one person opening the dashboard on one UTC day, so three people who each open it twice today make three views, and the count covers the last 30 UTC days including today.
+Opening a dashboard writes once for the page, never for each panel, and a service-account key records nothing.
+`GET /api/v1/dashboards/<id>/views` returns the count as `view_count` with `window_days`, and each item of `GET /api/v1/dashboards` carries the same `view_count`.
+`order=views` on the list sorts by it, most viewed first and then most recently updated, and it pages with `cursor` and `offset` like the other orders; a cursor only works with the order it came from.
+`order=name` sorts every visible dashboard by lower-case title and then by id, across folders, and pages the same way.
+
+The **Sort** menu on the list switches between **By folder**, **Last updated**, **Name** and **Most viewed**; every order except by folder drops the folder headers and shows the folder as a column, because the order crosses folders.
+The choice is kept in the address as `sort=updated`, `sort=name` or `sort=views`, and the list asks the server for the same `order`.
+The daily records are kept for 90 days.
+`list_dashboards` takes `order` (`updated`, `views` or `name`) and returns `view_count`, `get_dashboard` returns `view_count` and `window_days`, `observe dashboards list --order views` sorts the list and `observe dashboards show` prints the views.
+
+## Home dashboard
+
+Choose **Open on sign-in** in a dashboard's **More** menu and that dashboard opens in place of Home when you sign in or open SlashObserve in a new tab.
+Home opens as usual for a link that names a page, such as a shared dashboard link or `/?tab=observe`, and when you click **Home** in the sidebar.
+Choosing another dashboard replaces the first, and the same menu item, now **Stop opening on sign-in**, clears the choice; so does **Clear** under **Settings**, **Home dashboard**.
+If the dashboard was deleted or you can no longer view it, Home opens and says so with a **Clear it** button, and the choice comes back to work if you can view the dashboard again.
+The choice belongs to you and follows you to every browser.
+`GET`, `PUT` and `DELETE /api/v1/me/home-dashboard` read, set and clear it; `status` is `none`, `ok`, `gone` or `unreadable`, and setting a dashboard you cannot view answers `404 not_found`.
+Over MCP, `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` do the same; only people have one, so a service-account key gets `403 user_session_required` and the CLI has no command.
+
+## Print a dashboard or download it as an image
+
+**Print or save as PDF** in a dashboard's **More** menu lays the dashboard out for paper and opens the browser's print dialog, where **Save as PDF** is a destination.
+The page shows only the dashboard: no sidebar, toolbar or side panes, a header with the title, folder, version, time range, variables and the time of printing, and then the panels in one column in reading order.
+Every panel loads before the dialog opens, including the ones far down the page, and a panel is moved whole to the next page instead of being cut when it does not fit.
+Rows you collapsed are expanded on the sheet so that no panel is left out, and the variables and time range you chose are the ones printed.
+The sheet prints in the light theme whatever theme you use, so a dark theme does not print as a page of dark boxes; the image keeps your current theme.
+**Back to dashboard** at the top of the page, or closing the print dialog, returns to the dashboard.
+
+**Download as image** in the same menu opens the same sheet, draws it as one PNG named after the dashboard and its version, such as `checkout-service-health-v7.png`, and returns to the dashboard.
+The image is drawn in your browser from the rendered panels, with no server involved, at twice the size unless the dashboard is so tall that the browser's canvas limit needs a smaller scale.
+If the browser cannot draw it, a message says so and suggests **Print or save as PDF**.
+Both items are off while you are rearranging the layout, and a single panel is still saved from its own menu.
+Neither needs a server feature, so there is no API operation, CLI command or MCP tool for them; an agent that needs the data reads the dashboard and its panel queries instead.
 
 ## TV mode
 
@@ -97,7 +178,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, starts a comment on the panel.
-- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target.
+- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target; it is disabled and reads "needs the Editor role" when your role is below Editor.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
@@ -107,7 +188,7 @@ While you have unsaved layout changes, Comment, Ask, Edit query and Add to obser
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you can neither comment nor ask, as a Viewer cannot.
 With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
-**Ask** opens the activity pane in investigate mode for the whole dashboard.
+**Ask** opens the activity pane in investigate mode for the whole dashboard; below the Editor role it is disabled and reads "needs the Editor role".
 
 ### Arrange panels
 
@@ -125,7 +206,8 @@ While you have unsaved moves, the actions that would change the dashboard in ano
 ## Health on a dashboard
 
 When the last health check found a problem in the dashboard, its header has a button that counts the problems, such as **2 problems**.
-A dashboard that was checked and has no problem shows a quiet **Healthy** button instead, whose popover says "No problems found" and when and on which version it was checked.
+A dashboard that was checked and has no problem shows a quiet **Queries OK** button instead, whose popover says "No problems found" and when and on which version it was checked.
+The button reports whether the queries ran, not whether the numbers look right, so read a panel's threshold state for that.
 Choose the problem button to open a popover with every problem, when and on which version the dashboard was checked, and **Repair**.
 The popover says "before the latest version" when the dashboard has been saved since the check.
 **Not opened in 90 days** is never listed here, because you just opened the dashboard.
@@ -151,6 +233,13 @@ The problems come from the last health check; see [Dashboard health](dashboard-h
 The address carries `viewPanel=<panel id>`, so the view can be shared.
 **Back to dashboard**, `Esc` or `v` again returns to the grid.
 
+## Panels with many series
+
+A time series or trend panel draws at most 50 series per query.
+The server keeps the 50 whose highest value is largest, in their original order, and the panel header says "Top 50 of 412 series" with the full sentence on hover.
+In the data response `meta.series_shown` and `meta.series_total` carry the two numbers, `meta.partial` is true and `meta.note` says which series were kept; they are absent when nothing was dropped.
+Narrow the query or add a filter to see the series that were left out.
+
 ## Inspect
 
 **Inspect** in a panel's menu, or `i` over a panel, opens a pane in the place of the activity card.
@@ -161,10 +250,10 @@ The address carries `inspect=<panel id>` and, for the second and third tab, `ins
 The pane has three tabs:
 
 - **Data** shows the panel's results after its transforms as a table of up to 500 rows, with **Download CSV** and **Save as PNG**.
-- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text and the variables it uses with their selected values.
+- **Query** shows the time range and step the server ran, and for each query its datasource, step, saved text, the text as run (the query after variables and macros are expanded, shown when it differs from the saved text and never on a public link), and the variables it uses with their selected values.
 - **Stats** shows how long the request took, whether the server answered from its cache, when it ran, and the number of frames, series, points and rows with the first and last time; **Run again** runs the panel's queries again.
 
-**Download CSV** and **Save as PNG** are also in each panel's menu once its data has loaded.
+**Download CSV** and **Save as PNG** are always in each panel's menu and are greyed until its data has loaded.
 
 The CSV has every row, quoted as RFC 4180 describes, with times in RFC 3339 UTC.
 When every series of the panel has its own time column with no repeated times, the CSV joins them into one row per time, with one column per series.
@@ -177,16 +266,26 @@ The PNG is the panel's body at twice the screen's pixel density, on the page's b
 **Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
 The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
 
+## Duplicate or remove a panel
+
+An Editor's panel menu has **Duplicate** and **Remove** on the latest version, while no layout change is unsaved.
+**Duplicate** saves a new version with a copy titled "<title> copy" right under the panel, moving the panels below it down, and runs only the copy's queries.
+A copy of a panel whose query returns no data, such as one you saved with **Save anyway**, is kept as it is and marked "Unverified" like the original.
+**Remove** asks to confirm with the panel's title, then saves a new version without the panel and runs no query.
+Restoring the version before it from History brings a removed panel back.
+Agents and scripts make the same changes with the `update_panels` MCP tool or `observe dashboards panels`, both on `POST /api/v1/dashboards/{id}/panels`.
+
 ## Add to an observation
 
 **Add to observation** in a data panel's menu copies the panel into an [observation](observations.md), the open one you choose or a new one.
-The item is greyed, with "(uses dashboard variables)" after it, when a query or the datasource of the panel uses a variable, and it is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
+A panel that uses dashboard variables is copied with them and the values you have selected, see [Add to an observation](observations.md#add-to-an-observation-from-a-panel-or-from-logs); the item is greyed in the toolbar and missing from the menu while you have unsaved layout changes.
 [Observations](observations.md#add-to-an-observation-from-a-panel-or-from-logs) describes the side panel and the range the block takes.
 
 ## Sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources and People for Admins and Settings for everyone.
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
+The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 On the page of a listed observation, pinned dashboard, or log or trace source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
 Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, and **Expand sidebar** opens the full sidebar over the page.
@@ -202,7 +301,15 @@ Press `⌘K` or `Ctrl+K`, or choose **Search or jump to** in the sidebar (in the
 The command palette lists the pages, your dashboards and the log and trace sources that match, and after a short pause it adds what the server finds in the workspace: dashboards, observations, comments, annotations and saved searches you can read, under their own headings with the matched words marked.
 Typing a source's name or type, such as Loki, lists the source under Sources and jumps to its page.
 Press Enter, or click, to open a result here, and hold `⌘` or `Ctrl` to open it in a new tab.
-A comment opens the page of what it is on, and an annotation that is on no dashboard is left out, because it has no page.
+**Keyboard shortcuts** in the palette opens the list of keys on any page.
+A comment opens the page of what it is on, and an annotation that is on no dashboard is left out of the palette, because it has no page.
+
+Snippets show plain text, with Markdown links and emphasis flattened.
+With nothing typed, the palette lists the observations you opened last under **Recent observations**.
+**See all results** at the end of a search, or the address `/search?q=checkout`, opens the Search page: every match in pages of 20 with **Show more**, one button per kind to narrow them, and global annotations as rows with no link.
+Search matches whole words, their English stems and the start of the last word, so a misspelling finds nothing, and the empty result says so.
+**Help and docs** in the palette, and in the account menu, opens these docs in a new tab.
+The empty Dashboards list and the Search page link to their docs page the same way.
 [Search](search.md) describes what each kind matches and how to write a query.
 
 ## Keyboard shortcuts
@@ -213,16 +320,29 @@ Dashboards answer `v`, `e`, `i`, `t z`, `t ←`, `t →`, `d r`, `d k` and `?`.
 ## On a phone
 
 Under 900 pixels wide, every page has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
-On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name, and on a dashboard the breadcrumb and **Controls** sit under it.
+On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name, and on a dashboard the dashboard's name, its version button and **Controls** sit under it, without the folder crumbs, which the sidebar and **Dashboards** page keep.
 A page's own actions, such as **Share** on an observation or **History** on a chat, sit in a row under the bar.
 Below 768 pixels wide a dashboard shows its panels in one column.
 Each panel type keeps a minimum height there, so a chart or a table stays readable even when the dashboard made it short.
 Up to 760 pixels wide, the time range, refresh, annotation filter and the dashboard's actions move behind one **Controls** button, which opens them in a sheet at the bottom of the screen.
+The activity pane starts closed at 900 pixels wide and below, whatever this browser saved on a wider screen, and **Activity** in the controls opens it.
+Choosing **Activity**, **Share**, **Add panel** or **Edit Spec JSON** in the sheet closes the sheet first, and closing the pane puts focus back on **Controls**.
+
 The activity card and the Inspect pane show below the panels, and opening Inspect scrolls to it.
+The panel editor opens as a sheet at the bottom of the screen, and the panel menu does not show keyboard shortcut letters.
+
+## Wide and narrow screens
+
+On the Dashboards page, the Datasources and Open comments columns fold away when the list is under 1000 pixels wide, between the phone layout and a full-width window, so the title, health and actions keep their room.
+The list and the Home page stop growing on very wide screens, at 1500 and 960 pixels, instead of spreading their columns across the window.
+On a dashboard, the title and the controls share one row while they fit, and the controls drop to a second row under the title when they do not, for example with the Activity pane open on a 1440 pixel screen.
+Browser zoom scales the whole app if the text is small on a large display.
 
 ## Connected agents
 
 Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
+A section's address is `/settings#<section>`, such as `/settings#grafana`; `#grafana-connection` opens the same section.
+An address whose section does not exist, or one that only Admins can open, shows Server with a note that says so.
 On a phone the section list is a **Settings section** menu at the top of the page.
 
 Open Settings and choose **Connected agents** in its section list to see **Your connected agents**: the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.
@@ -240,3 +360,20 @@ The app follows your system's light or dark setting until you choose one.
 Open Settings, choose **Appearance** in its section list, and pick **Light**, **Dark** or **Match the system** under **Theme**; the choice applies at once.
 The account menu offers the same three choices under **Theme**, and the toolbar's **Switch theme** button and the command palette's **Switch theme** command flip between light and dark.
 The choice stays in this browser's local storage and never reaches the server, so it does not follow you to another browser.
+
+## Time zone
+
+**Appearance** in Settings also has **Time zone**.
+It is the zone a dashboard draws its times in when the dashboard does not set one, so it is the choice the time zone box next to the time range picker starts on and returns to; the zone a dashboard sets itself, and a zone you pick in that box (which goes into the address as `tz`), win over it.
+It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in, except on a dashboard, where they follow the dashboard's own zone and use this one only when it sets none.
+It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+
+## The time range picker
+
+The time range button opens the quick ranges and the **From** and **To** boxes.
+**Pick dates** shows a calendar: click a day for that whole day, then click a second day for the days between them.
+The calendar fills **From** with the start of the first day and **To** with the end of the last, in the zone the boxes read, and **Apply** uses them.
+A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
+On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
+The button is missing on an older version and while a layout or panel is being edited, and it is disabled for a range that already is the default.
+The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.

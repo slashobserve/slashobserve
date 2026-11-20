@@ -7,8 +7,10 @@ export type NavPath =
   | "/dashboards"
   | "/logs"
   | "/traces"
+  | "/explore/metrics"
   | "/agents"
   | "/datasources"
+  | "/keys"
   | "/people"
   | "/settings"
 
@@ -31,6 +33,12 @@ const navItems: readonly NavItem[] = [
   { to: "/dashboards", label: "Dashboards", group: "main", minRole: "viewer" },
   { to: "/logs", label: "Logs", group: "main", minRole: "viewer" },
   { to: "/traces", label: "Traces", group: "main", minRole: "viewer" },
+  {
+    to: "/explore/metrics",
+    label: "Metrics",
+    group: "main",
+    minRole: "viewer",
+  },
   { to: "/agents", label: "Agents", group: "main", minRole: "viewer" },
   {
     to: "/datasources",
@@ -38,6 +46,7 @@ const navItems: readonly NavItem[] = [
     group: "workspace",
     minRole: "admin",
   },
+  { to: "/keys", label: "API keys", group: "workspace", minRole: "admin" },
   { to: "/people", label: "People", group: "workspace", minRole: "admin" },
   { to: "/settings", label: "Settings", group: "workspace", minRole: "viewer" },
 ]
@@ -49,7 +58,6 @@ export function visibleNavItems(role: Role): NavItem[] {
 export function isNavItemActive(to: NavPath, pathname: string): boolean {
   if (to === "/") return pathname === "/" || pathname === "/chats"
   if (to === "/traces" && pathname.startsWith("/t/")) return true
-  if (to === "/agents" && pathname === "/keys") return true
   if (to === "/observations" && pathname.startsWith("/o/")) return true
   return pathname === to || pathname.startsWith(`${to}/`)
 }

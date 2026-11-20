@@ -147,6 +147,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
+		TimeZone:         timeZoneColumn(ctx),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -302,6 +303,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		RetriesID:        chat.retries,
 		ChatID:           chat.id,
 		ThreadContext:    pgtype.Text{String: chat.context, Valid: chat.context != ""},
+		TimeZone:         timeZoneColumn(ctx),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
@@ -396,6 +398,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		Trigger:          pgtype.Text{String: p.Trigger, Valid: p.Trigger != ""},
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
+		TimeZone:         timeZoneColumn(ctx),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue investigate request: %w", err)

@@ -4,6 +4,7 @@ import type { DatasourceStatus } from "./queries"
 import {
   carriesSearch,
   defaultSource,
+  isSourcePage,
   languageReference,
   listedSources,
   logsSwitchSearch,
@@ -20,6 +21,7 @@ function source(uid: string, type: string, name = uid): DatasourceStatus {
     uid,
     type,
     name,
+    source: "file",
     healthy: true,
     checked_at: "2026-11-14T00:00:00Z",
     dashboard_count: 0,
@@ -48,6 +50,20 @@ describe("sourcesOf", () => {
 
   it("returns nothing before the list loads", () => {
     expect(sourcesOf("logs", undefined)).toEqual([])
+  })
+})
+
+describe("isSourcePage", () => {
+  it("knows a source page under each kind's own path", () => {
+    expect(isSourcePage("logs", "/logs/loki")).toBe(true)
+    expect(isSourcePage("traces", "/traces/tempo/abc")).toBe(true)
+    expect(isSourcePage("metrics", "/explore/metrics/prom")).toBe(true)
+  })
+
+  it("is false on the list pages and on other kinds' pages", () => {
+    expect(isSourcePage("metrics", "/explore/metrics")).toBe(false)
+    expect(isSourcePage("metrics", "/metrics/prom")).toBe(false)
+    expect(isSourcePage("logs", "/traces/tempo")).toBe(false)
   })
 })
 

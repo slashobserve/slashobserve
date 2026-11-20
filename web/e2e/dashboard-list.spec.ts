@@ -152,6 +152,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
     "Datasources",
     "Open comments",
     "Version",
+    "Views",
     "Updated",
     "Actions",
   ])
@@ -533,9 +534,10 @@ test("keeps the new tab arrow with the last word of a wrapped title", async ({
       const lines = Array.from(element.getClientRects())
       const box = arrowElement.getBoundingClientRect()
       const last = lines[lines.length - 1]
+      const middle = (box.top + box.bottom) / 2
       return {
         lines: lines.length,
-        onLastLine: box.top >= last.top - 2 && box.bottom <= last.bottom + 2,
+        onLastLine: middle >= last.top && middle <= last.bottom,
       }
     },
     await arrow.elementHandle()

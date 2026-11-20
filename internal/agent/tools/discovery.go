@@ -36,6 +36,7 @@ func init() { registerEntries((*Registry).discoveryEntries) }
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDatasources},
+		{Tool{Name: nameRecheckDatasource, Description: descRecheckDatasource, InputSchema: json.RawMessage(schemaRecheckDatasource), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.recheckDatasource},
 		{Tool{Name: nameListMetrics, Description: descListMetrics, InputSchema: json.RawMessage(schemaListMetrics), ReadOnly: true, MinRole: auth.RoleViewer}, r.listMetrics},
 		{Tool{Name: nameListLabels, Description: descListLabels, InputSchema: json.RawMessage(schemaListLabels), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabels},
 		{Tool{Name: nameListLabelValues, Description: descListLabelValues, InputSchema: json.RawMessage(schemaListLabelValues), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabelValues},
@@ -50,6 +51,7 @@ type datasourceOut struct {
 	Name    string `json:"name"`
 	Healthy bool   `json:"healthy"`
 	Message string `json:"message,omitempty"`
+	Detail  string `json:"detail,omitempty"`
 }
 
 type datasourcesOut struct {
@@ -68,10 +70,36 @@ func (r *Registry) listDatasources(ctx context.Context, input json.RawMessage) (
 	}
 	items := make([]datasourceOut, len(statuses))
 	for i, s := range statuses {
-		items[i] = datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes)}
+		items[i] = datasourceStatusOut(s)
 	}
 	items, truncated := fit(items, listBudget)
 	return success("Listed "+plural(len(items), "datasource", "datasources"), datasourcesOut{Datasources: items, Truncated: truncated}), nil
+}
+
+func datasourceStatusOut(s datasource.Status) datasourceOut {
+	return datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes), Detail: clip(s.Detail, maxCellBytes)}
+}
+
+func (r *Registry) recheckDatasource(ctx context.Context, input json.RawMessage) (Result, error) {
+	var in struct {
+		Datasource string `json:"datasource"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	inst, res, ok := r.instance(in.Datasource)
+	if !ok {
+		return res, nil
+	}
+	status, _ := r.deps.Datasources.Recheck(ctx, inst.UID)
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	summary := "Rechecked " + status.UID + ": healthy"
+	if !status.Healthy {
+		summary = "Rechecked " + status.UID + ": unhealthy"
+	}
+	return success(summary, datasourceStatusOut(status)), nil
 }
 
 func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
@@ -88,6 +116,14 @@ func (r *Registry) instance(uid string) (datasource.Instance, Result, bool) {
 
 func typeOf(inst datasource.Instance) spec.DatasourceType {
 	return spec.DatasourceType(inst.Datasource.Type())
+}
+
+func holdsMetrics(t spec.DatasourceType) bool {
+	return t == spec.Prometheus || t == spec.ClickHouse
+}
+
+func hasTables(t spec.DatasourceType) bool {
+	return t == spec.ClickHouse || t == spec.Tempo || isSearch(t)
 }
 
 func isSearch(t spec.DatasourceType) bool {
@@ -130,13 +166,28 @@ func (r *Registry) discover(ctx context.Context, uid string, req datasource.Disc
 	return cat, Result{}, true, nil
 }
 
+const uncheckedNote = "Could not check: this read did not finish, so it says nothing about whether the data exists. Retry it with a narrower range or filter, or say in the answer that this datasource could not be checked; never report it as empty or missing."
+
+func CouldNotCheck(code string) bool {
+	switch spec.IssueCode(code) {
+	case queryproxy.CodeQueryTimeout, queryproxy.CodeDatasourceDown, queryproxy.CodeTooManyRequests:
+		return true
+	}
+	return false
+}
+
 func datasourceFailure(step string, err error) (Result, error) {
 	_, code, message := queryproxy.Classify(err)
 	switch code {
 	case string(queryproxy.CodeCanceled), string(queryproxy.CodeInternal):
 		return Result{}, err
 	}
-	return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
+	if !CouldNotCheck(code) {
+		return failure(step+": "+code, errorBody{Code: code, Message: message}), nil
+	}
+	res := failure(step+": could not check, "+code, errorBody{Code: code, Message: message, Note: uncheckedNote})
+	res.Unchecked = code
+	return res, nil
 }
 
 func boundedInt(p *int, def, lo, hi int, field string) (int, Result, bool) {
@@ -253,7 +304,12 @@ func described(noun, joiner, part string) string {
 type metricsOut struct {
 	Datasource string              `json:"datasource"`
 	Metrics    []datasource.Metric `json:"metrics"`
+	Note       string              `json:"note,omitempty"`
 	truncation
+}
+
+func noMetricNamed(search string) string {
+	return fmt.Sprintf("no metric name contains %q, which does not mean no metric has it: a service, job or pod is usually a label value, so list metrics with scope set to a selector such as {service=%q}, or read list_label_values, before saying it has no metrics", search, search)
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -267,6 +323,9 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	}
 	if in.Scope != "" {
 		return r.listInventory(ctx, in, offset)
+	}
+	if inst, found := r.deps.Datasources.Get(in.Datasource); found && !holdsMetrics(typeOf(inst)) {
+		return invalid("list_metrics works on Prometheus and ClickHouse datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
 		Datasource: in.Datasource,
@@ -282,7 +341,11 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	for i, m := range metrics {
 		listed[i] = m.Name
 	}
-	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut})
+	out := metricsOut{Datasource: names.Datasource, Metrics: metrics, truncation: cut}
+	if len(names.Metrics) == 0 && in.Search != "" {
+		out.Note = noMetricNamed(clip(in.Search, maxStepNameBytes))
+	}
+	res = success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), out)
 	return discovered(res, names.Datasource, described("metrics", "matching", in.Search), listed), nil
 }
 
@@ -529,6 +592,9 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 	if !ok {
 		return res, nil
 	}
+	if !hasTables(typeOf(inst)) {
+		return invalid("get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
+	}
 	if typeOf(inst) == spec.Tempo {
 		return r.spanSchema(ctx, in, offset)
 	}
@@ -699,4 +765,38 @@ func cellValue(v any, maxBytes int) any {
 	default:
 		return clip(fmt.Sprint(x), maxBytes)
 	}
+}
+
+type ReadError struct {
+	Code    string
+	Message string
+}
+
+func (e *ReadError) Error() string { return e.Code + ": " + e.Message }
+
+func (r *Registry) DatasourceSchema(ctx context.Context, uid, table string, offset *int) (any, error) {
+	return r.read(ctx, nameGetSchema, schemaInput{Datasource: uid, Table: table, Offset: offset})
+}
+
+func (r *Registry) DatasourceSample(ctx context.Context, uid, table string, limit *int) (any, error) {
+	return r.read(ctx, nameSampleRows, sampleInput{Datasource: uid, Table: table, Limit: limit})
+}
+
+func (r *Registry) read(ctx context.Context, tool string, in any) (any, error) {
+	input, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	res, err := r.Call(ctx, tool, input)
+	if err != nil {
+		return nil, err
+	}
+	if !res.IsError {
+		return res.Content, nil
+	}
+	body, ok := res.Content.(errorBody)
+	if !ok {
+		return nil, fmt.Errorf("tool %s: %w: error content is %T", tool, ErrInvariant, res.Content)
+	}
+	return nil, &ReadError{Code: body.Code, Message: body.Message}
 }

@@ -2,7 +2,8 @@ import { useEffect } from "react"
 import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router"
 
 import { buttonVariants } from "@/components/ui/button"
-import { getSession, loginHref } from "@/lib/auth"
+import { forgetHomeChecked } from "@/home/home-dashboard"
+import { getSession, loginHref, sessionEnded } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 type LoginSearch = { return_to?: string; error?: string }
@@ -10,6 +11,8 @@ type LoginSearch = { return_to?: string; error?: string }
 const errorMessages: Record<string, string> = {
   access_denied: "Sign-in was cancelled.",
   email_not_allowed: "This account is not allowed to sign in.",
+  account_deactivated:
+    "This account was deactivated by an Admin. Ask an Admin to reactivate it.",
   unavailable: "The identity provider is unavailable. Try again shortly.",
   session_unavailable: "SlashObserve is unavailable. Try again shortly.",
 }
@@ -38,18 +41,19 @@ export const Route = createFileRoute("/login")({
       if (session.authenticated) {
         throw redirect({ href: localPath(search.return_to) })
       }
+      forgetHomeChecked()
     } catch (error) {
       if (isRedirect(error)) throw error
-      return { sessionUnavailable: true }
+      return { sessionUnavailable: true, sessionEnded: false }
     }
-    return { sessionUnavailable: false }
+    return { sessionUnavailable: false, sessionEnded: sessionEnded() }
   },
   component: Login,
 })
 
 function Login() {
   const { return_to, error } = Route.useSearch()
-  const { sessionUnavailable } = Route.useRouteContext()
+  const { sessionUnavailable, sessionEnded } = Route.useRouteContext()
   const code = error ?? (sessionUnavailable ? "session_unavailable" : undefined)
 
   useEffect(() => {
@@ -66,6 +70,12 @@ function Login() {
       <p className="max-w-md text-sm text-muted-foreground">
         Live dashboards from a single prompt.
       </p>
+      {sessionEnded && !code ? (
+        <p role="status" className="max-w-md text-sm">
+          Your session was ended, so you were signed out. Sign in again to carry
+          on.
+        </p>
+      ) : null}
       {code ? (
         <p role="alert" className="text-sm text-destructive">
           {Object.hasOwn(errorMessages, code)

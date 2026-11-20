@@ -50,12 +50,12 @@ type rule struct {
 
 var rules = map[string]rule{
 	guardSaveNow: {
-		message: fmt.Sprintf("%d model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question; reads in the same call as a save still run.", maxCallsBeforeSave),
+		message: fmt.Sprintf("%d model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run.", maxCallsBeforeSave),
 		refused: fmt.Sprintf("%d model calls passed without a save", maxCallsBeforeSave),
 		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", maxCallsBeforeSave),
 	},
 	guardFindingNow: {
-		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked.", maxCallsBeforeProposal),
+		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked, and say in it what you did not read.", maxCallsBeforeProposal),
 		refused: fmt.Sprintf("%d model calls passed without a finding", maxCallsBeforeProposal),
 		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a finding", maxCallsBeforeProposal),
 	},
@@ -106,6 +106,9 @@ type Admission struct {
 	Content []byte
 	Step    string
 	Note    string
+
+	ReadsRefused int
+	Unchecked    []tools.Unchecked
 }
 
 type Stop struct {
@@ -173,6 +176,7 @@ func (s *State) Admit(position int, c Call) Admission {
 func (s *State) admitRead(position int, c Call, adm Admission) Admission {
 	if s.Turn.ReadGuard != "" {
 		s.Counts.SaveNowRefusals++
+		s.Window.Refused++
 		return s.refuse(c, adm, s.Turn.ReadGuard)
 	}
 	adm.Key = Key(c.Name, c.Input)
@@ -212,6 +216,11 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	case c.Name == toolSaveFinding && s.Building:
 		s.Turn.SaveSeen = true
 		return s.reject(c, adm, "this run already saved panels; finish the dashboard instead of saving a finding")
+	case c.Name == toolSaveFinding:
+		if reason := s.unbackedAbsence(c.Input); reason != "" {
+			s.Absence.Asked = true
+			return s.reject(c, adm, reason)
+		}
 	}
 	s.Turn.SaveSeen = true
 	if s.noteSave(adm.Key) {
@@ -220,6 +229,10 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	s.Turn.Answered++
 	if s.Rejections > 0 {
 		s.Counts.Repairs++
+	}
+	if c.Name == toolSaveFinding {
+		adm.ReadsRefused = s.Window.Refused
+		adm.Unchecked = s.uncheckedReads()
 	}
 	return adm
 }

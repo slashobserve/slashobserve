@@ -105,9 +105,9 @@ func (s *Service) createRevision(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "prompt and base_version are required")
 		return
 	}
-	prompt, ok := CleanPrompt(*req.Prompt)
-	if !ok {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+	prompt, err := CheckPrompt("prompt", *req.Prompt)
+	if err != nil {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", err)
 		return
 	}
 	if *req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32 {
@@ -131,7 +131,6 @@ func (s *Service) createRevision(c *gin.Context) {
 		return
 	}
 	var row dbsqlc.AgentRequest
-	var err error
 	if commentID.Valid {
 		row, err = s.SubmitForThread(c.Request.Context(), dashboardID, commentID, req.BaseVersion, prompt, httpapi.Caller(c))
 	} else {
@@ -264,7 +263,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, err.Error())
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):

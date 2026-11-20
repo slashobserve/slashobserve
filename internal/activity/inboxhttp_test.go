@@ -91,6 +91,8 @@ func TestInboxListRefusesBadParameters(t *testing.T) {
 	for _, c := range []struct{ query, code string }{
 		{"view=everyone", "invalid_view"},
 		{"view=", "invalid_view"},
+		{"filter=archived", "invalid_filter"},
+		{"filter=", "invalid_filter"},
 		{"cursor=not-a-cursor", "invalid_cursor"},
 		{"limit=0", "invalid_limit"},
 		{"limit=101", "invalid_limit"},
@@ -170,6 +172,44 @@ func TestInboxListAndReadMatchTheDocumentAndEachOther(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"unread_count":0`) {
 		t.Fatalf("after reading, GET /inbox = %s, want unread_count 0", rec.Body)
 	}
+
+	path := "/inbox/items/" + strconv.FormatInt(mention, 10)
+	unread := r.call(t, mia, http.MethodPut, path, `{"unread":true}`)
+	if unread.Code != http.StatusNoContent {
+		t.Fatalf("PUT %s = %d %s", path, unread.Code, unread.Body)
+	}
+	r.validated(t, unread, http.MethodPut, path)
+	rec = r.call(t, mia, http.MethodGet, "/inbox", "")
+	if !strings.Contains(rec.Body.String(), `"unread_count":1`) {
+		t.Fatalf("after marking unread, GET /inbox = %s, want unread_count 1", rec.Body)
+	}
+	if got := r.call(t, mia, http.MethodPut, path, `{}`).Code; got != http.StatusBadRequest {
+		t.Fatalf("PUT without unread or done = %d, want 400", got)
+	}
+	if got := r.call(t, mia, http.MethodPut, path, `{"unread":true,"done":true}`).Code; got != http.StatusBadRequest {
+		t.Fatalf("PUT with unread and done = %d, want 400", got)
+	}
+	done := r.call(t, mia, http.MethodPut, path, `{"done":true}`)
+	if done.Code != http.StatusNoContent {
+		t.Fatalf("PUT %s done = %d %s", path, done.Code, done.Body)
+	}
+	r.validated(t, done, http.MethodPut, path)
+	rec = r.call(t, mia, http.MethodGet, "/inbox?filter=done", "")
+	r.validated(t, rec, http.MethodGet, "/inbox?filter=done")
+	if !strings.Contains(rec.Body.String(), `"unread_count":0`) || !strings.Contains(rec.Body.String(), `"reason":"mention"`) {
+		t.Fatalf("GET /inbox?filter=done = %s, want the done mention and unread_count 0", rec.Body)
+	}
+	rec = r.call(t, mia, http.MethodGet, "/inbox?filter=unread", "")
+	r.validated(t, rec, http.MethodGet, "/inbox?filter=unread")
+	if strings.Contains(rec.Body.String(), `"reason":"mention"`) {
+		t.Fatalf("GET /inbox?filter=unread = %s, want no done item", rec.Body)
+	}
+	if got := r.call(t, mia, http.MethodPut, "/inbox/items/999999", `{"unread":true}`).Code; got != http.StatusUnprocessableEntity {
+		t.Fatalf("PUT of an unknown seq = %d, want 422", got)
+	}
+	if got := r.call(t, botKey, http.MethodPut, path, `{"unread":true}`).Code; got != http.StatusForbidden {
+		t.Fatalf("PUT by a key = %d, want 403", got)
+	}
 }
 
 func TestInboxItemSchemaCarriesEveryActivityEventProperty(t *testing.T) {
@@ -181,7 +221,7 @@ func TestInboxItemSchemaCarriesEveryActivityEventProperty(t *testing.T) {
 			t.Errorf("InboxItem lacks the activity event property %q", name)
 		}
 	}
-	if got := len(item.Properties) - len(event); got != 2 {
-		t.Errorf("InboxItem adds %d properties to the event, want reason and unread", got)
+	if got := len(item.Properties) - len(event); got != 4 {
+		t.Errorf("InboxItem adds %d properties to the event, want reason, unread, target_title and excerpt", got)
 	}
 }

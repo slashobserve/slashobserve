@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"unicode"
@@ -13,12 +14,13 @@ import (
 )
 
 type source struct {
-	format Format
-	bytes  int
-	dash   map[string]any
-	nodes  []*panelNode
-	clones []string
-	legacy bool
+	format  Format
+	bytes   int
+	dash    map[string]any
+	nodes   []*panelNode
+	clones  []string
+	legacy  bool
+	skipped []string
 
 	folderTitle string
 }
@@ -85,8 +87,9 @@ func load(raw []byte) (*source, error) {
 		return nil, inputErrorf(codeNotADashboard, "the JSON is not a Grafana dashboard: it has no panels or rows")
 	}
 	inlineLibraryPanels(src.dash)
-	top, legacy := buildNodes(src.dash)
+	top, legacy, skipped := buildNodes(src.dash)
 	src.legacy = legacy
+	src.skipped = skipped
 	src.nodes, src.clones = arrange(top)
 	total := 0
 	src.walk(func(*panelNode) { total++ })
@@ -141,7 +144,7 @@ func decodeObject(raw []byte) (map[string]any, error) {
 		if errors.Is(err, io.EOF) {
 			return nil, inputErrorf(codeInvalidJSON, "the input is empty")
 		}
-		return nil, inputErrorf(codeInvalidJSON, "the input is not valid JSON: %v", err)
+		return nil, inputErrorf(codeInvalidJSON, "%s", syntaxMessage(raw, err))
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return nil, inputErrorf(codeInvalidJSON, "the input has data after the JSON value")
@@ -151,4 +154,27 @@ func decodeObject(raw []byte) (map[string]any, error) {
 		return nil, inputErrorf(codeInvalidJSON, "the input must be one JSON object")
 	}
 	return obj, nil
+}
+
+func syntaxMessage(raw []byte, err error) string {
+	var syntax *json.SyntaxError
+	switch {
+	case errors.Is(err, io.ErrUnexpectedEOF):
+		line, column := lineColumn(raw, len(raw))
+		return fmt.Sprintf("This is not valid JSON: the file ends early, at line %d, column %d. It may be cut off.", line, column)
+	case errors.As(err, &syntax):
+		end := min(int(syntax.Offset), len(raw))
+		_, width := utf8.DecodeLastRune(raw[:end])
+		line, column := lineColumn(raw, end-width)
+		return fmt.Sprintf("This is not valid JSON: unexpected text at line %d, column %d.", line, column)
+	}
+	return "This is not valid JSON."
+}
+
+func lineColumn(raw []byte, offset int) (int, int) {
+	offset = min(max(offset, 0), len(raw))
+	before := raw[:offset]
+	line := bytes.Count(before, []byte("\n")) + 1
+	column := utf8.RuneCount(before[bytes.LastIndexByte(before, '\n')+1:]) + 1
+	return line, column
 }

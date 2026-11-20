@@ -7,11 +7,15 @@ The chat on Home's **Ask Observe Agent** tab, and on the Ask page at `/ask`, tur
 The server runs the agent against your configured datasources, checks every query it writes, and saves the result as a version of a new dashboard.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 For a first run, follow [Your first dashboard](../get-started/first-dashboard.md).
-A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer into an [observation](observations.md).
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in an observation and leaves the dashboard as it is.
+
+A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer in the chat.
+A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
+A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
+A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
+The answer stays in the chat, and no observation is created, until you choose **Save as observation** under it; an `/investigate` request always opens an observation.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The observation, and a dashboard saved from it, take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
 A chat is titled the same way, from your message.
 
 ## Start a chat
@@ -20,7 +24,7 @@ Type into the box labelled "Message the agent" and press Enter.
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
 Under the box a line says so ("Enter sends, Shift+Enter adds a line, up arrow recalls an earlier prompt, / opens commands"); on a touch device it is not shown.
 Pressing `/` outside a text field moves the cursor to the box.
-A prompt is 1 to 4000 characters and cannot contain control or bidirectional-text characters.
+A prompt is 1 to 4000 characters, at least one of them visible, and cannot contain control or bidirectional-text characters; see [Text rules](../reference/text-rules.md).
 The box shows "Ask a question or describe a dashboard first." when it is empty and "Use at most 4000 characters." when it is too long.
 From 3600 characters a counter such as "3650 of 4000" appears in the box's footer, and turns red with "too long" past 4000.
 A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
@@ -51,6 +55,8 @@ The footer shows the model and, when the server sets one, its effort, for exampl
 While one of your runs in the chat is queued or running, a square stop button, labelled "Stop the run", sits next to the send button and cancels it, see [Cancel a run](#cancel-a-run).
 
 Everyone can start a dashboard: it goes to your My Dashboards, where only you see it until you publish it.
+Name a folder in the request and the agent builds the dashboard there when you can create dashboards in that folder.
+If you cannot, or no folder has that name, the agent builds it in My Dashboards and the version summary says so; move it from the dashboards list.
 See [Roles](../teams/roles.md).
 
 The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md) and [Tempo](../connect/tempo.md).
@@ -106,15 +112,23 @@ When the build ends up identical to an earlier version, such as after "undo that
 A build that changed nothing keeps the sentence the agent wrote.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
+
+When the agent answers a question after its reads were refused at its limit of model calls (six in a chat, twelve in an investigation), the answer ends with a line saying reading stopped early and the counts may be partial.
+An answer reads deploy markers as you before it says there was no deploy, so a question such as when checkout last deployed is answered from them.
+Times in an answer are in your browser's time zone with its label, such as 19:52 IST, because the chat sends that zone with each request.
+When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why, so a timeout is never read as no data.
+
 A run has no cap on model calls and no time limit by default; it stops after three rejected saves in a row, when it stops making progress (for example by reading past six model calls without a save, or by repeating a save), or when the person who asked cancels it; see [Cancel a run](#cancel-a-run).
 An administrator can set a time limit.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it, see [Continue a stopped build](#continue-a-stopped-build).
+
 **Try again** asks the server to retry the run (`POST /observe/{id}/retry`), and the server decides whether this run may be tried again: the button shows only while the run's `allowed_actions` include `retry`.
 The new run is yours, whoever started the one you retry.
-A failed or stopped run can be tried again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry is refused with 409 `invalid_transition` instead of starting a duplicate.
+You can try your own failed or stopped run again once: the old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`, and a second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
+Someone else who retries your run starts a request of their own, which leaves your turn and your retry as they were.
 A run that a server shutdown interrupts goes back to the queue and starts again, and one that a crash interrupts gets one more attempt.
 
-Only the server's step messages and errors are shown, and for an investigation the answer the agent saved into its observation.
+Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.
 
 A dashboard has 2 to 8 panels unless you ask for another number, and the agent adds variables only when the request asks for a breakdown people will filter on.
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.
@@ -143,11 +157,12 @@ Its heading links to the full chat page at `/c/<request id>`.
 The dashboard is saved once, as one version, and the build page then opens it.
 
 If the agent stops before it finishes, the build page keeps what was built for 7 days.
-Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
+Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
 When someone has, the build cannot be saved and the page says so; open the dashboard and ask again.
 You need Edit access to the target to save it, and the request stays marked as failed.
 Once the build is saved, the build page opens the dashboard.
 The chat keeps the result card with "5 of 8 panels, saved before the run finished" when the plan is known, the status line says "Saved part of the dashboard" instead of "Stopped", and **Add the missing panels** asks the agent for the rest as a follow-up on that dashboard.
+The button shows only on the newest turn of the chat, so once you have asked for the rest, or anything else, the earlier card no longer offers it.
 
 On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
@@ -206,30 +221,30 @@ The cost is the server's estimate from its price table, and it shows only when t
 Open it to see every step again.
 The result card shows the title, "N panels from `<datasources>`" and the footer "Saved as version 1".
 Choose **Open dashboard** to go to it.
-The dashboard lands in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
+The dashboard lands in the folder you named, or in your My Dashboards; publish it from its Share pane to share it, see [Folders](../teams/folders.md).
 
 A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up), then what the failure means, the reason the server stored, and what to do next.
 The advice to save or continue a build shows only while a build is left to save or continue; otherwise the table's last column reads "Try again." or "Try again with a narrower prompt.".
 A run you stopped shows "You stopped this run" instead.
 
-| Code                                    | What it means                                             | What to do                                                             |
-| --------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `run_timeout`                           | The run reached the server's time limit.                  | Try again with a narrower prompt, or continue the build.               |
-| `call_timeout`                          | A model call took too long to answer.                     | Try again.                                                             |
-| `rate_limited`                          | The model provider is limiting requests from this server. | Wait a minute, then try again.                                         |
-| `provider_error`                        | The model provider answered with an error.                | Try again, and ask an admin to check the provider if it keeps failing. |
-| `output_limit`                          | The model's answer was cut off at its output limit.       | Try again and ask for fewer panels.                                    |
-| `no_tool_call`, `no_progress`           | The agent stopped making progress.                        | Try again and name the metric, service or table you want.              |
-| `validation_exhausted`, `check_failed`  | The agent could not get its queries past the checks.      | Try again and name the metric, service or table you want.              |
-| `refused`                               | The model declined the request.                           | Rephrase the prompt.                                                   |
-| `conflict`                              | Someone saved a newer version while the agent worked.     | Open the dashboard and ask again.                                      |
-| `canceled`                              | The run was canceled.                                     | Save what was built, continue it, or try again.                        |
-| `requester_forbidden`, `requester_gone` | You no longer have access to this dashboard.              | Ask an admin for Edit access.                                          |
-| `crashed`, `lease_expired`              | The server stopped while it ran this request.             | Try again.                                                             |
-| `no_finding`                            | The agent ended without writing a finding.                | Ask a narrower question, with the service and the time range.          |
-| `budget_exhausted`                      | The run reached the server's cost limit.                  | Save what was built or continue it, or ask an admin about the limit.   |
-| `agent_unavailable`                     | No outside agent took this run within 10 minutes.         | Check that the agent is connected and asking for work, then try again. |
-| `agent_failed`                          | The outside agent said it could not finish the run.       | Read its message, then try again.                                      |
+| Code                                     | What it means                                              | What to do                                                             |
+| ---------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `run_timeout`                            | The run reached the server's time limit.                   | Try again with a narrower prompt, or continue the build.               |
+| `call_timeout`                           | A model call took too long to answer.                      | Try again.                                                             |
+| `rate_limited`                           | The model provider is limiting requests from this server.  | Wait a minute, then try again.                                         |
+| `provider_error`                         | The model provider answered with an error.                 | Try again, and ask an admin to check the provider if it keeps failing. |
+| `output_limit`                           | The model's answer was cut off at its output limit.        | Try again and ask for fewer panels.                                    |
+| `no_tool_call`, `no_progress`            | The agent stopped making progress.                         | Try again and name the metric, service or table you want.              |
+| `validation_exhausted`, `check_failed`   | The agent could not get its queries past the checks; the reason names the panels that kept failing. | Try again and name the metric, service or table you want, or ask for those panels one at a time. |
+| `refused`                                | The model declined the request.                            | Rephrase the prompt.                                                   |
+| `conflict`                               | Someone saved a newer version while the agent worked.      | Open the dashboard and ask again.                                      |
+| `canceled`                               | The run was canceled.                                      | Save what was built, continue it, or try again.                        |
+| `requester_forbidden`, `requester_gone`  | You no longer have access to this dashboard.               | Ask an admin for Edit access.                                          |
+| `crashed`, `lease_expired`               | The server stopped while it ran this request.              | Try again.                                                             |
+| `no_finding`                             | The agent ended without writing a finding.                 | Ask a narrower question, with the service and the time range.          |
+| `budget_exhausted`                       | The run reached the server's cost limit.                   | Save what was built or continue it, or ask an admin about the limit.   |
+| `agent_unavailable`                      | No outside agent took this run within 10 minutes.          | Check that the agent is connected and asking for work, then try again. |
+| `agent_failed`                           | The outside agent said it could not finish the run.        | Read its message, then try again.                                      |
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
@@ -278,7 +293,7 @@ It does not need to have been your dashboard.
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.
-In its activity pane, write the change in "Write a comment, or tell the agent what to change" with `@observe` in it and send, or reply to a comment thread with `@observe` in the reply.
+In its activity pane, write the change in "Write a comment, or type @ to ask the agent" with `@observe` in it and send, or reply to a comment thread with `@observe` in the reply.
 The up arrow recalls your earlier prompts there too, and the footer shows the model.
 These requests carry on in the activity pane; see [Comments, agent requests and versions](review.md).
 In the conversation, a turn sent from the dashboard shows "Sent from the dashboard".
@@ -301,7 +316,8 @@ The list ends with how many chats match the search and state, and on Everyone ho
 Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 An investigation names the observation it was saved to, as long as you can open that observation's folder.
-An answer is written into an observation, because a finding always lives in one; it goes in your My Dashboards, where only you see it, under the short title described above.
+An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
+**Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
 On a row that joins several turns, the actions apply to the whole conversation: Rename changes the title of its first request, which the row shows, Save prompt saves that first prompt, and Delete removes every one of your turns in it, with a dialog that says how many.
 Rows of other people's chats under Everyone have none.
@@ -321,6 +337,10 @@ Only the person who started a chat can rename, pin or delete it.
 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
+- **Change an existing dashboard from Home.** A request on Home builds a new dashboard and cannot change one that exists.
+  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt and opens it as a new chat, and **Open dashboard**.
+  Without Edit on that dashboard you get only **Open dashboard**, with a line saying someone who can edit it can ask there.
+  When it finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
 - **Make the same choices every time.** Results depend on the model; a clearer prompt with the metric, service or time range you want gives better dashboards.
 

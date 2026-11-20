@@ -13,14 +13,14 @@ INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
-  assigned_kind, assigned_id, trigger, thread_message_id, thread_context
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone
 ) VALUES (
   @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
   coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
-  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text
 )
 RETURNING *;
 
@@ -216,10 +216,10 @@ WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id
 SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context)
+INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone)
 VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
-  sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text)
+  sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text)
 RETURNING *;
 
 -- name: GetAgentRequestByID :one
@@ -371,14 +371,14 @@ SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND
 INSERT INTO agent_requests (
   dashboard_id, source, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
-  retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context
+  retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone
 ) VALUES (
   sqlc.narg('dashboard_id')::uuid, 'investigate', @prompt, sqlc.narg('panel_id')::text,
   sqlc.narg('context_from')::timestamptz, sqlc.narg('context_to')::timestamptz,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('retries_id')::uuid, coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
-  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text
 )
 RETURNING *;
 
@@ -479,3 +479,12 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   )
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
+
+-- name: ListRunsAwaitingReply :many
+SELECT r.* FROM agent_requests r
+WHERE r.state = ANY(@terminal::text[])
+  AND r.thread_message_id IS NOT NULL
+  AND r.finished_at > clock_timestamp() - make_interval(secs => @within_seconds::float8)
+  AND r.thread_replied_at IS NULL
+ORDER BY r.finished_at DESC, r.id
+LIMIT @max_rows::int;

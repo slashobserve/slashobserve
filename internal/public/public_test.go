@@ -1,15 +1,21 @@
 package public
 
 import (
+	"context"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -19,8 +25,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func TestMain(m *testing.M) {
@@ -123,6 +131,14 @@ func TestCreateNeedsManage(t *testing.T) {
 	}
 }
 
+func TestCreateRefusalNamesTheAccessItNeeds(t *testing.T) {
+	r := newRig(t)
+	_, err := r.service.Create(t.Context(), editor, r.shared, CreateInput{Mode: ModeFrozen})
+	if want := forbidden.NeedsAccess("manage", "General"); !errors.Is(err, folders.ErrForbidden) || forbidden.BodyOf(err) != want {
+		t.Fatalf("error %v answers %+v, want %+v", err, forbidden.BodyOf(err), want)
+	}
+}
+
 func TestCreateRefusals(t *testing.T) {
 	r := newRig(t)
 	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'https://idp', 'olive', 'olive@example.com', 'Olive')`, owner.ID)
@@ -142,6 +158,9 @@ func TestCreateRefusals(t *testing.T) {
 		{"an expiry in the past", admin, r.shared, CreateInput{Mode: ModeFrozen, ExpiresAt: &past}, ErrInvalidExpiry},
 		{"an unknown variable", admin, r.shared, CreateInput{Mode: ModeFrozen, Selections: map[string][]string{"nope": {"x"}}}, ErrUnknownVariable},
 		{"an unknown mode", admin, r.shared, CreateInput{Mode: "pinned"}, ErrInvalidMode},
+		{"a label that is too long", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: strings.Repeat("x", maxLabelRunes+1)}, ErrInvalidLabel},
+		{"a label with a control character", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: "a\nb"}, ErrInvalidLabel},
+		{"a label with a bidirectional override", admin, r.shared, CreateInput{Mode: ModeFrozen, Label: "board\u202eevoke"}, ErrInvalidLabel},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -155,6 +174,90 @@ func TestCreateRefusals(t *testing.T) {
 	}
 	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); !errors.Is(err, ErrTooManyLinks) {
 		t.Fatalf("link %d: %v, want ErrTooManyLinks", maxLinksPerDashboard+1, err)
+	}
+}
+
+func TestRacingCreatesCannotPassTheLinkLimit(t *testing.T) {
+	r := newRig(t)
+	for range maxLinksPerDashboard - 1 {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	const racers = 8
+	var wg sync.WaitGroup
+	var created, refused atomic.Int32
+	for range racers {
+		wg.Go(func() {
+			_, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen})
+			switch {
+			case err == nil:
+				created.Add(1)
+			case errors.Is(err, ErrTooManyLinks):
+				refused.Add(1)
+			default:
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	if created.Load() != 1 || refused.Load() != racers-1 {
+		t.Fatalf("%d racing creates succeeded and %d were refused, want 1 and %d", created.Load(), refused.Load(), racers-1)
+	}
+}
+
+type fakeOptions struct {
+	values map[string][]string
+	err    error
+	calls  *int
+}
+
+func (f fakeOptions) VariableOptions(_ context.Context, _ pgtype.UUID, _ int, _ *spec.Dashboard, name string, _ map[string][]string) ([]string, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
+	return f.values[name], f.err
+}
+
+func TestCreateAtTheCapRunsNoVariableQuery(t *testing.T) {
+	r := newRig(t)
+	for range maxLinksPerDashboard {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	var calls int
+	r.service.options = fakeOptions{values: map[string][]string{"env": {"prod"}}, calls: &calls}
+	in := CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, in); !errors.Is(err, ErrTooManyLinks) {
+		t.Fatalf("err = %v, want ErrTooManyLinks", err)
+	}
+	if calls != 0 {
+		t.Fatalf("the cap answer ran %d variable queries", calls)
+	}
+}
+
+func TestCreateChecksFreeSelectionsAgainstTheVariableOptions(t *testing.T) {
+	r := newRig(t)
+	r.service.options = fakeOptions{values: map[string][]string{"env": {"prod", "staging"}}}
+	cases := []struct {
+		name string
+		in   CreateInput
+		want error
+	}{
+		{"an option", CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}, nil},
+		{"a value that is not an option", CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"checkout"}}}, ErrSelectionNotAllowed},
+		{"no selections", CreateInput{Mode: ModeFree}, nil},
+		{"a frozen link keeps its stored value", CreateInput{Mode: ModeFrozen, Selections: map[string][]string{"env": {"checkout"}}}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := r.service.Create(t.Context(), admin, r.shared, tc.in); !errors.Is(err, tc.want) {
+				t.Fatalf("err = %v, want %v", err, tc.want)
+			}
+		})
+	}
+	r.service.options = fakeOptions{err: errors.New("datasource down")}
+	in := CreateInput{Mode: ModeFree, Selections: map[string][]string{"env": {"prod"}}}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, in); !errors.Is(err, ErrOptionsUnavailable) {
+		t.Fatalf("err = %v, want ErrOptionsUnavailable", err)
 	}
 }
 
@@ -242,5 +345,64 @@ func TestViewServesTheLatestSpecWithoutQueryText(t *testing.T) {
 	list, err := r.service.List(t.Context(), admin, r.shared)
 	if err != nil || len(list) != 1 || list[0].Usable || list[0].Expired {
 		t.Fatalf("list %+v, %v", list, err)
+	}
+}
+
+func TestALabelIsKeptTrimmedAndListed(t *testing.T) {
+	r := newRig(t)
+	created := r.create(t, CreateInput{Mode: ModeFrozen, Label: "  For the board  "})
+	if created.Link.Label != "For the board" {
+		t.Fatalf("created label %q", created.Link.Label)
+	}
+	list, err := r.service.List(t.Context(), admin, r.shared)
+	if err != nil || len(list) != 1 || list[0].Label != "For the board" {
+		t.Fatalf("list %+v, %v", list, err)
+	}
+}
+
+func TestExpiredLinksDoNotCountTowardTheCap(t *testing.T) {
+	r := newRig(t)
+	expires := time.Now().Add(time.Hour)
+	r.create(t, CreateInput{Mode: ModeFrozen, ExpiresAt: &expires})
+	for range maxLinksPerDashboard - 1 {
+		r.create(t, CreateInput{Mode: ModeFrozen})
+	}
+	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); !errors.Is(err, ErrTooManyLinks) {
+		t.Fatalf("with every link live: %v, want ErrTooManyLinks", err)
+	}
+	r.service.now = func() time.Time { return expires.Add(time.Second) }
+	if _, err := r.service.Create(t.Context(), admin, r.shared, CreateInput{Mode: ModeFrozen}); err != nil {
+		t.Fatalf("after one link expired: %v", err)
+	}
+}
+
+func TestAnUnexpiredLinkStaysListedBehindManyExpiredOnes(t *testing.T) {
+	r := newRig(t)
+	permanent := r.create(t, CreateInput{Mode: ModeFrozen})
+	clock := time.Now()
+	r.service.now = func() time.Time { return clock }
+	for range 105 {
+		expires := clock.Add(time.Hour)
+		r.create(t, CreateInput{Mode: ModeFrozen, ExpiresAt: &expires})
+		clock = clock.Add(2 * time.Hour)
+	}
+	list, err := r.service.List(t.Context(), admin, r.shared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 || list[0].ID != permanent.Link.ID || list[0].Expired {
+		t.Fatalf("the live link is not first in the list of %d", len(list))
+	}
+}
+
+func TestRefuseAnswersAForbiddenManagerCallWithItsNeed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	(&Handler{}).refuse(c, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", "QA")))
+	want := `{"error":"your role does not allow this","code":"forbidden_role","needed_access":"manage","folder_title":"QA"}`
+	if rec.Code != http.StatusForbidden || rec.Body.String() != want {
+		t.Fatalf("status %d body %s, want %s", rec.Code, rec.Body.String(), want)
 	}
 }

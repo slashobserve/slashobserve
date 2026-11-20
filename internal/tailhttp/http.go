@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,9 +44,10 @@ const (
 	frameRef            = "A"
 	notLineSource       = "tail reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources"
 	maxSeenKeys         = 10000
+	maxPartialHolds     = 3
+	partialSeenWindow   = time.Minute
 	idFieldName         = "ID"
 	indexFieldName      = "Index"
-	bodyFieldName       = "Body"
 )
 
 type Sessions interface {
@@ -95,6 +97,8 @@ type linesData struct {
 	Frames    json.RawMessage `json:"frames"`
 	Newest    string          `json:"newest"`
 	Truncated bool            `json:"truncated"`
+	Partial   bool            `json:"partial,omitempty"`
+	Warning   string          `json:"warning,omitempty"`
 }
 
 type errorData struct {
@@ -225,12 +229,15 @@ type tail struct {
 	last       time.Time
 	seen       *seenRows
 	catchingUp bool
+	holds      int
 }
 
 type pollResult struct {
 	frames    []datasource.Frame
 	newest    time.Time
 	truncated bool
+	partial   bool
+	warning   string
 }
 
 func (t *tail) poll() (pollResult, error) {
@@ -257,9 +264,11 @@ func (t *tail) poll() (pollResult, error) {
 	if err != nil {
 		return pollResult{}, err
 	}
-	res := pollResult{truncated: datasource.MergeMeta(frames).Truncated}
-	if newest, ok := newestOf(frames); ok {
-		t.last = laterOf(t.last, newest.Add(time.Nanosecond))
+	merged := datasource.MergeMeta(frames)
+	res := pollResult{truncated: merged.Truncated, partial: merged.Partial, warning: merged.Warning}
+	hold := t.holdCursor(merged.Partial)
+	if newest, ok := newestOf(frames); ok && !hold {
+		t.last = laterOf(t.last, earlierOf(newest.Add(time.Nanosecond), now))
 	}
 	if t.seen != nil {
 		frames = t.seen.fresh(frames)
@@ -270,11 +279,30 @@ func (t *tail) poll() (pollResult, error) {
 	return res, nil
 }
 
+func (t *tail) holdCursor(partial bool) bool {
+	if !partial || t.holds == maxPartialHolds {
+		t.holds = 0
+		return false
+	}
+	t.holds++
+	if t.seen == nil {
+		t.seen = newSeenRows(partialSeenWindow, maxSeenKeys)
+	}
+	return true
+}
+
 func (t *tail) rangeStart() time.Time {
 	if t.req.lag == 0 || t.catchingUp {
 		return t.last
 	}
 	return laterOf(t.last.Add(-t.req.lag), t.req.from)
+}
+
+func earlierOf(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 func laterOf(a, b time.Time) time.Time {
@@ -314,7 +342,7 @@ func rowTime(f datasource.Frame, row int) (time.Time, bool) {
 }
 
 func (t *tail) emit(res pollResult) bool {
-	if datasource.Points(res.frames) == 0 {
+	if datasource.Points(res.frames) == 0 && !res.partial {
 		return true
 	}
 	frames, err := marshalFrames(frameRef, res.frames)
@@ -323,7 +351,7 @@ func (t *tail) emit(res pollResult) bool {
 		writeEvent(t.c, "error", errorData{Code: string(queryproxy.CodeInternal), Error: "internal error"})
 		return false
 	}
-	return writeEvent(t.c, "lines", linesData{Frames: frames, Newest: httpapi.FormatTime(res.newest), Truncated: res.truncated})
+	return writeEvent(t.c, "lines", linesData{Frames: frames, Newest: httpapi.FormatTime(res.newest), Truncated: res.truncated, Partial: res.partial, Warning: res.warning})
 }
 
 func (t *tail) pump(immediate bool) {
@@ -536,27 +564,28 @@ func (s *seenRows) prune() {
 }
 
 func rowKey(f datasource.Frame, row int) string {
-	var id, index, body, ns string
+	var id, index string
+	var rest strings.Builder
+	fmt.Fprint(&rest, f.Labels)
 	for _, field := range f.Fields {
 		if row >= len(field.Values) {
 			continue
 		}
-		text, _ := field.Values[row].(string)
 		switch field.Name {
 		case idFieldName:
-			id = text
+			id, _ = field.Values[row].(string)
 		case indexFieldName:
-			index = text
-		case bodyFieldName:
-			body = text
-		case datasource.TimeNsFieldName:
-			ns = text
+			index, _ = field.Values[row].(string)
 		}
+		rest.WriteString("\x00")
+		rest.WriteString(field.Name)
+		rest.WriteString("=")
+		fmt.Fprint(&rest, field.Values[row])
 	}
 	if id != "" {
 		return index + "\x00" + id
 	}
-	return ns + "\x00" + body
+	return rest.String()
 }
 
 func keepRows(f datasource.Frame, keep []bool) datasource.Frame {

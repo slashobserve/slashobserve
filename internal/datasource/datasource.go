@@ -18,6 +18,10 @@ type Datasource interface {
 	Close() error
 }
 
+type MinStepSource interface {
+	MinStep() time.Duration
+}
+
 type ExemplarSource interface {
 	QueryExemplars(ctx context.Context, q Query, r TimeRange, step time.Duration) ([]Frame, error)
 }
@@ -77,8 +81,17 @@ type Query struct {
 	Limits    Limits
 	Dashboard string
 	User      QueryUser
+	TimeZone  string
 
 	MinInterval time.Duration
+
+	OnExpanded func(text string)
+}
+
+func (q Query) Expanded(text string) {
+	if q.OnExpanded != nil {
+		q.OnExpanded(text)
+	}
 }
 
 type DiscoverKind string

@@ -12,6 +12,7 @@ const (
 	CodeInvalidRange     = "invalid_range"
 	CodeInvalidBlock     = "invalid_block"
 	CodeInvalidPanel     = "invalid_panel"
+	CodeVariableMissing  = "variable_missing"
 	CodeKindNotAddable   = "kind_not_addable"
 	CodeBodyNotEditable  = "body_not_editable"
 	CodeTooManyBlocks    = "too_many_blocks"
@@ -24,6 +25,7 @@ var (
 	ErrFolderNotFound   = errors.New("folder not found")
 	ErrInvalidCursor    = errors.New("invalid cursor")
 	ErrNothingToUpdate  = errors.New("nothing to update")
+	ErrCursorOrder      = errors.New("a cursor needs the default order, most recently changed first; page with an offset to sort another way")
 	ErrTooManyBlocks    = &InvalidInputError{Code: CodeTooManyBlocks, Message: "an observation holds at most 100 blocks"}
 	ErrTooManyPanels    = &InvalidInputError{Code: CodeTooManyPanels, Message: "an observation holds at most 24 panel and snapshot blocks together"}
 	ErrSnapshotTooLarge = &InvalidInputError{Code: CodeSnapshotTooLarge, Message: "the frozen data is larger than 2 MiB; narrow the time range or the query"}
@@ -33,7 +35,10 @@ type InvalidInputError struct {
 	Code    string
 	Message string
 	Issues  []spec.Issue
+	Cause   error
 }
+
+func (e *InvalidInputError) Unwrap() error { return e.Cause }
 
 func (e *InvalidInputError) Error() string {
 	return e.Message
@@ -54,4 +59,8 @@ func (e *ConflictError) Error() string {
 
 func invalid(code, message string) *InvalidInputError {
 	return &InvalidInputError{Code: code, Message: message}
+}
+
+func invalidText(code string, cause error) *InvalidInputError {
+	return &InvalidInputError{Code: code, Message: cause.Error(), Cause: cause}
 }

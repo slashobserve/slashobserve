@@ -27,7 +27,7 @@ const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"
 const savedQuery =
   'sum(rate(http_requests_total{service="checkout"}[$__rate_interval]))'
-const newerNotice = "Version 2 was saved while you were editing."
+const newerNotice = /saved version 2 while you were editing\./i
 const newerTimeout = 10_000
 const saveVersionButton = /^Save as version \d+$/
 const expectedLint429: string[] = []
@@ -158,12 +158,8 @@ test("shows a lint error inline", async ({ page, request, consoleErrors }) => {
   })
   await page.keyboard.press("Escape")
   await expect(page.locator(".cm-tooltip-autocomplete")).toHaveCount(0)
-  const item = sheet(page)
-    .getByRole("button", { name: /^Error:/ })
-    .first()
-  await expect(item).toBeVisible()
-  await item.click()
-  await expect(sheet(page).locator(".cm-content")).toBeFocused()
+  await expect(sheet(page).locator(".cm-lint-line").first()).toBeVisible()
+  await expect(sheet(page).getByText(/^Error:/)).toHaveCount(1)
   await draftPreviewRejectionLogged(consoleErrors)
 })
 
@@ -189,7 +185,7 @@ test("saves an edited query as a new version", async ({ page, request }) => {
   })
 })
 
-test("rejects a query the server cannot run", async ({
+test("blocks saving a query the server cannot run", async ({
   page,
   request,
   consoleErrors,
@@ -199,21 +195,17 @@ test("rejects a query the server cannot run", async ({
   await openFromMenu(page, rpsTitle)
 
   await replaceQuery(page, "sum(rate(")
-  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+  await draftPreviewRejectionLogged(consoleErrors)
 
   await expect(
-    sheet(page)
-      .getByRole("group", { name: "Query A" })
-      .getByRole("alert")
-      .filter({ hasText: "parse error: unclosed left parenthesis" })
-  ).toBeVisible()
+    sheet(page).getByRole("button", { name: saveVersionButton })
+  ).toHaveAttribute("aria-disabled", "true")
+  await expect(sheet(page).getByText("Fix the query to save.")).toBeVisible()
   await expect(sheet(page).getByText("This panel was rejected:")).toHaveCount(0)
-  await expect(sheet(page)).toBeVisible()
   expect((await getDashboard(request, id)).latestVersion).toBe(1)
-  expectLoggedOnce(consoleErrors, 422)
 })
 
-test("rejects a query that returns no data as a problem of the panel", async ({
+test("offers to save a query that returns no data anyway", async ({
   page,
   request,
   consoleErrors,
@@ -225,12 +217,15 @@ test("rejects a query that returns no data as a problem of the panel", async ({
   await replaceQuery(page, 'up{job="does-not-exist"}')
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  const rejected = sheet(page)
+  const notice = sheet(page)
     .getByRole("alert")
-    .filter({ hasText: "This panel was rejected:" })
-  await expect(rejected).toContainText(
-    "query returned no data for the dashboard's default time range and variable values"
+    .filter({ hasText: "query returned no data" })
+  await expect(notice).toContainText(
+    "Query returned no data for the dashboard's default time range and variable values."
   )
+  await expect(
+    notice.getByRole("button", { name: "Save anyway" })
+  ).toBeVisible()
   await expect(
     sheet(page).getByRole("group", { name: "Query A" }).getByRole("alert")
   ).toHaveCount(0)
@@ -327,7 +322,7 @@ test("keeps an unsaved query when a newer version arrives", async ({
   await expect(content).toBeFocused()
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(page.getByText("Saved version 3")).toBeVisible()
   const saved = await getDashboard(request, id)
@@ -350,7 +345,7 @@ test("applying my query keeps a panel title renamed in the newer version", async
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(page.getByText("Saved version 3")).toBeVisible()
@@ -379,7 +374,7 @@ test("applying my title keeps a panel query changed in the newer version", async
   )
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(page.getByText("Saved version 3")).toBeVisible()
@@ -444,7 +439,7 @@ test("keeps an unsaved query when its panel is deleted in a newer version", asyn
   ).toBeVisible()
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(
     sheet(page).getByText("This panel no longer exists in the latest version.")
@@ -472,7 +467,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   ).toHaveCount(0)
 
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
   await expect(page.getByText("Saved version 3")).toBeVisible()
   const rps = (await getDashboard(request, id)).spec.panels.find(
@@ -574,10 +569,8 @@ test("points a lint error at the right character after multi-byte text", async (
   await expect(mark).toBeVisible({ timeout: 5_000 })
   await expect(mark).toHaveText("*")
   await expect(
-    sheet(page).getByRole("button", {
-      name: /^Error:.*\(line 1, column 16\)$/,
-    })
-  ).toBeVisible()
+    sheet(page).getByText(/^Error:.*\(line 1, column 16\)$/)
+  ).toHaveCount(1)
   await draftPreviewRejectionLogged(consoleErrors)
 })
 
@@ -607,7 +600,7 @@ function mockSaveResponse(
   issues: Array<{ path: string; code: string; message: string }>,
   held?: Promise<void>
 ) {
-  return page.route(/\/versions$/, async (route) => {
+  return page.route(/\/dashboards\/[^/]+\/panels$/, async (route) => {
     if (route.request().method() !== "POST") return route.fallback()
     await held
     return route.fulfill({
@@ -653,10 +646,12 @@ test("offers Try again when the server cannot check the query right now", async 
   await expect(
     sheet(page).getByText("Other problems in this dashboard:")
   ).toHaveCount(0)
-  await expect(sheet(page).getByText("prometheus returned 502")).toHaveCount(0)
+  await expect(
+    sheet(page).getByText(/^Query A( on .+)?: prometheus returned 502$/)
+  ).toHaveCount(1)
   expectLoggedOnce(consoleErrors, 422)
 
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
   await sheet(page).getByRole("button", { name: "Try again" }).click()
   await expect(page.getByText("Saved version 2")).toBeVisible()
   const rps = (await getDashboard(request, id)).spec.panels.find(
@@ -687,7 +682,7 @@ test("retries a transient failure with the edits made after it", async ({
     sheet(page).getByText("The panel could not be checked right now.")
   ).toBeVisible()
   expectLoggedOnce(consoleErrors, 422)
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
 
   await sheet(page)
     .getByRole("textbox", { name: "Title" })
@@ -817,7 +812,7 @@ test("applies to the newer version when Try again follows a transient error", as
     sheet(page).getByText("The panel could not be checked right now.")
   ).toBeVisible()
   expectLoggedOnce(consoleErrors, 422)
-  await page.unroute(/\/versions$/)
+  await page.unroute(/\/dashboards\/[^/]+\/panels$/)
 
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
@@ -1164,7 +1159,7 @@ test("shows the clash and sends nothing when applying my changes would make the 
   )
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
-    .getByRole("button", { name: "Apply my changes to version 2" })
+    .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
   await expect(
@@ -1345,11 +1340,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(sheet(page).locator(".cm-editor .cm-lint-line")).toBeVisible(
         { timeout: 5_000 }
       )
-      await expect(
-        sheet(page)
-          .getByRole("button", { name: /^Error:/ })
-          .first()
-      ).toBeVisible()
+      await expect(sheet(page).getByText(/^Error:/)).toHaveCount(1)
       await draftPreviewRejectionLogged(consoleErrors)
     })
 

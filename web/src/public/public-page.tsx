@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
 import { savedCursorSync } from "@/dashboards/cursor-sync"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
 import type { PanelSource } from "@/dashboards/panel-source"
@@ -35,7 +34,7 @@ import { useVariables, type VariableState } from "@/dashboards/use-variables"
 import { variableLabel } from "@/dashboards/variable-controls/variable-box"
 import { VariablesBar } from "@/dashboards/variables-bar"
 import { DatasourceListProvider } from "@/datasources/queries"
-import { refreshToMs } from "@/lib/time"
+import { displayZone, refreshToMs } from "@/lib/time"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
@@ -158,6 +157,7 @@ export function PublicPage({
                   onSearchChange((state) => ({ ...state, ...next }))
                 }
                 quickRanges={pickerQuickRanges(spec)}
+                zone={displayZone(undefined, spec.timezone)}
               />
             )}
             <Button
@@ -321,17 +321,5 @@ export function PublicLoadError({
         onRetry={onRetry}
       />
     </main>
-  )
-}
-
-export function PublicPageSkeleton() {
-  return (
-    <div
-      className="flex flex-col gap-3 pt-3 pr-2.5 pb-2.5 pl-4"
-      aria-busy="true"
-    >
-      <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
-      <Skeleton className="h-64 w-full animate-none motion-safe:animate-pulse" />
-    </div>
   )
 }

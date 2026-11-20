@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useFocusAfterNavigation } from "@/shell/focus-after-navigation"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,12 +30,19 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 function RootLayout() {
+  useFocusAfterNavigation()
   return (
     <Shell>
       <TooltipProvider>
         <Outlet />
       </TooltipProvider>
-      <Toaster position="bottom-right" />
+      <Toaster
+        position="bottom-left"
+        offset={{ left: 56, bottom: 16 }}
+        mobileOffset={16}
+        duration={5000}
+        closeButton
+      />
     </Shell>
   )
 }

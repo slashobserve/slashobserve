@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -16,16 +17,19 @@ import (
 
 const (
 	replyUnclaimed       = "No agent picked this up within 10 minutes."
-	replyCanceled        = "The run was canceled."
+	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
+	replyAnsweredInChat  = "Answered in the chat of the person who asked."
+	replyChatLinkLead    = "Full answer (only the person who asked and Admins can open it): "
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
 	maxReplyHeadingRunes = 200
+	maxReplyLeadRunes    = 600
 )
 
-func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) error {
-	thread, err := q.GetThreadOfMessage(ctx, run.ThreadMessageID)
+func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, askedIn pgtype.UUID) error {
+	thread, err := q.GetThreadOfMessage(ctx, askedIn)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -65,6 +69,9 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	}
 	if err != nil {
 		return fmt.Errorf("insert run reply: %w", err)
+	}
+	if err := q.MarkRunReplied(ctx, run.ID); err != nil {
+		return fmt.Errorf("mark run replied: %w", err)
 	}
 	return emitter{scope: sc, thread: thread, actor: author}.replied(ctx, q, message, nil)
 }
@@ -123,7 +130,7 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if err != nil {
 			return "", fmt.Errorf("read proposal of run: %w", err)
 		}
-		return "Opened a proposal: " + sentenceEnd(clip(title, maxReplyHeadingRunes)), nil
+		return "Opened a proposal: " + sentenceEnd(activity.Excerpt(title, maxReplyHeadingRunes)), nil
 	case run.ResultKind == string(revisions.ResultObservation):
 		found, err := q.GetFindingByAgentRequest(ctx, run.ID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -132,13 +139,34 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if err != nil {
 			return "", fmt.Errorf("read finding of run: %w", err)
 		}
+		if !found.Finding.ObservationID.Valid {
+			return chatAnswerBody(found.Finding, run.ID), nil
+		}
 		lead := "Saved a finding: "
 		if target == KindObservation {
 			lead = "Wrote the answer into this observation: "
 		}
-		return lead + sentenceEnd(clip(found.Finding.Title, maxReplyHeadingRunes)), nil
+		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
 	}
 	return replyFinished, nil
+}
+
+func chatAnswerBody(found dbsqlc.Finding, runID pgtype.UUID) string {
+	lead := findingLead(found.Markdown, found.Title)
+	if lead == "" {
+		lead = "\n\n" + activity.Excerpt(found.Title, maxReplyLeadRunes)
+	}
+	return replyAnsweredInChat + strings.TrimRight(lead, "\n ") + "\n\n" + replyChatLinkLead + "[the chat](/c/" + runID.String() + ")"
+}
+
+func findingLead(markdown, title string) string {
+	for _, paragraph := range strings.Split(markdown, "\n\n") {
+		lead := activity.Excerpt(strings.TrimLeft(paragraph, "# \t\n"), maxReplyLeadRunes)
+		if lead != "" && lead != strings.TrimSpace(title) {
+			return "\n\n" + lead
+		}
+	}
+	return ""
 }
 
 func failedBody(run dbsqlc.AgentRequest) string {
@@ -156,6 +184,9 @@ func failedBody(run dbsqlc.AgentRequest) string {
 }
 
 func sentenceEnd(text string) string {
+	if strings.HasSuffix(text, "...") {
+		return text
+	}
 	return strings.TrimRight(text, ".") + "."
 }
 

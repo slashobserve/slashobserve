@@ -3,7 +3,7 @@ title: Activity
 description: Read and follow what changed in your workspace, from dashboard saves to agent runs, through the HTTP API and MCP, with each person seeing only the folders they can view.
 ---
 
-The activity log records every change to a dashboard, annotation, finding, saved search or observation, and every agent run, in the order it happened.
+The activity log records every change to a dashboard, annotation, finding, saved search or observation, every agent run, and the changes an Admin makes to who can do what, in the order it happened.
 Each change appends one event in the same transaction as the change, so the log never shows something that did not happen and never misses something that did.
 You read it as a list with `GET /api/v1/activity` and follow it live as Server-Sent Events with `GET /api/v1/activity/stream`.
 Both need the Viewer role or higher, and both work with a session or a service-account key.
@@ -14,14 +14,16 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | --- | --- | --- |
 | Dashboard | `dashboard.created`, `dashboard.version_created`, `dashboard.restored` | A version is saved: the first one, a later one, or a restore of an older one. |
 | Dashboard | `dashboard.moved`, `dashboard.deleted` | A dashboard moves to another folder or is deleted. |
-| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed. |
+| Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a create and a delete carry a `title`, the first 80 characters of the annotation's text on one line, copied when the event is written, and a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went. |
+| Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
-| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs or trace search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
-| Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes. |
+| Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, moved to another folder or deleted. |
+| Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
 | Observation | `observation.moved` | An observation moves to another folder, which shares it with that folder's readers. |
 | Observation | `observation.resolved`, `observation.reopened` | An observation is resolved with a summary, or opened again. |
-| Observation | `observation.published` | An RCA is published from an observation. |
+| Observation | `observation.deleted` | An observation is deleted with its blocks, RCA revisions and discussion; the event stays in the log and carries the title the observation had. |
+| Observation | `observation.published`, `observation.rca_withdrawn` | An RCA revision is published from an observation, or withdrawn again; both carry the title and the revision number. |
 | Observation | `observation.block_added`, `observation.block_updated` | A block is added to an observation's page, or one changes or moves. |
 | Observation | `observation.block_kept`, `observation.block_discarded` | An editor keeps a block someone requested, or discards it; its author may discard it too. |
 | Observation | `observation.block_removed` | A block is taken off an observation's page. |
@@ -31,9 +33,32 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Run | `run.canceling` | The requester canceled it while a worker holds it. |
 | Run | `run.succeeded`, `run.failed`, `run.canceled` | A run settles. |
 | Run | `run.kept` | The requester kept the build of a stopped run as a version. |
-| Thread | `thread.opened`, `thread.replied`, `thread.edited` | A comment thread is started, answered or a message in it is edited. |
+| Thread | `thread.opened`, `thread.replied`, `thread.edited`, `thread.deleted` | A comment thread is started, answered, a message in it is edited, or a message or a whole thread is deleted. |
 | Thread | `thread.resolved`, `thread.reopened` | A thread is resolved, by a person or by an agent run that finished the change it asked for, or opened again. |
 | Thread | `thread.mentioned` | A message mentions a person or `@observe`, one event for each mention. |
+
+## Admin changes
+
+These events record what an Admin changes about people, keys, integrations and access.
+Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks.md) and in Settings, Audit log.
+
+| Target | Event types | Written when |
+| --- | --- | --- |
+| Person | `user.role_changed` | An Admin sets or clears a person's role override and the person's role changes as a result (pinning the role a person already has records nothing); `data` has the person's `name`, `from_role`, `to_role` and `manual`, which is false when the override was cleared. |
+| Person | `user.role_changed` | The sign-in policy changes a person's role, at their login or when the server starts: they joined or left an admin group, or the admin emails or group roles changed. The person is the actor, `manual` is false and `data` has `source`, one of `admin_emails`, `first_user`, `group` or `default`. A person's first login is not a change. |
+| Person | `user.signed_out_everywhere` | An Admin signs a person out everywhere; `data` has `name`, `sessions` and `grants`, how many sessions and connected agents ended. |
+| Person | `user.invited`, `user.invite_updated`, `user.invite_withdrawn` | An Admin [invites](../teams/people.md) an email, invites it again with another role, or withdraws the invite; `data` has the `email`, the invite has the `role` and an update has `role` as `{from, to}`. The target id is the invite. Inviting an email again with the role it already has records nothing, and a first sign-in that uses the invite is not a change. |
+| Person | `user.deactivated`, `user.reactivated`, `user.removed` | An Admin deactivates, reactivates or removes a person; `data` has the person's `name`, and a deactivation also `sessions` and `grants`, how many sessions and connected agents ended. Deactivating someone already deactivated, or reactivating someone active, records nothing. |
+| Service account | `service_account.created`, `service_account.updated`, `service_account.deleted` | An Admin creates a service account, changes its role or whether it takes runs, or deletes it with its keys; an update lists each changed field as `{from, to}`. |
+| Service account | `service_account.key_created`, `service_account.key_revoked` | An Admin creates or revokes a key; `data` has the key's `key_id` and `key_name`, never the key. |
+| Webhook | `webhook.created`, `webhook.updated`, `webhook.secret_rotated`, `webhook.deleted` | An Admin creates, changes, rotates the secret of or deletes a webhook; `data` has `name` and `host`, and an update has `changes` with `{from, to}` for each of `name`, `host`, `enabled` and `event_types` that changed, plus `url_changed` when the address changed. The address path and the secret are never recorded. |
+| Outbound domain | `outbound_domain.added`, `outbound_domain.removed` | An Admin allows or removes an outbound domain, including the Grafana host that connecting Grafana allows; `data` has the `domain`. |
+| Connected agent | `mcp_client.connected`, `mcp_client.disconnected` | A person connects an agent over MCP, or the connection ends; `data` has the `client`, the person's `person_id` and `person_name` and the grant's `mode`, and a disconnect adds the `reason`: `person`, `admin`, `client` (the agent revoked its own token), `code_reuse` or `refresh_reuse` (the server revoked it after a token was replayed). The actor is the person, or the Admin who disconnected it. Never a token. |
+| Grafana connection | `grafana_connection.created`, `grafana_connection.updated`, `grafana_connection.deleted` | An Admin connects, changes or removes a Grafana connection; `data` has `name` and `host`, and an update has `changes` with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token was replaced. The token is never recorded. |
+| Datasource | `datasource.created`, `datasource.updated`, `datasource.deleted` | An Admin adds, changes or deletes a datasource in the app; `data` has `uid`, `type`, `name` and `host`, the address's host and port without its path, and an update has `changes` with `{from, to}` for each of `name` and `host` that changed, plus `address_changed`, `settings_changed` and `credentials_changed` when they did. A credential is never recorded. Datasources defined in the datasources file are not recorded. |
+
+Each event has an `actor`, the Admin, with the same `label` and origin as any other event, so an event made through a key says which key and an event made over MCP says which client.
+`data` never holds a secret: a key, a webhook secret or a Grafana token appears only as the fact that it was created, rotated or replaced.
 
 Every event has a `seq`, a `type`, a `target` (its `kind` and `id`), the `dashboard_id` and `folder_id` it belongs to, an `actor`, a `data` object and `created_at`.
 The `actor` is the same object the rest of the API uses, with a `label` that is the one text to show for who made the change.
@@ -41,10 +66,11 @@ The `actor` is the same object the rest of the API uses, with a `label` that is 
 ## What data holds
 
 `data` holds ids, numbers, enums, titles and the version summary, so a saved version reads `{"version": 12, "parent_version": 11, "title": "Checkout", "summary": "Add a latency panel"}`.
-A saved search event adds its `kind`, `logs` or `traces`, and a move adds `from_folder_id` and `to_folder_id`.
+A saved search event adds its `kind`, `logs`, `traces` or `metrics`, and a move adds `from_folder_id` and `to_folder_id`.
 An observation event adds its `title`, and a block event the `block_id` and `block_kind`, with the block's `state` (`live` or `requested`) on `observation.block_added`; block text, summaries and snapshot data are never in an event.
-It never holds a prompt, a comment, annotation or finding text, a query or Spec JSON.
+It never holds a prompt, a comment, a finding's text, a query or Spec JSON, and an annotation event holds only the 80-character `title`, never the full text.
 A thread event's `target` is the thread, and its `data` has `object`, the dashboard, annotation, observation or proposal the thread is on, as `{"kind": "dashboard", "id": "..."}`.
+`thread.opened` also carries the `title` of the dashboard or observation, copied when the thread opens so the row still names it after the object is deleted.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 
 A run event adds the run's `source`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
@@ -58,6 +84,8 @@ You see an event when any of these holds:
 - It belongs to a folder you can view, as [Folders](../teams/folders.md) decides.
 - It belongs to no folder and you made the change.
 - It belongs to no folder and you are an Admin.
+
+An [admin change](#admin-changes) is the exception to the second rule: only an Admin sees it, even the one who made it once they are no longer an Admin.
 
 An event takes the folder of its dashboard.
 A global annotation takes General, which everyone with a role can view, so everyone who can read global annotations sees its events.
@@ -75,7 +103,8 @@ An event appears once its own transaction and every older one have committed, so
 
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
-Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, a repeated `type` and `since` (an RFC 3339 time); a parameter that does not parse answers 400.
+Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, `actor_id` (a person or a service account), a repeated `type`, `since` and `until` (RFC 3339 times); a parameter that does not parse answers 400.
+`scope=admin` lists only [admin changes](#admin-changes) and public link events, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
 `observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
 It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 
@@ -118,10 +147,10 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 
 ## Read it over MCP
 
-The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `types`, `since`, `limit` and `cursor`, and it needs a Viewer key.
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `scope`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes, and `scope: "admin"` with another key is refused.
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
-`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`.
+`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>`, `--until` and `--admin` match `actor_id`, `until` and `scope=admin`.
 
 ## Send it to another system
 

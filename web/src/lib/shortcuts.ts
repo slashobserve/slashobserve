@@ -30,6 +30,20 @@ export function isModEnter(
   return event.key === "Enter" && (event.metaKey || event.ctrlKey)
 }
 
+export function sendsOnEnter(
+  event: Pick<ChordEvent, "key" | "shiftKey"> & {
+    nativeEvent: { isComposing: boolean }
+  },
+  coarse: boolean
+): boolean {
+  return (
+    !coarse &&
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.nativeEvent.isComposing
+  )
+}
+
 export function modChordLabel(userAgent: string, key: string): string {
   const letter = key.toUpperCase()
   return /Mac|iPhone|iPad|iPod/.test(userAgent)

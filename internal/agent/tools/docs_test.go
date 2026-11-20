@@ -11,7 +11,7 @@ import (
 
 const mcpDocsPath = "../../../docs/use/mcp.md"
 
-var mcpDocsToolRow = regexp.MustCompile("^\\| `([a-z_]+)` \\| (Viewer|Commenter|Editor) \\|$")
+var mcpDocsToolRow = regexp.MustCompile("^\\| `([a-z_]+)` \\| (Viewer|Commenter|Editor|Admin) \\|$")
 
 func TestMCPDocsListEveryToolWithItsRole(t *testing.T) {
 	page, err := os.ReadFile(mcpDocsPath)

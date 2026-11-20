@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -17,10 +18,14 @@ var (
 	ErrUnavailable    = errors.New("datasource unavailable")
 	ErrNotFound       = errors.New("not found")
 
-	ErrNotReadOnly    = refine(ErrForbiddenQuery)
-	ErrUnsafeGrant    = refine(ErrForbiddenQuery)
-	ErrAuthFailed     = refine(ErrUnavailable)
-	ErrHostNotAllowed = refine(ErrUnavailable)
+	ErrNotReadOnly     = refine(ErrForbiddenQuery)
+	ErrUnsafeGrant     = refine(ErrForbiddenQuery)
+	ErrAuthFailed      = refine(ErrUnavailable)
+	ErrHostNotAllowed  = refine(ErrUnavailable)
+	ErrNoSecretKey     = refine(ErrUnavailable)
+	ErrUnreadable      = refine(ErrUnavailable)
+	ErrNotLoadable     = refine(ErrUnavailable)
+	ErrOutboundBlocked = refine(ErrUnavailable)
 
 	ErrWrongFlavor        = refine(ErrInvalidQuery)
 	ErrIsOpenSearch       = refine(ErrWrongFlavor)
@@ -29,6 +34,9 @@ var (
 	ErrNoIndex            = refine(ErrInvalidQuery)
 	ErrNoTimeField        = refine(ErrInvalidQuery)
 	ErrNoRoleField        = refine(ErrInvalidQuery)
+
+	ErrRangeInFuture = refine(ErrInvalidQuery)
+	ErrRangeTooLong  = refine(ErrLimitExceeded)
 )
 
 // refinedKind reads and matches as its parent, so it adds a distinguishable kind without changing any error text.
@@ -43,10 +51,11 @@ func (k *refinedKind) Unwrap() error { return k.parent }
 type UpstreamError struct {
 	Kind    error
 	Message string
+	Status  int
 }
 
 func (e *UpstreamError) Error() string {
-	if e.Kind == nil {
+	if e.Kind == nil || strings.HasPrefix(e.Message, e.Kind.Error()) {
 		return e.Message
 	}
 	return e.Kind.Error() + ": " + e.Message
@@ -62,6 +71,13 @@ func (e *ConfigError) Error() string { return e.Message }
 
 func ConfigErrorf(format string, args ...any) error {
 	return &ConfigError{Message: fmt.Sprintf(format, args...)}
+}
+
+func ErrorfStatus(kind error, status int, format string, args ...any) error {
+	if kind == nil {
+		kind = ErrUnavailable
+	}
+	return &UpstreamError{Kind: kind, Message: fmt.Sprintf(format, args...), Status: status}
 }
 
 func IsTransient(err error) bool {

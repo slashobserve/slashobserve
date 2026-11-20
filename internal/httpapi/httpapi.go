@@ -4,9 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -25,10 +28,19 @@ func AbortError(c *gin.Context, status int, code, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
 }
 
+func AbortText(c *gin.Context, status int, code string, err error) {
+	body := gin.H{"error": err.Error(), "code": code}
+	if reason, ok := usertext.ReasonOf(err); ok {
+		body["reason"] = reason
+	}
+	c.AbortWithStatusJSON(status, body)
+}
+
 type InvalidSpecBody struct {
 	Error  string       `json:"error"`
 	Code   string       `json:"code"`
 	Issues []spec.Issue `json:"issues"`
+	Reason string       `json:"reason,omitempty"`
 }
 
 func AbortInvalidSpec(c *gin.Context, message string, issues []spec.Issue) {
@@ -54,8 +66,42 @@ func DecodeBody(c *gin.Context, dst any, limit int64) bool {
 		AbortError(c, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
 		return false
 	}
-	AbortError(c, http.StatusBadRequest, "invalid_request", "request body must be valid JSON with known fields")
+	AbortError(c, http.StatusBadRequest, "invalid_request", decodeProblem(err))
 	return false
+}
+
+func decodeProblem(err error) string {
+	var wrongType *json.UnmarshalTypeError
+	var syntax *json.SyntaxError
+	switch {
+	case errors.Is(err, io.EOF):
+		return "request body is empty; send a JSON object"
+	case errors.As(err, &wrongType) && wrongType.Field != "":
+		return fmt.Sprintf("%s must be %s, not %s", wrongType.Field, jsonKindWord(wrongType.Type), wrongType.Value)
+	case errors.As(err, &syntax), errors.As(err, &wrongType), errors.Is(err, io.ErrUnexpectedEOF):
+		return "request body is not valid JSON; send one JSON object"
+	}
+	if name, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+		return fmt.Sprintf("unknown field %s; remove it or check the field names in the API reference", name)
+	}
+	return "request body must be valid JSON with known fields"
+}
+
+func jsonKindWord(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "a whole number"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.String:
+		return "a string"
+	case reflect.Bool:
+		return "true or false"
+	case reflect.Slice, reflect.Array:
+		return "a list"
+	default:
+		return "an object"
+	}
 }
 
 func Int32(n int) int32 {

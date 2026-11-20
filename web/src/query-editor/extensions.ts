@@ -1,10 +1,19 @@
-import { autocompletion, completionKeymap } from "@codemirror/autocomplete"
+import {
+  autocompletion,
+  completionKeymap,
+  type CompletionContext,
+} from "@codemirror/autocomplete"
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands"
 import { json } from "@codemirror/lang-json"
 import { sql, StandardSQL } from "@codemirror/lang-sql"
 import { syntaxHighlighting } from "@codemirror/language"
 import { lintGutter, lintKeymap } from "@codemirror/lint"
-import { Compartment, type Extension, type Text } from "@codemirror/state"
+import {
+  Compartment,
+  EditorState,
+  type Extension,
+  type Text,
+} from "@codemirror/state"
 import {
   EditorView,
   highlightActiveLine,
@@ -123,6 +132,24 @@ function languageExtension(type: string | undefined): Extension {
     return jsonWhenQueryDsl()
   }
   return []
+}
+
+const nameCharacters = /[\w.@-]*/
+
+export function nameCompletions(names: readonly string[]): Extension {
+  const options = names.map((label) => ({ label, type: "property" }))
+  const data = [
+    {
+      autocomplete: (context: CompletionContext) => {
+        const word = context.matchBefore(nameCharacters)
+        if (word === null || (word.from === word.to && !context.explicit)) {
+          return null
+        }
+        return { from: word.from, options, validFor: nameCharacters }
+      },
+    },
+  ]
+  return EditorState.languageData.of(() => data)
 }
 
 export function languageFor(type: string | undefined): Extension {

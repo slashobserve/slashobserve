@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -43,10 +45,17 @@ type Service struct {
 	freezer   Freezer
 	publicURL *url.URL
 	logger    *slog.Logger
+
+	dashboards  Dashboards
+	annotations Annotations
 }
 
-func New(database *db.DB, access *folders.Access, freezer Freezer, publicURL *url.URL, logger *slog.Logger) *Service {
-	return &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger}
+func New(database *db.DB, access *folders.Access, freezer Freezer, publicURL *url.URL, logger *slog.Logger, options ...Option) *Service {
+	s := &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger}
+	for _, option := range options {
+		option(s)
+	}
+	return s
 }
 
 func (s *Service) URL(id string) string {
@@ -110,7 +119,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	}
 	var first *preparedBlock
 	if in.FirstBlock != nil {
-		prepared, err := s.prepare(ctx, by, pgtype.UUID{}, *in.FirstBlock)
+		prepared, err := s.prepare(ctx, by, pgtype.UUID{}, *in.FirstBlock, anyBlock)
 		if err != nil {
 			return Observation{}, err
 		}
@@ -183,11 +192,29 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 	if err != nil {
 		return Observation{}, err
 	}
-	o := observationOf(row, folder, abilities, thread, counts[id])
 	viewer := actor.Of(by, origin.Origin{}, "")
-	o.Blocks = make([]Block, len(blocks))
-	for i, b := range blocks {
-		o.Blocks[i] = blockOf(b, abilities, viewer)
+	o := observationOf(row, folder, abilities, viewer, thread, counts[id])
+	about, err := s.runDashboard(ctx, id)
+	if err != nil {
+		return Observation{}, err
+	}
+	if about.Valid {
+		o.DashboardID = about.String()
+		if o.Pinned, err = s.pinned(ctx, id, about); err != nil {
+			return Observation{}, err
+		}
+		if o.CanPin, err = s.mayEdit(ctx, by, about); err != nil {
+			return Observation{}, err
+		}
+	}
+	o.Blocks = make([]Block, 0, len(blocks))
+	for _, b := range blocks {
+		if !visibleTo(b, abilities, viewer) {
+			continue
+		}
+		shown := blockOf(b, abilities, viewer)
+		shown.Position = len(o.Blocks)
+		o.Blocks = append(o.Blocks, shown)
 	}
 	return o, nil
 }
@@ -197,12 +224,66 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
-	levels, err := s.access.Levels(ctx, by)
-	if errors.Is(err, folders.ErrForbidden) {
-		return nil, "", nil
+	if after != nil && !filter.newestFirst() {
+		return nil, "", ErrCursorOrder
 	}
+	rows, _, err := s.list(ctx, by, filter, limit+1, 0, after, false)
 	if err != nil {
 		return nil, "", err
+	}
+	next := ""
+	if len(rows) > limit {
+		rows = rows[:limit]
+		if filter.newestFirst() {
+			last := rows[limit-1]
+			next = httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+		}
+	}
+	return rows, next, nil
+}
+
+func (s *Service) Page(ctx context.Context, by auth.Principal, filter ListFilter, limit, offset int) (Listing, error) {
+	rows, total, err := s.list(ctx, by, filter, limit, offset, nil, true)
+	if err != nil {
+		return Listing{}, err
+	}
+	return Listing{Observations: rows, Total: total}, nil
+}
+
+func (f ListFilter) newestFirst() bool {
+	return (f.Sort == "" || f.Sort == SortUpdated) && !f.Ascending
+}
+
+func likePattern(query string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.TrimSpace(query))
+}
+
+func (f ListFilter) where(folderIDs []pgtype.UUID, viewer actor.Actor) (dbsqlc.CountObservationsParams, error) {
+	where := dbsqlc.CountObservationsParams{Folders: folderIDs, FolderID: f.FolderID}
+	if f.State != "" {
+		where.State = pgtype.Text{String: string(f.State), Valid: true}
+	}
+	if q := strings.TrimSpace(f.Query); q != "" {
+		where.TitleQuery = pgtype.Text{String: likePattern(q), Valid: true}
+	}
+	if f.CreatedByMe {
+		cols, err := viewer.Columns()
+		if err != nil {
+			return where, err
+		}
+		where.CreatedByID = cols.ID
+		where.CreatedByKind = pgtype.Text{String: cols.Kind, Valid: true}
+	}
+	return where, nil
+}
+
+func (s *Service) list(ctx context.Context, by auth.Principal, filter ListFilter, limit, offset int, after *httpapi.TimeCursor, counted bool) ([]Observation, int, error) {
+	levels, err := s.access.Levels(ctx, by)
+	if errors.Is(err, folders.ErrForbidden) {
+		return nil, 0, nil
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 	visible := levels.Folders()
 	byID := make(map[pgtype.UUID]folders.Folder, len(visible))
@@ -212,43 +293,106 @@ func (s *Service) List(ctx context.Context, by auth.Principal, filter ListFilter
 		ids[i] = f.ID
 	}
 	if _, seen := byID[filter.FolderID]; filter.FolderID.Valid && !seen {
-		return nil, "", ErrFolderNotFound
+		return nil, 0, ErrFolderNotFound
 	}
-	params := dbsqlc.ListObservationsParams{Folders: ids, FolderID: filter.FolderID, RowLimit: httpapi.Int32(limit + 1)}
-	if filter.State != "" {
-		params.State = pgtype.Text{String: string(filter.State), Valid: true}
+	viewer := actor.Of(by, origin.Origin{}, "")
+	sort := filter.Sort
+	if sort == "" {
+		sort = SortUpdated
+	}
+	where, err := filter.where(ids, viewer)
+	if err != nil {
+		return nil, 0, err
+	}
+	params := dbsqlc.ListObservationsParams{
+		Folders: where.Folders, FolderID: where.FolderID, State: where.State, TitleQuery: where.TitleQuery,
+		CreatedByID: where.CreatedByID, CreatedByKind: where.CreatedByKind,
+		Sort: string(sort), Descending: !filter.Ascending, RowLimit: httpapi.Int32(limit), RowOffset: httpapi.Int32(offset),
 	}
 	if after != nil {
 		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
 	}
-	rows, err := s.store.db.Queries().ListObservations(ctx, params)
+	queries := s.store.db.Queries()
+	rows, err := queries.ListObservations(ctx, params)
 	if err != nil {
-		return nil, "", fmt.Errorf("list observations: %w", err)
+		return nil, 0, fmt.Errorf("list observations: %w", err)
 	}
-	next := ""
-	if len(rows) > limit {
-		rows = rows[:limit]
-		last := rows[limit-1]
-		next = httpapi.EncodeTimeCursor(last.UpdatedAt.Time, last.ID.String())
+	total := 0
+	if counted {
+		n, err := queries.CountObservations(ctx, where)
+		if err != nil {
+			return nil, 0, fmt.Errorf("count observations: %w", err)
+		}
+		total = int(n)
 	}
+	out, err := s.render(ctx, rows, byID, levels, viewer)
+	return out, total, err
+}
+
+func (s *Service) render(ctx context.Context, rows []dbsqlc.Observation, byID map[pgtype.UUID]folders.Folder, levels folders.Levels, viewer actor.Actor) ([]Observation, error) {
 	rowIDs := make([]pgtype.UUID, len(rows))
 	for i, row := range rows {
 		rowIDs[i] = row.ID
 	}
 	threads, err := s.store.threads(ctx, rowIDs)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	counts, err := s.store.messageCounts(ctx, rowIDs)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	out := make([]Observation, len(rows))
 	for i, row := range rows {
-		out[i] = observationOf(row, byID[row.FolderID], levels.Of(row.FolderID), threads[row.ID], counts[row.ID])
+		out[i] = observationOf(row, byID[row.FolderID], levels.Of(row.FolderID), viewer, threads[row.ID], counts[row.ID])
 	}
-	return out, next, nil
+	return out, nil
+}
+
+func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	var pinned []pgtype.UUID
+	err := s.write(ctx, by, id, pgtype.UUID{}, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
+		author := string(who.Kind) == row.CreatedByKind && who.ID == row.CreatedByID.String()
+		if !slices.Contains(allowedActions(State(row.State), abilities, author), ActionDelete) {
+			return folders.ErrForbidden
+		}
+		var err error
+		if pinned, err = q.ListObservationPinAnnotations(ctx, id); err != nil {
+			return fmt.Errorf("list the pins of an observation: %w", err)
+		}
+		active, err := q.ObservationHasActiveRun(ctx, id)
+		switch {
+		case err != nil:
+			return fmt.Errorf("check the observation's runs: %w", err)
+		case active:
+			return ErrRunInProgress
+		}
+		if err := appendEvent(ctx, q, activity.TypeObservationDeleted, who, id, eventData{Title: row.Title}); err != nil {
+			return err
+		}
+		n, err := q.DeleteObservation(ctx, id)
+		switch {
+		case err != nil:
+			return fmt.Errorf("delete observation: %w", err)
+		case n != 1:
+			return ErrNotFound
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	s.unpin(ctx, by, id, pinned)
+	s.logger.InfoContext(ctx, "observation deleted", slog.String("actor_id", by.ID), slog.String("observation_id", id.String()))
+	return nil
+}
+
+func updatedEvent(before, after string) any {
+	if before == after {
+		return eventData{Title: after}
+	}
+	return renamedEventData{Title: after, FromTitle: before}
 }
 
 func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID, in UpdateInput) (Observation, error) {
@@ -277,7 +421,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		if err != nil {
 			return fmt.Errorf("update observation: %w", err)
 		}
-		return appendEvent(ctx, q, activity.TypeObservationUpdated, who, id, eventData{Title: updated.Title})
+		return appendEvent(ctx, q, activity.TypeObservationUpdated, who, id, updatedEvent(row.Title, updated.Title))
 	})
 	if err != nil {
 		return Observation{}, err
@@ -399,7 +543,7 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return Placement{}, err
 	}
-	return Placement{Folder: row.FolderID, Personal: folder.Personal, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
+	return Placement{Folder: row.FolderID, Personal: folder.Personal, Title: folder.Title, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
 }
 
 func (s *Service) Snapshot(ctx context.Context, by auth.Principal, id pgtype.UUID) (Snapshot, error) {

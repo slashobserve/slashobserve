@@ -242,11 +242,11 @@ func (h *Handler) refuse(c *gin.Context, err error, notFound string) bool {
 	case err == nil:
 		return false
 	case errors.As(err, &invalid):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, invalid.Code, invalid.Message)
+		httpapi.AbortText(c, http.StatusUnprocessableEntity, invalid.Code, invalid)
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", notFound)
 	case errors.Is(err, ErrForbidden):
-		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
+		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrNotCreator):
 		httpapi.AbortError(c, http.StatusForbidden, "not_creator", ErrNotCreator.Error())
 	default:

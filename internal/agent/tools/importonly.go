@@ -44,7 +44,7 @@ func panelImportOnlyIssues(e spec.PanelEntry, before map[string]*spec.Panel, has
 		issues = append(issues, spec.Issue{
 			Path:    e.Pointer,
 			Code:    codeHTMLNotAllowed,
-			Message: "the agent cannot write HTML; write Markdown without tags, or leave this imported panel unchanged",
+			Message: "the agent cannot write HTML; write Markdown without tags, with a Markdown table for a table, or leave this imported panel unchanged",
 		})
 	}
 	return append(issues, actionViolations(e, previous, existed)...)

@@ -15,6 +15,7 @@ import { madeByChannel, madeByDetail } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { dashboardLink } from "@/lib/links"
 
+import { RowSelectBox, TitleHeader } from "./list-selection"
 import { DashboardRowMenu } from "./row-menu"
 
 declare module "@tanstack/react-table" {
@@ -35,7 +36,22 @@ declare module "@tanstack/react-table" {
 export type DashboardSummary =
   paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
 
-const zeroWidthAfterLastWord = "ml-1 -mr-[18px]"
+const hiddenWhenCramped = "@max-[1000px]:not-narrow:hidden"
+
+const titleMinWidth = "min-w-60"
+
+const columnWidth = {
+  health: "w-40",
+  madeBy: "w-60",
+  datasources: "w-36",
+  openComments: "w-32",
+  version: "w-20",
+  views: "w-20",
+  updated: "w-28",
+  folder: "w-40",
+}
+
+const zeroWidthAfterLastWord = "-my-1 -mr-6"
 
 export const listFeatures = tableFeatures({})
 
@@ -44,9 +60,10 @@ const column = createColumnHelper<typeof listFeatures, DashboardSummary>()
 export const dashboardColumns = column.columns([
   column.display({
     id: "title",
-    header: "Title",
+    header: () => <TitleHeader />,
     cell: ({ row }) => (
       <>
+        <RowSelectBox dashboard={row.original} />
         <Link
           {...dashboardLink(row.original.id, row.original.title)}
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -57,11 +74,12 @@ export const dashboardColumns = column.columns([
           {...dashboardLink(row.original.id, row.original.title)}
           target="_blank"
           rel="noopener"
+          tabIndex={-1}
           aria-label={`Open ${row.original.title} in a new tab`}
           title={`Open ${row.original.title} in a new tab`}
           className={cn(
             zeroWidthAfterLastWord,
-            "inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+            "inline-flex size-6 items-center justify-center rounded-sm align-middle text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
           )}
         >
           <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
@@ -77,7 +95,8 @@ export const dashboardColumns = column.columns([
       </>
     ),
     meta: {
-      cellClassName: "pl-11",
+      headerClassName: titleMinWidth,
+      cellClassName: cn("relative pl-11", titleMinWidth),
       skeletonClassName: "h-5 w-48 max-w-full",
     },
   }),
@@ -87,7 +106,11 @@ export const dashboardColumns = column.columns([
     cell: ({ row }) => (
       <HealthCell dashboardId={row.original.id} title={row.original.title} />
     ),
-    meta: { cellClassName: "min-w-36", skeletonClassName: "h-5 w-20" },
+    meta: {
+      headerClassName: columnWidth.health,
+      cellClassName: cn("min-w-36", columnWidth.health),
+      skeletonClassName: "h-5 w-20",
+    },
   }),
   column.display({
     id: "madeBy",
@@ -113,7 +136,8 @@ export const dashboardColumns = column.columns([
       )
     },
     meta: {
-      cellClassName: "min-w-40",
+      headerClassName: columnWidth.madeBy,
+      cellClassName: cn("min-w-40", columnWidth.madeBy),
       stackedLabel: "Made by",
       skeletonClassName: "h-5 w-28",
     },
@@ -127,7 +151,11 @@ export const dashboardColumns = column.columns([
           {row.original.datasource_uids.join(", ")}
         </span>
       ) : null,
-    meta: { skeletonClassName: "h-5 w-16" },
+    meta: {
+      headerClassName: cn(hiddenWhenCramped, columnWidth.datasources),
+      cellClassName: cn(hiddenWhenCramped, columnWidth.datasources),
+      skeletonClassName: "h-5 w-16",
+    },
   }),
   column.display({
     id: "openComments",
@@ -137,7 +165,12 @@ export const dashboardColumns = column.columns([
         ? row.original.open_comment_count
         : null,
     meta: {
-      cellClassName: "tabular-nums",
+      headerClassName: cn(hiddenWhenCramped, columnWidth.openComments),
+      cellClassName: cn(
+        "tabular-nums",
+        hiddenWhenCramped,
+        columnWidth.openComments
+      ),
       stackedLabel: "Open comments",
       skeletonClassName: "h-5 w-10",
     },
@@ -146,19 +179,55 @@ export const dashboardColumns = column.columns([
     id: "version",
     header: "Version",
     cell: ({ row }) => `v${row.original.latest_version}`,
-    meta: { cellClassName: "tabular-nums", skeletonClassName: "h-5 w-8" },
+    meta: {
+      headerClassName: columnWidth.version,
+      cellClassName: cn("tabular-nums", columnWidth.version),
+      skeletonClassName: "h-5 w-8",
+    },
+  }),
+  column.display({
+    id: "views",
+    header: "Views",
+    cell: ({ row }) => (
+      <span title="People who opened it, counted once for each day, over the last 30 days">
+        {row.original.view_count}
+      </span>
+    ),
+    meta: {
+      headerClassName: columnWidth.views,
+      cellClassName: cn("tabular-nums", columnWidth.views),
+      stackedLabel: "Views",
+      skeletonClassName: "h-5 w-8",
+    },
   }),
   column.display({
     id: "updated",
     header: "Updated",
     cell: ({ row }) => <RelativeTime iso={row.original.updated_at} />,
     meta: {
-      headerClassName: "text-right",
-      cellClassName: "text-right whitespace-nowrap text-muted-foreground",
+      headerClassName: cn("text-right", columnWidth.updated),
+      cellClassName: cn(
+        "text-right whitespace-nowrap text-muted-foreground",
+        columnWidth.updated
+      ),
       skeletonClassName: "ml-auto h-5 w-16",
     },
   }),
 ])
+
+export const folderColumn = column.display({
+  id: "folder",
+  header: "Folder",
+  cell: ({ row }) => (
+    <span className="wrap-anywhere">{row.original.folder.title}</span>
+  ),
+  meta: {
+    headerClassName: columnWidth.folder,
+    cellClassName: columnWidth.folder,
+    stackedLabel: "Folder",
+    skeletonClassName: "h-5 w-24",
+  },
+})
 
 export const actionsColumn = column.display({
   id: "actions",

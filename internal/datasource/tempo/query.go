@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -58,10 +59,20 @@ type searchMetrics struct {
 	CompletedJobs  int64       `json:"completedJobs"`
 	TotalJobs      int64       `json:"totalJobs"`
 	InspectedBytes json.Number `json:"inspectedBytes"`
+	cut            bool
 }
 
 func (m searchMetrics) partial() bool {
-	return m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+	return m.cut || m.TotalJobs > 0 && m.CompletedJobs < m.TotalJobs
+}
+
+func (m searchMetrics) plus(o searchMetrics) searchMetrics {
+	return searchMetrics{
+		CompletedJobs:  m.CompletedJobs + o.CompletedJobs,
+		TotalJobs:      m.TotalJobs + o.TotalJobs,
+		InspectedBytes: json.Number(strconv.FormatInt(m.inspectedBytes()+o.inspectedBytes(), 10)),
+		cut:            m.cut || o.cut,
+	}
 }
 
 func (m searchMetrics) inspectedBytes() int64 {
@@ -102,6 +113,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err != nil {
 		return nil, err
 	}
+	q.Expanded(text)
 	if id, ok := traceIDOf(text); ok {
 		f, err := d.trace(ctx, id, r, lim.MaxRows)
 		if errors.Is(err, datasource.ErrNotFound) {
@@ -152,8 +164,11 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 	if len(rows) > lim.MaxRows {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "row limit exceeded: more than %d traces", lim.MaxRows)
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && !metrics.partial() {
 		return []datasource.Frame{}, nil
+	}
+	if len(rows) == 0 {
+		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}, nil
 	}
 	f := traceFrame(rows)
 	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {
@@ -172,16 +187,72 @@ func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
 	}
 }
 
+var (
+	queryHints    = regexp.MustCompile(`(?i)\bwith\s*\(`)
+	quotedStrings = regexp.MustCompile("\"(?:[^\"\\\\]|\\\\.)*\"|`[^`]*`")
+)
+
+func newestFirst(text string) string {
+	if queryHints.MatchString(quotedStrings.ReplaceAllString(text, `""`)) {
+		return text
+	}
+	return text + " with (most_recent=true)"
+}
+
 func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
+	if err := rangeStartsInFuture(r); err != nil {
+		return nil, searchMetrics{}, err
+	}
+	var (
+		rows    []spanRow
+		metrics searchMetrics
+		seen    = map[string]bool{}
+		pacer   datasource.Pacer
+	)
+	for _, w := range datasource.NewestFirst(r, firstSearchWindow) {
+		win, ok := pacer.Start(ctx, w.To.Sub(w.From))
+		if !ok {
+			metrics.cut = true
+			break
+		}
+		got, m, err := d.searchWindow(win.Ctx, text, w, limit-len(rows))
+		if ranOut := win.End(err); err != nil {
+			if !ranOut {
+				return nil, searchMetrics{}, err
+			}
+			metrics.cut = true
+			break
+		}
+		metrics = metrics.plus(m)
+		for _, row := range got {
+			if !seen[row.traceID] {
+				seen[row.traceID] = true
+				rows = append(rows, row)
+			}
+		}
+		if len(rows) >= limit {
+			break
+		}
+	}
+	slices.SortStableFunc(rows, func(a, b spanRow) int {
+		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
+	})
+	return rows, metrics, nil
+}
+
+const firstSearchWindow = time.Hour
+
+func (d *Datasource) searchWindow(ctx context.Context, text string, r datasource.TimeRange, limit int) ([]spanRow, searchMetrics, error) {
+	sent := newestFirst(text)
 	params := url.Values{
-		"q":     {text},
+		"q":     {sent},
 		"start": {strconv.FormatInt(r.From.Unix(), 10)},
 		"end":   {strconv.FormatInt(ceilSeconds(r.To), 10)},
 		"limit": {strconv.Itoa(limit)},
 	}
 	var resp searchResponse
 	if err := d.getJSON(ctx, "/api/search", params, &resp); err != nil {
-		return nil, searchMetrics{}, err
+		return nil, searchMetrics{}, traceQLProblem(err, text, sent)
 	}
 	rows := make([]spanRow, 0, len(resp.Traces))
 	for _, t := range resp.Traces {
@@ -207,9 +278,6 @@ func (d *Datasource) searchRows(ctx context.Context, text string, r datasource.T
 		}
 		rows = append(rows, row)
 	}
-	slices.SortStableFunc(rows, func(a, b spanRow) int {
-		return cmp.Or(b.start.Compare(a.start), strings.Compare(a.traceID, b.traceID))
-	})
 	return rows, resp.Metrics, nil
 }
 

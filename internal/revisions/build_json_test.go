@@ -118,26 +118,26 @@ func TestBuildErrorsMapToStatusesAndCodes(t *testing.T) {
 		{"not the requester", ErrNotRequester, http.StatusForbidden, "forbidden", 0},
 		{"newer version", fmt.Errorf("save: %w", &BuildConflictError{Latest: 6}), http.StatusConflict, "version_conflict", 6},
 		{"role too low", folders.ErrForbidden, http.StatusForbidden, forbidden.Code, 0},
-		{"no folder access", folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, 0},
+		{"no folder access", folders.ErrNoAccess, http.StatusNotFound, "not_found", 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reply, ok := buildReplyFor(tc.err)
-			if !ok || reply.status != tc.wantStatus || reply.code != tc.wantCode || reply.latest != tc.wantLatest {
+			reply, ok := ReplyFor(tc.err)
+			if !ok || reply.Status != tc.wantStatus || reply.Code != tc.wantCode || reply.Latest != tc.wantLatest {
 				t.Fatalf("reply = %+v (handled %t), want status %d code %q latest %d", reply, ok, tc.wantStatus, tc.wantCode, tc.wantLatest)
 			}
 		})
 	}
-	if _, ok := buildReplyFor(errors.New("database down")); ok {
+	if _, ok := ReplyFor(errors.New("database down")); ok {
 		t.Fatal("an unknown error must fall through to the service's 500 handling")
 	}
 }
 
-func TestNoAccessAndRoleAreToldApart(t *testing.T) {
-	access, _ := buildReplyFor(folders.ErrNoAccess)
-	role, _ := buildReplyFor(folders.ErrForbidden)
-	if access.message != forbidden.AccessMessage || role.message != forbidden.RoleMessage {
-		t.Fatalf("messages = %q and %q", access.message, role.message)
+func TestNoAccessAnswersLikeAnUnknownDashboard(t *testing.T) {
+	access, _ := ReplyFor(folders.ErrNoAccess)
+	gone, _ := ReplyFor(ErrDashboardNotFound)
+	if access != gone {
+		t.Fatalf("no access answers %+v, an unknown dashboard %+v", access, gone)
 	}
 }
 

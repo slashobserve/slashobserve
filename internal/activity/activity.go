@@ -32,9 +32,11 @@ const (
 	TypeObservationCreated        = "observation.created"
 	TypeObservationUpdated        = "observation.updated"
 	TypeObservationMoved          = "observation.moved"
+	TypeObservationDeleted        = "observation.deleted"
 	TypeObservationResolved       = "observation.resolved"
 	TypeObservationReopened       = "observation.reopened"
 	TypeObservationPublished      = "observation.published"
+	TypeObservationRCAWithdrawn   = "observation.rca_withdrawn"
 	TypeObservationBlockAdded     = "observation.block_added"
 	TypeObservationBlockUpdated   = "observation.block_updated"
 	TypeObservationBlockKept      = "observation.block_kept"
@@ -49,6 +51,7 @@ const (
 	TypeThreadOpened    = "thread.opened"
 	TypeThreadReplied   = "thread.replied"
 	TypeThreadEdited    = "thread.edited"
+	TypeThreadDeleted   = "thread.deleted"
 	TypeThreadResolved  = "thread.resolved"
 	TypeThreadReopened  = "thread.reopened"
 	TypeThreadMentioned = "thread.mentioned"
@@ -62,9 +65,75 @@ const (
 	TypeRunCanceling = "run.canceling"
 	TypeRunReleased  = "run.released"
 	TypeRunKept      = "run.kept"
+
+	TypePublicLinkCreated = "public_link.created"
+	TypePublicLinkRevoked = "public_link.revoked"
+
+	TypeUserRoleChanged          = "user.role_changed"
+	TypeUserSignedOutEverywhere  = "user.signed_out_everywhere"
+	TypeUserInvited              = "user.invited"
+	TypeUserInviteUpdated        = "user.invite_updated"
+	TypeUserInviteWithdrawn      = "user.invite_withdrawn"
+	TypeUserDeactivated          = "user.deactivated"
+	TypeUserReactivated          = "user.reactivated"
+	TypeUserRemoved              = "user.removed"
+	TypeServiceAccountCreated    = "service_account.created"
+	TypeServiceAccountUpdated    = "service_account.updated"
+	TypeServiceAccountDeleted    = "service_account.deleted"
+	TypeServiceAccountKeyCreated = "service_account.key_created"
+	TypeServiceAccountKeyRevoked = "service_account.key_revoked"
+	TypeWebhookCreated           = "webhook.created"
+	TypeWebhookUpdated           = "webhook.updated"
+	TypeWebhookSecretRotated     = "webhook.secret_rotated"
+	TypeWebhookDeleted           = "webhook.deleted"
+	TypeMCPClientConnected       = "mcp_client.connected"
+	TypeMCPClientDisconnected    = "mcp_client.disconnected"
+	TypeOutboundDomainAdded      = "outbound_domain.added"
+	TypeOutboundDomainRemoved    = "outbound_domain.removed"
+	TypeGrafanaConnectionCreated = "grafana_connection.created"
+	TypeGrafanaConnectionUpdated = "grafana_connection.updated"
+	TypeGrafanaConnectionDeleted = "grafana_connection.deleted"
+	TypeDatasourceCreated        = "datasource.created"
+	TypeDatasourceUpdated        = "datasource.updated"
+	TypeDatasourceDeleted        = "datasource.deleted"
 )
 
-var knownTypes = []string{
+var publicLinkTypes = []string{
+	TypePublicLinkCreated,
+	TypePublicLinkRevoked,
+}
+
+var adminTypes = []string{
+	TypeUserRoleChanged,
+	TypeUserSignedOutEverywhere,
+	TypeUserInvited,
+	TypeUserInviteUpdated,
+	TypeUserInviteWithdrawn,
+	TypeUserDeactivated,
+	TypeUserReactivated,
+	TypeUserRemoved,
+	TypeServiceAccountCreated,
+	TypeServiceAccountUpdated,
+	TypeServiceAccountDeleted,
+	TypeServiceAccountKeyCreated,
+	TypeServiceAccountKeyRevoked,
+	TypeWebhookCreated,
+	TypeWebhookUpdated,
+	TypeWebhookSecretRotated,
+	TypeWebhookDeleted,
+	TypeMCPClientConnected,
+	TypeMCPClientDisconnected,
+	TypeOutboundDomainAdded,
+	TypeOutboundDomainRemoved,
+	TypeGrafanaConnectionCreated,
+	TypeGrafanaConnectionUpdated,
+	TypeGrafanaConnectionDeleted,
+	TypeDatasourceCreated,
+	TypeDatasourceUpdated,
+	TypeDatasourceDeleted,
+}
+
+var workspaceTypes = []string{
 	TypeDashboardCreated,
 	TypeDashboardVersionCreated,
 	TypeDashboardRestored,
@@ -83,9 +152,11 @@ var knownTypes = []string{
 	TypeObservationCreated,
 	TypeObservationUpdated,
 	TypeObservationMoved,
+	TypeObservationDeleted,
 	TypeObservationResolved,
 	TypeObservationReopened,
 	TypeObservationPublished,
+	TypeObservationRCAWithdrawn,
 	TypeObservationBlockAdded,
 	TypeObservationBlockUpdated,
 	TypeObservationBlockKept,
@@ -98,6 +169,7 @@ var knownTypes = []string{
 	TypeThreadOpened,
 	TypeThreadReplied,
 	TypeThreadEdited,
+	TypeThreadDeleted,
 	TypeThreadResolved,
 	TypeThreadReopened,
 	TypeThreadMentioned,
@@ -111,7 +183,15 @@ var knownTypes = []string{
 	TypeRunKept,
 }
 
+var knownTypes = slices.Concat(workspaceTypes, publicLinkTypes, adminTypes)
+
+var auditTypes = slices.Concat(adminTypes, publicLinkTypes)
+
 func Types() []string { return slices.Clone(knownTypes) }
+
+func AdminTypes() []string { return slices.Clone(adminTypes) }
+
+func IsAdminType(t string) bool { return slices.Contains(adminTypes, t) }
 
 func Known(t string) bool { return slices.Contains(knownTypes, t) }
 

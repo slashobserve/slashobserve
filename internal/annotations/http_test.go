@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/origin"
@@ -166,7 +167,7 @@ func TestCreateRefusesBadRequests(t *testing.T) {
 		{"end in year 9999", `{"text":"x","time_to":"9999-12-31T23:59:59Z"}`, nil, http.StatusUnprocessableEntity, "invalid_time"},
 		{"unknown panel", `{"text":"x","dashboard_id":"` + dashboardText + `","panel_id":"nope"}`, &InvalidError{Code: "unknown_panel", Message: messageUnknownPanel}, http.StatusUnprocessableEntity, "unknown_panel"},
 		{"too large", `{"text":"` + strings.Repeat("x", maxBodyBytes) + `"}`, nil, http.StatusRequestEntityTooLarge, "too_large"},
-		{"invalid input", `{"text":""}`, &InvalidError{Code: "invalid_text", Message: messageInvalidText}, http.StatusUnprocessableEntity, "invalid_text"},
+		{"invalid input", `{"text":""}`, &InvalidError{Code: "invalid_text", Message: "text must not be empty; enter 1 to 2000 characters"}, http.StatusUnprocessableEntity, "invalid_text"},
 		{"dashboard not found", `{"text":"x","dashboard_id":"` + dashboardText + `"}`, ErrNotFound, http.StatusNotFound, "not_found"},
 		{"level too low", `{"text":"x"}`, ErrForbidden, http.StatusForbidden, "forbidden_role"},
 		{"database down", `{"text":"x"}`, errors.New("connection refused"), http.StatusInternalServerError, "internal"},
@@ -178,6 +179,15 @@ func TestCreateRefusesBadRequests(t *testing.T) {
 				t.Errorf("status %d code %q, want %d %q", rec.Code, got.Code, tc.status, tc.code)
 			}
 		})
+	}
+}
+
+func TestCreateAnswersAForbiddenCallerWithWhatItNeeds(t *testing.T) {
+	err := forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", "QA"))
+	rec := serve(t, &fakeAnnotations{err: err}, http.MethodPost, "/api/v1/annotations", `{"text":"x"}`)
+	want := `{"error":"your role does not allow this","code":"forbidden_role","needed_access":"edit","folder_title":"QA"}`
+	if rec.Code != http.StatusForbidden || rec.Body.String() != want {
+		t.Fatalf("status %d body %s, want %s", rec.Code, rec.Body.String(), want)
 	}
 }
 
@@ -366,7 +376,7 @@ func TestUpdateRefusesBadRequests(t *testing.T) {
 		{"not JSON", annotationText, `{`, nil, http.StatusBadRequest, "invalid_request"},
 		{"unknown field", annotationText, `{"text":"x","panel_id":"latency"}`, nil, http.StatusBadRequest, "invalid_request"},
 		{"nothing to change", annotationText, `{}`, &InvalidError{Code: "invalid_request", Message: messageEmptyUpdate}, http.StatusUnprocessableEntity, "invalid_request"},
-		{"invalid text", annotationText, `{"text":""}`, &InvalidError{Code: "invalid_text", Message: messageInvalidText}, http.StatusUnprocessableEntity, "invalid_text"},
+		{"invalid text", annotationText, `{"text":""}`, &InvalidError{Code: "invalid_text", Message: "text must not be empty; enter 1 to 2000 characters"}, http.StatusUnprocessableEntity, "invalid_text"},
 		{"not found", annotationText, `{"text":"x"}`, ErrNotFound, http.StatusNotFound, "not_found"},
 		{"not the creator", annotationText, `{"text":"x"}`, ErrNotCreator, http.StatusForbidden, "not_creator"},
 		{"database down", annotationText, `{"text":"x"}`, errors.New("connection refused"), http.StatusInternalServerError, "internal"},

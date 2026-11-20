@@ -10,6 +10,7 @@ import {
   ArrowLeftIcon,
   ChartLineIcon,
   CompassIcon,
+  CopyPlusIcon,
   DownloadIcon,
   EllipsisIcon,
   ExpandIcon,
@@ -22,6 +23,7 @@ import {
   PinIcon,
   SearchIcon,
   TableIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -37,7 +39,6 @@ import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
-import { panelUsesVariables } from "@/observations/panel-input"
 import { isRenderable } from "@/panels"
 import { shortcutText } from "@/shortcuts/chords"
 import {
@@ -45,10 +46,15 @@ import {
   panelTitle,
   resolveDatasourceRef,
   type LayoutPanel,
+  type Variable,
 } from "@/spec"
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
 import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
+import {
+  RemovePanelDialog,
+  type PanelLayoutActions,
+} from "./panel-layout-actions"
 import { useSetDashboardSearch, validateDashboardSearch } from "./search"
 
 type Props = {
@@ -59,11 +65,15 @@ type Props = {
   viewing: boolean
   onDownloadCsv?: () => void
   onSavePng?: () => void
+  downloadsReady?: boolean
   canComment: boolean
   canEdit: boolean
+  canInvestigate: boolean
   onToggleResponsive?: () => void
+  layoutActions?: PanelLayoutActions
   composerRef: RefObject<HTMLTextAreaElement | null>
   inToolbar?: boolean
+  observationVariables?: readonly Variable[]
 }
 
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
@@ -88,6 +98,7 @@ type MenuItem = {
   icon: ReactNode
   onSelect: () => void
   disabled?: boolean
+  destructive?: boolean
   shortcut?: string
 }
 
@@ -99,11 +110,15 @@ export function PanelMenu({
   viewing,
   onDownloadCsv,
   onSavePng,
+  downloadsReady = true,
   canComment,
   canEdit,
+  canInvestigate,
   onToggleResponsive,
+  layoutActions,
   composerRef,
   inToolbar = false,
+  observationVariables,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
@@ -116,6 +131,7 @@ export function PanelMenu({
   const agentAvailable = useAgentInfo().data?.available === true
   const menuButton = useRef<HTMLButtonElement>(null)
   const [addingToObservation, setAddingToObservation] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const items: MenuItem[] = []
   if (canComment) {
     items.push({
@@ -128,9 +144,17 @@ export function PanelMenu({
         commentOnPanel(setSearch, panel.id)
       },
     })
+  } else {
+    items.push({
+      id: "comment",
+      label: "Comment (needs Comment access on this folder)",
+      icon: <MessageSquarePlusIcon aria-hidden="true" />,
+      disabled: true,
+      onSelect: () => {},
+    })
   }
   const data = isDataPanel(panel)
-  if (canEdit && data && agentAvailable) {
+  if (canInvestigate && data && agentAvailable) {
     items.push({
       id: "investigate",
       label: idle ? "Investigate" : "Investigate (finish the layout first)",
@@ -143,14 +167,10 @@ export function PanelMenu({
     })
   }
   if (data && idle) {
-    const usesVariables = panelUsesVariables(panel)
     items.push({
       id: "observation",
-      label: usesVariables
-        ? "Add to observation (uses dashboard variables)"
-        : "Add to observation",
+      label: "Add to observation",
       icon: <NotebookTextIcon aria-hidden="true" />,
-      disabled: usesVariables,
       onSelect: () => {
         focusAfterClose = "none"
         setAddingToObservation(true)
@@ -251,6 +271,7 @@ export function PanelMenu({
       id: "csv",
       label: "Download CSV",
       icon: <DownloadIcon aria-hidden="true" />,
+      disabled: !downloadsReady,
       onSelect: onDownloadCsv,
     })
   }
@@ -259,6 +280,7 @@ export function PanelMenu({
       id: "png",
       label: "Save as PNG",
       icon: <ImageIcon aria-hidden="true" />,
+      disabled: !downloadsReady,
       onSelect: onSavePng,
     })
   }
@@ -274,6 +296,28 @@ export function PanelMenu({
       ),
       onSelect: onToggleResponsive,
     })
+  }
+  if (layoutActions) {
+    items.push(
+      {
+        id: "duplicate",
+        label: "Duplicate",
+        icon: <CopyPlusIcon aria-hidden="true" />,
+        disabled: layoutActions.pending,
+        onSelect: () => layoutActions.duplicate(panel),
+      },
+      {
+        id: "remove",
+        label: "Remove",
+        icon: <Trash2Icon aria-hidden="true" />,
+        disabled: layoutActions.pending,
+        destructive: true,
+        onSelect: () => {
+          focusAfterClose = "none"
+          setRemoving(true)
+        },
+      }
+    )
   }
   return (
     <>
@@ -318,12 +362,16 @@ export function PanelMenu({
             <DropdownMenuItem
               key={item.id}
               disabled={item.disabled}
+              variant={item.destructive ? "destructive" : undefined}
               onClick={item.onSelect}
             >
               {item.icon}
               {item.label}
               {item.shortcut ? (
-                <DropdownMenuShortcut aria-hidden="true">
+                <DropdownMenuShortcut
+                  aria-hidden="true"
+                  className="max-sm:hidden pointer-coarse:hidden"
+                >
                   {item.shortcut}
                 </DropdownMenuShortcut>
               ) : null}
@@ -334,10 +382,18 @@ export function PanelMenu({
       {addingToObservation && data ? (
         <AddToObservationPanel
           panel={panel}
+          variables={observationVariables}
           from={dashboardSearch.from}
           to={dashboardSearch.to}
           trigger={menuButton}
           onClose={() => setAddingToObservation(false)}
+        />
+      ) : null}
+      {removing && layoutActions ? (
+        <RemovePanelDialog
+          panel={panel}
+          actions={layoutActions}
+          onClose={() => setRemoving(false)}
         />
       ) : null}
     </>
