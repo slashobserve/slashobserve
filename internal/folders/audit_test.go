@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -170,15 +171,12 @@ func TestSettingAFolderPermissionsRecordsBeforeAndAfterWithoutEmails(t *testing.
 	}
 	got := onlyEventAfter(t, d, earlier, rec)
 	wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "after", "before")
-	before, _ := json.Marshal(got.Data["before"])
-	after, _ := json.Marshal(got.Data["after"])
-	if string(before) != `[{"kind":"group","name":"sre","level":"edit"}]` {
-		t.Fatalf("before = %s", before)
+	wantBefore := []any{map[string]any{"kind": "group", "name": "sre", "level": "edit"}}
+	wantAfter := []any{map[string]any{"kind": "user", "id": user.ID.String(), "name": "Bo", "level": "view"}}
+	if !reflect.DeepEqual(got.Data["before"], wantBefore) || !reflect.DeepEqual(got.Data["after"], wantAfter) {
+		t.Fatalf("before = %v, after = %v; want %v and %v", got.Data["before"], got.Data["after"], wantBefore, wantAfter)
 	}
-	if string(after) != `[{"kind":"user","id":"`+user.ID.String()+`","name":"Bo","level":"view"}]` {
-		t.Fatalf("after = %s", after)
-	}
-	if strings.Contains(string(before)+string(after), "example.com") {
+	if raw, _ := json.Marshal(got.Data); strings.Contains(string(raw), "example.com") {
 		t.Fatal("an email address reached the audit event")
 	}
 }
