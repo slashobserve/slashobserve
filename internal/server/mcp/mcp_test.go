@@ -165,7 +165,7 @@ func rpc(id int, method string, params any) string {
 }
 
 func (f *fixture) post(body string, headers map[string]string) *httptest.ResponseRecorder {
-	return f.postWithContext(reading(context.Background()), body, headers)
+	return f.postWithContext(context.Background(), body, headers)
 }
 
 func (f *fixture) postWithContext(ctx context.Context, body string, headers map[string]string) *httptest.ResponseRecorder {
@@ -408,7 +408,7 @@ func TestClientGoingAwayDuringAuthenticationIsNotAServerError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			ctx, cancel := context.WithCancel(reading(t.Context()))
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			if tc.cancel {
 				cancel()

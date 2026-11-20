@@ -25,7 +25,7 @@ func TestServersProvisioningTogetherCreateEachFileOnce(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			errs[i] = p.Run(reading(t.Context()))
+			errs[i] = p.Run(t.Context())
 		}()
 	}
 	close(start)

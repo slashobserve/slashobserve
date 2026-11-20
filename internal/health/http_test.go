@@ -71,7 +71,7 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 	r.create(t, boardSpec("Twin", "up"))
 	r.create(t, boardSpec("twin", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	first, err := r.svc.List(reading(t.Context()), r.viewer, health.ListParams{Limit: 1})

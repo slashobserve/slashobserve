@@ -16,7 +16,7 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 	empty := r.create(t, boardSpec("Empty", "up", "empty_series"))
 	healthy := r.create(t, boardSpec("Healthy", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	missing := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
@@ -66,7 +66,7 @@ func TestRepairWaitsForTheCheckOfTheLatestVersion(t *testing.T) {
 	r := newRig(t)
 	empty := r.create(t, boardSpec("Empty", "up", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	r.db.Exec(t, `UPDATE dashboards SET latest_version = latest_version + 1 WHERE id = $1`, empty.String())

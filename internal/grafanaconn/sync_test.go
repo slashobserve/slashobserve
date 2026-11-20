@@ -249,7 +249,7 @@ func TestSyncIsHandedOnWhenTheServerStops(t *testing.T) {
 
 	close(hold)
 	peer := r.peer(t)
-	peer.ResumeOnce(reading(t.Context()))
+	peer.ResumeOnce(t.Context())
 	peer.Wait()
 	done, err := peer.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil || done.State != grafanaconn.SyncFinished || done.Done != 1 {
@@ -276,7 +276,7 @@ func TestSyncFailsAfterItsLeaseExpiresTwice(t *testing.T) {
 	crashedTwice := r.insertRunning(t, first.ID, r.admin.ID, 1)
 	crashedOnce := r.insertRunning(t, second.ID, r.admin.ID, 0)
 
-	r.svc.ResumeOnce(reading(t.Context()))
+	r.svc.ResumeOnce(t.Context())
 	r.svc.Wait()
 
 	failed, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, first.ID), crashedTwice)
@@ -300,7 +300,7 @@ func TestSyncFailsWhenItsStarterIsNoLongerAnAdmin(t *testing.T) {
 	conn := r.connect(t)
 	id := r.insertRunning(t, conn.ID, r.viewer.ID, 0)
 
-	r.svc.ResumeOnce(reading(t.Context()))
+	r.svc.ResumeOnce(t.Context())
 	r.svc.Wait()
 
 	got, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), id)

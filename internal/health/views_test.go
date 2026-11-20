@@ -72,7 +72,7 @@ func TestRunPrunesViewDaysOlderThanNinetyDays(t *testing.T) {
 	id := r.create(t, boardSpec("Checkout", "up"))
 	r.db.Exec(t, `INSERT INTO dashboard_view_days (dashboard_id, user_id, day) VALUES ($1, $2, current_date - 89), ($1, $2, current_date - 91), ($1, $2, current_date - 400)`, id.String(), r.viewer.ID)
 
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	var left int

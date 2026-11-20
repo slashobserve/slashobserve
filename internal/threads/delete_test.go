@@ -135,6 +135,6 @@ func (r *rig) callStatus(t *testing.T, who auth.Principal, method, path string) 
 	})
 	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
 	rec := httptest.NewRecorder()
-	engine.ServeHTTP(rec, httptest.NewRequestWithContext(reading(t.Context()), method, "/api/v1"+path, nil))
+	engine.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), method, "/api/v1"+path, nil))
 	return rec.Code
 }

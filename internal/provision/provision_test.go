@@ -109,7 +109,7 @@ func (r *rig) remove(t *testing.T, path string) {
 
 func (r *rig) run(t *testing.T) provision.Report {
 	t.Helper()
-	if err := r.provisioner.Run(reading(t.Context())); err != nil {
+	if err := r.provisioner.Run(t.Context()); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	return r.report(t)
@@ -346,11 +346,11 @@ func TestRunErrorWhenOffOrTheDirectoryIsMissing(t *testing.T) {
 	r := newRig(t)
 	logger := slog.New(slog.DiscardHandler)
 	off := provision.New(logger, r.dashboards, folders.NewAccess(r.db.DB), r.db.DB, "")
-	if err := off.Run(reading(t.Context())); !errors.Is(err, provision.ErrOff) {
+	if err := off.Run(t.Context()); !errors.Is(err, provision.ErrOff) {
 		t.Fatalf("Run with no directory = %v, want ErrOff", err)
 	}
 	missing := provision.New(logger, r.dashboards, folders.NewAccess(r.db.DB), r.db.DB, filepath.Join(r.dir, "missing"))
-	if err := missing.Run(reading(t.Context())); !errors.Is(err, provision.ErrDirUnreadable) {
+	if err := missing.Run(t.Context()); !errors.Is(err, provision.ErrDirUnreadable) {
 		t.Fatalf("Run on a missing directory = %v, want ErrDirUnreadable", err)
 	}
 	report, err := off.Report(reading(t.Context()))
@@ -362,7 +362,7 @@ func TestRunErrorWhenOffOrTheDirectoryIsMissing(t *testing.T) {
 func TestWatchProvisionsWhenItStarts(t *testing.T) {
 	r := newRig(t)
 	r.write(t, "team/a.json", specJSON("Team A", "up"))
-	ctx, cancel := context.WithCancel(reading(t.Context()))
+	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() {
 		defer close(done)

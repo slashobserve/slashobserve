@@ -264,7 +264,7 @@ func TestEveryFindingRouteAnswersTheDeprecationHeader(t *testing.T) {
 func TestTheFindingMoveRouteIsGone(t *testing.T) {
 	d := newDocumented(t)
 	f := d.save(t, editor, findings.SaveInput{})
-	request := httptest.NewRequestWithContext(reading(t.Context()), http.MethodPost, "/api/v1/findings/"+f.ID+"/move", strings.NewReader(`{}`))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/findings/"+f.ID+"/move", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	d.engine.ServeHTTP(rec, request)
 	if rec.Code != http.StatusNotFound {

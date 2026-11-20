@@ -49,7 +49,7 @@ func (d *documented) get(t *testing.T, by auth.Principal, query string, want int
 	t.Helper()
 	d.who = by
 	request := func() *http.Request {
-		return httptest.NewRequestWithContext(reading(t.Context()), http.MethodGet, "/api/v1/search?"+query, nil)
+		return httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/search?"+query, nil)
 	}
 	rec := httptest.NewRecorder()
 	d.engine.ServeHTTP(rec, request())

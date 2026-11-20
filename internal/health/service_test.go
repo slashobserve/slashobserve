@@ -23,7 +23,7 @@ func TestRunRecordsEachDashboardsProblemsAndListShowsOnlyUnhealthyOnes(t *testin
 	viewer := r.create(t, boardSpec("Per viewer", `up{user="${__user.login}"}`, "empty_series"))
 	r.broken.Store(true)
 
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,7 +68,7 @@ func TestRunRecordsEachDashboardsProblemsAndListShowsOnlyUnhealthyOnes(t *testin
 func TestRunChecksADashboardAgainOnlyAfterADay(t *testing.T) {
 	r := newRig(t)
 	id := r.create(t, boardSpec("Board", "up"))
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	checkedAt := func() time.Time {
@@ -77,14 +77,14 @@ func TestRunChecksADashboardAgainOnlyAfterADay(t *testing.T) {
 		return at
 	}
 	first := checkedAt()
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if again := checkedAt(); !again.Equal(first) {
 		t.Errorf("a second run rechecked the dashboard: %v then %v", first, again)
 	}
 	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '24 hours' WHERE dashboard_id = $1`, id.String())
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if again := checkedAt(); !again.After(first) {
@@ -100,7 +100,7 @@ func TestRunChecksAnHourOldDashboardAgainOnlyWhenItFailedOrIsOutdated(t *testing
 	empty := r.create(t, boardSpec("Empty", "empty_series"))
 	outdated := r.create(t, boardSpec("Outdated", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	_, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{
@@ -120,7 +120,7 @@ func TestRunChecksAnHourOldDashboardAgainOnlyWhenItFailedOrIsOutdated(t *testing
 		before[id] = checkedAt(id)
 	}
 
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -142,14 +142,14 @@ func TestRunChecksAFailingDashboardOnceInOneRun(t *testing.T) {
 	failing := r.create(t, boardSpec("Failing", "fail_series"))
 	r.broken.Store(true)
 	r.queries.Store(0)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	queriesPerCheck := r.queries.Load()
 	r.db.Exec(t, `UPDATE dashboard_health SET checked_at = now() - interval '1 hour' WHERE dashboard_id = $1`, failing.String())
 
 	r.queries.Store(0)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.queries.Load(); got != queriesPerCheck {
@@ -251,7 +251,7 @@ func (r *rig) rankedFixture(t *testing.T) []string {
 	staleA := r.create(t, boardSpec("Stale A", "up"))
 	r.create(t, boardSpec("Healthy", "up"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	r.openedAgo(t, variable, 30*day)
@@ -302,7 +302,7 @@ func TestListByKindKeepsEachDashboardsRank(t *testing.T) {
 	never := r.create(t, boardSpec("Empty never opened", "empty_series"))
 	opened := r.create(t, boardSpec("Empty opened", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	r.openedAgo(t, opened, time.Hour)
@@ -343,7 +343,7 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 	other := r.folder(t, "Other")
 	r.createIn(t, other, boardSpec("Elsewhere", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	r.createdAgo(t, stale, 100*day)
@@ -388,7 +388,7 @@ func TestListShowsEachDashboardsLatestHealthRepair(t *testing.T) {
 	chat := r.create(t, boardSpec("Chat", "empty_series"))
 	never := r.create(t, boardSpec("Never", "empty_series"))
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{queued})
@@ -460,7 +460,7 @@ func (r *rig) dashboardIDsFixture(t *testing.T) (empty, failing, healthy, hidden
 	hidden = r.create(t, boardSpec("Hidden", "empty_series"))
 	r.moveToPersonalFolderOf(t, hidden, r.viewer)
 	r.broken.Store(true)
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	return empty, failing, healthy, hidden
@@ -506,7 +506,7 @@ func TestListWithDashboardIDsReadsEveryVisibleRequestedDashboardHealthyOnesInclu
 func TestListWithDashboardIDsReadsASkippedAndANeverCheckedDashboard(t *testing.T) {
 	r := newRig(t)
 	viewer := r.create(t, boardSpec("Per viewer", `up{user="${__user.login}"}`))
-	if err := r.svc.Run(reading(t.Context())); err != nil {
+	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	fresh := r.create(t, boardSpec("Fresh", "up"))

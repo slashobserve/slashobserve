@@ -46,7 +46,7 @@ func (r *rig) call(t *testing.T, who auth.Principal, method, path string, body a
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})
 	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
-	req := httptest.NewRequestWithContext(reading(t.Context()), method, "/api/v1"+path, reader)
+	req := httptest.NewRequestWithContext(t.Context(), method, "/api/v1"+path, reader)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

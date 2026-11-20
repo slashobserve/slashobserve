@@ -126,7 +126,7 @@ func newAssignedRunFixture(t *testing.T, mode tools.Mode, assignee revisions.Ass
 }
 
 func (f *runFixture) post(token, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequestWithContext(reading(context.Background()), http.MethodPost, "/mcp", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mcp", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("MCP-Protocol-Version", "2025-11-25")
