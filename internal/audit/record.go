@@ -107,6 +107,10 @@ func RecordNow(ctx context.Context, e Event) error {
 	return current().RecordNow(ctx, e)
 }
 
+func Dropped(reason string) {
+	current().metrics.EventsDropped(reason, 1)
+}
+
 func (r *Recorder) Record(ctx context.Context, q *dbsqlc.Queries, e Event) error {
 	row, err := r.row(ctx, e)
 	if err != nil {

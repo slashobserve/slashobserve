@@ -482,8 +482,35 @@ func TestAFailedJobRecordsAFailedEventAndAPanicSaysSo(t *testing.T) {
 	}
 }
 
-func TestAnEventThatCannotBeRecordedLeavesTheJobRowUnfinishedAndNoEvent(t *testing.T) {
+type countedDrops struct {
+	mu      sync.Mutex
+	reasons map[string]int
+}
+
+func (c *countedDrops) EventsDropped(reason string, n int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.reasons == nil {
+		c.reasons = map[string]int{}
+	}
+	c.reasons[reason] += n
+}
+
+func (c *countedDrops) countOf(reason string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.reasons[reason]
+}
+
+func (*countedDrops) BatchWritten(time.Duration) {}
+func (*countedDrops) BufferedEvents(int)         {}
+func (*countedDrops) PartitionsAhead(int)        {}
+
+func TestAnEventThatCannotBeRecordedStillFinishesTheJobAndIsCountedAsDropped(t *testing.T) {
 	d := dbtest.New(t)
+	drops := &countedDrops{}
+	audit.Install(audit.New(audit.Config{DB: d.DB, Metrics: drops}))
+	t.Cleanup(func() { audit.Install(nil) })
 	s, _ := newScheduler(t, d, "server-a")
 	s.Register("a-sweep", time.Hour, func(context.Context) error { return nil })
 	if err := s.store.upsert(t.Context(), s.jobs["a-sweep"]); err != nil {
@@ -493,14 +520,18 @@ func TestAnEventThatCannotBeRecordedLeavesTheJobRowUnfinishedAndNoEvent(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.store.finish(t.Context(), c, OutcomeSucceeded, "", &audit.Event{Action: "not.an.action"}); err == nil {
-		t.Fatal("finish with an unrecordable event succeeded")
+	held, err := s.store.finish(t.Context(), c, OutcomeSucceeded, "", &audit.Event{Action: "not.an.action"})
+	if !held || !errors.Is(err, errEventNotRecorded) {
+		t.Fatalf("finish = %v, %v, want the lease held and an event-not-recorded error", held, err)
 	}
-	if j := row(t, d, "a-sweep"); j.LastOutcome != "" || j.LeasedBy != "server-a" {
-		t.Errorf("job row %+v, want it still leased and unfinished", j)
+	if j := row(t, d, "a-sweep"); j.LastOutcome != OutcomeSucceeded || j.LeasedBy != "" || j.LeaseUntil.Valid {
+		t.Errorf("job row %+v, want it finished and released", j)
 	}
 	if n := len(d.AuditEvents(t, "job.run")); n != 0 {
 		t.Errorf("events = %d, want 0", n)
+	}
+	if got := drops.countOf(audit.DroppedRecordFailed); got != 1 {
+		t.Errorf("dropped %s = %d, want 1", audit.DroppedRecordFailed, got)
 	}
 }
 

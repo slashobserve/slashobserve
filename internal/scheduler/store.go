@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,7 +15,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
-var errNothingToClaim = errors.New("no registered job is due and free")
+var (
+	errNothingToClaim   = errors.New("no registered job is due and free")
+	errEventNotRecorded = errors.New("the job finished but its audit event was not recorded")
+)
 
 type claim struct {
 	name      string
@@ -51,6 +55,19 @@ func (s *store) claim(ctx context.Context, names []string, force bool) (claim, e
 }
 
 func (s *store) finish(ctx context.Context, c claim, outcome, summary string, event *audit.Event) (bool, error) {
+	held, err := s.finishWith(ctx, c, outcome, summary, event)
+	if !errors.Is(err, errEventNotRecorded) {
+		return held, err
+	}
+	audit.Dropped(audit.DroppedRecordFailed)
+	held, retryErr := s.finishWith(ctx, c, outcome, summary, nil)
+	if retryErr != nil {
+		return false, retryErr
+	}
+	return held, err
+}
+
+func (s *store) finishWith(ctx context.Context, c claim, outcome, summary string, event *audit.Event) (bool, error) {
 	var held bool
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		n, err := q.FinishJob(ctx, dbsqlc.FinishJobParams{
@@ -67,7 +84,10 @@ func (s *store) finish(ctx context.Context, c claim, outcome, summary string, ev
 		if !held || event == nil {
 			return nil
 		}
-		return audit.Record(ctx, q, *event)
+		if err := audit.Record(ctx, q, *event); err != nil {
+			return fmt.Errorf("%w: %w", errEventNotRecorded, err)
+		}
+		return nil
 	})
 	return held && err == nil, err
 }
