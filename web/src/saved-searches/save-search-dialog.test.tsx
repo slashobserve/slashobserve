@@ -155,17 +155,11 @@ describe("SaveSearchDialog", () => {
     expect(saved[0]).toMatchObject({ title: "Errors", folder_id: shopId })
   })
 
-  it("sends no query for a ClickHouse trace search", async () => {
+  it("sends the SQL of a ClickHouse trace search", async () => {
     const saved = stubServer()
-    const { user } = open(
-      tracesDraft({
-        uid: "ch",
-        type: "clickhouse",
-        search: { service: "checkout", q: "{ ignored }" },
-        range,
-      })
-    )
-    expect(await screen.findByLabelText("Title")).toHaveValue("checkout")
+    const sql = "SELECT TraceId FROM otel_traces"
+    const { user } = open(tracesDraft({ uid: "ch", search: { q: sql }, range }))
+    expect(await screen.findByLabelText("Title")).toHaveValue(sql)
     await waitFor(() =>
       expect(
         screen.getByRole("combobox", { name: "Folder" })
@@ -176,10 +170,11 @@ describe("SaveSearchDialog", () => {
     expect(saved[0]).toEqual({
       kind: "traces",
       datasource_uid: "ch",
-      filters: { service: "checkout" },
+      query: sql,
+      filters: {},
       from: "now-6h",
       to: "now",
-      title: "checkout",
+      title: sql,
       folder_id: mineId,
     })
   })

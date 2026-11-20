@@ -112,6 +112,16 @@ func TestSavedSearchesCommands(t *testing.T) {
 			wantErr:    "Saved search ",
 		},
 		{
+			name:       "save a ClickHouse trace search sends its SQL",
+			args:       []string{"saved-searches", "save", "--kind", "traces", "--title", "Slowest", "--datasource", "ch", "--query", "SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY TraceId"},
+			response:   saved,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/saved-searches",
+			wantBody:   `{"datasource_uid":"ch","from":"now-1h","kind":"traces","query":"SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY TraceId","title":"Slowest","to":"now"}`,
+			wantExact:  new(savedURL + "\n"),
+			wantErr:    "Saved search ",
+		},
+		{
 			name:       "save with --quiet still prints the address",
 			args:       []string{"-q", "saved-searches", "save", "--kind", "traces", "--title", "Slow", "--datasource", "tempo"},
 			response:   saved,
