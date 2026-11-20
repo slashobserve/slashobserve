@@ -5,14 +5,21 @@ description: An Admin adds, edits, tests and removes datasources on the Datasour
 
 An Admin can add a datasource without editing a file or restarting the server.
 Open the Datasources page, choose Add datasource, pick the type, fill in the address and any credentials, test the connection, then save.
-The datasource answers queries as soon as it is saved, and other servers in a fleet pick it up within 10 seconds.
+The datasource answers queries as soon as it is saved, and other servers in a fleet pick it up within 15 seconds.
+
+The Datasources page is in the sidebar for Admins only.
+Each row shows the name and id, the type, whether the datasource is "From file" or "Added in the app", its status, how many dashboards use it and when it was last checked.
+The page refreshes itself every 30 seconds, and **Recheck** on a row runs a fresh health check at once.
+A row also links to the page that reads it: **Explore logs**, **Search traces** or **Explore metrics**.
+**Edit** and **Remove** appear only on datasources added in the app.
+The app also reloads its datasource list every 15 seconds while any datasource is unhealthy, which the sidebar and the Logs, Traces and Metrics source lists read, so a source that was still starting when the page loaded shows as available once it answers.
 
 ## Two sources
 
-Entries in the [datasources file](../reference/datasources-file.md) show as "from file".
+Entries in the [datasources file](../reference/datasources-file.md) show as "From file".
 They are read once at startup and are read-only in the app.
-Datasources added in the app show as "added in the app".
-When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time.
+Datasources added in the app show as "Added in the app".
+When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
 
 ## Credentials are write-only
 
@@ -21,6 +28,13 @@ The edit form shows only whether each one is set, and a field left empty keeps w
 Clear removes a credential.
 Without `SLASHOBSERVE_SECRET_KEY` the server refuses to save credentials with `409 secret_key_missing`; a datasource with no credentials still saves.
 Every header value counts as a credential, so the app has no plain custom headers.
+
+## Edit a datasource
+
+The id and the type are fixed once a datasource is saved, and a change to either is refused with `422 invalid_datasource`: add a new datasource instead.
+Everything else can change, including the name.
+The form shows the common settings first and, under **Show advanced settings**, the query timeout, the limits on series, points, rows and concurrent queries, the Grafana datasource ids, and for Elasticsearch and OpenSearch the query language and the index fields that hold the message, level, service, trace id and span id.
+These are the same settings as in the [datasources file](../reference/datasources-file.md).
 
 ## Addresses
 
@@ -31,7 +45,7 @@ A bare IP address or a single-label host cannot be listed, so it is accepted onl
 The server checks the allowlist again every 10 seconds and when it starts.
 A datasource whose domain was removed, or whose IP address or single-label host is no longer allowed because `SLASHOBSERVE_OUTBOUND_DOMAINS` now locks the list, shows Unavailable with "The address is not allowed by the outbound allowlist" until the domain is allowed again or the address is changed.
 The server never connects to a link-local, cloud metadata or unspecified address, even when a name resolves to one.
-The server holds at most 100 datasources added in the app.
+The server holds at most 100 datasources added in the app, and the 101st is refused with `422 too_many_datasources`.
 
 ## Test the connection
 
@@ -45,6 +59,7 @@ A test never changes the outbound allowlist: a domain that is not listed can be 
 A datasource that saved dashboards or saved searches use cannot be removed.
 The refusal is `409 datasource_in_use` and lists the users, so you can change them to another datasource first.
 Dashboards in folders you cannot see are counted but not named.
+Removing one deletes its stored credentials for good, so add it again with the credentials to restore it.
 
 ## Audit log
 
@@ -65,9 +80,12 @@ printf '%s' "$TOKEN" | bin/observe datasources add prom --type prometheus \
 bin/observe datasources get prom
 bin/observe datasources edit prom --address https://prom2.example.com --clear header:X-Org
 bin/observe datasources test prom --saved
+bin/observe datasources recheck prom
 bin/observe datasources remove prom
 ```
 
 Credentials are read from a file or from standard input, never from an argument, and only one flag can read standard input.
-`test` exits 1 when the datasource is unhealthy.
+`--clear` takes `password`, `bearer_token`, `api_key` or `header:<name>`.
+Other flags set the database and `--tls` for ClickHouse, the Loki tenant, the Prometheus scrape interval, the `--index`, `--time-field`, `--query-language` and `--field-*` settings of Elasticsearch and OpenSearch, the query limits, and `--grafana-uid`; `observe datasources add --help` lists them all.
+`test` and `recheck` exit 1 when the datasource is unhealthy.
 These routes are for Admins over HTTP and the CLI only; an agent over MCP can list datasources and recheck them but cannot add, change or remove one.

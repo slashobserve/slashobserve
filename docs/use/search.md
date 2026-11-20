@@ -7,6 +7,7 @@ Search finds past work by its words.
 One query covers dashboards, annotations, observations, comments and saved logs, trace and metrics searches, and ranks the matches together.
 The web app shows the matches in the command palette and, in full, on the Search page at `/search?q=<words>`; [Search in the web app](web.md#search) describes both.
 You call it with `GET /api/v1/search`, which needs the Viewer role or higher and works with a session or a service-account key.
+`observe search` and the MCP tool `search_workspace` run the same search, as [With the CLI and MCP](#with-the-cli-and-mcp) describes.
 
 ## What each kind matches
 
@@ -16,7 +17,7 @@ You call it with `GET /api/v1/search`, which needs the Viewer role or higher and
 | `annotation` | The first line of its text, and its tags. | The text. | None. |
 | `observation` | Title. | The summary, and the Markdown of its live text blocks, which hold an investigation's answer. | None. |
 | `comment` | None. | One message, with each mention read as `@Name`. | None. |
-| `saved_search` | Title. | The service and span filters of a trace search. | The query of a logs search. |
+| `saved_search` | Title. | The service and span filters of a trace search. | The query of a logs, trace or metrics search. |
 
 Only the latest version of a dashboard is searched, so a word that was removed in a later save finds nothing.
 A comment is one message, not a whole thread, and a result for it names the object it is on.
@@ -89,3 +90,9 @@ Each result has these fields.
 
 Recency is measured once for a whole search, so paging does not reorder results as time passes, but an edit made while you page can still move a result.
 A malformed query or cursor answers 400 `invalid_request` with the reason.
+
+## With the CLI and MCP
+
+`observe search <words>` prints the results as a list, with `--kind` (repeat it for several), `--limit` (1 to 50, 20 by default), `--cursor` to continue from a page's `next_cursor`, and `--all` to read every page.
+Put a word that starts with `-` after `--`, so the CLI does not read it as a flag.
+The MCP tool `search_workspace` takes `q`, `kinds`, `limit` and `cursor` and returns the same results, for the person the agent acts as.
