@@ -92,8 +92,9 @@ While a request waits for a worker, `observe status` prints `Queued, position N`
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 `observe status` also shows the request's trigger, what started it; in this release that is always `person`, the requester.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
-While a request is running, `observe status` also prints a `Live text` section with what the agent is writing, the same text the Working row shows in the browser; it is not kept, so it is gone once the run ends, and `--json` carries it as `live_text`.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
+
+While a request is running, `observe status` also prints a `Live text` section with what the agent is writing, the same text the Working row shows in the browser; it is not kept, so it is gone once the run ends, and `--json` carries it as `live_text`.
 
 ### Your requests
 
