@@ -33,7 +33,7 @@ func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	headers, rows := resultTable(body.Frames)
+	headers, rows := resultTableWith(body.Frames, traceQueryCell)
 	if len(rows) == 0 {
 		out.notice("No rows between %s and %s", text(opts.from), text(opts.to))
 		return nil
@@ -68,6 +68,10 @@ func traceQueryUsage(cmd *cobra.Command, opts tracesOptions, args []string) erro
 }
 
 func resultTable(frames []frame) ([]string, [][]string) {
+	return resultTableWith(frames, cellText)
+}
+
+func resultTableWith(frames []frame, cell func(f frame, field, row int) string) ([]string, [][]string) {
 	for _, f := range frames {
 		if f.rows() == 0 {
 			continue
@@ -80,7 +84,7 @@ func resultTable(frames []frame) ([]string, [][]string) {
 		for row := range rows {
 			cells := make([]string, len(f.Fields))
 			for i := range f.Fields {
-				cells[i] = cellText(f, i, row)
+				cells[i] = cell(f, i, row)
 			}
 			rows[row] = cells
 		}
@@ -96,4 +100,11 @@ func cellText(f frame, field, row int) string {
 		}
 	}
 	return text(f.stringAt(field, row))
+}
+
+func traceQueryCell(f frame, field, row int) string {
+	if f.Fields[field].Type == "number" && strings.EqualFold(f.Fields[field].Name, "Duration") {
+		return durationText(f, field, row)
+	}
+	return cellText(f, field, row)
 }

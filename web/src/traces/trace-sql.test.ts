@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import { zonedDateTimeMs } from "@/lib/time"
 
 import {
   frameRows,
+  readableCell,
   traceIdField,
   traceIdOf,
   traceSqlParams,
@@ -103,5 +105,30 @@ describe("frameRows", () => {
   it("counts the longest column", () => {
     expect(frameRows(frame(["a", "b"], [[1], [1, 2, 3]]))).toBe(3)
     expect(frameRows(undefined)).toBe(0)
+  })
+})
+
+describe("readableCell", () => {
+  it("shows a time field as a local time and keeps the epoch value", () => {
+    const at = Date.UTC(2026, 10, 20, 12, 30, 15, 832)
+    const cell = readableCell("StartTime", "time", at)
+    expect(cell?.text).toBe(zonedDateTimeMs(at, undefined))
+    expect(cell?.raw).toBe(`${at} ms`)
+  })
+
+  it("shows a Duration number as a human unit and keeps the nanoseconds", () => {
+    expect(readableCell("Duration", "number", 17_277_411)).toEqual({
+      text: "17.3 ms",
+      raw: "17277411 ns",
+    })
+    expect(readableCell("duration", "number", 2_500_000_000)?.text).toBe(
+      "2,500 ms"
+    )
+  })
+
+  it("leaves other numbers, strings and gaps as they are", () => {
+    expect(readableCell("Spans", "number", 2)).toBeNull()
+    expect(readableCell("Duration", "string", "17277411")).toBeNull()
+    expect(readableCell("Timestamp", "time", null)).toBeNull()
   })
 })

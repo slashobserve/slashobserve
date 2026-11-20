@@ -1,11 +1,31 @@
 import type { ExploreParams } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import { defaultPageSize } from "@/lib/paging"
+import { zonedDateTimeMs } from "@/lib/time"
 
 import { normaliseTraceId, tracesTimeRange, type TraceSearch } from "./search"
 import { clickhouseTraceSearch, traceForm } from "./search-query"
+import { durationText } from "./trace-rows"
 
 const traceIdName = /^trace_?id$/i
+const durationName = /^duration$/i
+
+export type ReadableCell = { text: string; raw: string }
+
+export function readableCell(
+  name: string,
+  type: string,
+  value: unknown
+): ReadableCell | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null
+  if (type === "time") {
+    return { text: zonedDateTimeMs(value, undefined), raw: `${value} ms` }
+  }
+  if (type === "number" && durationName.test(name)) {
+    return { text: durationText(value / 1e6), raw: `${value} ns` }
+  }
+  return null
+}
 
 export function traceIdField(frame: WireFrame): string | undefined {
   return frame.fields.find((field) => traceIdName.test(field.name))?.name

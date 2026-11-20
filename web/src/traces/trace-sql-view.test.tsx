@@ -62,14 +62,14 @@ function stubQuery(answer: () => Response) {
   return sent
 }
 
-function page(fields: { name: string; values: unknown[] }[]) {
+function page(fields: { name: string; values: unknown[]; type?: string }[]) {
   return json({
     frames: [
       {
         ref: "A",
         name: "",
         labels: {},
-        fields: fields.map((field) => ({ ...field, type: "string" })),
+        fields: fields.map((field) => ({ type: "string", ...field })),
       },
     ],
     meta: {
@@ -154,6 +154,34 @@ describe("TraceSqlResults", () => {
       from: "now-6h",
       to: "now",
     })
+  })
+
+  it("shows time and duration columns readably with the raw value on hover", async () => {
+    const at = Date.UTC(2026, 10, 20, 12, 30, 15, 832)
+    stubQuery(() =>
+      page([
+        { name: "TraceId", values: [traceId] },
+        { name: "StartTime", type: "time", values: [at] },
+        { name: "Duration", type: "number", values: [17_277_411] },
+        { name: "Spans", type: "number", values: [2] },
+      ])
+    )
+    renderWithProviders(
+      <TraceSqlResults
+        datasource={datasource}
+        query="SELECT TraceId FROM otel_traces"
+        search={{}}
+        onPage={vi.fn()}
+        onPageSize={vi.fn()}
+        live={false}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    const duration = await screen.findByText("17.3 ms")
+    expect(duration.getAttribute("title")).toBe("17277411 ns")
+    expect(screen.getByTitle(`${at} ms`)).toBeTruthy()
+    expect(screen.queryByText(String(at))).toBeNull()
+    expect(screen.getByText("2")).toBeTruthy()
   })
 
   it("says how to link rows when the result has no trace id", async () => {
