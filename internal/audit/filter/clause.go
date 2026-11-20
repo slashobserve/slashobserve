@@ -273,11 +273,13 @@ func (c *compiler) rangeClause(body any) (string, error) {
 		if !ok {
 			return "", failOn(name, "range on %s needs text or number bounds", name)
 		}
-		cd, err := f.ordered(key, text)
+		conds, err := f.ordered(key, text)
 		if err != nil {
 			return "", failOn(name, "%s", err.Error())
 		}
-		parts = append(parts, cd.sql(c.b))
+		for _, cd := range conds {
+			parts = append(parts, cd.sql(c.b))
+		}
 	}
 	return leaf("(" + strings.Join(parts, " AND ") + ")"), nil
 }

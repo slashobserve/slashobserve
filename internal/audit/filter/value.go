@@ -12,7 +12,9 @@ import (
 	"github.com/google/uuid"
 )
 
-var dateLayouts = []string{time.RFC3339Nano, "2006-01-02T15:04:05", "2006-01-02 15:04:05", "2006-01-02"}
+const dayLayout = "2006-01-02"
+
+var dateLayouts = []string{time.RFC3339Nano, "2006-01-02T15:04:05", "2006-01-02 15:04:05"}
 
 var orderedOps = map[string]string{"gt": ">", "gte": ">=", "lt": "<", "lte": "<="}
 
@@ -40,7 +42,7 @@ func (f *Field) equal(text string) ([]cond, error) {
 	case TypeIP:
 		return f.single(f.ipValue(text))
 	case TypeDate:
-		return f.single(f.dateValue(text, "="))
+		return f.dateValue(text, "=")
 	default:
 		return []cond{{column: f.column, op: "=", arg: text}}, nil
 	}
@@ -53,22 +55,22 @@ func (f *Field) single(c cond, err error) ([]cond, error) {
 	return []cond{c}, nil
 }
 
-func (f *Field) ordered(key, text string) (cond, error) {
+func (f *Field) ordered(key, text string) ([]cond, error) {
 	op, ok := orderedOps[key]
 	if !ok {
-		return cond{}, fmt.Errorf("range accepts gt, gte, lt and lte, not %q", key)
+		return nil, fmt.Errorf("range accepts gt, gte, lt and lte, not %q", key)
 	}
 	switch f.Type {
 	case TypeText:
-		return cond{column: f.column, op: op, arg: text}, nil
+		return []cond{{column: f.column, op: op, arg: text}}, nil
 	case TypeInt:
 		c, err := f.intValue(text)
 		c.op = op
-		return c, err
+		return f.single(c, err)
 	case TypeDate:
 		return f.dateValue(text, op)
 	default:
-		return cond{}, fmt.Errorf("range is not supported on %s fields such as %s", f.Type, f.Name)
+		return nil, fmt.Errorf("range is not supported on %s fields such as %s", f.Type, f.Name)
 	}
 }
 
@@ -99,13 +101,29 @@ func (f *Field) uuidValue(text string) (cond, error) {
 	return cond{column: f.column, op: "=", arg: id.String(), cast: "::uuid"}, nil
 }
 
-func (f *Field) dateValue(text, op string) (cond, error) {
+func (f *Field) dateValue(text, op string) ([]cond, error) {
 	for _, layout := range dateLayouts {
 		if at, err := time.Parse(layout, text); err == nil {
-			return cond{column: f.column, op: op, arg: at.UTC()}, nil
+			return []cond{{column: f.column, op: op, arg: at.UTC()}}, nil
 		}
 	}
-	return cond{}, f.badValue(text, "a time such as 2026-11-01T10:00:00Z or a date such as 2026-11-01 is expected")
+	if day, err := time.Parse(dayLayout, text); err == nil {
+		return f.dayConds(day.UTC(), op), nil
+	}
+	return nil, f.badValue(text, "a time such as 2026-11-01T10:00:00Z or a date such as 2026-11-01 is expected")
+}
+
+func (f *Field) dayConds(day time.Time, op string) []cond {
+	next := day.AddDate(0, 0, 1)
+	switch op {
+	case "=":
+		return []cond{{column: f.column, op: ">=", arg: day}, {column: f.column, op: "<", arg: next}}
+	case "<=":
+		return []cond{{column: f.column, op: "<", arg: next}}
+	case ">":
+		return []cond{{column: f.column, op: ">=", arg: next}}
+	}
+	return []cond{{column: f.column, op: op, arg: day}}
 }
 
 func (f *Field) ipValue(text string) (cond, error) {
