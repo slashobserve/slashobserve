@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/slashobserve/slashobserve/internal/config"
 )
 
 func (r *provisionRig) newKey(accountID string) string {
@@ -57,7 +55,7 @@ func TestDeletingAServiceAccountStopsItsKeysAtOnce(t *testing.T) {
 func TestAProvisionedServiceAccountCannotBeDeleted(t *testing.T) {
 	r := newProvisionRig(t)
 	account, key := fileAccount(t, "editor")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	id := r.accounts()[0].ID
