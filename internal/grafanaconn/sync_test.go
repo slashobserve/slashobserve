@@ -1,14 +1,21 @@
 package grafanaconn_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
+
+	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 )
@@ -381,4 +388,48 @@ func TestSyncFailsWhenGrafanaCannotBeListed(t *testing.T) {
 	if done.State != grafanaconn.SyncFailed || done.Error != "Grafana refused the token (status 401)." || done.Total != 0 {
 		t.Fatalf("summary %+v", done.SyncSummary)
 	}
+}
+
+func asAdmin(r *rig) context.Context {
+	return audit.Open(context.Background(), audit.Scope{
+		RequestID: uuid.New(),
+		Actor:     auth.AuditActor(r.admin),
+		Initiator: audit.InitiatorPerson,
+		Origin:    audit.Origin{Kind: audit.OriginAPI},
+	})
+}
+
+func TestStartAndCancelEachRecordOneEventInTheirTransaction(t *testing.T) {
+	hold := make(chan struct{})
+	r := newRigWith(t, rigOptions{secretKey: secretKey, hold: hold})
+	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
+	conn := r.connect(t)
+	ctx := asAdmin(r)
+	connectionID := uuidOf(t, conn.ID)
+
+	started, err := r.svc.StartSync(ctx, r.admin, connectionID, grafanaconn.SyncRequest{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.StartSync(ctx, r.admin, connectionID, grafanaconn.SyncRequest{All: true}); !errors.Is(err, grafanaconn.ErrSyncRunning) {
+		t.Fatalf("second start: %v", err)
+	}
+	if _, err := r.svc.CancelSync(ctx, r.admin, connectionID, started.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.CancelSync(ctx, r.admin, connectionID, started.ID); err == nil {
+		t.Fatal("second cancel succeeded")
+	}
+
+	actor := auth.AuditActor(r.admin).ID.UUID.String()
+	wantStart := []dbtest.AuditEvent{{Action: "grafana_import.start", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_connection", TargetID: conn.ID}}
+	wantCancel := []dbtest.AuditEvent{{Action: "grafana_import.cancel", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_import", TargetID: started.ID}}
+	if got := r.db.AuditEvents(t, "grafana_import.start"); fmt.Sprint(got) != fmt.Sprint(wantStart) {
+		t.Errorf("start events %+v, want %+v", got, wantStart)
+	}
+	if got := r.db.AuditEvents(t, "grafana_import.cancel"); fmt.Sprint(got) != fmt.Sprint(wantCancel) {
+		t.Errorf("cancel events %+v, want %+v", got, wantCancel)
+	}
+	close(hold)
+	r.svc.Wait()
 }
