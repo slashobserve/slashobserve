@@ -1,6 +1,7 @@
 prompts:
   get:
     operationId: listSavedPrompts
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe run]
     summary: List the saved prompts the caller may run.
@@ -30,6 +31,7 @@ prompts:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createSavedPrompt
+    x-audit: { none: "personal saved prompt of the caller, not workspace state" }
     summary: Save a prompt.
     description: >-
       Saves a prompt owned by the caller.
@@ -96,6 +98,7 @@ prompts-id:
         format: uuid
   patch:
     operationId: updateSavedPrompt
+    x-audit: { none: "personal saved prompt of the caller, not workspace state" }
     summary: Change a saved prompt.
     description: >-
       Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared.
@@ -157,6 +160,7 @@ prompts-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteSavedPrompt
+    x-audit: { none: "personal saved prompt of the caller, not workspace state" }
     summary: Delete a saved prompt.
     description: >-
       Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared.

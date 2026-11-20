@@ -1,6 +1,7 @@
 search:
   get:
     operationId: searchWorkspace
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [search_workspace]
       cli: [observe search]

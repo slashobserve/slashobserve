@@ -7,6 +7,8 @@ Logs are JSON by default on standard error.
 The server does not log secrets, prompt text, query text or tool results.
 Configuration secrets such as the database URL, the OIDC client secret and the LLM key are never logged.
 Request logs record the method, the path (never the query string, and with the token of a public link replaced by `:token`), the status, the response size in `bytes` and the duration.
+They also carry the `route` template, and for `/api/v1`, `/mcp` and the OAuth routes the `request_id` and, once the caller is signed in, the `principal` (`user:<id>` or `service_account:<id>`).
+The `request_id` is the value of the response's `X-Request-Id` header and of the audit event the request records, so one id joins the three.
 
 Errors are logged without their message, since a message from a driver or library can echo a query, a connection detail or a credential.
 Those lines carry:

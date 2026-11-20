@@ -1,0 +1,233 @@
+package audit
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"net/netip"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
+)
+
+const (
+	RequestIDHeader = "X-Request-Id"
+	maxErrorBody    = 4096
+	traceparentLen  = 55
+)
+
+func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
+	routes, err := declaredRoutes()
+	if err != nil {
+		return nil, fmt.Errorf("read %s declarations: %w", Extension, err)
+	}
+	return func(c *gin.Context) {
+		start := time.Now()
+		template := ginToTemplate(c.FullPath())
+		method := c.Request.Method
+		if method == http.MethodHead {
+			method = http.MethodGet
+		}
+		scope := Scope{
+			RequestID: uuid.Must(uuid.NewV7()),
+			TraceID:   traceID(c.GetHeader("traceparent")),
+			Actor:     Actor{Kind: ActorAnonymous},
+			Initiator: InitiatorPerson,
+			Auth:      Auth{Method: AuthNone},
+			Origin:    Origin{Kind: unauthenticatedOrigin(c.Request)},
+			IP:        peer(c.Request.RemoteAddr),
+			UserAgent: c.Request.UserAgent(),
+			Method:    method,
+			Route:     template,
+		}
+		ctx := Open(c.Request.Context(), scope)
+		c.Request = c.Request.WithContext(ctx)
+		c.Header(RequestIDHeader, scope.RequestID.String())
+		capture := &errorCapture{ResponseWriter: c.Writer}
+		c.Writer = capture
+		c.Next()
+		declared, ok := routes.lookup(method, template)
+		if !ok {
+			declared = Declaration{}
+		}
+		r.settle(context.WithoutCancel(c.Request.Context()), stateOf(ctx), outcomeOf{
+			declared: declared,
+			status:   capture.Status(),
+			code:     capture.code(),
+			took:     time.Since(start),
+			params:   c.Params,
+		})
+	}, nil
+}
+
+type outcomeOf struct {
+	declared Declaration
+	status   int
+	code     string
+	took     time.Duration
+	params   gin.Params
+}
+
+func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
+	committed, inTx := st.unsettled()
+	if committed {
+		return
+	}
+	action := o.declared.Action
+	outcome := outcomeForStatus(o.status)
+	reason := o.code
+	if len(inTx) > 0 {
+		recorded, err := r.anyCommitted(ctx, inTx)
+		if err != nil {
+			r.logger.WarnContext(ctx, "audit commit check failed", logattrs.Failure("audit_check_failed", err)...)
+			return
+		}
+		if recorded {
+			return
+		}
+		if action == "" {
+			action = inTx[0].action
+		}
+		outcome = OutcomeFailed
+		if reason == "" {
+			reason = "rolled_back"
+		}
+	}
+	if action == "" {
+		return
+	}
+	row, err := r.row(ctx, Event{
+		Action:   action,
+		Outcome:  outcome,
+		Reason:   reason,
+		Status:   o.status,
+		Target:   o.declared.target(o.params),
+		Duration: o.took,
+	})
+	if err != nil {
+		r.logger.WarnContext(ctx, "audit request event not built", logattrs.Failure("audit_event_invalid", err)...)
+		return
+	}
+	r.writer.enqueue(row)
+}
+
+func (r *Recorder) anyCommitted(ctx context.Context, events []written) (bool, error) {
+	times := make([]pgtype.Timestamptz, len(events))
+	ids := make([]pgtype.UUID, len(events))
+	for i, e := range events {
+		times[i] = pgtype.Timestamptz{Time: e.at, Valid: true}
+		ids[i] = pgtype.UUID{Bytes: e.id, Valid: true}
+	}
+	n, err := r.db.Queries().CountCommittedAuditEvents(ctx, dbsqlc.CountCommittedAuditEventsParams{OccurredAt: times, Ids: ids})
+	return n > 0, err
+}
+
+func (d Declaration) target(params gin.Params) Target {
+	if d.Target == nil {
+		return Target{}
+	}
+	t := Target{Kind: d.Target.Kind}
+	if name, ok := d.Target.PathParam(); ok {
+		t.ID = params.ByName(name)
+	}
+	return t
+}
+
+func outcomeForStatus(status int) Outcome {
+	switch {
+	case status < http.StatusBadRequest:
+		return OutcomeSuccess
+	case status == http.StatusUnauthorized, status == http.StatusForbidden, status == http.StatusNotFound, status == http.StatusTooManyRequests:
+		return OutcomeDenied
+	}
+	return OutcomeFailed
+}
+
+func unauthenticatedOrigin(r *http.Request) string {
+	if r.Header.Get("Authorization") != "" {
+		return OriginAPI
+	}
+	return OriginWeb
+}
+
+func peer(remoteAddr string) netip.Addr {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return netip.Addr{}
+	}
+	return addr.Unmap()
+}
+
+func traceID(traceparent string) string {
+	parts := strings.Split(traceparent, "-")
+	if len(traceparent) != traceparentLen || len(parts) != 4 || len(parts[1]) != 32 {
+		return ""
+	}
+	for _, r := range parts[1] {
+		if !strings.ContainsRune("0123456789abcdef", r) {
+			return ""
+		}
+	}
+	if strings.Trim(parts[1], "0") == "" {
+		return ""
+	}
+	return parts[1]
+}
+
+func ginToTemplate(path string) string {
+	segments := strings.Split(path, "/")
+	for i, s := range segments {
+		if name, ok := strings.CutPrefix(s, ":"); ok {
+			segments[i] = "{" + name + "}"
+		}
+	}
+	return strings.Join(segments, "/")
+}
+
+type errorCapture struct {
+	gin.ResponseWriter
+	body bytes.Buffer
+}
+
+func (w *errorCapture) Write(b []byte) (int, error) {
+	w.keep(b)
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *errorCapture) WriteString(s string) (int, error) {
+	w.keep([]byte(s))
+	return w.ResponseWriter.WriteString(s)
+}
+
+func (w *errorCapture) keep(b []byte) {
+	if w.Status() < http.StatusBadRequest || w.body.Len() >= maxErrorBody {
+		return
+	}
+	w.body.Write(b[:min(len(b), maxErrorBody-w.body.Len())])
+}
+
+func (w *errorCapture) code() string {
+	if w.body.Len() == 0 {
+		return ""
+	}
+	var body struct {
+		Code string `json:"code"`
+	}
+	if json.Unmarshal(w.body.Bytes(), &body) != nil {
+		return ""
+	}
+	return body.Code
+}

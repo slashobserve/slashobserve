@@ -1,6 +1,7 @@
 me-grants:
   get:
     operationId: listMyGrants
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the MCP clients the signed-in person has connected.
     description: >-
       Newest first, live connections only: a disconnected or expired one is not listed.
@@ -45,6 +46,7 @@ me-grants-id:
         format: uuid
   patch:
     operationId: updateMyGrant
+    x-audit: { action: mcp_client.update, target: { kind: grant, id: path.id } }
     summary: Set how one of the signed-in person's MCP clients makes changes.
     description: >-
       `direct` is the default; `propose` makes the agent's dashboard writes proposals that someone who can edit merges.
@@ -76,6 +78,7 @@ me-grants-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: disconnectMyGrant
+    x-audit: { action: mcp_client.disconnect, target: { kind: grant, id: path.id } }
     summary: Disconnect one of the signed-in person's MCP clients.
     description: >-
       The client's access and refresh tokens stop working at once and the client must be approved again.
@@ -97,6 +100,7 @@ me-grants-id:
 grants:
   get:
     operationId: listGrants
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List every person's connected MCP clients.
     description: >-
       Admin only.
@@ -139,6 +143,7 @@ grants-id:
         format: uuid
   delete:
     operationId: disconnectGrant
+    x-audit: { action: mcp_client.disconnect, target: { kind: grant, id: path.id } }
     summary: Disconnect any person's MCP client.
     description: >-
       Admin only.

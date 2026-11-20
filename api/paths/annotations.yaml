@@ -1,6 +1,7 @@
 annotations:
   get:
     operationId: listAnnotations
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       mcp: [list_annotations]
       cli: [observe annotations list]
@@ -69,6 +70,7 @@ annotations:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createAnnotation
+    x-audit: { action: annotation.create, target: { kind: annotation } }
     x-surfaces:
       mcp: [create_annotation]
       cli: [observe annotate]
@@ -163,6 +165,7 @@ annotations-id:
         format: uuid
   patch:
     operationId: updateAnnotation
+    x-audit: { action: annotation.update, target: { kind: annotation, id: path.id } }
     x-surfaces:
       mcp: [update_annotation]
       cli: [observe annotations update]
@@ -224,6 +227,7 @@ annotations-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteAnnotation
+    x-audit: { action: annotation.delete, target: { kind: annotation, id: path.id } }
     x-surfaces:
       cli: [observe annotations delete]
     summary: Delete an annotation.

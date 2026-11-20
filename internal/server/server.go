@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/origin"
@@ -57,6 +58,7 @@ type Options struct {
 	Mounts          []Mount
 	Redirects       Redirects
 	Metrics         RequestMetrics
+	Audit           *audit.Recorder
 
 	ContractCheck bool
 }
@@ -70,7 +72,11 @@ func New(opts Options) (http.Handler, error) {
 	}
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
-	apiGroup := engine.Group(apiPrefix)
+	recordRequests, err := auditMiddleware(opts.Audit)
+	if err != nil {
+		return nil, err
+	}
+	apiGroup := engine.Group(apiPrefix, recordRequests...)
 	documented, err := documentedQueryParams()
 	if err != nil {
 		return nil, fmt.Errorf("read documented query parameters: %w", err)
@@ -95,7 +101,7 @@ func New(opts Options) (http.Handler, error) {
 		r.Register(authenticated)
 	}
 	for _, m := range opts.Mounts {
-		engine.Any(m.Path, gin.WrapH(m.Handler))
+		engine.Any(m.Path, append(recordRequests, gin.WrapH(m.Handler))...)
 	}
 	registerWebRoutes(engine, opts.Redirects)
 	if checked != nil {
@@ -104,6 +110,17 @@ func New(opts Options) (http.Handler, error) {
 		}
 	}
 	return compressReads(engine)
+}
+
+func auditMiddleware(r *audit.Recorder) ([]gin.HandlerFunc, error) {
+	if r == nil {
+		return nil, nil
+	}
+	mw, err := r.Middleware()
+	if err != nil {
+		return nil, err
+	}
+	return []gin.HandlerFunc{mw}, nil
 }
 
 func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
@@ -132,13 +149,27 @@ func logRequests(logger *slog.Logger) gin.HandlerFunc {
 		if p := c.Request.URL.Path; p == "/healthz" || p == "/readyz" || p == "/metrics" {
 			level = slog.LevelDebug
 		}
-		logger.LogAttrs(c.Request.Context(), level, "http request",
+		attrs := []slog.Attr{
 			slog.String("method", c.Request.Method),
 			slog.String("path", loggedPath(c.Request.URL.Path)),
 			slog.Int("status", c.Writer.Status()),
 			slog.Int("bytes", c.Writer.Size()),
-			slog.Duration("duration", time.Since(start)))
+			slog.Duration("duration", time.Since(start)),
+		}
+		logger.LogAttrs(c.Request.Context(), level, "http request", append(attrs, requestAttrs(c)...)...)
 	}
+}
+
+func requestAttrs(c *gin.Context) []slog.Attr {
+	scope, ok := audit.ScopeOf(c.Request.Context())
+	if !ok {
+		return []slog.Attr{slog.String("route", c.FullPath())}
+	}
+	attrs := []slog.Attr{slog.String("request_id", scope.RequestID.String()), slog.String("route", scope.Route)}
+	if scope.Actor.ID.Valid {
+		attrs = append(attrs, slog.String("principal", string(scope.Actor.Kind)+":"+scope.Actor.ID.UUID.String()))
+	}
+	return attrs
 }
 
 const publicPrefix = "/public"

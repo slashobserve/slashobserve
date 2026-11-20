@@ -1,6 +1,7 @@
 grafana:
   get:
     operationId: listGrafanaConnections
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the stored Grafana connections.
     description: >-
       Only Admins can call this endpoint.
@@ -22,6 +23,7 @@ grafana:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createGrafanaConnection
+    x-audit: { action: grafana_connection.create, target: { kind: grafana_connection } }
     x-surfaces:
       cli: [observe grafana connect]
     summary: Store a Grafana URL and service-account token.
@@ -84,6 +86,7 @@ grafana-id:
         format: uuid
   get:
     operationId: getGrafanaConnection
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     summary: Read one Grafana connection.
     description: Only Admins can call this endpoint.
     responses:
@@ -105,6 +108,7 @@ grafana-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   patch:
     operationId: updateGrafanaConnection
+    x-audit: { action: grafana_connection.update, target: { kind: grafana_connection, id: path.id } }
     summary: Change a connection's name, URL or token.
     description: >-
       Only Admins can call this endpoint.
@@ -153,6 +157,7 @@ grafana-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: deleteGrafanaConnection
+    x-audit: { action: grafana_connection.delete, target: { kind: grafana_connection, id: path.id } }
     summary: Delete a connection and its stored token.
     description: Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
     responses:
@@ -178,6 +183,7 @@ grafana-id-test:
         format: uuid
   post:
     operationId: testGrafanaConnection
+    x-audit: { none: "connection test; changes nothing" }
     x-surfaces:
       cli: [observe grafana connect]
     summary: Check that Grafana answers with the stored token.
@@ -218,6 +224,7 @@ grafana-id-folders:
         format: uuid
   get:
     operationId: listGrafanaFolders
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe grafana import]
     summary: List the Grafana folders and how many dashboards each holds.
@@ -270,6 +277,7 @@ grafana-id-datasources:
         format: uuid
   get:
     operationId: listGrafanaDatasources
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the Grafana datasources and the datasource each one matches here.
     description: >-
       Only Admins can call this endpoint.
@@ -319,6 +327,7 @@ grafana-id-imports:
         format: uuid
   post:
     operationId: startGrafanaImport
+    x-audit: { action: grafana_import.start, target: { kind: grafana_connection, id: path.id } }
     x-surfaces:
       cli: [observe grafana import]
     summary: Import every dashboard of the chosen folders.
@@ -384,6 +393,7 @@ grafana-id-imports-syncid:
         maxLength: 64
   get:
     operationId: getGrafanaImport
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe grafana import]
     summary: Read the progress of an import.
@@ -425,6 +435,7 @@ grafana-id-imports-syncid-cancel:
         maxLength: 64
   post:
     operationId: cancelGrafanaImport
+    x-audit: { action: grafana_import.cancel, target: { kind: grafana_import, id: path.sync_id } }
     summary: Stop a running import.
     description: >-
       Only Admins can call this endpoint.
@@ -464,6 +475,7 @@ grafana-resolve-uid:
         maxLength: 256
   get:
     operationId: resolveGrafanaUID
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe open]
     summary: Find the dashboard imported from a Grafana uid.
@@ -488,6 +500,7 @@ grafana-resolve-uid:
 grafana-link:
   post:
     operationId: fetchGrafanaLink
+    x-audit: { none: "reads a Grafana dashboard to preview it; changes nothing" }
     summary: Fetch a Grafana dashboard from its link through a stored connection.
     description: >-
       Only Admins can call this endpoint, because the stored connection's token is an Admin's credential.

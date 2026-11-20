@@ -103,7 +103,7 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT u.id, u.email, u.name, u.last_seen_at, u.role, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
+SELECT u.id, u.email, u.name, u.last_seen_at, u.role, s.id AS session_id, (u.groups || ARRAY(SELECT t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = u.id ORDER BY t.name))::text[] AS groups
 FROM sessions s JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1 AND s.expires_at > now() AND u.deactivated_at IS NULL
 `
@@ -114,6 +114,7 @@ type GetSessionUserRow struct {
 	Name       string
 	LastSeenAt pgtype.Timestamptz
 	Role       string
+	SessionID  pgtype.UUID
 	Groups     []string
 }
 
@@ -126,6 +127,7 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (GetSess
 		&i.Name,
 		&i.LastSeenAt,
 		&i.Role,
+		&i.SessionID,
 		&i.Groups,
 	)
 	return i, err

@@ -1,6 +1,7 @@
 imports-preview:
   post:
     operationId: previewImport
+    x-audit: { none: "converts a Grafana dashboard to preview it; changes nothing" }
     x-surfaces:
       cli: [observe import]
     summary: Convert a Grafana dashboard without saving it or running any query.
@@ -51,6 +52,7 @@ imports-preview:
 imports:
   post:
     operationId: createImport
+    x-audit: { action: dashboard.create, target: { kind: dashboard } }
     x-surfaces:
       mcp: [import_grafana_dashboard]
       cli: [observe import]
@@ -137,6 +139,7 @@ imports:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listImports
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List imports, newest first.
     description: Only imports of dashboards in folders the caller can see.
     parameters:
@@ -184,6 +187,7 @@ dashboards-id-import:
         format: uuid
   get:
     operationId: getDashboardImport
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     summary: Get how a dashboard was imported from Grafana.
     description: >-
       Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import.

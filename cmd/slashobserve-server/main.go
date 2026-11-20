@@ -563,6 +563,7 @@ func run() error {
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},
 		Metrics:       serverMetrics.HTTP(),
+		Audit:         recorder,
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},

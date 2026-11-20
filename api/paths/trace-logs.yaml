@@ -7,6 +7,7 @@ datasources-uid-trace-logs:
         type: string
   post:
     operationId: traceLogs
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [logs_for_trace]
       cli: [observe datasources trace-logs]

@@ -1,6 +1,7 @@
 outbound-domains:
   get:
     operationId: listOutboundDomains
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the domains the server may fetch content from.
     description: >-
       The list is empty until a person allows a domain.
@@ -26,6 +27,7 @@ outbound-domains:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: allowOutboundDomain
+    x-audit: { action: outbound_domain.add, target: { kind: outbound_domain } }
     summary: Allow a domain.
     description: >-
       Only an Admin may allow a domain; service accounts cannot.
@@ -89,6 +91,7 @@ outbound-domains-domain:
         maxLength: 256
   delete:
     operationId: removeOutboundDomain
+    x-audit: { action: outbound_domain.remove, target: { kind: outbound_domain, id: path.domain } }
     summary: Stop allowing a domain.
     description: The path value is normalized like a new entry, so `Example.COM` removes `example.com`, and `*.example.com` removes the subdomain entry. Service accounts cannot.
     responses:

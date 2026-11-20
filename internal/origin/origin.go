@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
@@ -73,7 +74,9 @@ func ForPrincipal(p auth.Principal, userAgent string) Origin {
 func Middleware(c *gin.Context) {
 	ctx := c.Request.Context()
 	if p, ok := auth.FromContext(ctx); ok {
-		c.Request = c.Request.WithContext(With(ctx, ForPrincipal(p, c.GetHeader("User-Agent"))))
+		o := ForPrincipal(p, c.GetHeader("User-Agent"))
+		audit.Update(ctx, func(s *audit.Scope) { s.Origin.Kind, s.Origin.Client = string(o.Kind), o.Client })
+		c.Request = c.Request.WithContext(With(ctx, o))
 	}
 	c.Next()
 }

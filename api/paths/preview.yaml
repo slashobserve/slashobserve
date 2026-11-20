@@ -7,6 +7,7 @@ datasources-uid-preview:
         type: string
   post:
     operationId: previewDraftPanel
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     summary: Run an unsaved data panel placed into a saved dashboard version and return its frames.
     description: >-
       The draft replaces the panel `panel_id` of the given version, or is added to it as a new top-level panel when the version has none with that id, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows).

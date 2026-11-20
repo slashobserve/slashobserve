@@ -7,6 +7,7 @@ datasources-uid-tail:
         type: string
   get:
     operationId: tailLogs
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe logs]
     summary: Stream new log lines of a logs query as Server-Sent Events.

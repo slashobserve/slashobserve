@@ -1,6 +1,7 @@
 agents:
   get:
     operationId: listAgents
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List who can do work for the signed-in person.
     description: >-
       Puts the Observe Agent, the person's connected agents and the service accounts that take runs in one read.
@@ -36,6 +37,7 @@ agents:
 agent-runs:
   get:
     operationId: listAgentRuns
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the recent runs of one agent.
     description: >-
       Lists the runs assigned to one agent, newest first, so the Agents page can show the work behind its seven day numbers.
@@ -106,6 +108,7 @@ agent-runs:
 agents-working:
   get:
     operationId: listWorkingRuns
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List the active runs working on the caller's things.
     description: >-
       Lists the runs that are queued, running or canceling and that the caller requested, or that act on a dashboard or observation the caller created, newest first.

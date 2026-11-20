@@ -1,6 +1,7 @@
 repairs:
   get:
     operationId: listRepairs
+    x-audit: { none: "list read; lists are not recorded" }
     summary: List dashboards whose latest version still has failing or placeholder panels.
     description: >-
       Editors and Admins can call this endpoint.
@@ -44,6 +45,7 @@ repairs:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: requestRepairs
+    x-audit: { action: run.queue, target: { kind: run } }
     summary: Queue the agent to repair the failing panels of dashboards.
     description: >-
       Editors and Admins can call this endpoint.

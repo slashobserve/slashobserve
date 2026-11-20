@@ -7,6 +7,7 @@ datasources-uid-query:
         type: string
   post:
     operationId: exploreQuery
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [query_instant, query_range]
       cli: [observe logs, observe traces, observe metrics query]
@@ -158,6 +159,7 @@ datasources-uid-log-volume:
         type: string
   post:
     operationId: logVolume
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe datasources log-volume]
     summary: Count the log lines a logs query matches over a range, by level.

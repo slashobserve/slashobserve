@@ -8,6 +8,7 @@ dashboards-id-revisions:
         format: uuid
   post:
     operationId: createDashboardRevision
+    x-audit: { action: run.queue, target: { kind: dashboard, id: path.id } }
     x-surfaces:
       cli: [observe]
     summary: Ask the agent to revise a dashboard with a follow-up prompt.
@@ -99,6 +100,7 @@ dashboards-id-revisions:
               $ref: "../openapi.yaml#/components/schemas/Error"
   get:
     operationId: listDashboardRevisions
+    x-audit: { none: "list read; lists are not recorded" }
     x-surfaces:
       cli: [observe dashboards revisions]
     summary: List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
@@ -157,6 +159,7 @@ dashboards-id-revisions-revisionid:
         format: uuid
   get:
     operationId: getDashboardRevision
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
     x-surfaces:
       cli: [observe dashboards revisions]
     summary: Read one revision request.

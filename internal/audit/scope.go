@@ -63,3 +63,9 @@ func (st *state) markCommitted() {
 	defer st.mu.Unlock()
 	st.committed = true
 }
+
+func (st *state) unsettled() (bool, []written) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.committed, append([]written(nil), st.inTx...)
+}
