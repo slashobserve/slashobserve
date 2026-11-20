@@ -184,7 +184,7 @@ func TestChangingARunIsRefusedForSomeoneElsesAndAnUnknownRun(t *testing.T) {
 	} {
 		t.Run(tool, func(t *testing.T) {
 			other := &fakeRuns{err: revisions.ErrNotRequester}
-			if code := errorCode(t, callRunTool(t, other, tool, input)); code != codeForbiddenRole {
+			if code := errorCode(t, callRunTool(t, other, tool, input)); code != "forbidden" {
 				t.Fatalf("code %q", code)
 			}
 			missing := &fakeRuns{err: revisions.ErrRequestNotFound}
@@ -192,9 +192,8 @@ func TestChangingARunIsRefusedForSomeoneElsesAndAnUnknownRun(t *testing.T) {
 				t.Fatalf("code %q", code)
 			}
 			broken := &fakeRuns{err: errors.New("boom")}
-			r := New(Deps{Runs: broken})
-			if _, err := r.Call(auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer}), tool, []byte(input)); err == nil {
-				t.Fatal("an unexpected failure must surface as an error")
+			if code := errorCode(t, callRunTool(t, broken, tool, input)); code != FailureToolFailed {
+				t.Fatalf("code %q", code)
 			}
 		})
 	}
@@ -209,8 +208,9 @@ func TestRunListToolsNeedRuns(t *testing.T) {
 		nameUnpinRun:   `{"id":"` + runID + `"}`,
 		nameArchiveRun: `{"id":"` + runID + `"}`,
 	} {
-		if _, err := r.Call(auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer}), tool, []byte(input)); !errors.Is(err, errRunsNotConfigured) {
-			t.Errorf("%s: err = %v", tool, err)
+		res, err := r.Call(auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer}), tool, []byte(input))
+		if err != nil || errorCode(t, res) != FailureToolFailed {
+			t.Errorf("%s: res = %+v, err = %v", tool, res, err)
 		}
 	}
 }
