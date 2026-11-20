@@ -191,7 +191,7 @@ func (h *Handler) remove(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	n, err := h.deleteEmpty(ctx, current.Folder)
+	n, err := h.deleteEmpty(ctx, current.Folder.ID)
 	if isPgError(err, foreignKeyViolation) {
 		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings, saved searches and observations in this folder first")
 		return
@@ -208,15 +208,21 @@ func (h *Handler) remove(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (h *Handler) deleteEmpty(ctx context.Context, folder Folder) (int64, error) {
+func (h *Handler) deleteEmpty(ctx context.Context, id pgtype.UUID) (int64, error) {
 	var n int64
 	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		var err error
-		n, err = q.DeleteFolderIfEmpty(ctx, folder.ID)
+		folder, err := q.LockFolder(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		n, err = q.DeleteFolderIfEmpty(ctx, id)
 		if err != nil || n == 0 {
 			return err
 		}
-		return recordFolder(ctx, q, "folder.delete", folder.ID, folder.Title, nil)
+		return recordFolder(ctx, q, "folder.delete", id, folder.Title, nil)
 	})
 	return n, err
 }

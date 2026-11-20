@@ -253,3 +253,23 @@ func TestAGrantToAPersonWithoutANameCarriesTheIdAndNeverTheEmail(t *testing.T) {
 		t.Fatalf("data = %s, want the user id and no email", raw)
 	}
 }
+
+func TestDeletingAFolderRecordsTheTitleItHasWhenItIsDeleted(t *testing.T) {
+	d := dbtest.New(t)
+	id := newFolder(t, d, "Old name")
+	d.Exec(t, `UPDATE folders SET title = 'New name' WHERE id = $1::uuid`, id)
+	var folderID pgtype.UUID
+	if err := folderID.Scan(id); err != nil {
+		t.Fatal(err)
+	}
+	h := NewHandler(d.DB, NewAccess(d.DB), slog.New(slog.DiscardHandler))
+
+	n, err := h.deleteEmpty(t.Context(), folderID)
+	if err != nil || n != 1 {
+		t.Fatalf("deleteEmpty = %d, %v", n, err)
+	}
+	events := storedEvents(t, d)
+	if got := events[len(events)-1]; got.Action != "folder.delete" || got.TargetName != "New name" {
+		t.Fatalf("event = %+v, want folder.delete of New name", got)
+	}
+}
