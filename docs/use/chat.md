@@ -350,6 +350,14 @@ Checked, the dialog says the observation is deleted for everyone, with its block
 The two differ: the chat only leaves your lists and still opens from its link, while the observation is gone for good and cannot be undone.
 If the observation cannot be deleted, the chat is kept and the dialog says why.
 
+### One title for a chat and its observation
+
+A chat with no dashboard and exactly one observation made from it, by **Save as observation** or by an investigation that opened it, shares its title with that observation.
+Renaming the chat renames the observation, and renaming the observation renames the chat, in the web app, the API, the CLI and MCP alike, and both lists show the new title at once.
+When you may not edit the observation, the chat is still renamed and a note says "The observation made from this chat keeps its title, because you cannot edit it."; an observation you cannot open is left alone and never named.
+When someone other than the person who started the chat renames the observation, the chat keeps its title and the note says so.
+A chat with two or more observations, a chat on a dashboard, a later turn's own title and an observation not made from a chat keep their titles apart.
+
 ## What the agent cannot do
 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.

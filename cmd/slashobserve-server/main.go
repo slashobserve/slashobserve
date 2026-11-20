@@ -364,6 +364,7 @@ func run() error {
 		Finding:        findingOfRequest(findingsService, findingURL),
 		SaveAnswer:     saveAnswerOf(findingsService),
 		LiveText:       liveText.Text,
+		ShareTitle:     observationsService.RenameFromChat,
 	}
 	revisionOpts := []revisions.Option{
 		revisions.WithPanels(dashboardsService),

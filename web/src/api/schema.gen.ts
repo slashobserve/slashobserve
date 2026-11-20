@@ -2057,7 +2057,7 @@ export interface paths {
         head?: never;
         /**
          * Rename or pin one of your agent requests.
-         * @description Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404. A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt. `pinned` true pins the request to the top of `GET /observe`, false unpins it.
+         * @description Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404. A `title` string is trimmed and must be 1 to 120 characters on one line; `null` clears it back to the default taken from the prompt. `pinned` true pins the request to the top of `GET /observe`, false unpins it. Renaming the first request of a chat with no dashboard also renames the one observation made from that chat when the caller may edit it, and `observation_rename` says which happened.
          */
         patch: operations["updateObserveRequest"];
         trace?: never;
@@ -2403,7 +2403,7 @@ export interface paths {
         head?: never;
         /**
          * Change an observation's title or time range.
-         * @description Needs Edit on the folder. Allowed whether the observation is open or resolved.
+         * @description Needs Edit on the folder. Allowed whether the observation is open or resolved. A new title also renames the chat with no dashboard that this observation is the one observation made from, when the caller started that chat, and `chat_rename` says which happened.
          */
         patch: operations["updateObservation"];
         trace?: never;
@@ -6254,6 +6254,11 @@ export interface components {
             observation_id: string | null;
             /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it. */
             finding: components["schemas"]["Finding"] | null;
+            /**
+             * @description Present only in the answer to a rename of the first request of a chat with no dashboard that has exactly one observation made from it, which the caller can see. `renamed` when that observation now has the chat's title, `kept` when the caller may not edit it and its title was left as it is.
+             * @enum {string}
+             */
+            observation_rename?: "renamed" | "kept";
         };
         RequestSummary: {
             /** Format: uuid */
@@ -7398,6 +7403,11 @@ export interface components {
             allowed_actions: components["schemas"]["ObservationAction"][];
             /** @description The blocks in page order; present when one observation is read, absent from lists. */
             blocks?: components["schemas"]["ObservationBlock"][];
+            /**
+             * @description Present only in the answer to a title change of the one observation made from a chat with no dashboard. `renamed` when the chat now has the observation's title, `kept` when the caller did not start that chat and its title was left as it is.
+             * @enum {string}
+             */
+            chat_rename?: "renamed" | "kept";
         };
         ObservationBlock: {
             /** Format: uuid */

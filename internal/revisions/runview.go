@@ -57,8 +57,31 @@ func (r *RunDesk) List(ctx context.Context, caller auth.Principal, filter ListFi
 }
 
 func (r *RunDesk) Update(ctx context.Context, id pgtype.UUID, caller auth.Principal, title *string, clearTitle bool, pinned *bool) (json.RawMessage, error) {
+	out, err := r.update(ctx, id, caller, title, clearTitle, pinned)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("encode agent request: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) update(ctx context.Context, id pgtype.UUID, caller auth.Principal, title *string, clearTitle bool, pinned *bool) (agentRequestJSON, error) {
 	row, err := r.service.UpdateListFields(ctx, id, caller, title, clearTitle, pinned)
-	return r.answer(ctx, row, caller, err)
+	if err != nil {
+		return agentRequestJSON{}, err
+	}
+	var shared SharedTitle
+	if (title != nil || clearTitle) && r.opts.ShareTitle != nil {
+		if shared, err = r.opts.ShareTitle(ctx, caller, row.ID, requestTitle(row.Title, row.Prompt)); err != nil {
+			return agentRequestJSON{}, fmt.Errorf("share the chat title with its observation: %w", err)
+		}
+	}
+	out, err := r.render(ctx, row, caller, false)
+	out.ObservationRename = shared
+	return out, err
 }
 
 func (r *RunDesk) Archive(ctx context.Context, id pgtype.UUID, caller auth.Principal) error {

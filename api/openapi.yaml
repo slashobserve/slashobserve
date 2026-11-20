@@ -4689,6 +4689,10 @@ components:
           allOf:
             - $ref: "#/components/schemas/Finding"
           description: "The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it."
+        observation_rename:
+          type: string
+          enum: [renamed, kept]
+          description: Present only in the answer to a rename of the first request of a chat with no dashboard that has exactly one observation made from it, which the caller can see. `renamed` when that observation now has the chat's title, `kept` when the caller may not edit it and its title was left as it is.
     RequestSummary:
       type: object
       additionalProperties: false
@@ -6860,6 +6864,10 @@ components:
           description: The blocks in page order; present when one observation is read, absent from lists.
           items:
             $ref: "#/components/schemas/ObservationBlock"
+        chat_rename:
+          type: string
+          enum: [renamed, kept]
+          description: Present only in the answer to a title change of the one observation made from a chat with no dashboard. `renamed` when the chat now has the observation's title, `kept` when the caller did not start that chat and its title was left as it is.
     ObservationBlock:
       type: object
       additionalProperties: false

@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import {
   infiniteQueryOptions,
   type QueryClient,
+  type QueryKey,
   queryOptions,
   useInfiniteQuery,
   useIsMutating,
@@ -312,31 +313,37 @@ export function useCreateObserveRequest() {
   })
 }
 
-function useChatMutation<Input>(
+function useChatMutation<Input, Output>(
   id: string,
-  send: (input: Input) => Promise<unknown>
+  send: (input: Input) => Promise<Output>,
+  alsoRefresh: readonly QueryKey[] = []
 ) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: send,
     onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() }),
-        queryClient.invalidateQueries({ queryKey: observeKeys.request(id) }),
-      ]),
+      Promise.all(
+        [observeKeys.mineAll(), observeKeys.request(id), ...alsoRefresh].map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey })
+        )
+      ),
   })
 }
 
 export function useRenameChat(id: string) {
-  return useChatMutation(id, (title: string) => {
-    const trimmed = title.trim()
-    return api
-      .PATCH("/observe/{id}", {
-        params: { path: { id } },
-        body: { title: trimmed === "" ? null : trimmed },
-      })
-      .then(unwrap)
-  })
+  return useChatMutation(
+    id,
+    (title: string) => {
+      const trimmed = title.trim()
+      return api
+        .PATCH("/observe/{id}", {
+          params: { path: { id } },
+          body: { title: trimmed === "" ? null : trimmed },
+        })
+        .then(unwrap)
+    },
+    [observationKeys.all]
+  )
 }
 
 export function usePinChat(id: string) {

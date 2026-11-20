@@ -13,6 +13,7 @@ import {
   annotationKeys,
   dashboardKeys,
   observationKeys,
+  observeKeys,
   threadKeys,
   type ObservationListFilters,
   type ObservationPageParams,
@@ -236,6 +237,7 @@ function useObservationMutation<Input>(
 }
 
 export function useUpdateObservation(id: string) {
+  const queryClient = useQueryClient()
   return useObservationMutation(
     id,
     (input: components["schemas"]["UpdateObservationRequest"]) =>
@@ -245,6 +247,14 @@ export function useUpdateObservation(id: string) {
           body: input,
         })
         .then(unwrap)
+        .then((envelope) => {
+          if (envelope.observation.chat_rename === "renamed") {
+            void queryClient.invalidateQueries({
+              queryKey: observeKeys.mineAll(),
+            })
+          }
+          return envelope
+        })
   )
 }
 

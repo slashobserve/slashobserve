@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -403,6 +404,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	if err != nil {
 		return Observation{}, err
 	}
+	var chat revisions.SharedTitle
 	err = s.write(ctx, by, id, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(Machine, State(row.State), ActionUpdate, can(abilities, false)); err != nil {
 			return err
@@ -417,16 +419,30 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		case in.From != nil:
 			params.TimeFrom, params.TimeTo = timestamptz(in.From), timestamptz(in.To)
 		}
-		updated, err := q.UpdateObservation(ctx, params)
-		if err != nil {
-			return fmt.Errorf("update observation: %w", err)
+		if err := s.saveUpdate(ctx, q, row, who, params); err != nil {
+			return err
 		}
-		return appendEvent(ctx, q, activity.TypeObservationUpdated, who, id, updatedEvent(row.Title, updated.Title))
+		if in.Title == nil {
+			return nil
+		}
+		var err error
+		chat, err = renameChat(ctx, q, by, id, title)
+		return err
 	})
 	if err != nil {
 		return Observation{}, err
 	}
-	return s.Get(ctx, by, id)
+	o, err := s.Get(ctx, by, id)
+	o.ChatRename = chat
+	return o, err
+}
+
+func (s *Service) saveUpdate(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Observation, who actor.Actor, params dbsqlc.UpdateObservationParams) error {
+	updated, err := q.UpdateObservation(ctx, params)
+	if err != nil {
+		return fmt.Errorf("update observation: %w", err)
+	}
+	return appendEvent(ctx, q, activity.TypeObservationUpdated, who, row.ID, updatedEvent(row.Title, updated.Title))
 }
 
 func checkedUpdate(in UpdateInput) (string, error) {

@@ -43,7 +43,7 @@ func (a *app) observationEditCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <observation-id> [--title <title>] [--from <time> --to <time> | --clear-range]",
 		Short: "Rename an observation or change the range its panels show",
-		Long:  "edit changes the title, the range or both.\n--from and --to, RFC 3339 times given together, set the range its panels show, and --clear-range removes it.",
+		Long:  "edit changes the title, the range or both.\n--from and --to, RFC 3339 times given together, set the range its panels show, and --clear-range removes it.\nA new title also renames the chat the observation was made from, when it is the one observation of a chat with no dashboard that you started.",
 		Args:  exactArgs(1, "one observation id; a title of several words goes in quotes after --title"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -55,11 +55,16 @@ func (a *app) observationEditCommand() *cobra.Command {
 				return err
 			}
 			return a.observationCall(cmd, http.MethodPatch, "observations/"+id, body, func(out *output, data []byte) error {
-				edited, err := decode[observationEnvelope](data)
+				edited, err := decode[struct {
+					Observation struct {
+						Title      string `json:"title"`
+						ChatRename string `json:"chat_rename"`
+					} `json:"observation"`
+				}](data)
 				if err != nil {
 					return err
 				}
-				out.confirm("Updated %s", text(edited.Observation.Title))
+				out.confirm("Updated %s%s", text(edited.Observation.Title), chatRenameNote[edited.Observation.ChatRename])
 				return nil
 			})
 		},
@@ -69,6 +74,11 @@ func (a *app) observationEditCommand() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "end of the range its panels show, an RFC 3339 time")
 	cmd.Flags().BoolVar(&clearRange, "clear-range", false, "remove the range its panels show")
 	return cmd
+}
+
+var chatRenameNote = map[string]string{
+	"renamed": ", and renamed the chat it was made from",
+	"kept":    "; the chat it was made from keeps its title because only the person who started it may rename it",
 }
 
 func editBody(title, from, to string, clearRange bool) (map[string]any, error) {

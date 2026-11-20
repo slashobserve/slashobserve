@@ -251,7 +251,7 @@ func (a *app) requestsRenameCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rename <request-id> <title>",
 		Short: "Give one of your agent requests a title",
-		Long:  "rename sets the title requests list shows for one of your agent requests, 1 to 120 characters on one line.\n--clear takes the title back to the start of the prompt.\nOnly the person who made the request can rename it.",
+		Long:  "rename sets the title requests list shows for one of your agent requests, 1 to 120 characters on one line.\n--clear takes the title back to the start of the prompt.\nOnly the person who made the request can rename it.\nRenaming the first request of a chat with no dashboard also renames the one observation made from that chat, when you may edit it.",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if clearTitle && len(args) == 1 || !clearTitle && len(args) >= 2 {
 				return nil
@@ -292,6 +292,19 @@ func (a *app) updateRequest(cmd *cobra.Command, rawID string, fields map[string]
 		out.body(data)
 		return nil
 	}
-	out.confirm("Request %s %s", id, done)
+	changed, err := decode[struct {
+		Request struct {
+			ObservationRename string `json:"observation_rename"`
+		} `json:"request"`
+	}](data)
+	if err != nil {
+		return err
+	}
+	out.confirm("Request %s %s%s", id, done, observationRenameNote[changed.Request.ObservationRename])
 	return nil
+}
+
+var observationRenameNote = map[string]string{
+	"renamed": ", and the observation made from it",
+	"kept":    "; the observation made from it keeps its title because you may not edit it",
 }
