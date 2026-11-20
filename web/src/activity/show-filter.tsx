@@ -8,6 +8,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+export const truncatingTriggerClass =
+  "min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
+
 export function TimelineFilters({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center gap-2 border-b px-4 py-2">{children}</div>
