@@ -51,7 +51,7 @@ func TestThreadAgentIsTheLastLiveAgentThatReplied(t *testing.T) {
 	seedVersion(t, d, convDashboard, 1, "{}")
 	d.Exec(t, `INSERT INTO oauth_clients (id, redirect_uris) VALUES ('c', ARRAY['http://localhost/cb'])`)
 	live := foScalar(t, sqlDB, `INSERT INTO oauth_grants (client_id, user_id, resource, expires_at) VALUES ('c', $1::uuid, 'http://localhost/mcp', now() + interval '1 day') RETURNING id::text`, user)
-	revoked := foScalar(t, sqlDB, `INSERT INTO oauth_grants (client_id, user_id, resource, expires_at, revoked_at) VALUES ('c', $1::uuid, 'http://localhost/mcp', now() + interval '1 day', now()) RETURNING id::text`, user)
+	revoked := foScalar(t, sqlDB, `INSERT INTO oauth_grants (client_id, user_id, resource, expires_at, revoked_at, revoked_reason) VALUES ('c', $1::uuid, 'http://localhost/mcp', now() + interval '1 day', now(), 'person') RETURNING id::text`, user)
 
 	builtinThread, grantThread, revokedThread, quietThread := convThread(t, sqlDB), convThread(t, sqlDB), convThread(t, sqlDB), convThread(t, sqlDB)
 	convRequest(t, d, convID(1), "comment", user, convDashboard, "", "grant", revoked)
