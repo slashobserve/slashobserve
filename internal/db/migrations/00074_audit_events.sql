@@ -114,7 +114,7 @@ SELECT
     to_hex(8 + get_byte(decode(md5('variant:' || a.seq), 'hex'), 0) % 4) || substr(md5('audit:' || a.seq), 4, 15))::uuid,
   a.xid, a.created_at, m.category, m.action, 'success', a.actor_kind, a.actor_id, a.actor_name,
   CASE WHEN a.run_id IS NULL THEN 'person' ELSE 'agent' END, a.run_id,
-  coalesce(a.origin, 'job'), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
+  coalesce(a.origin, 'unknown'), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
   a.data || m.extra, 'backfill', 'backfill'
 FROM activity a
 JOIN (VALUES

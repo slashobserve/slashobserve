@@ -65,8 +65,8 @@ WHERE a.origin = 'web'`)
 	if err := d.SQLDB(t).QueryRowContext(ctx, `SELECT origin FROM audit_events WHERE target_id = '66666666-6666-4666-8666-666666666666'`).Scan(&origin); err != nil {
 		t.Fatal(err)
 	}
-	if origin != audit.OriginJob {
-		t.Errorf("an activity row with no origin backfilled from %q, want %q", origin, audit.OriginJob)
+	if origin != "unknown" {
+		t.Errorf("an activity row with no origin backfilled from %q, want unknown", origin)
 	}
 }
 
