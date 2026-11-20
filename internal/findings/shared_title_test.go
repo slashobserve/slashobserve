@@ -85,6 +85,7 @@ func TestRenamingTheObservationRenamesTheChatOnlyForWhoStartedIt(t *testing.T) {
 	r := newRig(t)
 	chat := r.chat(t, editor, pgtype.UUID{})
 	observation := r.savedAnswer(t, editor, chat)
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, observation, r.folder(t, "Incidents"))
 
 	if got := r.renameObservation(t, otherEditor, observation, "Renamed by Ed"); got != revisions.TitleKept {
 		t.Fatalf("another editor's rename: %q, want kept", got)
