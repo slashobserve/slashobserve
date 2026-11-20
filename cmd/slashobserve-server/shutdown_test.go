@@ -29,21 +29,15 @@ func TestShutdownEndsAStreamBeforeItsDeadlineSoItCanFinish(t *testing.T) {
 		t.Fatal(err)
 	}
 	go func() { _ = srv.Serve(ln) }()
-	streams := make(chan *http.Response, 1)
-	go func() {
-		resp, err := http.Get("http://" + ln.Addr().String())
-		if err == nil {
-			streams <- resp
-		}
-	}()
+	stream, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = stream.Close() }()
+	if _, err := stream.Write([]byte("GET / HTTP/1.1\r\nHost: stream\r\n\r\n")); err != nil {
+		t.Fatal(err)
+	}
 	<-opened
-	defer func() {
-		select {
-		case resp := <-streams:
-			_ = resp.Body.Close()
-		case <-time.After(time.Second):
-		}
-	}()
 	start := time.Now()
 	if err := shutdown(srv, cutRequests, 50*time.Millisecond, 5*time.Second); err != nil {
 		t.Fatalf("shutdown: %v", err)

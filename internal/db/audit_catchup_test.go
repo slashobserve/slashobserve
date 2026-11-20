@@ -84,7 +84,7 @@ func TestCatchUpRecordsWhatAnOldServerWroteAfterTheBackfill(t *testing.T) {
 	d.Exec(t, `INSERT INTO activity (type, target_kind, target_id, actor_kind, actor_id, actor_name, origin, data)
 VALUES ('webhook.created', 'webhook', $1, 'user', gen_random_uuid(), 'Ada', 'web', '{"name": "hook", "secret": "s3cret"}')`, oldServerTarget)
 	by := actor.Of(auth.Principal{Kind: auth.KindUser, ID: uuid.NewString(), Name: "Bo"}, origin.Origin{Kind: origin.Web}, "")
-	err := d.DB.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err := d.InTx(ctx, func(q *dbsqlc.Queries) error {
 		return activity.AppendAdmin(ctx, q, by, activity.TypeWebhookCreated, pgtype.UUID{Bytes: uuid.MustParse(newServerTarget), Valid: true}, map[string]any{"name": "mirrored"})
 	})
 	if err != nil {
