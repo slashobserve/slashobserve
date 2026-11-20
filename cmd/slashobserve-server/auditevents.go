@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net"
+	"net/http"
 	"strconv"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
@@ -28,6 +30,28 @@ func recordMigrations(ctx context.Context, logger *slog.Logger, applied []db.App
 
 func serverTarget(serverID string) audit.Target {
 	return audit.Target{Kind: "server", ID: serverID}
+}
+
+func serveRecorded(ctx context.Context, logger *slog.Logger, addr, serverID string, handler http.Handler, onShutdown func()) error {
+	listener, err := listenAndRecordStart(ctx, logger, addr, serverID)
+	if err != nil {
+		return described("http_listen_failed", err)
+	}
+	served := serve(ctx, logger, listener, handler, onShutdown)
+	recordServerStop(ctx, logger, serverID, served)
+	if served != nil {
+		return described("http_server_failed", served)
+	}
+	return nil
+}
+
+func listenAndRecordStart(ctx context.Context, logger *slog.Logger, addr, serverID string) (net.Listener, error) {
+	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	recordSystemEvent(ctx, logger, audit.Event{Action: "server.start", Target: serverTarget(serverID)})
+	return listener, nil
 }
 
 func recordServerStop(ctx context.Context, logger *slog.Logger, serverID string, served error) {

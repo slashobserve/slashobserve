@@ -578,17 +578,7 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
-	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", cfg.HTTPAddr)
-	if err != nil {
-		return described("http_listen_failed", err)
-	}
-	recordSystemEvent(ctx, logger, audit.Event{Action: "server.start", Target: serverTarget(serverID)})
-	served := serve(ctx, logger, listener, handler, broker.Close)
-	recordServerStop(ctx, logger, serverID, served)
-	if served != nil {
-		return described("http_server_failed", served)
-	}
-	return nil
+	return serveRecorded(ctx, logger, cfg.HTTPAddr, serverID, handler, broker.Close)
 }
 
 func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
