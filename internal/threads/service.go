@@ -31,7 +31,7 @@ const (
 	maxInt32     = 1<<31 - 1
 
 	resolvedByVersionConstraint = "threads_resolved_by_version_fkey"
-	observationThreadIndex      = "threads_observation_idx"
+	observationThreadIndex      = "threads_observation_page_idx"
 	foreignKeyViolationCode     = "23503"
 	uniqueViolationCode         = "23505"
 )
@@ -239,7 +239,7 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 			return err
 		}
 		var err error
-		if current, err = q.GetThreadForShare(ctx, row.ID); err != nil {
+		if current, err = q.LockThreadForWrite(ctx, row.ID); err != nil {
 			return threadLookup(err)
 		}
 		if err := refs.lock(ctx, q, sc.target, current.ID); err != nil {

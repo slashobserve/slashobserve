@@ -1,8 +1,9 @@
 -- name: CreateThread :one
-INSERT INTO threads (dashboard_id, dashboard_version, panel_id, annotation_id, observation_id, proposal_id)
+INSERT INTO threads (dashboard_id, dashboard_version, panel_id, annotation_id, observation_id, proposal_id, anchor, block_id)
 VALUES (
   sqlc.narg('dashboard_id')::uuid, sqlc.narg('dashboard_version')::integer, sqlc.narg('panel_id')::text,
-  sqlc.narg('annotation_id')::uuid, sqlc.narg('observation_id')::uuid, sqlc.narg('proposal_id')::uuid
+  sqlc.narg('annotation_id')::uuid, sqlc.narg('observation_id')::uuid, sqlc.narg('proposal_id')::uuid,
+  sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid
 )
 RETURNING *;
 
@@ -10,20 +11,29 @@ RETURNING *;
 WITH clock AS (SELECT coalesce(sqlc.narg('created_at')::timestamptz, clock_timestamp()) AS at)
 INSERT INTO thread_messages (
   id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at,
-  reply_to_id, observation_block_id
+  reply_to_id, observation_block_id, client_id
 )
 SELECT
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid,
   @author_name::text, sqlc.narg('author_email')::text, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, clock.at, clock.at,
-  sqlc.narg('reply_to_id')::uuid, sqlc.narg('observation_block_id')::uuid
+  sqlc.narg('reply_to_id')::uuid, sqlc.narg('observation_block_id')::uuid, sqlc.narg('client_id')::uuid
 FROM clock
+ON CONFLICT (author_kind, author_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;
+
+-- name: GetMessageByClient :one
+SELECT * FROM thread_messages WHERE author_kind = @author_kind AND author_id = @author_id AND client_id = @client_id;
 
 -- name: GetThread :one
 SELECT * FROM threads WHERE id = @id;
 
--- name: GetThreadForShare :one
-SELECT * FROM threads WHERE id = @id FOR SHARE;
+-- name: LockThreadForWrite :one
+SELECT * FROM threads WHERE id = @id FOR NO KEY UPDATE;
+
+-- name: SetThreadAgent :one
+UPDATE threads SET agent_kind = sqlc.narg('agent_kind')::text, agent_id = sqlc.narg('agent_id')::uuid, agent_off = @agent_off
+WHERE id = @id
+RETURNING *;
 
 -- The first message of a thread has the thread's id, so a thread id finds its thread as well.
 -- name: GetThreadOfMessage :one

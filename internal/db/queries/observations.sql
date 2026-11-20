@@ -68,10 +68,10 @@ RETURNING *;
 UPDATE observations SET updated_at = clock_timestamp() WHERE id = @id;
 
 -- name: ObservationThread :one
-SELECT id FROM threads WHERE observation_id = @observation_id;
+SELECT id FROM threads WHERE observation_id = @observation_id AND anchor IS NULL AND block_id IS NULL;
 
 -- name: ObservationThreads :many
-SELECT observation_id, id FROM threads WHERE observation_id = ANY(@observation_ids::uuid[]);
+SELECT observation_id, id FROM threads WHERE observation_id = ANY(@observation_ids::uuid[]) AND anchor IS NULL AND block_id IS NULL;
 
 -- name: BlocksOfObservation :many
 SELECT * FROM observation_blocks WHERE observation_id = @observation_id ORDER BY position;

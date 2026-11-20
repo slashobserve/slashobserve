@@ -287,7 +287,12 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if all >= MaxActiveObserve {
 		return dbsqlc.AgentRequest{}, ErrAgentBusy
 	}
+	chatID, err := ensureChat(ctx, q, by, requesterID, chat.id)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	row, err := q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
+		ID:               chatID.turn,
 		Prompt:           prompt,
 		RequestedByKind:  string(by.Kind),
 		RequestedByID:    requesterID,
@@ -298,7 +303,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		ContinuesID:      continuesID,
 		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
 		RetriesID:        chat.retries,
-		ChatID:           chat.id,
+		ChatID:           chatID.chat,
 		ThreadContext:    pgtype.Text{String: chat.context, Valid: chat.context != ""},
 		TimeZone:         timeZoneColumn(ctx),
 	})

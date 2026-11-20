@@ -134,7 +134,7 @@ func TestOnlyOneThreadMayHangOnAnObservation(t *testing.T) {
 		name, statement, want string
 		args                  []any
 	}{
-		{"a second thread", `INSERT INTO threads (observation_id) VALUES ($1::uuid)`, "threads_observation_idx", []any{f.observation}},
+		{"a second thread", `INSERT INTO threads (observation_id) VALUES ($1::uuid)`, "threads_observation_page_idx", []any{f.observation}},
 		{"a dashboard and an observation", `INSERT INTO threads (dashboard_id, dashboard_version, observation_id) VALUES ($1::uuid, 1, $2::uuid)`, "threads_target_check", []any{obsDashboard, f.observation}},
 		{"no target", `INSERT INTO threads DEFAULT VALUES`, "threads_target_check", nil},
 	}

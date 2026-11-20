@@ -2,11 +2,14 @@ package revisions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -30,6 +33,27 @@ type observeChat struct {
 	id      pgtype.UUID
 	context string
 	retries pgtype.UUID
+}
+
+var errChatNotYours = errors.New("chat belongs to someone else")
+
+type chatSlot struct {
+	chat, turn pgtype.UUID
+}
+
+func ensureChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requesterID, chatID pgtype.UUID) (chatSlot, error) {
+	slot := chatSlot{chat: chatID}
+	if !chatID.Valid {
+		slot.chat = pgtype.UUID{Bytes: uuid.New(), Valid: true}
+		slot.turn = slot.chat
+	}
+	if _, err := q.EnsureChat(ctx, dbsqlc.EnsureChatParams{ID: slot.chat, OwnerKind: string(by.Kind), OwnerID: requesterID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return chatSlot{}, errChatNotYours
+		}
+		return chatSlot{}, fmt.Errorf("ensure chat: %w", err)
+	}
+	return slot, nil
 }
 
 func chatRoot(id, chat pgtype.UUID) pgtype.UUID {

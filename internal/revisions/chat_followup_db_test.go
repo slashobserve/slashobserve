@@ -32,8 +32,8 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.ChatID.Valid {
-		t.Fatalf("a first request has no chat_id of its own, got %v", first.ChatID)
+	if first.ChatID != first.ID {
+		t.Fatalf("a first request starts a chat under its own id, got %v", first.ChatID)
 	}
 	answerWith(t, d, first.ID, "Loki and Elasticsearch")
 
