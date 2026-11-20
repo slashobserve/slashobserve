@@ -48,6 +48,15 @@ export function insertNullsThresholdMs(
   return intervalMs > 0 ? intervalMs : undefined
 }
 
+export function breakingGaps<
+  T extends Pick<FieldConfig, "insertNulls" | "spanNulls">,
+>(config: T): T {
+  if (config.insertNulls !== undefined || config.spanNulls === true) {
+    return config
+  }
+  return { ...config, insertNulls: true }
+}
+
 export type Grid = { xs: number[]; columns: Cell[][] }
 
 export function insertGaps(
