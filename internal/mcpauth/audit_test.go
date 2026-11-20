@@ -302,7 +302,7 @@ func TestRevokingAnotherClientsTokenIsRecordedAsDeniedAndChangesNothing(t *testi
 func TestAnUnknownClientIdIsNeverStoredAsATarget(t *testing.T) {
 	r := newAuditedRig(t)
 	const junk = "client-chosen-text-"
-	long := junk + strings.Repeat("x", 400) + "‮"
+	long := junk + strings.Repeat("x", 400) + "\u202e"
 	form := exchangeForm(long, "soc_"+strings.Repeat("a", 43))
 	if rec := r.form("/oauth/token", form); rec.Code != http.StatusBadRequest && rec.Code != http.StatusUnauthorized {
 		t.Fatalf("token = %d: %s", rec.Code, rec.Body)
