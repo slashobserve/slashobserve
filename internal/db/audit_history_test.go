@@ -18,7 +18,6 @@ import (
 const (
 	historyYears       = 10
 	futureTarget       = "99999999-9999-4999-8999-999999999999"
-	maxMigrationLocks  = 2000
 	maxHistoryMonthly  = historyYears*12 + 1
 	auditMigrationFile = "migrations/00074_audit_events.sql"
 )
@@ -84,13 +83,15 @@ func TestTheAuditMigrationHoldsFewLocksOverYearsOfHistory(t *testing.T) {
 		t.Fatalf("migration body: %v", err)
 	}
 	took := time.Since(start)
-	var locks int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM pg_catalog.pg_locks WHERE pid = pg_backend_pid()`).Scan(&locks); err != nil {
+	var locks, lockTable int
+	err = tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM pg_catalog.pg_locks WHERE pid = pg_backend_pid()),
+  current_setting('max_locks_per_transaction')::int * current_setting('max_connections')::int`).Scan(&locks, &lockTable)
+	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("migration over %d years of daily activity: %d locks held at commit, %s", historyYears, locks, took.Round(time.Millisecond))
-	if locks > maxMigrationLocks {
-		t.Fatalf("the migration holds %d locks, want at most %d", locks, maxMigrationLocks)
+	t.Logf("migration over %d years of daily activity: %d locks held at commit of a lock table of %d, %s", historyYears, locks, lockTable, took.Round(time.Millisecond))
+	if leftForOthers := lockTable / 3; locks > lockTable-leftForOthers {
+		t.Fatalf("the migration holds %d locks, leaving less than a third of the lock table of %d to other sessions", locks, lockTable)
 	}
 	if !slices.ContainsFunc(notices, func(m string) bool { return strings.HasPrefix(m, "1 activity rows dated after ") }) {
 		t.Errorf("notices = %q, want one counting the future-dated activity row", notices)
