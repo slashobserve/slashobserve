@@ -6,9 +6,11 @@ import { sourceLanguage, type ExploreKind } from "./sources"
 export function SourceTitle({
   kind,
   source,
+  language = sourceLanguage(kind, source.type),
 }: {
   kind: ExploreKind
   source: DatasourceStatus
+  language?: string
 }) {
   return (
     <TopRowTitle>
@@ -17,7 +19,7 @@ export function SourceTitle({
           {source.name}
         </span>
         <span className="rounded-chip bg-muted px-1.5 text-xs text-muted-foreground">
-          {sourceLanguage(kind, source.type)}
+          {language}
         </span>
       </span>
     </TopRowTitle>

@@ -489,6 +489,8 @@ The rows show as a table with a column per selected column, paged like the searc
 The scatter, the statistics and **Compare** belong to the search, so the SQL view does not show them; switch back to **Search** and press **Search traces** to run the fields again.
 To draw the spans of one trace from your own SQL, use a traces panel on a dashboard or in an observation, whose query is SQL with `format: "table"` that returns `TraceId AS traceID`, `SpanId AS spanID`, `ParentSpanId AS parentSpanID`, `ServiceName AS serviceName`, `SpanName AS operationName`, `Timestamp AS startTime`, `Duration / 1000000 AS duration` in milliseconds and `SpanAttributes AS tags`.
 
+The label beside the source name in the top bar says **SQL** while the SQL view is open and **Search** otherwise, Ask included, because an answer fills the search fields.
+
 ### Results
 
 A count line above the results says how many traces are on the page.

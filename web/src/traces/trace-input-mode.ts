@@ -58,10 +58,15 @@ export function useTraceInputMode({
     setMode(next === "ask" ? "ask" : "code", remember)
   }
 
+  const sqlShown = clickhouse && shown === "code"
+
   return {
     shown,
     formMode,
-    sqlShown: clickhouse && shown === "code",
+    sqlShown,
+    language: clickhouse
+      ? clickhouseLabels[sqlShown ? "code" : "builder"]
+      : undefined,
     modes: clickhouse ? clickhouseModes : tempoModes,
     labels: clickhouse ? clickhouseLabels : tempoLabels,
     following: () => nextMode(shown, agentAvailable, clickhouse),
