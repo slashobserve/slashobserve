@@ -71,7 +71,8 @@ Removing one deletes its stored credentials for good, so add it again with the c
 
 ## Audit log
 
-Adding, changing and deleting a datasource is recorded as `datasource.created`, `datasource.updated` and `datasource.deleted` in the [Audit log](../use/activity.md), with the name, the address's host and port and what changed, the audience as its value before and after.
+Adding, changing and deleting a datasource is recorded as `datasource.created`, `datasource.updated` and `datasource.deleted` in the [Audit log](../use/activity.md), with the name, the address's host and port and what changed.
+A change of the audience is recorded on its own as `datasource.audience_changed`, with the audience before and after, and in the audit trail as `datasource.audience_change`.
 A credential and the address path are never recorded, only that credentials were replaced.
 Datasources from the datasources file are not recorded.
 

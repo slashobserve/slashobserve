@@ -99,10 +99,41 @@ func TestAnAudienceThatIsNeitherEveryoneNorAdminsIsRefusedByName(t *testing.T) {
 	}
 }
 
-func TestChangingTheAudienceIsRecordedWithBeforeAndAfter(t *testing.T) {
+type auditedEvent struct {
+	action, targetKind, targetID, actorID string
+	data                                  map[string]any
+}
+
+func (r *rig) audited(t *testing.T) []auditedEvent {
+	t.Helper()
+	rows, err := r.database.SQLDB(t).QueryContext(reading(t.Context()), `SELECT action, target_kind, target_id, actor_id::text, data::text FROM audit_events WHERE action LIKE 'datasource.%' ORDER BY activity_seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []auditedEvent
+	for rows.Next() {
+		var e auditedEvent
+		var raw string
+		if err := rows.Scan(&e.action, &e.targetKind, &e.targetID, &e.actorID, &raw); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(raw), &e.data); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestAnAudienceChangeIsRecordedOnceAsItsOwnAuditAction(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	def := prometheus("metrics", "https://prom.example.com")
-	if _, err := svc.Create(reading(t.Context()), r.admin, def, Secrets{}); err != nil {
+	created, err := svc.Create(reading(t.Context()), r.admin, def, Secrets{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	def.Audience = datasource.AudienceAdmins
@@ -111,17 +142,50 @@ func TestChangingTheAudienceIsRecordedWithBeforeAndAfter(t *testing.T) {
 	}
 
 	events := r.recorded(t)
-	if len(events) != 2 || events[1].Type != "datasource.updated" {
-		t.Fatalf("events = %+v", events)
+	if len(events) != 2 || events[1].Type != "datasource.audience_changed" {
+		t.Fatalf("activity = %+v", events)
 	}
-	updated := events[1].Data
-	changes, _ := updated["changes"].(map[string]any)
-	audience, _ := changes["audience"].(map[string]any)
-	if audience["from"] != "everyone" || audience["to"] != "admins" || len(changes) != 1 {
-		t.Fatalf("changes = %v", changes)
+	if got := events[1].Data; got["from"] != "everyone" || got["to"] != "admins" || got["uid"] != "metrics" || got["name"] != created.Definition.Name {
+		t.Fatalf("audience change data = %v", got)
 	}
-	if _, ok := updated["settings_changed"]; ok {
-		t.Fatalf("an audience change also counted as a settings change: %v", updated)
+	audited := r.audited(t)
+	if len(audited) != 2 || audited[0].action != "datasource.create" {
+		t.Fatalf("audit events = %+v", audited)
+	}
+	change := audited[1]
+	if change.action != "datasource.audience_change" || change.targetKind != "datasource" || change.actorID != r.admin.ID || change.data["from"] != "everyone" || change.data["to"] != "admins" {
+		t.Fatalf("audience change audit event = %+v", change)
+	}
+	if change.targetID == "" || change.targetID != audited[0].targetID {
+		t.Fatalf("audience change target %q, create target %q", change.targetID, audited[0].targetID)
+	}
+}
+
+func TestAChangeOfTheAudienceAndTheNameRecordsEachOnceWithTheAudienceOutOfTheUpdate(t *testing.T) {
+	r, svc := newRig(t, testKey)
+	def := prometheus("metrics", "https://prom.example.com")
+	if _, err := svc.Create(reading(t.Context()), r.admin, def, Secrets{}); err != nil {
+		t.Fatal(err)
+	}
+	def.Audience, def.Name = datasource.AudienceAdmins, "Metrics"
+	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", def, SecretsChange{}); err != nil {
+		t.Fatal(err)
+	}
+
+	audited := r.audited(t)
+	var actions []string
+	for _, e := range audited {
+		actions = append(actions, e.action)
+	}
+	if !slices.Equal(actions, []string{"datasource.create", "datasource.audience_change", "datasource.update"}) {
+		t.Fatalf("audit actions = %v", actions)
+	}
+	changes, _ := audited[2].data["changes"].(map[string]any)
+	if _, ok := changes["audience"]; ok || changes["name"] == nil || len(changes) != 1 {
+		t.Fatalf("update changes = %v", changes)
+	}
+	if _, ok := audited[2].data["settings_changed"]; ok {
+		t.Fatalf("an audience change also counted as a settings change: %v", audited[2].data)
 	}
 }
 

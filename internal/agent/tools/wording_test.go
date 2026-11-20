@@ -377,7 +377,7 @@ const agentToolTextCap = 2000
 
 var agentToolTextAllowances = map[string]int{
 	nameCreateComment: 2100,
-	nameListActivity:  3550,
+	nameListActivity:  3600,
 	nameQueryInstant:  2300,
 	nameUpdatePanels:  3700,
 }

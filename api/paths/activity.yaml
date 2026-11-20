@@ -34,7 +34,7 @@ activity:
       `mcp_client.connected` carries `client`, `person_id`, `person_name` and `mode`; `mcp_client.disconnected` also carries `reason`, one of `person`, `admin`, `client`, `code_reuse` or `refresh_reuse`;
       `outbound_domain.added` and `outbound_domain.removed` carry `domain`, and their target id is a UUID derived from the domain;
       `grafana_connection.created`, `grafana_connection.updated` and `grafana_connection.deleted` carry `name` and `host`, `grafana_connection.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `token_changed` when the token did, never the token.
-      `datasource.created`, `datasource.updated` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name`, `host` and `audience` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential.
+      `datasource.created`, `datasource.updated`, `datasource.audience_changed` and `datasource.deleted` carry `uid`, `type`, `name` and `host` (the address's host and port, never its path), `datasource.updated` carries `changes`, an object with `{from, to}` for each of `name` and `host` that changed, and `address_changed`, `settings_changed` and `credentials_changed` when they did, never a credential, and `datasource.audience_changed` carries the audience before and after as `from` and `to` (`everyone` or `admins`); a change of the audience and of anything else records both events.
       Suggestions and build progress are not recorded.
       The server deletes events older than `SLASHOBSERVE_ACTIVITY_RETENTION`, 180 days by default, so the list never reaches further back than that.
     parameters:
@@ -63,7 +63,7 @@ activity:
         explode: true
         schema:
           type: array
-          maxItems: 78
+          maxItems: 79
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since
@@ -157,7 +157,7 @@ activity-stream:
         explode: true
         schema:
           type: array
-          maxItems: 78
+          maxItems: 79
           items:
             $ref: "../openapi.yaml#/components/schemas/ActivityType"
       - name: since

@@ -30,6 +30,10 @@ export const auditKinds = [
   { value: "grafana_connection.deleted", label: "Grafana connection removed" },
   { value: "datasource.created", label: "Datasource added" },
   { value: "datasource.updated", label: "Datasource changed" },
+  {
+    value: "datasource.audience_changed",
+    label: "Datasource audience changed",
+  },
   { value: "datasource.deleted", label: "Datasource deleted" },
   { value: "public_link.created", label: "Public link created" },
   { value: "public_link.revoked", label: "Public link revoked" },
@@ -160,13 +164,15 @@ export function describeAuditEvent(event: ActivityEvent): string {
       return `Added ${quoted("datasource", name)} at ${str(data, "host")}`
     case "datasource.updated": {
       const parts = [
-        changes(data, ["name", "host", "audience"]),
+        changes(data, ["name", "host"]),
         data.address_changed === true ? "address changed" : "",
         data.settings_changed === true ? "settings changed" : "",
         data.credentials_changed === true ? "credentials replaced" : "",
       ].filter((part) => part !== "")
       return `Changed ${quoted("datasource", name)}: ${parts.join(", ")}`
     }
+    case "datasource.audience_changed":
+      return `Changed the audience of ${quoted("datasource", name)} from ${str(data, "from")} to ${str(data, "to")}`
     case "datasource.deleted":
       return `Deleted ${quoted("datasource", name)}`
     case "public_link.created":
