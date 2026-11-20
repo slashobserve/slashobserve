@@ -37,6 +37,7 @@ type exploreRequest struct {
 	Page          *int    `json:"page"`
 	Cursor        *string `json:"cursor"`
 	Sort          *string `json:"sort"`
+	AsWritten     *bool   `json:"as_written"`
 }
 
 func init() {
@@ -152,14 +153,22 @@ func (r exploreRequest) validate() (status int, code, message string) {
 	return 0, "", ""
 }
 
+func (r exploreRequest) unpagedRule() string {
+	switch {
+	case r.Page != nil || r.Cursor != nil:
+		return queryproxy.PageNeedsSize
+	case r.Sort != nil:
+		return queryproxy.SortNeedsSize
+	case r.AsWritten != nil:
+		return queryproxy.AsWrittenNeedsSize
+	}
+	return ""
+}
+
 func (r exploreRequest) pagingRule() string {
 	switch {
-	case r.PageSize == nil && (r.Page != nil || r.Cursor != nil):
-		return queryproxy.PageNeedsSize
-	case r.PageSize == nil && r.Sort != nil:
-		return queryproxy.SortNeedsSize
 	case r.PageSize == nil:
-		return ""
+		return r.unpagedRule()
 	case r.Kind == string(queryproxy.KindRange):
 		return queryproxy.PagingIsInstant
 	case r.Limit != nil:
@@ -191,6 +200,7 @@ func (r exploreRequest) pageParams(uid string, rng datasource.TimeRange, user da
 	if r.Sort != nil {
 		p.Sort = *r.Sort
 	}
+	p.AsWritten = r.AsWritten != nil && *r.AsWritten
 	return p
 }
 

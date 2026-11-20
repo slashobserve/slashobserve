@@ -219,7 +219,11 @@ func requestControlError(err error, id string) error {
 		return err
 	}
 	if api.status == http.StatusForbidden {
-		return fmt.Errorf("only the requester can cancel or continue %s", id)
+		message := "only the requester can cancel or continue " + id
+		if api.code != "" {
+			message += " (" + api.code + ")"
+		}
+		return errors.New(message)
 	}
 	if api.status != http.StatusConflict {
 		return err

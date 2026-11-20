@@ -11665,6 +11665,11 @@ export interface operations {
                     cursor?: string;
                     /** @description A result column to sort the whole result by before it is paged, with a leading minus for descending, such as `-Duration`. Needs `page_size`, applies to ClickHouse only and answers 422 `query_invalid` when the column is not in the result. Without it rows come newest first. */
                     sort?: string;
+                    /**
+                     * @description ClickHouse only: returns the rows as the query wrote them, with its own `ORDER BY`, `LIMIT` and columns and no `TimeNs` field, even when it selects `Timestamp`; a `LIMIT` above `page_size` is paged and never raised, and the query must read the time range through a macro such as `$__timeFilter(Timestamp)`. Without it a query that selects `Timestamp` comes back as log lines, newest first. Needs `page_size`.
+                     * @default false
+                     */
+                    as_written?: boolean;
                 };
             };
         };

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -138,6 +139,69 @@ func TestPageReadsAQueryWithoutTimestampAsAPlainTable(t *testing.T) {
 	}
 	if strings.Contains(conn.statements[1], "`Timestamp`") || strings.Contains(conn.statements[2], "`Timestamp`") {
 		t.Fatalf("a plain page filters or orders by Timestamp: %q", conn.statements[1:])
+	}
+}
+
+func asWrittenPage(t *testing.T, text string, rows [][]any) (*pageConn, []datasource.Frame, datasource.PageInfo) {
+	t.Helper()
+	columns := []fakeColumn{{"Timestamp", "DateTime64(9)"}, {"SpanName", "String"}, {"Duration", "UInt64"}}
+	conn := &pageConn{fakeConn: &fakeConn{columns: columns, rows: rows}, total: uint64(len(rows))}
+	req := pageRequest(text, 1, 50)
+	req.AsWritten = true
+	frames, info, err := pageDatasource(conn).QueryPage(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return conn, frames, info
+}
+
+func TestPageAsWrittenKeepsTheOrderLimitAndColumnsOfAQueryThatSelectsTimestamp(t *testing.T) {
+	text := "SELECT Timestamp, SpanName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC LIMIT 3"
+	rows := [][]any{
+		{linesStart, "a", uint64(30)},
+		{linesStart.Add(time.Second), "b", uint64(20)},
+		{linesStart.Add(2 * time.Second), "c", uint64(10)},
+	}
+	conn, frames, info := asWrittenPage(t, text, rows)
+	for _, sql := range conn.statements[1:] {
+		if !strings.Contains(sql, "ORDER BY Duration DESC LIMIT 3") {
+			t.Fatalf("statement lost the person's ORDER BY and LIMIT: %q", sql)
+		}
+		if strings.Contains(sql, "`Timestamp` >=") || strings.Contains(sql, "ORDER BY `Timestamp`") {
+			t.Fatalf("statement reorders or refilters by Timestamp: %q", sql)
+		}
+	}
+	var names []string
+	for _, f := range frames[0].Fields {
+		names = append(names, f.Name)
+	}
+	if want := []string{"Timestamp", "SpanName", "Duration"}; !reflect.DeepEqual(names, want) {
+		t.Fatalf("columns = %v, want %v", names, want)
+	}
+	if !info.Plain || info.Total != 3 || info.HasNext {
+		t.Fatalf("info = %+v, want a plain page of the 3 rows the query asked for", info)
+	}
+}
+
+func TestPageAsWrittenStillRefusesAQueryThatDoesNotReadTheRange(t *testing.T) {
+	conn := &pageConn{fakeConn: &fakeConn{columns: logColumns, rows: logLines(1)}, total: 1}
+	req := pageRequest("SELECT Timestamp, Body FROM otel_logs LIMIT 3", 1, 50)
+	req.AsWritten = true
+	_, _, err := pageDatasource(conn).QueryPage(context.Background(), req)
+	if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "$__timeFilter") {
+		t.Fatalf("err = %v, want an invalid query error naming the macro", err)
+	}
+}
+
+func TestPageWithoutAsWrittenStillAddsTimeNsToATimestampResult(t *testing.T) {
+	conn := &pageConn{fakeConn: &fakeConn{columns: logColumns, rows: logLines(2)}, total: 2}
+	frames, _, err := pageDatasource(conn).QueryPage(context.Background(), pageRequest(webLogsTemplate, 1, 50))
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := frames[0].Fields[len(frames[0].Fields)-1]
+	if last.Name != datasource.TimeNsFieldName {
+		t.Fatalf("last field = %q, want %s", last.Name, datasource.TimeNsFieldName)
 	}
 }
 

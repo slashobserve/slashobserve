@@ -24,7 +24,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		frames []datasource.Frame
 		info   datasource.PageInfo
 	)
-	err := d.readLines(ctx, req.Query, req.Range, false, func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error {
+	err := d.readLines(ctx, req.Query, req.Range, pageMode(req), func(ctx context.Context, inner string, lim datasource.Limits, extra ch.Settings, timed bool) error {
 		lim.MaxRows = min(req.PageSize, lim.MaxRows)
 		if req.Sort != nil {
 			if err := d.requireSortColumn(ctx, inner, lim, extra, req.Sort.Column); err != nil {
@@ -50,12 +50,23 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		if !ok {
 			return datasource.Errorf(datasource.ErrUnavailable, "the count query returned no number")
 		}
-		frames = []datasource.Frame{rs.tableFrame()}
+		frame := rs.columnsFrame()
+		if timed {
+			frame = rs.tableFrame()
+		}
+		frames = []datasource.Frame{frame}
 		info = pageInfo(page, req.PageSize, offset, len(rs.rows), total)
 		info.Plain = !timed
 		return nil
 	})
 	return frames, info, err
+}
+
+func pageMode(req datasource.PageRequest) readMode {
+	if req.AsWritten {
+		return readAsWritten
+	}
+	return readPaged
 }
 
 func pageInfo(page, pageSize, offset, rows, total int) datasource.PageInfo {

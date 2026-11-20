@@ -17,6 +17,8 @@ type exploreRequest struct {
 	PageSize int    `json:"page_size,omitempty"`
 	Page     int    `json:"page,omitempty"`
 	Sort     string `json:"sort,omitempty"`
+
+	AsWritten bool `json:"as_written,omitempty"`
 }
 
 type frameField struct {

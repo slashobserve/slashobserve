@@ -11,17 +11,18 @@ import (
 )
 
 const (
-	NotPageSource    = "paging reads logs and trace datasources"
-	PageNeedsCursor  = "this datasource pages by cursor; pass the cursor of the previous page"
-	PagingIsInstant  = "paging applies to instant queries"
-	LimitWithPage    = "limit and page_size cannot both be given"
-	PageNeedsSize    = "page and cursor need page_size"
-	PageSizeOutside  = "page_size must be from 50 to 500"
-	PageBelowOne     = "page must be at least 1"
-	CursorTooLong    = "cursor must be at most 2 KiB"
-	PageWalkSentence = "pass next as cursor for more"
-	SortNeedsSize    = "sort needs page_size"
-	SortUnsupported  = "sort applies to ClickHouse datasources; this datasource pages in its own order"
+	NotPageSource      = "paging reads logs and trace datasources"
+	PageNeedsCursor    = "this datasource pages by cursor; pass the cursor of the previous page"
+	PagingIsInstant    = "paging applies to instant queries"
+	LimitWithPage      = "limit and page_size cannot both be given"
+	PageNeedsSize      = "page and cursor need page_size"
+	PageSizeOutside    = "page_size must be from 50 to 500"
+	PageBelowOne       = "page must be at least 1"
+	CursorTooLong      = "cursor must be at most 2 KiB"
+	PageWalkSentence   = "pass next as cursor for more"
+	SortNeedsSize      = "sort needs page_size"
+	AsWrittenNeedsSize = "as_written needs page_size"
+	SortUnsupported    = "sort applies to ClickHouse datasources; this datasource pages in its own order"
 
 	MoreRowsNote = "more rows exist than were returned; repeat with page_size to read them in pages, or narrow from and to"
 	NarrowNote   = "more rows exist than were returned; narrow from and to"
@@ -57,6 +58,8 @@ type PageParams struct {
 	PageSize int
 	Cursor   string
 	Sort     string
+
+	AsWritten bool
 }
 
 type PageResult struct {
@@ -81,7 +84,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 		return PageResult{}, invalidPage(NotPageSource)
 	}
 	scope := datasource.CursorScope(p.UID, p.Query.Text)
-	req := datasource.PageRequest{Query: p.Query, Range: p.Range, Page: max(p.Page, 1), PageSize: p.PageSize}
+	req := datasource.PageRequest{Query: p.Query, Range: p.Range, Page: max(p.Page, 1), PageSize: p.PageSize, AsWritten: p.AsWritten}
 	sort, err := pageSort(source, p.Sort)
 	if err != nil {
 		return PageResult{}, err
