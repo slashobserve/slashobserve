@@ -19,7 +19,15 @@ const (
 	statementLead = 64
 )
 
-var failedAtPosition = regexp.MustCompile(`failed at position (\d+)`)
+var (
+	failedAtPosition = regexp.MustCompile(`failed at position (\d+)`)
+	echoedStatement  = regexp.MustCompile(`(?s)failed at position \d+ \(.*?\) \(line \d+, col \d+\): .*?(\. Expected|$)`)
+	echoReplacement  = "failed to parse the query$1"
+)
+
+func withoutEchoedStatement(message string) string {
+	return echoedStatement.ReplaceAllString(message, echoReplacement)
+}
 
 type sentError struct {
 	err       error
@@ -54,13 +62,13 @@ func locateSyntax(message, statement, original string, exp macros.Expansion) str
 	}
 	position, err := strconv.Atoi(message[m[2]:m[3]])
 	if err != nil {
-		return message
+		return withoutEchoedStatement(message)
 	}
 	expanded := strings.TrimRightFunc(exp.Text, unicode.IsSpace)
 	body := strings.TrimLeftFunc(expanded, unicode.IsSpace)
 	start := strings.Index(statement, body[:min(len(body), statementLead)])
 	if start < 0 || body == "" {
-		return message
+		return withoutEchoedStatement(message)
 	}
 	offset := position - 1 - start + len(expanded) - len(body)
 	head, tail := message[:m[0]], ""

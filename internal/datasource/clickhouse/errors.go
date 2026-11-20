@@ -79,7 +79,7 @@ func safeMessage(ex *ch.Exception, fallback string) string {
 	if datasource.NamesAddress(ex.Message) {
 		return fallback
 	}
-	return truncate(withoutScope(ex.Message))
+	return truncate(withoutScope(withoutEchoedStatement(ex.Message)))
 }
 
 func withoutScope(message string) string {

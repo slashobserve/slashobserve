@@ -119,3 +119,34 @@ func TestASyntaxErrorWithoutAPositionIsLeftAsTheDatabaseSaidIt(t *testing.T) {
 		t.Fatalf("got %q, want the message unchanged", got)
 	}
 }
+
+func TestLintShowsOnlyThePersonsTextAndPositionOfASyntaxError(t *testing.T) {
+	query := "SELECT TraceId\nFROM otel_traces WHERE ) AND $__timeFilter(Timestamp)"
+	d := syntaxDatasource(func(s string) (int, bool) {
+		return strings.Index(s, ") AND"), strings.HasPrefix(s, explainSyntax)
+	})
+	diags, err := d.Lint(context.Background(), query)
+	if err != nil || len(diags) != 1 {
+		t.Fatalf("Lint = %+v, %v", diags, err)
+	}
+	want := `Syntax error: failed at line 2, column 24 of the query, near ")". Expected one of: BY, token`
+	if diags[0].Message != want {
+		t.Fatalf("message %q, want %q", diags[0].Message, want)
+	}
+	if got := query[diags[0].Start:diags[0].End]; !strings.HasPrefix(got, ")") {
+		t.Fatalf("range %d-%d covers %q", diags[0].Start, diags[0].End, got)
+	}
+}
+
+func TestASyntaxErrorThatCannotBeLocatedDoesNotEchoTheExpandedStatement(t *testing.T) {
+	message := "Syntax error: failed at position 60 () (line 2, col 22): ) AND (Timestamp >= fromUnixTimestamp64Milli(toInt64(1795163735263), 'UTC')\nLIMIT 1. Expected one of: BY, token"
+	got := locateSyntax(message, "unrelated", "SELECT 1", macros.Expansion{Text: "SELECT 1"})
+	want := "Syntax error: failed to parse the query. Expected one of: BY, token"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	got = messageOf(mapException(&ch.Exception{Code: syntaxErrorCode, Message: message}))
+	if got != want {
+		t.Fatalf("mapped %q, want %q", got, want)
+	}
+}

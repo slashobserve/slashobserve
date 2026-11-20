@@ -135,7 +135,7 @@ func (h *Handler) volume(c *gin.Context) {
 
 var (
 	pipelineFailure = regexp.MustCompile(`pipeline error: '([A-Za-z]+)'`)
-	wrapperPosition = regexp.MustCompile(`parse error at line \d+, col \d+|failed at (?:position \d+|line \d+, column \d+ of the query|the end of the query)|fromUnixTimestamp64Milli`)
+	wrapperPosition = regexp.MustCompile(`parse error at line \d+, col \d+|failed (?:at (?:position \d+|line \d+, column \d+ of the query|the end of the query)|to parse the query)|fromUnixTimestamp64Milli`)
 )
 
 func volumeProblem(err error) error {
