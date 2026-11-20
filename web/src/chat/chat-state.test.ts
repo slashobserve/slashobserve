@@ -129,9 +129,24 @@ describe("chatOutcome", () => {
       "Revised Checkout",
     ],
     [
-      "a saved version with no dashboard title",
+      "a saved version with no dashboard",
       { dashboard_title: null, result_version: 3 },
       "Saved version 3",
+    ],
+    [
+      "a new dashboard whose title the caller cannot read",
+      { source: "observe", dashboard_id: "d1", dashboard_title: null },
+      "Saved a dashboard",
+    ],
+    [
+      "a revision whose dashboard the caller cannot read",
+      {
+        source: "prompt",
+        dashboard_id: "d1",
+        dashboard_title: null,
+        result_version: 3,
+      },
+      "Revised a dashboard",
     ],
     [
       "a partial version",

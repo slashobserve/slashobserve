@@ -37,10 +37,11 @@ export function statesFor(filter: ChatStateFilter): RequestSummary["state"][] {
 }
 
 function savedText(request: RequestSummary): string {
-  if (request.dashboard_title === null) return requestStatusView(request).text
-  return request.source === "observe"
-    ? `Saved ${request.dashboard_title}`
-    : `Revised ${request.dashboard_title}`
+  if (request.dashboard_id === null && request.dashboard_title === null) {
+    return requestStatusView(request).text
+  }
+  const verb = request.source === "observe" ? "Saved" : "Revised"
+  return `${verb} ${request.dashboard_title ?? "a dashboard"}`
 }
 
 function observationOutcome(request: RequestSummary): string {
