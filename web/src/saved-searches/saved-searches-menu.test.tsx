@@ -12,6 +12,13 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useNavigate: () => navigate,
 }))
 
+const viewerPermissions = {
+  comment: false,
+  edit: false,
+  manage: false,
+  create: false,
+}
+
 function saved(id: string, title: string, personal = false) {
   return {
     id,
@@ -65,6 +72,17 @@ describe("SavedSearchesMenu", () => {
       "Slow paymentsMy Dashboards",
     ])
     expect(requests[0].searchParams.get("kind")).toBe("logs")
+  })
+
+  it("opens and lists a search the caller may only view", async () => {
+    stubServer([
+      { ...saved("s1", "Checkout errors"), permissions: viewerPermissions },
+    ])
+    const { user } = renderWithProviders(<SavedSearchesMenu kind="logs" />)
+    await user.click(screen.getByRole("combobox", { name: "Saved searches" }))
+    expect(
+      await screen.findByRole("option", { name: /Checkout errors/ })
+    ).toBeVisible()
   })
 
   it("names the chevron and keeps it out of the tab order", () => {
