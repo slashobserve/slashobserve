@@ -22,6 +22,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | Tool | Lowest role |
 | ---- | ----------- |
 | `add_block` | Viewer |
+| `aggregate_audit_events` | Admin |
 | `archive_run` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
@@ -39,6 +40,8 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
+| `get_audit_event` | Admin |
+| `get_audit_histogram` | Admin |
 | `get_dashboard` | Viewer |
 | `get_home_dashboard` | Viewer |
 | `get_observation` | Viewer |
@@ -57,6 +60,8 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_access_requests` | Viewer |
 | `list_activity` | Viewer |
 | `list_annotations` | Viewer |
+| `list_audit_facets` | Admin |
+| `list_audit_fields` | Admin |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
@@ -106,6 +111,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `sample_rows` | Viewer |
 | `save_run_answer` | Viewer |
 | `save_search` | Viewer |
+| `search_audit_events` | Admin |
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
 | `set_inbox_item_done` | Viewer |
@@ -379,6 +385,10 @@ The built-in agent has the same tool.
 `list_activity` lists the [activity](activity.md) of the workspace, newest first: dashboard saves, restores, moves and deletes, annotations, findings and agent runs, each with its `actor` and the actor's `label`.
 Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since` and `until` (RFC 3339), 50 per page by default and at most 100, and page with `next_cursor`.
 It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's, and `scope: "admin"` lists only those, and it is over MCP only, so the built-in agent does not have it.
+
+The six audit tools read the [audit trail](../reference/audit-queries.md) and need an Admin: `search_audit_events` (20 events a call by default, at most 100, paged with `next_cursor`), `get_audit_event` (one event with the events of its request and agent run), `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
+They take `q` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 31 days.
+Each call is recorded in the trail as `audit.search`, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
 Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter` (`open` by default, `unread` for the open items that are unread, `done` for the items marked done), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.

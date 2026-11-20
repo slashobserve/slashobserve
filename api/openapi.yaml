@@ -60,6 +60,20 @@ paths:
     $ref: "./paths/activity.yaml#/activity"
   /activity/stream:
     $ref: "./paths/activity.yaml#/activity-stream"
+  /audit/events:
+    $ref: "./paths/audit.yaml#/audit-events"
+  /audit/events/{id}:
+    $ref: "./paths/audit.yaml#/audit-events-id"
+  /audit/facets:
+    $ref: "./paths/audit.yaml#/audit-facets"
+  /audit/histogram:
+    $ref: "./paths/audit.yaml#/audit-histogram"
+  /audit/aggregate:
+    $ref: "./paths/audit.yaml#/audit-aggregate"
+  /audit/fields:
+    $ref: "./paths/audit.yaml#/audit-fields"
+  /audit/export:
+    $ref: "./paths/audit.yaml#/audit-export"
   /search:
     $ref: "./paths/search.yaml#/search"
   /annotations:
@@ -7333,6 +7347,366 @@ components:
           minimum: 2
           nullable: true
           description: The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation.
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      description: One recorded action, with who did it, through what, to what and how it ended.
+      required: [id, seq, occurred_at, category, action, outcome, reason, status, duration_ms, actor_kind, actor_id, actor_name, actor_role, initiator, agent_id, agent_name, run_id, auth_method, credential_id, origin, origin_client, tool, client_ip, user_agent, request_id, trace_id, http_method, route, target_kind, target_id, target_name, folder_id, dashboard_id, observation_id, thread_id, chat_id, datasource_uid, data, server_id, server_version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        occurred_at:
+          type: string
+          format: date-time
+        category:
+          type: string
+          enum: [auth, access, content, conversation, agent, query, admin, system]
+        action:
+          type: string
+        outcome:
+          type: string
+          enum: [success, denied, failed, unknown]
+        reason:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          nullable: true
+        duration_ms:
+          type: integer
+          nullable: true
+        actor_kind:
+          type: string
+          enum: [user, service_account, anonymous, system]
+        actor_id:
+          type: string
+          format: uuid
+          nullable: true
+        actor_name:
+          type: string
+          nullable: true
+        actor_role:
+          type: string
+          nullable: true
+        initiator:
+          type: string
+          enum: [person, agent, system]
+        agent_id:
+          type: string
+          format: uuid
+          nullable: true
+        agent_name:
+          type: string
+          nullable: true
+        run_id:
+          type: string
+          format: uuid
+          nullable: true
+        auth_method:
+          type: string
+          nullable: true
+        credential_id:
+          type: string
+          nullable: true
+        origin:
+          type: string
+          enum: [web, cli, mcp, api, agent, job, provision]
+        origin_client:
+          type: string
+          nullable: true
+        tool:
+          type: string
+          nullable: true
+        client_ip:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+          nullable: true
+        request_id:
+          type: string
+          format: uuid
+          nullable: true
+        trace_id:
+          type: string
+          nullable: true
+        http_method:
+          type: string
+          nullable: true
+        route:
+          type: string
+          nullable: true
+        target_kind:
+          type: string
+          nullable: true
+        target_id:
+          type: string
+          nullable: true
+        target_name:
+          type: string
+          nullable: true
+        folder_id:
+          type: string
+          format: uuid
+          nullable: true
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+        observation_id:
+          type: string
+          format: uuid
+          nullable: true
+        thread_id:
+          type: string
+          format: uuid
+          nullable: true
+        chat_id:
+          type: string
+          format: uuid
+          nullable: true
+        datasource_uid:
+          type: string
+          nullable: true
+        data:
+          type: object
+          additionalProperties: true
+          description: The action's own fields, as the audit catalog declares them; never secrets, prompt, comment or query text.
+        server_id:
+          type: string
+        server_version:
+          type: string
+    AuditEventList:
+      type: object
+      additionalProperties: false
+      required: [events, next_cursor, form, since, until]
+      properties:
+        events:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        next_cursor:
+          type: string
+          nullable: true
+        form:
+          type: string
+          enum: [kql, lucene, dsl]
+          description: The form `q` was read in.
+        since:
+          type: string
+          format: date-time
+          description: The resolved start of the window, inclusive.
+        until:
+          type: string
+          format: date-time
+          description: The resolved end of the window, exclusive.
+    AuditEventDetail:
+      type: object
+      additionalProperties: false
+      required: [event, same_request, same_run]
+      properties:
+        event:
+          $ref: "#/components/schemas/AuditEvent"
+        same_request:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        same_run:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+    AuditFacets:
+      type: object
+      additionalProperties: false
+      required: [field, values, form, since, until]
+      properties:
+        field:
+          type: string
+        values:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [value, count]
+            properties:
+              value:
+                type: string
+              count:
+                type: integer
+                format: int64
+        form:
+          type: string
+          enum: [kql, lucene, dsl]
+          description: The form `q` was read in.
+        since:
+          type: string
+          format: date-time
+          description: The resolved start of the window, inclusive.
+        until:
+          type: string
+          format: date-time
+          description: The resolved end of the window, exclusive.
+    AuditHistogram:
+      type: object
+      additionalProperties: false
+      required: [step_ms, total, buckets, form, since, until]
+      properties:
+        step_ms:
+          type: integer
+          format: int64
+          description: The width of each bucket in milliseconds.
+        total:
+          type: integer
+          format: int64
+          description: The matching events in the window.
+        buckets:
+          type: array
+          maxItems: 201
+          items:
+            type: object
+            additionalProperties: false
+            required: [time, count]
+            properties:
+              time:
+                type: string
+                format: date-time
+                description: The start of the bucket.
+              count:
+                type: integer
+                format: int64
+        form:
+          type: string
+          enum: [kql, lucene, dsl]
+          description: The form `q` was read in.
+        since:
+          type: string
+          format: date-time
+          description: The resolved start of the window, inclusive.
+        until:
+          type: string
+          format: date-time
+          description: The resolved end of the window, exclusive.
+    AuditAggregation:
+      type: object
+      additionalProperties: false
+      required: [levels, metrics, rows, truncated, form, since, until]
+      properties:
+        levels:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, type, field]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [date_histogram, terms]
+              field:
+                type: string
+        metrics:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, type, key]
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              key:
+                type: string
+                nullable: true
+                description: The percentile of a `percentiles` value, such as `95`; null for other metrics.
+        rows:
+          type: array
+          maxItems: 100000
+          items:
+            type: object
+            additionalProperties: false
+            required: [keys, doc_count, values]
+            properties:
+              keys:
+                type: array
+                items:
+                  type: string
+                  nullable: true
+              doc_count:
+                type: integer
+                format: int64
+              values:
+                type: array
+                items:
+                  type: number
+                  nullable: true
+        truncated:
+          type: boolean
+          description: True when the rows stop at the limit and more exist.
+        form:
+          type: string
+          enum: [kql, lucene, dsl]
+          description: The form `q` was read in.
+        since:
+          type: string
+          format: date-time
+          description: The resolved start of the window, inclusive.
+        until:
+          type: string
+          format: date-time
+          description: The resolved end of the window, exclusive.
+    AuditFieldList:
+      type: object
+      additionalProperties: false
+      required: [fields]
+      properties:
+        fields:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, alias, type, description, values]
+            properties:
+              name:
+                type: string
+              alias:
+                type: string
+                nullable: true
+              type:
+                type: string
+                enum: [text, enum, int, uuid, ip, date, target]
+              description:
+                type: string
+              values:
+                type: array
+                items:
+                  type: string
+                description: The values of an `enum` field; empty for the others.
+    AuditQueryError:
+      type: object
+      additionalProperties: false
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [query_invalid, query_timeout]
+        start:
+          type: integer
+          description: For a parse error, the byte offset in `q` where the problem starts.
+        end:
+          type: integer
+          description: For a parse error, the byte offset in `q` where the problem ends.
   headers:
     Deprecation:
       description: >-

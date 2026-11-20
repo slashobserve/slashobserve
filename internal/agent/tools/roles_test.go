@@ -7,7 +7,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
-var roleFloors = map[string]auth.Role{nameSaveFinding: auth.RoleEditor, nameRunDashboardHealth: auth.RoleAdmin}
+var roleFloors = map[string]auth.Role{
+	nameSaveFinding: auth.RoleEditor, nameRunDashboardHealth: auth.RoleAdmin,
+	nameSearchAuditEvents: auth.RoleAdmin, nameGetAuditEvent: auth.RoleAdmin, nameListAuditFacets: auth.RoleAdmin,
+	nameGetAuditHistogram: auth.RoleAdmin, nameAggregateAuditEvents: auth.RoleAdmin, nameListAuditFields: auth.RoleAdmin,
+}
 
 func TestToolRoles(t *testing.T) {
 	for _, tool := range newTestRegistry(t, &fakeDS{}, nil).List() {

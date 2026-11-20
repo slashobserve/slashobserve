@@ -25,11 +25,14 @@ const (
 	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
 	viaApply            = "observe dashboards apply saves a spec file as a new dashboard or a new version through provision/apply, which is keyed by the file path, so a retried write does not duplicate"
 	presenceReport      = "an open dashboard page reports itself every 20 seconds, for people only; agents and the CLI read who is looking with list_dashboard_viewers and observe dashboards viewers"
+	auditFileExport     = "an audit export is a file of up to a million rows for a person to keep; an MCP answer holds at most 16 KiB, so agents page the same events with search_audit_events"
 	notBuilt            = "no tool or command yet"
 )
 
 var exceptions = map[string]exception{
 	"runAction": {MCP: panelActions, CLI: panelActions},
+
+	"exportAuditEvents": {MCP: auditFileExport},
 
 	"deleteAnnotation": {MCP: noMCPDeletes},
 	"deleteMessage":    {MCP: noMCPDeletes},

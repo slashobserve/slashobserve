@@ -556,6 +556,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search the audit trail, newest first.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise. Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages. Every call is itself recorded as `audit.search` with the query form, the window and the row count, never the query text.
+         */
+        get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one audit event with the other events of its request and its agent run.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself. Recorded as `audit.search` with the event as its target.
+         */
+        get: operations["getAuditEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count the top values of one field among the matching audit events.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted. Recorded as `audit.search`.
+         */
+        get: operations["listAuditFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/histogram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count the matching audit events over time.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first. Recorded as `audit.search`.
+         */
+        get: operations["getAuditHistogram"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run the aggs of a Query DSL body over the matching audit events.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level. Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`. An aggregation that would produce more than 100,000 rows is refused with its reason. Recorded as `audit.search`.
+         */
+        get: operations["aggregateAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the fields an audit query can use.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Each field has its name, an optional shorter alias, its type, what it holds and, for an enum, its values, for autocomplete and for agents writing a query.
+         */
+        get: operations["listAuditFields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the matching audit events as NDJSON or CSV.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Streams the events in the window that match `q`, newest first, one JSON object per line in the shape of `listAuditEvents`, or CSV with a header row and `data` as JSON text. An export stops at 1,000,000 rows, the value of the `X-Export-Row-Limit` header; narrow the window to read more. Recorded as `audit.export` with the query form, the window, the format and the row count, never the query text.
+         */
+        get: operations["exportAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/search": {
         parameters: {
             query?: never;
@@ -7669,6 +7811,209 @@ export interface components {
             /** @description The number of the newest revision when a newer one has been published since this one, otherwise null. It tells a reader of an old link that the conclusion may have changed; it leaks nothing of the live observation. */
             superseded_by: number | null;
         };
+        /** @description One recorded action, with who did it, through what, to what and how it ended. */
+        AuditEvent: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            seq: number;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @enum {string} */
+            category: "auth" | "access" | "content" | "conversation" | "agent" | "query" | "admin" | "system";
+            action: string;
+            /** @enum {string} */
+            outcome: "success" | "denied" | "failed" | "unknown";
+            reason: string | null;
+            status: number | null;
+            duration_ms: number | null;
+            /** @enum {string} */
+            actor_kind: "user" | "service_account" | "anonymous" | "system";
+            /** Format: uuid */
+            actor_id: string | null;
+            actor_name: string | null;
+            actor_role: string | null;
+            /** @enum {string} */
+            initiator: "person" | "agent" | "system";
+            /** Format: uuid */
+            agent_id: string | null;
+            agent_name: string | null;
+            /** Format: uuid */
+            run_id: string | null;
+            auth_method: string | null;
+            credential_id: string | null;
+            /** @enum {string} */
+            origin: "web" | "cli" | "mcp" | "api" | "agent" | "job" | "provision";
+            origin_client: string | null;
+            tool: string | null;
+            client_ip: string | null;
+            user_agent: string | null;
+            /** Format: uuid */
+            request_id: string | null;
+            trace_id: string | null;
+            http_method: string | null;
+            route: string | null;
+            target_kind: string | null;
+            target_id: string | null;
+            target_name: string | null;
+            /** Format: uuid */
+            folder_id: string | null;
+            /** Format: uuid */
+            dashboard_id: string | null;
+            /** Format: uuid */
+            observation_id: string | null;
+            /** Format: uuid */
+            thread_id: string | null;
+            /** Format: uuid */
+            chat_id: string | null;
+            datasource_uid: string | null;
+            /** @description The action's own fields, as the audit catalog declares them; never secrets, prompt, comment or query text. */
+            data: {
+                [key: string]: unknown;
+            };
+            server_id: string;
+            server_version: string;
+        };
+        AuditEventList: {
+            events: components["schemas"]["AuditEvent"][];
+            next_cursor: string | null;
+            /**
+             * @description The form `q` was read in.
+             * @enum {string}
+             */
+            form: "kql" | "lucene" | "dsl";
+            /**
+             * Format: date-time
+             * @description The resolved start of the window, inclusive.
+             */
+            since: string;
+            /**
+             * Format: date-time
+             * @description The resolved end of the window, exclusive.
+             */
+            until: string;
+        };
+        AuditEventDetail: {
+            event: components["schemas"]["AuditEvent"];
+            same_request: components["schemas"]["AuditEvent"][];
+            same_run: components["schemas"]["AuditEvent"][];
+        };
+        AuditFacets: {
+            field: string;
+            values: {
+                value: string;
+                /** Format: int64 */
+                count: number;
+            }[];
+            /**
+             * @description The form `q` was read in.
+             * @enum {string}
+             */
+            form: "kql" | "lucene" | "dsl";
+            /**
+             * Format: date-time
+             * @description The resolved start of the window, inclusive.
+             */
+            since: string;
+            /**
+             * Format: date-time
+             * @description The resolved end of the window, exclusive.
+             */
+            until: string;
+        };
+        AuditHistogram: {
+            /**
+             * Format: int64
+             * @description The width of each bucket in milliseconds.
+             */
+            step_ms: number;
+            /**
+             * Format: int64
+             * @description The matching events in the window.
+             */
+            total: number;
+            buckets: {
+                /**
+                 * Format: date-time
+                 * @description The start of the bucket.
+                 */
+                time: string;
+                /** Format: int64 */
+                count: number;
+            }[];
+            /**
+             * @description The form `q` was read in.
+             * @enum {string}
+             */
+            form: "kql" | "lucene" | "dsl";
+            /**
+             * Format: date-time
+             * @description The resolved start of the window, inclusive.
+             */
+            since: string;
+            /**
+             * Format: date-time
+             * @description The resolved end of the window, exclusive.
+             */
+            until: string;
+        };
+        AuditAggregation: {
+            levels: {
+                name: string;
+                /** @enum {string} */
+                type: "date_histogram" | "terms";
+                field: string;
+            }[];
+            metrics: {
+                name: string;
+                type: string;
+                /** @description The percentile of a `percentiles` value, such as `95`; null for other metrics. */
+                key: string | null;
+            }[];
+            rows: {
+                keys: (string | null)[];
+                /** Format: int64 */
+                doc_count: number;
+                values: (number | null)[];
+            }[];
+            /** @description True when the rows stop at the limit and more exist. */
+            truncated: boolean;
+            /**
+             * @description The form `q` was read in.
+             * @enum {string}
+             */
+            form: "kql" | "lucene" | "dsl";
+            /**
+             * Format: date-time
+             * @description The resolved start of the window, inclusive.
+             */
+            since: string;
+            /**
+             * Format: date-time
+             * @description The resolved end of the window, exclusive.
+             */
+            until: string;
+        };
+        AuditFieldList: {
+            fields: {
+                name: string;
+                alias: string | null;
+                /** @enum {string} */
+                type: "text" | "enum" | "int" | "uuid" | "ip" | "date" | "target";
+                description: string;
+                /** @description The values of an `enum` field; empty for the others. */
+                values: string[];
+            }[];
+        };
+        AuditQueryError: {
+            error: string;
+            /** @enum {string} */
+            code: "query_invalid" | "query_timeout";
+            /** @description For a parse error, the byte offset in `q` where the problem starts. */
+            start?: number;
+            /** @description For a parse error, the byte offset in `q` where the problem ends. */
+            end?: number;
+        };
     };
     responses: {
         /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
@@ -9051,6 +9396,382 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`. Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples. */
+                q?: string;
+                /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
+                since?: string;
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                until?: string;
+                /** @description The `next_cursor` of the previous page. It pins the window of the first page, so `since` and `until` are ignored with it, and it is refused with another `q`. */
+                cursor?: string;
+                /** @description Events per page, 1 to 1000; 100 by default, or the `size` of a Query DSL body. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventList"];
+                };
+            };
+            /** @description `since` or `until` is not a time, the window is empty or longer than 31 days, `limit` is out of range, or the cursor is unreadable or belongs to another query (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline; `query_timeout` when the read runs longer than 30 seconds. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getAuditEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No audit event has this id (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The read ran longer than 30 seconds (`query_timeout`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAuditFacets: {
+        parameters: {
+            query: {
+                /** @description The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`. Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples. */
+                q?: string;
+                /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
+                since?: string;
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                until?: string;
+                /** @description The field to count, such as `actor_name` or `action`; `GET /audit/fields` lists them. */
+                field: string;
+                /** @description Values to return, 1 to 100; 10 by default. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The counted values. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditFacets"];
+                };
+            };
+            /** @description `field` is missing, the window is not valid or `limit` is out of range (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline, or an unknown or uncountable `field`; `query_timeout` when the read runs longer than 30 seconds. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getAuditHistogram: {
+        parameters: {
+            query?: {
+                /** @description The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`. Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples. */
+                q?: string;
+                /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
+                since?: string;
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                until?: string;
+                /** @description The most buckets wanted, 1 to 200. */
+                buckets?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditHistogram"];
+                };
+            };
+            /** @description The window is not valid or `buckets` is out of range (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline; `query_timeout` when the read runs longer than 30 seconds. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    aggregateAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`. Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples. */
+                q?: string;
+                /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
+                since?: string;
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                until?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The aggregation rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditAggregation"];
+                };
+            };
+            /** @description The window is not valid (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline, or the body has no `aggs` or asks for more rows than the limit, with the reason; `query_timeout` when the read runs longer than 30 seconds. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listAuditFields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The fields. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditFieldList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    exportAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`. Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples. */
+                q?: string;
+                /** @description Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out. */
+                since?: string;
+                /** @description End of the window, exclusive, in the same forms; now when left out. The window is at most 31 days. */
+                until?: string;
+                format?: "ndjson" | "csv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The events. */
+            200: {
+                headers: {
+                    /** @description The most rows one export returns. */
+                    "X-Export-Row-Limit"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": string;
+                    "text/csv": string;
+                };
+            };
+            /** @description `format` is not ndjson or csv, or the window is not valid (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline; `query_timeout` when the read runs longer than 30 seconds. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            500: components["responses"]["Internal"];
         };
     };
     searchWorkspace: {

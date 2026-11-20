@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
+	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -161,6 +162,7 @@ type Deps struct {
 	StartHealthRun func()
 	Annotations    *annotations.Service
 	Activity       *activity.Store
+	Audit          *trail.Reader
 	Runs           RunDesk
 	Claims         ClaimService
 	RunSessions    RunSessions

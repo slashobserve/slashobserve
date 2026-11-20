@@ -22,8 +22,6 @@ var nonHTTPAuditSources = map[audit.Action]string{
 
 var pendingAuditActions = []audit.Action{
 	"agent.tool_call",
-	"audit.export",
-	"audit.search",
 	"auth.credential_rejected",
 	"auth.csrf_rejected",
 	"block.add",
