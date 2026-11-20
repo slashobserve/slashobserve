@@ -305,7 +305,8 @@ func run() error {
 	defer database.Close()
 	serverMetrics.Pool(database.Stat)
 
-	if err := database.Migrate(ctx); err != nil {
+	appliedMigrations, err := database.Migrate(ctx)
+	if err != nil {
 		return migrationExit(err)
 	}
 	instance, err := database.Queries().GetInstance(ctx)
@@ -325,6 +326,7 @@ func run() error {
 	untilServed := context.WithoutCancel(ctx)
 	stopAudit := startBackground(untilServed, "audit writer", recorder.Run, logger)
 	defer stopAudit()
+	recordMigrations(ctx, logger, appliedMigrations)
 	membership := fleet.New(database, serverID, version, logger)
 	serverMetrics.Fleet(membership.Live)
 	stopFleet := startFleet(ctx, membership, logger)
@@ -576,8 +578,11 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
-	if err := serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close); err != nil {
-		return described("http_server_failed", err)
+	recordSystemEvent(ctx, logger, audit.Event{Action: "server.start", Target: serverTarget(serverID)})
+	served := serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close)
+	recordServerStop(ctx, logger, serverID, served)
+	if served != nil {
+		return described("http_server_failed", served)
 	}
 	return nil
 }
