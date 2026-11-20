@@ -78,6 +78,14 @@ A run event adds the run's `source`, and `run.succeeded` adds `result_version` w
 The `run.succeeded` of a [health repair](dashboard-health.md) that saved a version also adds `dashboard_title` and `panels_repaired`, the number of panels the repair named that the saved version changed and no longer lists as unverified; panels that were deleted, left unchanged or still fail are not counted.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 
+## Audit log
+
+An Admin reads these events in the web app under Settings, then **Audit log**, which other roles do not see.
+It lists the admin changes with the public link and comment access request events, newest first, 50 at a time, with **Load older changes** for more; it reads `GET /api/v1/activity?scope=admin`.
+Three filters narrow it: **Who** (anyone, a person or a service account), **Kind of change** (any, or one event type by name) and **Time**, which is the last 7 days unless you pick the last hour, 24 hours, 30 days or all time.
+Each row names who did what, with the time beside it, and never shows a secret.
+`observe activity --admin` and `list_activity` with `scope: "admin"` read the same list.
+
 ## Who sees an event
 
 You see an event when any of these holds:
