@@ -91,6 +91,7 @@ describe("traceSqlParams", () => {
       to: "now",
       pageSize: 100,
       page: 3,
+      asWritten: true,
     })
   })
 

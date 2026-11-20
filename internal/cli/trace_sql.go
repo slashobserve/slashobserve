@@ -24,7 +24,7 @@ func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 	if kind != "clickhouse" {
 		return usagef("--query runs SQL on a ClickHouse datasource; %s is %s", text(opts.datasource), text(kind))
 	}
-	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: opts.query, Kind: "instant", From: opts.from, To: opts.to, PageSize: traceSearchLimit, Page: 1})
+	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: opts.query, Kind: "instant", From: opts.from, To: opts.to, PageSize: traceSearchLimit, Page: 1, AsWritten: true})
 	if err != nil {
 		return err
 	}

@@ -178,6 +178,17 @@ func stringOf(v any) string {
 }
 
 func (rs *resultSet) tableFrame() datasource.Frame {
+	frame := rs.columnsFrame()
+	for i, c := range rs.columns {
+		if c.hasNanoseconds() {
+			frame.Fields = append(frame.Fields, datasource.TimeNsField(frame.Fields[i].Values))
+			break
+		}
+	}
+	return frame
+}
+
+func (rs *resultSet) columnsFrame() datasource.Frame {
 	fields := make([]datasource.Field, len(rs.columns))
 	for i, c := range rs.columns {
 		typ := c.typ
@@ -189,12 +200,6 @@ func (rs *resultSet) tableFrame() datasource.Frame {
 			values[r] = convert(row[i], typ)
 		}
 		fields[i] = datasource.Field{Name: c.name, Type: typ, Values: values}
-	}
-	for i, c := range rs.columns {
-		if c.hasNanoseconds() {
-			fields = append(fields, datasource.TimeNsField(fields[i].Values))
-			break
-		}
 	}
 	return datasource.Frame{Fields: fields}
 }

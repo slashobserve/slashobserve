@@ -62,6 +62,7 @@ export function traceSqlParams(
     ...tracesTimeRange(search),
     pageSize: search.size ?? defaultPageSize,
     page: search.page ?? 1,
+    asWritten: true,
   }
 }
 

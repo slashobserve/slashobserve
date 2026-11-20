@@ -47,7 +47,9 @@ const (
 	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page."}`
 	propSort     = `"sort":{"type":"string","maxLength":65,"description":"ClickHouse: order all rows by this result column, - for descending, e.g. -Duration; resend it with each cursor."}`
 
-	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `,` + propSort + `},"required":["datasource","query"],"additionalProperties":false}`
+	propAsWritten = `"as_written":{"type":"boolean","description":"ClickHouse with page_size: rows as the SQL wrote them (its ORDER BY, LIMIT, columns), as for trace spans; unset gives log lines newest first."}`
+
+	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `,` + propPageSize + `,` + propPage + `,` + propCursor + `,` + propSort + `,` + propAsWritten + `},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
@@ -148,6 +150,8 @@ type instantInput struct {
 	Page     *int   `json:"page"`
 	Cursor   string `json:"cursor"`
 	Sort     string `json:"sort"`
+
+	AsWritten bool `json:"as_written"`
 }
 
 type rangeInput struct {
@@ -184,6 +188,9 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 	}
 	if in.Sort != "" {
 		return invalid("%s", queryproxy.SortNeedsSize), nil
+	}
+	if in.AsWritten {
+		return invalid("%s", queryproxy.AsWrittenNeedsSize), nil
 	}
 	return r.runAdhoc(ctx, spec.Table, in, "", 0)
 }
@@ -222,6 +229,8 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 		PageSize: size,
 		Cursor:   in.Cursor,
 		Sort:     in.Sort,
+
+		AsWritten: in.AsWritten,
 	})
 	if err != nil {
 		return datasourceFailure("Ran a query on "+inst.UID, err)

@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 func logExit(t *testing.T, err error) (map[string]any, *logtest.Capture) {
@@ -273,5 +274,35 @@ func TestFindingURLIsEmptyUntilTheAnswerIsSaved(t *testing.T) {
 	}
 	if got := of(findings.Finding{ID: "f1", ObservationID: "o1"}); got != "https://observe.example.com/o/o1" {
 		t.Errorf("saved answer URL = %q, want the observation's address", got)
+	}
+}
+
+type fixedProvider struct {
+	llm.Provider
+	name  string
+	model string
+}
+
+func (p fixedProvider) Name() string  { return p.name }
+func (p fixedProvider) Model() string { return p.model }
+
+func TestBuiltInAgentIsDecidedOnceForEveryRunPath(t *testing.T) {
+	cfg := config.LLM{Provider: config.LLMProviderAnthropic, Effort: "high"}
+	observe, opts := withBuiltInAgent(fixedProvider{name: "anthropic", model: "claude-haiku-5-5"}, cfg, revisions.ObserveOptions{}, nil)
+	if !revisions.NewService(nil, slog.New(slog.DiscardHandler), opts...).Available() {
+		t.Error("a service built from the options is not available with a provider configured")
+	}
+	if observe.Provider != "anthropic" || observe.Model != "claude-haiku-5-5" || observe.Effort != "high" {
+		t.Errorf("observe options = %q %q %q, want anthropic claude-haiku-5-5 high", observe.Provider, observe.Model, observe.Effort)
+	}
+}
+
+func TestNoProviderLeavesTheBuiltInAgentOff(t *testing.T) {
+	observe, opts := withBuiltInAgent(nil, config.LLM{Provider: config.LLMProviderAnthropic}, revisions.ObserveOptions{}, nil)
+	if revisions.NewService(nil, slog.New(slog.DiscardHandler), opts...).Available() {
+		t.Error("a service is available with no provider configured")
+	}
+	if observe.Provider != "" || observe.Model != "" || observe.Effort != "" {
+		t.Errorf("observe options = %+v, want no model fields", observe)
 	}
 }

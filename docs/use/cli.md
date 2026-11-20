@@ -175,7 +175,7 @@ Anyone who can see the request and may start that kind of request can retry it, 
 A request that has not finished or was already retried fails with `request <request-id> is <state> and cannot be retried`, and a comment or suggestion request cannot be retried.
 `observe status` prints the request's `State` line, one of `queued`, `running`, `canceling`, `succeeded`, `failed` or `canceled`, and a failed or canceled request with no build to continue prints `Run it again: observe retry <request-id>`, or `Retried by <request-id>` once it was retried.
 
-Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id>`.
+Only the person who made a request can cancel or continue it; anyone else gets `only the requester can cancel or continue <request-id> (forbidden_role)`.
 Canceling a request that already finished, or continuing one that was saved, already continued or has no build, fails with a one-line message naming the request.
 Continuing a revision fails when its dashboard has a newer version than the build started from.
 
@@ -690,6 +690,7 @@ bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_trac
 
 It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
 It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
+The rows come back as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns even when it selects `Timestamp`, and a `LIMIT` above 100 is cut to the first 100 rows.
 Single quotes keep the shell from expanding `$__timeFilter`.
 `--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
 

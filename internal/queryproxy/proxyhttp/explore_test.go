@@ -488,6 +488,22 @@ func TestExplorePagesWithMetaPage(t *testing.T) {
 	}
 }
 
+func TestExploreCarriesAsWrittenToThePageRequest(t *testing.T) {
+	hn, logs := newPageHarness(t)
+	body := pagedBody(100)
+	body["as_written"] = true
+	if rec := hn.explore(auth.KindUser, "logs", body); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := hn.explore(auth.KindUser, "logs", pagedBody(100)); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	reqs := logs.pageRequests()
+	if len(reqs) != 2 || !reqs[0].AsWritten || reqs[1].AsWritten {
+		t.Fatalf("AsWritten of the page requests = %+v, want true then false", reqs)
+	}
+}
+
 func TestExplorePageTwoWithCursor(t *testing.T) {
 	hn, logs := newPageHarness(t)
 	cursor := datasource.EncodeCursor(datasource.PageCursor{Scope: datasource.CursorScope("logs", pagedQuery), Page: 2, FromNs: 1760000000000000000, ToNs: 1760000060000000000, EndNs: 9, Seen: []string{"a"}})
@@ -574,6 +590,7 @@ func TestExploreRejectsBadPaging(t *testing.T) {
 		{"page without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["page"] = 2 }), "page and cursor need page_size"},
 		{"cursor without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["cursor"] = "x" }), "page and cursor need page_size"},
 		{"sort without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["sort"] = "-Duration" }), "sort needs page_size"},
+		{"as_written without page_size", "logs", with(func(b map[string]any) { delete(b, "page_size"); b["as_written"] = true }), "as_written needs page_size"},
 		{"sort on a datasource that cannot sort", "logs", with(func(b map[string]any) { b["sort"] = "-Duration" }), queryproxy.SortUnsupported},
 		{"page_size below 50", "logs", with(func(b map[string]any) { b["page_size"] = 49 }), "page_size must be from 50 to 500"},
 		{"page_size above 500", "logs", with(func(b map[string]any) { b["page_size"] = 501 }), "page_size must be from 50 to 500"},

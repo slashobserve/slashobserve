@@ -65,6 +65,8 @@ type PageRequest struct {
 	PageSize int
 	Cursor   *PageCursor
 	Sort     *PageSort
+
+	AsWritten bool
 }
 
 type PageInfo struct {

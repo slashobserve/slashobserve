@@ -29,6 +29,7 @@ function exploreRequest(
     page,
     cursor,
     sort,
+    asWritten,
   }: ExploreParams,
   signal?: AbortSignal
 ): Promise<PanelDataResponse> {
@@ -49,6 +50,7 @@ function exploreRequest(
             ...(page !== undefined && { page }),
             ...(cursor !== undefined && { cursor }),
             ...(sort !== undefined && { sort }),
+            ...(asWritten === true && { as_written: true }),
             ...(maxDataPoints !== undefined && {
               max_data_points: maxDataPoints,
             }),

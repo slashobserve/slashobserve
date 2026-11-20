@@ -358,7 +358,7 @@ func run() error {
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
 	proposalsService.OnClosed(threadsService)
 	liveText := livetext.New(database, database.Listen, logger)
-	observeOpts := revisions.ObserveOptions{
+	baseObserveOpts := revisions.ObserveOptions{
 		DashboardURL:       func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		ObservationURL:     func(id string) string { return links.Observation(cfg.PublicURL, id) },
 		Finding:            findingOfRequest(findingsService, findingURL),
@@ -377,15 +377,16 @@ func run() error {
 		revisions.WithThreads(threads.NewRuns(database)),
 		revisions.WithMetrics(serverMetrics.AgentRequests()),
 	}
-	queue := revisions.NewService(database, logger, revisionOpts...)
-	mentionRuns := threads.NewMentionRuns(threadsService, queue, llmProvider != nil)
+	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
+	revisionsService := revisions.NewService(database, logger, revisionOpts...)
+	mentionRuns := threads.NewMentionRuns(threadsService, revisionsService, llmProvider != nil)
 	claimsConfig := claims.Config{
-		DB: database, Runs: queue, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
+		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
 		InstanceID: serverID, Model: sidecar.modelSettings(cfg), RunTimeout: cfg.Agent.RunTimeout, Logger: logger,
 	}
 	claimsService := claims.New(claimsConfig)
 	runSessions := runsession.New(runsession.Config{
-		DB: database, Runs: queue, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
+		DB: database, Runs: revisionsService, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
@@ -406,7 +407,7 @@ func run() error {
 		Health:         healthService,
 		Annotations:    annotationsService,
 		Activity:       activityStore,
-		Runs:           revisions.NewRunDesk(queue, observeOpts),
+		Runs:           revisions.NewRunDesk(revisionsService, observeOpts),
 		Claims:         claimsService,
 		RunSessions:    runSessions,
 		LiveText:       liveText,
@@ -420,13 +421,6 @@ func run() error {
 		PublicURL:      cfg.PublicURL,
 		Logger:         logger,
 	})
-
-	if llmProvider != nil {
-		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
-		observeOpts.Effort = reportedEffort(cfg.LLM)
-		revisionOpts = append(revisionOpts, revisions.WithBuiltInAgent())
-	}
-	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
@@ -742,6 +736,15 @@ func warnOptInLogging(logger *slog.Logger, cfg config.Config) {
 	if cfg.LLM.LogProviderErrors {
 		logger.Warn("provider error messages are logged; a provider can echo prompt text in them")
 	}
+}
+
+func withBuiltInAgent(provider llm.Provider, cfg config.LLM, observe revisions.ObserveOptions, opts []revisions.Option) (revisions.ObserveOptions, []revisions.Option) {
+	if provider == nil {
+		return observe, opts
+	}
+	observe.Provider, observe.Model = provider.Name(), provider.Model()
+	observe.Effort = reportedEffort(cfg)
+	return observe, append(opts, revisions.WithBuiltInAgent())
 }
 
 func reportedEffort(llm config.LLM) string {
