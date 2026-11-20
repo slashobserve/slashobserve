@@ -83,7 +83,8 @@ export function ChatsPage({ search, onSearch }: Props) {
     pageSize
   )
   const footer = chatFooterText(
-    query.data?.pages[0]?.summary ?? null,
+    collapseChats(requests).length,
+    query.data?.pages[0]?.summary?.people ?? null,
     query.hasNextPage
   )
 

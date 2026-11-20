@@ -239,3 +239,11 @@ describe("ChatsPage rows", () => {
     ).toBeInTheDocument()
   })
 })
+
+describe("ChatsPage footer", () => {
+  it("counts the conversations listed, not their requests", async () => {
+    stubList([...twoTurnChat(), request("r3", "u1", "what does p99 mean")])
+    render()
+    expect(await screen.findByText("2 chats.")).toBeInTheDocument()
+  })
+})

@@ -1,18 +1,17 @@
-type ChatSummary = { total: number; people: number | null }
-
 function count(n: number, singular: string, plural: string): string {
   return `${n.toLocaleString()} ${n === 1 ? singular : plural}`
 }
 
 export function chatFooterText(
-  summary: ChatSummary | null,
+  chats: number,
+  people: number | null,
   more: boolean
 ): string | null {
-  if (summary === null || summary.total === 0) return null
-  const chats = count(summary.total, "chat", "chats")
+  if (chats === 0) return null
   const from =
-    summary.people === null
-      ? ""
-      : ` from ${count(summary.people, "person", "people")}`
-  return `${chats}${from}${more ? ". Older chats load as you scroll." : "."}`
+    people === null ? "" : ` from ${count(people, "person", "people")}`
+  const listed = count(chats, "chat", "chats")
+  return more
+    ? `${listed}${from} so far. Older chats load as you scroll.`
+    : `${listed}${from}.`
 }
