@@ -6,7 +6,9 @@ description: Back up Postgres, upgrade the server and return to an older version
 ## Back up Postgres
 
 Postgres is the only state.
-The datasources file, the OIDC settings and the LLM key are configuration you keep elsewhere; keep them in your own secret and config management.
+It holds everything people make in the app: dashboards, observations, comments, folders, people, teams and invites, webhooks, the datasources added in the app and the activity log.
+The datasources file, the OIDC settings, the LLM key and `SLASHOBSERVE_SECRET_KEY` are configuration you keep elsewhere; keep them in your own secret and config management.
+Keep the secret key with the backup: the credentials of datasources added in the app, the Grafana connection tokens and the webhook signing secrets are in the dump encrypted with it, and they cannot be read after a restore without the same key.
 
 Take a dump before every upgrade, and on a schedule:
 
@@ -31,12 +33,15 @@ Dumps contain session and key hashes and your dashboards, so protect them like t
 2. Pull the new image tag (or build your own image) and replace the container.
 3. Watch the log: the server applies pending migrations at startup, each logged as `applied migration` with its version, and `/readyz` returns 200 once they are done.
 
-The image now ships `observe-agent` and runs on `distroless/base-nossl`, so it is about 44 MB larger to pull (19 MB to 63 MB compressed on arm64) and about 107 MB larger unpacked: the 82 MB binary and a 24 MB C library layer.
-The compose stack raises the server memory limit from 256M to 512M for the same reason.
-The built-in agent now runs as the `observe-agent` sidecar, a separate process the server starts, instead of inside the server process.
+### Upgrading from 0.1.1 or earlier
+
+Release 0.1.2 ships `observe-agent` in the image, on `distroless/base-nossl`, so the image is about 44 MB larger to pull (19 MB to 63 MB compressed on arm64).
+The compose stack raised the server memory limit from 256M to 512M for the same reason.
+The built-in agent runs as the `observe-agent` sidecar, a separate process the server starts, instead of inside the server process.
 Memory per server grows by about 50 MiB, the idle size of the `observe-agent` child.
-Run sessions of connected agents now get the built-in agent's guards.
+Run sessions of connected agents get the built-in agent's guards.
 The server does not start with a model provider when `observe-agent` is missing from `PATH` or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
+It also adds migrations 26 to 48, and the notes below on migrations 35, 36, 37, 41 and 43 apply to that jump.
 
 ### Migrations
 
@@ -45,31 +50,32 @@ With `SLASHOBSERVE_DATABASE_DIRECT_URL` set, migrations and their lock run on th
 
 The server runs migrations forward only; it never runs a migration's down section.
 To go back to an older version, restore the backup you took before upgrading rather than running the older image against a migrated database.
+The `goose down-to <version>` commands below use the goose command line tool, run against the database from a checkout of the release that applied the migrations, with `-dir internal/db/migrations` and the database URL; the table of applied versions is `goose_db_version`.
 
 Before 1.0, a release never edits a migration that an earlier release shipped, and the server applies every pending migration in order.
 So you can upgrade from any 0.x release directly to a later one without stopping at the releases between them.
 Going backward is the one jump that is not supported.
 The [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md) names a release whose migration rewrites existing data.
 
-### Upgrading to the run states release
+### Migration 35, run states
 
 Migration 35 adds a `state` column to agent requests and checks it against `status`.
 A server older than this release fails its queue writes against it, so stop every old server, or at least its agent workers, before the first new server starts.
 To go back, run `goose down-to 34` against the database before starting an older binary.
 
-### Upgrading to the persisted Grafana imports release
+### Migration 36, persisted Grafana imports
 
 Migration 36 moves Grafana imports into the database and copies each connection's last import into it.
 An import that an older server runs during the upgrade stays on that server and is not shown by the new ones, so finish or avoid imports while servers of both versions run.
 To go back, run `goose down-to 35` before starting an older binary; it writes each connection's newest finished import back to the connection.
 
-### Upgrading to the release that lets outside agents take runs
+### Migration 37, outside agents taking runs
 
 Migration 37 adds the assignment columns on runs, `run_tokens`, `agent_workers`, `oauth_grants.mode` and `service_accounts.takes_runs`.
 A server older than this release claims runs without looking at who they are assigned to, so stop the old servers before any run is assigned to an outside agent.
 To go back, check that no run is assigned to an outside agent, then run `goose down-to 36` against the database before starting an older binary.
 
-### Upgrading to the release that turns findings into observations
+### Migration 41, findings become observations
 
 Migration 41 gives every finding an observation and makes `findings.observation_id` required.
 A finding that an investigation saved keeps the observation of its run.
@@ -85,13 +91,39 @@ The down section has costs:
 - The observations that were made from findings are deleted with everything on them, so edits, blocks and resolves made on them since the upgrade are lost; the observation of a run is kept.
 - A finding with no dashboard comes back filed in the folder of its observation, so a finding that a service account saved with no folder comes back filed in General.
 
-### Upgrading to the release that adds the inbox
+### Migration 43, the inbox
 
 Migration 43 adds `inbox_cursors`, one read position per person, the `inbox_reason` SQL function and the partial index `activity_inbox_idx` on the activity log.
 The index is built with a plain `CREATE INDEX`, which blocks writes to the activity log, and so every change that records activity, until it finishes.
 At the default 180 day retention the build is short, but a log that holds millions of events can take a minute or more, so upgrade when little is changing.
 An older server ignores the new objects, so servers of both versions can run together.
 To go back, run `goose down-to 42` against the database before starting an older binary; everyone's read position is lost, and the next inbox shows the last 30 days as unread.
+
+### Upgrading from 0.1.2
+
+Migrations 49 to 73 are new.
+They add tables and columns for chats, inbox item states, webhook formats, per-person thread read marks, dashboard viewers and view days, home dashboards, datasources added in the app, people invites and deactivation, teams, chat-only findings, observation pins, run time zones and access requests.
+Take the backup first.
+
+Migrations 59, 62 and 73 replace a check constraint on the activity log, which scans the whole log under a lock that blocks reads and writes.
+Migrations 50 and 73 rebuild `activity_inbox_idx` with a plain `CREATE INDEX`, which blocks writes to the log, and so every change that records activity, until it finishes.
+Like migration 43, the cost grows with the log, so when it holds millions of events, upgrade when little is changing.
+Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
+Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
+
+To go back, run `goose down-to 48` against the database before starting an older binary.
+The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
+
+- Migration 73 drops access requests and deletes their activity events, and migration 70 drops each request's time zone.
+- Migration 65 deletes every finding that no observation holds, which is a chat answer nobody saved.
+- Migration 64 drops teams and their members, so folder entries that named a team match no one.
+- Migration 63 drops invites and the deactivation marks, so a person an Admin deactivated can sign in again.
+- Migration 62 drops the datasources added in the app, with their stored credentials, and deletes their activity events; dashboards that use them then have no datasource to read from.
+- Migration 59 deletes the activity events of admin changes, which is the Audit log.
+- Migration 58 deletes saved metrics searches.
+- Migration 52 drops each webhook's format, so Slack and Teams webhooks send the generic payload again, and deletes the deliveries skipped by an Admin.
+- Migrations 50 and 72 drop the inbox's per-item read and done marks, 53 drops the thread read marks and the dashboard viewers, and 60, 61 and 68 drop dashboard view days, home dashboards and observation pins and dashboard links.
+- Migrations 49, 51, 54, 55, 57, 67, 69 and 71 only drop the columns they added, such as the chat a request belongs to (49), the link from a retry to its request (54), the reason a proposal was discarded (55) and the label of a public link (57); migration 56 drops the hourly count of query drafts.
 
 ### Upgrading from an early release
 

@@ -12,7 +12,7 @@ It provisions the [internals dashboard](observe-slashobserve.md) by default.
 - A Postgres database the cluster can reach, and its connection string.
   See [Upgrades and backups](upgrades-and-backups.md) for backing it up.
 - An OIDC client at your identity provider with the redirect URI `<public url>/api/v1/auth/callback`; see [Sign-in with OIDC](../connect/oidc.md).
-- Helm 3 or 4 and `kubectl` pointed at the cluster.
+- Helm 3 or later (the chart is an `apiVersion: v2` chart, and its checks run on Helm 4) and `kubectl` pointed at the cluster.
 - A Prometheus that scrapes the pod, and a datasource with uid `prom` that reads from it, if you want the internals dashboard to show data.
 
 ## Create the Secrets
@@ -31,7 +31,7 @@ kubectl -n slashobserve create secret generic slashobserve-llm --from-file=api-k
 - `database-url` holds the connection string, such as `postgres://slashobserve:<password>@<host>:5432/slashobserve?sslmode=require`.
 - `direct-url` is optional: a connection string that bypasses your pooler, added to the same Secret with `--from-file=direct-url=./database-direct-url` and named by `database.directUrlKey: direct-url`; see [Behind a connection pooler](production.md#behind-a-connection-pooler).
 - `oidc-client-secret` holds the client secret from your identity provider.
-- `secret-key` is optional and encrypts stored Grafana connection tokens; generate it with `openssl rand -hex 32`.
+- `secret-key` is optional and encrypts what the server stores for you, which is the credentials of datasources added in the app, Grafana connection tokens and webhook signing secrets, so set it before anyone adds one; generate it with `openssl rand -hex 32`, and keep it with your database backups.
 - `llm-api-key` is optional and holds the model provider's key, which the chart mounts as a file for `SLASHOBSERVE_LLM_API_KEY_FILE`.
 
 The key names above are the chart's defaults; `database.urlKey`, `oidc.clientSecretKey`, `secretKey.key` and `llm.apiKey.key` change them.
@@ -72,13 +72,17 @@ The image defaults to `ghcr.io/slashobserve/slashobserve` at the chart's `appVer
 `values.schema.json` in the chart describes every value, and the install fails before it reaches the cluster when a required one is missing.
 The chart sets the environment variables of the [configuration reference](../reference/configuration.md) from the values; add any other `SLASHOBSERVE_*` setting under `env`, in Kubernetes `EnvVar` form.
 
-To enable the agent, set `llm.provider`, `llm.model` when the provider needs one, and `llm.apiKey.existingSecret`.
+To enable the agent, set `llm.provider`, `llm.model` when the provider needs one, `llm.apiKey.existingSecret`, and `llm.effort` if you want a different effort level; see [LLM providers](../connect/llm-providers.md).
+The server starts `observe-agent` from the image whenever `llm.provider` is set, and that process makes the model calls from the pod, so the pod needs a network path to the provider.
+
+The chart also has `imagePullSecrets`, `logLevel`, `logFormat`, `outboundDomains`, `service.type` and `service.port`, `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` and `metrics.enabled`.
+`logLevel`, `logFormat`, `outboundDomains` and `metrics.enabled` set `SLASHOBSERVE_LOG_LEVEL`, `SLASHOBSERVE_LOG_FORMAT`, `SLASHOBSERVE_OUTBOUND_DOMAINS` and `SLASHOBSERVE_METRICS`.
 
 ## Datasources
 
 `datasources.datasources` holds the entries of the [datasources file](../reference/datasources-file.md), which the chart renders into a ConfigMap; `datasources.existingConfigMap` names a ConfigMap of your own instead, with the file under the key `datasources.key`.
 The file never holds a secret.
-Reference a password by an `*Env` name and set that variable from a Secret under `env`:
+Reference a password by an `*Env` name and set that variable from a Secret under `env`, where each name must start with `SLASHOBSERVE_`:
 
 ```yaml
 env:
@@ -91,11 +95,13 @@ env:
 
 The server reads the datasources file only at startup.
 A change to the rendered ConfigMap changes a checksum annotation on the pod, so `helm upgrade` restarts it; a change to your own ConfigMap needs `kubectl rollout restart`.
+The values and the file are optional: an Admin can add datasources in the app instead, which stores them in Postgres and needs `secretKey.existingSecret` for their credentials (see [Add datasources in the app](../connect/datasources-in-the-app.md)).
 
 ## Service accounts from a file
 
-To create [service accounts with keys from files](service-account-keys.md#declare-service-accounts-in-a-file), put the service-accounts file and every key file in one Secret and set `serviceAccounts.existingSecret`.
-The chart mounts that Secret at `/etc/slashobserve/service-accounts`, so each `keyFile` names a path there:
+To create [service accounts with keys from files](service-account-keys.md#declare-service-accounts-in-a-file), put the service-accounts file and every key file in one Secret and set `serviceAccounts.existingSecret`, with `serviceAccounts.fileKey` naming the file's key in it (`service-accounts.yaml` by default).
+The chart mounts that Secret at `/etc/slashobserve/service-accounts` and points `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` at the file, so each `keyFile` names a path there.
+`service-accounts.yaml` holds a `serviceAccounts` list; the block below is that file's content, not a chart value:
 
 ```yaml
 serviceAccounts:
@@ -146,7 +152,7 @@ Set `ingress.exposeMetrics: true` to route `/metrics` through the Ingress as wel
 
 `ingress.enabled: true` creates an Ingress for the host of `publicURL`, with a TLS block when `ingress.tlsSecretName` is set.
 The Ingress adds a second Service, `<release>-no-metrics`, which only holds the `/metrics` path back; it selects no pods.
-The controller must follow the proxy rules in [Run in production](production.md#put-tls-in-front): no response buffering and no short read timeout on `GET /api/v1/dashboards/{id}/events`, which is a Server-Sent Events stream, and request bodies of at least 8 MiB.
+The controller must follow the proxy rules in [Run in production](production.md#put-tls-in-front): no response buffering and no short read timeout on the Server-Sent Events streams, which are `GET /api/v1/dashboards/{id}/events`, `GET /api/v1/activity/stream` and `GET /api/v1/datasources/{uid}/tail`, and request bodies of at least 8 MiB.
 For ingress-nginx, for example:
 
 ```yaml
@@ -176,6 +182,8 @@ helm upgrade slashobserve deploy/helm/slashobserve --namespace slashobserve -f v
 ```
 
 The new pod runs pending migrations at startup and turns ready once they are done.
+The chart sets no Deployment strategy, so Kubernetes rolls the pods out by default and, for a moment, the old pod and the new one run together against the migrated database.
+When a release's notes in [Upgrades and backups](upgrades-and-backups.md) say to stop the old servers first, scale the Deployment to 0 with `kubectl`, run `helm upgrade`, and check afterwards that the Deployment has the replica count from your values.
 `helm rollback slashobserve <revision> --wait` returns to an earlier revision's image and values.
 The server runs migrations forward only, so a rollback across a release that ran a migration also needs the database restored from the backup you took before the upgrade.
 

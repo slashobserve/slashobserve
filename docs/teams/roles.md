@@ -7,10 +7,10 @@ Every person and every service account has one of four instance roles, from the 
 
 | Role      | May                                                                                                                                                                                                          |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out, disconnect their agents, invite, deactivate, reactivate and remove people and manage teams, see [People](people.md)), service accounts and keys, the outbound allowlist, and every chat with Observe Agent, read only. |
+| Admin     | Everything an Editor may, in every folder except other people's My Dashboards, plus the People and Datasources pages (change roles, sign people out, disconnect their agents, invite, deactivate, reactivate and remove people and manage teams, see [People](people.md)), service accounts and keys, the outbound allowlist, Grafana connections, webhooks, the Audit log (see [Activity](../use/activity.md)), and every chat with Observe Agent, read only. |
 | Editor    | Create, edit, import, duplicate, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, keep their own saved prompts, and read the outbound allowlist.                          |
 | Commenter | View dashboards and versions, add comments, and send requests to the agent, whose changes arrive as proposals. The role alone creates, imports and edits dashboards, and chats with the agent to build them, only in their own My Dashboards.             |
-| Viewer    | View dashboards and versions only. The role alone creates, imports and edits dashboards, and chats with the agent to build them, only in their own My Dashboards.                                                              |
+| Viewer    | View dashboards and versions only, and ask for comment access (see [Folders and access](folders.md#ask-for-comment-access)). The role alone creates, imports and edits dashboards, and chats with the agent to build them, only in their own My Dashboards.                                                              |
 
 
 ## Folders, keys and actions
@@ -25,6 +25,7 @@ Creating folders, managing saved prompts and the Admin pages follow the role onl
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 On dashboards, folders, runs, pins, annotations and the public links of a dashboard or of an observation's RCA the body says what would let it through: `needed_access` (`view`, `comment`, `edit` or `manage`) with the `folder_title` it applies to, or `needed_role` for a route that needs a role, and the web app shows it as "it needs Edit on Payments".
 A refusal anywhere else carries only the code and the message.
+Investigating a question needs the Editor role, so a Commenter or Viewer sees Ask disabled with "needs the Editor role" instead of a refusal after the fact.
 A service-account key can never create or revoke keys, whatever its role.
 A canvas action sends a request to another site on a person's behalf (see [Actions](../operate/outbound-access.md#actions)), so it needs Edit on the dashboard and a person: a service-account key cannot run one, whatever its role.
 

@@ -40,6 +40,7 @@ Any other query is a TraceQL search, such as `{ resource.service.name = "checkou
 It returns one row per matching trace, newest first and at most the row limit, with `TraceId`, `SpanName` and `ServiceName` of the root span, `StartTime` and `Duration`.
 A search result names no spans, so its `SpanId` is the trace id and each trace shows as one bar.
 Tempo refuses a search longer than its own maximum search duration, 168 hours by default.
+The server adds `with (most_recent=true)` to a search unless the query has its own `with` hints, and on a long range it searches the newest hour first and then wider windows further back until the row limit is full or the query's time runs out, in which case the traces found come back marked partial; [Logs and traces](../use/logs-and-traces.md#results) describes what the page shows.
 
 Queries take dashboard variables, escaped as in PromQL.
 A variable that holds a trace id goes in quotes, such as `"${trace_id}"`, because a bare trace id that starts with a digit is refused.
@@ -51,4 +52,5 @@ Tempo has no query variables; use a custom or text box variable for trace ids or
 
 The agent can list Tempo's tags, scoped as TraceQL writes them (`resource.service.name`, `span.http.method`, or an intrinsic such as `name` or `status`), and the values of one tag, optionally narrowed by a TraceQL query.
 `get_schema` on Tempo lists every service with its span names and the attributes TraceQL can filter on.
+The services list reads the values of `resource.service.name` over a recent window.
 The query editor's lint accepts a trace id and checks that a TraceQL query has a spanset and that its brackets and quotes balance.

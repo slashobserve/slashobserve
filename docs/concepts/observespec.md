@@ -187,6 +187,7 @@ It can also set:
 
 - `timeFrom` and `timeShift`, which override the dashboard's time range (the panel header names the override, and `hideTimeOverride: true` hides that note without changing the queries).
 - `interval` (the same forms as a query's) and `maxDataPoints`, which shape the step of its queries.
+- `description` (up to 2000 characters), `transparent: true` to draw it without a border or background, and `titleHidden: true` to keep the title as the panel's name for menus and screen readers without showing it.
 - `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 
 ### Time series, trend and candlestick display options
@@ -345,8 +346,7 @@ A `logs` panel shows its lines newest first (`order`), with `wrap` and `showTime
 
 ## Maps, canvases and actions
 
-These options are all optional, and a dashboard that leaves them out looks the same as before.
-The web app draws them as support lands; an option it does not draw yet is kept and ignored.
+These options are all optional.
 
 ### Geomap
 
@@ -450,7 +450,7 @@ Two series of different queries that end up with the same label show their query
 
 ### Query language and macros
 
-The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
+The query language follows the datasource: PromQL for Prometheus, a single SQL `SELECT` for ClickHouse, LogQL for Loki, TraceQL or a trace id for Tempo, and KQL for Elasticsearch and OpenSearch, with `lucene:` before a Lucene query and a body that starts with `{` for Query DSL.
 `$name`, `${name}` and `${name:format}` insert the value of a variable.
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 On ClickHouse, `$__conditionalAll(condition, $variable)` writes `(condition)`, or `1=1` when the variable selects All.

@@ -128,7 +128,7 @@ Every refused tool call returns one shape: `code`, a stable word to branch on, a
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
 
-Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `edit_comment`, `rename_folder`, `rename_run`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard` and `cancel_run`.
+Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `update_saved_search`, `edit_comment`, `rename_folder`, `rename_run`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard`, `set_inbox_item_done` and `cancel_run`.
 A client that approves only non-destructive tools on its own therefore asks before any of them runs.
 
 `list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
@@ -190,6 +190,15 @@ With `datasource` it reads that one source; without it, it asks every Loki, Temp
 Each source answers its `field`, the label, column or attribute that holds the service, so a query can filter on it, and a source that does not answer in time says why under `unavailable` while the others still answer.
 Answers are cached for about a minute and a source lists at most 200 services, with `truncated` set when there were more.
 
+`recheck_datasource` runs a fresh health check on one datasource instead of reading the cached one and answers its status, and calls within 2 seconds of the last check return that check.
+
+`get_trace` reads one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans.
+A trace over 20,000 spans is cut to its earliest spans and says so.
+`trace_stats` counts spans and errors per time bucket (at most 60) and gives p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
+`compare_traces` takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource and returns the attribute values whose share of traces differs most between the two sets, to explain why some traces are slow or failing.
+`log_facets` counts the top values of each label, field or column that a logs query matches on a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, with exact counts where the datasource can give them and counts from the newest sampled lines where it cannot.
+The built-in agent has these four, and `recheck_datasource` is over MCP only.
+
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.
@@ -245,7 +254,7 @@ No tool deletes a dashboard: people do that in the web app, through the HTTP API
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
 `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards` manage the person's pins, the dashboards in their sidebar; the HTTP API calls them stars (`/dashboards/{id}/star`, `/stars`).
-They work only over a person's OAuth connection: a service-account key does not see them in `tools/list`, as it does not see `list_inbox`, and answers `user_session_required` if it calls one.
+They work only over a person's OAuth connection: a service-account key does not see them in `tools/list`, as it does not see `list_inbox` or `set_inbox_item_done`, and answers `user_session_required` if it calls one.
 
 `get_home_dashboard`, `set_home_dashboard` and `clear_home_dashboard` manage the dashboard that opens for the person after sign-in in place of Home; the HTTP API calls it `/me/home-dashboard`.
 `get_home_dashboard` returns `status` (`none`, `ok`, `gone` or `unreadable`) and, when it is `ok`, the dashboard.
@@ -342,7 +351,7 @@ No tool queues an investigation on the server: an MCP client investigates with i
 It lists, by name, the other people who have the dashboard open in the web app now, so a client can see who is looking before it changes the dashboard; it needs View, and the list is empty when nobody is looking.
 
 `list_dashboard_health` is available over MCP only.
-It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, most recently updated first, 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
+It lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see, ranked as in [Dashboard health](dashboard-health.md) (failing first, then no data, then duplicate title, then unopened, and within each the most recently opened first), 20 per page by default and at most 50: each with its `problems` (`kind`, and `panel_id`, `panel_title`, `variable`, `code` and `message` where they apply), `checked_at` and `checked_version`, plus the state of the daily check in `job`.
 `folder_id` and `kind` narrow the list, and `next_cursor` pages on.
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
@@ -403,6 +412,7 @@ Investigations are a person's decision, so `start_run` has no way to ask for one
 It takes `state` (a list), `source` (`observe`, `prompt`, `comment` or `investigate`), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
+An observation the run saved stays too, because no MCP tool deletes anything; a person deletes it with the chat in the web app, or with `observe requests archive <id> --delete-observation --yes`.
 Only the person or key that started a run can rename, pin, unpin or archive it, and anyone else gets `forbidden` or, for a run they cannot see, `not_found`; each is safe to repeat.
 `run_dashboard_health` is for Admins: it starts the health run as `POST /api/v1/health/run` does, answers at once, starts nothing more while a run is going, and the `job` field of `list_dashboard_health` shows how it went.
 

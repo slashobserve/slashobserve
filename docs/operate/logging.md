@@ -6,7 +6,7 @@ description: What the server logs and what it never logs.
 Logs are JSON by default on standard error.
 The server does not log secrets, prompt text, query text or tool results.
 Configuration secrets such as the database URL, the OIDC client secret and the LLM key are never logged.
-Request logs record the method, the path (never the query string), the status, the response size in `bytes` and the duration.
+Request logs record the method, the path (never the query string, and with the token of a public link replaced by `:token`), the status, the response size in `bytes` and the duration.
 
 Errors are logged without their message, since a message from a driver or library can echo a query, a connection detail or a credential.
 Those lines carry:
@@ -17,10 +17,12 @@ Those lines carry:
 - `errno`, the operating system's text (such as `connection refused`) when the cause is a system error
 - the ids that locate the failure, such as `agent_request_id` (look it up with `observe status <id>` or `GET /api/v1/observe/{id}`), `dashboard_id`, `principal_id` and a datasource `uid`
 
-Every call to the model provider logs one `llm call finished` line, at `INFO` when it succeeded and at `WARN` when it failed.
-It carries `agent_request_id`, `provider`, `model`, `duration`, `attempts` (HTTP attempts, counting the provider client's own retries), `retries` and `status` (the provider's last HTTP status, or 0 when the last attempt got no answer).
-A successful call adds `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` and `stop_reason`.
-A failed call adds `failure_code` (`call_timeout`, `rate_limited`, `provider_error`, or `run_timeout` or `canceled` when the run itself ended), and when the provider sent them, `provider_error_type`, `provider_error_code`, `provider_error_param`, `request_id` and `retry_after`.
+The built-in agent runs in a child process, `observe-agent`, and the server copies its log lines into its own log with `component=observe-agent`.
+The child logs at the server's `SLASHOBSERVE_LOG_LEVEL`.
+A line of the child that is not JSON is logged as `observe-agent output` with the text in `line`, and a line longer than 4096 bytes is cut and marked `truncated=true`.
+
+A failed call to the model provider logs one `llm call finished` line at `WARN`; a call that succeeded logs nothing.
+The line carries `run_id` (the id of the agent request), `provider`, `status` (the provider's last HTTP status, or 0 when the last attempt got no answer) and `failure_code` (`call_timeout`, `rate_limited` or `provider_error`), plus `idle_timeout` when the call stalled, and, when the provider sent them, `provider_error_type`, `provider_error_code`, `provider_error_param`, `request_id` and `retry_after`.
 These values are logged only when they are plain tokens.
 The line never holds the prompt, the model's reply, a tool input or result, or the provider's error message, because a provider can echo any of them back, unless you turn the message on (see [Provider error messages](#provider-error-messages)).
 
@@ -46,18 +48,20 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
 
 Set the level with `SLASHOBSERVE_LOG_LEVEL` (`debug`, `info`, `warn` or `error`, default `info`) and the format with `SLASHOBSERVE_LOG_FORMAT` (`json` or `text`).
 
-| Level   | Meaning                                                                                                                                                  |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DEBUG` | Detail for each step, such as one line per tool call and the health checks.                                                                              |
-| `INFO`  | Normal lifecycle: startup, a successful model call, a run that saved or was canceled.                                                                    |
-| `WARN`  | Degraded or recoverable: a failed model call, or a run the model or provider ended without a result (`refused`, `no_tool_call`, `provider_error` and so on). |
-| `ERROR` | A failure you must act on: a run that ended with `internal`, `tool_failed`, `tool_panicked`, `result_too_large`, `load_failed`, `context_failed` or `malformed_result`. |
+| Level   | Meaning                                                                                                                      |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `DEBUG` | Detail for each step, such as the health checks, scrapes of `/metrics` and the agent's `run brief loaded`.                   |
+| `INFO`  | Normal lifecycle: startup, `observe-agent started`, an agent request that saved, a run that started, finished or was ended by the server. |
+| `WARN`  | Degraded or recoverable: a failed model call, an agent request or run that failed, a datasource that turned unhealthy.        |
+| `ERROR` | A failure you must act on: the database, a migration, a run result the server could not record, or `run loop crashed` in the agent. |
 
 ## Agent runs
 
-Each run logs one `agent run finished` line with its `error_code` when it failed.
-It is written at `INFO` when the run succeeded or was canceled, at `ERROR` when the server failed, and at `WARN` for every other ending.
-At `DEBUG`, each tool call also logs a `tool call finished` line with `agent_request_id`, `tool`, `duration` and `is_error`; it holds no tool input and no result.
+The server logs one line when an agent request ends.
+`agent request succeeded` is at `INFO` and carries `agent_request_id`, `dashboard_id` when the request has a dashboard, `version` when it saved one, and `attempt`.
+`agent request failed` is at `WARN` and carries the same ids with `error_code`, the failure code the request shows, such as `rate_limited`, `run_timeout`, `budget_exhausted` or `lease_expired`.
+The agent logs `run started` (`run_id`, `attempt`, `kind`, `mode`) and `run finished` at `INFO` with `model_calls`, `retries`, `compactions`, `renewals` and `model_ms`, and `run failed` at `WARN` with the same counters and its `failure_code`.
+No line holds a tool input or result.
 
 ## Provider error messages
 

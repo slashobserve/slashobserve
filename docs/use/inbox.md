@@ -14,13 +14,15 @@ The `observe` command line signs in with a key, so it has no inbox commands.
 
 **Inbox** is in the sidebar under Home, at `/inbox`.
 A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
-The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply", "Run failed" or "Access request", and "Workspace activity" for the rest, which only the Everything view shows.
+The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request", and "Workspace activity" for the rest, which only the Everything view shows.
 The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
 Under the tabs, **Open**, **Unread** and **Done** choose which items the list shows, as the [filter](#done-and-the-unread-filter) below says, and **Group by dashboard or observation** puts the items about the same dashboard, observation or proposal together under its title, newest group first.
+The view, the filter, the grouping and the selected item are kept in the address.
 The list refreshes when new activity arrives.
 
 Each row names who did what and the real title of the dashboard, observation or proposal, shows the start of the comment for a mention or a reply, and has a dot while it is unread.
 Two buttons at the right of the row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
+Marking an item done shows a "Marked done" toast with **Undo**.
 
 **Mark all read** marks the newest item on the page and everything older as read, and shows only while something is unread.
 Arrow keys move through the rows.

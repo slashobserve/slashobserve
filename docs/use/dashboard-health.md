@@ -180,5 +180,6 @@ Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows t
 
 MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard, answered even when it has no problem, with empty `problems`), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
 The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
+An Admin's client can start a run with `run_dashboard_health`, which does what **Run now** does.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.
 See [MCP](mcp.md).

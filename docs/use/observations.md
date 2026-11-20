@@ -14,7 +14,7 @@ A block is one of these kinds:
 
 | Kind | What it holds |
 | --- | --- |
-| `text` | Markdown of at most 4,000 characters from an agent or MCP client, with no HTML. |
+| `text` | Markdown of at most 8,000 characters, and no HTML when an agent or MCP client writes it. |
 | `panel` | A data panel in ObserveSpec form with its own query. It runs live, over the observation's range or its own `from` and `to`. |
 | `snapshot` | The data of a panel block frozen at one moment, so the page keeps showing what you saw. |
 | `run` | The agent run that is investigating, added by the server. |
@@ -150,6 +150,7 @@ Two lists under the heading filter what the pane shows.
 When nothing matches, the pane says so and **Clear filters** shows everything again.
 
 A person who can comment writes messages in the box at its foot.
+A person who can only view the observation sees **Request comment access** there instead, which asks the people who manage the folder; see [Ask for comment access](../teams/folders.md#ask-for-comment-access).
 The control above the box says where the message goes: **On the whole page**, or **On** one block, which is the block chosen in **Block** until you pick another.
 A message written on a block shows "On" and the block's name with **Show**, which scrolls the page to the block; a message written on a block that has since been deleted shows nothing extra.
 **Reply** on a message puts "Replying to" and its author above the box, with a button that removes it; the reply then shows the quoted message above its text and reads "replied to" and the quoted author.
@@ -162,6 +163,9 @@ The MCP comment tools return `reply_to` with the author as `author`, the label t
 Deleting a block keeps the messages written about it, which are then about the whole observation, and deleting a quoted message leaves the reply with no quote.
 A block that belongs to another observation answers 422 `invalid_block`, and a quoted message that is not in the discussion answers 422 `invalid_reply_to`.
 Editing a message changes neither.
+
+Typing `@` opens the picker of people and agents, as in [Edit a comment and mention people](review.md#edit-a-comment-and-mention-people), and a person can delete a message as described in [Delete a comment](review.md#delete-a-comment).
+Deleting the first message deletes the whole discussion only while nobody else has written in it.
 
 A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, starts an investigation for that agent that writes into this observation, and it needs the Editor role.
 The agent's run puts its answer on the page as blocks, and when it ends the server posts one status line in the discussion, such as "Wrote the answer into this observation: <title>." and the first paragraph of the finding
@@ -192,12 +196,13 @@ A panel's `repeat` setting is dropped.
 
 ## Work on one from MCP and the CLI
 
-[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `resolve_observation`, `keep_block`, `discard_block`, `publish_rca`, `pin_observation` and `make_dashboard`.
-The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `resolve`, `keep`, `discard`, `edit-block`, `remove-block`, `publish`, `pin` and `dashboard`, and `observe o delete`, which no MCP tool matches because no MCP tool deletes anything.
+[MCP](mcp.md) clients use `create_observation`, `get_observation`, `list_observations`, `add_block`, `update_block`, `update_observation`, `move_observation`, `resolve_observation`, `reopen_observation`, `keep_block`, `discard_block`, `publish_rca`, `list_rcas`, `get_rca`, `pin_observation` and `make_dashboard`.
+The [CLI](cli.md#observations) has the same work as `observe o new`, `show`, `list`, `add`, `edit`, `move`, `resolve`, `reopen`, `keep`, `discard`, `edit-block`, `publish`, `rcas`, `pin` and `dashboard`, and `observe o delete`, `remove-block` and `withdraw`, which no MCP tool matches because no MCP tool deletes anything.
 Both reach the HTTP API under `/api/v1/observations`, and a person works on the page in the [web app](#work-on-one-in-the-web-app).
 
 `GET /api/v1/observations` filters with `folder_id`, `state`, `q` (a title that contains the text, ignoring case, at most 200 characters) and `created_by=me`, and sorts with `sort` (`updated`, the default, `created` or `title`) and `order` (`asc` or `desc`; `title` starts ascending, the others descending).
-It pages in one of two ways: `cursor` and `next_cursor` for the default order, or `offset` (at most 100000) with `limit`, which also answers `total`, the number of observations that match.
+`limit` is 1 to 100 and defaults to 20.
+It pages in one of two ways: `cursor` and `next_cursor` for the default order, or `offset` (at most 100000), which also answers `total`, the number of observations that match.
 A cursor cannot be combined with `offset` or with another sort.
 
 Every observation the HTTP API and the MCP observation tools return carries `message_count`, how many messages its discussion holds, replies included, and 0 before anyone has written one.

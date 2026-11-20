@@ -64,7 +64,7 @@ Every request to Grafana keeps the outbound timeout and an 8 MiB size cap, and a
 Choose Import on a connection.
 Pick All folders, or Choose folders and tick the ones you want; a folder brings its subfolders with it, and General stands for the dashboards outside any folder.
 Then check the datasource matches.
-Each Grafana datasource of a type SlashObserve queries (Prometheus, ClickHouse, Loki or Tempo) is listed with a choice of your datasources of the same type, prefilled by the importer's automatic rules, so a datasource of the wrong type is never offered.
+Each Grafana datasource of a type SlashObserve queries (Prometheus, ClickHouse, Loki, Tempo, Elasticsearch or OpenSearch) is listed with a choice of your datasources of the same type, prefilled by the importer's automatic rules, so a datasource of the wrong type is never offered.
 A datasource with no match is flagged: dashboards that use it fail until you pick one.
 A datasource whose type has no configured datasource here is listed without a choice, and its panels import as placeholders that say which type is missing.
 Datasources of other types are counted in one line, and their panels import as placeholders.
@@ -163,7 +163,7 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 | Kiosk mode and playlists | TV mode, which cycles through a dashboard's rows or a folder's dashboards. Playlists themselves stay in Grafana. | Changes |
 | Provisioning files | The server's provisioning directory, or `observe dashboards apply` from Git. | Changes |
 | Alerting rules, contact points and silences | Not imported, and there is no replacement here: keep Grafana alerting, or Prometheus rules with Alertmanager. An alert list panel over a Prometheus `ALERTS` query imports as a list, and any other alert list as a placeholder. | Waits |
-| Library panels and plugin panels | Imported as a placeholder. Each dashboard holds its own copy of a panel, and there is no plugin mechanism. | Waits |
+| Library panels and plugin panels | A library panel imports as a normal panel when the export carries its definition and as a placeholder when it does not; a plugin panel imports as a placeholder. Each dashboard holds its own copy of a panel, and there is no plugin mechanism. | Waits |
 | Dashboard snapshots, embedded panels and scheduled reports | Not built. A public link always shows the latest version and cannot be framed in another page, and nothing emails a dashboard on a schedule. | Waits |
 | Datasource permissions | Every signed-in person may query every datasource in the [datasources file](../reference/datasources-file.md). | Waits |
 | Users, teams and folder permissions | Stay in Grafana; set [folder permissions](../teams/folders.md) here after the import. | Waits |
@@ -188,7 +188,7 @@ A Grafana that cannot be reached or refuses the token still answers `200`, with 
 ### Datasources and folders
 
 `GET /api/v1/grafana/{id}/datasources` lists Grafana's datasources, and `matched_uid` names the datasource of yours each one matches by the importer's automatic rules.
-Each one also names its `kind`, the type of yours it maps to (`prometheus`, `clickhouse`, `loki` or `tempo`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
+Each one also names its `kind`, the type of yours it maps to (`prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`), and its `candidates`, the uids of your datasources of that kind, which are the only mapping targets an import keeps.
 A null `matched_uid` means the datasource needs a mapping, or has a type SlashObserve does not query, in which case its `kind` is null and its panels import as placeholders.
 A `kind` with empty `candidates` means no datasource of that type is configured here: it needs no mapping, and its panels import as placeholders.
 Give the open matches in the `mapping` of the import, keyed by the Grafana datasource uid or name, or add the Grafana uid to `grafanaUids` in the [datasources file](../reference/datasources-file.md) so every later import matches it too.

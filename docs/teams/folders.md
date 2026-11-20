@@ -85,6 +85,8 @@ Groups come from the `groups` claim of the ID token, as in [Roles](roles.md), an
 A service-account key matches no entry, because entries name people and groups.
 A key therefore sees a restricted folder only when its service account is an Admin or created the folder.
 To let automation work in a restricted folder, use a key of an Admin service account.
+A key that manages the folder, such as one of an Admin service account, can change the list with `observe folders permissions show`, `grant`, `revoke` and `open`; see [the command line](../use/cli.md#folders).
+Over REST, `GET /api/v1/folders/{id}/permissions` reads the list and `PUT` replaces all of it in one call.
 
 The agent works as the person or key that asked.
 The request needs Comment on the dashboard's folder, and the server checks it when the request is queued and again when a worker starts it.

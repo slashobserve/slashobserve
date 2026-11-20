@@ -69,6 +69,8 @@ A `text` field is read through its `.keyword` subfield; a `text` field without o
 The agent and the field browser list the aggregatable fields plus the `text` fields that have a `.keyword` subfield, the values of one field over a time range, every mapped field with its kind (`keyword`, `text`, `number`, `date`, `date_nanos`, `boolean`, `ip`, `nested`, `flattened`, `object` or `other`), the indices, aliases and data streams the pattern matches, and up to 20 of the newest documents with the resolved roles as columns.
 A field mapped differently across indices keeps the first type the server lists.
 OpenSearch has no metric names, so the metric list is empty.
+The services list, which the logs page shows for each source and `observe datasources services` and the `list_services` tool print, is the values of the `service` role field over a recent window, and it is empty when no field plays that role.
+The trace id and span id roles are what `observe datasources trace-logs` and the `logs_for_trace` tool match to read the log lines of a trace.
 
 ## Queries
 
@@ -81,6 +83,7 @@ A query takes one of three forms, chosen by its first characters:
 | Query DSL | Text that starts with `{`.                                                                    | A JSON search body. Only `query`, `aggs`, `aggregations`, `size`, `sort`, `fields`, `_source` and `runtime_mappings` are accepted; any other key is refused so the body cannot widen the time range or the limits, and so is a script anywhere in the body (`script`, `script_fields`, `script_score`, `scripted_metric` and the other script keys), including one inside `runtime_mappings`; a field, a sort or an aggregation that is only named `script` is accepted, and so is the `script` of a `bucket_script` or `moving_fn` aggregation, which sees only the values of its buckets. |
 
 Prefixes are case-insensitive, and an empty query matches every document.
+A KQL query that finds nothing can come back with `meta.hint`, which says when a field it filters on holds the same value in other letters, as [KQL on Elasticsearch and OpenSearch](../use/logs-and-traces.md#kql-on-elasticsearch-and-opensearch) describes.
 The time range and any ad hoc filters wrap your query in a `bool` filter, in every form.
 
 What a query returns depends on its kind and form:

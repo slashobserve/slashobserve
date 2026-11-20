@@ -15,13 +15,15 @@ Text is checked in this order, and the first failure is reported.
 3. What is left must hold at least one visible character.
 4. It must not contain control characters.
 5. It must not contain bidirectional override or isolate characters (U+202A to U+202E and U+2066 to U+2069), which can make a name read as another name.
-6. A title or name must not contain zero-width or hidden characters inside it, because two names that differ only by such a character would look identical.
+6. A one-line field must not contain zero-width or hidden characters inside it, because two names that differ only by such a character would look identical.
+   Tag characters (see below) count as hidden in every field.
 7. Its length, counted in Unicode characters and not bytes, must be within the limit.
 
 A title, name or note is one line: line breaks and tabs count as control characters.
 A comment, a prompt and an observation text block may hold line breaks and tabs.
-A zero-width joiner is allowed inside text because emoji sequences and some scripts need it.
-Tag characters (U+E0000 to U+E007F) are allowed only in the sequence that follows a black flag (U+1F3F4), which is how the England, Scotland and Wales flags are written, and are refused anywhere else.
+A zero-width joiner is allowed inside text because emoji sequences and some scripts need it, and a multi-line field allows other zero-width characters inside it.
+Tag characters (U+E0000 to U+E007F) are allowed only in the sequence that follows a black flag (U+1F3F4), which is how the England, Scotland and Wales flags are written, and are refused anywhere else with `text_invisible_characters`.
+An observation text block is checked as it is sent and is not trimmed.
 
 A dashboard or panel title that an earlier version already holds is kept as it is when you save, duplicate or build on that dashboard, even when it breaks the rules above, so an old dashboard never blocks a save over a title nobody touched.
 A title you type or change is checked in full.
@@ -38,8 +40,11 @@ In the same way, an observation text block whose text is sent back unchanged is 
 | Observation summary | 500 | yes |
 | Observation text block | 8000 | no |
 | Chat title | 120 | yes |
+| Public link label | 80 | yes |
 | Prompt, continue note, saved prompt body, comment and thread message | 4000 | no |
 | Annotation text | 2000 | no |
+
+A saved prompt's name, a comment access request's note, a service account's name and a team name follow their own rules, described with them: see [Saved prompts](../teams/saved-prompts.md), [Folders and access](../teams/folders.md#ask-for-comment-access), [People](../teams/people.md#teams) and [Service-account keys](../operate/service-account-keys.md).
 
 ## Reason codes
 
