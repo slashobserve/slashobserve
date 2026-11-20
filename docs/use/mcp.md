@@ -185,6 +185,7 @@ Answers are cached for about a minute and a source lists at most 200 services, w
 `logs_for_trace` reads the log lines that carry a trace id, or one span id, from a Loki, ClickHouse, Elasticsearch or OpenSearch datasource over a window, the same lines the trace view opens from a span, and answers the table summary of `query_instant`.
 
 On a ClickHouse trace datasource `query_instant` also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks; `page_size`, `page` and `sort` page it.
+On any ClickHouse table, `query_instant` without `page_size` and `query_range` refuse a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`, even one that selects `Timestamp`, because only a paged query is cut to the range by the server; a macro inside a comment does not count.
 
 `query_instant` and `query_range` return `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource, so you can see what a `$job` or a `$__rate_interval` became.
 

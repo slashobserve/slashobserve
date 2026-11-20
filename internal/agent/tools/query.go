@@ -271,6 +271,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		Selections:    selections,
 		MaxDataPoints: dataPoints,
 		Limits:        queryproxy.DraftLimits,
+		Explore:       true,
 		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {

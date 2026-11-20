@@ -53,6 +53,7 @@ type Request struct {
 	Limits        datasource.Limits
 	IncludeHidden bool
 	Exemplars     bool
+	Explore       bool
 	User          datasource.QueryUser
 	Admit         func(index int, q QueryResult) error // an *AbortError stops the other queries and fails the request with its Err
 
@@ -554,7 +555,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User, TimeZone: namedTimeZone(req.Dashboard)}
+	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User, TimeZone: namedTimeZone(req.Dashboard), Explore: req.Explore}
 	if applies := implicitScope(inst.Datasource.Type(), use); applies != nil {
 		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
 			return nil, err

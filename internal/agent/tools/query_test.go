@@ -356,6 +356,30 @@ func TestQueryToolsExpandTheDashboardTitleMacro(t *testing.T) {
 	}
 }
 
+func TestQueryToolsRunTheirTextAsAnExploreQuery(t *testing.T) {
+	for _, tool := range []string{nameQueryRange, nameQueryInstant} {
+		var seen []datasource.Query
+		ds := &fakeDS{
+			typ: "clickhouse",
+			rangeFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+				seen = append(seen, q)
+				return []datasource.Frame{logTableFrame()}, nil
+			},
+			instantFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]datasource.Frame, error) {
+				seen = append(seen, q)
+				return []datasource.Frame{logTableFrame()}, nil
+			},
+		}
+		res, err := call(t, newTestRegistry(t, ds, nil), tool, `{"datasource":"fake","query":"SELECT TraceId FROM otel_traces LIMIT 3"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("%s: res = %#v err = %v", tool, res, err)
+		}
+		if len(seen) != 1 || !seen[0].Explore {
+			t.Fatalf("%s: the datasource saw %+v, want one explore query", tool, seen)
+		}
+	}
+}
+
 func TestQueryRangePassesTheFormatToTheDatasource(t *testing.T) {
 	tests := []struct {
 		name  string

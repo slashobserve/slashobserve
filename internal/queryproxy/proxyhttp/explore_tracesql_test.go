@@ -83,3 +83,17 @@ func TestExploreAnswersTheTraceSQLRefusalWithItsCode(t *testing.T) {
 		})
 	}
 }
+
+func TestExploreWithoutAPageRunsItsTextAsAnExploreQuery(t *testing.T) {
+	for _, kind := range []string{"instant", "range"} {
+		hn, traces := newClickHouseHarness(t)
+		body := instantBody("SELECT TraceId FROM otel_traces LIMIT 3")
+		body["kind"] = kind
+		if rec := hn.explore(auth.KindServiceAccount, "ch", body); rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, body = %s", kind, rec.Code, rec.Body.String())
+		}
+		if q := traces.lastQuery(); !q.Explore {
+			t.Fatalf("%s: the datasource saw %+v, want an explore query", kind, q)
+		}
+	}
+}
