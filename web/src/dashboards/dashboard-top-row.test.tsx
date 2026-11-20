@@ -40,7 +40,8 @@ afterEach(() => {
 async function renderRow(
   controls: ReactNode[],
   folder: { id: string; title: string } | null = null,
-  actions: ReactNode[] = []
+  actions: ReactNode[] = [],
+  views: string | null = null
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(annotationKeys.range("d1", "now-1h", "now"), [
@@ -60,6 +61,7 @@ async function renderRow(
         title="Checkout"
         folder={folder}
         madeBy="Web"
+        views={views}
         versionControl={null}
         controls={controls}
         actions={actions}
@@ -116,6 +118,18 @@ describe("DashboardTopRow", () => {
       "max-w-full",
       "flex-wrap"
     )
+  })
+
+  it("lets the view count and the author shrink before the title", async () => {
+    await renderRow([], null, [], "1 view in the last 30 days")
+    const title = screen.getByRole("heading", { level: 1 })
+    expect(title).toHaveAttribute("title", "Checkout")
+    expect(title).not.toHaveClass("shrink-[1000]")
+    for (const text of ["Web", "1 view in the last 30 days"]) {
+      const item = screen.getByText(text)
+      expect(item).toHaveClass("shrink-[1000]")
+      expect(item).toHaveAttribute("title", text)
+    }
   })
 
   it("leaves the title alone with the version on a phone", async () => {
