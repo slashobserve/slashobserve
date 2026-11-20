@@ -4,6 +4,7 @@ export type ExampleDashboard = {
   id: string
   title: string
   canEdit: boolean
+  updatedBy: string
 }
 
 export const noDashboards: readonly ExampleDashboard[] = []
@@ -25,16 +26,28 @@ function example(text: string, dashboardId?: string): Example {
     : { label: text, prompt: text, dashboardId }
 }
 
+function dashboardToRevise(
+  dashboards: readonly ExampleDashboard[],
+  personId: string
+): ExampleDashboard | undefined {
+  const editable = dashboards.filter((dashboard) => dashboard.canEdit)
+  return (
+    editable.find((dashboard) => dashboard.updatedBy === personId) ??
+    editable[0]
+  )
+}
+
 export function examplePrompts(input: {
   types: readonly string[]
   dashboards: readonly ExampleDashboard[]
   canBuild: boolean
+  personId: string
 }): Example[] {
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
   const ch = input.types.includes("clickhouse")
   const traces = input.types.includes("tempo")
-  const first = input.dashboards.find((dashboard) => dashboard.canEdit)
+  const first = dashboardToRevise(input.dashboards, input.personId)
   const builds: Example[] = []
   if (prom && first !== undefined) {
     builds.push(

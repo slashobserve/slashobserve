@@ -12,10 +12,11 @@ export function dashboardTitlesQuery() {
         .GET("/dashboards", { params: { query: { limit: 200 } }, signal })
         .then(unwrap),
     select: (data) =>
-      data.dashboards.map(({ id, title, permissions }) => ({
+      data.dashboards.map(({ id, title, permissions, updated_by }) => ({
         id,
         title,
         canEdit: permissions.edit,
+        updatedBy: updated_by.id,
       })),
     staleTime: 15_000,
   })

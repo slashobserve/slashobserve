@@ -20,13 +20,27 @@ vi.mock("./recent-chats", () => ({ RecentChats: () => null }))
 const mine = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const theirs = "9b1c5a42-1c9e-4d5e-9a67-3f8e2d1c0b44"
 
-function dashboard(id: string, title: string, edit: boolean) {
-  return { id, title, permissions: { comment: true, edit } }
+function dashboard(
+  id: string,
+  title: string,
+  edit: boolean,
+  updatedBy = "someone-else"
+) {
+  return {
+    id,
+    title,
+    permissions: { comment: true, edit },
+    updated_by: { kind: "user", id: updatedBy, name: "Someone" },
+  }
 }
 
 function render(
   props: { initialPrompt?: string; dashboardId?: string } = {},
-  withTitles = true
+  withTitles = true,
+  titles = [
+    dashboard(theirs, "Someone else's board", false),
+    dashboard(mine, "Payments", true),
+  ]
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -40,10 +54,7 @@ function render(
   })
   if (withTitles) {
     queryClient.setQueryData(dashboardKeys.titles(), {
-      dashboards: [
-        dashboard(theirs, "Someone else's board", false),
-        dashboard(mine, "Payments", true),
-      ],
+      dashboards: titles,
     })
   }
   return renderWithProviders(<ChatHome {...props} />, {
@@ -77,6 +88,18 @@ describe("ChatHome", () => {
       })
     ).toBeInTheDocument()
     expect(screen.queryByText(/Someone else's board/)).not.toBeInTheDocument()
+  })
+
+  it("offers the dashboard the person edited last, not the newest one", async () => {
+    render({}, true, [
+      dashboard(theirs, "Updated a minute ago by a teammate", true),
+      dashboard(mine, "Payments", true, "u1"),
+    ])
+    expect(
+      await screen.findByRole("button", {
+        name: "Add a latency row to Payments",
+      })
+    ).toBeInTheDocument()
   })
 
   it("fills the box through the address instead of sending the revision", async () => {

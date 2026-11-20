@@ -1,6 +1,4 @@
 import { useId, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { useRouteContext } from "@tanstack/react-router"
 import {
   LoaderCircleIcon,
   NotebookTextIcon,
@@ -9,17 +7,13 @@ import {
 } from "lucide-react"
 
 import { ChatComposer, useOpenSent } from "@/chat/chat-composer"
-import { examplePrompts, noDashboards } from "@/chat/examples"
 import { composerPlaceholder } from "@/chat/prompt-length"
 import { useChooseExample } from "@/chat/use-choose-example"
+import { useExamples } from "@/chat/use-examples"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useDatasources } from "@/datasources/queries"
-import { roleAtLeast } from "@/lib/roles"
-import { useAgentInfo } from "@/observe/queries"
 import { NewObservationForm } from "@/observations/new-observation-form"
 import { useCreateObservation } from "@/observations/queries"
-import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 import { parseHomeTab, type HomeTab } from "./home-tab"
 import { ImportStart } from "./import-start"
@@ -122,18 +116,8 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
 }
 
 export function ExampleChips() {
-  const agent = useAgentInfo()
-  const datasources = useDatasources()
-  const dashboards = useQuery(dashboardTitlesQuery())
+  const { examples, agentReady } = useExamples()
   const { choose, pending } = useChooseExample()
-  const { principal } = useRouteContext({ from: "/_authed" })
-
-  const examples = examplePrompts({
-    types: (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type),
-    dashboards: dashboards.data ?? noDashboards,
-    canBuild: roleAtLeast(principal.role, "editor"),
-  })
-  const agentReady = !agent.isPending && agent.data?.available !== false
   if (!agentReady || examples.length === 0) return null
 
   return (
