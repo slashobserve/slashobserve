@@ -9,6 +9,7 @@ export type PinTurn = Pick<
   | "prompt"
   | "chat_id"
   | "panel_id"
+  | "block_id"
   | "anchor"
   | "requested_by"
   | "created_at"
@@ -45,14 +46,14 @@ function byTime(a: ChatTurn, b: ChatTurn): number {
 
 export function privatePins(
   turns: readonly PinTurn[],
-  panelId: string,
+  onSurface: (turn: PinTurn) => boolean,
   viewerId: string
 ): PrivatePin[] {
   const pins = new Map<string, PrivatePin>()
   for (const turn of [...turns].sort(byTime)) {
     const { anchor, chat_id: chatId } = turn
     if (anchor === null || chatId === null) continue
-    if (turn.panel_id !== panelId || turn.requested_by.id !== viewerId) continue
+    if (!onSurface(turn) || turn.requested_by.id !== viewerId) continue
     const key = `${chatId}:${spotKey(anchor)}`
     const pin = pins.get(key)
     if (pin === undefined) {

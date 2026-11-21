@@ -62,6 +62,7 @@ function show(blocks: Block[], allowed: string[]) {
       observation={observation(allowed)}
       blocks={blocks}
       canAdd
+      canComment={false}
       reveal={null}
       onRevealed={() => {}}
       onAdded={() => {}}

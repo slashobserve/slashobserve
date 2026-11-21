@@ -52,7 +52,7 @@ const noUnverified = new Map<string, string>()
 
 function ignore() {}
 
-type Props = { block: Block; height: number }
+type Props = { block: Block; height: number; onCanvas?: boolean }
 
 function RangeCaption({
   datasource,
@@ -130,10 +130,12 @@ function ReadablePanelBlock({
   block,
   body,
   height,
+  onCanvas,
 }: {
   block: Block
   body: PanelBlockBody
   height: number
+  onCanvas: boolean
 }) {
   const { panel } = body
   const page = useContext(PageRangeContext)
@@ -286,7 +288,8 @@ function ReadablePanelBlock({
             unverifiedReason={undefined}
             highlighted={false}
             editingPanel={false}
-            canComment={false}
+            canComment={onCanvas}
+            onCanvas={onCanvas}
             canEdit={false}
             focusOnRender={false}
             onFocused={ignore}
@@ -308,7 +311,7 @@ function ReadablePanelBlock({
   )
 }
 
-export function PanelBlock({ block, height }: Props) {
+export function PanelBlock({ block, height, onCanvas = false }: Props) {
   const body = useMemo(() => panelBlockBody(block), [block])
   if (body === null) {
     return (
@@ -323,5 +326,12 @@ export function PanelBlock({ block, height }: Props) {
       </BlockFrame>
     )
   }
-  return <ReadablePanelBlock block={block} body={body} height={height} />
+  return (
+    <ReadablePanelBlock
+      block={block}
+      body={body}
+      height={height}
+      onCanvas={onCanvas}
+    />
+  )
 }

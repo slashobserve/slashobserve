@@ -39,7 +39,7 @@ const onRow: Anchor = {
 }
 
 const spot: AskSpot = {
-  panelId: "p1",
+  ownerId: "p1",
   anchor: onRow,
   at: { x: 120, y: 80 },
   surface: "s1",
@@ -168,12 +168,12 @@ function Harness({
       <button type="button">Ask origin</button>
       {at === null ? null : (
         <AskPopover
-          dashboardId={dashboardId}
+          subject={{ kind: "dashboard", id: dashboardId }}
           panelTitle="Slow services"
           surfaceRef={createRef<HTMLElement>()}
           gate={gate}
           spot={{
-            panelId: at.panelId,
+            ownerId: at.ownerId,
             anchor: at.anchor,
             at: at.at,
             surface: at.surface,
@@ -305,7 +305,7 @@ describe("AskPopover", () => {
     expect(useCanvasTool.getState().openTurn).toMatchObject({
       requestId: "q1",
       chatId: "c1",
-      panelId: "p1",
+      ownerId: "p1",
       anchor: onRow,
     })
     expect(onChatStarted).not.toHaveBeenCalled()

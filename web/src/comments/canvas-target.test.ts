@@ -115,6 +115,18 @@ describe("placePin", () => {
     })
   })
 
+  it("sets a text pin apart at the corner once its text is gone", () => {
+    const quoted: Anchor = {
+      kind: "text",
+      pos: { x: 0.3, y: 0.5 },
+      quote: "card declined",
+    }
+    expect(placePin(quoted, body, surface({}), "data")).toEqual({
+      at: { x: 378, y: 22 },
+      gone: true,
+    })
+  })
+
   it("trusts the stored spot when the panel cannot locate anchors", () => {
     expect(placePin(onBar, body, blank, "data")).toEqual({
       at: { x: 120, y: 20 },

@@ -46,6 +46,13 @@ Hovering a panel also shows **Ask** and **Comment** buttons in its header, which
 They fade in under a mouse or trackpad, and on a touch screen and while the keyboard focus is in the panel they are always shown.
 **Ask** needs the same things as `a`, and the panel menu offers both with the same rule.
 
+## Observation page keys
+
+An observation page answers `c`, `a` and `Esc` for the canvas, as described in [Comment and ask on the blocks](observations.md#comment-and-ask-on-the-blocks).
+`c` and `a` open the composer or the ask box on the whole panel block under the pointer, or on the one that holds the keyboard focus; with no panel block there, they turn Comment or Ask mode on, and in that mode they turn it off.
+`Esc` closes an open composer or ask box first, and then leaves Comment or Ask mode for Select.
+The keys do nothing while you move or resize blocks, while you type in a field, and for a person who cannot comment.
+
 ## Two-key shortcuts
 
 For a two-key shortcut, press the second key within one second of the first.

@@ -27,7 +27,7 @@ export type CanvasTool = "select" | "comment" | "ask"
 export type DraftTool = Exclude<CanvasTool, "select">
 
 export type CanvasDraft = {
-  panelId: string
+  ownerId: string
   tool: DraftTool
   anchor: Anchor | null
   at: Point | null
@@ -37,7 +37,7 @@ export type CanvasDraft = {
 export type OpenTurn = {
   requestId: string
   chatId: string
-  panelId: string
+  ownerId: string
   anchor: Anchor | null
   at: Point | null
   surface: string | null
@@ -103,10 +103,10 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   setText: (text) => set({ text }),
 }))
 
-export function openKeyDraft(panelId: string, tool: DraftTool) {
+export function openKeyDraft(ownerId: string, tool: DraftTool) {
   useCanvasTool
     .getState()
-    .openDraft({ panelId, tool, anchor: null, at: null, surface: null })
+    .openDraft({ ownerId, tool, anchor: null, at: null, surface: null })
 }
 
 const toolShortcuts: Record<CanvasTool, ShortcutAction> = {
@@ -140,7 +140,9 @@ export const commentModeText =
 export const askModeText =
   "Click a spot on a panel to ask the agent about it. Esc returns to Select."
 
-const modeTexts: Record<DraftTool, string> = {
+export type ModeTexts = Record<DraftTool, string>
+
+const dashboardModeTexts: ModeTexts = {
   comment: commentModeText,
   ask: askModeText,
 }
@@ -156,6 +158,7 @@ export function activeTool(
 type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
+  modeTexts?: ModeTexts
 }
 
 const toolClass =
@@ -206,7 +209,11 @@ function ToolButton({
   )
 }
 
-export function CanvasTools({ permissions, idle }: Props) {
+export function CanvasTools({
+  permissions,
+  idle,
+  modeTexts = dashboardModeTexts,
+}: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
   const agentAvailable = useAgentInfo().data?.available === true

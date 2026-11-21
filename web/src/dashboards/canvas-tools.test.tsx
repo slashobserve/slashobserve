@@ -16,7 +16,7 @@ import {
 } from "./canvas-tools"
 
 const draft: CanvasDraft = {
-  panelId: "p1",
+  ownerId: "p1",
   tool: "comment",
   anchor: { kind: "position", pos: { x: 0.5, y: 0.5 } },
   at: { x: 40, y: 20 },
@@ -137,7 +137,7 @@ describe("useCanvasTool", () => {
     const turn = {
       requestId: "r1",
       chatId: "c1",
-      panelId: "p1",
+      ownerId: "p1",
       anchor: draft.anchor,
       at: draft.at,
       surface: "s1",
@@ -171,7 +171,7 @@ describe("useCanvasTool", () => {
   it("opens a key draft on the whole panel with no spot", () => {
     openKeyDraft("p2", "ask")
     expect(useCanvasTool.getState().draft).toEqual({
-      panelId: "p2",
+      ownerId: "p2",
       tool: "ask",
       anchor: null,
       at: null,

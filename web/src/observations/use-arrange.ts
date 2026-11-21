@@ -64,6 +64,7 @@ type Dragging = { id: string; drop: DropTarget | null }
 
 export type Arrange = {
   blocks: Block[]
+  arranging: boolean
   dragging: Dragging | null
   announcement: { message: string; count: number }
   startDrag: (block: Block) => (event: PointerEvent<HTMLElement>) => void
@@ -375,6 +376,7 @@ export function useArrange({
 
   return {
     blocks: shown,
+    arranging: draft !== null || dragging !== null,
     dragging,
     announcement,
     startDrag,

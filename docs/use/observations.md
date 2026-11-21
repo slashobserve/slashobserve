@@ -204,6 +204,23 @@ The run writes nothing on the page, for an Editor as for a Commenter: when it en
 The line is not the model's text, and the paragraph is shown as plain text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
+### Comment and ask on the blocks
+
+The page has the same tool bar at the bottom of the screen as a dashboard, with **Select**, **Comment** and **Ask**, for a person who can comment on the observation; it is hidden on a phone, and **Ask** shows only when a model is connected.
+On a live panel block, Comment mode and Ask mode work as on a dashboard panel: a click names the spot under the pointer, a drag across a time series names the range, and pins mark the threads and your own questions, as described in [Comment pins](web.md#comment-pins) and [Ask mode](web.md#ask-mode).
+`c` or `a` with the pointer over a panel block, the block's panel menu and the **Comment** and **Ask** buttons in its header open the composer or the ask box on the whole block.
+A comment on the whole block goes into the discussion as a message on that block.
+
+Selecting text in a text block shows **Comment** and **Ask** under the selection, and in Comment or Ask mode selecting text opens the composer or the ask box at once.
+The thread or the question points at the text you selected, up to its first 200 characters, and its pin sits on that text wherever it moves in the block.
+When the block no longer holds that text, the pin is faded in the block's top right corner and its thread says the text is no longer in the block.
+
+A question asked on the page is private: its box says "Only you and Admins can see this.", and the agent reads data and answers without writing anything on the page.
+The questions you ask during one visit to the page are turns of one chat, which the [chat list](chat.md) keeps.
+Nothing on the page takes comments or questions while you move or resize blocks: the modes, composers and pins come back when the change is saved, and a composer keeps the text you typed.
+A text block you are editing, a requested block, a snapshot and a run block take none.
+Over the API, MCP and the CLI, a question names a whole block with `block_id` and no anchor, as in [`observe investigate`](cli.md) with `--block` and `--observation`.
+
 ### Add to an observation from a panel or from Logs
 
 **Add to observation** in a dashboard panel's menu copies that panel into an observation.

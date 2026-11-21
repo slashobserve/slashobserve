@@ -7,6 +7,7 @@ import {
   stackPins,
   type PanelPin,
 } from "./canvas-pins"
+import { sitsOn } from "./canvas-host"
 import type { Message, Thread, ThreadWithMessages } from "./thread-queries"
 
 const actor: Message["actor"] = {
@@ -51,11 +52,24 @@ describe("panelPins", () => {
         entry("t3", { anchor: null }),
         entry("t4", {}, 0),
       ],
-      "p1",
+      (thread) => sitsOn({ kind: "dashboard", id: "d1" }, "p1", thread),
       () => here
     )
     expect(pins.map((pin) => pin.entry.thread.id)).toEqual(["t1"])
     expect(pins[0].placement).toBe(here)
+  })
+
+  it("keeps the threads on one observation block by their block", () => {
+    const pins = panelPins(
+      [
+        entry("t1", { panel_id: null, block_id: "b1" }),
+        entry("t2", { panel_id: null, block_id: "b2" }),
+        entry("t3", { panel_id: "b1", block_id: null }),
+      ],
+      (thread) => sitsOn({ kind: "observation", id: "o1" }, "b1", thread),
+      () => here
+    )
+    expect(pins.map((pin) => pin.entry.thread.id)).toEqual(["t1"])
   })
 })
 
@@ -78,6 +92,13 @@ describe("pinLabel", () => {
   it("says when the thread is resolved and when its data is gone", () => {
     expect(pinLabel(pin({ status: "resolved" }, true))).toBe(
       "Comment by Ada: Errors doubled after the deploy, resolved, its data is no longer on the panel"
+    )
+  })
+
+  it("says a text comment is detached once its text is gone", () => {
+    const anchor = { kind: "text" as const, pos: { x: 0, y: 0 }, quote: "x" }
+    expect(pinLabel(pin({ anchor, block_id: "b1" }, true))).toBe(
+      "Comment by Ada: Errors doubled after the deploy, its text is no longer in the block"
     )
   })
 })

@@ -8,6 +8,7 @@ import { isModEnter } from "@/lib/shortcuts"
 
 import { blockWriteProblem } from "./errors"
 import { useUpdateBlock, type Block } from "./queries"
+import { TextCanvas } from "./text-canvas"
 
 const emptyProblem = "Write something, or delete the block"
 const conflictProblem = "Someone changed this block while you were editing"
@@ -122,7 +123,13 @@ function TextEditor({ block, onClose }: { block: Block; onClose: () => void }) {
   )
 }
 
-export function TextBlock({ block }: { block: Block }) {
+export function TextBlock({
+  block,
+  onCanvas = false,
+}: {
+  block: Block
+  onCanvas?: boolean
+}) {
   const canEdit = block.allowed_actions.includes("update")
   const [editing, setEditing] = useState(false)
   const editButton = useRef<HTMLButtonElement>(null)
@@ -144,7 +151,11 @@ export function TextBlock({ block }: { block: Block }) {
 
   return (
     <div className="relative">
-      <FindingMarkdown markdown={markdownOf(block)} />
+      {onCanvas ? (
+        <TextCanvas block={block} markdown={markdownOf(block)} />
+      ) : (
+        <FindingMarkdown markdown={markdownOf(block)} />
+      )}
       {canEdit ? (
         <Button
           ref={editButton}
