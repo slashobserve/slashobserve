@@ -120,6 +120,7 @@ describe("PanelChrome", () => {
         state="ready"
         onSelect={vi.fn()}
         dragHandle
+        grabbable
         links={[
           { title: "Runbook", href: "https://example.com/rb", newTab: false },
         ]}
@@ -146,5 +147,18 @@ describe("PanelChrome", () => {
     ]) {
       expect(startsDrag(screen.getByRole("button", { name }))).toBe(false)
     }
+  })
+
+  it("offers no move affordance to a panel that cannot be arranged", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" onSelect={vi.fn()} />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).not.toHaveClass("panel-drag-handle")
+    expect(
+      screen.queryByRole("button", { name: /^Move or resize/ })
+    ).not.toBeInTheDocument()
   })
 })

@@ -27,7 +27,7 @@ import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps, NewTabMark } from "./dashboard-links"
-import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
+import { PanelMoveHandle } from "./edit/panel-move-handle"
 import { panelProblem } from "./panel-problem"
 import type { SeriesCap } from "./series-cap"
 import { timeOverrideLabel } from "./time-override"
@@ -88,6 +88,7 @@ type Props = {
   selected?: boolean
   onSelect?: () => void
   dragHandle?: boolean
+  grabbable?: boolean
   repeatOf?: string
   children?: ReactNode
 }
@@ -109,6 +110,7 @@ export function PanelChrome({
   selected = false,
   onSelect,
   dragHandle = false,
+  grabbable = false,
   repeatOf,
   children,
 }: Props) {
@@ -141,9 +143,8 @@ export function PanelChrome({
       <header
         className={cn(
           "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1",
-          dragHandle
-            ? "panel-drag-handle cursor-grab pl-1 active:cursor-grabbing"
-            : "pl-3"
+          dragHandle ? "touch-none pl-1" : "pl-3",
+          grabbable && "panel-drag-handle cursor-grab active:cursor-grabbing"
         )}
         style={{ height: panelHeaderHeight }}
       >
@@ -164,7 +165,10 @@ export function PanelChrome({
               data-panel-title=""
               aria-pressed={selected}
               aria-label={`Select panel: ${title}`}
-              className="block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(
+                "block max-w-full truncate rounded-control text-left font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                grabbable && "cursor-[inherit]"
+              )}
               onClick={onSelect}
             >
               {title}
@@ -286,7 +290,6 @@ export function PanelChrome({
         ) : null}
         {state === "ready" ? children : null}
       </div>
-      {dragHandle ? <PanelResizeGrip /> : null}
     </article>
   )
 }

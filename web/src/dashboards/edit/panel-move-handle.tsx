@@ -95,22 +95,6 @@ export function PanelMoveHandle({
   )
 }
 
-export function PanelResizeGrip() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 10 10"
-      className="pointer-events-none absolute right-1 bottom-1 size-2.5 text-muted-foreground"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinecap="round"
-    >
-      <path d="M9 3L3 9M9 6.5L6.5 9" />
-    </svg>
-  )
-}
-
 export function LayoutAnnouncer() {
   const message = useLayoutStore((state) =>
     liveRegionText(

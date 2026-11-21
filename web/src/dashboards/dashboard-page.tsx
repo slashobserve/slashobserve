@@ -849,6 +849,7 @@ function DashboardView({
         item.first &&
         item.panel.id === selectedId
       }
+      arrangeable={arranging && item.first}
       layoutSession={editing}
       openComments={item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0}
       unverifiedReason={unverified.panels.get(item.panel.id)}

@@ -33,6 +33,7 @@ import {
 } from "./stack-heights"
 
 const singleColumnBelow = 768
+const resizeHandles = ["e", "s", "se"] as const
 const fadeIn =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
@@ -220,7 +221,10 @@ export function DashboardGrid({
             cancel: panelDragCancel,
             threshold: 3,
           }}
-          resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
+          resizeConfig={{
+            enabled: editable && !stacked,
+            handles: resizeHandles,
+          }}
           onLayoutChange={stacked ? undefined : reportLayout}
         >
           {ordered.map(({ entry }, index) => (

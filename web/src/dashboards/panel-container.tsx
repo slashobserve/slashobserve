@@ -125,6 +125,7 @@ type PanelContainerProps = {
   refreshMs: number | null
   mixedDatasources: boolean
   editable: boolean
+  arrangeable?: boolean
   layoutSession: boolean
   openComments: number
   unverifiedReason: string | undefined
@@ -171,6 +172,7 @@ export const PanelContainer = memo(function PanelContainer({
   refreshMs,
   mixedDatasources,
   editable,
+  arrangeable = false,
   layoutSession,
   openComments,
   unverifiedReason,
@@ -474,6 +476,7 @@ export const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
+        grabbable={arrangeable && !commentTool}
         highlighted={highlighted}
         selected={selected}
         onSelect={viewing ? undefined : selectPanel}
