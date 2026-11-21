@@ -4820,7 +4820,8 @@ components:
         chat_id:
           type: string
           format: uuid
-          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat.
+          nullable: true
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
         observation_id:
           type: string
           format: uuid

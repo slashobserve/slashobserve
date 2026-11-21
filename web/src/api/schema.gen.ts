@@ -6535,9 +6535,9 @@ export interface components {
             to: string | null;
             /**
              * Format: uuid
-             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat.
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
              */
-            chat_id: string;
+            chat_id: string | null;
             /**
              * Format: uuid
              * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.

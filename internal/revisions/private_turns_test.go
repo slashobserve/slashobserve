@@ -112,6 +112,23 @@ func mustNotContain(t *testing.T, who, what, body string, ids ...string) {
 	}
 }
 
+func chatIDIn(t *testing.T, body string) *string {
+	t.Helper()
+	var read struct {
+		ChatID  *string `json:"chat_id"`
+		Request *struct {
+			ChatID *string `json:"chat_id"`
+		} `json:"request"`
+	}
+	if err := json.Unmarshal([]byte(body), &read); err != nil {
+		t.Fatal(err)
+	}
+	if read.Request != nil {
+		return read.Request.ChatID
+	}
+	return read.ChatID
+}
+
 func failAllRuns(t *testing.T, svc *revisions.Service, d *dbtest.Database, ids ...string) {
 	t.Helper()
 	stop := startWorker(t, svc, d, revisions.WorkerOptions{})
@@ -270,5 +287,38 @@ func TestEveryReadOfAChatIsRecordedWithItsOwner(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("chat.view events = %+v, want %+v", got, want)
+	}
+}
+
+func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{FailureCode: revisions.FailureRateLimited}, errors.New("failed")
+	}))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	question := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs mention " + privateWord)})
+	failAllRuns(t, svc, d, question.String())
+	build := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("now build a dashboard of it"), ChatID: text(question.String())})
+	failAllRuns(t, svc, d, build.String())
+	if got := storedRun(t, svc, build.String()); !strings.Contains(got.ThreadContext.String, privateWord) {
+		t.Fatalf("the second turn stored no transcript of the first: %q", got.ThreadContext.String)
+	}
+	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid WHERE id = $1::uuid`, build.String(), seedDashboard(t, d, 1).String())
+
+	w := newPrivateWalk(t, svc, d)
+	for _, body := range []string{w.http(eve, "/api/v1/observe/"+build.String(), http.StatusOK), w.mcp(eve, "get_run", `{"id":"`+build.String()+`"}`, false)} {
+		if chat := chatIDIn(t, body); chat != nil {
+			t.Errorf("a reader of the dashboard is told the chat %s", *chat)
+		}
+		mustNotContain(t, eve.Name, "the saved turn", body, privateWord, question.String())
+	}
+	w.http(eve, "/api/v1/observe/"+question.String(), http.StatusNotFound)
+	w.http(eve, "/api/v1/chats/"+question.String(), http.StatusNotFound)
+	mustNotContain(t, eve.Name, "their own turns of the chat", w.http(eve, "/api/v1/observe?chat_id="+question.String(), http.StatusOK), build.String(), question.String())
+	for _, who := range []auth.Principal{user, bea} {
+		for _, body := range []string{w.http(who, "/api/v1/observe/"+build.String(), http.StatusOK), w.mcp(who, "get_run", `{"id":"`+build.String()+`"}`, false)} {
+			if chat := chatIDIn(t, body); chat == nil || *chat != question.String() {
+				t.Errorf("%s reads the chat id %v, want %s", who.Name, chat, question)
+			}
+		}
 	}
 }

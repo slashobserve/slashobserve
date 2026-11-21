@@ -308,7 +308,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
-		ChatID:        chatOf(row.ID, row.ChatID),
+		ChatID:        chatShownTo(row, caller),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
@@ -345,6 +345,14 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
 	return out
+}
+
+func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
+	if !sameActor(requesterOf(row), caller) && !caller.Role.AtLeast(auth.RoleAdmin) {
+		return nil
+	}
+	chat := chatOf(row.ID, row.ChatID)
+	return &chat
 }
 
 func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {

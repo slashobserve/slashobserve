@@ -405,7 +405,7 @@ export function Conversation({
   const readsChat = dashboardId === null && root.data !== undefined
   const { requests: chatRequests, query: chatQuery } = useMyRequests(
     {
-      chatId: root.data?.chat_id,
+      chatId: root.data?.chat_id ?? undefined,
       ...(readOnly ? { scope: "all" as const } : {}),
     },
     50,
