@@ -414,6 +414,19 @@ func TestAnOutdatedDashboardThatHadProblemsIsListedAfterTheCurrentOnesButCountsA
 		t.Errorf("state = %q, want outdated", got)
 	}
 
+	listed, err := r.dashboards.List(reading(t.Context()), r.editor, dashboards.ListParams{Limit: 10, Problem: "any"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(listed.Items))
+	for i, item := range listed.Items {
+		got[i] = item.Title
+	}
+	slices.Sort(got)
+	if want := []string{"Empty", "Failing"}; !slices.Equal(got, want) || listed.Total != page.Summary.Dashboards {
+		t.Errorf("the dashboard list under any = %q with total %d, want %q with the health summary's %d", got, listed.Total, want, page.Summary.Dashboards)
+	}
+
 	byKind, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Kind: health.KindQueryFailed, Limit: 10})
 	if err != nil {
 		t.Fatal(err)

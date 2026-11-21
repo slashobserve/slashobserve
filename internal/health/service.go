@@ -216,8 +216,15 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 		LastViewedAt:   lastView,
 		Skipped:        row.Skipped,
 		Problems:       problems,
-		Repair:         repairOf(row, checkedVersion),
+		Repair:         repairShown(row, checkedVersion),
 	}, nil
+}
+
+func repairShown(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {
+	if row.Provisioned {
+		return nil
+	}
+	return repairOf(row, checkedVersion)
 }
 
 func repairOf(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {

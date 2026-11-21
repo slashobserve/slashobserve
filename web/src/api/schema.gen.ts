@@ -10870,7 +10870,7 @@ export interface operations {
                 order?: "updated" | "folder" | "views" | "name";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
-                /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them. The same rules as `GET /health`. */
+                /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them, and also a dashboard waiting for a recheck of an earlier problem, or with a health repair on record. The same rules as `GET /health`. */
                 problem?: "any" | "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
             };
             header?: never;
