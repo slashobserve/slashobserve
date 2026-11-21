@@ -175,13 +175,13 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 	}
 
 	first := put(`[{"group":"sre","level":"edit"}]`)
-	want := map[string]any{"added": []any{sre}, "removed": []any{}, "changed": []any{}, "count_before": 0.0, "count_after": 1.0, "truncated": false}
+	want := map[string]any{"added": []any{sre}, "removed": []any{}, "changed": []any{}, "count_before": 0.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(first.Data, want) {
 		t.Fatalf("first = %v, want %v", first.Data, want)
 	}
 
 	second := put(`[{"user_id":"` + user.ID.String() + `","level":"view"}]`)
-	want = map[string]any{"added": []any{bo("view")}, "removed": []any{sre}, "changed": []any{}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	want = map[string]any{"added": []any{bo("view")}, "removed": []any{sre}, "changed": []any{}, "count_before": 1.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(second.Data, want) {
 		t.Fatalf("second = %v, want %v", second.Data, want)
 	}
@@ -189,7 +189,7 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 	third := put(`[{"user_id":"` + user.ID.String() + `","level":"edit"}]`)
 	changed := bo("edit")
 	changed["from_level"] = "view"
-	want = map[string]any{"added": []any{}, "removed": []any{}, "changed": []any{changed}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	want = map[string]any{"added": []any{}, "removed": []any{}, "changed": []any{changed}, "count_before": 1.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(third.Data, want) {
 		t.Fatalf("third = %v, want %v", third.Data, want)
 	}
