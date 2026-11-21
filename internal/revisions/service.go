@@ -76,7 +76,8 @@ type EnqueueParams struct {
 	ThreadContext   string
 	Point           Point
 
-	chat chatChoice
+	chat     chatChoice
+	clientID pgtype.UUID
 }
 
 type Point struct {
@@ -164,9 +165,10 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		TimeZone:         timeZoneColumn(ctx),
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
+		ClientID:         p.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -178,6 +180,13 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
 	return row, nil
+}
+
+func clientIDTaken(err error, clientID pgtype.UUID, what string) error {
+	if clientID.Valid && errors.Is(err, pgx.ErrNoRows) {
+		return errClientIDTaken
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }
 
 func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int) (latest, base int, err error) {
@@ -246,20 +255,10 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chatChoice{mode: newChat}})
 }
 
-func (s *Service) SubmitObserveFollowUp(ctx context.Context, by auth.Principal, prompt string, followsID pgtype.UUID) (dbsqlc.AgentRequest, error) {
-	parent, err := s.GetObserve(ctx, followsID, by)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	if parent.DashboardID.Valid {
-		return dbsqlc.AgentRequest{}, ErrFollowsDashboard
-	}
-	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chatNamed(chatRoot(parent.ID, parent.ChatID))})
-}
-
 type observeTurn struct {
-	chat    chatChoice
-	retries pgtype.UUID
+	chat     chatChoice
+	retries  pgtype.UUID
+	clientID pgtype.UUID
 }
 
 func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt string, turn observeTurn) (dbsqlc.AgentRequest, error) {
@@ -319,9 +318,10 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		RetriesID:        turn.retries,
 		ChatID:           slot.chat,
 		TimeZone:         timeZoneColumn(ctx),
+		ClientID:         turn.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, turn.clientID, "enqueue observe request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -353,7 +353,8 @@ type InvestigateParams struct {
 	Point           Point
 	Ask             bool
 
-	chat chatChoice
+	chat     chatChoice
+	clientID pgtype.UUID
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -421,9 +422,10 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		TimeZone:         timeZoneColumn(ctx),
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
+		ClientID:         p.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue investigate request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err

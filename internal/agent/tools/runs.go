@@ -29,12 +29,12 @@ const (
 	nameRetryRun    = "retry_run"
 	nameGetRunBuild = "get_run_build"
 
-	descStartRun    = "Ask the built-in agent to create a new dashboard, or to revise one when dashboard_id is given, and get the run back at once with its id; the run is queued and works in the background, so follow it with get_run until its state is succeeded or failed. It spends the instance's model, acts as you with your role and folder access, and a Commenter's revision becomes a proposal. A person can have 3 new-dashboard runs queued or running and a dashboard 5 revisions; the answers are too_many_requests, too_many_revisions and agent_busy, and agent_unavailable means no model is configured. It is not safe to repeat: every call queues another run, so read get_run or list_activity before asking again. Investigations are a person's decision and cannot be started here; if you can do the work yourself, use the other tools instead."
+	descStartRun    = "Ask the built-in agent to create a new dashboard, or to revise one when dashboard_id is given, and get the run back at once with its id; the run is queued and works in the background, so follow it with get_run until its state is succeeded or failed. It spends the instance's model, acts as you with your role and folder access, and a Commenter's revision becomes a proposal. A person can have 3 new-dashboard runs queued or running and a dashboard 5 revisions; the answers are too_many_requests, too_many_revisions and agent_busy, and agent_unavailable means no model is configured. Each run is a turn of one of your chats: chat_id continues one from list_chats; without it a new chat starts, or a revision joins your latest chat on that dashboard. A resend with the same client_id returns its run with replayed true; without client_id every call queues another run. Investigations are a person's decision and cannot be started here; if you can do the work yourself, use the other tools instead."
 	descCancelRun   = "Stop one run of the built-in agent that you started. A queued run is canceled at once, a running one is asked to stop and ends canceled within a few seconds with the panels it already saved kept. Safe to repeat: a run that is already canceled, succeeded or failed answers with its current state, not an error. Only the person or key that started a run can cancel it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other."
 	descGetRunBuild = "Read the dashboard a run of the built-in agent has saved so far: its Spec, how many panels and saves it holds and how many it planned, updated_at, and dashboard_id and base_version when it revises one. Only the person or key that started the run and an Admin can read it; a run with no saved work answers not_found. Read it to see what a run made before you keep, redo or replace it; nothing here changes it."
 	descRetryRun    = "Start a succeeded, failed or canceled run of the built-in agent again with the same prompt; the new run is yours and queues at once, with a new id to follow with get_run. A queued or running run answers invalid_transition with allowed_actions. It is not safe to repeat: each call queues another run. A run that was an investigation cannot be retried here."
 
-	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to revise; omit to create a new one."},"base_version":{"type":"integer","minimum":1,"description":"A version that exists on the dashboard; only with dashboard_id, and the latest by default."},"follows_id":{"type":"string","format":"uuid","description":"An earlier run of yours that has no dashboard, to continue its chat so the agent reads the earlier questions and answers; not with dashboard_id."}},"required":["prompt"],"additionalProperties":false}`
+	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to revise; omit to create a new one."},"base_version":{"type":"integer","minimum":1,"description":"A version that exists on the dashboard; only with dashboard_id, and the latest by default."},"chat_id":{"type":"string","format":"uuid","description":"The chat of yours, from list_chats or a run's chat_id, to ask the next turn of; the agent reads its earlier questions and answers."},"client_id":{"type":"string","format":"uuid","description":"A new UUID per question, so a resend starts nothing new."},"follows_id":{"type":"string","format":"uuid","description":"Deprecated: send chat_id. An earlier run of yours with no dashboard whose chat to continue."}},"required":["prompt"],"additionalProperties":false}`
 	schemaRunTarget = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from start_run, get_run or list_activity."}},"required":["id"],"additionalProperties":false}`
 
 	runStepLimit = 20
@@ -51,6 +51,8 @@ type RunDesk interface {
 	List(ctx context.Context, by auth.Principal, filter revisions.ListFilter, limit int, cursor string) (json.RawMessage, error)
 	Update(ctx context.Context, id pgtype.UUID, by auth.Principal, title *string, clearTitle bool, pinned *bool) (json.RawMessage, error)
 	Archive(ctx context.Context, id pgtype.UUID, by auth.Principal) error
+	Chats(ctx context.Context, by auth.Principal, filter revisions.ChatFilter, limit int, cursor string) (json.RawMessage, error)
+	Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (json.RawMessage, error)
 }
 
 func init() { registerEntries((*Registry).runEntries) }
@@ -101,6 +103,8 @@ type startRunInput struct {
 	DashboardID *string `json:"dashboard_id"`
 	BaseVersion *int    `json:"base_version"`
 	FollowsID   *string `json:"follows_id"`
+	ChatID      *string `json:"chat_id"`
+	ClientID    *string `json:"client_id"`
 }
 
 func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -112,9 +116,15 @@ func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result,
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, FollowsID: in.FollowsID})
+	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, FollowsID: in.FollowsID, ChatID: in.ChatID, ClientID: in.ClientID})
 	if err != nil {
 		return runFailure(err)
+	}
+	var started struct {
+		Replayed bool `json:"replayed"`
+	}
+	if json.Unmarshal(raw, &started) == nil && started.Replayed {
+		return success("Returned the run this client_id already started", raw), nil
 	}
 	return success("Started a run", raw), nil
 }

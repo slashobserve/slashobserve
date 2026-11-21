@@ -2,29 +2,41 @@ package revisions
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
 type StartRequest struct {
-	Prompt        *string `json:"prompt"`
-	DashboardID   *string `json:"dashboard_id"`
-	BaseVersion   *int    `json:"base_version"`
-	Kind          *string `json:"kind"`
-	PanelID       *string `json:"panel_id"`
-	From          *string `json:"from"`
-	To            *string `json:"to"`
-	ObservationID *string `json:"observation_id"`
-	FollowsID     *string `json:"follows_id"`
-	ChatID        *string `json:"chat_id"`
-	TimeZone      *string `json:"time_zone"`
+	Prompt        *string        `json:"prompt"`
+	DashboardID   *string        `json:"dashboard_id"`
+	BaseVersion   *int           `json:"base_version"`
+	Kind          *string        `json:"kind"`
+	PanelID       *string        `json:"panel_id"`
+	From          *string        `json:"from"`
+	To            *string        `json:"to"`
+	ObservationID *string        `json:"observation_id"`
+	FollowsID     *string        `json:"follows_id"`
+	ChatID        *string        `json:"chat_id"`
+	ClientID      *string        `json:"client_id"`
+	Anchor        *anchor.Anchor `json:"anchor"`
+	BlockID       *string        `json:"block_id"`
+	TimeZone      *string        `json:"time_zone"`
+}
+
+type Started struct {
+	dbsqlc.AgentRequest
+	Replayed bool
 }
 
 type StartError struct {
@@ -40,31 +52,136 @@ func refused(format string, args ...any) error {
 	return &StartError{Message: fmt.Sprintf(format, args...)}
 }
 
-func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest) (dbsqlc.AgentRequest, error) {
+var (
+	ErrClientIDReused = errors.New("client_id was already used for another request; send a new one")
+	errClientIDTaken  = errors.New("client_id taken by a concurrent request")
+)
+
+type turnInput struct {
+	clientID pgtype.UUID
+	point    Point
+}
+
+func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest) (Started, error) {
+	ctx, prompt, err := checkStartText(ctx, req)
+	if err != nil {
+		return Started{}, err
+	}
+	var turn turnInput
+	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
+		return Started{}, err
+	}
+	if turn.point, err = s.pointOf(ctx, req); err != nil {
+		return Started{}, err
+	}
+	if turn.clientID.Valid {
+		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
+			return replay, err
+		}
+	}
+	row, err := s.startKind(ctx, by, req, prompt, turn)
+	if errors.Is(err, errClientIDTaken) {
+		replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt)
+		if err == nil && !found {
+			err = fmt.Errorf("read the request of a taken client_id: %w", pgx.ErrNoRows)
+		}
+		return replay, err
+	}
+	return Started{AgentRequest: row}, err
+}
+
+func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
 	if req.Prompt == nil {
-		return dbsqlc.AgentRequest{}, refused("prompt is required")
+		return ctx, "", refused("prompt is required")
 	}
 	prompt, err := CheckPrompt("prompt", *req.Prompt)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, &StartError{Message: err.Error(), Cause: err}
+		return ctx, "", &StartError{Message: err.Error(), Cause: err}
 	}
 	if req.TimeZone != nil {
 		zone, err := CheckTimeZone(*req.TimeZone)
 		if err != nil {
-			return dbsqlc.AgentRequest{}, &StartError{Message: err.Error(), Cause: err}
+			return ctx, "", &StartError{Message: err.Error(), Cause: err}
 		}
 		ctx = WithTimeZone(ctx, zone)
 	}
+	return ctx, prompt, nil
+}
+
+func (s *Service) startKind(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
 	switch {
 	case req.Kind == nil || *req.Kind == KindBuild:
-		return s.startBuild(ctx, by, req, prompt)
+		return s.startBuild(ctx, by, req, prompt, turn)
 	case *req.Kind == KindInvestigate:
-		return s.startInvestigation(ctx, by, req, prompt)
+		return s.startInvestigation(ctx, by, req, prompt, turn)
 	}
 	return dbsqlc.AgentRequest{}, refused("kind must be build or investigate")
 }
 
-func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string) (dbsqlc.AgentRequest, error) {
+func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pgtype.UUID, req StartRequest, prompt string) (Started, bool, error) {
+	requesterID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return Started{}, false, fmt.Errorf("requester id: %w", err)
+	}
+	row, err := s.db.Queries().GetAgentRequestByClient(ctx, dbsqlc.GetAgentRequestByClientParams{RequestedByKind: string(by.Kind), RequestedByID: requesterID, ClientID: clientID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return Started{}, false, nil
+	case err != nil:
+		return Started{}, false, fmt.Errorf("read the request of a client_id: %w", err)
+	}
+	chatID, err := uuidField("chat_id", req.ChatID)
+	if err != nil {
+		return Started{}, false, err
+	}
+	if row.Prompt != prompt || (chatID.Valid && row.ChatID != chatID) {
+		return Started{}, false, ErrClientIDReused
+	}
+	return Started{AgentRequest: row, Replayed: true}, true, nil
+}
+
+func (s *Service) pointOf(ctx context.Context, req StartRequest) (Point, error) {
+	if req.Anchor == nil {
+		if req.BlockID != nil {
+			return Point{}, refused("block_id needs anchor")
+		}
+		return Point{}, nil
+	}
+	if req.DashboardID == nil && req.ObservationID == nil {
+		return Point{}, refused("anchor needs dashboard_id or observation_id")
+	}
+	if err := req.Anchor.Validate(); err != nil {
+		return Point{}, refused("anchor: %s", err.Error())
+	}
+	raw, err := json.Marshal(req.Anchor)
+	if err != nil {
+		return Point{}, fmt.Errorf("encode anchor: %w", err)
+	}
+	point := Point{Anchor: raw}
+	if req.BlockID == nil {
+		return point, nil
+	}
+	if req.ObservationID == nil {
+		return Point{}, refused("block_id needs observation_id")
+	}
+	if point.BlockID, err = uuidField("block_id", req.BlockID); err != nil {
+		return Point{}, err
+	}
+	observationID, err := uuidField("observation_id", req.ObservationID)
+	if err != nil {
+		return Point{}, err
+	}
+	_, err = s.db.Queries().LockObservationBlock(ctx, dbsqlc.LockObservationBlockParams{ID: point.BlockID, ObservationID: observationID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return Point{}, refused("block_id is not a block of that observation")
+	case err != nil:
+		return Point{}, fmt.Errorf("read the anchored block: %w", err)
+	}
+	return point, nil
+}
+
+func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
 	if message := buildFieldConflict(req); message != "" {
 		return dbsqlc.AgentRequest{}, refused("%s", message)
 	}
@@ -72,29 +189,44 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	followsID, err := uuidField("follows_id", req.FollowsID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	chatID, err := uuidField("chat_id", req.ChatID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		return dbsqlc.AgentRequest{}, refused("base_version must be a positive 32-bit integer")
+	}
+	chat, err := s.buildChat(ctx, by, req)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
-	switch {
-	case dashboardID.Valid && chatID.Valid:
-		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, chat: chatNamed(chatID)}, req.BaseVersion)
-	case dashboardID.Valid:
-		return s.SubmitFollowUp(ctx, dashboardID, req.BaseVersion, "", prompt, by)
-	case followsID.Valid:
-		return s.SubmitObserveFollowUp(ctx, by, prompt, followsID)
+	if dashboardID.Valid {
+		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, Point: turn.point, chat: chat, clientID: turn.clientID}, req.BaseVersion)
 	}
-	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chatNamed(chatID)})
+	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chat, clientID: turn.clientID})
+}
+
+func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartRequest) (chatChoice, error) {
+	chatID, err := uuidField("chat_id", req.ChatID)
+	if err != nil {
+		return chatChoice{}, err
+	}
+	followsID, err := uuidField("follows_id", req.FollowsID)
+	switch {
+	case err != nil:
+		return chatChoice{}, err
+	case followsID.Valid:
+		parent, err := s.GetObserve(ctx, followsID, by)
+		if err != nil {
+			return chatChoice{}, err
+		}
+		if parent.DashboardID.Valid {
+			return chatChoice{}, ErrFollowsDashboard
+		}
+		return chatNamed(chatRoot(parent.ID, parent.ChatID)), nil
+	case !chatID.Valid && req.DashboardID != nil:
+		return chatChoice{mode: dashboardChat}, nil
+	}
+	return chatNamed(chatID), nil
 }
 
 func buildFieldConflict(req StartRequest) string {
@@ -124,14 +256,14 @@ func uuidField(name string, raw *string) (pgtype.UUID, error) {
 	return id, nil
 }
 
-func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string) (dbsqlc.AgentRequest, error) {
+func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
 	if req.BaseVersion != nil {
 		return dbsqlc.AgentRequest{}, refused("base_version is not allowed for kind investigate")
 	}
 	if req.ChatID != nil && req.FollowsID != nil {
 		return dbsqlc.AgentRequest{}, refused("follows_id and chat_id exclude each other")
 	}
-	params := InvestigateParams{Prompt: prompt, By: by}
+	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, clientID: turn.clientID}
 	var err error
 	if params.chat, err = s.investigationChat(ctx, by, req); err != nil {
 		return dbsqlc.AgentRequest{}, err

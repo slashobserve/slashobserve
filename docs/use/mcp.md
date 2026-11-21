@@ -39,6 +39,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
 | `finish_run` | Viewer |
+| `get_chat` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_home_dashboard` | Viewer |
 | `get_observation` | Viewer |
@@ -57,6 +58,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_access_requests` | Viewer |
 | `list_activity` | Viewer |
 | `list_annotations` | Viewer |
+| `list_chats` | Viewer |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
@@ -408,11 +410,18 @@ To make that change, use `update_panels` on that dashboard yourself, or ask the 
 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
-`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, or a `follows_id`, an earlier run of yours with no dashboard whose chat the new run continues (not together with `dashboard_id`); it queues a run and answers with it at once, and you follow it with `get_run`.
-Every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, and a `chat_id`, one of your chats from `list_chats` whose next turn the run is; it queues a run and answers with it at once, and you follow it with `get_run`.
+
+Every run is a turn of a chat: without `chat_id` a new chat starts, and a revision joins your latest chat on that dashboard; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
+Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
+Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+
+`list_chats` lists your chats, the one most recently asked in first, 20 per page by default and at most 50, with `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`.
+`get_chat` reads one chat with its turns oldest first, each the run as `get_run` returns it without steps; when they do not all fit it answers `truncated: true` and a `next_offset` to pass as `offset`.
+Only the owner of a chat lists or reads it, an Admin included, and both are over MCP only; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
 `list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `source`, `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.

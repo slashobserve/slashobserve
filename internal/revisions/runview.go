@@ -135,8 +135,25 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 }
 
 func (r *RunDesk) Start(ctx context.Context, caller auth.Principal, req StartRequest) (json.RawMessage, error) {
-	row, err := r.service.Start(ctx, caller, req)
-	return r.answer(ctx, row, caller, err)
+	started, err := r.service.Start(ctx, caller, req)
+	if err != nil {
+		return nil, err
+	}
+	out, err := r.renderStarted(ctx, started, caller)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("encode agent request: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) renderStarted(ctx context.Context, started Started, caller auth.Principal) (agentRequestJSON, error) {
+	out, err := r.render(ctx, started.AgentRequest, caller, false)
+	out.Replayed = started.Replayed
+	return out, err
 }
 
 func (r *RunDesk) Cancel(ctx context.Context, id pgtype.UUID, caller auth.Principal) (json.RawMessage, error) {

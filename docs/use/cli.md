@@ -83,11 +83,12 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`access`, `activity`, `annotate`, `annotations`, `cancel`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `folders`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `save-answer`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`access`, `activity`, `annotate`, `annotations`, `cancel`, `chats`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `folders`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `save-answer`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
-`--follows <request-id>` sends it as a follow-up in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard`.
+`--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
+`--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 An Admin can show anyone's request with `observe status`, read only.
@@ -118,6 +119,14 @@ An archived request stays readable with `observe status`.
 `requests archive <id> --delete-observation --yes` first deletes the observation the request saved, as `observe o delete` does and with the same permission (Manage on its folder, or Edit when you started the observation), and archives the request only after that delete succeeds.
 The two differ: the request is only archived and still reads with `observe status`, while the observation is deleted for everyone, with its blocks, RCA revisions and discussion, and cannot be undone.
 A request that saved no observation is refused and left as it was.
+
+### Your chats
+
+Every prompt you send is a turn of a chat, which only you can read; an Admin cannot read another person's chat.
+`bin/observe chats list` prints your chats, the one most recently asked in first, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
+`--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
+`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
+`chats archive <chat-id>` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 
 ### Discovering what a datasource holds
 

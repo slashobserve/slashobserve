@@ -38,6 +38,25 @@ type fakeRuns struct {
 	gotPinned   *bool
 	archivedID  pgtype.UUID
 	updateCalls int
+	chatFilter  revisions.ChatFilter
+}
+
+func (f *fakeRuns) Chats(_ context.Context, by auth.Principal, filter revisions.ChatFilter, limit int, cursor string) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.chatFilter, f.gotCursor = true, by, filter, cursor
+	f.gotLimits = append(f.gotLimits, limit)
+	if len(f.pages) > 0 {
+		page := f.pages[0]
+		if len(f.pages) > 1 {
+			f.pages = f.pages[1:]
+		}
+		return page, f.err
+	}
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Chat(_ context.Context, by auth.Principal, id pgtype.UUID) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.gotID = true, by, id
+	return f.raw, f.err
 }
 
 func (f *fakeRuns) List(_ context.Context, by auth.Principal, filter revisions.ListFilter, limit int, cursor string) (json.RawMessage, error) {

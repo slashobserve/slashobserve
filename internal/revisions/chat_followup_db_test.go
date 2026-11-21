@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -23,6 +24,12 @@ func answerWith(t *testing.T, d *dbtest.Database, id pgtype.UUID, markdown strin
   VALUES (general_folder_id(), 'answer', 'user', $3::uuid, 'Ada') RETURNING id)
 INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
 SELECT o.id, o.id, $1, 'answer', $2, now() - interval '1 hour', now(), 'user', $3::uuid, 'Ada' FROM o`, id, markdown, userID)
+}
+
+func followUp(ctx context.Context, svc *revisions.Service, by auth.Principal, prompt string, id pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	follows := id.String()
+	row, err := svc.Start(ctx, by, revisions.StartRequest{Prompt: &prompt, FollowsID: &follows})
+	return row.AgentRequest, err
 }
 
 func claimedContext(t *testing.T, svc *revisions.Service, id pgtype.UUID) string {
@@ -46,7 +53,7 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	}
 	answerWith(t, d, first.ID, "Loki and Elasticsearch")
 
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "show the errors", first.ID)
+	second, err := followUp(ctx, svc, user, "show the errors", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +68,7 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	}
 	answerWith(t, d, second.ID, "Errors are flat")
 
-	third, err := svc.SubmitObserveFollowUp(ctx, user, "and latency", second.ID)
+	third, err := followUp(ctx, svc, user, "and latency", second.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +86,7 @@ func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SubmitObserveFollowUp(context.Background(), account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
+	if _, err := followUp(context.Background(), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
 		t.Fatalf("err = %v, want not found", err)
 	}
 }
@@ -91,7 +98,7 @@ func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SubmitObserveFollowUp(context.Background(), user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
+	if _, err := followUp(context.Background(), svc, user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
 		t.Fatalf("err = %v, want ErrFollowsDashboard", err)
 	}
 }
@@ -124,7 +131,7 @@ func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	answerWith(t, d, first.ID, "answer one")
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	second, err := followUp(ctx, svc, user, "two", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +201,7 @@ func TestRetryKeepsTheChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	answerWith(t, d, first.ID, "answer one")
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	second, err := followUp(ctx, svc, user, "two", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

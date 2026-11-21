@@ -1,0 +1,112 @@
+chats:
+  get:
+    operationId: listChats
+    x-audit: { none: "list read; lists are not recorded" }
+    x-surfaces:
+      mcp: [list_chats]
+      cli: [observe chats list]
+    summary: List your chats, the one most recently asked in first.
+    description: >-
+      A chat is the run of requests one person sent about one thing, started by `POST /observe`; only its owner lists or reads it, and Admins cannot read another person's chat.
+      `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively.
+      Archived chats are left out.
+      `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+    parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - name: pinned
+        in: query
+        schema:
+          type: boolean
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: observation_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of your chats.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ChatList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+chats-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getChat
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-surfaces:
+      mcp: [get_chat]
+      cli: [observe chats show]
+    summary: Read one of your chats with every turn, oldest first.
+    description: >-
+      Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps.
+      A chat of someone else's, an archived chat or an unknown id answers 404, for an Admin as well.
+    responses:
+      "200":
+        description: The chat and its turns.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ChatDetail"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: archiveChat
+    x-audit: { action: chat.delete, target: { kind: chat, id: path.id } }
+    x-surfaces:
+      cli: [observe chats archive]
+    summary: Archive one of your chats and every turn in it, so they leave your lists.
+    description: >-
+      Only the chat's owner may archive it; anyone else, an Admin included, gets 404 and nothing changes.
+      Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept.
+      A new request with this `chat_id` answers 404 afterwards.
+    responses:
+      "204":
+        description: The chat is archived; nothing is returned.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

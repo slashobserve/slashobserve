@@ -130,6 +130,8 @@ func ReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusConflict, Code: "build_empty", Message: ErrBuildEmpty.Error()}, true
 	case errors.Is(err, ErrBuildNotSavable):
 		return Reply{Status: http.StatusConflict, Code: "build_not_savable", Message: ErrBuildNotSavable.Error()}, true
+	case errors.Is(err, ErrClientIDReused):
+		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: ErrClientIDReused.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
 		return Reply{Status: http.StatusConflict, Code: "not_continuable", Message: ErrNotContinuable.Error()}, true
 	case errors.Is(err, ErrAssigneeUnavailable):

@@ -2023,10 +2023,56 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which only you can read; Admins cannot read another person's chat. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a build with `dashboard_id`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which only you can read; Admins cannot read another person's chat. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a build with `dashboard_id`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). `panel_id`, `from`, `to` and `observation_id` need `kind` `investigate`, `kind` must be `build` or `investigate`, `base_version` is not allowed for an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List your chats, the one most recently asked in first.
+         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; only its owner lists or reads it, and Admins cannot read another person's chat. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+         */
+        get: operations["listChats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chats/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one of your chats with every turn, oldest first.
+         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. A chat of someone else's, an archived chat or an unknown id answers 404, for an Admin as well.
+         */
+        get: operations["getChat"];
+        put?: never;
+        post?: never;
+        /**
+         * Archive one of your chats and every turn in it, so they leave your lists.
+         * @description Only the chat's owner may archive it; anyone else, an Admin included, gets 404 and nothing changes. Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept. A new request with this `chat_id` answers 404 afterwards.
+         */
+        delete: operations["archiveChat"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6332,6 +6378,49 @@ export interface components {
              * @enum {string}
              */
             observation_rename?: "renamed" | "kept";
+            /** @description Present and true only in the answer to a `POST /observe` whose `client_id` you had already sent; the request is the one that send started and nothing new was queued. */
+            replayed?: boolean;
+        };
+        ChatTurnSummary: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
+            prompt: string;
+        };
+        Chat: {
+            /**
+             * Format: uuid
+             * @description The chat's id, which is also the id of its first request.
+             */
+            id: string;
+            title: string;
+            /**
+             * Format: uuid
+             * @description The dashboard the chat is about; a chat about nothing gains the dashboard its first saved build made.
+             */
+            dashboard_id: string | null;
+            /**
+             * Format: uuid
+             * @description The observation the chat is about.
+             */
+            observation_id: string | null;
+            /** Format: date-time */
+            pinned_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_turn_at: string;
+            turns: number;
+            last_turn: components["schemas"]["ChatTurnSummary"] | null;
+        };
+        ChatList: {
+            chats: components["schemas"]["Chat"][];
+            next_cursor: string | null;
+        };
+        ChatDetail: {
+            chat: components["schemas"]["Chat"];
+            turns: components["schemas"]["AgentRequest"][];
         };
         RequestSummary: {
             /** Format: uuid */
@@ -13406,10 +13495,30 @@ export interface operations {
                     observation_id?: string;
                     /** @description The IANA time zone the person reads times in, such as `Asia/Kolkata`; the answer gives times in it, labelled. Without it times are UTC. */
                     time_zone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A UUID the client picks once per message; resending it returns the request it started instead of queueing another.
+                     */
+                    client_id?: string;
+                    anchor?: components["schemas"]["Anchor"];
+                    /**
+                     * Format: uuid
+                     * @description The block of `observation_id` the anchor sits on; needs `anchor`.
+                     */
+                    block_id?: string;
                 };
             };
         };
         responses: {
+            /** @description The `client_id` was already sent with this prompt; the request it started, with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
             /** @description The queued agent request. */
             202: {
                 headers: {
@@ -13425,6 +13534,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+            /** @description The prompt breaks a text rule (with a `reason`), or the `client_id` was already sent with another prompt or chat (`client_id_reused`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
             429: {
                 headers: {
@@ -13444,6 +13562,86 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listChats: {
+        parameters: {
+            query?: {
+                q?: string;
+                pinned?: boolean;
+                dashboard_id?: string;
+                observation_id?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of your chats. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chat and its turns. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    archiveChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chat is archived; nothing is returned. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
         };
     };
     getObserveRequest: {

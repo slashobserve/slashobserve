@@ -190,6 +190,10 @@ paths:
     $ref: "./paths/observe.yaml#/agent"
   /observe:
     $ref: "./paths/observe.yaml#/observe"
+  /chats:
+    $ref: "./paths/chats.yaml#/chats"
+  /chats/{id}:
+    $ref: "./paths/chats.yaml#/chats-id"
   /observe/{id}:
     $ref: "./paths/observe.yaml#/observe-id"
   /observe/{id}/build:
@@ -4807,6 +4811,83 @@ components:
           type: string
           enum: [renamed, kept]
           description: Present only in the answer to a rename of the first request of a chat with no dashboard that has exactly one observation made from it, which the caller can see. `renamed` when that observation now has the chat's title, `kept` when the caller may not edit it and its title was left as it is.
+        replayed:
+          type: boolean
+          description: Present and true only in the answer to a `POST /observe` whose `client_id` you had already sent; the request is the one that send started and nothing new was queued.
+    ChatTurnSummary:
+      type: object
+      additionalProperties: false
+      required: [id, state, prompt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [queued, running, canceling, succeeded, failed, canceled]
+        prompt:
+          type: string
+    Chat:
+      type: object
+      additionalProperties: false
+      required: [id, title, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, turns, last_turn]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The chat's id, which is also the id of its first request.
+        title:
+          type: string
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The dashboard the chat is about; a chat about nothing gains the dashboard its first saved build made.
+        observation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation the chat is about.
+        pinned_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        last_turn_at:
+          type: string
+          format: date-time
+        turns:
+          type: integer
+          minimum: 0
+        last_turn:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ChatTurnSummary"
+    ChatList:
+      type: object
+      additionalProperties: false
+      required: [chats, next_cursor]
+      properties:
+        chats:
+          type: array
+          items:
+            $ref: "#/components/schemas/Chat"
+        next_cursor:
+          type: string
+          nullable: true
+    ChatDetail:
+      type: object
+      additionalProperties: false
+      required: [chat, turns]
+      properties:
+        chat:
+          $ref: "#/components/schemas/Chat"
+        turns:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRequest"
     RequestSummary:
       type: object
       additionalProperties: false

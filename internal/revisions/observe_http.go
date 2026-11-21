@@ -125,6 +125,7 @@ type agentRequestJSON struct {
 	Finding       json.RawMessage `json:"finding"`
 
 	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
+	Replayed          bool        `json:"replayed,omitempty"`
 }
 
 type assigneeJSON struct {
@@ -199,6 +200,9 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
+	api.GET("/chats", auth.RoleViewer, h.listChats)
+	api.GET("/chats/:id", auth.RoleViewer, h.getChat)
+	api.DELETE("/chats/:id", auth.RoleViewer, h.archiveChat)
 }
 
 func (h *ObserveHandler) getAgent(c *gin.Context) {
@@ -217,7 +221,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxRequestBytes) {
 		return
 	}
-	row, err := h.service.Start(c.Request.Context(), httpapi.Caller(c), req)
+	started, err := h.service.Start(c.Request.Context(), httpapi.Caller(c), req)
 	var invalid *StartError
 	if errors.As(err, &invalid) {
 		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", invalid)
@@ -227,8 +231,17 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		h.service.fail(c, "enqueue agent request", err, principalAttrs(c)...)
 		return
 	}
-	c.Header("Location", "/api/v1/observe/"+row.ID.String())
-	h.replyRequest(c, http.StatusAccepted, row, false)
+	view, err := h.runs.renderStarted(c.Request.Context(), started, httpapi.Caller(c))
+	if err != nil {
+		h.service.fail(c, "render agent request", err, slog.String("agent_request_id", started.ID.String()))
+		return
+	}
+	status := http.StatusAccepted
+	if started.Replayed {
+		status = http.StatusOK
+	}
+	c.Header("Location", "/api/v1/observe/"+started.ID.String())
+	c.JSON(status, agentRequestEnvelopeJSON{Request: view})
 }
 
 func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time, error) {

@@ -149,6 +149,8 @@ observe:
       The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back.
       `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat.
       `follows_id` excludes `dashboard_id` and `chat_id`.
+      `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`.
+      `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation (400 `invalid_request`).
       When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard.
       With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`).
       A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`).
@@ -212,7 +214,23 @@ observe:
                 type: string
                 maxLength: 64
                 description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; the answer gives times in it, labelled. Without it times are UTC.
+              client_id:
+                type: string
+                format: uuid
+                description: A UUID the client picks once per message; resending it returns the request it started instead of queueing another.
+              anchor:
+                $ref: "../openapi.yaml#/components/schemas/Anchor"
+              block_id:
+                type: string
+                format: uuid
+                description: The block of `observation_id` the anchor sits on; needs `anchor`.
     responses:
+      "200":
+        description: The `client_id` was already sent with this prompt; the request it started, with `replayed` true.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AgentRequestEnvelope"
       "202":
         description: The queued agent request.
         headers:
@@ -234,6 +252,12 @@ observe:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The prompt breaks a text rule (with a `reason`), or the `client_id` was already sent with another prompt or chat (`client_id_reused`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "429":
         description: Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard).
         content:
