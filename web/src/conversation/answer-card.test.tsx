@@ -537,6 +537,7 @@ describe("AnswerCard", () => {
         shareTarget: "dashboard:d1",
         sharedThreadId: null,
         showToEveryone: false,
+        subjectObservationId: null,
       },
     })
     await user.click(
