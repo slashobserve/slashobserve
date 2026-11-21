@@ -44,8 +44,8 @@ func TestDeletingADashboardKeepsAChatThatStillHasOtherRequests(t *testing.T) {
 		t.Fatal(err)
 	}
 	chat := started.ChatID.String()
-	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
-		VALUES ('observe', 'elsewhere', $1, $2, 'x', $3)`, string(testUser.Kind), testUser.ID, chat); err != nil {
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
+		VALUES ('ask', 'build', 'elsewhere', $1, $2, 'x', $3)`, string(testUser.Kind), testUser.ID, chat); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.service.Delete(reading(t.Context()), testUser, id); err != nil {
