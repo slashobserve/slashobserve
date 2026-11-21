@@ -27,6 +27,8 @@ const (
 	operatorIntervention  = "57"
 )
 
+const splitAfterTimeouts = 3
+
 var permanentCodes = []string{"08P01", "53400", "57P04"}
 
 type writerLimits struct {
@@ -69,8 +71,9 @@ func (l writerLimits) orDefaults() writerLimits {
 }
 
 type statement struct {
-	rows   []dbsqlc.InsertAuditEventParams
-	handed bool
+	rows     []dbsqlc.InsertAuditEventParams
+	handed   bool
+	timeouts int
 }
 
 type Writer struct {
@@ -282,7 +285,11 @@ func (w *Writer) tooBig(st *statement, err error) bool {
 	if tooSlow(err) {
 		return true
 	}
-	return false
+	if !timedOut(err) {
+		return false
+	}
+	st.timeouts++
+	return st.timeouts >= splitAfterTimeouts
 }
 
 func (w *Writer) split(st *statement) {
@@ -355,6 +362,10 @@ func (w *Writer) write(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 func alreadyStored(err error) bool {
 	var failure *pgconn.PgError
 	return errors.As(err, &failure) && failure.Code == uniqueViolation
+}
+
+func timedOut(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || pgconn.Timeout(err)
 }
 
 func tooSlow(err error) bool {

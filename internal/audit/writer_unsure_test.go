@@ -267,6 +267,28 @@ func TestReplayingHeldRowsLeavesRoomForTheNextBatch(t *testing.T) {
 	}
 }
 
+func TestABatchThatKeepsTimingOutOnTheClientDeadlineIsSplitInHalf(t *testing.T) {
+	s := newStoreRig(t, writerLimits{timeout: 50 * time.Millisecond}, 0)
+	release := s.stallWrites(t)
+	defer release()
+	w := s.recorder.writer
+	w.held = []*statement{{rows: s.views(t, 4)}}
+	for attempt := 1; attempt < splitAfterTimeouts; attempt++ {
+		if w.retryHeld(t.Context()) {
+			t.Fatal("a stalled write was reported as written")
+		}
+		if got := len(w.held); got != 1 {
+			t.Fatalf("held statements after %d timeouts = %d, want the batch kept whole", attempt, got)
+		}
+	}
+	if w.retryHeld(t.Context()) {
+		t.Fatal("a stalled write was reported as written")
+	}
+	if got := len(w.held); got != 2 {
+		t.Fatalf("held statements after %d timeouts = %d, want 2 halves", splitAfterTimeouts, got)
+	}
+}
+
 func TestADroppedBatchIsCountedFromItsOwnRows(t *testing.T) {
 	s := newStoreRig(t, writerLimits{}, 0)
 	w := s.recorder.writer

@@ -57,9 +57,9 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_audit_export_dropped_total` | counter | `reason` | Audit events the [audit export](audit-export.md) gave up on: `refused` counts events the receiver refused on their own with `400`, `413` or `422`; `retention` counts gaps where events were deleted before they were exported. |
 
 A batch that times out, loses its connection, waits for a lock or meets a database that is read-only during a failover is kept and written again every second, for as long as the database stays unavailable, so a slow database moment loses nothing while the buffer has room.
-A batch that an earlier attempt already stored is not written twice or counted as dropped, and one the server cancels for taking too long is split in half and written as two.
+A batch that an earlier attempt already stored is not written twice or counted as dropped, and a batch the server cancels for taking too long, or that times out three times in a row, is split in half and written as two.
 While a batch is kept, new events queue up behind it, and once the buffer is full they are dropped as `buffer_full`, with one `audit.gap` event recording how many once writing resumes; during that time each new event can wait up to 100 milliseconds for room.
-A change's own event, written straight to the database rather than in a batch, is handed to the same retry when that write fails in one of those ways, and a refused row costs only itself.
+A change's own event, written straight to the database rather than in a batch, is handed to the same retry when that write fails in one of those ways, up to the size of the buffer, and a refused row costs only itself.
 Events still unwritten when the server stops count as `write_failed`.
 These series describe only the audit recorder's own health.
 Counts of audit events by action, person or outcome are not exported here, because `/metrics` is open to anyone and those counts are for Admins only.
