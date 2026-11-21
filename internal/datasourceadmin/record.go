@@ -1,6 +1,7 @@
 package datasourceadmin
 
 import (
+	"cmp"
 	"context"
 	"net/url"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
@@ -51,6 +53,22 @@ func hostOf(def Definition) string {
 
 func recordedOf(def Definition) recordedDatasource {
 	return recordedDatasource{UID: def.UID, Type: def.Type, Name: def.Name, Host: hostOf(def)}
+}
+
+const actionTest audit.Action = "datasource.test"
+
+func testRecord(baseUID string, def Definition, result TestResult) audit.Result {
+	outcome, reason := audit.OutcomeSuccess, ""
+	if !result.Healthy {
+		outcome, reason = audit.OutcomeFailed, audit.ReasonUnhealthy
+	}
+	return audit.Result{
+		Action:  actionTest,
+		Outcome: outcome,
+		Reason:  reason,
+		Target:  audit.Target{Kind: "datasource", ID: cmp.Or(baseUID, def.UID), Name: def.Name},
+		Data:    map[string]any{"type": def.Type, "host": hostOf(def), "healthy": result.Healthy},
+	}
 }
 
 func recordCreated(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id pgtype.UUID, def Definition) error {

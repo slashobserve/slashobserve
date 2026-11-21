@@ -268,7 +268,7 @@ func (r *Registry) proposalFailure(err error) (Result, error) {
 	case errors.Is(err, proposals.ErrProposeMode):
 		return toolError(codeProposeMode, proposeModeMessage), nil
 	case errors.Is(err, proposals.ErrForbidden):
-		return toolError(codeForbiddenRole, forbidden.RoleMessage), nil
+		return forbiddenBy(err, forbidden.RoleMessage), nil
 	case errors.As(err, &changed):
 		return failure("", proposalChangedOut{
 			Code:     codeProposalChanged,

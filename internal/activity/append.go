@@ -15,12 +15,14 @@ import (
 )
 
 type Entry struct {
-	Type     string
-	TargetID pgtype.UUID
-	Owner    Owner
-	Actor    actor.Actor
-	Agent    audit.Agent
-	Data     any
+	Type        string
+	TargetID    pgtype.UUID
+	Owner       Owner
+	Actor       actor.Actor
+	Agent       audit.Agent
+	Data        any
+	AuditOnly   map[string]any
+	AuditAction audit.Action
 }
 
 func Append(ctx context.Context, q *dbsqlc.Queries, e Entry, live *events.Event) (int64, error) {

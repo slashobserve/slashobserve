@@ -183,7 +183,7 @@ grafana-id-test:
         format: uuid
   post:
     operationId: testGrafanaConnection
-    x-audit: { none: "connection test; changes nothing" }
+    x-audit: { action: grafana_connection.test, target: { kind: grafana_connection, id: path.id } }
     x-surfaces:
       cli: [observe grafana connect]
     summary: Check that Grafana answers with the stored token.
@@ -191,6 +191,7 @@ grafana-id-test:
       Only Admins can call this endpoint.
       The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`.
       A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message.
+      Every test is recorded as `grafana_connection.test` with the host and the outcome.
     responses:
       "200":
         description: The connection with its new `last_test`.
@@ -500,13 +501,14 @@ grafana-resolve-uid:
 grafana-link:
   post:
     operationId: fetchGrafanaLink
-    x-audit: { none: "reads a Grafana dashboard to preview it; changes nothing" }
+    x-audit: { action: grafana_connection.fetch_dashboard, target: { kind: grafana_connection } }
     summary: Fetch a Grafana dashboard from its link through a stored connection.
     description: >-
       Only Admins can call this endpoint, because the stored connection's token is an Admin's credential.
       The link must be a dashboard link (`/d/<uid>` or `/d-solo/<uid>`) on the address of a stored connection, under that address's path; the server only fetches from hosts an Admin already stored.
       `json` is the dashboard as Grafana returns it, in a string that `POST /imports` takes as its `json`.
       Redirects are not followed.
+      Every fetch is recorded as `grafana_connection.fetch_dashboard`, naming the connection and its host and never the link.
     requestBody:
       required: true
       content:

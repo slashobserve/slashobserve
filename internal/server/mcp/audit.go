@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"slices"
@@ -63,14 +62,17 @@ func (h *handler) recordToolCall(ctx context.Context, name string, kind callKind
 		return
 	}
 	outcome, reason := audit.OutcomeSuccess, ""
+	var data map[string]any
 	switch {
 	case err != nil:
 		outcome, reason = audit.OutcomeFailed, tools.FailureCode(err)
 	case answer.IsError:
-		reason = refusalCodeOf(answer.Content)
+		refusal := audit.ParseRefusal(answer.Content)
+		reason = refusal.Code
 		outcome = audit.OutcomeFailed
 		if slices.Contains(deniedCodes, reason) {
 			outcome = audit.OutcomeDenied
+			data = refusal.Needs()
 		}
 	}
 	audit.Update(ctx, func(s *audit.Scope) {
@@ -83,19 +85,10 @@ func (h *handler) recordToolCall(ctx context.Context, name string, kind callKind
 		Outcome:  outcome,
 		Reason:   reason,
 		Target:   audit.Target{Kind: "tool", ID: name},
+		Data:     data,
 		Duration: took,
 	})
 	if recordErr != nil && !errors.Is(recordErr, audit.ErrNotInstalled) {
 		h.logger.WarnContext(ctx, "record mcp tool call", append(logattrs.Failure("audit_record_failed", recordErr), slog.String("tool", name))...)
 	}
-}
-
-func refusalCodeOf(content []byte) string {
-	var body struct {
-		Code string `json:"code"`
-	}
-	if json.Unmarshal(content, &body) != nil {
-		return ""
-	}
-	return body.Code
 }

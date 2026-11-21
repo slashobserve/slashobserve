@@ -113,7 +113,7 @@ datasources-uid-recheck:
 datasources-test:
   post:
     operationId: testDatasource
-    x-audit: { none: "connection test of an unsaved datasource; changes nothing" }
+    x-audit: { action: datasource.test, target: { kind: datasource } }
     x-surfaces:
       cli: [observe datasources test]
     summary: Check a datasource definition against the real datasource without saving it.
@@ -123,6 +123,7 @@ datasources-test:
       With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again.
       The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it.
       A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+      Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
     parameters:
       - name: base
         in: query
