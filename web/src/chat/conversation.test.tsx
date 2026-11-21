@@ -26,6 +26,7 @@ const root = {
   state: "succeeded",
   intent: "ask",
   kind: "investigate",
+  investigation: false,
   dashboard_id: dashboardId,
   observation_id: null,
   read_only: false,
@@ -169,7 +170,6 @@ const finding: Finding = {
 function answered(patch: Partial<ObserveRequest> = {}) {
   return {
     ...root,
-    kind: "build",
     result_kind: "answer",
     finding,
     shared_thread_id: null,
@@ -360,11 +360,11 @@ describe("Conversation", () => {
   } as ObserveRequest
 
   it.each([
-    ["a new revision", { status: 202, body: { request: revision } }, "/c/r2"],
+    ["a new revision", { status: 202, body: { request: revision } }, true],
     [
       "a replay of the first one",
       { status: 200, body: { request: revision, replayed: true } },
-      "/c/r2",
+      true,
     ],
     [
       "a change already applied",
@@ -372,11 +372,11 @@ describe("Conversation", () => {
         status: 409,
         body: { error: "already applied", code: "already_applied" },
       },
-      `/c/${rootId}`,
+      false,
     ],
   ])(
-    "says the revision was asked for after %s",
-    async (_name, answer, page) => {
+    "says the revision was asked for, in the same chat, after %s",
+    async (_name, answer, joins) => {
       const chat = {
         ...chatAbout({ dashboard_id: dashboardId }),
         turns: [answered()],
@@ -386,10 +386,15 @@ describe("Conversation", () => {
       await user.click(
         await screen.findByRole("button", { name: "Revise the dashboard" })
       )
-      await waitFor(() => expect(router?.state.location.pathname).toBe(page))
       expect(
         await screen.findByRole("button", { name: "Revision asked for" })
       ).toHaveAttribute("aria-disabled", "true")
+      expect(router?.state.location.pathname).toBe(`/c/${rootId}`)
+      if (joins) {
+        expect(
+          await screen.findByText("Add a p99 panel", { exact: true })
+        ).toBeVisible()
+      }
     }
   )
 
@@ -423,6 +428,22 @@ describe("Conversation", () => {
     expect(
       fetch.mock.calls.some(([request]) => request.method === "POST")
     ).toBe(false)
+  })
+
+  it("keeps the finding card, with no Revise, for an investigation", async () => {
+    stubServer()
+    renderConversation(
+      answered({
+        investigation: true,
+        observation_id: observationId,
+        result_kind: "observation",
+        finding: { ...finding, observation_id: observationId },
+      })
+    )
+    expect(await screen.findByText(/^Found/)).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
   })
 
   it("offers no Revise on an answer whose turn has no dashboard, in a chat about one", async () => {

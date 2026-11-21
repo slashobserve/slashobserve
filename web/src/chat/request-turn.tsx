@@ -68,6 +68,7 @@ const reconnectingAfterFailures = 2
 export type TurnSummary = OriginFields & {
   id: string
   prompt: string
+  investigation: boolean
   status: "queued" | "running" | "succeeded" | "failed"
   state: ObserveRequest["state"]
   result_kind: ObserveRequest["result_kind"]
@@ -249,7 +250,6 @@ export function RequestTurn({
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const investigates = summary.kind === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
     enabled:
@@ -262,6 +262,8 @@ export function RequestTurn({
   const settled = !isActive(summary.status)
   const showLive = live !== undefined && !(settled && !isTerminal(live))
   const request: TurnSummary = showLive ? live : summary
+  const readsData = request.kind === "investigate"
+  const investigates = request.investigation
   const detail = showLive ? live : undefined
   const build = request.build
   const answers = mayHaveFinding(request)
@@ -315,7 +317,7 @@ export function RequestTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              {build !== null && !investigates ? (
+              {build !== null && !readsData ? (
                 <BuildCard
                   request={detail ?? request}
                   build={build}
@@ -336,7 +338,7 @@ export function RequestTurn({
                         queuePosition: detail.queue_position,
                         canceling: detail.state === "canceling",
                       })
-                    : investigates
+                    : readsData
                       ? "Investigating"
                       : workingText(request, dashboardTitle)}
                 </span>
