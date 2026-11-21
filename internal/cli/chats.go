@@ -13,9 +13,10 @@ import (
 const maxChatPage = 50
 
 type chatTurnRow struct {
-	ID     string `json:"id"`
-	State  string `json:"state"`
-	Prompt string `json:"prompt"`
+	ID           string  `json:"id"`
+	State        string  `json:"state"`
+	Prompt       string  `json:"prompt"`
+	SharedThread *string `json:"shared_thread_id"`
 }
 
 type chatRow struct {
@@ -203,6 +204,11 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			}
 			out.line("")
 			out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
+			for _, turn := range detail.Turns {
+				if turn.SharedThread != nil {
+					out.line("Request %s is shared in thread %s", text(turn.ID), text(*turn.SharedThread))
+				}
+			}
 			return nil
 		},
 	}

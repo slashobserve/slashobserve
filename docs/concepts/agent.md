@@ -329,6 +329,7 @@ Once it has an answer you can share it: `observe share-answer <request-id>`, `sh
 That opens a comment thread on the dashboard or observation, at the same panel, block or spot, with your question as your message and the agent's answer as its reply, and on an observation it also writes the answer onto the page.
 With a thread id the two are added to that thread instead, which must be on the same dashboard or observation.
 Everyone who can read the thread then reads the answer and its evidence, while the run and the rest of the chat stay yours.
+The run then names that thread as `shared_thread_id`, which only you see.
 A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
 While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the thread and makes the run a private ask again, which you can share later.
 On an observation the answer already written onto the page stays, and no MCP tool withdraws, because none deletes.
