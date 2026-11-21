@@ -1,0 +1,339 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
+
+import { threadKeys } from "@/api/keys"
+import type { Message, Thread } from "@/comments/thread-queries"
+import type { Finding } from "@/findings/queries"
+import { renderWithProviders, testQueryClient } from "@/test/render"
+
+import { AnswerCard, evidenceChipText, threadLabel } from "./answer-card"
+
+vi.mock("@/findings/evidence-panel", () => ({
+  EvidencePanel: ({ panel }: { panel: { title: string } }) => (
+    <article aria-label={panel.title} />
+  ),
+}))
+
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+vi.mock("sonner", () => ({ toast: toasts }))
+
+const text = "The error rate **doubled** at 10:02."
+
+function finding(patch: Partial<Finding> = {}): Finding {
+  return {
+    id: "f1",
+    observation_id: null,
+    agent_request_id: "r1",
+    dashboard_id: "d1",
+    folder_id: null,
+    ask_on: null,
+    title: "Checkout errors rose after the deploy",
+    markdown: text,
+    evidence: [
+      { id: "e1", type: "timeseries", title: "Error rate" },
+      { id: "e2", type: "timeseries", title: "Latency" },
+    ] as unknown as Finding["evidence"],
+    from: "2026-11-06T10:00:00Z",
+    to: "2026-11-06T11:00:00Z",
+    annotation_id: null,
+    created_by: { kind: "user", id: "u1", name: "Ada" },
+    actor: {
+      kind: "user",
+      id: "u1",
+      name: "Ada",
+      origin: "web",
+      client: null,
+      run_id: "r1",
+      label: "Observe Agent for Ada",
+    },
+    created_at: "2026-11-06T11:05:00Z",
+    url: null,
+    suggested_change: null,
+    observe_worthy: false,
+    ...patch,
+  }
+}
+
+function thread(id: string, status: Thread["status"]): Thread {
+  return {
+    id,
+    target: { kind: "dashboard", id: "d1" },
+    dashboard_id: "d1",
+    version: 1,
+    panel_id: null,
+    panel_present: true,
+    status,
+    allowed_actions: ["reply"],
+    unread: false,
+    created_at: "2026-11-06T09:00:00Z",
+    updated_at: "2026-11-06T09:00:00Z",
+    resolved_at: null,
+    resolved_actor: null,
+    resolved_by_version: null,
+    revision: null,
+    anchor: null,
+    block_id: null,
+    agent: null,
+    agent_off: false,
+  }
+}
+
+function rootMessage(threadId: string, body: string): Message {
+  return {
+    id: threadId,
+    thread_id: threadId,
+    body,
+    actor: finding().actor,
+    created_at: "2026-11-06T09:00:00Z",
+    updated_at: "2026-11-06T09:00:00Z",
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
+    can_delete: false,
+    block_id: null,
+    reply_to: null,
+  }
+}
+
+function stubFetch(body: unknown, status = 200) {
+  const fetch = vi.fn<(request: Request) => Promise<Response>>(
+    async () =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      })
+  )
+  vi.stubGlobal("fetch", fetch)
+  return fetch
+}
+
+async function sent(fetch: ReturnType<typeof stubFetch>, call = 0) {
+  const request = fetch.mock.calls[call][0]
+  const raw = await request.clone().text()
+  return {
+    line: `${request.method} ${new URL(request.url).pathname}`,
+    body: raw === "" ? null : (JSON.parse(raw) as unknown),
+  }
+}
+
+function renderCard(props: Partial<Parameters<typeof AnswerCard>[0]> = {}) {
+  const queryClient = testQueryClient()
+  queryClient.setQueryData(threadKeys.list("dashboard:d1"), {
+    pages: [
+      {
+        threads: [thread("t1", "open"), thread("t2", "resolved")],
+        messages: [
+          rootMessage("t1", "Why did checkout errors rise?"),
+          rootMessage("t2", "Old question"),
+        ],
+        next_cursor: null,
+        can_comment: true,
+      },
+    ],
+    pageParams: [undefined],
+  })
+  return renderWithProviders(
+    <AnswerCard
+      finding={finding()}
+      requestId="r1"
+      canSave={false}
+      {...props}
+    />,
+    { queryClient, route: { path: "/", url: "/" } }
+  )
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  toasts.success.mockReset()
+  toasts.error.mockReset()
+})
+
+describe("evidenceChipText", () => {
+  it("counts the evidence panels", () => {
+    expect(evidenceChipText(1)).toBe("1 evidence panel")
+    expect(evidenceChipText(2)).toBe("2 evidence panels")
+  })
+})
+
+describe("threadLabel", () => {
+  it("names a thread by its text on one line, cut at 60 characters", () => {
+    expect(threadLabel("Why did checkout\n errors rise?")).toBe(
+      "Why did checkout errors rise?"
+    )
+    const label = threadLabel("a".repeat(80))
+    expect([...label]).toHaveLength(60)
+    expect(label.endsWith("…")).toBe(true)
+  })
+})
+
+describe("AnswerCard", () => {
+  beforeAll(() => import("@/findings/finding-markdown"))
+
+  it("keeps the evidence folded until its chip unfolds it in place", async () => {
+    const { user } = renderCard()
+    expect(await screen.findByText("doubled")).toBeInTheDocument()
+    const chip = screen.getByRole("button", { name: "2 evidence panels" })
+    expect(chip).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("article", { name: "Error rate" })).toBeNull()
+    await user.click(chip)
+    expect(chip).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
+    expect(screen.getByRole("article", { name: "Latency" })).toBeVisible()
+    await user.click(chip)
+    expect(screen.queryByRole("article", { name: "Error rate" })).toBeNull()
+  })
+
+  it("shows no chip for an answer without evidence", async () => {
+    renderCard({ finding: finding({ evidence: [] }) })
+    expect(await screen.findByText("doubled")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
+  })
+
+  it("applies the suggested change with Revise the dashboard", async () => {
+    const onRevise = vi.fn()
+    const { user } = renderCard({
+      finding: finding({ suggested_change: "Add a p99 latency panel" }),
+      revise: { onRevise, pending: false },
+    })
+    expect(
+      await screen.findByText("Suggested change: Add a p99 latency panel")
+    ).toBeVisible()
+    await user.click(
+      screen.getByRole("button", { name: "Revise the dashboard" })
+    )
+    expect(onRevise).toHaveBeenCalledWith("Add a p99 latency panel")
+  })
+
+  it("offers no revise without a suggested change or without the right to revise", async () => {
+    const view = renderCard({
+      revise: { onRevise: vi.fn(), pending: false },
+    })
+    await screen.findByText("doubled")
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+    view.unmount()
+    renderCard({ finding: finding({ suggested_change: "Add a panel" }) })
+    await screen.findByText("doubled")
+    expect(screen.queryByText(/Suggested change/)).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+  })
+
+  it("promotes Create observation for a worthy answer its asker may save", async () => {
+    const fetch = stubFetch(
+      { observation_id: "o5", url: "/o/o5", replayed: false },
+      201
+    )
+    const { user } = renderCard({
+      finding: finding({ observe_worthy: true }),
+      canSave: true,
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Create observation" })
+    )
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    expect((await sent(fetch)).line).toBe("POST /api/v1/observe/r1/observation")
+  })
+
+  it("keeps Create observation under the evidence for an answer that is not worthy", async () => {
+    const { user } = renderCard({ canSave: true })
+    await screen.findByText("doubled")
+    expect(
+      screen.queryByRole("button", { name: "Create observation" })
+    ).toBeNull()
+    await user.click(screen.getByRole("button", { name: "2 evidence panels" }))
+    expect(
+      screen.getByRole("button", { name: "Create observation" })
+    ).toBeVisible()
+  })
+
+  it("links to the observation an answer was already saved in", async () => {
+    const { user } = renderCard({
+      finding: finding({ observation_id: "o9" }),
+      canSave: true,
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "2 evidence panels" })
+    )
+    expect(
+      screen.getByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
+    expect(
+      screen.queryByRole("button", { name: "Create observation" })
+    ).toBeNull()
+  })
+
+  it("has no menu unless one is asked for", async () => {
+    renderCard()
+    await screen.findByText("doubled")
+    expect(screen.queryByRole("button", { name: "Answer actions" })).toBeNull()
+  })
+
+  it("shows the answer to everyone from the asker's menu", async () => {
+    const fetch = stubFetch({
+      thread_id: "t9",
+      message_id: "m9",
+      replayed: false,
+    })
+    const { user } = renderCard({ menu: { shareTarget: "dashboard:d1" } })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    )
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(await sent(fetch)).toEqual({
+      line: "POST /api/v1/observe/r1/share",
+      body: {},
+    })
+    await waitFor(() =>
+      expect(toasts.success).toHaveBeenCalledWith(
+        "Everyone here can see this answer now"
+      )
+    )
+  })
+
+  it("shares the answer to an open thread picked from the menu", async () => {
+    const fetch = stubFetch({
+      thread_id: "t1",
+      message_id: "m9",
+      replayed: false,
+    })
+    const { user } = renderCard({ menu: { shareTarget: "dashboard:d1" } })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Share to thread/ })
+    )
+    const choice = await screen.findByRole("menuitem", {
+      name: "Why did checkout errors rise?",
+    })
+    expect(screen.queryByRole("menuitem", { name: "Old question" })).toBeNull()
+    fireEvent.click(choice)
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(await sent(fetch)).toEqual({
+      line: "POST /api/v1/observe/r1/share",
+      body: { thread_id: "t1" },
+    })
+  })
+
+  it("offers only Copy answer when there is nowhere to share", async () => {
+    const { user } = renderCard({ menu: { shareTarget: null } })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    const writeText = vi.spyOn(navigator.clipboard, "writeText")
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Copy answer/ })
+    )
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(text))
+  })
+})

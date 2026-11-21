@@ -6,15 +6,10 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
-import { commentsQuery, useComments } from "@/comments/queries"
 import { RequestCommentAccess } from "@/access/request-comment-access"
 import { RoleNote } from "@/components/role-note"
 import {
@@ -44,6 +39,7 @@ import { allPanels, panelTitle, type Dashboard } from "@/spec"
 import { threadParticipants } from "@/comments/mentions"
 import { useThreads } from "@/comments/thread-queries"
 import { deliveryGate, type GateInput } from "@/conversation/delivery"
+import { ThreadView } from "@/conversation/thread-view"
 
 import {
   ActivityComposer,
@@ -67,7 +63,6 @@ import {
   TimelineFilters,
   truncatingTriggerClass,
 } from "./show-filter"
-import { ThreadEntry } from "./thread-entry"
 import {
   buildTimeline,
   filterTimeline,
@@ -151,7 +146,7 @@ function changeSignature(entry: TimelineEntry | undefined): string {
   if (entry === undefined) return ""
   switch (entry.kind) {
     case "thread":
-      return `${entry.key}:${entry.thread.root.status}:${entry.thread.replies.length}:${entry.request?.status ?? ""}`
+      return `${entry.key}:${entry.thread.thread.status}:${entry.thread.messages.length}`
     case "request":
     case "running":
       return `${entry.key}:${entry.request.status}`
@@ -182,8 +177,6 @@ export function ActivityFeed({
   focusedThreadId,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
-  const comments = useComments(dashboardId)
-  const commentsData = useInfiniteQuery(commentsQuery(dashboardId)).data
   const revisions = useRevisions(dashboardId)
   const history = useVersionHistory(dashboardId)
   const agent = useAgentInfo()
@@ -207,7 +200,9 @@ export function ActivityFeed({
     dashboardId,
     states: ["queued", "running", "canceling"],
   }).requests
-  const threads = useThreads(`dashboard:${dashboardId}`).threads
+  const threadTarget = `dashboard:${dashboardId}`
+  const threadsQuery = useThreads(threadTarget)
+  const threads = threadsQuery.threads
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const investigations = useMemo(
     () => activeRuns.filter((request) => request.kind === "investigate"),
@@ -244,7 +239,7 @@ export function ActivityFeed({
     () =>
       filterTimeline(
         buildTimeline({
-          comments: comments.comments,
+          threads,
           requests,
           versions,
           imported,
@@ -257,7 +252,7 @@ export function ActivityFeed({
         scopePanelId
       ),
     [
-      comments.comments,
+      threads,
       requests,
       versions,
       imported,
@@ -356,15 +351,15 @@ export function ActivityFeed({
     switch (entry.kind) {
       case "thread":
         return (
-          <ThreadEntry
-            dashboardId={dashboardId}
-            entry={entry}
-            focused={entry.thread.root.id === focusedThreadId}
+          <ThreadView
+            entry={entry.thread}
+            target={threadTarget}
+            focused={entry.thread.thread.id === focusedThreadId}
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}
             clientName={clientName}
-            onReply={() => replyHere(entry.thread.root.id)}
+            onReplyHere={() => replyHere(entry.thread.thread.id)}
           />
         )
       case "request":
@@ -449,9 +444,9 @@ export function ActivityFeed({
       <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
         <TimelineList
           entries={entries}
-          loading={comments.isPending}
-          error={commentsData === undefined && comments.isError}
-          onRetry={() => void comments.refetch()}
+          loading={threadsQuery.isPending}
+          error={threads.length === 0 && threadsQuery.isError}
+          onRetry={() => void threadsQuery.refetch()}
           filtered={filtered}
           older={{
             available: history.hasNextPage && showsVersions(show, scopePanelId),

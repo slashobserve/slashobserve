@@ -12,7 +12,12 @@ A question about your data such as "what logs are available?", a request to expl
 A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
 A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
-The answer stays in the chat, and no observation is created, until you choose **Save as observation** under it; an `/investigate` request always opens an observation.
+The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation.
+
+On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** sends the suggested change as the next turn of the chat.
+The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
+Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
+
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
 The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.

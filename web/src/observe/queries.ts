@@ -23,6 +23,7 @@ import {
   dashboardKeys,
   observationKeys,
   observeKeys,
+  threadKeys,
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
@@ -414,6 +415,22 @@ export function useSaveAnswer(id: string) {
       void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
       void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
       void queryClient.invalidateQueries({ queryKey: observationKeys.lists() })
+    },
+  })
+}
+
+export function useShareAnswer(id: string, target: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId?: string) =>
+      api
+        .POST("/observe/{id}/share", {
+          params: { path: { id } },
+          body: threadId === undefined ? {} : { thread_id: threadId },
+        })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
     },
   })
 }

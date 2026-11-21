@@ -1,8 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
+import { toast } from "sonner"
 
 import { AgentMark } from "@/components/agent-mark"
+import { AnswerCard } from "@/conversation/answer-card"
+import { planRevise, type Subject } from "@/conversation/send-plan"
+import { useDeliver } from "@/conversation/use-composer"
 import { StatusIcon } from "@/components/status-label"
 import {
   buildStatusText,
@@ -13,6 +17,7 @@ import { costText, shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
   observeRequestQuery,
+  sentence,
   type ObserveRequest,
   stopsPolling,
   usePollFailures,
@@ -22,6 +27,7 @@ import { requestOrigin, type OriginFields } from "@/observe/request-origin"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
+import type { Finding } from "@/findings/queries"
 
 import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
@@ -81,6 +87,64 @@ type Props = {
   opensRunsIn?: RunOpens
   latest?: boolean
   answerActions?: ReactNode
+}
+
+function ChatAnswer({
+  request,
+  finding,
+  own,
+  onRevised,
+}: {
+  request: ObserveRequest
+  finding: Finding
+  own: boolean
+  onRevised: (next: ObserveRequest) => Promise<void>
+}) {
+  const dashboardId = request.dashboard_id
+  const subject: Subject | null =
+    dashboardId === null ? null : { kind: "dashboard", id: dashboardId }
+  const { deliver, pending } = useDeliver(subject)
+  const mayRevise = own && !request.read_only && subject !== null
+
+  async function revise(change: string) {
+    const plan = planRevise(
+      { kind: "chat", chatId: request.chat_id },
+      subject,
+      change,
+      crypto.randomUUID()
+    )
+    if ("error" in plan) {
+      toast.error(plan.error)
+      return
+    }
+    try {
+      const sent = await deliver(plan)
+      if (sent.via === "chat") await onRevised(sent.request)
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message !== ""
+          ? sentence(error.message)
+          : "The change could not be asked for. Try again."
+      )
+    }
+  }
+
+  return (
+    <AnswerCard
+      finding={finding}
+      requestId={request.id}
+      canSave={own}
+      revise={
+        mayRevise
+          ? { onRevise: (change) => void revise(change), pending }
+          : undefined
+      }
+      menu={{
+        shareTarget:
+          own && dashboardId !== null ? `dashboard:${dashboardId}` : null,
+      }}
+    />
+  )
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -330,15 +394,16 @@ export function RequestTurn({
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
               <>
-                <FindingCard
-                  finding={detail.finding}
-                  showOpenLink
-                  saveAnswerOf={
-                    request.requested_by.id === principal.id
-                      ? request.id
-                      : undefined
-                  }
-                />
+                {detail.finding.observation_id === null ? (
+                  <ChatAnswer
+                    request={detail}
+                    finding={detail.finding}
+                    own={request.requested_by.id === principal.id}
+                    onRevised={openNewRun}
+                  />
+                ) : (
+                  <FindingCard finding={detail.finding} showOpenLink />
+                )}
                 {detail.finding.ask_on !== null ? (
                   <AskOnDashboard
                     askOn={detail.finding.ask_on}

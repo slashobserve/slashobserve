@@ -9,7 +9,7 @@ import { useLatestPermissions } from "@/dashboards/permissions"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { sentence, useSaveAnswer } from "@/observe/queries"
+import { sentence } from "@/observe/queries"
 
 import { EvidencePanel } from "./evidence-panel"
 import {
@@ -97,34 +97,6 @@ function MakeDashboardAction({ finding }: { finding: Finding }) {
   )
 }
 
-function SaveAnswerAction({ requestId }: { requestId: string }) {
-  const save = useSaveAnswer(requestId)
-  if (save.isSuccess) {
-    return (
-      <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
-        <span>Saved as an observation</span>
-        <Link
-          {...observationLink(save.data.observation_id)}
-          className={linkClass}
-        >
-          Open observation
-        </Link>
-      </p>
-    )
-  }
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={save.isPending}
-      aria-busy={save.isPending}
-      onClick={() => save.mutate(undefined, { onError: toastError })}
-    >
-      {save.isPending ? "Saving" : "Save as observation"}
-    </Button>
-  )
-}
-
 const variants = {
   card: {
     frame: "gap-3 rounded-card border px-3.5 py-3",
@@ -143,18 +115,15 @@ type FindingVariant = keyof typeof variants
 export function FindingCard({
   finding,
   showOpenLink,
-  saveAnswerOf,
   variant = "card",
 }: {
   finding: Finding
   showOpenLink: boolean
-  saveAnswerOf?: string
   variant?: FindingVariant
 }) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const layout = variants[variant]
   const observationId = finding.observation_id
-  const mayAct = observationId !== null || saveAnswerOf !== undefined
   return (
     <div className={cn("flex flex-col", layout.frame)}>
       <div className={layout.text}>
@@ -192,11 +161,8 @@ export function FindingCard({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {observationId !== null ? <PinAction finding={finding} /> : null}
-        {panels.length > 0 && mayAct ? (
+        {panels.length > 0 && observationId !== null ? (
           <MakeDashboardAction finding={finding} />
-        ) : null}
-        {observationId === null && saveAnswerOf !== undefined ? (
-          <SaveAnswerAction requestId={saveAnswerOf} />
         ) : null}
         <CopyButton
           text={finding.markdown}

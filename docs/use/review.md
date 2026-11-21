@@ -19,11 +19,15 @@ Without a model on the server it reads "Comments, proposals, annotations and sav
 Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
 They come in six kinds:
 
-- **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
+- **Comment threads** show the author's name with no verb and, when the comment is about a panel, "on `<panel>`".
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  Replies sit under the first message, each with its author's name and no verb, and an agent's reply speaks as the agent, such as "Observe Agent for Ishan".
+  A message that arrives while the card is open slides in; the ones already there stay put.
+- **Agent requests** sent from a comment show inside their thread, as one status line per run under the message that asked: "Observe Agent is working on it · View the run" while it works, "`<name>` was asked" for a connected agent, and the agent's reply once it ends.
+  **View the run** opens the run's conversation at `/c/<id>`, and the agent's reply carries the same link.
+- **Agent requests** that no loaded thread holds show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
   A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
@@ -71,11 +75,12 @@ See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 ## Edit a comment and mention people
 
-Your own comments and replies have an **Edit** button while you can still comment on the dashboard.
+Each message you may change has a menu, **Comment actions** (**Thread actions** on the first message of a thread), that shows when you hover or focus the message and always shows on a touch screen.
+Your own comments and replies have **Edit** in it while you can still comment on the dashboard.
 It opens the text in place; **Save**, Enter or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, Shift+Enter adds a new line, and **Cancel** or Escape drops it.
 An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
-An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
+An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
 The @ button next to a comment box, or typing `@` at the start of the box or after a space, opens a list of the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the comment is about.
@@ -104,11 +109,11 @@ Text an agent wrote, a reply from a run or a message from a connected agent or s
 
 ## Delete a comment
 
-You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
+You can delete your own comment or reply while you can still comment: **Delete** in the message's menu asks for confirmation.
 The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
 Someone with Manage on the folder can delete any comment, including an agent's reply and the first comment of a thread that others have answered, which deletes the thread; nobody else can delete an agent's reply.
 The dialog reads "Delete this comment?", or "Delete this thread?" when it removes the whole thread, and says it cannot be undone.
-**Delete** is on comments in the Activity card, in an observation's discussion and in the Inbox pane.
+**Delete** is in the menu of comments in the Activity card, in an observation's discussion and in the Inbox pane.
 An agent's reply that someone deleted is not posted again when its run is retried.
 The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
 A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
@@ -132,6 +137,11 @@ The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+
+When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
+When the answer suggests a change to the dashboard, the card shows "Suggested change: `<change>`" and **Revise the dashboard**, which replies to the thread's agent with "Revise the dashboard: `<change>`".
+The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 An answer kept only in the asker's chat reads "Answered in the chat of the person who asked." with the start of the text and a link to the chat, which opens for the person who asked and for Admins.
 
@@ -178,6 +188,7 @@ Over the API `GET /api/v1/dashboards/{id}/viewers` returns the list, `list_dashb
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
+A resolved thread folds to its first line with the number of replies, such as "2 replies"; **Show thread** unfolds it and **Hide thread** folds it again.
 A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
 A Commenter sees **Resolve** only on a thread they started and the server refuses any other with 403 `not_starter`; an Editor or an Admin resolves any thread, and every commenter may reopen one.
@@ -185,7 +196,6 @@ Over the API and MCP each thread carries `allowed_actions`, the actions the call
 A thread can also be on a [proposal](../concepts/proposals.md), written `proposal:<id>` as the target of the threads API.
 It has no panel or version and follows the proposal's dashboard: View reads it and Comment writes to it.
 
-Replies sit under the comment they answer.
 With no model on the server, an open thread reads "Open, waiting for `<client>`", so the person or tool that will act on it is clear.
 
 Resolving and replying need the same access as commenting.

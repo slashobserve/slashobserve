@@ -4,8 +4,10 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { resendOnceOffline, unwrap } from "@/api/errors"
@@ -221,5 +223,66 @@ export function useReplyToThread(target: string) {
         .then(unwrap)
         .then(sentMessage),
     onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),
+  })
+}
+
+function mapThread(
+  data: InfiniteData<ThreadPage, string | undefined> | undefined,
+  threadId: string,
+  change: (thread: Thread) => Thread
+) {
+  if (data === undefined) return data
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      threads: page.threads.map((thread) =>
+        thread.id === threadId ? change(thread) : thread
+      ),
+    })),
+  }
+}
+
+export function useSetThreadStatus(target: string) {
+  const queryClient = useQueryClient()
+  const key = threadKeys.list(target)
+  return useMutation({
+    mutationFn: (input: { threadId: string; status: Thread["status"] }) =>
+      (input.status === "resolved"
+        ? api.POST("/threads/{thread_id}/resolve", {
+            params: { path: { thread_id: input.threadId } },
+          })
+        : api.POST("/threads/{thread_id}/reopen", {
+            params: { path: { thread_id: input.threadId } },
+          })
+      )
+        .then(unwrap)
+        .then((body) => body.thread),
+    onSuccess: (thread) =>
+      queryClient.setQueryData<InfiniteData<ThreadPage, string | undefined>>(
+        key,
+        (data) => mapThread(data, thread.id, () => thread)
+      ),
+    onError: () => toast.error("Could not update the thread"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  })
+}
+
+export function useMarkThreadRead(target: string) {
+  const queryClient = useQueryClient()
+  const key = threadKeys.list(target)
+  return useMutation({
+    mutationFn: (threadId: string) =>
+      api
+        .POST("/threads/{thread_id}/read", {
+          params: { path: { thread_id: threadId } },
+        })
+        .then(unwrap),
+    onSuccess: (_, threadId) =>
+      queryClient.setQueryData<InfiniteData<ThreadPage, string | undefined>>(
+        key,
+        (data) =>
+          mapThread(data, threadId, (thread) => ({ ...thread, unread: false }))
+      ),
   })
 }

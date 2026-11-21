@@ -1,0 +1,393 @@
+import { screen, waitFor } from "@testing-library/react"
+import { useState } from "react"
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
+
+import { observeKeys, threadKeys } from "@/api/keys"
+import type {
+  Message,
+  Thread,
+  ThreadWithMessages,
+} from "@/comments/thread-queries"
+import type { Finding } from "@/findings/queries"
+import type { ObserveRequest } from "@/observe/queries"
+import { renderWithProviders, testQueryClient } from "@/test/render"
+
+import { ThreadView } from "./thread-view"
+
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useRouteContext: () => ({ principal: { id: "u1", role: "editor" } }),
+}))
+
+vi.mock("@/findings/evidence-panel", () => ({
+  EvidencePanel: ({ panel }: { panel: { title: string } }) => (
+    <article aria-label={panel.title} />
+  ),
+}))
+
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+vi.mock("sonner", () => ({ toast: toasts }))
+
+const target = "dashboard:d1"
+const runId = "7a1d2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b"
+
+const ada: Message["actor"] = {
+  kind: "user",
+  id: "u1",
+  name: "Ada",
+  origin: "web",
+  client: null,
+  run_id: null,
+  label: "Ada",
+}
+
+const agent: Message["actor"] = {
+  ...ada,
+  run_id: runId,
+  label: "Observe Agent",
+}
+
+function thread(patch: Partial<Thread> = {}): Thread {
+  return {
+    id: "t1",
+    target: { kind: "dashboard", id: "d1" },
+    dashboard_id: "d1",
+    version: 1,
+    panel_id: null,
+    panel_present: true,
+    status: "open",
+    allowed_actions: ["reply", "resolve"],
+    unread: false,
+    created_at: "2026-11-06T09:00:00Z",
+    updated_at: "2026-11-06T09:00:00Z",
+    resolved_at: null,
+    resolved_actor: null,
+    resolved_by_version: null,
+    revision: null,
+    anchor: null,
+    block_id: null,
+    agent: { kind: "builtin", id: null },
+    agent_off: false,
+    ...patch,
+  } as Thread
+}
+
+function message(id: string, patch: Partial<Message> = {}): Message {
+  return {
+    id,
+    thread_id: "t1",
+    body: id,
+    actor: ada,
+    created_at: "2026-11-06T09:00:00Z",
+    updated_at: "2026-11-06T09:00:00Z",
+    edited_at: null,
+    mentions: [],
+    can_edit: false,
+    can_delete: false,
+    block_id: null,
+    reply_to: null,
+    ...patch,
+  }
+}
+
+const question = message("t1", {
+  body: "Why did checkout errors rise?",
+  run: { id: runId, status: "running", assigned_kind: "builtin" },
+})
+
+const reply = message("m2", {
+  body: "Errors doubled after the deploy.",
+  actor: agent,
+  created_at: "2026-11-06T09:02:00Z",
+})
+
+function finding(): Finding {
+  return {
+    id: "f1",
+    observation_id: null,
+    agent_request_id: runId,
+    dashboard_id: "d1",
+    folder_id: null,
+    ask_on: null,
+    title: "Checkout errors rose",
+    markdown: "Errors **doubled** after the deploy.",
+    evidence: [
+      { id: "e1", type: "timeseries", title: "Error rate" },
+    ] as unknown as Finding["evidence"],
+    from: "2026-11-06T08:00:00Z",
+    to: "2026-11-06T09:00:00Z",
+    annotation_id: null,
+    created_by: { kind: "user", id: "u1", name: "Ada" },
+    actor: agent,
+    created_at: "2026-11-06T09:02:00Z",
+    url: null,
+    suggested_change: "Add a p99 latency panel",
+    observe_worthy: false,
+  }
+}
+
+function request(patch: Partial<ObserveRequest>): ObserveRequest {
+  return {
+    id: runId,
+    status: "succeeded",
+    state: "succeeded",
+    requested_by: { kind: "user", id: "u1", name: "Ada" },
+    finding: null,
+    ...patch,
+  } as Partial<ObserveRequest> as ObserveRequest
+}
+
+type Route = { status: number; body: unknown }
+
+function stubFetch(routes: Record<string, Route>) {
+  const fetch = vi.fn<(request: Request) => Promise<Response>>(
+    async (input) => {
+      const key = `${input.method} ${new URL(input.url).pathname}`
+      const route = routes[key] ?? {
+        status: 404,
+        body: { error: { code: "not_found", message: "not found" } },
+      }
+      return new Response(JSON.stringify(route.body), {
+        status: route.status,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+  )
+  vi.stubGlobal("fetch", fetch)
+  return fetch
+}
+
+function Harness({
+  initial,
+  later,
+}: {
+  initial: ThreadWithMessages
+  later?: Message
+}) {
+  const [entry, setEntry] = useState(initial)
+  return (
+    <ol>
+      {later === undefined ? null : (
+        <button
+          type="button"
+          onClick={() =>
+            setEntry({ ...entry, messages: [...entry.messages, later] })
+          }
+        >
+          Deliver the later message
+        </button>
+      )}
+      <ThreadView
+        entry={entry}
+        target={target}
+        panelTitle={null}
+        gate={{ kind: "allowed" }}
+        clientName="Claude Code"
+        onReplyHere={() => {}}
+      />
+    </ol>
+  )
+}
+
+function show(
+  entry: ThreadWithMessages,
+  seed?: (client: ReturnType<typeof testQueryClient>) => void,
+  later?: Message
+) {
+  const queryClient = testQueryClient()
+  seed?.(queryClient)
+  const view = renderWithProviders(<Harness initial={entry} later={later} />, {
+    queryClient,
+    route: { path: "/", url: "/" },
+  })
+  return { ...view, queryClient }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  toasts.success.mockReset()
+  toasts.error.mockReset()
+})
+
+describe("ThreadView", () => {
+  beforeAll(() => import("@/findings/finding-markdown"))
+
+  it("writes no verb beside the person's name", async () => {
+    stubFetch({})
+    show({ thread: thread(), messages: [message("t1"), message("m2")] })
+    expect(await screen.findAllByText("Ada")).not.toHaveLength(0)
+    expect(screen.queryByText(/commented|replied/)).toBeNull()
+  })
+
+  it("shows one working line with a link to the run while the agent works", async () => {
+    stubFetch({})
+    show({ thread: thread(), messages: [question] }, (client) =>
+      client.setQueryData(
+        observeKeys.request(runId),
+        request({ status: "running", state: "running" })
+      )
+    )
+    const line = await screen.findByRole("status")
+    expect(line).toHaveTextContent(
+      "Observe Agent is working on it · View the run"
+    )
+    expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
+      "href",
+      `/c/${runId}`
+    )
+    expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
+  })
+
+  it("answers in the agent's voice and unfolds the evidence from its chip", async () => {
+    stubFetch({})
+    const { user } = show(
+      { thread: thread(), messages: [question, reply] },
+      (client) =>
+        client.setQueryData(
+          observeKeys.request(runId),
+          request({ finding: finding() })
+        )
+    )
+    expect(await screen.findByText("Observe Agent")).toBeVisible()
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
+    const chip = await screen.findByRole("button", {
+      name: "1 evidence panel",
+    })
+    expect(screen.queryByRole("article", { name: "Error rate" })).toBeNull()
+    await user.click(chip)
+    expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
+  })
+
+  it("shows the reply without an answer card when the run's answer cannot be read", async () => {
+    const fetch = stubFetch({})
+    show({ thread: thread(), messages: [question, reply] })
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) =>
+          new URL(input.url).pathname.endsWith(`/observe/${runId}`)
+        )
+      ).toBe(true)
+    )
+    expect(
+      await screen.findByText("Errors doubled after the deploy.")
+    ).toBeVisible()
+    expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
+    expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+  })
+
+  it("asks the thread's agent for the suggested change with Revise the dashboard", async () => {
+    const fetch = stubFetch({
+      "POST /api/v1/threads/t1/messages": {
+        status: 201,
+        body: { thread: thread(), message: message("m3") },
+      },
+    })
+    const { user } = show(
+      { thread: thread(), messages: [question, reply] },
+      (client) =>
+        client.setQueryData(
+          observeKeys.request(runId),
+          request({ finding: finding() })
+        )
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    )
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([input]) => input.method === "POST")).toBe(
+        true
+      )
+    )
+    const post = fetch.mock.calls.find(([input]) => input.method === "POST")
+    expect(post).toBeDefined()
+    const body = (await post![0].clone().json()) as Record<string, unknown>
+    expect(body).toMatchObject({
+      body: "Revise the dashboard: Add a p99 latency panel",
+      to: "agent",
+    })
+    expect(body).not.toHaveProperty("start_runs")
+  })
+
+  it("slides in a message that arrives after the thread was drawn, not the ones already there", async () => {
+    stubFetch({})
+    const first = { thread: thread(), messages: [message("t1"), message("m2")] }
+    const { user } = show(
+      first,
+      undefined,
+      message("m3", { body: "Later reply" })
+    )
+    await screen.findByText("m2")
+    await user.click(
+      screen.getByRole("button", { name: "Deliver the later message" })
+    )
+    const arrived = (await screen.findByText("Later reply")).closest("li")
+    expect(arrived?.className).toContain("motion-safe:animate-in")
+    const earlier = screen.getByText("m2").closest("li")
+    expect(earlier?.className).not.toContain("motion-safe:animate-in")
+  })
+
+  it("folds a resolved thread to its first line and unfolds it on Show thread", async () => {
+    stubFetch({})
+    const { user } = show({
+      thread: thread({
+        status: "resolved",
+        allowed_actions: ["reopen"],
+        resolved_by_version: 3,
+      }),
+      messages: [message("t1"), message("m2")],
+    })
+    expect(await screen.findByText("Resolved by version 3")).toBeVisible()
+    expect(screen.getByText("1 reply")).toBeVisible()
+    expect(screen.queryByText("m2")).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Show thread" }))
+    expect(await screen.findByText("m2")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Hide thread" })).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    )
+  })
+
+  it("resolves through the thread and keeps the list in step", async () => {
+    const fetch = stubFetch({
+      "POST /api/v1/threads/t1/resolve": {
+        status: 200,
+        body: {
+          thread: thread({ status: "resolved", allowed_actions: ["reopen"] }),
+        },
+      },
+    })
+    const { user, queryClient } = show(
+      { thread: thread(), messages: [message("t1")] },
+      (client) =>
+        client.setQueryData(threadKeys.list(target), {
+          pages: [
+            {
+              threads: [thread()],
+              messages: [message("t1")],
+              next_cursor: null,
+              can_comment: true,
+            },
+          ],
+          pageParams: [undefined],
+        })
+    )
+    await user.click(await screen.findByRole("button", { name: "Resolve" }))
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) =>
+          new URL(input.url).pathname.endsWith("/threads/t1/resolve")
+        )
+      ).toBe(true)
+    )
+    await waitFor(() => {
+      const data = queryClient.getQueryData<{
+        pages: { threads: Thread[] }[]
+      }>(threadKeys.list(target))
+      expect(data?.pages[0]?.threads[0]?.status).toBe("resolved")
+    })
+  })
+})

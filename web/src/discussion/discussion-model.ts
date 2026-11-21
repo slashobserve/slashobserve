@@ -1,4 +1,3 @@
-import { threadVerbText } from "@/activity/thread-view"
 import type { components } from "@/api/schema.gen"
 import { mentionSegments } from "@/comments/mentions"
 import type { Message, ThreadWithMessages } from "@/comments/thread-queries"
@@ -68,9 +67,9 @@ export function messageVerb(message: Message): string {
   }
   if (message.id !== message.thread_id) return "replied"
   if (!message.mentions.some((mention) => mention.kind !== "user")) {
-    return threadVerbText(false, null, null)
+    return "commented"
   }
-  return message.run ? threadVerbText(true, null, null) : "mentioned the agent"
+  return message.run ? "asked the agent" : "mentioned the agent"
 }
 
 function byTime(a: DiscussionEntry, b: DiscussionEntry): number {

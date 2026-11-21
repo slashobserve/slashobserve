@@ -117,16 +117,13 @@ for (const colorScheme of ["light", "dark"] as const) {
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()
 
-        await expect(
-          own.getByText(/Observe Agent is working on it/)
-        ).toBeVisible()
-        const running = entries(page).filter({
-          has: page.getByText("is working on it", { exact: true }),
+        const running = own.getByRole("status").filter({
+          hasText: "Observe Agent is working on it · View the run",
         })
         await expect(running).toHaveCount(1)
         await expect(
-          running.getByRole("link", { name: /Details of the running agent/ })
-        ).toBeVisible()
+          running.getByRole("link", { name: "View the run" })
+        ).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
       })
 
       await test.step("resolved", async () => {

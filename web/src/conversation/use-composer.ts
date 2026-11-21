@@ -212,6 +212,59 @@ function chatFailureText(error: unknown): Failure | null {
   return { text: described.message, invalid: described.invalid }
 }
 
+export function useDeliver(subject: Subject | null, timeZone?: string) {
+  const target = subject === null ? "" : threadTargetOf(subject)
+  const openThread = useOpenThread(target)
+  const replyToThread = useReplyToThread(target)
+  const createRequest = useCreateObserveRequest()
+
+  async function deliver(send: Send): Promise<SentResult> {
+    switch (send.via) {
+      case "thread.open":
+        return {
+          via: "thread",
+          sent: await openThread.mutateAsync({
+            body: send.body,
+            to: send.to,
+            clientId: send.clientId,
+            panelId: send.panelId,
+            blockId: send.blockId,
+            anchor: send.anchor,
+          }),
+        }
+      case "thread.reply":
+        return {
+          via: "thread",
+          sent: await replyToThread.mutateAsync({
+            threadId: send.threadId,
+            body: send.body,
+            to: send.to,
+            clientId: send.clientId,
+            blockId: send.blockId,
+            replyToId: send.replyToId,
+          }),
+        }
+      case "chat.turn":
+        return {
+          via: "chat",
+          request: await createRequest.mutateAsync({
+            ...send.input,
+            ...(timeZone === undefined ? {} : { timeZone }),
+          }),
+          opens: send.opens,
+        }
+    }
+  }
+
+  return {
+    deliver,
+    pending:
+      openThread.isPending ||
+      replyToThread.isPending ||
+      createRequest.isPending,
+  }
+}
+
 export function useComposer(input: ComposerInput): ComposerModel {
   const { principal } = useRouteContext({ from: "/_authed" })
   const { subject, place } = input
@@ -239,9 +292,8 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const history = usePromptHistory()
   const agents = useMentionableAgents(place.kind !== "chat")
   const mentionTarget = subject === null ? null : threadTargetOf(subject)
-  const openThread = useOpenThread(mentionTarget ?? "")
-  const replyToThread = useReplyToThread(mentionTarget ?? "")
-  const createRequest = useCreateObserveRequest()
+  const delivering = useDeliver(subject, input.timeZone)
+  const { deliver } = delivering
 
   const commands =
     place.kind === "chat"
@@ -251,11 +303,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const delivery = chosenDelivery(place, wire, chosen)
   const gate = deliveryGate(input.gate, delivery)
   const sendBlock = sendBlockOf(wire, delivery, gate)
-  const pending =
-    sending ||
-    openThread.isPending ||
-    replyToThread.isPending ||
-    createRequest.isPending
+  const pending = sending || delivering.pending
 
   function announce(next: string) {
     setAnnouncement((current) => ({ text: next, count: current.count + 1 }))
@@ -345,46 +393,6 @@ export function useComposer(input: ComposerInput): ComposerModel {
     setCursor(freshCursor)
     setClientId(newClientId())
     returnFocus()
-  }
-
-  async function deliver(send: Send): Promise<SentResult> {
-    switch (send.via) {
-      case "thread.open":
-        return {
-          via: "thread",
-          sent: await openThread.mutateAsync({
-            body: send.body,
-            to: send.to,
-            clientId: send.clientId,
-            panelId: send.panelId,
-            blockId: send.blockId,
-            anchor: send.anchor,
-          }),
-        }
-      case "thread.reply":
-        return {
-          via: "thread",
-          sent: await replyToThread.mutateAsync({
-            threadId: send.threadId,
-            body: send.body,
-            to: send.to,
-            clientId: send.clientId,
-            blockId: send.blockId,
-            replyToId: send.replyToId,
-          }),
-        }
-      case "chat.turn":
-        return {
-          via: "chat",
-          request: await createRequest.mutateAsync({
-            ...send.input,
-            ...(input.timeZone === undefined
-              ? {}
-              : { timeZone: input.timeZone }),
-          }),
-          opens: send.opens,
-        }
-    }
   }
 
   async function submit() {
