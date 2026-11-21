@@ -84,7 +84,8 @@ func migrateTemplate(ctx context.Context) error {
 		return err
 	}
 	defer d.Close()
-	return d.Migrate(ctx)
+	_, err = d.Migrate(ctx)
+	return err
 }
 
 type Database struct {

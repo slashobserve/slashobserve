@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -32,39 +33,55 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
+	ctx := r.Context()
 	client, redirectURI, reason := s.resolveClient(r, q)
 	if reason != "" {
 		if reason == internalReason {
+			s.refused(ctx, audit.ActionOAuthAuthorize, audit.OutcomeFailed, "server_error", audit.Target{Kind: "oauth_client"}, nil)
 			refusePage(w, http.StatusInternalServerError, "the server could not read the connection request")
 			return
 		}
+		s.refused(ctx, audit.ActionOAuthAuthorize, audit.OutcomeDenied, "invalid_client", audit.Target{Kind: "oauth_client"}, nil)
 		refusePage(w, http.StatusBadRequest, "This connection link is not valid: "+reason+". Start connecting again from your agent.")
 		return
 	}
+	target := clientTarget(client.ID, client.Name.String)
 	params, bad := s.checkAuthorizeParams(q)
 	if bad != nil {
+		s.refusedWith(ctx, audit.ActionOAuthAuthorize, bad, target, nil)
 		s.redirectError(w, redirectURI, params.state, bad)
 		return
 	}
-	ctx := r.Context()
 	if err := s.db.Queries().DeleteExpiredOAuthRequests(ctx); err != nil {
+		s.refused(ctx, audit.ActionOAuthAuthorize, audit.OutcomeFailed, "server_error", target, nil)
 		s.redirectFailure(w, r, redirectURI, params.state, err)
 		return
 	}
-	id, err := s.db.Queries().CreateOAuthRequest(ctx, dbsqlc.CreateOAuthRequestParams{
-		ClientID:       client.ID,
-		RedirectUri:    redirectURI,
-		State:          pgtype.Text{String: params.state, Valid: params.state != ""},
-		CodeChallenge:  params.codeChallenge,
-		Resource:       s.resource,
-		ExpiresAt:      pgtype.Timestamptz{Time: time.Now().Add(requestTTL), Valid: true},
-		MaxOutstanding: maxPendingRequests,
+	var id pgtype.UUID
+	err := s.db.InTx(ctx, func(tx *dbsqlc.Queries) error {
+		var err error
+		id, err = tx.CreateOAuthRequest(ctx, dbsqlc.CreateOAuthRequestParams{
+			ClientID:       client.ID,
+			RedirectUri:    redirectURI,
+			State:          pgtype.Text{String: params.state, Valid: params.state != ""},
+			CodeChallenge:  params.codeChallenge,
+			Resource:       s.resource,
+			ExpiresAt:      pgtype.Timestamptz{Time: time.Now().Add(requestTTL), Valid: true},
+			MaxOutstanding: maxPendingRequests,
+		})
+		if err != nil {
+			return err
+		}
+		audit.Update(ctx, func(sc *audit.Scope) { sc.Origin.Client = target.Name })
+		return audit.Record(ctx, tx, audit.Event{Action: audit.ActionOAuthAuthorize, Target: target})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
+		s.refused(ctx, audit.ActionOAuthAuthorize, audit.OutcomeDenied, "temporarily_unavailable", target, nil)
 		s.redirectError(w, redirectURI, params.state, &oauthError{code: "temporarily_unavailable", description: "too many connection requests are waiting"})
 		return
 	}
 	if err != nil {
+		s.refused(ctx, audit.ActionOAuthAuthorize, audit.OutcomeFailed, "server_error", target, nil)
 		s.redirectFailure(w, r, redirectURI, params.state, err)
 		return
 	}

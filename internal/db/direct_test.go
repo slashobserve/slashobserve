@@ -73,7 +73,7 @@ func TestMigrateRunsOverTheDirectConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	if err := d.Migrate(t.Context()); err != nil {
+	if _, err := d.Migrate(t.Context()); err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
 	if _, err := d.Queries().GetInstance(t.Context()); err != nil {
