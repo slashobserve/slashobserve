@@ -107,3 +107,53 @@ it("refetches the dashboard and the list when the dashboard moves to another fol
     expect.arrayContaining([dashboardKeys.latest("d1"), dashboardKeys.list()])
   )
 })
+
+it("closes the stream 15 seconds after the tab is hidden and catches up when it is shown again", () => {
+  vi.useFakeTimers()
+  let hidden = false
+  const visibility = vi
+    .spyOn(document, "hidden", "get")
+    .mockImplementation(() => hidden)
+  try {
+    const client = testQueryClient()
+    const invalidate = vi.spyOn(client, "invalidateQueries")
+    renderHook(() => useDashboardEvents("d1", {}), {
+      wrapper: wrapperWith(client),
+    })
+    act(() =>
+      openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 1 })
+    )
+
+    hidden = true
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"))
+      vi.advanceTimersByTime(14_999)
+    })
+    expect(openSources()).toHaveLength(1)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(openSources()).toHaveLength(0)
+
+    hidden = false
+    invalidate.mockClear()
+    act(() => document.dispatchEvent(new Event("visibilitychange")))
+    expect(openSources()).toHaveLength(1)
+    act(() =>
+      openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 1 })
+    )
+    const refetched = invalidate.mock.calls.map(
+      ([filters]) => filters?.queryKey
+    )
+    expect(refetched).toEqual(
+      expect.arrayContaining([
+        dashboardKeys.history("d1"),
+        dashboardKeys.comments("d1"),
+        dashboardKeys.revisions("d1"),
+      ])
+    )
+  } finally {
+    visibility.mockRestore()
+    vi.useRealTimers()
+  }
+})

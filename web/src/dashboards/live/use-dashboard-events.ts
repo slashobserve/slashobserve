@@ -43,7 +43,7 @@ const eventNames = [
   "proposal.updated",
 ] as const
 
-const hiddenGraceMs = 5 * 60_000
+const hiddenGraceMs = 15_000
 
 function cachedLatestVersion(
   queryClient: QueryClient,
