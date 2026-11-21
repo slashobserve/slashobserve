@@ -589,3 +589,27 @@ func TestChangedSinceCountsAnEditToTheReusedSourcePanel(t *testing.T) {
 		t.Fatalf("identical: changed %v, want none", changed)
 	}
 }
+
+func TestShownHidesOnlyAcceptedEmptyPanelsOfAProvisionedDashboard(t *testing.T) {
+	empty := []spec.Issue{{Path: "/panels/0/queries", Code: queryproxy.CodeQueryEmpty}}
+	failing := []spec.Issue{{Path: "/panels/1/queries", Code: "query_failed"}}
+	mixed := append(slices.Clone(empty), failing...)
+	u := Unverified{
+		Panels:    []UnverifiedPanel{{PanelID: "quiet", Issues: empty}, {PanelID: "broken", Issues: failing}, {PanelID: "both", Issues: mixed}},
+		Variables: []UnverifiedVariable{{Name: "quiet", Issues: empty}, {Name: "broken", Issues: failing}},
+	}
+
+	shown := u.Shown(true)
+	if ids := panelIDs(shown); !slices.Equal(ids, []string{"broken", "both"}) {
+		t.Errorf("panels shown for a provisioned dashboard: %v, want broken and both", ids)
+	}
+	if len(shown.Variables) != 1 || shown.Variables[0].Name != "broken" {
+		t.Errorf("variables shown for a provisioned dashboard: %+v, want broken", shown.Variables)
+	}
+	if got := u.Shown(false); len(got.Panels) != 3 || len(got.Variables) != 2 {
+		t.Errorf("an ordinary dashboard shows %+v, want everything", got)
+	}
+	if len(u.Panels) != 3 {
+		t.Error("Shown changed the stored list")
+	}
+}

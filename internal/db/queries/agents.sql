@@ -47,7 +47,7 @@ ORDER BY s.name, s.id
 LIMIT 100;
 
 -- name: ListAgentRuns :many
-SELECT r.id, r.intent, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
+SELECT r.id, r.intent, r.investigation, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
        r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.subject_observation_id,
        r.created_at, r.started_at, r.finished_at,
        ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
@@ -69,7 +69,7 @@ ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 
 -- name: ListWorkingRuns :many
-SELECT r.id, r.intent, r.title, r.prompt, r.state, r.created_at, r.started_at,
+SELECT r.id, r.intent, r.investigation, r.title, r.prompt, r.state, r.created_at, r.started_at,
        r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.observation_id, r.subject_observation_id,
        r.assigned_kind, r.assigned_id,
        r.requested_by_kind, r.requested_by_id, r.requested_by_name,
@@ -86,6 +86,8 @@ WHERE r.state IN ('queued', 'running', 'canceling')
       AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = @caller_kind AND o.created_by_id = @caller_id)
   )
+  AND ((r.requested_by_kind = @caller_kind AND r.requested_by_id = @caller_id) OR @caller_admin::boolean
+    OR NOT run_answer_kept_with_admins(r.id, '{}'))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 

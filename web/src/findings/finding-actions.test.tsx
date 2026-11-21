@@ -6,9 +6,11 @@ import { renderWithProviders } from "@/test/render"
 import { MakeDashboardAction, PinAction } from "./finding-actions"
 import type { Finding } from "./queries"
 
-const permissions = vi.hoisted(() => ({ edit: false }))
+const permissions = vi.hoisted(() => ({ edit: false, provisioned: false }))
 
-vi.mock("@/dashboards/permissions", () => ({
+vi.mock("@/dashboards/permissions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/dashboards/permissions")>()),
+  useLatestProvisioned: () => permissions.provisioned,
   useLatestPermissions: () => ({
     comment: true,
     edit: permissions.edit,
@@ -25,6 +27,7 @@ function finding(patch: Partial<Finding> = {}): Finding {
     dashboard_id: null,
     folder_id: null,
     ask_on: null,
+    restricted: false,
     title: "Checkout errors rose after the deploy",
     markdown: "The error rate doubled at 10:02.",
     evidence: [
@@ -83,6 +86,38 @@ describe("MakeDashboardAction", () => {
     expect(router?.state.location.search).toEqual({ tab: "chat", chat: "c1" })
     vi.unstubAllGlobals()
   })
+
+  it.each([
+    ["moves the chat into the side panel with a view transition", "c1", true],
+    ["opens a dashboard with no chat to move without one", undefined, false],
+  ])("%s", async (_name, chatId, viewTransition) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              dashboard: {
+                id: "33333333-3333-4333-8333-333333333333",
+                title: "A",
+              },
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } }
+          )
+      )
+    )
+    const { user, router } = renderWithProviders(
+      <MakeDashboardAction finding={finding()} chatId={chatId} />,
+      route
+    )
+    const navigate = vi.spyOn(router!, "navigate")
+    await user.click(
+      await screen.findByRole("button", { name: "Make a dashboard" })
+    )
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce())
+    expect(navigate.mock.calls[0][0]).toMatchObject({ viewTransition })
+    vi.unstubAllGlobals()
+  })
 })
 
 describe("PinAction", () => {
@@ -99,6 +134,22 @@ describe("PinAction", () => {
     expect(
       await screen.findByRole("button", { name: "Pin to dashboard" })
     ).toBeVisible()
+  })
+
+  it("offers Pin to dashboard on a starter dashboard, where Edit is never shown", async () => {
+    permissions.edit = false
+    permissions.provisioned = true
+    try {
+      renderWithProviders(
+        <PinAction finding={finding({ dashboard_id: "d1" })} />,
+        route
+      )
+      expect(
+        await screen.findByRole("button", { name: "Pin to dashboard" })
+      ).toBeVisible()
+    } finally {
+      permissions.provisioned = false
+    }
   })
 
   it("still shows a pinned finding to someone who cannot pin", async () => {

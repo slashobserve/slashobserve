@@ -106,6 +106,8 @@ type AgentRequest struct {
 	Kind                 string
 	AppliesFindingID     pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	Investigation        bool
+	ReadRestricted       bool
 }
 
 type AgentRequestBuild struct {
@@ -132,18 +134,19 @@ type AgentWorker struct {
 }
 
 type Annotation struct {
-	ID            pgtype.UUID
-	DashboardID   pgtype.UUID
-	PanelID       string
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	Text          string
-	Tags          []string
-	CreatedBy     pgtype.UUID
-	CreatedAt     pgtype.Timestamptz
-	CreatedByKind pgtype.Text
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
+	ID                     pgtype.UUID
+	DashboardID            pgtype.UUID
+	PanelID                string
+	TimeFrom               pgtype.Timestamptz
+	TimeTo                 pgtype.Timestamptz
+	Text                   string
+	Tags                   []string
+	CreatedBy              pgtype.UUID
+	CreatedAt              pgtype.Timestamptz
+	CreatedByKind          pgtype.Text
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	CopiedRestrictedAnswer bool
 }
 
 type AppliedDashboard struct {
@@ -235,21 +238,22 @@ type Chat struct {
 }
 
 type Dashboard struct {
-	ID                  pgtype.UUID
-	Title               string
-	Tags                []string
-	LatestVersion       int32
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	CreatedByKind       string
-	CreatedByID         pgtype.UUID
-	CreatedByName       string
-	CreatedByEmail      pgtype.Text
-	CreatedOrigin       pgtype.Text
-	CreatedOriginClient pgtype.Text
-	CreatedVia          string
-	FolderID            pgtype.UUID
-	CreatedRunID        pgtype.UUID
+	ID                     pgtype.UUID
+	Title                  string
+	Tags                   []string
+	LatestVersion          int32
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	CreatedByKind          string
+	CreatedByID            pgtype.UUID
+	CreatedByName          string
+	CreatedByEmail         pgtype.Text
+	CreatedOrigin          pgtype.Text
+	CreatedOriginClient    pgtype.Text
+	CreatedVia             string
+	FolderID               pgtype.UUID
+	CreatedRunID           pgtype.UUID
+	CopiedRestrictedAnswer bool
 }
 
 type DashboardComment struct {
@@ -282,22 +286,24 @@ type DashboardHealth struct {
 }
 
 type DashboardHealthStatus struct {
-	ID             pgtype.UUID
-	Title          string
-	CreatedAt      pgtype.Timestamptz
-	FolderID       pgtype.UUID
-	FolderTitle    string
-	FolderGeneral  bool
-	FolderPersonal bool
-	CheckedVersion pgtype.Int4
-	CheckedAt      pgtype.Timestamptz
-	Skipped        string
-	Issues         []byte
-	QueryFailed    bool
-	NoData         bool
-	VariableFailed bool
-	LastViewedAt   pgtype.Timestamptz
-	DuplicateTitle bool
+	ID               pgtype.UUID
+	Title            string
+	CreatedAt        pgtype.Timestamptz
+	FolderID         pgtype.UUID
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderPersonal   bool
+	CheckedVersion   pgtype.Int4
+	CheckedAt        pgtype.Timestamptz
+	Skipped          string
+	Issues           []byte
+	QueryFailed      bool
+	NoData           bool
+	VariableFailed   bool
+	LastViewedAt     pgtype.Timestamptz
+	DuplicateTitle   bool
+	Outdated         interface{}
+	OldCheckProblems bool
 }
 
 type DashboardStar struct {
@@ -567,22 +573,23 @@ type OauthToken struct {
 }
 
 type Observation struct {
-	ID            pgtype.UUID
-	FolderID      pgtype.UUID
-	Title         string
-	State         string
-	Summary       pgtype.Text
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	CreatedByKind string
-	CreatedByID   pgtype.UUID
-	CreatedByName string
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
-	RunID         pgtype.UUID
-	ResolvedAt    pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
+	ID                     pgtype.UUID
+	FolderID               pgtype.UUID
+	Title                  string
+	State                  string
+	Summary                pgtype.Text
+	TimeFrom               pgtype.Timestamptz
+	TimeTo                 pgtype.Timestamptz
+	CreatedByKind          string
+	CreatedByID            pgtype.UUID
+	CreatedByName          string
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	RunID                  pgtype.UUID
+	ResolvedAt             pgtype.Timestamptz
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	CopiedRestrictedAnswer bool
 }
 
 type ObservationBlock struct {

@@ -768,14 +768,14 @@ func (q *Queries) LockDashboardKeyShare(ctx context.Context, id pgtype.UUID) (pg
 }
 
 const lockDashboardKeyShareSkipLocked = `-- name: LockDashboardKeyShareSkipLocked :one
-SELECT id FROM dashboards WHERE id = $1 FOR KEY SHARE SKIP LOCKED
+SELECT folder_id FROM dashboards WHERE id = $1 FOR KEY SHARE SKIP LOCKED
 `
 
 func (q *Queries) LockDashboardKeyShareSkipLocked(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockDashboardKeyShareSkipLocked, id)
-	var id_2 pgtype.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
 }
 
 const lockMessageInThread = `-- name: LockMessageInThread :one
@@ -822,14 +822,14 @@ func (q *Queries) LockObservationKeyShare(ctx context.Context, id pgtype.UUID) (
 }
 
 const lockObservationKeyShareSkipLocked = `-- name: LockObservationKeyShareSkipLocked :one
-SELECT id FROM observations WHERE id = $1 FOR KEY SHARE SKIP LOCKED
+SELECT folder_id FROM observations WHERE id = $1 FOR KEY SHARE SKIP LOCKED
 `
 
 func (q *Queries) LockObservationKeyShareSkipLocked(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockObservationKeyShareSkipLocked, id)
-	var id_2 pgtype.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
 }
 
 const lockProposalKeyShare = `-- name: LockProposalKeyShare :one
@@ -844,8 +844,9 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 }
 
 const lockSharedRunsInThread = `-- name: LockSharedRunsInThread :many
-SELECT r.id, r.chat_id, r.thread_message_id FROM agent_requests r
+SELECT r.id, r.chat_id, r.thread_message_id, f.id AS finding_id FROM agent_requests r
 JOIN thread_messages m ON m.id = r.thread_message_id
+LEFT JOIN findings f ON f.agent_request_id = r.id
 WHERE m.thread_id = $1 AND r.chat_id IS NOT NULL
   AND r.requested_by_kind = $2 AND r.requested_by_id = $3
 ORDER BY r.id
@@ -862,6 +863,7 @@ type LockSharedRunsInThreadRow struct {
 	ID              pgtype.UUID
 	ChatID          pgtype.UUID
 	ThreadMessageID pgtype.UUID
+	FindingID       pgtype.UUID
 }
 
 func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRunsInThreadParams) ([]LockSharedRunsInThreadRow, error) {
@@ -873,7 +875,12 @@ func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRuns
 	var items []LockSharedRunsInThreadRow
 	for rows.Next() {
 		var i LockSharedRunsInThreadRow
-		if err := rows.Scan(&i.ID, &i.ChatID, &i.ThreadMessageID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChatID,
+			&i.ThreadMessageID,
+			&i.FindingID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -269,3 +269,26 @@ func waitForALockWait(t *testing.T, r rig) {
 	}
 	t.Fatal("the pin never waited on the finding row")
 }
+
+func TestAFindingOfARunKeptWithAdminsIsRecordedOnItsObservationNotOnTheDashboard(t *testing.T) {
+	r := newRig(t)
+	subject := r.openRunObservation(t, editor, r.request(t, editor, r.open))
+	locked := r.folder(t, "Payroll")
+	r.db.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, locked)
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, subject, locked)
+	request := r.request(t, admin, r.open)
+	r.db.Exec(t, `UPDATE agent_requests SET observation_id = $2 WHERE id = $1`, request, subject)
+	title := "Outage caused by the vendor contract dispute"
+	f := r.save(t, admin, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: title})
+
+	if got := findingEvents(r.activityFor(t, viewer)); len(got) != 0 {
+		t.Fatalf("a Viewer of the dashboard sees %+v", got)
+	}
+	got := findingEvents(r.activityFor(t, admin))
+	if len(got) != 1 || got[0].TargetID != f.ID || got[0].FolderID != locked.String() || got[0].DashboardID != "" {
+		t.Fatalf("an Admin sees %+v, want the finding in folder %s and on no dashboard", got, locked)
+	}
+	if data := dataOf(t, got[0]); data["title"] != title {
+		t.Errorf("data = %s", got[0].Data)
+	}
+}

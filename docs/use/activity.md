@@ -17,7 +17,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 | Annotation | `annotation.created`, `annotation.updated`, `annotation.deleted` | An [annotation](annotations.md) is added, has its text or tags edited, or is removed; a create and a delete carry a `title`, the first 80 characters of the annotation's text on one line, copied when the event is written, and a delete repeats the annotation's `panel_id`, `tags` and times, so a row still says which annotation went. |
 | Public link | `public_link.created`, `public_link.revoked` | Someone who manages a dashboard or an RCA creates or revokes a [public link](public-links.md); the event belongs to that dashboard or observation, and `data` has the `object` (`kind` and `id`), its `title`, the link's `prefix` and `expires_at`, never the token. |
 | Access request | `access_request.opened`, `access_request.granted` | A Viewer [asks for comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation, or someone changes a folder's access or a role so that the requester can comment; the event belongs to that dashboard or observation, `data` has the `object` (`kind` and `id`) and its `title`, a grant adds `requested_by` (`kind`, `id` and `name`), and the note is never recorded. |
-| Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. |
+| Finding | `finding.created`, `finding.pinned` | A finding is saved, or pinned to its dashboard. The answer's observation records its own `observation.created` and block events. A finding whose run is `restricted`, or whose answer is [kept for what it is about](chat.md#answers-that-read-admin-only-data), records `finding.created` on its observation instead of its dashboard, so only that observation's readers see its title. |
 | Finding | `finding.moved` | A finding without a dashboard moved to another folder through the finding API removed since; only earlier events carry it. |
 | Saved search | `saved_search.created`, `saved_search.updated`, `saved_search.moved`, `saved_search.deleted` | A [saved logs, trace or metrics search](logs-and-traces.md) is saved, renamed, changed (its query, filters or range), moved to another folder or deleted. |
 | Observation | `observation.created`, `observation.updated` | An observation is started, or its title or time range changes; a rename also records the title before it. |
@@ -108,7 +108,15 @@ The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a 
 ## Audit folder
 
 At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
-Admins change, move or delete them like any dashboard, and a restart never adds a dashboard back or changes one; a panel that had no data when the server saved it is marked unverified until a later save.
+The starters are provisioned and read-only in the app, the API, MCP and the CLI, which refuse a change with 409 `provisioned`; comments, pins, annotations and views work as on any dashboard.
+The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused before anything is queued, a comment that requests a revision included.
+To change one, an Admin duplicates it, and the copy is an ordinary dashboard in the Audit folder.
+At every start the server compares each starter with the content its release ships, and a starter that differs gets one new version with the summary `Updated to this release`; an unchanged starter gets nothing, and its threads, pins and view counts stay.
+
+A starter that someone changed before it became read-only is kept as a separate dashboard named `<title> (your copy)`, and the starter takes the shipped content.
+A starter that was moved out of the Audit folder returns to it, and its copy stays in the folder it had been moved to, or goes to the Audit folder when that folder may not hold its content.
+A dashboard of your own that happens to carry a starter's title is never taken over; the starter is added beside it.
+A starter an Admin deletes comes back at the next start.
 When a folder named Audit already exists, the server fills it only if it is Admins only and otherwise logs a warning and leaves it alone, and after an Admin deletes the Audit folder it is not created again.
 A dashboard, observation or saved search that reads the audit datasource can live only in a folder that only Admins can read.
 

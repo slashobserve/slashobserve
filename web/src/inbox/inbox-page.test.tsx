@@ -45,6 +45,7 @@ function item(over: Partial<InboxItem>): InboxItem {
     unread: false,
     target_title: null,
     excerpt: null,
+    question: null,
     ...over,
   }
 }

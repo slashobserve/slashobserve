@@ -76,3 +76,22 @@ export function tookText(
   const ms = turnDurationMs(startedAt, finishedAt, 0)
   return ms === null ? undefined : formatRunDuration(ms)
 }
+
+export function offersFollowUps({
+  turnCount,
+  latest,
+  viewerId,
+  aboutDashboard,
+}: {
+  turnCount: number
+  latest: { status: string; requested_by: { id: string } } | undefined
+  viewerId: string
+  aboutDashboard: boolean
+}): boolean {
+  return (
+    aboutDashboard &&
+    turnCount === 1 &&
+    latest?.status === "succeeded" &&
+    latest.requested_by.id === viewerId
+  )
+}

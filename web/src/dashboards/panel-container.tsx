@@ -184,6 +184,7 @@ type PanelContainerProps = {
   canComment: boolean
   canEdit: boolean
   onCanvas?: boolean
+  canPropose: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
   focusOnRender: boolean
@@ -230,6 +231,7 @@ export const PanelContainer = memo(function PanelContainer({
   canComment,
   canEdit,
   onCanvas = false,
+  canPropose,
   onToggleResponsive,
   layoutActions,
   focusOnRender,
@@ -445,8 +447,8 @@ export const PanelContainer = memo(function PanelContainer({
   useEffect(() => () => useHoveredPanel.getState().leave(panelId), [panelId])
 
   const permissions = useMemo(
-    () => ({ comment: canComment, edit: canEdit }),
-    [canComment, canEdit]
+    () => ({ comment: canComment, edit: canEdit, propose: canPropose }),
+    [canComment, canEdit, canPropose]
   )
   const selectPanel = useMemo(
     () =>
@@ -518,6 +520,7 @@ export const PanelContainer = memo(function PanelContainer({
       downloadsReady={downloadsReady}
       canComment={canComment}
       canEdit={canEdit}
+      canPropose={canPropose}
       onToggleResponsive={
         onToggleResponsive && !layoutSession
           ? () => onToggleResponsive(panel)

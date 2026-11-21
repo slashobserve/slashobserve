@@ -94,6 +94,14 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype
 	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{})
 }
 
+func (s *Service) CreateFromAnswer(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, run pgtype.UUID) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{answerOf: run})
+}
+
+func (s *Service) CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{copyOf: from})
+}
+
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
 	res, err := s.Save(ctx, by, SaveInput{DashboardID: id, Parent: parent, Spec: rawSpec, Summary: summary})
 	return res.Dashboard, res.Version, res.Replayed, err
@@ -177,6 +185,10 @@ func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (
 }
 
 func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, folderID, rawSpec, summary, newVersion{requestID: requestID})
+}
+
+func (s *Service) createVersion(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, in newVersion) (Dashboard, Version, error) {
 	target, err := s.creationTarget(ctx, by, folderID)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -188,7 +200,8 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), folder: target.folder})
+	in.spec, in.canonical, in.summary, in.author, in.origin, in.folder = parsed, canonical, summary, authorOf(by), origin.From(ctx), target.folder
+	dash, ver, err := s.store.create(ctx, in)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -219,7 +232,7 @@ func (s *Service) CreateStarter(ctx context.Context, by auth.Principal, folderID
 }
 
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
-	access, err := s.need(ctx, by, id, folders.NeedEdit)
+	access, err := s.need(ctx, by, id, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -288,6 +301,26 @@ func (s *Service) VersionSpec(ctx context.Context, id pgtype.UUID, version int) 
 	return decodeSpec(raw)
 }
 
+func (s *Service) HasContent(ctx context.Context, id pgtype.UUID, version int, raw []byte) (bool, error) {
+	parsed, err := spec.Parse(raw)
+	if err != nil {
+		return false, nil
+	}
+	stored, err := s.VersionSpec(ctx, id, version)
+	if err != nil {
+		return false, err
+	}
+	next, err := json.Marshal(parsed)
+	if err != nil {
+		return false, err
+	}
+	prev, err := json.Marshal(stored)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(next, prev), nil
+}
+
 func (s *Service) HasPanel(ctx context.Context, id pgtype.UUID, version int, panelID string) (bool, error) {
 	d, err := s.VersionSpec(ctx, id, version)
 	if errors.Is(err, ErrNotFound) {
@@ -348,6 +381,23 @@ type ListPage struct {
 	Total      int
 }
 
+func (s *Service) markProvisioned(ctx context.Context, items []ListItem, levels folders.Levels) error {
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+	provisioned, err := s.store.provisionedAmong(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		access := folders.DashboardAccess{Abilities: levels.Of(items[i].Folder.ID), Provisioned: provisioned[items[i].ID]}
+		items[i].Abilities = access.Shown()
+		items[i].Provisioned = access.Provisioned
+	}
+	return nil
+}
+
 const madeByMessage = "made_by must be me, agent, mcp, mcp:<client>, user:<id> or service_account:<id>"
 
 func ParseMadeBy(raw string, caller auth.Principal) (MadeBy, error) {
@@ -403,8 +453,8 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	if err != nil {
 		return ListPage{}, err
 	}
-	for i := range items {
-		items[i].Abilities = levels.Of(items[i].Folder.ID)
+	if err := s.markProvisioned(ctx, items, levels); err != nil {
+		return ListPage{}, err
 	}
 	page := ListPage{Items: items}
 	if !p.SkipTotal {
@@ -523,7 +573,7 @@ func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgty
 }
 
 func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
-	source, err := s.need(ctx, by, id, folders.NeedEdit)
+	source, err := s.need(ctx, by, id, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}

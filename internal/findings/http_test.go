@@ -17,15 +17,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
-	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
-	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
-	"github.com/slashobserve/slashobserve/internal/observations"
-	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -45,20 +40,9 @@ func newDocumented(t *testing.T) *documented {
 		t.Fatal(err)
 	}
 	r := newRig(t)
-	logger := slog.New(slog.DiscardHandler)
-	registry, err := datasource.NewRegistry(logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	access := folders.NewAccess(r.db.DB)
-	dash := dashboards.New(r.db.DB, queryproxy.NewRunner(registry, logger), access, logger)
-	r.service, err = findings.New(r.db.DB, access, annotations.New(r.db.DB, access), dash, observations.New(r.db.DB, access, nil, nil, logger), logger)
-	if err != nil {
-		t.Fatal(err)
-	}
 	gin.SetMode(gin.TestMode)
 	d := &documented{rig: r, engine: gin.New(), router: router, who: editor}
-	findings.NewHandler(r.service, func(f findings.Finding) string { return "/o/" + f.ObservationID }, logger).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
+	findings.NewHandler(r.service, func(f findings.Finding) string { return "/o/" + f.ObservationID }, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), d.who), datasource.Access{By: d.who}))
 	})))
 	return d

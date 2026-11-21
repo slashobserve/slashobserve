@@ -37,12 +37,32 @@ function dashboardToRevise(
   )
 }
 
-export function examplePrompts(input: {
-  types: readonly string[]
-  dashboards: readonly ExampleDashboard[]
-  canBuild: boolean
-  personId: string
-}): Example[] {
+type SourceTypes = { types: readonly string[] }
+
+export function questionPrompts(input: SourceTypes): Example[] {
+  const prom = input.types.includes("prometheus")
+  const logs = input.types.includes("loki")
+  const ch = input.types.includes("clickhouse")
+  const traces = input.types.includes("tempo")
+  const questions: Example[] = []
+  if (prom || logs || ch) {
+    questions.push(
+      example("Which services had the most errors in the last hour?")
+    )
+  }
+  if (prom || traces) {
+    questions.push(example("Which routes are slowest right now?"))
+  }
+  return questions.slice(0, maxQuestionExamples)
+}
+
+export function examplePrompts(
+  input: SourceTypes & {
+    dashboards: readonly ExampleDashboard[]
+    canBuild: boolean
+    personId: string
+  }
+): Example[] {
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
   const ch = input.types.includes("clickhouse")
@@ -60,16 +80,7 @@ export function examplePrompts(input: {
     builds.push(example("Slowest traces by service, last hour"))
   }
   if (prom) builds.push(example("p95 latency by route"))
-  const questions: Example[] = []
-  if (prom || logs || ch) {
-    questions.push(
-      example("Which services had the most errors in the last hour?")
-    )
-  }
-  if (prom || traces) {
-    questions.push(example("Which routes are slowest right now?"))
-  }
-  const asked = questions.slice(0, maxQuestionExamples)
+  const asked = questionPrompts(input)
   return [
     ...(input.canBuild ? builds.slice(0, maxExamples - asked.length) : []),
     ...asked,

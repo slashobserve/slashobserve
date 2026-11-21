@@ -133,7 +133,7 @@ func (q *Queries) GrantOwnedBy(ctx context.Context, arg GrantOwnedByParams) (boo
 }
 
 const listAgentRuns = `-- name: ListAgentRuns :many
-SELECT r.id, r.intent, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
+SELECT r.id, r.intent, r.investigation, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
        r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.subject_observation_id,
        r.created_at, r.started_at, r.finished_at,
        ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
@@ -168,6 +168,7 @@ type ListAgentRunsParams struct {
 type ListAgentRunsRow struct {
 	ID                   pgtype.UUID
 	Intent               string
+	Investigation        bool
 	Title                pgtype.Text
 	Prompt               string
 	State                string
@@ -213,6 +214,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.Intent,
+			&i.Investigation,
 			&i.Title,
 			&i.Prompt,
 			&i.State,
@@ -248,7 +250,7 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 }
 
 const listWorkingRuns = `-- name: ListWorkingRuns :many
-SELECT r.id, r.intent, r.title, r.prompt, r.state, r.created_at, r.started_at,
+SELECT r.id, r.intent, r.investigation, r.title, r.prompt, r.state, r.created_at, r.started_at,
        r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.observation_id, r.subject_observation_id,
        r.assigned_kind, r.assigned_id,
        r.requested_by_kind, r.requested_by_id, r.requested_by_name,
@@ -265,20 +267,24 @@ WHERE r.state IN ('queued', 'running', 'canceling')
       AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = $2 AND o.created_by_id = $3)
   )
+  AND ((r.requested_by_kind = $2 AND r.requested_by_id = $3) OR $4::boolean
+    OR NOT run_answer_kept_with_admins(r.id, '{}'))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListWorkingRunsParams struct {
-	Folders    []pgtype.UUID
-	CallerKind string
-	CallerID   pgtype.UUID
-	RowLimit   int32
+	Folders     []pgtype.UUID
+	CallerKind  string
+	CallerID    pgtype.UUID
+	CallerAdmin bool
+	RowLimit    int32
 }
 
 type ListWorkingRunsRow struct {
 	ID                   pgtype.UUID
 	Intent               string
+	Investigation        bool
 	Title                pgtype.Text
 	Prompt               string
 	State                string
@@ -306,6 +312,7 @@ func (q *Queries) ListWorkingRuns(ctx context.Context, arg ListWorkingRunsParams
 		arg.Folders,
 		arg.CallerKind,
 		arg.CallerID,
+		arg.CallerAdmin,
 		arg.RowLimit,
 	)
 	if err != nil {
@@ -318,6 +325,7 @@ func (q *Queries) ListWorkingRuns(ctx context.Context, arg ListWorkingRunsParams
 		if err := rows.Scan(
 			&i.ID,
 			&i.Intent,
+			&i.Investigation,
 			&i.Title,
 			&i.Prompt,
 			&i.State,

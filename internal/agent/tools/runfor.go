@@ -5,10 +5,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
+
+const CodeAdminsOnlyDatasource = "admins_only_datasource"
 
 var (
 	ErrInvalidReason      = errors.New("reason is not one the brief knows")
@@ -53,19 +58,35 @@ type RunSessions interface {
 	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
 }
 
-func RunAudience(revisions.Request) datasource.Audience {
-	return datasource.AudienceCaller
+type RunWrites struct {
+	Shared     bool
+	AdminsOnly bool
+	Folders    []pgtype.UUID
 }
 
-func RunAccess(req revisions.Request) datasource.Access {
-	return datasource.Access{By: req.RequestedBy, Audience: RunAudience(req)}
+func RunAudience(w RunWrites) datasource.Audience {
+	switch {
+	case !w.Shared:
+		return datasource.AudienceCaller
+	case w.AdminsOnly:
+		return datasource.AudienceAdmins
+	}
+	return datasource.AudienceEveryone
+}
+
+func RunAccess(req revisions.Request, w RunWrites) datasource.Access {
+	return datasource.Access{By: req.RequestedBy, Audience: RunAudience(w)}
+}
+
+func Withheld(a datasource.Access) bool {
+	return a.By.Role == auth.RoleAdmin && a.Audience == datasource.AudienceEveryone
 }
 
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Access: RunAccess(req)}
+	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Investigation: req.Investigation}
 	switch {
 	case req.Intent == revisions.IntentSuggest:
-		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID, Access: run.Access}
+		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}
 	case req.Intent == revisions.IntentApply:
 		run.Mode, run.Build = ModeRevise, true
 	case req.Intent != revisions.IntentAsk:
@@ -77,6 +98,12 @@ func RunFor(req revisions.Request) (Run, error) {
 		if req.From != nil && req.To != nil {
 			run.From, run.To = *req.From, *req.To
 		}
+	}
+	if req.Investigation && req.ObservationID != "" {
+		run.Observations = append(run.Observations, req.ObservationID)
+	}
+	if req.SubjectObservationID != "" {
+		run.Observations = append(run.Observations, req.SubjectObservationID)
 	}
 	if req.DashboardID == "" {
 		return run, nil

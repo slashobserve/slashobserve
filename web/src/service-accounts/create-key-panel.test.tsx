@@ -56,7 +56,7 @@ function serve(current: ServiceAccount) {
   return calls
 }
 
-function renderPanel(current: ServiceAccount) {
+function renderPanel(current: ServiceAccount, onClose = () => undefined) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(serviceAccountKeys.list(), { items: [current] })
   const host = document.createElement("div")
@@ -64,7 +64,7 @@ function renderPanel(current: ServiceAccount) {
   return renderWithProviders(
     <PanelHostContext.Provider value={host}>
       <CreateKeyPanel
-        onClose={() => undefined}
+        onClose={onClose}
         nameInput={createRef()}
         copyButton={createRef()}
       />
@@ -169,5 +169,48 @@ describe("CreateKeyPanel takes agent runs", () => {
     expect(
       screen.getByText(/Set in the service-accounts file/)
     ).toBeInTheDocument()
+  })
+})
+
+describe("CreateKeyPanel role", () => {
+  it("keeps the panel open and creates the key with the role picked by mouse", async () => {
+    const calls = serve(account())
+    const onClose = vi.fn()
+    const { user } = renderPanel(account(), onClose)
+    await user.type(await screen.findByLabelText("Name"), "laptop")
+    await user.type(screen.getByLabelText("Service account name"), "new-bot")
+    await user.click(screen.getByLabelText("Role"))
+    await user.click(await screen.findByRole("option", { name: /^Viewer/ }))
+    expect(screen.getByLabelText("Role")).toHaveTextContent("Viewer")
+    await user.click(screen.getByRole("button", { name: "Create key" }))
+    expect(await screen.findByText("sok_secret")).toBeVisible()
+    expect(onClose).not.toHaveBeenCalled()
+    const accountCall = calls.find((call) =>
+      call.url.endsWith("/service-accounts")
+    )
+    expect(accountCall?.body).toMatchObject({ name: "new-bot", role: "viewer" })
+    expect(calls.some((call) => call.url.endsWith("/keys"))).toBe(true)
+  })
+
+  it("picks the role with the keyboard", async () => {
+    serve(account())
+    const { user } = renderPanel(account())
+    await screen.findByLabelText("Service account name")
+    screen.getByLabelText("Role").focus()
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{Enter}")
+    await waitFor(() =>
+      expect(screen.getByLabelText("Role")).toHaveTextContent("Viewer")
+    )
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
+  })
+
+  it("keeps the panel open when the last expiry is picked by mouse", async () => {
+    serve(account())
+    const onClose = vi.fn()
+    const { user } = renderPanel(account(), onClose)
+    await user.click(await screen.findByLabelText("Expires"))
+    const options = await screen.findAllByRole("option")
+    await user.click(options[options.length - 1])
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

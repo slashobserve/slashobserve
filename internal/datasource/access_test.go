@@ -3,6 +3,7 @@ package datasource_test
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -91,7 +92,11 @@ func checkAdminsOnlyMatrix(t *testing.T, registry *datasource.Registry) {
 				t.Fatalf("err = %v, want ErrNotVisible", err)
 			}
 			_, missing := registry.For(ctx, "missing")
-			if !tc.reads && err.Error() != missing.Error() {
+			withheld := tc.access.By.Role == auth.RoleAdmin && tc.access.Audience == datasource.AudienceEveryone
+			switch {
+			case !tc.reads && withheld && !errors.Is(err, datasource.ErrWithheld):
+				t.Fatalf("err = %v, want ErrWithheld for an Admin writing for everyone", err)
+			case !tc.reads && !withheld && err.Error() != missing.Error():
 				t.Fatalf("restricted error %q differs from the missing one %q", err, missing)
 			}
 			if got := uids(registry.Visible(ctx)); slices.Contains(got, "audit") != tc.reads || !slices.Contains(got, "prom") {
@@ -192,5 +197,38 @@ func TestAnAdminCanOpenAnAddedDatasourceToEveryoneAgain(t *testing.T) {
 	}
 	if _, err := registry.For(datasource.WithAccess(t.Context(), datasource.Access{By: user(auth.RoleViewer)}), "audit"); err != nil {
 		t.Fatalf("viewer cannot read a reopened datasource: %v", err)
+	}
+}
+
+func TestALookupNotesARestrictedReadOnlyWhenItHandsOutAnAdminsOnlyDatasource(t *testing.T) {
+	registry := withAdminsOnly(t)
+	cases := []struct {
+		name   string
+		access datasource.Access
+		uid    string
+		noted  bool
+	}{
+		{"an Admin reading the Admins-only datasource", datasource.Access{By: user(auth.RoleAdmin)}, "audit", true},
+		{"an Admin reading an open datasource", datasource.Access{By: user(auth.RoleAdmin)}, "prom", false},
+		{"an Admin writing for everyone", datasource.Access{By: user(auth.RoleAdmin), Audience: datasource.AudienceEveryone}, "audit", false},
+		{"an Editor", datasource.Access{By: user(auth.RoleEditor)}, "audit", false},
+		{"the system", datasource.Access{System: true}, "audit", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, read := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), tc.access))
+			_, _ = registry.For(ctx, tc.uid)
+			if read() != tc.noted {
+				t.Fatalf("noted = %v, want %v", read(), tc.noted)
+			}
+		})
+	}
+}
+
+func TestAWithheldDatasourceSaysWhereItCanBeRead(t *testing.T) {
+	registry := withAdminsOnly(t)
+	_, err := registry.For(datasource.WithAccess(t.Context(), datasource.Access{By: user(auth.RoleAdmin), Audience: datasource.AudienceEveryone}), "audit")
+	if !errors.Is(err, datasource.ErrNotVisible) || !strings.Contains(err.Error(), "private chat") || !strings.Contains(err.Error(), "only Admins can read") {
+		t.Fatalf("err = %v", err)
 	}
 }

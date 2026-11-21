@@ -3,7 +3,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { observationKeys, threadKeys } from "@/api/keys"
+import { chatKeys, observationKeys, threadKeys } from "@/api/keys"
 import { testQueryClient } from "@/test/render"
 
 import { BlockVersionConflict } from "./errors"
@@ -19,6 +19,7 @@ import {
   useCreateObservation,
   useDiscardBlock,
   useKeepBlock,
+  useMakeDashboard,
   useMoveObservation,
   useObservation,
   useObservationLive,
@@ -310,6 +311,33 @@ describe("the paged list", () => {
 })
 
 describe("observation writes", () => {
+  it.each([
+    {
+      name: "an observation",
+      target: { observationId: "o1" },
+      route: "POST /api/v1/observations/o1/dashboard",
+    },
+    {
+      name: "one block",
+      target: { observationId: "o1", blockId: "b1" },
+      route: "POST /api/v1/blocks/b1/dashboard",
+    },
+  ])(
+    "marks the chats stale after a dashboard is made from $name",
+    async ({ target, route }) => {
+      stubServer({ [route]: { status: 201, body: {} } })
+      const queryClient = seededClient()
+      queryClient.setQueryData(chatKeys.detail("c1"), { chat: { id: "c1" } })
+      queryClient.setQueryData(chatKeys.list({}, 20), { pages: [] })
+      const { result } = renderHook(() => useMakeDashboard(target), {
+        wrapper: wrapperFor(queryClient),
+      })
+      await act(() => result.current.mutateAsync())
+      expect(isInvalidated(queryClient, chatKeys.detail("c1"))).toBe(true)
+      expect(isInvalidated(queryClient, chatKeys.list({}, 20))).toBe(true)
+    }
+  )
+
   it("deletes an observation, forgets it and marks the lists stale", async () => {
     const calls = stubServer({
       "DELETE /api/v1/observations/o1": { status: 204 },

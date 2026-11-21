@@ -20,7 +20,7 @@ func (a *app) shareAnswerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "share-answer <request-id>",
 		Short: "Share the answer of a private question in a comment thread",
-		Long:  "share-answer shows the answer of a private question (observe investigate --private) to everyone who can read the dashboard or observation it was about.\nIt opens a comment thread there with your question and the agent's answer, and on an observation it also writes the answer onto the page; --thread adds both to that thread instead.\nThe request and the rest of its chat stay yours. Only the person who asked can share it, and running it again prints the same thread.",
+		Long:  "share-answer shows the answer of a private question (observe investigate --private) to everyone who can read the dashboard or observation it was about.\nIt opens a comment thread there with your question and the agent's answer, and on an observation it also writes the answer onto the page; --thread adds both to that thread instead.\nThe request and the rest of its chat stay yours. Only the person who asked can share it, and running it again prints the same thread.\nAn answer whose run read data only Admins can query, such as the audit trail, is shared only on a dashboard or observation in a folder only Admins can read; anywhere else the server refuses it with restricted_answer.",
 		Args:  exactArgs(1, "one request id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runShareAnswer(cmd, args[0], thread)
