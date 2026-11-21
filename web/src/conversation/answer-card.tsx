@@ -230,6 +230,7 @@ function AnswerMenuButton({
   const sharedThreadId =
     sharedHere === undefined ? menu.sharedThreadId : sharedHere
   const busy = share.isPending || withdraw.isPending
+  const shareable = finding.observation_id === null
   const onPage =
     shareTarget !== null && subjectOf(shareTarget)?.kind === "observation"
 
@@ -298,7 +299,7 @@ function AnswerMenuButton({
               <Choice title="Withdraw" detail={withdrawDetail(onPage)} />
             </DropdownMenuItem>
           </>
-        ) : (
+        ) : !shareable ? null : (
           <>
             <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
               <Choice title="Show to everyone" detail={showDetail(onPage)} />

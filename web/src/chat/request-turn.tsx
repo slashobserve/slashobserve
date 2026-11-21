@@ -148,10 +148,7 @@ function ChatAnswer({
       }
       chatId={request.chat_id ?? undefined}
       menu={{
-        shareTarget:
-          own && subject !== null && finding.observation_id === null
-            ? threadTargetOf(subject)
-            : null,
+        shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
         sharedThreadId: request.shared_thread_id,
       }}
     />

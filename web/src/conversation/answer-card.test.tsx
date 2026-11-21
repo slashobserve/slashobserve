@@ -445,6 +445,39 @@ describe("AnswerCard", () => {
     ).toBeNull()
   })
 
+  it("keeps Shared in the thread and Withdraw on an answer shared and then saved", async () => {
+    const { user } = renderCard({
+      finding: finding({ observation_id: "o9" }),
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: "t5" },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toHaveAttribute("href", "/d/d1?thread=t5")
+    expect(screen.getByRole("menuitem", { name: /^Withdraw/ })).toBeVisible()
+  })
+
+  it("offers no share choices on a saved answer that is not shared", async () => {
+    const { user } = renderCard({
+      finding: finding({ observation_id: "o9" }),
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: /^Copy answer/ })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeNull()
+  })
+
   it("withdraws a shared answer back to only the asker", async () => {
     const fetch = stubResponses(shared, { status: 204 })
     const { user } = renderCard({

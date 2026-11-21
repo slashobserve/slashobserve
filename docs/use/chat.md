@@ -281,7 +281,7 @@ While a run works you see its live text, but the answer itself is written in one
 The model comes from the server's configuration and cannot be picked in the chat box.
 
 An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
-Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it.
+Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.

@@ -265,6 +265,22 @@ describe("Conversation", () => {
     expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
   })
 
+  it("keeps the shared thread on an answer shared and then saved", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    const { user } = renderConversation(
+      answered({
+        result_kind: "observation",
+        finding: { ...finding, observation_id: "o9" },
+        shared_thread_id: "t5",
+      })
+    )
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toBeVisible()
+    expect(screen.getByRole("menuitem", { name: /^Withdraw/ })).toBeVisible()
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(
