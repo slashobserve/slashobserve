@@ -142,6 +142,12 @@ function stubServer(turns: ObserveRequest[] = []) {
         )
       }
       if (pathname === "/api/v1/chats/c1") return Response.json(chatOf(turns))
+      if (pathname.startsWith("/api/v1/chats/")) {
+        return Response.json(
+          { error: { code: "not_found", message: "Not found" } },
+          { status: 404 }
+        )
+      }
       const known = turns.find(({ id }) => pathname === `/api/v1/observe/${id}`)
       if (known !== undefined) return Response.json({ request: known })
       return Response.json({ service_accounts: [], connected: [] })
@@ -281,8 +287,10 @@ describe("AskPopover", () => {
   it("asks privately in the open chat with the spot, the value shown and the window, then shows it working", async () => {
     const posts = stubServer()
     const onChatStarted = vi.fn()
+    const queryClient = seeded()
+    queryClient.setQueryData(chatKeys.detail("c1"), chatOf([]))
     openDraft()
-    const { user } = renderAsk({ openChatId: "c1", onChatStarted })
+    const { user } = renderAsk({ openChatId: "c1", onChatStarted, queryClient })
     await user.type(
       await screen.findByRole("textbox", { name: "Ask about this" }),
       "Why is payments slow?{Enter}"
@@ -328,6 +336,38 @@ describe("AskPopover", () => {
     await waitFor(() => expect(onChatStarted).toHaveBeenCalledWith("q1"))
     expect(posts[0]).not.toHaveProperty("chat_id")
   })
+
+  it.each([
+    ["an Admin reads someone else's", "c1", { read_only: true }],
+    [
+      "is about another dashboard",
+      "c1",
+      { dashboard_id: "7d1c9a40-0000-4000-8000-000000000000" },
+    ],
+    ["is archived, unknown or a turn's id", "c9", null],
+  ])(
+    "starts a new chat when the open chat %s",
+    async (_, openChatId, change) => {
+      const posts = stubServer()
+      const queryClient = seeded()
+      if (change !== null) {
+        const open = chatOf([])
+        queryClient.setQueryData(chatKeys.detail("c1"), {
+          ...open,
+          chat: { ...open.chat, ...change },
+        })
+      }
+      const onChatStarted = vi.fn()
+      openDraft()
+      const { user } = renderAsk({ openChatId, onChatStarted, queryClient })
+      const field = await screen.findByRole("textbox", {
+        name: "Ask about this",
+      })
+      await user.type(field, "Why?{Enter}")
+      await waitFor(() => expect(onChatStarted).toHaveBeenCalledWith("q1"))
+      expect(posts[0]).not.toHaveProperty("chat_id")
+    }
+  )
 
   it("swaps the working state for the answer with Revise and the answer menu", async () => {
     stubServer([working])

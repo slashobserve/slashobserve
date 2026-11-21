@@ -67,6 +67,27 @@ export function openChatOf(chat: string | undefined): string | null {
   return chat === undefined || chat === newChat ? null : chat
 }
 
+type OpenChat = { read_only: boolean; dashboard_id: string | null }
+
+function useContinuedChat(
+  openChatId: string | null,
+  dashboardId: string
+): string | null {
+  const open = useChat(openChatId ?? undefined).data?.chat
+  return continuedChat(openChatId, open, dashboardId)
+}
+
+export function continuedChat(
+  openChatId: string | null,
+  open: OpenChat | undefined,
+  dashboardId: string
+): string | null {
+  if (openChatId === null || open === undefined) return null
+  return !open.read_only && open.dashboard_id === dashboardId
+    ? openChatId
+    : null
+}
+
 export function useOpenChat() {
   const chat = useSearch({
     strict: false,
@@ -140,10 +161,11 @@ function AskDraft({
   onChatStarted,
 }: Omit<Props, "turn" | "surfaceRef">) {
   const [ownDraft] = useState(() => useCanvasTool.getState().draft)
+  const chatId = useContinuedChat(openChatId, dashboardId)
   const model = useComposer({
     draft: useAskText(),
     subject: { kind: "dashboard", id: dashboardId },
-    place: { kind: "canvas", tool: "ask", chatId: openChatId },
+    place: { kind: "canvas", tool: "ask", chatId },
     target: {
       panelId: spot.panelId,
       ...(spot.anchor === null ? {} : { anchor: spot.anchor }),
@@ -152,11 +174,11 @@ function AskDraft({
     onSent: (sent) => {
       if (sent.via !== "chat") return
       if (useCanvasTool.getState().draft !== ownDraft) return
-      const chatId = sent.request.chat_id ?? sent.request.id
-      if (chatId !== openChatId) onChatStarted(chatId)
+      const asked = sent.request.chat_id ?? sent.request.id
+      if (asked !== openChatId) onChatStarted(asked)
       useCanvasTool.getState().showTurn({
         requestId: sent.request.id,
-        chatId,
+        chatId: asked,
         ...spot,
       })
     },
