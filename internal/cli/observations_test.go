@@ -18,6 +18,7 @@ const (
 	testObservation  = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 	testBlock        = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	testPanelBlock   = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	testRangedBlock  = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
 	testFolderTarget = "eeeeeeee-1111-4111-8111-eeeeeeeeeeee"
 	testObservedURL  = "https://observe.example.com/o/" + testObservation
 )
@@ -44,6 +45,7 @@ func TestObservationCommands(t *testing.T) {
 	shown := `{"observation":` + observationJSON(strings.Join([]string{
 		blockJSON(testBlock, "text", "requested", 0, `{"markdown":"Errors started at 09:12\nthen a second line"}`),
 		blockJSON(testPanelBlock, "panel", "live", 1, `{"panel":{"title":"Error rate","type":"timeseries"}}`),
+		blockJSON(testRangedBlock, "panel", "live", 2, `{"panel":{"title":"Latency","type":"timeseries"},"from":"2026-01-02T03:00:00Z","to":"2026-01-02T04:30:00Z"}`),
 	}, ",")) + `}`
 	listed := `{"observations":[` + observationJSON("") + `],"next_cursor":"more"}`
 	added := `{"block":` + blockJSON(testBlock, "text", "live", 0, `{"markdown":"x"}`) + `}`
@@ -137,9 +139,10 @@ func TestObservationCommands(t *testing.T) {
 				"State open",
 				"Summary -",
 				"URL " + testObservedURL,
-				"POS ID KIND STATE VERSION WIDTH CONTENT",
-				"0 " + testBlock + " text requested 3 full Errors started at 09:12",
-				"1 " + testPanelBlock + " panel live 3 full Error rate",
+				"POS ID KIND STATE VERSION WIDTH HEIGHT RANGE CONTENT",
+				"0 " + testBlock + " text requested 3 full auto - Errors started at 09:12",
+				"1 " + testPanelBlock + " panel live 3 full auto page Error rate",
+				"2 " + testRangedBlock + " panel live 3 full auto 2026-01-02T03:00Z..2026-01-02T04:30Z Latency",
 			},
 		},
 		{

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -38,6 +39,100 @@ func TestChatsListSendsFiltersAndPrintsEachChat(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--cursor c2") {
 		t.Fatalf("stderr %q", stderr)
+	}
+}
+
+func TestChatsListShowsWhetherAChatIsPinnedAndItsDashboard(t *testing.T) {
+	chat := func(id, dashboard, pinned string) string {
+		return `{"id":"` + id + `","title":"T","dashboard_id":` + dashboard + `,"dashboard_title":null,"observation_id":null,"pinned_at":` + pinned + `,"created_at":"x","last_turn_at":"2026-01-01T00:05:00Z","turns":1,"last_turn":null}`
+	}
+	other := "00000000-0000-4000-8000-000000000001"
+	reply := `{"chats":[` +
+		strings.Replace(chat(stoppedID, `"`+testDashboard+`"`, `"2026-01-01T00:00:00Z"`), `"dashboard_title":null`, `"dashboard_title":"Checkout health"`, 1) + `,` +
+		chat(other, `"`+testDashboard+`"`, `null`) + `,` +
+		strings.Replace(chat("00000000-0000-4000-8000-000000000002", `null`, `null`), `"title":"T"`, `"title":"Plain"`, 1) +
+		`],"next_cursor":null}`
+	_, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "chats", "list")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	header := strings.Fields(lines[0])
+	if strings.Join(header, " ") != "ID PINNED LAST TURN TURNS ASKED DASHBOARD TITLE" {
+		t.Fatalf("header %q", lines[0])
+	}
+	pinned := strings.Fields(lines[1])
+	if pinned[1] != "yes" || !strings.Contains(lines[1], "Checkout health") {
+		t.Fatalf("pinned row %q", lines[1])
+	}
+	if strings.Fields(lines[2])[1] != "-" || !strings.Contains(lines[2], testDashboard) {
+		t.Fatalf("unpinned row with no dashboard title %q", lines[2])
+	}
+	if strings.Fields(lines[3])[1] != "-" || strings.Contains(lines[3], testDashboard) || !strings.Contains(lines[3], "Plain") {
+		t.Fatalf("row with no dashboard %q", lines[3])
+	}
+}
+
+func TestChatsPinAndUnpinPatchTheChatsFirstRequest(t *testing.T) {
+	reply := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","steps":[]}}`
+	var patched string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		switch r.Method + " " + r.URL.Path {
+		case "GET /api/v1/chats/" + stoppedID:
+			_, _ = w.Write([]byte(`{"chat":{"id":"` + stoppedID + `","title":"T"},"turns":[]}`))
+		case "PATCH /api/v1/observe/" + stoppedID:
+			patched = string(body)
+			_, _ = w.Write([]byte(reply))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"no route","code":"not_found"}`))
+		}
+	}))
+	t.Cleanup(server.Close)
+	cases := []struct {
+		args []string
+		body string
+		out  string
+	}{
+		{[]string{"chats", "pin", stoppedID}, `{"pinned":true}`, "Pinned chat " + stoppedID},
+		{[]string{"chats", "unpin", stoppedID}, `{"pinned":false}`, "Unpinned chat " + stoppedID},
+	}
+	for _, tc := range cases {
+		patched = ""
+		stdout, stderr, code := runWith(server, tc.args...)
+		if code != 0 || patched != tc.body {
+			t.Fatalf("%v: exit %d, patched %q, stderr %q", tc.args, code, patched, stderr)
+		}
+		if !strings.Contains(stdout+stderr, tc.out) {
+			t.Fatalf("%v: stdout %q, stderr %q", tc.args, stdout, stderr)
+		}
+	}
+	stdout, _, code := runWith(server, "--json", "chats", "pin", stoppedID)
+	if code != 0 || !strings.Contains(stdout, `"request"`) {
+		t.Fatalf("--json: exit %d, stdout %q", code, stdout)
+	}
+	_, stderr, code := runWith(server, "chats", "pin", "nope")
+	if code != 2 || !strings.Contains(stderr, "not a valid id") {
+		t.Fatalf("bad id: exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestChatsPinAndUnpinRefuseAnIDThatIsNotAChat(t *testing.T) {
+	patched := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patched = true
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"chat not found","code":"not_found"}`))
+	}))
+	t.Cleanup(server.Close)
+	for _, verb := range []string{"pin", "unpin"} {
+		stdout, stderr, code := runWith(server, "chats", verb, stoppedID)
+		if code != 1 || patched || stdout != "" || !strings.Contains(stderr, stoppedID+" is not one of your chats") || !strings.Contains(stderr, "chats list") {
+			t.Fatalf("%s: exit %d, patched %v, stdout %q, stderr %q", verb, code, patched, stdout, stderr)
+		}
 	}
 }
 

@@ -666,3 +666,48 @@ func TestListFoldersShowsWhichFoldersAreOnlyAdminsToAdminsAlone(t *testing.T) {
 		t.Errorf("an Editor's list_folders = %s", raw)
 	}
 }
+
+func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
+	r := newObservationRig(t)
+	id := r.start(t, editorCaller)
+	first := r.written(t, editorCaller, nameAddBlock, textBlockInput(id, "first"))
+	second := r.written(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Errors", "sum(rate(errors[5m]))")))
+	arranged := r.call(t, editorCaller, nameArrangeBlocks, fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"third","height":300},{"block_id":%q,"width":"two_thirds"}]}`, id, second.BlockID, first.BlockID))
+	out, ok := arranged.Content.(arrangedOut)
+	if arranged.IsError || !ok || len(out.Blocks) != 2 {
+		t.Fatalf("arrange_blocks: %#v", arranged.Content)
+	}
+	if out.Blocks[0].BlockID != second.BlockID || out.Blocks[0].Width != "third" || out.Blocks[0].Height == nil || *out.Blocks[0].Height != 300 || out.Blocks[1].Width != "two_thirds" || out.Blocks[1].Height != nil {
+		t.Errorf("arranged = %#v", out.Blocks)
+	}
+	page := r.view(t, editorCaller, id).Blocks
+	if page[0].ID != second.BlockID || page[0].Version != 1 || page[1].Version != 1 || page[0].Height == nil {
+		t.Errorf("page after arranging = %#v", page)
+	}
+	cleared := r.call(t, editorCaller, nameArrangeBlocks, fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":null}]}`, id, second.BlockID))
+	if cleared.IsError || r.view(t, editorCaller, id).Blocks[0].Height != nil {
+		t.Errorf("a null height did not clear: %#v", cleared.Content)
+	}
+	if !strings.Contains(cleared.Step, "1 block") || strings.Contains(cleared.Step, "2 blocks") {
+		t.Errorf("a call naming one block said %q", cleared.Step)
+	}
+	stranger := "00000000-0000-4000-8000-0000000000aa"
+	refused := r.call(t, editorCaller, nameArrangeBlocks, fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q},{"block_id":%q}]}`, id, first.BlockID, stranger))
+	if !refused.IsError || !strings.Contains(fmt.Sprint(refused.Content), stranger) {
+		t.Errorf("a block of another observation was not refused by name: %#v", refused.Content)
+	}
+	for name, input := range map[string]string{
+		"a commenter":              fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q}]}`, id, first.BlockID),
+		"a bad width":              fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"quarter"}]}`, id, first.BlockID),
+		"a height out of range":    fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":5}]}`, id, first.BlockID),
+		"a height on a text block": fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":300}]}`, id, first.BlockID),
+	} {
+		by := editorCaller
+		if name == "a commenter" {
+			by = commenterCaller
+		}
+		if res := r.call(t, by, nameArrangeBlocks, input); !res.IsError {
+			t.Errorf("%s arranged the page", name)
+		}
+	}
+}

@@ -85,6 +85,7 @@ type RCABlock struct {
 	Title      string          `json:"title"`
 	Panel      json.RawMessage `json:"panel"`
 	Width      Width           `json:"width"`
+	Height     *int            `json:"height,omitempty"`
 }
 
 func (b RCABlock) MarshalJSON() ([]byte, error) {
@@ -101,7 +102,8 @@ func (b RCABlock) MarshalJSON() ([]byte, error) {
 		Title      string          `json:"title"`
 		Panel      json.RawMessage `json:"panel"`
 		Width      Width           `json:"width"`
-	}{b.Kind, b.SnapshotID, b.Title, b.Panel, b.Width})
+		Height     *int            `json:"height,omitempty"`
+	}{b.Kind, b.SnapshotID, b.Title, b.Panel, b.Width, b.Height})
 }
 
 type rcaContent struct {
@@ -203,6 +205,7 @@ func rcaBlocks(blocks []dbsqlc.ObservationBlock, refs map[pgtype.UUID]snapshotRe
 		}
 		item.Kind = KindSnapshot
 		item.SnapshotID, item.Panel, item.Title = ref.id.String(), ref.panel, panelTitle(ref.panel)
+		item.Height = heightOf(b.Height)
 		out = append(out, item)
 	}
 	return out, nil

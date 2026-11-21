@@ -202,3 +202,32 @@ func TestOnlyTheAskerSeesWhichThreadTheirAnswerIsSharedIn(t *testing.T) {
 		t.Fatalf("after the withdraw the asker reads shared_thread_id %v on the run and %v on the turn", onRun, onTurn)
 	}
 }
+
+func TestAnAdminCannotShareOrWithdrawSomeoneElsesPrivateAnswer(t *testing.T) {
+	r := newShareRig(t)
+	dash := r.createDashboard(t, "rps", "errors")
+	id := dash.String()
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "errors")
+
+	if _, err := r.service.ShareRun(reading(t.Context()), admin, ShareInput{RunID: run}); !errors.Is(err, ErrRunNotFound) {
+		t.Fatalf("an Admin shared someone else's private answer: %v", err)
+	}
+	if n := r.messageCount(t); n != 0 {
+		t.Fatalf("messages after the Admin's refused share = %d, want 0", n)
+	}
+
+	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.Withdraw(reading(t.Context()), admin, mustParse(t, shared.Thread.ID)); !errors.Is(err, ErrNothingShared) {
+		t.Fatalf("an Admin withdrew someone else's answer: %v", err)
+	}
+	r.call(t, admin, http.MethodDelete, "/threads/"+shared.Thread.ID+"/share", nil).expect(t, http.StatusNotFound, "not_found")
+	if n := r.messageCount(t); n != 2 {
+		t.Fatalf("messages after the Admin's refused withdraw = %d, want 2", n)
+	}
+	if events := r.db.AuditEvents(t, "run.withdraw"); len(events) != 0 {
+		t.Fatalf("run.withdraw events after the Admin's refusal = %+v", events)
+	}
+}

@@ -22,7 +22,7 @@ agent:
 observe:
   get:
     operationId: listObserveRequests
-    x-audit: { none: "list read; only scope=all is recorded, as run.list from the service once per caller in 10 minutes" }
+    x-audit: { none: "list read; recorded as run.list with its scope by the service, once per caller and scope in 10 minutes" }
     x-surfaces:
       mcp: [list_runs]
       cli: [observe requests list]
@@ -36,7 +36,7 @@ observe:
       `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin.
       A new-dashboard request that failed has no dashboard and lives only in this list.
       Progress steps are not included; read `GET /observe/{id}` for them.
-      A `scope=all` list is recorded as `run.list` once per caller in 10 minutes.
+      Every list is recorded in the audit trail as one `run.list` with `scope` (`mine` or `all`) in its data, never one event per request, once per caller and scope in 10 minutes.
     parameters:
       - name: scope
         in: query
@@ -307,7 +307,7 @@ observe-id:
       An Admin also reads a request on a dashboard it cannot see.
       `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today.
       Clients poll it once a second until the status is `succeeded` or `failed`.
-      A read of someone else's request is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build and `get_run`; a refused read is recorded every time, and the requester's own reads are not recorded.
+      Every read of a request, its requester's included, is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build, `get_run`, a dashboard revision, a suggestion and an unsaved answer under `GET /findings/{id}`; a refused read is recorded every time.
       After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone.
       `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build.
       A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version.
@@ -332,7 +332,7 @@ observe-id:
     x-audit: { action: run.update, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [pin_run, unpin_run, rename_run]
-      cli: [observe requests pin, observe requests unpin, observe requests rename]
+      cli: [observe requests pin, observe requests unpin, observe requests rename, observe chats pin, observe chats unpin]
     summary: Rename or pin one of your agent requests.
     description: >-
       Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404.

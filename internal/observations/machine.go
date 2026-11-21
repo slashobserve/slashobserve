@@ -55,8 +55,10 @@ const (
 type Width string
 
 const (
-	WidthFull Width = "full"
-	WidthHalf Width = "half"
+	WidthThird     Width = "third"
+	WidthHalf      Width = "half"
+	WidthTwoThirds Width = "two_thirds"
+	WidthFull      Width = "full"
 )
 
 var editor = []lifecycle.Who{lifecycle.Editor}

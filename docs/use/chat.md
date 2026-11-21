@@ -290,8 +290,9 @@ Say what to change in the message itself all the same, for example "only show 5x
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
-An Admin reads another person's chat read only, and a read of someone else's chat or request, over MCP too, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`; your reads of your own are not.
-An Admin's list of every person's chats or requests (`scope=all`) is recorded as `chat.list` or `run.list` with `scope` in its data.
+An Admin reads another person's chat read only.
+Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.
+A list of chats or requests is recorded as one `chat.list` or `run.list` with `scope` (`mine` or `all`) in its data, never one event per row.
 Each is recorded once per reader and chat, request or list in 10 minutes, so a page that polls adds no events, and a refused read is recorded every time.
 
 Turns of one chat run one at a time in the order they were sent, and the earlier turns are read when a turn starts running, so a follow-up sent while the last one still runs sees its answer.
@@ -299,7 +300,7 @@ Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of you
 A request an ask in a thread started belongs to no chat: its `chat_id` is null, `GET /chats/{id}` has nothing to open for it, and a further ask in the same thread is another request in that thread, which sees the thread's earlier messages.
 Without `chat_id` a new chat starts, except a `revise` on a dashboard, which joins your latest chat on that dashboard unless `new_chat` is true; `follows_id`, an earlier request of yours without a dashboard, is the older way to name a chat.
 `client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
-`GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats`, and MCP `list_chats` and `get_chat`.
+`GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats` (`list`, `show`, `pin`, `unpin` and `archive`), and MCP `list_chats` and `get_chat`; a chat is pinned with `PATCH /observe/{id}` on its first request, which MCP `pin_run` and `unpin_run` call.
 
 The agent revises the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.

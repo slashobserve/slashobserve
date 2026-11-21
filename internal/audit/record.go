@@ -265,6 +265,9 @@ func attribution(scope Scope, scoped bool, by *By) Scope {
 		scope.Auth = Auth{}
 	}
 	scope.Actor = actor
+	if by.Agent != (Agent{}) {
+		scope.Agent = by.Agent
+	}
 	if by.Origin.Kind != "" && scope.Origin.Kind != OriginAgent {
 		scope.Origin = by.Origin
 	}

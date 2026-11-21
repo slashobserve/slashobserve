@@ -112,6 +112,7 @@ func (s *Service) GetSuggestion(ctx context.Context, dashboardID, id pgtype.UUID
 	if row.RequestedByKind != string(by.Kind) || row.RequestedByID.String() != by.ID {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
+	s.recordRunView(ctx, row)
 	return row, nil
 }
 

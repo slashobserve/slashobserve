@@ -1,6 +1,7 @@
 package findings_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -197,5 +198,34 @@ func TestDeletingARunTakesItsUnsavedAnswerWithIt(t *testing.T) {
 	}
 	if n := r.count(t, `SELECT count(*) FROM findings`); n != 0 {
 		t.Fatalf("%d findings left after their run was deleted", n)
+	}
+}
+
+func TestAReadOfAnUnsavedAnswerIsRecordedAsAReadOfItsRun(t *testing.T) {
+	r := newRig(t)
+	var read []pgtype.UUID
+	r.service.RecordAnswerReadsWith(func(_ context.Context, run pgtype.UUID) { read = append(read, run) })
+	unsaved := r.request(t, editor, pgtype.UUID{})
+	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: unsaved})
+	filed := r.request(t, editor, pgtype.UUID{})
+	r.save(t, editor, findings.SaveInput{AgentRequestID: filed})
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, filed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, who := range []auth.Principal{editor, admin} {
+		if _, err := r.service.Read(reading(t.Context()), who, mustUUID(t, answer.ID)); err != nil {
+			t.Fatalf("%s reads the unsaved answer: %v", who.Name, err)
+		}
+	}
+	if _, err := r.service.Read(reading(t.Context()), otherEditor, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotFound) {
+		t.Fatalf("another Editor reads the unsaved answer: %v, want ErrNotFound", err)
+	}
+	if _, err := r.service.Read(reading(t.Context()), editor, mustUUID(t, saved.ID)); err != nil {
+		t.Fatalf("read the saved answer: %v", err)
+	}
+	if len(read) != 2 || read[0] != unsaved || read[1] != unsaved {
+		t.Fatalf("recorded run reads %v, want the unsaved answer's run %v twice", read, unsaved)
 	}
 }

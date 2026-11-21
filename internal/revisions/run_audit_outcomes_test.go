@@ -179,7 +179,11 @@ func TestAnAnswerOnlyRunsBuildOverHTTPIsNoRefusedReadAsOverMCP(t *testing.T) {
 	}
 	flush()
 
-	want := []string{"run.view " + adminID + " success " + run + " " + run + " " + userID}
+	want := []string{
+		"run.view " + userID + " success " + run + " " + run + " " + userID,
+		"run.view " + adminID + " success " + run + " " + run + " " + userID,
+	}
+	slices.Sort(want)
 	if got := recordedReads(t, d); !slices.Equal(got, want) {
 		t.Fatalf("recorded reads = %q, want %q", got, want)
 	}
@@ -196,7 +200,10 @@ func TestARefusedBuildOverHTTPIsARefusedReadAsOverMCP(t *testing.T) {
 	}
 	flush()
 
-	want := []string{"run.view " + userID + " denied " + run + " - -"}
+	want := []string{
+		"run.view " + userID + " denied " + run + " - -",
+		"run.view " + userID + " success " + run + " " + run + " " + userID,
+	}
 	if got := recordedReads(t, d); !slices.Equal(got, want) {
 		t.Fatalf("recorded reads = %q, want %q", got, want)
 	}
@@ -269,5 +276,34 @@ func TestARefusedBuildOfAReadableRunIsStillARefusedRead(t *testing.T) {
 	slices.Sort(want)
 	if got := recordedReads(t, d); !slices.Equal(got, want) {
 		t.Fatalf("recorded reads = %q, want %q", got, want)
+	}
+}
+
+func TestADashboardRevisionOrSuggestionReadIsARunRead(t *testing.T) {
+	svc, d := newSuggestService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "add a latency panel")
+	suggestion := suggestFor(t, svc, dash, user)
+	_, flush := recordingAudit(t, d)
+
+	if _, err := svc.Get(mcpContext(t, bea), dash, mustUUID(t, rev.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.List(mcpContext(t, bea), dash, 10, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetSuggestion(mcpContext(t, user), dash, suggestion.ID, user); err != nil {
+		t.Fatal(err)
+	}
+	flush()
+
+	want := []string{
+		"run.list " + adminID + " success " + dash.String() + " - dashboard",
+		"run.view " + adminID + " success " + rev.ID + " - " + userID,
+		"run.view " + userID + " success " + suggestion.ID.String() + " - " + userID,
+	}
+	slices.Sort(want)
+	if got := recordedReads(t, d); !slices.Equal(got, want) {
+		t.Fatalf("recorded reads =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }

@@ -248,6 +248,9 @@ func (st store) delete(ctx context.Context, id pgtype.UUID, by actor.Actor) erro
 		if _, err := activity.Append(ctx, q, entry, &ev); err != nil {
 			return err
 		}
+		if _, err := q.DeleteChatsEmptiedByDashboardDelete(ctx, id); err != nil {
+			return fmt.Errorf("delete the chats the dashboard delete empties: %w", err)
+		}
 		n, err := q.DeleteDashboard(ctx, id)
 		if err != nil {
 			return fmt.Errorf("delete dashboard: %w", err)

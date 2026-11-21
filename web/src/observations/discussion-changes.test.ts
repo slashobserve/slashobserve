@@ -35,6 +35,7 @@ function block(id: string, overrides: Partial<Block> = {}): Block {
     state: "live",
     position: 0,
     width: "full",
+    height: null,
     version: 1,
     body: { markdown: id },
     snapshot_id: null,

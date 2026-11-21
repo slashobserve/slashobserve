@@ -25,6 +25,7 @@ import {
   useRemoveBlock,
   useReopenObservation,
   useResolveObservation,
+  useArrangeBlocks,
   useUpdateBlock,
   useUpdateObservation,
   withoutBlock,
@@ -50,6 +51,7 @@ function block(id: string, position: number, version = 1): Block {
     state: "live",
     position,
     width: "full",
+    height: null,
     version,
     body: { markdown: id },
     snapshot_id: null,
@@ -479,6 +481,31 @@ describe("block writes", () => {
       body: { markdown: "changed" },
     })
     expect(cachedBlocks(queryClient)).toEqual([saved, block("b", 1)])
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
+  })
+
+  it("puts the layout without a version and shows the order the server answers", async () => {
+    const first = { ...block("b", 0, 1), width: "third" as const, height: 300 }
+    const second = { ...block("a", 1, 1), width: "two_thirds" as const }
+    const calls = stubServer({
+      "PUT /api/v1/observations/o1/layout": {
+        status: 200,
+        body: { blocks: [first, second] },
+      },
+    })
+    const queryClient = seededClient()
+    const { result } = renderHook(() => useArrangeBlocks("o1"), {
+      wrapper: wrapperFor(queryClient),
+    })
+    await act(() =>
+      result.current.mutateAsync({
+        blocks: [{ id: "b", width: "third", height: 300 }, { id: "a" }],
+      })
+    )
+    expect(calls[0]?.body).toEqual({
+      blocks: [{ id: "b", width: "third", height: 300 }, { id: "a" }],
+    })
+    expect(cachedBlocks(queryClient)).toEqual([first, second])
     expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(true)
   })
 

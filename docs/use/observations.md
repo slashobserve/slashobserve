@@ -19,7 +19,7 @@ A block is one of these kinds:
 | `snapshot` | The data of a panel block frozen at one moment, so the page keeps showing what you saw. |
 | `run` | The agent run that is investigating, added by the server. |
 
-Each block is `full` width or `half` width, and blocks keep the order of their `position`.
+Each block is `third`, `half`, `two_thirds` or `full` width, only a panel or snapshot block has an optional `height` of 120 to 960 pixels, and a height for a text block is refused with `invalid_block`, and blocks keep the order of their `position`.
 A person who can only comment sees positions that count only the blocks they can see, and a suggestion they place at one of those positions lands there once an editor keeps it.
 A page holds at most 100 blocks, of which at most 24 are panel and snapshot blocks together.
 A panel must be a valid data panel, and one that an agent, an MCP client or a service-account key (the [CLI](cli.md) and scripts) adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.
@@ -105,15 +105,26 @@ A person who can only comment suggests that snapshot, as with any other block.
 ### Change blocks
 
 Hover a block, or focus it, to show its **Block actions** menu.
-It offers **Move up** and **Move down**, which swap the block with its neighbour and keep it in view, **Make half width** or **Make full width**, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
-Two half width blocks in a row sit side by side when the page is wide enough, and a half width block with no half width neighbour takes the left half of its row.
+It offers **Move up** and **Move down**, which swap the block with its neighbour, a **Make ... width** item for each other width, **Reset height** on a panel or snapshot block with its own height, **Freeze as snapshot** on a live panel block, and **Delete block** on a live block.
+Blocks sit side by side in rows of three thirds when the page is wide enough: three thirds, a third and two thirds, or two halves; a block that does not fit the rest of a row starts the next one.
+
+### Arrange by hand
+
+A person with edit access arranges the page without a menu.
+Drag a block by the grip at its top left corner to drop it before or after another block, and drag the corner at its bottom right to snap its width to a third, a half, two thirds or the full page and, on a panel or snapshot block, to set its height in steps of 20 pixels.
+Focus the grip and press the arrow keys to move the block, **Shift** with the left or right arrow to change its width, and **Shift** with the up or down arrow to change a panel's height by 40 pixels; each change is announced.
+Below 640 pixels of block list width the page shows one column, so the width does not apply; the right dock, when open, can bring the list below that.
+
+Arranging never conflicts with a text edit that is open on the same block, because a block's version counts its content and not its place or size.
+When two people arrange at once the last arrangement wins.
+A person who can only comment cannot arrange.
 
 **Delete block** on a block an agent wrote, which is every run block and any block added by the built-in agent or over MCP, asks "Delete this block?" first, because the block cannot be brought back.
 **Edit** on a text block opens its Markdown, and **Save** or `⌘Enter` keeps the change.
 If someone changed the block first, the editor says so and **Use their version** replaces your text with theirs.
 Text that is empty is refused; delete the block instead.
 Editing, moving, resizing and deleting need edit access to the folder.
-An agent reorders blocks with `update_block` and its `position`.
+An agent changes one block with `update_block` and its `position`, `width` or `height`, and arranges the whole page with `arrange_blocks`, which needs no version.
 
 ### Time range
 
@@ -256,7 +267,12 @@ A revision freezes:
 - The title, summary, state and time range of the observation when it was published.
 - The `live` text blocks, as Markdown, in page order.
 - Every `snapshot` block with its frozen panel and data, and a new snapshot of every `live` panel block, taken in the same step.
-- Each block's width.
+- Each block's width, and the height of a panel or snapshot block that was set by hand.
+
+A revision published before heights were kept has none, so its panels show at the default height for their width.
+
+A published page lays its blocks out in rows of thirds like the observation page does, from 640 pixels of width up and in one column below that, so a block that sits alone at half width takes half the row.
+Revisions published before this packing existed show such a block at half width too, where they used to give it the whole row.
 
 A revision leaves out requested blocks, run blocks, and the query text of every panel: a published copy shows what the data was and never how to query your datasources.
 If a panel cannot be frozen, nothing is published and the answer is `panel_failed` with the block it names, so fix or remove that panel and publish again.
@@ -328,7 +344,7 @@ Creating, listing and revoking links need Manage on the folder, and the panel sh
 - "Resolved", or "Open at publish time", and the summary when there is one.
 - The blocks in page order: text as Markdown, and each panel as its frozen data under the panel's title.
   A panel's caption is "Frozen" with the observation's time range and its time zone when it had one, and otherwise "Frozen when published".
-- Half width blocks side by side when the page is wide enough.
+- Blocks side by side in rows of thirds when the page is wide enough.
 
 It shows no query, discussion, comment, activity, live panel or other revision, and it runs no query against a datasource.
 When a newer revision has been published since, the page says "Revision N is newer, so this one may be out of date", with N only and no link, because the reader cannot open another revision; `GET /api/v1/public/{token}/rca` carries the number as `superseded_by`, null on the newest.
