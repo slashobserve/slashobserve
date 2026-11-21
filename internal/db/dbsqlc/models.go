@@ -344,6 +344,7 @@ type Datasource struct {
 	CreatedBy   pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	Audience    string
 }
 
 type DraftQuerySpend struct {

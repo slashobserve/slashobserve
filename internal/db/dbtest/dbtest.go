@@ -3,6 +3,7 @@ package dbtest
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -83,7 +84,8 @@ func migrateTemplate(ctx context.Context) error {
 		return err
 	}
 	defer d.Close()
-	return d.Migrate(ctx)
+	_, err = d.Migrate(ctx)
+	return err
 }
 
 type Database struct {
@@ -215,4 +217,49 @@ func urlFor(database string) string {
 
 func quietLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+type AuditEvent struct {
+	Action     string
+	Outcome    string
+	Reason     string
+	ActorKind  string
+	ActorID    string
+	Initiator  string
+	Origin     string
+	TargetKind string
+	TargetID   string
+	Data       map[string]any
+}
+
+func (d *Database) AuditEvents(t testing.TB, action string) []AuditEvent {
+	t.Helper()
+	rows, err := d.SQLDB(t).QueryContext(context.Background(), `
+		SELECT action, outcome, coalesce(reason, ''), actor_kind, coalesce(actor_id::text, ''), initiator, origin,
+		       coalesce(target_kind, ''), coalesce(target_id, ''),
+		       data::text
+		FROM audit_events WHERE action = $1 ORDER BY occurred_at, seq`, action)
+	if err != nil {
+		t.Fatalf("read audit events: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []AuditEvent
+	for rows.Next() {
+		var e AuditEvent
+		var data string
+		if err := rows.Scan(&e.Action, &e.Outcome, &e.Reason, &e.ActorKind, &e.ActorID, &e.Initiator, &e.Origin, &e.TargetKind, &e.TargetID, &data); err != nil {
+			t.Fatalf("scan audit event: %v", err)
+		}
+		if err := json.Unmarshal([]byte(data), &e.Data); err != nil {
+			t.Fatalf("decode audit event data: %v", err)
+		}
+		if len(e.Data) == 0 {
+			e.Data = nil
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read audit events: %v", err)
+	}
+	return out
 }

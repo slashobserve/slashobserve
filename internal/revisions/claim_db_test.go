@@ -31,7 +31,7 @@ func assignTo(t *testing.T, d *dbtest.Database, id, kind, assignee string) {
 
 func storedRun(t *testing.T, svc *revisions.Service, id string) dbsqlc.AgentRequest {
 	t.Helper()
-	row, err := svc.GetByID(context.Background(), mustUUID(t, id))
+	row, err := svc.GetByID(reading(context.Background()), mustUUID(t, id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func storedRun(t *testing.T, svc *revisions.Service, id string) dbsqlc.AgentRequ
 
 func claimAs(t *testing.T, svc *revisions.Service, c revisions.Claimant) (revisions.Claimed, bool) {
 	t.Helper()
-	claimed, found, err := svc.Claim(context.Background(), c)
+	claimed, found, err := svc.Claim(reading(context.Background()), c)
 	if err != nil {
 		t.Fatalf("claim as %s: %v", c.Key(), err)
 	}
@@ -101,7 +101,7 @@ func TestTwoClaimsOfOneQueuedRunReturnOneClaim(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, found, err := svc.Claim(context.Background(), builtinClaimant)
+			_, found, err := svc.Claim(reading(context.Background()), builtinClaimant)
 			if err != nil {
 				t.Error(err)
 			}
@@ -134,7 +134,7 @@ func TestEndWithNoSavedResultFailsTheRunWithNoToolCall(t *testing.T) {
 	assignTo(t, d, rev.ID, "grant", grantA)
 	claimed, _ := claimAs(t, svc, grantClaimant(grantA, userID))
 
-	ended, err := svc.End(context.Background(), claimed.Row, revisions.Ending{})
+	ended, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestEndWithAReportedFailureKeepsItsCodeAndMessage(t *testing.T) {
 	assignTo(t, d, rev.ID, "grant", grantA)
 	claimed, _ := claimAs(t, svc, grantClaimant(grantA, userID))
 
-	ended, err := svc.End(context.Background(), claimed.Row, revisions.Ending{Failure: revisions.FailureAgentFailed, Message: "no data"})
+	ended, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{Failure: revisions.FailureAgentFailed, Message: "no data"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestEndAfterAVersionWasSavedSucceeds(t *testing.T) {
 	claimed, _ := claimAs(t, svc, grantClaimant(grantA, userID))
 	saveVersionUnder(t, d, dash, claimed.Row.ID, 2)
 
-	ended, err := svc.End(context.Background(), claimed.Row, revisions.Ending{Failure: revisions.FailureAgentFailed, Message: "ignored"})
+	ended, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{Failure: revisions.FailureAgentFailed, Message: "ignored"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestEndOfALostAttemptWritesNothing(t *testing.T) {
 	claimed, _ := claimAs(t, svc, grantClaimant(grantA, userID))
 	d.Exec(t, "UPDATE agent_requests SET attempts = attempts + 1 WHERE id = $1", claimed.Row.ID)
 
-	if _, err := svc.End(context.Background(), claimed.Row, revisions.Ending{}); !errors.Is(err, revisions.ErrLeaseLost) {
+	if _, err := svc.End(reading(context.Background()), claimed.Row, revisions.Ending{}); !errors.Is(err, revisions.ErrLeaseLost) {
 		t.Fatalf("End error = %v, want ErrLeaseLost", err)
 	}
 	if row := storedRun(t, svc, rev.ID); row.State != string(revisions.StateRunning) {
@@ -201,7 +201,7 @@ func TestSweepExpiresOnlyOldRunsOfOutsideAgents(t *testing.T) {
 	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '11 minutes' WHERE id = ANY($1)", []pgtype.UUID{mustUUID(t, old.ID), mustUUID(t, builtin.ID)})
 	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '9 minutes' WHERE id = $1", mustUUID(t, recent.ID))
 
-	if err := svc.Sweep(context.Background()); err != nil {
+	if err := svc.Sweep(reading(context.Background())); err != nil {
 		t.Fatal(err)
 	}
 	expired := storedRun(t, svc, old.ID)
@@ -222,7 +222,7 @@ func TestSweepExpiresAnOutsideRunWhoseLeaseLapsedLongAgo(t *testing.T) {
 	claimAs(t, svc, grantClaimant(grantA, userID))
 	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '1 hour', lease_until = now() - interval '11 minutes' WHERE id = $1", mustUUID(t, rev.ID))
 
-	if err := svc.Sweep(context.Background()); err != nil {
+	if err := svc.Sweep(reading(context.Background())); err != nil {
 		t.Fatal(err)
 	}
 	if row := storedRun(t, svc, rev.ID); row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureAgentUnavailable) {

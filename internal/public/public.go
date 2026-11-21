@@ -366,7 +366,7 @@ func (s *Service) View(ctx context.Context, token string) (View, error) {
 	if err != nil {
 		return View{}, err
 	}
-	if queryproxy.DashboardUsesUser(d) {
+	if queryproxy.DashboardUsesUser(d) || queryproxy.DashboardUsesRestricted(d, s.registry) {
 		return View{}, ErrNotFound
 	}
 	shown, err := publicSpec(d)
@@ -377,7 +377,7 @@ func (s *Service) View(ctx context.Context, token string) (View, error) {
 		s.logger.WarnContext(ctx, "record a public link view", logattrs.Failure("internal", err, slog.String("public_link_id", r.LinkID.String()))...)
 	}
 	types := map[string]string{}
-	for _, in := range s.registry.List() {
+	for _, in := range s.registry.Visible(datasource.WithAccess(ctx, datasource.Access{})) {
 		types[in.UID] = in.Datasource.Type()
 	}
 	return View{Resolved: r, Title: d.Title, Spec: shown, Datasources: referencedDatasources(d, types)}, nil

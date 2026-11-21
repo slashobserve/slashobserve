@@ -111,7 +111,7 @@ func TestACrossOriginRejectionRecordsADeniedEventForThePerson(t *testing.T) {
 		t.Fatalf("status = %d, want 403", status)
 	}
 	r.flush()
-	want := refusal{action: "dashboard.update", outcome: "denied", reason: "csrf_rejected", actorKind: "user", actorID: r.userID.String(), authMethod: "session", status: 403}
+	want := refusal{action: "auth.csrf_rejected", outcome: "denied", reason: "csrf_rejected", actorKind: "user", actorID: r.userID.String(), authMethod: "session", status: 403}
 	if got := r.refusalOf(t, request); got != want {
 		t.Fatalf("event = %+v, want %+v", got, want)
 	}

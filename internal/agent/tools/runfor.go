@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -52,11 +53,19 @@ type RunSessions interface {
 	Progress(ctx context.Context, req revisions.Request) (*BuildProgress, error)
 }
 
+func RunAudience(revisions.Request) datasource.Audience {
+	return datasource.AudienceCaller
+}
+
+func RunAccess(req revisions.Request) datasource.Access {
+	return datasource.Access{By: req.RequestedBy, Audience: RunAudience(req)}
+}
+
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone}
+	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Access: RunAccess(req)}
 	switch {
 	case req.Source == revisions.SourceSuggest:
-		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}
+		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID, Access: run.Access}
 	case req.Source == revisions.SourceInvestigate:
 		run.Mode, run.PanelID = ModeInvestigate, req.PanelID
 		if req.From != nil && req.To != nil {

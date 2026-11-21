@@ -18,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/provision"
 )
 
@@ -58,7 +59,7 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 				Options:                options,
 			}
 			input.SetBodyBytes(rec.Body.Bytes())
-			if err := openapi3filter.ValidateResponse(t.Context(), input); err != nil {
+			if err := openapi3filter.ValidateResponse(reading(t.Context()), input); err != nil {
 				t.Fatalf("status %d body %s breaks the document: %v", rec.Code, rec.Body.String(), err)
 			}
 		})
@@ -87,7 +88,7 @@ func serveHTTP(t *testing.T, svc *fakeService, role auth.Role, method, path stri
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		p := auth.Principal{Kind: auth.KindUser, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "Ada", Role: role}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), p), datasource.Access{By: p}))
 	})
 	provision.NewHandler(svc, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
 	rec := httptest.NewRecorder()

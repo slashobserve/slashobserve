@@ -18,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -79,7 +80,7 @@ func titledPanel(title string) json.RawMessage {
 
 func (r rig) addTitledPanel(t *testing.T, by auth.Principal, o observations.Observation, title string) observations.Block {
 	t.Helper()
-	b, err := r.service.AddBlock(t.Context(), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: titledPanel(title), Width: observations.WidthHalf})
+	b, err := r.service.AddBlock(reading(t.Context()), by, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: titledPanel(title), Width: observations.WidthHalf})
 	if err != nil {
 		t.Fatalf("add panel block: %v", err)
 	}
@@ -89,7 +90,7 @@ func (r rig) addTitledPanel(t *testing.T, by auth.Principal, o observations.Obse
 func (r rig) count(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -97,7 +98,7 @@ func (r rig) count(t *testing.T, query string, args ...any) int {
 
 func (r rig) publish(t *testing.T, by auth.Principal, o observations.Observation) observations.RCA {
 	t.Helper()
-	rca, err := r.service.Publish(t.Context(), by, mustUUID(t, o.ID))
+	rca, err := r.service.Publish(reading(t.Context()), by, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -150,11 +151,11 @@ func TestPublishingTwiceMakesTwoRevisionsWithTheirOwnSnapshots(t *testing.T) {
 		t.Errorf("activity %v", got)
 	}
 
-	again, err := r.service.GetRCA(t.Context(), viewer, mustUUID(t, o.ID), 1)
+	again, err := r.service.GetRCA(reading(t.Context()), viewer, mustUUID(t, o.ID), 1)
 	if err != nil || again.ID != first.ID || len(again.Blocks) != 3 {
 		t.Fatalf("read back %+v, %v", again, err)
 	}
-	listed, err := r.service.ListRCAs(t.Context(), viewer, mustUUID(t, o.ID))
+	listed, err := r.service.ListRCAs(reading(t.Context()), viewer, mustUUID(t, o.ID))
 	if err != nil || len(listed) != 2 || listed[0].Revision != 2 || listed[1].Revision != 1 {
 		t.Fatalf("list %+v, %v", listed, err)
 	}
@@ -165,13 +166,13 @@ func TestAnEditedPageDoesNotChangeAPublishedRevision(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	text := r.addText(t, editor, o, "before")
 	first := r.publish(t, editor, o)
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, text.ID), observations.BlockChange{Version: text.Version, Body: textBody("after")}); err != nil {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: text.Version, Body: textBody("after")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Resolve(t.Context(), editor, mustUUID(t, o.ID), "Bad deploy"); err != nil {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, mustUUID(t, o.ID), "Bad deploy"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.service.GetRCA(t.Context(), editor, mustUUID(t, o.ID), 1)
+	got, err := r.service.GetRCA(reading(t.Context()), editor, mustUUID(t, o.ID), 1)
 	if err != nil || got.Blocks[0].Markdown != "before" || got.State != observations.StateOpen || got.Summary != "" {
 		t.Fatalf("revision 1 changed: %+v, %v", got, err)
 	}
@@ -186,13 +187,13 @@ func TestAReopenedObservationIsPublishedWithoutItsOldSummary(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	r.addText(t, editor, o, "note")
-	if _, err := r.service.Resolve(t.Context(), editor, id, "Steady"); err != nil {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, id, "Steady"); err != nil {
 		t.Fatal(err)
 	}
 	if first := r.publish(t, editor, o); first.Summary != "Steady" || first.State != observations.StateResolved {
 		t.Fatalf("resolved revision %+v", first)
 	}
-	reopened, err := r.service.Reopen(t.Context(), editor, id)
+	reopened, err := r.service.Reopen(reading(t.Context()), editor, id)
 	if err != nil || reopened.Summary != "Steady" {
 		t.Fatalf("reopened %+v, %v", reopened, err)
 	}
@@ -209,7 +210,7 @@ func TestPublishingLeavesOutRequestedBlocksAndAcceptsAnEmptyPage(t *testing.T) {
 	}
 	o := r.create(t, editor, r.shared)
 	r.addText(t, editor, o, "live")
-	if _, err := r.service.AddBlock(t.Context(), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("asked for")}); err != nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("asked for")}); err != nil {
 		t.Fatal(err)
 	}
 	rca := r.publish(t, editor, o)
@@ -237,7 +238,7 @@ func TestPublishingNeedsEditOnAVisibleSharedFolder(t *testing.T) {
 		{"the owner's own My Dashboards", editor, mine, observations.ErrPublishPersonal},
 	}
 	for _, c := range cases {
-		if _, err := r.service.Publish(t.Context(), c.by, mustUUID(t, c.o.ID)); !errors.Is(err, c.want) {
+		if _, err := r.service.Publish(reading(t.Context()), c.by, mustUUID(t, c.o.ID)); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)
 		}
 	}
@@ -267,7 +268,7 @@ func TestAPanelThatFailsToFreezeRefusesThePublishAndWritesNothing(t *testing.T) 
 	r.addTitledPanel(t, editor, o, "Broken")
 	f.failTitle, f.err = "Broken", queryproxy.ErrUpstreamBusy
 
-	_, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID))
+	_, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID))
 	var failed *observations.PanelFailedError
 	if !errors.As(err, &failed) {
 		t.Fatalf("publish: %v", err)
@@ -281,7 +282,7 @@ func TestAPanelThatFailsToFreezeRefusesThePublishAndWritesNothing(t *testing.T) 
 	}
 
 	f.err = errors.New("driver exploded with secret text")
-	_, err = r.service.Publish(t.Context(), editor, mustUUID(t, o.ID))
+	_, err = r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if !errors.As(err, &failed) {
 		t.Fatalf("publish: %v", err)
 	}
@@ -295,7 +296,7 @@ func TestFrozenDataOverTwoMebibytesRefusesThePublish(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	r.addTitledPanel(t, editor, o, "Big")
 	f.data = json.RawMessage(`{"frames":[],"pad":"` + strings.Repeat("x", observations.MaxSnapshotBytes) + `"}`)
-	_, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID))
+	_, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if !errors.Is(err, observations.ErrSnapshotTooLarge) {
 		t.Errorf("publish: %v", err)
 	}
@@ -332,12 +333,12 @@ func TestABlockEditedWhileFreezingRefusesThePublish(t *testing.T) {
 	var once sync.Once
 	f.onFreeze = func() {
 		once.Do(func() {
-			if _, err := r.service.UpdateBlock(context.WithoutCancel(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: text.Version, Body: textBody("after")}); err != nil {
+			if _, err := r.service.UpdateBlock(context.WithoutCancel(reading(t.Context())), editor, mustUUID(t, text.ID), observations.BlockChange{Version: text.Version, Body: textBody("after")}); err != nil {
 				t.Error(err)
 			}
 		})
 	}
-	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
+	if _, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
 		t.Fatalf("publish: %v", err)
 	}
 	if rcas, snaps := r.count(t, `SELECT count(*) FROM observation_rcas`), r.count(t, `SELECT count(*) FROM snapshots`); rcas != 0 || snaps != 0 {
@@ -358,12 +359,12 @@ func TestARangeEditedWhileFreezingRefusesThePublish(t *testing.T) {
 		once.Do(func() {
 			from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 			to := from.Add(time.Hour)
-			if _, err := r.service.Update(context.WithoutCancel(t.Context()), editor, mustUUID(t, o.ID), observations.UpdateInput{From: &from, To: &to}); err != nil {
+			if _, err := r.service.Update(context.WithoutCancel(reading(t.Context())), editor, mustUUID(t, o.ID), observations.UpdateInput{From: &from, To: &to}); err != nil {
 				t.Error(err)
 			}
 		})
 	}
-	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
+	if _, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
 		t.Fatalf("publish: %v", err)
 	}
 	if rcas := r.count(t, `SELECT count(*) FROM observation_rcas`); rcas != 0 {
@@ -379,12 +380,12 @@ func TestATitleEditedWhileFreezingRefusesThePublish(t *testing.T) {
 	f.onFreeze = func() {
 		once.Do(func() {
 			title := "Renamed"
-			if _, err := r.service.Update(context.WithoutCancel(t.Context()), editor, mustUUID(t, o.ID), observations.UpdateInput{Title: &title}); err != nil {
+			if _, err := r.service.Update(context.WithoutCancel(reading(t.Context())), editor, mustUUID(t, o.ID), observations.UpdateInput{Title: &title}); err != nil {
 				t.Error(err)
 			}
 		})
 	}
-	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
+	if _, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrObservationChanged) {
 		t.Fatalf("publish: %v", err)
 	}
 }
@@ -402,7 +403,7 @@ func TestAnObservationKeepsAtMostFiftyRevisions(t *testing.T) {
 	if got := r.publish(t, editor, o); got.Revision != 50 {
 		t.Fatalf("revision %d", got.Revision)
 	}
-	if _, err := r.service.Publish(t.Context(), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrRCALimit) {
+	if _, err := r.service.Publish(reading(t.Context()), editor, mustUUID(t, o.ID)); !errors.Is(err, observations.ErrRCALimit) {
 		t.Errorf("the 51st publish: %v", err)
 	}
 }
@@ -411,7 +412,7 @@ func TestARevisionRowCannotBeUpdated(t *testing.T) {
 	r, _ := newPublishRig(t)
 	o := r.create(t, editor, r.shared)
 	r.publish(t, editor, o)
-	_, err := r.db.SQLDB(t).ExecContext(t.Context(), `UPDATE observation_rcas SET title = 'changed'`)
+	_, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `UPDATE observation_rcas SET title = 'changed'`)
 	if err == nil || !strings.Contains(err.Error(), "cannot be changed") {
 		t.Errorf("update: %v", err)
 	}
@@ -425,14 +426,14 @@ func TestReadingARevisionNeedsViewAndAKnownRevision(t *testing.T) {
 	r.publish(t, editor, o)
 	id := mustUUID(t, o.ID)
 	for _, revision := range []int{0, 2, -1, 1 << 40} {
-		if _, err := r.service.GetRCA(t.Context(), viewer, id, revision); !errors.Is(err, observations.ErrRevisionNotFound) {
+		if _, err := r.service.GetRCA(reading(t.Context()), viewer, id, revision); !errors.Is(err, observations.ErrRevisionNotFound) {
 			t.Errorf("revision %d: %v", revision, err)
 		}
 	}
-	if _, err := r.service.GetRCA(t.Context(), otherEditor, mustUUID(t, hidden.ID), 1); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.GetRCA(reading(t.Context()), otherEditor, mustUUID(t, hidden.ID), 1); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a hidden folder's revision: %v", err)
 	}
-	if _, err := r.service.ListRCAs(t.Context(), otherEditor, mustUUID(t, hidden.ID)); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.ListRCAs(reading(t.Context()), otherEditor, mustUUID(t, hidden.ID)); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a hidden folder's list: %v", err)
 	}
 }
@@ -442,7 +443,7 @@ func TestRCASnapshotFramesAnswerOnlyForASnapshotOfThatRevision(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	panel := r.addTitledPanel(t, editor, o, "Rate")
 	first := r.publish(t, editor, o)
-	if err := r.service.RemoveBlock(t.Context(), editor, mustUUID(t, panel.ID), panel.Version, pgtype.UUID{}); err != nil {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, panel.ID), panel.Version, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	r.addText(t, editor, o, "no panel any more")
@@ -450,14 +451,14 @@ func TestRCASnapshotFramesAnswerOnlyForASnapshotOfThatRevision(t *testing.T) {
 	id := mustUUID(t, o.ID)
 	inFirst := mustUUID(t, first.Blocks[0].SnapshotID)
 
-	frames, err := r.service.RCASnapshotFrames(t.Context(), id, 1, inFirst)
+	frames, err := r.service.RCASnapshotFrames(reading(t.Context()), id, 1, inFirst)
 	if err != nil || !jsonEqual(t, frames, json.RawMessage(frozenData)) {
 		t.Errorf("frames %s, %v", frames, err)
 	}
-	if _, err := r.service.RCASnapshotFrames(t.Context(), id, 2, inFirst); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.RCASnapshotFrames(reading(t.Context()), id, 2, inFirst); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a snapshot of another revision: %v", err)
 	}
-	if _, err := r.service.RCASnapshotFrames(t.Context(), id, 3, inFirst); !errors.Is(err, observations.ErrRevisionNotFound) {
+	if _, err := r.service.RCASnapshotFrames(reading(t.Context()), id, 3, inFirst); !errors.Is(err, observations.ErrRevisionNotFound) {
 		t.Errorf("an unknown revision: %v", err)
 	}
 	if len(second.Blocks) != 1 {
@@ -478,7 +479,7 @@ func newRCADocumented(t *testing.T) rcaDocumented {
 	gin.SetMode(gin.TestMode)
 	d.engine = gin.New()
 	api := auth.NewRoutes(d.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), d.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), d.who), datasource.Access{By: d.who}))
 	}))
 	observations.NewHandler(d.service, slog.New(slog.DiscardHandler)).Register(api)
 	observations.NewRCAHandler(d.service, slog.New(slog.DiscardHandler)).Register(api)
@@ -655,13 +656,13 @@ func TestRCAHTTPAnObservationEditedWhileFreezingAnswers409(t *testing.T) {
 	d := newRCADocumented(t)
 	id := d.newObservation(t, editor, d.shared.String(), `,"first_block":{"kind":"text","body":{"markdown":"before"}}`).Observation.ID
 	d.send(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/blocks", `{"kind":"panel","body":`+string(titledPanel("Rate"))+`}`, http.StatusCreated)
-	page, err := d.service.Get(t.Context(), editor, mustUUID(t, id))
+	page, err := d.service.Get(reading(t.Context()), editor, mustUUID(t, id))
 	if err != nil {
 		t.Fatal(err)
 	}
 	first := page.Blocks[0]
 	d.freezer.onFreeze = func() {
-		_, _ = d.service.UpdateBlock(context.WithoutCancel(t.Context()), editor, mustUUID(t, first.ID), observations.BlockChange{Version: first.Version, Body: textBody("after")})
+		_, _ = d.service.UpdateBlock(context.WithoutCancel(reading(t.Context())), editor, mustUUID(t, first.ID), observations.BlockChange{Version: first.Version, Body: textBody("after")})
 	}
 	rec := d.call(t, editor, http.MethodPost, "/api/v1/observations/"+id+"/rcas", http.StatusConflict)
 	if got := errorCode(t, rec); got != "observation_changed" {

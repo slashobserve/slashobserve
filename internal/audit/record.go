@@ -107,6 +107,10 @@ func RecordNow(ctx context.Context, e Event) error {
 	return current().RecordNow(ctx, e)
 }
 
+func Dropped(reason string) {
+	current().metrics.EventsDropped(reason, 1)
+}
+
 func (r *Recorder) Record(ctx context.Context, q *dbsqlc.Queries, e Event) error {
 	row, err := r.row(ctx, e)
 	if err != nil {
@@ -125,15 +129,11 @@ func (r *Recorder) RecordNow(ctx context.Context, e Event) error {
 	if r.db == nil {
 		return ErrNotInstalled
 	}
-	spec, ok := Lookup(e.Action)
-	if !ok {
-		return fmt.Errorf("%w: %q", ErrUnknownAction, e.Action)
-	}
 	row, err := r.row(ctx, e)
 	if err != nil {
 		return err
 	}
-	if spec.Class == ClassAccess {
+	if batched(e.Action, Outcome(row.Outcome)) {
 		r.writer.enqueue(row)
 	} else if err := r.insertNow(ctx, row); err != nil {
 		return err

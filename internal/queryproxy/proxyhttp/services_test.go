@@ -56,7 +56,7 @@ func servicesRouter(t *testing.T, source *servicesSource, role auth.Role, opts .
 	api := router.Group("/api/v1")
 	if role != "" {
 		api.Use(func(c *gin.Context) {
-			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "alice", Role: role}))
+			signIn(c, auth.Principal{Kind: auth.KindUser, ID: "alice", Role: role})
 		})
 	}
 	h.Register(auth.NewRoutes(api))

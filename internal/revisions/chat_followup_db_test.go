@@ -43,7 +43,7 @@ func claimedContext(t *testing.T, svc *revisions.Service, id pgtype.UUID) string
 
 func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "which logs exist")
 	if err != nil {
 		t.Fatal(err)
@@ -82,11 +82,11 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 
 func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
-	first, err := svc.SubmitObserve(context.Background(), user, "mine")
+	first, err := svc.SubmitObserve(reading(context.Background()), user, "mine")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := followUp(context.Background(), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
+	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
 		t.Fatalf("err = %v, want not found", err)
 	}
 }
@@ -94,11 +94,11 @@ func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "revise", user)
+	row, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "revise", user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := followUp(context.Background(), svc, user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
+	if _, err := followUp(reading(context.Background()), svc, user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
 		t.Fatalf("err = %v, want ErrFollowsDashboard", err)
 	}
 }
@@ -106,12 +106,12 @@ func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
 func TestDashboardFollowUpCarriesTheEarlierTurnsOnThatDashboard(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	first, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "add a latency panel", user)
+	first, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "add a latency panel", user)
 	if err != nil {
 		t.Fatal(err)
 	}
 	answerWith(t, d, first.ID, "Latency is already covered")
-	second, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "and errors", user)
+	second, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "and errors", user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestDashboardFollowUpCarriesTheEarlierTurnsOnThatDashboard(t *testing.T) {
 
 func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "one")
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
 
 func TestCreateObserveWithFollowsIDReportsTheChat(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
-	first, err := svc.SubmitObserve(context.Background(), user, "one")
+	first, err := svc.SubmitObserve(reading(context.Background()), user, "one")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestCreateObserveRejectsAMalformedOrConflictingFollowsID(t *testing.T) {
 
 func TestRetryKeepsTheChat(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "one")
 	if err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ func TestRetryKeepsTheChat(t *testing.T) {
 
 func TestRetryOfAStoppedFirstRequestStaysInItsChat(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	first, err := svc.SubmitObserve(ctx, user, "one")
 	if err != nil {
 		t.Fatal(err)
@@ -243,7 +243,7 @@ func TestRetryOfAStoppedFirstRequestStaysInItsChat(t *testing.T) {
 
 func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	dash := seedDashboard(t, d, 1)
 	first, err := svc.SubmitFollowUp(ctx, dash, nil, "", "payments p95", user)
 	if err != nil {

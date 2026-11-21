@@ -350,7 +350,11 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 		if email == "" {
 			email = principal + "@example.com"
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal, Role: auth.RoleAdmin}))
+		role := auth.Role(c.GetHeader("X-Role"))
+		if role == "" {
+			role = auth.RoleAdmin
+		}
+		signIn(c, auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal, Role: role})
 	})
 	h.Register(auth.NewRoutes(api))
 	return &harness{t: t, access: access, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}

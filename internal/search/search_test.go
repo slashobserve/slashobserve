@@ -117,7 +117,7 @@ func TestSearchRanksTitlesAboveBodiesAndNewerAboveOlder(t *testing.T) {
 		r := newRig(t)
 		r.finding(t, findingIn{title: "kestrel", markdown: "nest"})
 		var rank float64
-		err := r.db.SQLDB(t).QueryRowContext(t.Context(),
+		err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()),
 			`SELECT ts_rank_cd(observation_search_vector(title, summary), search_query('kest', 'kest'), 1) FROM observations`).Scan(&rank)
 		if err != nil || rank <= 0 {
 			t.Fatalf("rank %v, %v", rank, err)
@@ -226,14 +226,14 @@ func TestSearchPagesAreDisjointOrderedAndStopAtTheCap(t *testing.T) {
 SELECT now(), 'meerkat ' || n, now() - make_interval(mins => n) FROM generate_series(1, 230) n`)
 
 	t.Run("the pages add up to the first big page", func(t *testing.T) {
-		big, err := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 50})
+		big, err := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 50})
 		if err != nil {
 			t.Fatal(err)
 		}
 		var small []Result
 		cursor := ""
 		for len(small) < 49 {
-			page, err := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 7, Cursor: cursor})
+			page, err := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 7, Cursor: cursor})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -248,13 +248,13 @@ SELECT now(), 'meerkat ' || n, now() - make_interval(mins => n) FROM generate_se
 	})
 
 	t.Run("the same cursor gives the same page", func(t *testing.T) {
-		first, err := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 5})
+		first, err := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 5})
 		if err != nil || first.Next == "" {
 			t.Fatalf("%v, next %q", err, first.Next)
 		}
 		r.db.Exec(t, `INSERT INTO annotations (time_from, text) VALUES (now(), 'meerkat newest')`)
-		a, _ := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 5, Cursor: first.Next})
-		b, _ := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 5, Cursor: first.Next})
+		a, _ := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 5, Cursor: first.Next})
+		b, _ := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 5, Cursor: first.Next})
 		if !slices.Equal(titles(a.Results), titles(b.Results)) || len(a.Results) != 5 {
 			t.Fatalf("pages differ: %v and %v", titles(a.Results), titles(b.Results))
 		}
@@ -265,7 +265,7 @@ SELECT now(), 'meerkat ' || n, now() - make_interval(mins => n) FROM generate_se
 		cursor := ""
 		pages := 0
 		for {
-			page, err := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: MaxLimit, Cursor: cursor})
+			page, err := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: MaxLimit, Cursor: cursor})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -287,14 +287,14 @@ SELECT now(), 'meerkat ' || n, now() - make_interval(mins => n) FROM generate_se
 	})
 
 	t.Run("a page that would cross the cap is cut at it", func(t *testing.T) {
-		first, err := r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 50})
+		first, err := r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 50})
 		if err != nil {
 			t.Fatal(err)
 		}
 		cursor := first.Next
 		var last Page
 		for range 3 {
-			if last, err = r.service.Search(t.Context(), admin, Request{Q: "meerkat", Limit: 50, Cursor: cursor}); err != nil {
+			if last, err = r.service.Search(reading(t.Context()), admin, Request{Q: "meerkat", Limit: 50, Cursor: cursor}); err != nil {
 				t.Fatal(err)
 			}
 			cursor = last.Next
@@ -308,10 +308,10 @@ SELECT now(), 'meerkat ' || n, now() - make_interval(mins => n) FROM generate_se
 func TestSearchRejectsBadInput(t *testing.T) {
 	r := newRig(t)
 	var invalid *InvalidQueryError
-	if _, err := r.service.Search(t.Context(), admin, Request{Q: "--"}); !errors.As(err, &invalid) {
+	if _, err := r.service.Search(reading(t.Context()), admin, Request{Q: "--"}); !errors.As(err, &invalid) {
 		t.Errorf("a query with no word: %v", err)
 	}
-	if _, err := r.service.Search(t.Context(), admin, Request{Q: "zebra", Cursor: "garbage"}); !errors.Is(err, ErrInvalidCursor) {
+	if _, err := r.service.Search(reading(t.Context()), admin, Request{Q: "zebra", Cursor: "garbage"}); !errors.Is(err, ErrInvalidCursor) {
 		t.Errorf("a bad cursor: %v", err)
 	}
 }

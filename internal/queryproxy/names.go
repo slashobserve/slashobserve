@@ -96,7 +96,7 @@ func (r *Runner) Names(ctx context.Context, req NamesRequest) (Names, error) {
 	if err != nil {
 		return Names{}, err
 	}
-	inst, err := r.instance(req.Datasource)
+	inst, err := r.instance(ctx, req.Datasource)
 	if err != nil {
 		return Names{}, err
 	}

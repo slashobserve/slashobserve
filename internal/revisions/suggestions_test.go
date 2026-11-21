@@ -52,7 +52,7 @@ func newSuggestService(t *testing.T, reviser revisions.Reviser) (*revisions.Serv
 
 func suggestFor(t *testing.T, svc *revisions.Service, dash pgtype.UUID, who auth.Principal) dbsqlc.AgentRequest {
 	t.Helper()
-	row, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "make it better", nil, who)
+	row, err := svc.SubmitSuggestion(reading(context.Background()), dash, 1, "p1", "make it better", nil, who)
 	if err != nil {
 		t.Fatalf("suggest: %v", err)
 	}
@@ -61,7 +61,7 @@ func suggestFor(t *testing.T, svc *revisions.Service, dash pgtype.UUID, who auth
 
 func getSuggestion(t *testing.T, svc *revisions.Service, dash pgtype.UUID, id pgtype.UUID, who auth.Principal) dbsqlc.AgentRequest {
 	t.Helper()
-	row, err := svc.GetSuggestion(context.Background(), dash, id, who)
+	row, err := svc.GetSuggestion(reading(context.Background()), dash, id, who)
 	if err != nil {
 		t.Fatalf("get suggestion: %v", err)
 	}
@@ -154,11 +154,11 @@ func TestSuggestionsDoNotCountTowardTheDashboardRevisionCap(t *testing.T) {
 	for i := range revisions.MaxActive {
 		submit(t, svc, dash, fmt.Sprintf("p%d", i))
 	}
-	_, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth revision: %v", err)
 	}
-	items, _, err := svc.List(context.Background(), dash, 100, "")
+	items, _, err := svc.List(reading(context.Background()), dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("revisions list holds %d items, err %v; suggestions must stay out of it", len(items), err)
 	}
@@ -170,7 +170,7 @@ func TestSuggestionsAreCappedPerPrincipalAndPerInstance(t *testing.T) {
 	for range revisions.MaxActiveSuggestPerPrincipal {
 		suggestFor(t, svc, dash, user)
 	}
-	_, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "third", nil, user)
+	_, err := svc.SubmitSuggestion(reading(context.Background()), dash, 1, "p1", "third", nil, user)
 	if !errors.Is(err, revisions.ErrTooManySuggestions) {
 		t.Fatalf("third suggestion of one principal: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestSuggestionsAreCappedPerPrincipalAndPerInstance(t *testing.T) {
 			suggestFor(t, svc, dash, principalN(i))
 		}
 	}
-	_, err = svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "eleventh", nil, principalN(99))
+	_, err = svc.SubmitSuggestion(reading(context.Background()), dash, 1, "p1", "eleventh", nil, principalN(99))
 	if !errors.Is(err, revisions.ErrAgentBusy) {
 		t.Fatalf("eleventh suggestion of the instance: %v", err)
 	}
@@ -263,11 +263,11 @@ func TestSuggestionIsNotVisibleToAnotherPrincipalWithTheSameIdAndADifferentKind(
 
 	getSuggestion(t, svc, dash, sug.ID, user)
 	for name, who := range map[string]auth.Principal{"same id, other kind": lookalike, "other id, same kind": {Kind: auth.KindUser, ID: strangerID}} {
-		if _, err := svc.GetSuggestion(context.Background(), dash, sug.ID, who); !errors.Is(err, revisions.ErrRequestNotFound) {
+		if _, err := svc.GetSuggestion(reading(context.Background()), dash, sug.ID, who); !errors.Is(err, revisions.ErrRequestNotFound) {
 			t.Errorf("%s: err = %v, want ErrRequestNotFound", name, err)
 		}
 	}
-	if _, err := svc.GetSuggestion(context.Background(), other, sug.ID, user); !errors.Is(err, revisions.ErrRequestNotFound) {
+	if _, err := svc.GetSuggestion(reading(context.Background()), other, sug.ID, user); !errors.Is(err, revisions.ErrRequestNotFound) {
 		t.Errorf("another dashboard: err = %v, want ErrRequestNotFound", err)
 	}
 }
@@ -355,7 +355,7 @@ func TestDraftIsMeasuredAsCompactJSONAgainstTheSuggestedPanelLimit(t *testing.T)
 	}
 	dash := seedDashboard(t, d, 1)
 	submitDraft := func(draft json.RawMessage) error {
-		_, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "make it better", draft, user)
+		_, err := svc.SubmitSuggestion(reading(context.Background()), dash, 1, "p1", "make it better", draft, user)
 		return err
 	}
 
@@ -375,7 +375,7 @@ func TestDraftOverTheRawBodyGuardIsRefusedWithItsOwnMessage(t *testing.T) {
 	svc, d := newSuggestService(t, proposing(suggestedPanel))
 	dash := seedDashboard(t, d, 1)
 	draft := []byte(`{"id":"p1","pad":"` + strings.Repeat("a", revisions.MaxDraftBytes) + `"}`)
-	_, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "make it better", draft, user)
+	_, err := svc.SubmitSuggestion(reading(context.Background()), dash, 1, "p1", "make it better", draft, user)
 	if !errors.Is(err, revisions.ErrDraftTooLarge) || strings.Contains(err.Error(), "compact") {
 		t.Fatalf("err = %v, want ErrDraftTooLarge without the compact JSON wording", err)
 	}

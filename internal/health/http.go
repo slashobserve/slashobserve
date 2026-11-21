@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -32,7 +33,7 @@ const (
 )
 
 type Jobs interface {
-	RunNow(ctx context.Context, name string) error
+	RunNow(ctx context.Context, name string, by *audit.By) error
 }
 
 type Handler struct {
@@ -286,23 +287,43 @@ func distinctIDs(ids []pgtype.UUID) []pgtype.UUID {
 }
 
 func (h *Handler) run(c *gin.Context) {
-	h.StartRun()
+	h.StartRun(c.Request.Context())
 	c.Status(http.StatusAccepted)
 }
 
-func (h *Handler) StartRun() {
+func (h *Handler) StartRun(ctx context.Context) {
+	var by *audit.By
+	if scope, ok := audit.ScopeOf(ctx); ok {
+		by = &audit.By{Actor: scope.Actor, Origin: scope.Origin}
+	}
 	h.runs.Add(1)
 	go func() {
 		defer h.runs.Done()
-		err := h.jobs.RunNow(h.life, h.svc.job)
+		err := h.jobs.RunNow(h.life, h.svc.job, by)
 		switch {
 		case err == nil, h.life.Err() != nil:
 		case errors.Is(err, scheduler.ErrJobLeased):
 			h.logger.InfoContext(h.life, "dashboard health run is already running")
+			h.recordNotStarted(by, audit.OutcomeDenied, "already_running")
 		default:
 			h.logger.WarnContext(h.life, "start a dashboard health run", logattrs.Failure("health_run_failed", err)...)
+			h.recordNotStarted(by, audit.OutcomeFailed, "start_failed")
 		}
 	}()
+}
+
+func (h *Handler) recordNotStarted(by *audit.By, outcome audit.Outcome, reason string) {
+	err := audit.RecordNow(h.life, audit.Event{
+		Action:  "job.run",
+		Outcome: outcome,
+		Reason:  reason,
+		Target:  audit.Target{Kind: "job", ID: h.svc.job},
+		By:      by,
+		Data:    map[string]any{"trigger": "manual"},
+	})
+	if err != nil {
+		h.logger.WarnContext(h.life, "record dashboard health run audit event", logattrs.Failure("audit_record_failed", err)...)
+	}
 }
 
 func (h *Handler) view(c *gin.Context) {

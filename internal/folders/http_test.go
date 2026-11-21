@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
@@ -27,12 +28,24 @@ func newFolder(t *testing.T, d *dbtest.Database, title string) string {
 func adminEngine(t *testing.T, d *dbtest.Database) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
+	return adminEngineWith(t, d, NewHandler(d.DB, NewAccess(d.DB), slog.New(slog.DiscardHandler)))
+}
+
+var testAdmin = auth.Principal{Kind: auth.KindServiceAccount, ID: "00000000-0000-4000-8000-0000000000aa", Name: "root", Role: auth.RoleAdmin}
+
+func adminEngineWith(t *testing.T, d *dbtest.Database, h *Handler) *gin.Engine {
+	t.Helper()
+	recorded, err := audit.New(audit.Config{DB: d.DB}).Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
 	engine := gin.New()
-	admin := auth.Principal{Kind: auth.KindServiceAccount, ID: "00000000-0000-4000-8000-0000000000aa", Name: "root", Role: auth.RoleAdmin}
-	api := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), admin))
+	api := engine.Group("/api/v1", recorded, func(c *gin.Context) {
+		ctx := auth.WithPrincipal(c.Request.Context(), testAdmin)
+		audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(testAdmin) })
+		c.Request = c.Request.WithContext(ctx)
 	})
-	NewHandler(d.DB, NewAccess(d.DB), slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
+	h.Register(auth.NewRoutes(api))
 	return engine
 }
 

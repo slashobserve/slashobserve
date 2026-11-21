@@ -15,7 +15,7 @@ func (r *rig) runFor(t *testing.T, dash pgtype.UUID, comment Comment, resultVers
 	if comment.Revision == nil {
 		t.Fatal("the comment queued no revision")
 	}
-	row, err := r.db.Queries().GetAgentRequest(t.Context(), dbsqlc.GetAgentRequestParams{ID: mustParse(t, comment.Revision.ID), DashboardID: dash})
+	row, err := r.db.Queries().GetAgentRequest(reading(t.Context()), dbsqlc.GetAgentRequestParams{ID: mustParse(t, comment.Revision.ID), DashboardID: dash})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,14 +26,14 @@ func (r *rig) runFor(t *testing.T, dash pgtype.UUID, comment Comment, resultVers
 
 func (r *rig) resolveForRun(t *testing.T, run dbsqlc.AgentRequest) error {
 	t.Helper()
-	return r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(t.Context(), q, run)
+	return r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
 	})
 }
 
 func (r *rig) threadRow(t *testing.T, id string) dbsqlc.Thread {
 	t.Helper()
-	row, err := r.db.Queries().GetThread(t.Context(), mustParse(t, id))
+	row, err := r.db.Queries().GetThread(reading(t.Context()), mustParse(t, id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestRunResolvesItsThreadAsTheRequester(t *testing.T) {
 	if row.Status != StatusResolved || row.ResolvedByName.String != "Ada" || row.ResolvedRunID != run.ID || row.ResolvedByVersion.Int32 != 2 {
 		t.Fatalf("thread = %+v", row)
 	}
-	listed, _, err := r.comments.List(t.Context(), testUser, dash, StatusResolved, "", 10, "")
+	listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusResolved, "", 10, "")
 	if err != nil || len(listed) != 2 || listed[0].ResolvedBy == nil || listed[0].ResolvedBy.Name != "Ada" {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
@@ -65,7 +65,7 @@ func TestRunResolvesItsThreadAsTheRequester(t *testing.T) {
 
 	var runID, actorName string
 	var data []byte
-	err = r.db.SQLDB(t).QueryRowContext(t.Context(),
+	err = r.db.SQLDB(t).QueryRowContext(reading(t.Context()),
 		`SELECT coalesce(run_id::text, ''), actor_name, data::text FROM activity WHERE type = 'thread.resolved' AND target_id = $1`, comment.ID,
 	).Scan(&runID, &actorName, &data)
 	if err != nil {
@@ -84,7 +84,7 @@ func TestRunLeavesAResolvedThreadAlone(t *testing.T) {
 	dash := r.createDashboard(t)
 	r.addVersion(t, dash, 1)
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
-	if _, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), StatusResolved, new(1)); err != nil {
+	if _, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, comment.ID), StatusResolved, new(1)); err != nil {
 		t.Fatal(err)
 	}
 	before := r.threadRow(t, comment.ID)
@@ -129,7 +129,7 @@ func TestRunSkipsAThreadOfADeletedDashboard(t *testing.T) {
 	r.addVersion(t, dash, 1)
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
 	run := r.runFor(t, dash, comment, 2)
-	if err := r.dashboards.Delete(t.Context(), testUser, dash); err != nil {
+	if err := r.dashboards.Delete(reading(t.Context()), testUser, dash); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,14 +146,14 @@ func TestRunLooksUpTheThreadOfAReplyOnItsOwnDashboard(t *testing.T) {
 	reply := r.createComment(t, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "reply"})
 	runs := NewRuns(r.db.DB)
 
-	thread, panel, err := runs.ForRun(t.Context(), dash, mustParse(t, reply.ID))
+	thread, panel, err := runs.ForRun(reading(t.Context()), dash, mustParse(t, reply.ID))
 	if err != nil || thread.String() != root.ID || panel != "errors" {
 		t.Fatalf("thread %s panel %q err %v, want root %s on errors", thread, panel, err, root.ID)
 	}
-	if _, _, err := runs.ForRun(t.Context(), other, mustParse(t, reply.ID)); !errors.Is(err, revisions.ErrCommentNotFound) {
+	if _, _, err := runs.ForRun(reading(t.Context()), other, mustParse(t, reply.ID)); !errors.Is(err, revisions.ErrCommentNotFound) {
 		t.Fatalf("other dashboard err = %v, want ErrCommentNotFound", err)
 	}
-	if _, _, err := runs.ForRun(t.Context(), dash, mustParse(t, "99999999-9999-4999-8999-999999999999")); !errors.Is(err, revisions.ErrCommentNotFound) {
+	if _, _, err := runs.ForRun(reading(t.Context()), dash, mustParse(t, "99999999-9999-4999-8999-999999999999")); !errors.Is(err, revisions.ErrCommentNotFound) {
 		t.Fatalf("unknown comment err = %v, want ErrCommentNotFound", err)
 	}
 }

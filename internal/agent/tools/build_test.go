@@ -1434,7 +1434,9 @@ func TestLayoutOutShowsTheOpenEndOfTheRow(t *testing.T) {
 
 func TestAFinishSaveByARequesterWhoCannotEditAnswersProposedAndSavesNoVersion(t *testing.T) {
 	for name, ctx := range map[string]func(*panelsRig) context.Context{
-		"a commenter":          func(*panelsRig) context.Context { return auth.WithPrincipal(context.Background(), commenterCaller) },
+		"a commenter": func(*panelsRig) context.Context {
+			return auth.WithPrincipal(reading(context.Background()), commenterCaller)
+		},
 		"an editor in propose": func(r *panelsRig) context.Context { return grantmode.With(r.ctx, grantmode.Propose) },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -1492,7 +1494,7 @@ func (r *panelsRig) folderOfSaved(t *testing.T, res Result) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	folder, err := r.database.Queries().DashboardFolder(t.Context(), id)
+	folder, err := r.database.Queries().DashboardFolder(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1501,7 +1503,7 @@ func (r *panelsRig) folderOfSaved(t *testing.T, res Result) string {
 
 func TestABuildPlacesTheDashboardInTheFolderTheFirstSaveNamedAndOnlyThere(t *testing.T) {
 	rig := newPanelsRig(t)
-	named, err := rig.database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Ops"})
+	named, err := rig.database.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Ops"})
 	if err != nil {
 		t.Fatal(err)
 	}

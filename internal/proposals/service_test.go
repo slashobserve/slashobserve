@@ -45,7 +45,7 @@ func TestACommenterOpensAProposalAndItWritesNoVersion(t *testing.T) {
 		t.Fatalf("event data = %v", data)
 	}
 
-	p, err := r.service.Get(t.Context(), commenter, proposalID(t, ref))
+	p, err := r.service.Get(reading(t.Context()), commenter, proposalID(t, ref))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestAViewerCannotPropose(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 
-	_, err := r.save(t.Context(), viewer, id, 1, changed)
+	_, err := r.save(reading(t.Context()), viewer, id, 1, changed)
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("err = %v, want forbidden", err)
 	}
@@ -87,7 +87,7 @@ func TestACommenterWithoutProposeIfNeededIsRefused(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 
-	_, err := r.dashboards.Save(t.Context(), commenter, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: specOf("t", changed), Summary: "mine"})
+	_, err := r.dashboards.Save(reading(t.Context()), commenter, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: specOf("t", changed), Summary: "mine"})
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("err = %v, want forbidden", err)
 	}
@@ -100,7 +100,7 @@ func TestAProposalOnAHiddenFolderIsNotFound(t *testing.T) {
 	hidden := r.hiddenFolder(t)
 	r.moveInto(t, id, hidden)
 
-	_, err := r.service.Get(t.Context(), outsider, proposalID(t, ref))
+	_, err := r.service.Get(reading(t.Context()), outsider, proposalID(t, ref))
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want not found", err)
 	}
@@ -120,7 +120,7 @@ func TestASecondSaveByTheSameAuthorAddsARevision(t *testing.T) {
 		t.Fatalf("activity = %v", got)
 	}
 
-	p, err := r.service.Get(t.Context(), commenter, proposalID(t, first))
+	p, err := r.service.Get(reading(t.Context()), commenter, proposalID(t, first))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestASecondSaveByTheSameAuthorAddsARevision(t *testing.T) {
 			t.Fatalf("panel %s of the head = %+v, want query %q", want.id, found, want.query)
 		}
 	}
-	page, err := r.service.List(t.Context(), commenter, ListQuery{DashboardID: id})
+	page, err := r.service.List(reading(t.Context()), commenter, ListQuery{DashboardID: id})
 	if err != nil || len(page.Items) != 1 {
 		t.Fatalf("list = %+v, %v, want one open proposal", page, err)
 	}
@@ -144,7 +144,7 @@ func TestAProposalTitleFollowsItsNewestSummary(t *testing.T) {
 	id := r.createDashboard(t, steady, second)
 	first := r.propose(t, commenter, id, 1, changed, second)
 
-	_, err := r.dashboards.Save(t.Context(), commenter, dashboards.SaveInput{
+	_, err := r.dashboards.Save(reading(t.Context()), commenter, dashboards.SaveInput{
 		DashboardID:     id,
 		Parent:          1,
 		Spec:            specOf("t", changed, panel{id: "b", query: "node_load1"}),
@@ -154,7 +154,7 @@ func TestAProposalTitleFollowsItsNewestSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := r.service.Get(t.Context(), commenter, proposalID(t, first))
+	p, err := r.service.Get(reading(t.Context()), commenter, proposalID(t, first))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestAnotherCommenterOpensASeparateProposal(t *testing.T) {
 	if !other.Opened || other.ID == first.ID {
 		t.Fatalf("ref = %+v, want a new proposal", other)
 	}
-	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id})
+	page, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id})
 	if err != nil || len(page.Items) != 2 {
 		t.Fatalf("list = %+v, %v, want two", page, err)
 	}
@@ -189,7 +189,7 @@ func TestConcurrentSavesByOneAuthorFoldIntoOneProposal(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := r.save(t.Context(), commenter, id, 1, changed, panel{id: "b", query: "q" + strconv.Itoa(i)})
+			res, err := r.save(reading(t.Context()), commenter, id, 1, changed, panel{id: "b", query: "q" + strconv.Itoa(i)})
 			errs[i] = err
 			if res.Proposal != nil {
 				refs[i] = *res.Proposal
@@ -202,7 +202,7 @@ func TestConcurrentSavesByOneAuthorFoldIntoOneProposal(t *testing.T) {
 			t.Fatalf("save %d: %v", i, err)
 		}
 	}
-	page, err := r.service.List(t.Context(), commenter, ListQuery{DashboardID: id})
+	page, err := r.service.List(reading(t.Context()), commenter, ListQuery{DashboardID: id})
 	if err != nil || len(page.Items) != 1 {
 		t.Fatalf("list = %+v, %v, want one proposal", page, err)
 	}
@@ -229,7 +229,7 @@ func TestConcurrentSavesByTwoAuthorsOpenOneProposalEach(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, errs[i] = r.save(t.Context(), authors[i%len(authors)], id, 1, changed, panel{id: "b", query: "q" + strconv.Itoa(i)})
+			_, errs[i] = r.save(reading(t.Context()), authors[i%len(authors)], id, 1, changed, panel{id: "b", query: "q" + strconv.Itoa(i)})
 		}()
 	}
 	wg.Wait()
@@ -238,7 +238,7 @@ func TestConcurrentSavesByTwoAuthorsOpenOneProposalEach(t *testing.T) {
 			t.Fatalf("save %d: %v", i, err)
 		}
 	}
-	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id})
+	page, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id})
 	if err != nil || len(page.Items) != len(authors) {
 		t.Fatalf("list = %+v, %v, want one proposal per author", page, err)
 	}
@@ -255,7 +255,7 @@ func TestAProposalBehindTheDashboardReportsItsConflicts(t *testing.T) {
 	ref := r.propose(t, commenter, id, 1, changed, second)
 	r.addVersion(t, id, 1, panel{id: "a", query: "node_load15"}, second)
 
-	p, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
+	p, err := r.service.Get(reading(t.Context()), editor, proposalID(t, ref))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestAnEditorMergesAProposalIntoTheNextVersion(t *testing.T) {
 	ref := r.propose(t, commenter, id, 1, changed, second)
 	r.addVersion(t, id, 1, steady, panel{id: "b", query: "node_load1"})
 
-	merged, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+	merged, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestAnEditorMergesAProposalIntoTheNextVersion(t *testing.T) {
 	if got := r.latest(t, id); got != 3 {
 		t.Fatalf("latest = %d, want 3", got)
 	}
-	_, latest, err := r.dashboards.Get(t.Context(), id)
+	_, latest, err := r.dashboards.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +322,7 @@ func TestMergeNamesTheRevisionTheCallerRead(t *testing.T) {
 	ref := r.propose(t, commenter, id, 1, changed, second)
 	r.propose(t, commenter, id, 1, changed, panel{id: "b", query: "node_load1"})
 
-	_, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+	_, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	var stale *ChangedError
 	if !errors.As(err, &stale) || stale.Revision != 2 {
 		t.Fatalf("err = %v, want a changed error at revision 2", err)
@@ -336,16 +336,16 @@ func TestMergingAClosedProposalIsAnInvalidTransition(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
-	if _, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil); err != nil {
+	if _, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+	_, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	var refusal *lifecycle.Refusal
 	if !errors.Is(err, lifecycle.ErrInvalidTransition) || !errors.As(err, &refusal) || refusal.State != string(StateMerged) {
 		t.Fatalf("err = %v, want an invalid transition from merged", err)
 	}
-	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), ""); !errors.Is(err, lifecycle.ErrInvalidTransition) {
+	if _, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), ""); !errors.Is(err, lifecycle.ErrInvalidTransition) {
 		t.Fatalf("discard err = %v, want an invalid transition", err)
 	}
 }
@@ -356,25 +356,25 @@ func TestMergeNeedsAChoiceForEachConflict(t *testing.T) {
 	ref := r.propose(t, commenter, id, 1, changed, second)
 	r.addVersion(t, id, 1, panel{id: "a", query: "node_load15"}, second)
 
-	_, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+	_, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	var conflict *dashboards.ConflictError
 	if !errors.As(err, &conflict) || conflict.Latest != 2 || len(conflict.Conflicts) != 1 {
 		t.Fatalf("err = %v, want a conflict at version 2", err)
 	}
-	p, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
+	p, err := r.service.Get(reading(t.Context()), editor, proposalID(t, ref))
 	if err != nil || p.State != StateOpen {
 		t.Fatalf("proposal after a refused merge = %+v, %v, want it open", p.Item, err)
 	}
 
 	choice := spec.Choice{Kind: spec.UnitPanel, ID: "a", Take: spec.SideTheirs}
-	merged, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, []spec.Choice{choice})
+	merged, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, []spec.Choice{choice})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if merged.State != StateMerged || merged.MergedVersion == nil || *merged.MergedVersion != 3 {
 		t.Fatalf("merged = %+v", merged.Item)
 	}
-	_, latest, err := r.dashboards.Get(t.Context(), id)
+	_, latest, err := r.dashboards.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,10 +390,10 @@ func TestChoosingOursKeepsTheDashboardsPanel(t *testing.T) {
 	r.addVersion(t, id, 1, panel{id: "a", query: "node_load15"}, second)
 
 	choice := spec.Choice{Kind: spec.UnitPanel, ID: "a", Take: spec.SideOurs}
-	if _, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, []spec.Choice{choice}); err != nil {
+	if _, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, []spec.Choice{choice}); err != nil {
 		t.Fatal(err)
 	}
-	_, latest, err := r.dashboards.Get(t.Context(), id)
+	_, latest, err := r.dashboards.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +411,7 @@ func TestMergeRefusesAChoiceThatNamesNoUnit(t *testing.T) {
 	r.addVersion(t, id, 1, steady, panel{id: "b", query: "node_load1"})
 
 	choice := spec.Choice{Kind: spec.UnitPanel, ID: "nope", Take: spec.SideTheirs}
-	_, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, []spec.Choice{choice})
+	_, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, []spec.Choice{choice})
 	var invalid *dashboards.InvalidInputError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want an invalid input error", err)
@@ -424,7 +424,7 @@ func TestAProposalAlreadyInTheDashboardClosesWithNoVersion(t *testing.T) {
 	ref := r.propose(t, commenter, id, 1, changed, second)
 	r.addVersion(t, id, 1, changed, second)
 
-	merged, err := r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+	merged, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,10 +444,10 @@ func TestOnlyAnEditorOutsideProposeModeMerges(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	if _, err := r.service.Merge(t.Context(), commenter, proposalID(t, ref), 1, nil); !errors.Is(err, ErrForbidden) {
+	if _, err := r.service.Merge(reading(t.Context()), commenter, proposalID(t, ref), 1, nil); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("commenter err = %v, want forbidden", err)
 	}
-	proposing := grantmode.With(t.Context(), grantmode.Propose)
+	proposing := grantmode.With(reading(t.Context()), grantmode.Propose)
 	if _, err := r.service.Merge(proposing, editor, proposalID(t, ref), 1, nil); !errors.Is(err, ErrProposeMode) {
 		t.Fatalf("propose mode err = %v, want the propose mode error", err)
 	}
@@ -459,7 +459,7 @@ func TestOnlyAnEditorOutsideProposeModeMerges(t *testing.T) {
 func TestAnEditorInProposeModeProposesInsteadOfSaving(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
-	proposing := grantmode.With(t.Context(), grantmode.Propose)
+	proposing := grantmode.With(reading(t.Context()), grantmode.Propose)
 
 	if _, err := r.dashboards.Save(proposing, editor, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: specOf("t", changed), Summary: "mine"}); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("err = %v, want forbidden without propose_if_needed", err)
@@ -478,10 +478,10 @@ func TestTheAuthorDiscardsButAnotherCommenterCannot(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	if _, err := r.service.Discard(t.Context(), otherCommenter, proposalID(t, ref), ""); !errors.Is(err, ErrForbidden) {
+	if _, err := r.service.Discard(reading(t.Context()), otherCommenter, proposalID(t, ref), ""); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("other commenter err = %v, want forbidden", err)
 	}
-	discarded, err := r.service.Discard(t.Context(), commenter, proposalID(t, ref), "")
+	discarded, err := r.service.Discard(reading(t.Context()), commenter, proposalID(t, ref), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestAnEditorDiscardsSomeoneElsesProposal(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "")
+	discarded, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), "")
 	if err != nil || discarded.State != StateDiscarded {
 		t.Fatalf("discarded = %+v, err = %v", discarded.Item, err)
 	}
@@ -513,14 +513,14 @@ func TestADiscardKeepsItsTrimmedReason(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "  Duplicate of the new panel \n")
+	discarded, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), "  Duplicate of the new panel \n")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if discarded.CloseReason == nil || *discarded.CloseReason != "Duplicate of the new panel" {
 		t.Fatalf("close reason = %v", discarded.CloseReason)
 	}
-	read, err := r.service.Get(t.Context(), commenter, proposalID(t, ref))
+	read, err := r.service.Get(reading(t.Context()), commenter, proposalID(t, ref))
 	if err != nil || read.CloseReason == nil || *read.CloseReason != "Duplicate of the new panel" {
 		t.Fatalf("read = %+v, err = %v, want the reason stored", read.Item, err)
 	}
@@ -531,7 +531,7 @@ func TestTheDiscardedEventCarriesNoReasonText(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "Paged @ola, creds are in the runbook"); err != nil {
+	if _, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), "Paged @ola, creds are in the runbook"); err != nil {
 		t.Fatal(err)
 	}
 	data := r.activityData(t, "proposal.discarded")
@@ -545,7 +545,7 @@ func TestADiscardWithoutAReasonHasNone(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	discarded, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), "   ")
+	discarded, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), "   ")
 	if err != nil || discarded.CloseReason != nil {
 		t.Fatalf("discarded = %+v, err = %v, want no reason", discarded.Item, err)
 	}
@@ -556,20 +556,20 @@ func TestADiscardReasonOverTheLimitIsRefusedAndTheProposalStaysOpen(t *testing.T
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	_, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes+1))
+	_, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes+1))
 	var invalid *dashboards.InvalidInputError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want invalid input", err)
 	}
-	_, err = r.service.Discard(t.Context(), editor, proposalID(t, ref), "a\x00b")
+	_, err = r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), "a\x00b")
 	if !errors.As(err, &invalid) {
 		t.Fatalf("NUL err = %v, want invalid input", err)
 	}
-	open, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
+	open, err := r.service.Get(reading(t.Context()), editor, proposalID(t, ref))
 	if err != nil || open.State != StateOpen {
 		t.Fatalf("proposal = %+v, err = %v, want it still open", open.Item, err)
 	}
-	if _, err := r.service.Discard(t.Context(), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes)); err != nil {
+	if _, err := r.service.Discard(reading(t.Context()), editor, proposalID(t, ref), strings.Repeat("é", maxReasonRunes)); err != nil {
 		t.Fatalf("a reason at the limit: %v", err)
 	}
 }
@@ -578,14 +578,14 @@ func TestListFiltersByState(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 	closed := r.propose(t, commenter, id, 1, changed)
-	if _, err := r.service.Discard(t.Context(), commenter, proposalID(t, closed), ""); err != nil {
+	if _, err := r.service.Discard(reading(t.Context()), commenter, proposalID(t, closed), ""); err != nil {
 		t.Fatal(err)
 	}
 	open := r.propose(t, otherCommenter, id, 1, changed)
 
 	counts := map[string]int{}
 	for _, state := range []string{"", "open", "discarded", "merged", StateFilterAll} {
-		page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: state})
+		page, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: state})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -594,15 +594,15 @@ func TestListFiltersByState(t *testing.T) {
 	if counts[""] != 1 || counts["open"] != 1 || counts["discarded"] != 1 || counts["merged"] != 0 || counts[StateFilterAll] != 2 {
 		t.Fatalf("counts = %v", counts)
 	}
-	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, Limit: 1})
+	page, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: StateFilterAll, Limit: 1})
 	if err != nil || len(page.Items) != 1 || page.NextCursor == "" || page.Items[0].ID != open.ID {
 		t.Fatalf("first page = %+v, %v, want the newest proposal and a cursor", page, err)
 	}
-	next, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, Limit: 1, Cursor: page.NextCursor})
+	next, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: StateFilterAll, Limit: 1, Cursor: page.NextCursor})
 	if err != nil || len(next.Items) != 1 || next.Items[0].ID != closed.ID || next.NextCursor != "" {
 		t.Fatalf("second page = %+v, %v", next, err)
 	}
-	if _, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: "weird"}); err == nil {
+	if _, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: "weird"}); err == nil {
 		t.Fatal("an unknown state was accepted")
 	}
 }
@@ -612,10 +612,10 @@ func TestDeletingTheDashboardDeletesItsProposals(t *testing.T) {
 	id := r.createDashboard(t, steady)
 	ref := r.propose(t, commenter, id, 1, changed)
 
-	if err := r.dashboards.Delete(t.Context(), editor, id); err != nil {
+	if err := r.dashboards.Delete(reading(t.Context()), editor, id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Get(t.Context(), editor, proposalID(t, ref)); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.Get(reading(t.Context()), editor, proposalID(t, ref)); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want not found", err)
 	}
 }
@@ -624,7 +624,7 @@ func TestAProposalOnAMissingBaseVersionIsRefused(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady)
 
-	_, err := r.save(t.Context(), commenter, id, 9, changed)
+	_, err := r.save(reading(t.Context()), commenter, id, 9, changed)
 	var invalid *dashboards.InvalidInputError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want an invalid input error", err)
@@ -637,7 +637,7 @@ func TestAProposalWhoseQueriesFailIsRefusedAndOpensNothing(t *testing.T) {
 	broken := specOf("t", panel{id: "a", query: "up"})
 	broken = append(broken[:len(broken)-2], []byte(`,{"id":"x","type":"timeseries","title":"x","gridPos":{"x":0,"y":8,"w":12,"h":8},"datasource":"missing","queries":[{"query":"up"}]}]}`)...)
 
-	_, err := r.dashboards.Save(t.Context(), commenter, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: broken, Summary: "broken", ProposeIfNeeded: true})
+	_, err := r.dashboards.Save(reading(t.Context()), commenter, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: broken, Summary: "broken", ProposeIfNeeded: true})
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want an invalid spec error", err)
@@ -658,7 +658,7 @@ func TestTwoMergesAtOnceSaveOneVersion(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, errs[i] = r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+			_, errs[i] = r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 		}()
 	}
 	wg.Wait()
@@ -694,14 +694,14 @@ func TestAMergeAndADiscardAtOnceLeaveOneOutcome(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		_, errs[0] = r.service.Merge(t.Context(), editor, proposalID(t, ref), 1, nil)
+		_, errs[0] = r.service.Merge(reading(t.Context()), editor, proposalID(t, ref), 1, nil)
 	}()
 	go func() {
 		defer wg.Done()
-		_, errs[1] = r.service.Discard(t.Context(), commenter, proposalID(t, ref), "")
+		_, errs[1] = r.service.Discard(reading(t.Context()), commenter, proposalID(t, ref), "")
 	}()
 	wg.Wait()
-	p, err := r.service.Get(t.Context(), editor, proposalID(t, ref))
+	p, err := r.service.Get(reading(t.Context()), editor, proposalID(t, ref))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -726,20 +726,20 @@ const runAttempt = 1
 
 func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgtype.UUID {
 	t.Helper()
-	queued, err := r.db.Queries().EnqueueAgentRequest(t.Context(), dbsqlc.EnqueueAgentRequestParams{
+	queued, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
 		DashboardID: dash, Source: "prompt", Prompt: "revise", BaseVersion: 1,
 		RequestedByKind: string(editor.Kind), RequestedByID: mustParse(t, editor.ID), RequestedByName: editor.Name,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{
+	claimed, err := r.db.Queries().ClaimAgentRequest(reading(t.Context()), dbsqlc.ClaimAgentRequestParams{
 		LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim),
 	})
 	if err != nil || claimed.AgentRequest.ID != queued.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.AgentRequest.ID, queued.ID, err)
 	}
-	_, err = r.dashboards.SaveBuild(t.Context(), editor, dashboards.BuildSave{
+	_, err = r.dashboards.SaveBuild(reading(t.Context()), editor, dashboards.BuildSave{
 		RequestID: queued.ID, Attempt: runAttempt, DashboardID: dash, BaseVersion: 1, Spec: specOf("t", panels...),
 	})
 	if err != nil {
@@ -751,7 +751,7 @@ func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgt
 func (r *rig) proposalsOfRun(t *testing.T, run pgtype.UUID) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM proposals WHERE run_id = $1`, run.String()).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM proposals WHERE run_id = $1`, run.String()).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -762,21 +762,21 @@ func TestARunWhoseRequesterLostEditCommitsItsBuildAsAProposalOwnedByTheRun(t *te
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	commit, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
 	if err != nil || commit.Proposal == nil || !commit.Proposal.Opened || commit.Proposal.Revision != 1 || commit.Version.Number != 0 {
 		t.Fatalf("commit = proposal %+v, version %d, err %v, want an opened proposal at revision 1", commit.Proposal, commit.Version.Number, err)
 	}
 	if r.proposalsOfRun(t, run) != 1 {
 		t.Fatal("the proposal is not owned by the run")
 	}
-	if _, found, err := r.dashboards.Build(t.Context(), run); err != nil || found {
+	if _, found, err := r.dashboards.Build(reading(t.Context()), run); err != nil || found {
 		t.Fatalf("the build survived its proposal: found = %v, err %v", found, err)
 	}
 	if got := r.latest(t, id); got != 1 {
 		t.Fatalf("latest = %d, want 1: a proposal saves no version", got)
 	}
 
-	again, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	again, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
 	if err != nil || again.Proposal == nil || again.Proposal.ID != commit.Proposal.ID || again.Proposal.Opened || again.Dashboard.ID != id.String() {
 		t.Fatalf("second commit = proposal %+v, dashboard %s, err %v, want the same proposal replayed", again.Proposal, again.Dashboard.ID, err)
 	}
@@ -789,20 +789,20 @@ func TestListCanBeNarrowedToTheProposalOfOneRun(t *testing.T) {
 	r := newRig(t)
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
-	commit, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt)
 	if err != nil || commit.Proposal == nil {
 		t.Fatalf("commit = %+v, err %v", commit, err)
 	}
 	r.propose(t, otherCommenter, id, 1, changed)
-	if _, err := r.service.Merge(t.Context(), editor, proposalID(t, *commit.Proposal), 1, nil); err != nil {
+	if _, err := r.service.Merge(reading(t.Context()), editor, proposalID(t, *commit.Proposal), 1, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	page, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: run})
+	page, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: run})
 	if err != nil || len(page.Items) != 1 || page.Items[0].ID != commit.Proposal.ID || page.Items[0].State != StateMerged {
 		t.Fatalf("page = %+v, err = %v, want only the run's merged proposal", page.Items, err)
 	}
-	none, err := r.service.List(t.Context(), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: proposalID(t, *commit.Proposal)})
+	none, err := r.service.List(reading(t.Context()), editor, ListQuery{DashboardID: id, State: StateFilterAll, RunID: proposalID(t, *commit.Proposal)})
 	if err != nil || len(none.Items) != 0 {
 		t.Fatalf("none = %+v, err = %v, want no proposal for another run", none.Items, err)
 	}
@@ -813,13 +813,13 @@ func TestALostAttemptsCommitWritesNoProposal(t *testing.T) {
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	if _, err := r.dashboards.CommitBuild(t.Context(), commenter, run, runAttempt+1); !errors.Is(err, dashboards.ErrBuildLost) {
+	if _, err := r.dashboards.CommitBuild(reading(t.Context()), commenter, run, runAttempt+1); !errors.Is(err, dashboards.ErrBuildLost) {
 		t.Fatalf("err = %v, want ErrBuildLost", err)
 	}
 	if r.proposalsOfRun(t, run) != 0 {
 		t.Fatal("a lost attempt left a proposal")
 	}
-	if _, found, err := r.dashboards.Build(t.Context(), run); err != nil || !found {
+	if _, found, err := r.dashboards.Build(reading(t.Context()), run); err != nil || !found {
 		t.Fatalf("the build was lost: found = %v, err %v", found, err)
 	}
 	if got := r.activity(t); len(got) != 0 {
@@ -832,7 +832,7 @@ func TestAnEditorsRunInProposeModeCommitsAsAProposal(t *testing.T) {
 	id := r.createDashboard(t, steady, second)
 	run := r.runWithABuild(t, id, changed, second)
 
-	commit, err := r.dashboards.CommitBuild(grantmode.With(t.Context(), grantmode.Propose), editor, run, runAttempt)
+	commit, err := r.dashboards.CommitBuild(grantmode.With(reading(t.Context()), grantmode.Propose), editor, run, runAttempt)
 	if err != nil || commit.Proposal == nil || commit.Version.Number != 0 {
 		t.Fatalf("commit = proposal %+v, version %d, err %v", commit.Proposal, commit.Version.Number, err)
 	}

@@ -153,7 +153,7 @@ func (s *Service) blocked(row dbsqlc.Datasource, allowed domains.List) bool {
 }
 
 func (s *Service) instanceOf(row dbsqlc.Datasource, blocked bool) (datasource.Instance, int) {
-	instance := datasource.Instance{UID: row.Uid, Name: row.Name, Source: datasource.SourceApp}
+	instance := datasource.Instance{UID: row.Uid, Name: row.Name, Audience: datasource.Audience(row.Audience), Source: datasource.SourceApp}
 	if blocked {
 		instance.Datasource = datasource.NewUnavailable(row.Type, datasource.Errorf(datasource.ErrOutboundBlocked, "the address is not on the outbound allowlist"))
 		return instance, 0

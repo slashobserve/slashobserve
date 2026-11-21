@@ -12,8 +12,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -117,7 +119,7 @@ func (r *rig) run(t *testing.T) provision.Report {
 
 func (r *rig) report(t *testing.T) provision.Report {
 	t.Helper()
-	report, err := r.provisioner.Report(t.Context())
+	report, err := r.provisioner.Report(reading(t.Context()))
 	if err != nil {
 		t.Fatalf("Report: %v", err)
 	}
@@ -141,7 +143,7 @@ func (r *rig) latest(t *testing.T, dashboardID string) (dashboards.Dashboard, da
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash, ver, err := r.dashboards.Get(t.Context(), id)
+	dash, ver, err := r.dashboards.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatalf("Get %s: %v", dashboardID, err)
 	}
@@ -154,7 +156,7 @@ func (r *rig) versions(t *testing.T, dashboardID string) []dashboards.VersionMet
 	if err != nil {
 		t.Fatal(err)
 	}
-	metas, _, err := r.dashboards.ListVersions(t.Context(), id, 100, "")
+	metas, _, err := r.dashboards.ListVersions(reading(t.Context()), id, 100, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,12 +167,12 @@ func (r *rig) folderID(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
 	if title == "General" {
 		var id pgtype.UUID
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE general`).Scan(&id); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id FROM folders WHERE general`).Scan(&id); err != nil {
 			t.Fatal(err)
 		}
 		return id
 	}
-	id, err := r.db.Queries().FolderByTitle(t.Context(), title)
+	id, err := r.db.Queries().FolderByTitle(reading(t.Context()), title)
 	if err != nil {
 		t.Fatalf("folder %q: %v", title, err)
 	}
@@ -353,7 +355,7 @@ func TestRunErrorWhenOffOrTheDirectoryIsMissing(t *testing.T) {
 	if err := missing.Run(t.Context()); !errors.Is(err, provision.ErrDirUnreadable) {
 		t.Fatalf("Run on a missing directory = %v, want ErrDirUnreadable", err)
 	}
-	report, err := off.Report(t.Context())
+	report, err := off.Report(reading(t.Context()))
 	if err != nil || report.Dir != "" || len(report.Dashboards) != 0 || len(report.Errors) != 0 {
 		t.Fatalf("report when off = %+v, %v", report, err)
 	}
@@ -378,4 +380,90 @@ func TestWatchProvisionsWhenItStarts(t *testing.T) {
 	}
 	cancel()
 	<-done
+}
+
+func TestRunRecordsOneSystemEventPerSavedFileAndOneUnchangedEventWhenNothingChanged(t *testing.T) {
+	r := newRig(t)
+	r.write(t, "a.json", specJSON("A", "up"))
+	r.write(t, "Shop/b.json", specJSON("B", "up"))
+	report := r.run(t)
+
+	got := r.db.AuditEvents(t, "provision.apply")
+	if len(got) != 2 {
+		t.Fatalf("events after the first run = %+v, want one per file", got)
+	}
+	for _, e := range got {
+		want := dbtest.AuditEvent{Action: "provision.apply", Outcome: "success", ActorKind: "system", Initiator: "system", Origin: "job", TargetKind: "dashboard", TargetID: e.TargetID}
+		if fmt.Sprint(e) != fmt.Sprint(want) || e.TargetID != entry(t, report, "a.json").DashboardID && e.TargetID != entry(t, report, "Shop/b.json").DashboardID {
+			t.Errorf("event %+v, want %+v on a provisioned dashboard", e, want)
+		}
+	}
+
+	r.run(t)
+	got = r.db.AuditEvents(t, "provision.apply")
+	last := got[len(got)-1]
+	if len(got) != 3 || last.Outcome != "success" || last.Reason != "unchanged" || last.TargetKind != "dashboard" || last.TargetID != "" || last.ActorKind != "system" {
+		t.Errorf("events after an unchanged run = %+v", got)
+	}
+}
+
+func TestAWatchRunThatChangesNothingRecordsNothingWhileARequestedRunRecordsUnchanged(t *testing.T) {
+	r := newRig(t)
+	r.write(t, "a.json", specJSON("A", "up"))
+	r.run(t)
+	before := len(r.db.AuditEvents(t, "provision.apply"))
+
+	if err := r.provisioner.RunAsWatch(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(r.db.AuditEvents(t, "provision.apply")); n != before {
+		t.Errorf("events after a watch run that changed nothing = %d, want %d", n, before)
+	}
+
+	r.run(t)
+	got := r.db.AuditEvents(t, "provision.apply")
+	if len(got) != before+1 || got[len(got)-1].Reason != "unchanged" {
+		t.Errorf("events after a requested run that changed nothing = %+v, want one unchanged event more", got)
+	}
+}
+
+func TestAWatchRunThatSavesAFileStillRecordsIt(t *testing.T) {
+	r := newRig(t)
+	r.write(t, "a.json", specJSON("A", "up"))
+	if err := r.provisioner.RunAsWatch(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.db.AuditEvents(t, "provision.apply"); len(got) != 1 || got[0].Reason != "" {
+		t.Errorf("events %+v, want one for the saved file", got)
+	}
+}
+
+func TestRunByAPersonRecordsThatPerson(t *testing.T) {
+	r := newRig(t)
+	person := uuid.New()
+	ctx := audit.Open(t.Context(), audit.Scope{
+		RequestID: uuid.New(),
+		Actor:     audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada", Role: "admin"},
+		Initiator: audit.InitiatorPerson,
+		Origin:    audit.Origin{Kind: audit.OriginAPI},
+	})
+	r.write(t, "a.json", specJSON("A", "up"))
+	if err := r.provisioner.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got := r.db.AuditEvents(t, "provision.apply")
+	if len(got) != 1 || got[0].ActorID != person.String() || got[0].Initiator != "person" || got[0].Origin != "api" {
+		t.Errorf("events %+v, want one by the person through the api", got)
+	}
+}
+
+func TestAFileThatFailsToProvisionRecordsNoEvent(t *testing.T) {
+	r := newRig(t)
+	r.write(t, "broken.json", specJSON("Broken", brokenQuery))
+	if report := r.run(t); len(report.Errors) != 1 {
+		t.Fatalf("report %+v, want one file error", report)
+	}
+	if n := len(r.db.AuditEvents(t, "provision.apply")); n != 0 {
+		t.Errorf("events = %d, want 0", n)
+	}
 }

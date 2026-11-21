@@ -24,7 +24,7 @@ func (r *rig) hold(t *testing.T, body func(q *dbsqlc.Queries) error) *heldTx {
 	t.Helper()
 	h := &heldTx{ready: make(chan struct{}), release: make(chan struct{}), done: make(chan error, 1)}
 	go func() {
-		h.done <- r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+		h.done <- r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 			if err := body(q); err != nil {
 				return err
 			}
@@ -69,7 +69,7 @@ func (r *rig) waitForLockWait(t *testing.T) {
 	deadline := time.Now().Add(lockWaitTimeout)
 	for {
 		var waiting int
-		if err := conn.QueryRowContext(t.Context(), `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()`).Scan(&waiting); err != nil {
+		if err := conn.QueryRowContext(reading(t.Context()), `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()`).Scan(&waiting); err != nil {
 			t.Fatal(err)
 		}
 		if waiting > 0 {
@@ -103,10 +103,10 @@ func notADeadlock(t *testing.T, err error) {
 
 func lockDashboardAndDelete(t *testing.T, id pgtype.UUID) func(q *dbsqlc.Queries) error {
 	return func(q *dbsqlc.Queries) error {
-		if _, err := q.LockDashboardForDelete(t.Context(), id); err != nil {
+		if _, err := q.LockDashboardForDelete(reading(t.Context()), id); err != nil {
 			return err
 		}
-		_, err := q.DeleteDashboard(t.Context(), id)
+		_, err := q.DeleteDashboard(reading(t.Context()), id)
 		return err
 	}
 }
@@ -118,7 +118,7 @@ func TestRunSkipsItsResolutionInsteadOfWaitingForADelete(t *testing.T) {
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
 	run := r.runFor(t, dash, comment, 2)
 	deleting := r.hold(t, func(q *dbsqlc.Queries) error {
-		_, err := q.LockDashboardForDelete(t.Context(), dash)
+		_, err := q.LockDashboardForDelete(reading(t.Context()), dash)
 		return err
 	})
 
@@ -142,11 +142,11 @@ func TestDeleteWaitsForARunResolvingItsThread(t *testing.T) {
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
 	run := r.runFor(t, dash, comment, 2)
 	resolving := r.hold(t, func(q *dbsqlc.Queries) error {
-		return NewRuns(r.db.DB).RunEnded(t.Context(), q, run)
+		return NewRuns(r.db.DB).RunEnded(reading(t.Context()), q, run)
 	})
 
 	deleted := make(chan error, 1)
-	go func() { deleted <- r.dashboards.Delete(t.Context(), testUser, dash) }()
+	go func() { deleted <- r.dashboards.Delete(reading(t.Context()), testUser, dash) }()
 	r.waitForLockWait(t)
 	select {
 	case err := <-deleted:
@@ -160,7 +160,7 @@ func TestDeleteWaitsForARunResolvingItsThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.db.Queries().GetThread(t.Context(), mustParse(t, comment.ID)); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := r.db.Queries().GetThread(reading(t.Context()), mustParse(t, comment.ID)); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("thread after the delete: err = %v, want no rows", err)
 	}
 }
@@ -174,7 +174,7 @@ func TestResolvingWithAVersionWhileTheDashboardIsDeletedAnswersCommentNotFound(t
 
 	resolved := make(chan error, 1)
 	go func() {
-		_, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), StatusResolved, new(2))
+		_, _, err := r.comments.SetStatus(reading(t.Context()), testUser, dash, mustParse(t, comment.ID), StatusResolved, new(2))
 		resolved <- err
 	}()
 	r.waitForLockWait(t)
@@ -195,7 +195,7 @@ func TestCommentingWhileTheDashboardIsDeletedAnswersCommentNotFound(t *testing.T
 
 	replied := make(chan error, 1)
 	go func() {
-		_, err := r.comments.Create(t.Context(), testUser, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "late"})
+		_, err := r.comments.Create(reading(t.Context()), testUser, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "late"})
 		replied <- err
 	}()
 	r.waitForLockWait(t)
@@ -215,12 +215,12 @@ func TestASaveDoesNotMakeARunSkipItsResolution(t *testing.T) {
 	comment := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "fix it", RequestRevision: true})
 	run := r.runFor(t, dash, comment, 2)
 
-	saving, err := r.db.SQLDB(t).BeginTx(t.Context(), nil)
+	saving, err := r.db.SQLDB(t).BeginTx(reading(t.Context()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = saving.Rollback() })
-	if _, err := saving.ExecContext(t.Context(), `UPDATE dashboards SET latest_version = latest_version + 1, title = 'renamed', updated_at = now() WHERE id = $1`, dash.String()); err != nil {
+	if _, err := saving.ExecContext(reading(t.Context()), `UPDATE dashboards SET latest_version = latest_version + 1, title = 'renamed', updated_at = now() WHERE id = $1`, dash.String()); err != nil {
 		t.Fatal(err)
 	}
 

@@ -71,8 +71,8 @@ func TestDraftContextPrometheusListsEveryMetricWhenTheCatalogIsSmall(t *testing.
 func TestDraftContextPrometheusSearchesTheQuestionsKeywordsWhenTheCatalogIsCut(t *testing.T) {
 	ds := promDraftDS(true)
 	r := draftRegistry(t, nil, map[string]*fakeDS{"ds": ds})
-	inst, _ := r.deps.Datasources.Get("ds")
-	facts, err := r.draftContext(context.Background(), inst, signalMetrics, draftRange, "What is the cpu usage of the checkout service?")
+	inst, _ := registered(t, r.deps.Datasources, "ds")
+	facts, err := r.draftContext(reading(context.Background()), inst, signalMetrics, draftRange, "What is the cpu usage of the checkout service?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,8 +84,8 @@ func TestDraftContextPrometheusSearchesTheQuestionsKeywordsWhenTheCatalogIsCut(t
 func TestDraftContextPrometheusKeepsTheFirstMetricsWhenNoKeywordMatches(t *testing.T) {
 	ds := promDraftDS(true)
 	r := draftRegistry(t, nil, map[string]*fakeDS{"ds": ds})
-	inst, _ := r.deps.Datasources.Get("ds")
-	facts, err := r.draftContext(context.Background(), inst, signalMetrics, draftRange, "disk")
+	inst, _ := registered(t, r.deps.Datasources, "ds")
+	facts, err := r.draftContext(reading(context.Background()), inst, signalMetrics, draftRange, "disk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,8 +204,8 @@ func TestDraftContextOnARealPrometheusSearchesALargeCatalog(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
-	inst, _ := reg.Get("prom")
-	facts, err := r.draftContext(context.Background(), inst, signalMetrics, draftRange, "p95 checkout latency")
+	inst, _ := registered(t, reg, "prom")
+	facts, err := r.draftContext(reading(context.Background()), inst, signalMetrics, draftRange, "p95 checkout latency")
 	if err != nil {
 		t.Fatal(err)
 	}

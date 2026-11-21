@@ -44,6 +44,7 @@ type Instance struct {
 	GrafanaUIDs []string
 	Datasource  Datasource
 	Source      string
+	Audience    Audience
 
 	generation uint64
 }
@@ -131,8 +132,32 @@ func normalized(in Instance) (Instance, error) {
 	if in.Source == "" {
 		in.Source = SourceFile
 	}
+	switch in.Audience {
+	case "":
+		in.Audience = AudienceEveryone
+	case AudienceEveryone, AudienceAdmins:
+	default:
+		return Instance{}, fmt.Errorf("datasource %q audience must be %s or %s", in.UID, AudienceEveryone, AudienceAdmins)
+	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
+}
+
+func (r *Registry) AddAdminsOnly(in Instance) error {
+	in.Audience = AudienceAdmins
+	in.Source = SourceFile
+	in, err := normalized(in)
+	if err != nil {
+		return err
+	}
+	r.instancesMu.Lock()
+	defer r.instancesMu.Unlock()
+	if _, dup := r.instances[in.UID]; dup {
+		return fmt.Errorf("duplicate datasource uid %q", in.UID)
+	}
+	in.generation = r.nextGenerationLocked()
+	r.instances[in.UID] = in
+	return nil
 }
 
 func (r *Registry) Put(in Instance) error {
@@ -159,6 +184,12 @@ func (r *Registry) Put(in Instance) error {
 
 func (r *Registry) nextGenerationLocked() uint64 {
 	r.generations++
+	return r.generations
+}
+
+func (r *Registry) Generation() uint64 {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
 	return r.generations
 }
 
@@ -202,15 +233,36 @@ func (r *Registry) retire(ds Datasource) {
 	r.instancesMu.Unlock()
 }
 
-func (r *Registry) Get(uid string) (Instance, bool) {
+func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
+	access, ok := AccessFrom(ctx)
+	if !ok {
+		return Instance{}, ErrNoAccess
+	}
 	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
 	r.instancesMu.RUnlock()
+	if !ok || !access.reads(in.Audience) {
+		return Instance{}, ErrNotVisible
+	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
-	return in, ok
+	return in, nil
 }
 
-func (r *Registry) List() []Instance {
+func (r *Registry) Visible(ctx context.Context) []Instance {
+	access, ok := AccessFrom(ctx)
+	if !ok {
+		return nil
+	}
+	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.reads(in.Audience) })
+}
+
+func (r *Registry) AdminsOnly(uid string) bool {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
+	return r.instances[uid].Audience == AudienceAdmins
+}
+
+func (r *Registry) all() []Instance {
 	r.instancesMu.RLock()
 	out := make([]Instance, 0, len(r.instances))
 	for _, in := range r.instances {
@@ -223,7 +275,7 @@ func (r *Registry) List() []Instance {
 }
 
 func (r *Registry) Health(ctx context.Context) []Status {
-	list := r.List()
+	list := r.Visible(ctx)
 	out := make([]Status, len(list))
 	var wg sync.WaitGroup
 	for i, in := range list {
@@ -236,8 +288,8 @@ func (r *Registry) Health(ctx context.Context) []Status {
 }
 
 func (r *Registry) Recheck(ctx context.Context, uid string) (Status, bool) {
-	in, ok := r.Get(uid)
-	if !ok {
+	in, err := r.For(ctx, uid)
+	if err != nil {
 		return Status{}, false
 	}
 	return r.status(ctx, in, recheckInterval), true
@@ -245,7 +297,7 @@ func (r *Registry) Recheck(ctx context.Context, uid string) (Status, bool) {
 
 func (r *Registry) Close() error {
 	var errs []error
-	for _, in := range r.List() {
+	for _, in := range r.all() {
 		if err := in.Datasource.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close datasource %q: %w", in.UID, err))
 		}

@@ -110,6 +110,7 @@ type accessFixture struct {
 	findings *findings.Service
 	threads  *threads.Service
 	authn    keyAuth
+	registry *tools.Registry
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
@@ -140,13 +141,13 @@ func newAccessFixture(t *testing.T) *accessFixture {
 		authn[bearer(p)] = Credential{Principal: p}
 	}
 	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
-	return &accessFixture{fixture: f, db: database, service: service, findings: found, threads: commentThreads, authn: authn}
+	return &accessFixture{fixture: f, db: database, service: service, findings: found, threads: commentThreads, authn: authn, registry: reg}
 }
 
 func (f *accessFixture) writtenRows(t *testing.T) int {
 	t.Helper()
 	var n int
-	err := f.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT (SELECT count(*) FROM dashboards) + (SELECT count(*) FROM dashboard_versions) + (SELECT count(*) FROM annotations) + (SELECT count(*) FROM findings) + (SELECT count(*) FROM saved_searches) + (SELECT count(*) FROM activity)").Scan(&n)
+	err := f.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT (SELECT count(*) FROM dashboards) + (SELECT count(*) FROM dashboard_versions) + (SELECT count(*) FROM annotations) + (SELECT count(*) FROM findings) + (SELECT count(*) FROM saved_searches) + (SELECT count(*) FROM activity)").Scan(&n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +156,7 @@ func (f *accessFixture) writtenRows(t *testing.T) int {
 
 func (f *accessFixture) person(t *testing.T, name string, role auth.Role) auth.Principal {
 	t.Helper()
-	u, err := f.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: name, Email: name + "@example.com", Name: name})
+	u, err := f.db.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: name, Email: name + "@example.com", Name: name})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +175,7 @@ func boardSpec(title string, tags ...string) string {
 
 func (f *accessFixture) seed(t *testing.T, by auth.Principal, folder pgtype.UUID, title string, tags ...string) string {
 	t.Helper()
-	dash, _, err := f.service.Create(t.Context(), by, folder, []byte(boardSpec(title, tags...)), "create")
+	dash, _, err := f.service.Create(reading(t.Context()), by, folder, []byte(boardSpec(title, tags...)), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +214,7 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 		t.Fatal(err)
 	}
 	foldertest.Move(t, f.db, hiddenID, foldertest.Restricted(t, f.db, hiddenFolder, privateGroup))
-	_, comment, err := f.threads.Open(t.Context(), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: hiddenID}, Body: commentText}, nil)
+	_, comment, err := f.threads.Open(reading(t.Context()), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: hiddenID}, Body: commentText}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +288,7 @@ func TestKeysNeverSeeADashboardInARestrictedFolderTheyHaveNoClaimOn(t *testing.T
 
 func TestAKeySeesARestrictedFolderItCreated(t *testing.T) {
 	f := newAccessFixture(t)
-	folder, err := f.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{
+	folder, err := f.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{
 		Title:         hiddenFolder,
 		CreatedByKind: pgtype.Text{String: string(auth.KindServiceAccount), Valid: true},
 		CreatedByID:   mustUUID(t, creatorKey.ID),
@@ -295,7 +296,7 @@ func TestAKeySeesARestrictedFolderItCreated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = f.db.Queries().InsertFolderPermission(t.Context(), dbsqlc.InsertFolderPermissionParams{
+	err = f.db.Queries().InsertFolderPermission(reading(t.Context()), dbsqlc.InsertFolderPermissionParams{
 		FolderID: folder.ID, GroupName: pgtype.Text{String: privateGroup, Valid: true}, Level: "view",
 	})
 	if err != nil {
@@ -315,7 +316,7 @@ func TestKeysBelowEditorQueryButCannotWrite(t *testing.T) {
 	f := newAccessFixture(t)
 	id := f.seed(t, adminKey, pgtype.UUID{}, openTitle)
 	dashID := mustUUID(t, id)
-	_, comment, err := f.threads.Open(t.Context(), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: dashID}, Body: commentText}, nil)
+	_, comment, err := f.threads.Open(reading(t.Context()), adminKey, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: dashID}, Body: commentText}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +461,7 @@ func mustUUID(t *testing.T, raw string) pgtype.UUID {
 
 func (f *accessFixture) folderID(t *testing.T, title string) string {
 	t.Helper()
-	rows, err := f.db.Queries().FolderFacts(t.Context(), dbsqlc.FolderFactsParams{Groups: []string{}, Kind: string(auth.KindUser)})
+	rows, err := f.db.Queries().FolderFacts(reading(t.Context()), dbsqlc.FolderFactsParams{Groups: []string{}, Kind: string(auth.KindUser)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +502,7 @@ func TestAViewerOverOAuthDoesWhatTheWebAllows(t *testing.T) {
 	if err := json.Unmarshal([]byte(text(created)), &made); err != nil {
 		t.Fatal(err)
 	}
-	dash, _, err := f.service.Get(t.Context(), mustUUID(t, made.DashboardID))
+	dash, _, err := f.service.Get(reading(t.Context()), mustUUID(t, made.DashboardID))
 	if err != nil || dash.Folder.Title != "My Dashboards" {
 		t.Fatalf("the dashboard landed in %q, %v; want My Dashboards", dash.Folder.Title, err)
 	}
@@ -515,7 +516,7 @@ func TestAViewerOverOAuthDoesWhatTheWebAllows(t *testing.T) {
 	refused(t, f.as(t, vera, "update_panels", patch(general)))
 	refused(t, f.as(t, vera, "create_comment", map[string]any{"target": "dashboard:" + general, "body": "note"}))
 
-	versions, _, err := f.service.ListVersions(t.Context(), mustUUID(t, made.DashboardID), 10, "")
+	versions, _, err := f.service.ListVersions(reading(t.Context()), mustUUID(t, made.DashboardID), 10, "")
 	if err != nil || len(versions) == 0 {
 		t.Fatalf("versions = %v, %v", versions, err)
 	}

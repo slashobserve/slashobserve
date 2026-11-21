@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -36,7 +37,7 @@ func newRouterWithRole(svc *revisions.Service, caller auth.Principal) *gin.Engin
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	svc.Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), caller))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), caller), datasource.Access{By: caller}))
 	})))
 	return r
 }
@@ -115,7 +116,7 @@ func TestPostQueuesARevisionUntilTheDashboardIsFull(t *testing.T) {
 	if rec.Code != http.StatusTooManyRequests || errorCode(t, rec) != "too_many_revisions" {
 		t.Fatalf("sixth post: %d %s", rec.Code, rec.Body)
 	}
-	items, _, err := svc.List(t.Context(), dash, 100, "")
+	items, _, err := svc.List(reading(t.Context()), dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("stored %d, err %v", len(items), err)
 	}
@@ -156,7 +157,7 @@ func TestPostRefusesInvalidRequests(t *testing.T) {
 			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
 		}
 	}
-	items, _, err := svc.List(t.Context(), dash, 100, "")
+	items, _, err := svc.List(reading(t.Context()), dash, 100, "")
 	if err != nil || len(items) != 0 {
 		t.Fatalf("a refused request was stored: %v, %v", items, err)
 	}
@@ -285,7 +286,7 @@ func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	stopped := submit(t, svc, dash, "fails with a build")
 	claimed, _ := claimOne(t, svc)
-	if _, err := d.Queries().UpsertAgentRequestBuild(context.Background(), dbsqlc.UpsertAgentRequestBuildParams{
+	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
 		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
 	}); err != nil {
 		t.Fatal(err)

@@ -3,17 +3,22 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
-var errNothingToClaim = errors.New("no registered job is due and free")
+var (
+	errNothingToClaim   = errors.New("no registered job is due and free")
+	errEventNotRecorded = errors.New("the job finished but its audit event was not recorded")
+)
 
 type claim struct {
 	name      string
@@ -49,15 +54,42 @@ func (s *store) claim(ctx context.Context, names []string, force bool) (claim, e
 	return claim{name: row.Name, startedAt: row.StartedAt, deadline: deadline}, nil
 }
 
-func (s *store) finish(ctx context.Context, c claim, outcome, summary string) (bool, error) {
-	n, err := s.db.Queries().FinishJob(ctx, dbsqlc.FinishJobParams{
-		Outcome:    outcome,
-		LastError:  summary,
-		Name:       c.name,
-		InstanceID: s.instanceID,
-		StartedAt:  c.startedAt,
+func (s *store) finish(ctx context.Context, c claim, outcome, summary string, event *audit.Event) (bool, error) {
+	held, err := s.finishWith(ctx, c, outcome, summary, event)
+	if !errors.Is(err, errEventNotRecorded) {
+		return held, err
+	}
+	audit.Dropped(audit.DroppedRecordFailed)
+	held, retryErr := s.finishWith(ctx, c, outcome, summary, nil)
+	if retryErr != nil {
+		return false, retryErr
+	}
+	return held, err
+}
+
+func (s *store) finishWith(ctx context.Context, c claim, outcome, summary string, event *audit.Event) (bool, error) {
+	var held bool
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := q.FinishJob(ctx, dbsqlc.FinishJobParams{
+			Outcome:    outcome,
+			LastError:  summary,
+			Name:       c.name,
+			InstanceID: s.instanceID,
+			StartedAt:  c.startedAt,
+		})
+		if err != nil {
+			return err
+		}
+		held = n == 1
+		if !held || event == nil {
+			return nil
+		}
+		if err := audit.Record(ctx, q, *event); err != nil {
+			return fmt.Errorf("%w: %w", errEventNotRecorded, err)
+		}
+		return nil
 	})
-	return n == 1, err
+	return held && err == nil, err
 }
 
 func (s *store) release(ctx context.Context, c claim) (bool, error) {

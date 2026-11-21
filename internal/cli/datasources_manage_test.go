@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-const savedConfig = `{"uid":"metrics","type":"prometheus","name":"Metrics","source":"app","address":"https://prom.example.com","username":"","secrets_set":["bearer_token","header:X-Org"],"created_at":"2026-11-19T10:00:00Z","updated_at":"2026-11-19T10:00:00Z"}`
+const savedConfig = `{"uid":"metrics","type":"prometheus","name":"Metrics","audience":"admins","source":"app","address":"https://prom.example.com","username":"","secrets_set":["bearer_token","header:X-Org"],"created_at":"2026-11-19T10:00:00Z","updated_at":"2026-11-19T10:00:00Z"}`
 
 type datasourceAdminFake struct {
 	server   *httptest.Server
@@ -187,5 +187,23 @@ func TestDatasourcesRemoveListsWhatUsesTheDatasource(t *testing.T) {
 	}
 	if req := f.last(); req.method != http.MethodDelete || req.path != "/api/v1/datasources/metrics" {
 		t.Fatalf("request = %+v", req)
+	}
+}
+
+func TestDatasourcesEditSendsTheAudienceAndGetPrintsIt(t *testing.T) {
+	f := newDatasourceAdminFake(t)
+
+	if _, stderr, code := f.run("", "datasources", "edit", "metrics", "--audience", "admins"); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if req := f.last(); req.method != http.MethodPatch || req.body != `{"audience":"admins"}` {
+		t.Fatalf("request = %+v", req)
+	}
+	stdout, stderr, code := f.run("", "datasources", "get", "metrics")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "admins") {
+		t.Errorf("output lacks the audience:\n%s", stdout)
 	}
 }

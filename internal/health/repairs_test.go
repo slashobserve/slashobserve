@@ -21,7 +21,7 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 	}
 	missing := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
 
-	out, err := r.repairs.Repair(t.Context(), r.editor, []pgtype.UUID{empty, healthy, missing, empty})
+	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{empty, healthy, missing, empty})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 		t.Errorf("source %q prompt %q", source, prompt)
 	}
 
-	again, err := r.repairs.Repair(t.Context(), r.editor, []pgtype.UUID{empty})
+	again, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{empty})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 		t.Errorf("second repair = %+v, want active", again)
 	}
 
-	asViewer, err := r.repairs.Repair(t.Context(), r.viewer, []pgtype.UUID{healthy})
+	asViewer, err := r.repairs.Repair(reading(t.Context()), r.viewer, []pgtype.UUID{healthy})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 		t.Errorf("viewer repair = %+v, want forbidden_role", asViewer)
 	}
 
-	if _, err := r.noAgent.Repair(t.Context(), r.editor, []pgtype.UUID{empty}); err == nil {
+	if _, err := r.noAgent.Repair(reading(t.Context()), r.editor, []pgtype.UUID{empty}); err == nil {
 		t.Error("a repair without an agent was accepted")
 	}
 }
@@ -71,7 +71,7 @@ func TestRepairWaitsForTheCheckOfTheLatestVersion(t *testing.T) {
 	}
 	r.db.Exec(t, `UPDATE dashboards SET latest_version = latest_version + 1 WHERE id = $1`, empty.String())
 
-	out, err := r.repairs.Repair(t.Context(), r.editor, []pgtype.UUID{empty})
+	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{empty})
 	if err != nil {
 		t.Fatal(err)
 	}

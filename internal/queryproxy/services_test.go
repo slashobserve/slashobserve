@@ -62,11 +62,11 @@ func TestServicesAnswersFromTheCacheForTheSameSourceSignalAndWindow(t *testing.T
 	runner := servicesRunner(t, fake)
 	req := ServicesRequest{Datasource: "loki", Signal: "logs", Window: time.Hour}
 
-	first, err := runner.Services(context.Background(), req)
+	first, err := runner.Services(reading(context.Background()), req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := runner.Services(context.Background(), req)
+	second, err := runner.Services(reading(context.Background()), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestServicesAnswersFromTheCacheForTheSameSourceSignalAndWindow(t *testing.T
 
 	other := req
 	other.Window = 15 * time.Minute
-	if _, err := runner.Services(context.Background(), other); err != nil {
+	if _, err := runner.Services(reading(context.Background()), other); err != nil {
 		t.Fatal(err)
 	}
 	if got := fake.calls.Load(); got != 2 {
@@ -92,7 +92,7 @@ func TestServicesDefaultsTheWindowToOneHourEndingNow(t *testing.T) {
 	fake.ranges = make(chan datasource.TimeRange, 1)
 	runner := servicesRunner(t, fake)
 	before := time.Now()
-	got, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki"})
+	got, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestServicesCutsAtTheLimitAndSaysSo(t *testing.T) {
 	for i := range names {
 		names[i] = "svc-" + strconv.Itoa(i)
 	}
-	got, err := servicesRunner(t, newServicesFake(fixedServices(names...))).Services(context.Background(), ServicesRequest{Datasource: "loki"})
+	got, err := servicesRunner(t, newServicesFake(fixedServices(names...))).Services(reading(context.Background()), ServicesRequest{Datasource: "loki"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestServicesCutsAtTheLimitAndSaysSo(t *testing.T) {
 func TestServicesRefusesAWindowOutsideTheBounds(t *testing.T) {
 	runner := servicesRunner(t, newServicesFake(fixedServices()))
 	for _, window := range []time.Duration{time.Second, MaxServicesWindow + time.Second, -time.Hour} {
-		_, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki", Window: window})
+		_, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki", Window: window})
 		if !errors.Is(err, ErrInvalidRequest) {
 			t.Errorf("window %v: err = %v, want ErrInvalidRequest", window, err)
 		}
@@ -128,11 +128,11 @@ func TestServicesRefusesAWindowOutsideTheBounds(t *testing.T) {
 
 func TestServicesRefusesADatasourceThatHoldsNone(t *testing.T) {
 	runner := newRunnerOf(t, discardLogger(), datasource.Instance{UID: "prom", Datasource: newFake("prometheus")})
-	_, err := runner.Services(context.Background(), ServicesRequest{Datasource: "prom"})
+	_, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "prom"})
 	if !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("err = %v, want ErrInvalidRequest", err)
 	}
-	if _, err := runner.Services(context.Background(), ServicesRequest{Datasource: "nope"}); !errors.Is(err, ErrUnknownDatasource) {
+	if _, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "nope"}); !errors.Is(err, ErrUnknownDatasource) {
 		t.Fatalf("err = %v, want ErrUnknownDatasource", err)
 	}
 }
@@ -142,7 +142,7 @@ func TestServicesOfASlowSourceTimesOutInsteadOfBlocking(t *testing.T) {
 	fake.hang = true
 	runner := servicesRunner(t, fake, WithServicesTimeout(30*time.Millisecond))
 	start := time.Now()
-	_, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki"})
+	_, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki"})
 	if status, code, _ := Classify(err); status != http.StatusGatewayTimeout || code != "query_timeout" {
 		t.Fatalf("Classify(%v) = %d %s, want 504 query_timeout", err, status, code)
 	}
@@ -159,10 +159,10 @@ func TestServicesDoesNotCacheAFailure(t *testing.T) {
 		return []string{"shop"}, nil
 	})
 	runner := servicesRunner(t, fake)
-	if _, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki"}); !errors.Is(err, datasource.ErrUnavailable) {
+	if _, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki"}); !errors.Is(err, datasource.ErrUnavailable) {
 		t.Fatalf("err = %v, want ErrUnavailable", err)
 	}
-	got, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki"})
+	got, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki"})
 	if err != nil || !slices.Equal(got.Services, []string{"shop"}) {
 		t.Fatalf("retry = %+v, %v", got, err)
 	}
@@ -172,12 +172,12 @@ func TestServicesReportsABusyUpstreamAfterTheWaitBound(t *testing.T) {
 	fake := newServicesFake(fixedServices("shop"))
 	runner := servicesRunner(t, fake, WithUpstreamWait(30*time.Millisecond))
 	runner.slots = NewSlots(map[string]int{"loki": 1}, nil)
-	release, err := runner.AcquireUpstream(context.Background(), "loki")
+	release, err := runner.AcquireUpstream(reading(context.Background()), "loki")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
-	if _, err := runner.Services(context.Background(), ServicesRequest{Datasource: "loki"}); !errors.Is(err, ErrUpstreamBusy) {
+	if _, err := runner.Services(reading(context.Background()), ServicesRequest{Datasource: "loki"}); !errors.Is(err, ErrUpstreamBusy) {
 		t.Fatalf("err = %v, want ErrUpstreamBusy", err)
 	}
 	if got := fake.calls.Load(); got != 0 {

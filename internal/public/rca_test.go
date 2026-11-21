@@ -78,7 +78,7 @@ func newRCARig(t *testing.T) rcaRig {
 	r := rcaRig{rig: rig{db: d, service: New(d.DB, access, dash, registry, base, logger, WithRCAs(obs))}, observations: obs, freezer: freezer}
 	r.shared = r.dashboard(t, plainSpec)
 	var raw string
-	if err := d.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&raw); err != nil {
+	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	if r.folder, err = db.ParseUUID(raw); err != nil {
@@ -94,7 +94,7 @@ func newRCARig(t *testing.T) rcaRig {
 
 func (r rcaRig) observation(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 	t.Helper()
-	o, err := r.observations.Create(t.Context(), admin, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx", From: ptr(time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)), To: ptr(time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC))})
+	o, err := r.observations.Create(reading(t.Context()), admin, observations.CreateInput{FolderID: folder, Title: "Checkout 5xx", From: ptr(time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)), To: ptr(time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func (r rcaRig) observation(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 		{Kind: observations.KindText, Body: json.RawMessage(`{"markdown":"Started after the deploy"}`)},
 		{Kind: observations.KindPanel, Body: json.RawMessage(panelBlock)},
 	} {
-		if _, err := r.observations.AddBlock(t.Context(), admin, id, in); err != nil {
+		if _, err := r.observations.AddBlock(reading(t.Context()), admin, id, in); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -116,7 +116,7 @@ func (r rcaRig) observation(t *testing.T, folder pgtype.UUID) pgtype.UUID {
 func (r rcaRig) published(t *testing.T) pgtype.UUID {
 	t.Helper()
 	id := r.observation(t, r.folder)
-	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := r.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -124,7 +124,7 @@ func (r rcaRig) published(t *testing.T) pgtype.UUID {
 
 func (r rcaRig) createLink(t *testing.T, id pgtype.UUID, revision int, in CreateRCAInput) CreatedRCA {
 	t.Helper()
-	created, err := r.service.CreateRCALink(t.Context(), admin, id, revision, in)
+	created, err := r.service.CreateRCALink(reading(t.Context()), admin, id, revision, in)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -148,27 +148,27 @@ func TestRCALinkCreateListAndRevoke(t *testing.T) {
 		t.Errorf("token %q prefix %q", created.Token, created.Link.Prefix)
 	}
 	var stored int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM public_links WHERE token_hash = $1 AND dashboard_id IS NULL AND variables = 'frozen' AND selections = '{}'::jsonb`, opaquetoken.Hash(created.Token)).Scan(&stored); err != nil || stored != 1 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM public_links WHERE token_hash = $1 AND dashboard_id IS NULL AND variables = 'frozen' AND selections = '{}'::jsonb`, opaquetoken.Hash(created.Token)).Scan(&stored); err != nil || stored != 1 {
 		t.Fatalf("the row is not stored by hash and revision alone: %d, %v", stored, err)
 	}
-	list, err := r.service.ListRCALinks(t.Context(), admin, id, 1)
+	list, err := r.service.ListRCALinks(reading(t.Context()), admin, id, 1)
 	if err != nil || len(list) != 1 || list[0].Revision != 1 || list[0].Expired || list[0].CreatedBy.Name != "Root" || !list[0].ExpiresAt.Equal(expires) {
 		t.Fatalf("list %+v, %v", list, err)
 	}
 	linkID, _ := db.ParseUUID(created.Link.ID)
-	if err := r.service.DeleteRCALink(t.Context(), editor, id, linkID); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.DeleteRCALink(reading(t.Context()), editor, id, linkID); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("an editor revoked a link: %v", err)
 	}
-	if err := r.service.DeleteRCALink(t.Context(), admin, id, linkID); err != nil {
+	if err := r.service.DeleteRCALink(reading(t.Context()), admin, id, linkID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.ViewRCA(t.Context(), created.Token); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCA(reading(t.Context()), created.Token); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a revoked link opened: %v", err)
 	}
-	if err := r.service.DeleteRCALink(t.Context(), admin, id, linkID); !errors.Is(err, ErrNotFound) {
+	if err := r.service.DeleteRCALink(reading(t.Context()), admin, id, linkID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a second revoke: %v", err)
 	}
-	if err := r.service.DeleteRCALink(t.Context(), admin, r.observation(t, r.folder), linkID); !errors.Is(err, ErrNotFound) {
+	if err := r.service.DeleteRCALink(reading(t.Context()), admin, r.observation(t, r.folder), linkID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("revoking through another observation: %v", err)
 	}
 }
@@ -197,12 +197,12 @@ func TestRCALinkRefusals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := r.service.CreateRCALink(t.Context(), tc.by, tc.id, tc.revision, tc.in); !errors.Is(err, tc.want) {
+			if _, err := r.service.CreateRCALink(reading(t.Context()), tc.by, tc.id, tc.revision, tc.in); !errors.Is(err, tc.want) {
 				t.Fatalf("create: %v, want %v", err, tc.want)
 			}
 		})
 	}
-	_, err := r.service.ListRCALinks(t.Context(), viewer, id, 1)
+	_, err := r.service.ListRCALinks(reading(t.Context()), viewer, id, 1)
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer listed links: %v", err)
 	}
@@ -215,15 +215,15 @@ func TestARevisionWithAUserScopedSnapshotHasNoLink(t *testing.T) {
 	r := newRCARig(t)
 	r.freezer.userScoped = true
 	id := r.published(t)
-	_, err := r.service.CreateRCALink(t.Context(), admin, id, 1, CreateRCAInput{})
+	_, err := r.service.CreateRCALink(reading(t.Context()), admin, id, 1, CreateRCAInput{})
 	if !errors.Is(err, ErrRCAUserScoped) || !strings.Contains(err.Error(), "a snapshot in this RCA shows data that depends on who is viewing") {
 		t.Fatalf("create: %v", err)
 	}
 	r.freezer.userScoped = false
-	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := r.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.CreateRCALink(t.Context(), admin, id, 2, CreateRCAInput{}); err != nil {
+	if _, err := r.service.CreateRCALink(reading(t.Context()), admin, id, 2, CreateRCAInput{}); err != nil {
 		t.Errorf("a later revision with no scoped snapshot: %v", err)
 	}
 }
@@ -239,7 +239,7 @@ func TestRacingRCALinkCreatesCannotPassTheLimit(t *testing.T) {
 	var created, refused atomic.Int32
 	for range racers {
 		wg.Go(func() {
-			_, err := r.service.CreateRCALink(t.Context(), admin, id, 1, CreateRCAInput{})
+			_, err := r.service.CreateRCALink(reading(t.Context()), admin, id, 1, CreateRCAInput{})
 			switch {
 			case err == nil:
 				created.Add(1)
@@ -261,19 +261,19 @@ func TestAnOlderRevisionsViewNamesTheNewestRevisionAndTheNewestNamesNone(t *test
 	r := newRCARig(t)
 	id := r.published(t)
 	first := r.createLink(t, id, 1, CreateRCAInput{})
-	view, err := r.service.ViewRCA(t.Context(), first.Token)
+	view, err := r.service.ViewRCA(reading(t.Context()), first.Token)
 	if err != nil || view.SupersededBy != nil {
 		t.Fatalf("the only revision: %+v, %v", view, err)
 	}
-	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := r.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
 	second := r.createLink(t, id, 2, CreateRCAInput{})
-	old, err := r.service.ViewRCA(t.Context(), first.Token)
+	old, err := r.service.ViewRCA(reading(t.Context()), first.Token)
 	if err != nil || old.SupersededBy == nil || *old.SupersededBy != 2 {
 		t.Errorf("revision 1 after revision 2: %+v, %v", old, err)
 	}
-	newest, err := r.service.ViewRCA(t.Context(), second.Token)
+	newest, err := r.service.ViewRCA(reading(t.Context()), second.Token)
 	if err != nil || newest.SupersededBy != nil {
 		t.Errorf("revision 2: %+v, %v", newest, err)
 	}
@@ -282,14 +282,14 @@ func TestAnOlderRevisionsViewNamesTheNewestRevisionAndTheNewestNamesNone(t *test
 func TestAnObservationHasAtMostTwentyLinksAcrossItsRevisions(t *testing.T) {
 	r := newRCARig(t)
 	id := r.published(t)
-	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := r.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
 	for i := range maxLinksPerObservation {
 		r.createLink(t, id, 1+i%2, CreateRCAInput{})
 	}
 	for _, revision := range []int{1, 2} {
-		if _, err := r.service.CreateRCALink(t.Context(), admin, id, revision, CreateRCAInput{}); !errors.Is(err, ErrTooManyRCALinks) {
+		if _, err := r.service.CreateRCALink(reading(t.Context()), admin, id, revision, CreateRCAInput{}); !errors.Is(err, ErrTooManyRCALinks) {
 			t.Fatalf("link %d on revision %d: %v", maxLinksPerObservation+1, revision, err)
 		}
 	}
@@ -305,7 +305,7 @@ func TestAnRCATokenOpensOnlyTheRCAViewsUntilItExpires(t *testing.T) {
 	created := r.createLink(t, id, 1, CreateRCAInput{ExpiresAt: &expires})
 	dashboardLink := r.create(t, CreateInput{Mode: ModeFrozen})
 
-	view, err := r.service.ViewRCA(t.Context(), created.Token)
+	view, err := r.service.ViewRCA(reading(t.Context()), created.Token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,40 +320,40 @@ func TestAnRCATokenOpensOnlyTheRCAViewsUntilItExpires(t *testing.T) {
 		t.Fatalf("blocks %s, %v", view.Blocks, err)
 	}
 	var viewed bool
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT last_viewed_at IS NOT NULL FROM public_links WHERE rca_id IS NOT NULL`).Scan(&viewed); err != nil || !viewed {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT last_viewed_at IS NOT NULL FROM public_links WHERE rca_id IS NOT NULL`).Scan(&viewed); err != nil || !viewed {
 		t.Errorf("the view was not recorded: %v", err)
 	}
 	snapshotID, _ := db.ParseUUID(blocks[1].SnapshotID)
-	if frames, err := r.service.ViewRCASnapshot(t.Context(), created.Token, snapshotID); err != nil || !sameJSON(t, frames, json.RawMessage(frozenData)) {
+	if frames, err := r.service.ViewRCASnapshot(reading(t.Context()), created.Token, snapshotID); err != nil || !sameJSON(t, frames, json.RawMessage(frozenData)) {
 		t.Errorf("frames %s, %v", frames, err)
 	}
 
-	if _, err := r.service.View(t.Context(), created.Token); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.View(reading(t.Context()), created.Token); !errors.Is(err, ErrNotFound) {
 		t.Errorf("an RCA token opened the dashboard view: %v", err)
 	}
-	if _, err := r.service.Resolve(t.Context(), created.Token); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.Resolve(reading(t.Context()), created.Token); !errors.Is(err, ErrNotFound) {
 		t.Errorf("an RCA token resolved as a dashboard link: %v", err)
 	}
-	if _, err := r.service.ViewRCA(t.Context(), dashboardLink.Token); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCA(reading(t.Context()), dashboardLink.Token); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a dashboard token opened the RCA view: %v", err)
 	}
-	if _, err := r.service.ViewRCASnapshot(t.Context(), dashboardLink.Token, snapshotID); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCASnapshot(reading(t.Context()), dashboardLink.Token, snapshotID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a dashboard token opened an RCA snapshot: %v", err)
 	}
 	for _, token := range []string{"", "pub_short", created.Token + "x", "pub_" + strings.Repeat("A", 43)} {
-		if _, err := r.service.ViewRCA(t.Context(), token); !errors.Is(err, ErrNotFound) {
+		if _, err := r.service.ViewRCA(reading(t.Context()), token); !errors.Is(err, ErrNotFound) {
 			t.Errorf("token %q: %v", token, err)
 		}
 	}
 
 	r.service.now = func() time.Time { return expires.Add(time.Second) }
-	if _, err := r.service.ViewRCA(t.Context(), created.Token); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCA(reading(t.Context()), created.Token); !errors.Is(err, ErrNotFound) {
 		t.Errorf("an expired link opened the RCA: %v", err)
 	}
-	if _, err := r.service.ViewRCASnapshot(t.Context(), created.Token, snapshotID); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCASnapshot(reading(t.Context()), created.Token, snapshotID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("an expired link opened a snapshot: %v", err)
 	}
-	list, err := r.service.ListRCALinks(t.Context(), admin, id, 1)
+	list, err := r.service.ListRCALinks(reading(t.Context()), admin, id, 1)
 	if err != nil || len(list) != 1 || !list[0].Expired {
 		t.Errorf("list %+v, %v", list, err)
 	}
@@ -374,19 +374,19 @@ func sameJSON(t *testing.T, a, b json.RawMessage) bool {
 func TestAnRCALinkShowsOnlyItsOwnRevisionsSnapshots(t *testing.T) {
 	r := newRCARig(t)
 	id := r.published(t)
-	if _, err := r.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := r.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
 	first := r.createLink(t, id, 1, CreateRCAInput{})
-	second, err := r.observations.GetRCA(t.Context(), admin, id, 2)
+	second, err := r.observations.GetRCA(reading(t.Context()), admin, id, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	other, _ := db.ParseUUID(second.Blocks[1].SnapshotID)
-	if _, err := r.service.ViewRCASnapshot(t.Context(), first.Token, other); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCASnapshot(reading(t.Context()), first.Token, other); !errors.Is(err, ErrNotFound) {
 		t.Errorf("a snapshot of revision 2 through a revision 1 link: %v", err)
 	}
-	if _, err := r.service.ViewRCASnapshot(t.Context(), first.Token, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, ErrNotFound) {
+	if _, err := r.service.ViewRCASnapshot(reading(t.Context()), first.Token, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}); !errors.Is(err, ErrNotFound) {
 		t.Errorf("an unknown snapshot: %v", err)
 	}
 }
@@ -395,11 +395,11 @@ func TestExistingDashboardLinksKeepWorking(t *testing.T) {
 	r := newRCARig(t)
 	r.published(t)
 	created := r.create(t, CreateInput{Mode: ModeFrozen})
-	list, err := r.service.List(t.Context(), admin, r.shared)
+	list, err := r.service.List(reading(t.Context()), admin, r.shared)
 	if err != nil || len(list) != 1 || list[0].DashboardID != r.shared.String() {
 		t.Fatalf("list %+v, %v", list, err)
 	}
-	if _, err := r.service.View(t.Context(), created.Token); err != nil {
+	if _, err := r.service.View(reading(t.Context()), created.Token); err != nil {
 		t.Errorf("dashboard view: %v", err)
 	}
 }
@@ -416,7 +416,7 @@ func newRCAHTTP(t *testing.T) *rcaHTTP {
 	h := &rcaHTTP{rcaRig: newRCARig(t), engine: gin.New(), who: admin}
 	handler := NewHandler(h.service, folders.NewAccess(h.db.DB), slog.New(slog.DiscardHandler))
 	handler.Register(auth.NewRoutes(h.engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), h.who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.who), datasource.Access{By: h.who}))
 	})))
 	handler.RegisterPublic(h.engine.Group("/api/v1/public"))
 	return h
@@ -444,13 +444,13 @@ func (h *rcaHTTP) send(t *testing.T, by auth.Principal, method, path, body strin
 	}
 	options := &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, IncludeResponseStatus: true, SkipSettingDefaults: true}
 	input := &openapi3filter.RequestValidationInput{Request: check, PathParams: params, Route: route, Options: options}
-	if err := openapi3filter.ValidateRequest(t.Context(), input); err != nil && rec.Code < 400 {
+	if err := openapi3filter.ValidateRequest(reading(t.Context()), input); err != nil && rec.Code < 400 {
 		t.Fatalf("%s %s breaks the document but answered %d: %v", method, path, rec.Code, err)
 	}
 	check.Body = io.NopCloser(bytes.NewReader(nil))
 	response := &openapi3filter.ResponseValidationInput{RequestValidationInput: input, Status: rec.Code, Header: rec.Header(), Options: options}
 	response.SetBodyBytes(rec.Body.Bytes())
-	if err := openapi3filter.ValidateResponse(t.Context(), response); err != nil {
+	if err := openapi3filter.ValidateResponse(reading(t.Context()), response); err != nil {
 		t.Fatalf("%s %s answered %d against the document: %v\n%s", method, path, rec.Code, err, rec.Body)
 	}
 	return rec
@@ -540,7 +540,7 @@ func TestRCALinkRoutesAnswerUserScopedAndLimitCodes(t *testing.T) {
 		t.Errorf("body %s", rec.Body)
 	}
 	h.freezer.userScoped = false
-	if _, err := h.observations.Publish(t.Context(), admin, id); err != nil {
+	if _, err := h.observations.Publish(reading(t.Context()), admin, id); err != nil {
 		t.Fatal(err)
 	}
 	for range maxLinksPerObservation {

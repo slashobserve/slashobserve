@@ -14,7 +14,7 @@ import (
 
 func (r *rig) personalRevisionBuild(t *testing.T, owner person) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.service.Create(t.Context(), owner.principal, pgtype.UUID{}, panelsSpec("t", "rps"), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), owner.principal, pgtype.UUID{}, panelsSpec("t", "rps"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,17 +22,17 @@ func (r *rig) personalRevisionBuild(t *testing.T, owner person) pgtype.UUID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{
+	row, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{
 		DashboardID: dashID, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: owner.principal,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimed, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimed, err := r.db.Queries().ClaimAgentRequest(reading(t.Context()), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	if err != nil || claimed.AgentRequest.ID != row.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.AgentRequest.ID, row.ID, err)
 	}
-	_, err = r.service.SaveBuild(t.Context(), owner.principal, BuildSave{
+	_, err = r.service.SaveBuild(reading(t.Context()), owner.principal, BuildSave{
 		RequestID: row.ID, Attempt: buildAttempt, DashboardID: dashID, BaseVersion: 1, Spec: panelsSpec("t", "rps", "p99"),
 	})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestABuildIsReadByItsRequesterAndAnyAdminButNoOtherPerson(t *testing.T) {
 		{"another Editor", editor, ErrBuildNotFound},
 	}
 	for _, c := range cases {
-		if _, err := r.service.ViewBuild(t.Context(), c.who, id); !errors.Is(err, c.want) {
+		if _, err := r.service.ViewBuild(reading(t.Context()), c.who, id); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)
 		}
 	}
@@ -73,10 +73,10 @@ func TestAnAdminDoesNotReadTheBuildOfADashboardInSomeonesPersonalFolder(t *testi
 	admin := r.addPerson(t, "boss").principal
 	admin.Role = auth.RoleAdmin
 
-	if _, err := r.service.ViewBuild(t.Context(), owner.principal, id); err != nil {
+	if _, err := r.service.ViewBuild(reading(t.Context()), owner.principal, id); err != nil {
 		t.Errorf("the requester: %v", err)
 	}
-	if _, err := r.service.ViewBuild(t.Context(), admin, id); !errors.Is(err, ErrBuildNotFound) {
+	if _, err := r.service.ViewBuild(reading(t.Context()), admin, id); !errors.Is(err, ErrBuildNotFound) {
 		t.Errorf("an Admin: %v, want %v", err, ErrBuildNotFound)
 	}
 }

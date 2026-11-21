@@ -67,7 +67,7 @@ datasources-uid-sample:
         type: string
   get:
     operationId: getDatasourceSample
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { action: query.run, target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [sample_rows]
       cli: [observe datasources sample]

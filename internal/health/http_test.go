@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,23 +18,31 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/legacy"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 )
 
 type fakeJobs struct {
 	mu    sync.Mutex
 	names []string
+	by    []*audit.By
+	err   error
 }
 
-func (f *fakeJobs) RunNow(_ context.Context, name string) error {
+func (f *fakeJobs) RunNow(_ context.Context, name string, by *audit.By) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.names = append(f.names, name)
-	return nil
+	f.by = append(f.by, by)
+	return f.err
 }
 
 func serve(t *testing.T, svc *health.Service, repairs *health.Repairs, jobs health.Jobs, by auth.Principal, method, path, body string) *httptest.ResponseRecorder {
@@ -40,9 +50,9 @@ func serve(t *testing.T, svc *health.Service, repairs *health.Repairs, jobs heal
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	group := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), by))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), by), datasource.Access{By: by}))
 	})
-	h := health.NewHandler(t.Context(), svc, repairs, jobs)
+	h := health.NewHandler(reading(t.Context()), svc, repairs, jobs)
 	h.Register(auth.NewRoutes(group))
 	var reader io.Reader
 	if body != "" {
@@ -73,7 +83,7 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	first, err := r.svc.List(t.Context(), r.viewer, health.ListParams{Limit: 1})
+	first, err := r.svc.List(reading(t.Context()), r.viewer, health.ListParams{Limit: 1})
 	if err != nil || first.NextCursor == "" {
 		t.Fatalf("first page cursor %q: %v", first.NextCursor, err)
 	}
@@ -126,7 +136,7 @@ func TestHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 				Options:                options,
 			}
 			input.SetBodyBytes(rec.Body.Bytes())
-			if err := openapi3filter.ValidateResponse(t.Context(), input); err != nil {
+			if err := openapi3filter.ValidateResponse(reading(t.Context()), input); err != nil {
 				t.Fatalf("status %d body %s breaks the document: %v", rec.Code, rec.Body.String(), err)
 			}
 		})
@@ -262,5 +272,81 @@ func TestHTTPListWithDashboardIDs(t *testing.T) {
 	}
 	if status, _ := get(r.editor, idsQuery(tooMany[:50]...)); status != http.StatusOK {
 		t.Errorf("50 ids: status %d, want 200", status)
+	}
+}
+
+func TestAHealthRunStartedByAPersonCarriesThatPersonToTheJobAndAnUnscopedOneCarriesNobody(t *testing.T) {
+	jobs := &fakeJobs{}
+	r := newRig(t)
+	h := health.NewHandler(t.Context(), r.svc, r.repairs, jobs)
+	person := uuid.New()
+	scoped := audit.Open(t.Context(), audit.Scope{
+		Actor:  audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada"},
+		Origin: audit.Origin{Kind: "mcp", Client: "claude"},
+	})
+	h.StartRun(scoped)
+	h.StartRun(t.Context())
+	h.Wait()
+
+	var named, anonymous int
+	for _, by := range jobs.by {
+		switch {
+		case by == nil:
+			anonymous++
+		case by.Actor.ID.UUID == person && by.Origin.Kind == "mcp":
+			named++
+		}
+	}
+	if named != 1 || anonymous != 1 {
+		t.Errorf("jobs were started by %+v, want one by the person and one by nobody", jobs.by)
+	}
+}
+
+func TestAHealthRunThatDoesNotStartRecordsTheCallerAndWhy(t *testing.T) {
+	cases := []struct {
+		name        string
+		err         error
+		wantOutcome string
+		wantReason  string
+	}{
+		{"already running", scheduler.ErrJobLeased, "denied", "already_running"},
+		{"claim failed", errors.New("database is down"), "failed", "start_failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			recorder := audit.New(audit.Config{DB: r.db.DB})
+			audit.Install(recorder)
+			t.Cleanup(func() { audit.Install(nil) })
+			stopWriter, writerStopped := context.WithCancel(t.Context())
+			written := make(chan struct{})
+			go func() {
+				defer close(written)
+				recorder.Run(stopWriter)
+			}()
+			h := health.NewHandler(t.Context(), r.svc, r.repairs, &fakeJobs{err: tc.err})
+			person := uuid.New()
+			scoped := audit.Open(t.Context(), audit.Scope{
+				Actor:     audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada", Role: "admin"},
+				Initiator: audit.InitiatorPerson,
+				Origin:    audit.Origin{Kind: audit.OriginAPI},
+			})
+			h.StartRun(scoped)
+			h.Wait()
+			writerStopped()
+			<-written
+
+			got := r.db.AuditEvents(t, "job.run")
+			if len(got) != 1 {
+				t.Fatalf("events %+v, want one", got)
+			}
+			e := got[0]
+			want := dbtest.AuditEvent{Action: "job.run", Outcome: tc.wantOutcome, Reason: tc.wantReason, ActorKind: "user", ActorID: person.String(), Initiator: "person", Origin: "api", TargetKind: "job", TargetID: "dashboard_health"}
+			trigger := e.Data["trigger"]
+			e.Data = nil
+			if fmt.Sprint(e) != fmt.Sprint(want) || trigger != "manual" {
+				t.Errorf("event %+v with trigger %v, want %+v with trigger manual", e, trigger, want)
+			}
+		})
 	}
 }

@@ -158,7 +158,7 @@ type Deps struct {
 	Observations   *observations.Service
 	SavedSearches  *savedsearches.Service
 	Health         *health.Service
-	StartHealthRun func()
+	StartHealthRun func(context.Context)
 	Annotations    *annotations.Service
 	Activity       *activity.Store
 	Runs           RunDesk
@@ -210,6 +210,7 @@ type Run struct {
 	Attempt       int
 	From, To      time.Time
 	TimeZone      string
+	Access        datasource.Access
 }
 
 type runKey struct{}
@@ -239,6 +240,18 @@ func WithUnchecked(ctx context.Context, unchecked []Unchecked) context.Context {
 func UncheckedReads(ctx context.Context) []Unchecked {
 	unchecked, _ := ctx.Value(uncheckedKey{}).([]Unchecked)
 	return unchecked
+}
+
+func callAccess(ctx context.Context, principal auth.Principal, run Run, inRun bool) context.Context {
+	if inRun {
+		return datasource.WithAccess(ctx, run.Access)
+	}
+	return datasource.WithAccess(ctx, datasource.Access{By: principal})
+}
+
+func (r *Registry) DatasourceTypes(ctx context.Context) []spec.DatasourceType {
+	principal, _ := auth.FromContext(ctx)
+	return configuredTypes(callAccess(ctx, principal, Run{}, false), r.deps.Datasources)
 }
 
 func WithRun(ctx context.Context, run Run) context.Context {
@@ -396,10 +409,12 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if res, ok := offered(e.tool, run, inRun); !ok {
 		return res, nil
 	}
+	ctx = callAccess(ctx, principal, run, inRun)
 	input, refused, ok := r.canonical(name, input, inRun)
 	if !ok {
 		return refused, nil
 	}
+	ctx = attributed(ctx, name, run, inRun)
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
 		return Result{}, err

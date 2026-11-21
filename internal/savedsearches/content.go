@@ -1,6 +1,7 @@
 package savedsearches
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -57,7 +58,7 @@ func mergedInput(current dbsqlc.SavedSearch, in UpdateInput) (CreateInput, error
 	return merged, nil
 }
 
-func (s *Service) mergeContent(current dbsqlc.SavedSearch, in UpdateInput, now time.Time) (*contentChange, error) {
+func (s *Service) mergeContent(ctx context.Context, current dbsqlc.SavedSearch, in UpdateInput, now time.Time) (*contentChange, error) {
 	merged, err := mergedInput(current, in)
 	if err != nil {
 		return nil, err
@@ -66,7 +67,7 @@ func (s *Service) mergeContent(current dbsqlc.SavedSearch, in UpdateInput, now t
 	if err != nil {
 		return nil, err
 	}
-	if err := s.checkDatasource(checked); err != nil {
+	if err := s.checkDatasource(ctx, checked); err != nil {
 		return nil, err
 	}
 	return changedContent(current, checked)

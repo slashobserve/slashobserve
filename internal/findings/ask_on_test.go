@@ -17,7 +17,7 @@ func TestAFindingCarriesTheDashboardToAskOnWithItsTitle(t *testing.T) {
 	if saved.AskOnID != r.open.String() || saved.DashboardID != "" {
 		t.Fatalf("saved finding: ask %q dashboard %q, want ask %s and no dashboard", saved.AskOnID, saved.DashboardID, r.open.String())
 	}
-	got, found, err := r.service.ForRequest(t.Context(), editor, request)
+	got, found, err := r.service.ForRequest(reading(t.Context()), editor, request)
 	if err != nil || !found {
 		t.Fatalf("for request: found %v, %v", found, err)
 	}
@@ -34,7 +34,7 @@ func TestAFindingWithoutAnAskTargetHasNone(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, pgtype.UUID{})
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request})
-	got, _, err := r.service.ForRequest(t.Context(), editor, request)
+	got, _, err := r.service.ForRequest(reading(t.Context()), editor, request)
 	if err != nil || got.AskOnID != "" || findings.JSONOf(got, "").AskOn != nil {
 		t.Fatalf("ask on = %q, json %+v, %v", got.AskOnID, findings.JSONOf(got, "").AskOn, err)
 	}
@@ -46,7 +46,7 @@ func TestTheAskTargetIsDroppedForAReaderWhoCannotViewTheDashboard(t *testing.T) 
 	request := r.request(t, editor, pgtype.UUID{})
 	r.save(t, editor, findings.SaveInput{AgentRequestID: request, AskDashboardID: hidden})
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	got, found, err := r.service.ForRequest(t.Context(), editor, request)
+	got, found, err := r.service.ForRequest(reading(t.Context()), editor, request)
 	if err != nil || !found {
 		t.Fatalf("for request: found %v, %v", found, err)
 	}
@@ -59,7 +59,7 @@ func TestSavingWithAnAskTargetTheCallerCannotViewIsNotFound(t *testing.T) {
 	r := newRig(t)
 	hidden := r.dashboard(t, "Payroll")
 	foldertest.Move(t, r.db, hidden, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
-	_, _, err := r.service.Save(t.Context(), editor, findings.SaveInput{AskDashboardID: hidden, Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
+	_, _, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{AskDashboardID: hidden, Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
 	if !errors.Is(err, findings.ErrNotFound) {
 		t.Fatalf("save with a hidden ask target: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestSavingWithAnAskTargetTheCallerCannotViewIsNotFound(t *testing.T) {
 func TestAFindingAboutADashboardTakesNoAskTarget(t *testing.T) {
 	r := newRig(t)
 	other := r.dashboard(t, "Search")
-	_, _, err := r.service.Save(t.Context(), editor, findings.SaveInput{DashboardID: r.open, AskDashboardID: other, Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
+	_, _, err := r.service.Save(reading(t.Context()), editor, findings.SaveInput{DashboardID: r.open, AskDashboardID: other, Title: "t", Markdown: "m", From: windowTo.Add(-1), To: windowTo})
 	if !errors.Is(err, findings.ErrAskPlacement) {
 		t.Fatalf("save with a dashboard and an ask target: %v", err)
 	}

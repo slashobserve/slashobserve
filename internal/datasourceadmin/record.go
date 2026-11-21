@@ -24,6 +24,12 @@ type recordedChanges struct {
 	Host *activity.Change[string] `json:"host,omitempty"`
 }
 
+type recordedAudience struct {
+	recordedDatasource
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
 type recordedUpdate struct {
 	recordedDatasource
 	Changes            recordedChanges `json:"changes"`
@@ -56,8 +62,14 @@ func recordDeleted(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id
 }
 
 func recordUpdated(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id pgtype.UUID, before, after Definition, credentialsChanged bool) error {
+	if before.Audience != after.Audience {
+		audience := recordedAudience{recordedDatasource: recordedOf(after), From: string(before.Audience), To: string(after.Audience)}
+		if err := activity.AppendAdmin(ctx, q, activity.By(ctx, by), activity.TypeDatasourceAudienceChanged, id, audience); err != nil {
+			return err
+		}
+	}
 	rest := before
-	rest.Name, rest.Address = after.Name, after.Address
+	rest.Name, rest.Address, rest.Audience = after.Name, after.Address, after.Audience
 	update := recordedUpdate{
 		recordedDatasource: recordedOf(after),
 		Changes: recordedChanges{

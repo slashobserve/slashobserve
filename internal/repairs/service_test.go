@@ -77,10 +77,10 @@ func TestListHidesFoldersTheCallerCannotSee(t *testing.T) {
 	if _, ok := got[visible.String()]; !ok {
 		t.Errorf("visible dashboard is missing")
 	}
-	if _, err := r.svc.List(t.Context(), r.other, repairs.ListParams{FolderID: secret, Limit: 10}); !errors.Is(err, repairs.ErrFolderNotFound) {
+	if _, err := r.svc.List(reading(t.Context()), r.other, repairs.ListParams{FolderID: secret, Limit: 10}); !errors.Is(err, repairs.ErrFolderNotFound) {
 		t.Errorf("hidden folder filter error %v, want ErrFolderNotFound", err)
 	}
-	if _, err := r.svc.List(t.Context(), r.other, repairs.ListParams{Cursor: "!!", Limit: 10}); !errors.Is(err, repairs.ErrInvalidCursor) {
+	if _, err := r.svc.List(reading(t.Context()), r.other, repairs.ListParams{Cursor: "!!", Limit: 10}); !errors.Is(err, repairs.ErrInvalidCursor) {
 		t.Errorf("bad cursor error %v, want ErrInvalidCursor", err)
 	}
 }
@@ -115,7 +115,7 @@ func TestListShowsTheLatestRepair(t *testing.T) {
 		t.Fatalf("outcome %+v", out)
 	}
 	r.db.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', finished_at = now() WHERE id = $1", out.Queued[0].RequestID)
-	if _, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{DashboardID: id, Source: revisions.SourcePrompt, Prompt: "add a panel", BaseVersion: 1, By: r.editor}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: id, Source: revisions.SourcePrompt, Prompt: "add a panel", BaseVersion: 1, By: r.editor}); err != nil {
 		t.Fatal(err)
 	}
 	it := byID(r.list(t, r.editor, repairs.ListParams{}).Items)[id.String()]
@@ -142,7 +142,7 @@ func TestListShowsLastImportAt(t *testing.T) {
 		title, created_by_kind, created_by_id, created_by_name)
 		VALUES ($1, 1, 'grafana', 1, '\x7b7d', '{}', '{}', '[]', '{}', 'Imported', 'user', $2, 'eda')`, imported, r.editor.ID)
 	var versionAt time.Time
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT created_at FROM dashboard_versions WHERE dashboard_id = $1 AND version = 1", imported.String()).Scan(&versionAt); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT created_at FROM dashboard_versions WHERE dashboard_id = $1 AND version = 1", imported.String()).Scan(&versionAt); err != nil {
 		t.Fatal(err)
 	}
 	got := byID(r.list(t, r.editor, repairs.ListParams{}).Items)
@@ -158,10 +158,10 @@ func TestRequestSkipsADashboardWithAQueuedOrRunningRevision(t *testing.T) {
 	r := newRig(t)
 	queued := r.failing(t, r.shared, "Queued")
 	running := r.failing(t, r.shared, "Running")
-	if _, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{DashboardID: queued, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: queued, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
 		t.Fatal(err)
 	}
-	rev, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{DashboardID: running, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other})
+	rev, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: running, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestRequestSkipsMissingAndHiddenDashboards(t *testing.T) {
 	hidden := r.failing(t, secret, "Hidden")
 	r.restrict(t, secret)
 	missing := pgtype.UUID{Bytes: [16]byte{1, 2, 3}, Valid: true}
-	out, err := r.svc.Request(t.Context(), r.other, repairs.Target{DashboardIDs: []pgtype.UUID{missing, hidden}})
+	out, err := r.svc.Request(reading(t.Context()), r.other, repairs.Target{DashboardIDs: []pgtype.UUID{missing, hidden}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestRequestSkipsMissingAndHiddenDashboards(t *testing.T) {
 func TestRequestSkipsDashboardsTheCallerCannotEdit(t *testing.T) {
 	r := newRig(t)
 	id := r.failing(t, r.shared, "Board")
-	out, err := r.svc.Request(t.Context(), r.viewer, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
+	out, err := r.svc.Request(reading(t.Context()), r.viewer, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestRequestAllQueuesEveryListedDashboardOnce(t *testing.T) {
 	r := newRig(t)
 	ids := []pgtype.UUID{r.failing(t, r.shared, "A"), r.failing(t, r.shared, "B"), r.failing(t, r.shared, "C"), r.failing(t, r.shared, "D")}
 	r.dashboard(t, r.shared, "Clean")
-	if _, err := r.revisions.Submit(t.Context(), revisions.EnqueueParams{DashboardID: ids[0], Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: ids[0], Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
 		t.Fatal(err)
 	}
 	first := r.request(t, repairs.Target{All: true})
@@ -258,7 +258,7 @@ func TestRequestAllHonoursTheFolder(t *testing.T) {
 	}
 	secret := r.folder(t, "Secret")
 	r.restrict(t, secret)
-	if _, err := r.svc.Request(t.Context(), r.other, repairs.Target{All: true, FolderID: secret}); !errors.Is(err, repairs.ErrFolderNotFound) {
+	if _, err := r.svc.Request(reading(t.Context()), r.other, repairs.Target{All: true, FolderID: secret}); !errors.Is(err, repairs.ErrFolderNotFound) {
 		t.Errorf("hidden folder error %v, want ErrFolderNotFound", err)
 	}
 }
@@ -266,7 +266,7 @@ func TestRequestAllHonoursTheFolder(t *testing.T) {
 func TestRequestQueuesWithTheFixedPromptAndLatestVersion(t *testing.T) {
 	r := newRig(t)
 	id := r.dashboard(t, r.shared, "Board")
-	if _, _, _, err := r.dashboards.AddVersion(t.Context(), r.editor, id, 1, boardSpec("Board v2"), "edit"); err != nil {
+	if _, _, _, err := r.dashboards.AddVersion(reading(t.Context()), r.editor, id, 1, boardSpec("Board v2"), "edit"); err != nil {
 		t.Fatal(err)
 	}
 	r.setUnverified(t, id, onePanelUnverified)
@@ -276,7 +276,7 @@ func TestRequestQueuesWithTheFixedPromptAndLatestVersion(t *testing.T) {
 	}
 	var source, prompt, requester, status string
 	var base int
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT source, prompt, base_version, requested_by_id::text, status FROM agent_requests WHERE id = $1", out.Queued[0].RequestID).
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT source, prompt, base_version, requested_by_id::text, status FROM agent_requests WHERE id = $1", out.Queued[0].RequestID).
 		Scan(&source, &prompt, &base, &requester, &status)
 	if err != nil {
 		t.Fatal(err)
@@ -296,7 +296,7 @@ func TestRequestStopsAtTheRequesterCap(t *testing.T) {
 	if len(out.Queued) != 0 || reasons(out)[id.String()] != repairs.ReasonQueueFull {
 		t.Fatalf("outcome %+v, want queue_full", out)
 	}
-	theirs, err := r.svc.Request(t.Context(), r.other, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
+	theirs, err := r.svc.Request(reading(t.Context()), r.other, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestRequestStopsAtTheRequesterCap(t *testing.T) {
 func TestRequestWithoutAnAgentIsUnavailable(t *testing.T) {
 	r := newRig(t)
 	id := r.failing(t, r.shared, "Board")
-	if _, err := r.noAgent.Request(t.Context(), r.editor, repairs.Target{DashboardIDs: []pgtype.UUID{id}}); !errors.Is(err, revisions.ErrUnavailable) {
+	if _, err := r.noAgent.Request(reading(t.Context()), r.editor, repairs.Target{DashboardIDs: []pgtype.UUID{id}}); !errors.Is(err, revisions.ErrUnavailable) {
 		t.Errorf("error %v, want ErrUnavailable", err)
 	}
 }

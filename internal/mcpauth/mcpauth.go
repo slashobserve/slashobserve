@@ -10,10 +10,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type People interface {
@@ -90,6 +92,7 @@ func (s *Server) Paths() []string {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	audit.Update(r.Context(), func(sc *audit.Scope) { sc.Origin.Kind = string(origin.MCP) })
 	s.mux.ServeHTTP(w, r)
 }
 

@@ -29,11 +29,11 @@ func groupByOfQueries(fake *fakeDatasource) map[string][]string {
 func runGroupBy(t *testing.T, runner *Runner, panel spec.Panel, selections map[string]Selection, variables ...spec.Variable) error {
 	t.Helper()
 	d := dashboardOf([]spec.Panel{panel}, variables...)
-	selections, err := runner.Defaults(t.Context(), d, testRange(), selections, datasource.QueryUser{})
+	selections, err := runner.Defaults(reading(t.Context()), d, testRange(), selections, datasource.QueryUser{})
 	if err != nil {
 		return err
 	}
-	_, err = runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: panel.ID, Range: testRange(), Selections: selections})
+	_, err = runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: panel.ID, Range: testRange(), Selections: selections})
 	return err
 }
 
@@ -168,7 +168,7 @@ func TestGroupBySelectionValidation(t *testing.T) {
 func TestGroupByVariableHasNoValueList(t *testing.T) {
 	prom := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
-	_, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, groupByVariable("g", "prom")), "g", testRange(), nil, datasource.QueryUser{})
+	_, _, err := runner.VariableValues(reading(t.Context()), dashboardOf(nil, groupByVariable("g", "prom")), "g", testRange(), nil, datasource.QueryUser{})
 	if !errors.Is(err, ErrInvalidRequest) {
 		t.Fatalf("err = %v, want ErrInvalidRequest", err)
 	}
@@ -193,7 +193,7 @@ func TestCheckSpecGroupByUsesTheSavedDefaultAndChecksTheDatasource(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			prom, ch := newFake("prometheus"), newFake("clickhouse")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom, "ch": ch})
-			issues, err := runner.CheckSpec(t.Context(), dashboardOf(panels, tt.variables...), testNow, datasource.QueryUser{})
+			issues, err := runner.CheckSpec(reading(t.Context()), dashboardOf(panels, tt.variables...), testNow, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("CheckSpec error: %v", err)
 			}
@@ -206,7 +206,7 @@ func TestCheckSpecAppliesTheSavedGroupByDefaultToQueries(t *testing.T) {
 	prom := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
 	panels := []spec.Panel{panelOf("p0", spec.Timeseries, "prom", "sum(up)")}
-	if _, err := runner.CheckSpec(t.Context(), dashboardOf(panels, groupByVariable("g", "prom", "pod", "job")), testNow, datasource.QueryUser{}); err != nil {
+	if _, err := runner.CheckSpec(reading(t.Context()), dashboardOf(panels, groupByVariable("g", "prom", "pod", "job")), testNow, datasource.QueryUser{}); err != nil {
 		t.Fatalf("CheckSpec error: %v", err)
 	}
 	calls := prom.recorded()

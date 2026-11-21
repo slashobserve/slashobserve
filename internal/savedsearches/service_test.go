@@ -82,7 +82,7 @@ func mustUUID(t *testing.T, s string) pgtype.UUID {
 func (r rig) scalar(t *testing.T, query string, args ...any) string {
 	t.Helper()
 	var out string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&out); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&out); err != nil {
 		t.Fatal(err)
 	}
 	return out
@@ -114,7 +114,7 @@ func traceSearch(title string) savedsearches.CreateInput {
 
 func (r rig) save(t *testing.T, by auth.Principal, in savedsearches.CreateInput) savedsearches.SavedSearch {
 	t.Helper()
-	got, err := r.service.Create(t.Context(), by, in)
+	got, err := r.service.Create(reading(t.Context()), by, in)
 	if err != nil {
 		t.Fatalf("create %q: %v", in.Title, err)
 	}
@@ -127,7 +127,7 @@ type event struct {
 
 func (r rig) events(t *testing.T, id string) []event {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT type, COALESCE(folder_id::text, ''), data::text FROM activity WHERE saved_search_id = $1::uuid ORDER BY seq`, id)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type, COALESCE(folder_id::text, ''), data::text FROM activity WHERE saved_search_id = $1::uuid ORDER BY seq`, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestACreateIsRefusedWhereTheCallerMayNotCreate(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			in := logsSearch("x")
 			in.FolderID = c.folder
-			if _, err := r.service.Create(t.Context(), c.by, in); !errors.Is(err, c.want) {
+			if _, err := r.service.Create(reading(t.Context()), c.by, in); !errors.Is(err, c.want) {
 				t.Fatalf("Create = %v, want %v", err, c.want)
 			}
 		})
@@ -248,7 +248,7 @@ func TestACreateChecksTheDatasourceAgainstTheKind(t *testing.T) {
 			in.Filters = nil
 			c.edit(&in)
 			var invalid *savedsearches.InvalidInputError
-			if _, err := r.service.Create(t.Context(), editor, in); !errors.As(err, &invalid) || invalid.Code != c.code {
+			if _, err := r.service.Create(reading(t.Context()), editor, in); !errors.As(err, &invalid) || invalid.Code != c.code {
 				t.Fatalf("Create = %v, want code %s", err, c.code)
 			}
 		})
@@ -277,30 +277,30 @@ func TestListShowsOnlyVisibleFoldersAndPagesByCursor(t *testing.T) {
 		return out
 	}
 
-	page, next, err := r.service.List(t.Context(), editor, savedsearches.ListFilter{}, 2, "")
+	page, next, err := r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{}, 2, "")
 	if err != nil || next == "" || strings.Join(titles(page), ",") != "Three,Two" {
 		t.Fatalf("first page %v next %q err %v", titles(page), next, err)
 	}
-	page, next, err = r.service.List(t.Context(), editor, savedsearches.ListFilter{}, 2, next)
+	page, next, err = r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{}, 2, next)
 	if err != nil || next != "" || strings.Join(titles(page), ",") != "One" {
 		t.Fatalf("second page %v next %q err %v", titles(page), next, err)
 	}
 
-	kind, _, err := r.service.List(t.Context(), editor, savedsearches.ListFilter{Kind: savedsearches.KindTraces}, 10, "")
+	kind, _, err := r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{Kind: savedsearches.KindTraces}, 10, "")
 	if err != nil || strings.Join(titles(kind), ",") != "Two" {
 		t.Fatalf("traces only %v err %v", titles(kind), err)
 	}
-	inFolder, _, err := r.service.List(t.Context(), editor, savedsearches.ListFilter{FolderID: first.Folder.ID}, 10, "")
+	inFolder, _, err := r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{FolderID: first.Folder.ID}, 10, "")
 	if err != nil || len(inFolder) != 3 || inFolder[0].ID != third.ID {
 		t.Fatalf("one folder %v err %v", titles(inFolder), err)
 	}
-	if _, _, err := r.service.List(t.Context(), editor, savedsearches.ListFilter{FolderID: restricted}, 10, ""); !errors.Is(err, savedsearches.ErrFolderNotFound) {
+	if _, _, err := r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{FolderID: restricted}, 10, ""); !errors.Is(err, savedsearches.ErrFolderNotFound) {
 		t.Fatalf("a hidden folder: %v", err)
 	}
-	if _, _, err := r.service.List(t.Context(), editor, savedsearches.ListFilter{}, 10, "nope"); !errors.Is(err, savedsearches.ErrInvalidCursor) {
+	if _, _, err := r.service.List(reading(t.Context()), editor, savedsearches.ListFilter{}, 10, "nope"); !errors.Is(err, savedsearches.ErrInvalidCursor) {
 		t.Fatalf("a bad cursor: %v", err)
 	}
-	seen, _, err := r.service.List(t.Context(), payroll, savedsearches.ListFilter{}, 10, "")
+	seen, _, err := r.service.List(reading(t.Context()), payroll, savedsearches.ListFilter{}, 10, "")
 	if err != nil || strings.Join(titles(seen), ",") != "Payroll errors" {
 		t.Fatalf("the payroll member sees %v err %v", titles(seen), err)
 	}
@@ -312,19 +312,19 @@ func TestRenameAndMoveAppendOneRowEachAndMoveTakesEarlierRowsAlong(t *testing.T)
 	shared := r.folder(t, "Shared")
 	renamed := "Checkout errors"
 
-	got, err := r.service.Update(t.Context(), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{Title: &renamed})
+	got, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{Title: &renamed})
 	if err != nil || got.Title != renamed || !got.UpdatedAt.After(saved.UpdatedAt) {
 		t.Fatalf("rename = %+v, %v", got, err)
 	}
 	same := renamed
-	if _, err := r.service.Update(t.Context(), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{Title: &same, FolderID: saved.Folder.ID}); err != nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{Title: &same, FolderID: saved.Folder.ID}); err != nil {
 		t.Fatalf("a change to what it already has: %v", err)
 	}
 	if got := types(r.events(t, saved.ID)); strings.Join(got, ",") != "saved_search.created,saved_search.updated" {
 		t.Fatalf("events after rename %v", got)
 	}
 
-	moved, err := r.service.Update(t.Context(), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{FolderID: shared})
+	moved, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, saved.ID), savedsearches.UpdateInput{FolderID: shared})
 	if err != nil || moved.Folder.ID != shared || moved.Title != renamed {
 		t.Fatalf("move = %+v, %v", moved, err)
 	}
@@ -357,7 +357,7 @@ func TestAContentUpdateReplacesTheQueryFiltersAndRangeAndAppendsOneEvent(t *test
 	query := `{app="payments"} |= "timeout"`
 	from, to := "now-6h", "now-1h"
 
-	got, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{
+	got, err := r.service.Update(reading(t.Context()), editor, id, savedsearches.UpdateInput{
 		Query: &query, Filters: []byte(`{"columns":["timestamp","line"]}`), From: &from, To: &to,
 	})
 	if err != nil || got.Query == nil || *got.Query != query || got.From != from || got.To != to || strings.Join(got.Filters.Columns, ",") != "timestamp,line" {
@@ -381,20 +381,20 @@ func TestAContentUpdateReplacesTheQueryFiltersAndRangeAndAppendsOneEvent(t *test
 		t.Fatalf("event carries query text: %s", events[1].Data)
 	}
 
-	if _, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Query: &query, From: &from}); err != nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, savedsearches.UpdateInput{Query: &query, From: &from}); err != nil {
 		t.Fatalf("a content update to what it already has: %v", err)
 	}
 	if got := types(r.events(t, saved.ID)); len(got) != 2 {
 		t.Fatalf("an unchanged content update appended an event: %v", got)
 	}
 
-	cleared, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Filters: []byte(`null`)})
+	cleared, err := r.service.Update(reading(t.Context()), editor, id, savedsearches.UpdateInput{Filters: []byte(`null`)})
 	if err != nil || len(cleared.Filters.Columns) != 0 || *cleared.Query != query {
 		t.Fatalf("clearing filters = %+v, %v", cleared, err)
 	}
 
 	title, newQuery := "Payments timeouts", `{app="payments"}`
-	both, err := r.service.Update(t.Context(), editor, id, savedsearches.UpdateInput{Title: &title, Query: &newQuery})
+	both, err := r.service.Update(reading(t.Context()), editor, id, savedsearches.UpdateInput{Title: &title, Query: &newQuery})
 	if err != nil || both.Title != title || *both.Query != newQuery {
 		t.Fatalf("title and query together = %+v, %v", both, err)
 	}
@@ -428,18 +428,18 @@ func TestAContentUpdateKeepsTheKindAndDatasourceAndChecksThemAgainstTheNewConten
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := r.service.Update(t.Context(), editor, mustUUID(t, c.id), c.in)
+			_, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, c.id), c.in)
 			var invalid *savedsearches.InvalidInputError
 			if !errors.As(err, &invalid) || invalid.Code != savedsearches.CodeInvalid {
 				t.Fatalf("Update = %v, want %s", err, savedsearches.CodeInvalid)
 			}
 		})
 	}
-	got, err := r.service.Update(t.Context(), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &tempoQuery})
+	got, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &tempoQuery})
 	if err != nil || got.Query == nil || *got.Query != tempoQuery || got.Kind != savedsearches.KindTraces || got.DatasourceUID != "tempo" {
 		t.Fatalf("a Tempo query = %+v, %v", got, err)
 	}
-	cleared, err := r.service.Update(t.Context(), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &empty})
+	cleared, err := r.service.Update(reading(t.Context()), editor, mustUUID(t, traces.ID), savedsearches.UpdateInput{Query: &empty})
 	if err != nil || cleared.Query != nil {
 		t.Fatalf("clearing a Tempo query = %+v, %v", cleared, err)
 	}
@@ -459,10 +459,10 @@ func TestAContentUpdateNeedsEditOnTheSearchLikeARename(t *testing.T) {
 	private := r.save(t, editor, logsSearch("Private"))
 	query := `{app="other"}`
 
-	if _, err := r.service.Update(t.Context(), viewer, mustUUID(t, inShared.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.Update(reading(t.Context()), viewer, mustUUID(t, inShared.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a viewer's content update = %v, want %v", err, folders.ErrForbidden)
 	}
-	if _, err := r.service.Update(t.Context(), otherEditor, mustUUID(t, private.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, savedsearches.ErrNotFound) {
+	if _, err := r.service.Update(reading(t.Context()), otherEditor, mustUUID(t, private.ID), savedsearches.UpdateInput{Query: &query}); !errors.Is(err, savedsearches.ErrNotFound) {
 		t.Fatalf("another person's private search = %v, want %v", err, savedsearches.ErrNotFound)
 	}
 	if got := types(r.events(t, inShared.ID)); len(got) != 1 {
@@ -501,7 +501,7 @@ func TestUpdateRefusals(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := r.service.Update(t.Context(), c.by, c.id, c.in)
+			_, err := r.service.Update(reading(t.Context()), c.by, c.id, c.in)
 			var invalid *savedsearches.InvalidInputError
 			if c.want == nil {
 				if !errors.As(err, &invalid) || invalid.Code != savedsearches.CodeInvalid {
@@ -524,16 +524,16 @@ func TestDeleteAppendsTheEventThenRemovesTheRow(t *testing.T) {
 	saved := r.save(t, editor, logsSearch("Errors"))
 	id := mustUUID(t, saved.ID)
 
-	if err := r.service.Delete(t.Context(), otherEditor, id); !errors.Is(err, savedsearches.ErrNotFound) {
+	if err := r.service.Delete(reading(t.Context()), otherEditor, id); !errors.Is(err, savedsearches.ErrNotFound) {
 		t.Fatalf("another person deleting: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), editor, mustUUID(t, "5f3c1a52-8a0e-4b8c-9a55-0a6f3e4b7d10")); !errors.Is(err, savedsearches.ErrNotFound) {
+	if err := r.service.Delete(reading(t.Context()), editor, mustUUID(t, "5f3c1a52-8a0e-4b8c-9a55-0a6f3e4b7d10")); !errors.Is(err, savedsearches.ErrNotFound) {
 		t.Fatalf("an unknown search: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+	if err := r.service.Delete(reading(t.Context()), editor, id); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, savedsearches.ErrNotFound) {
+	if err := r.service.Delete(reading(t.Context()), editor, id); !errors.Is(err, savedsearches.ErrNotFound) {
 		t.Fatalf("deleting twice: %v", err)
 	}
 	events := r.events(t, saved.ID)
@@ -552,7 +552,7 @@ func TestDeleteIsRefusedWithoutEditOnTheFolder(t *testing.T) {
 	in.FolderID = shared
 	saved := r.save(t, editor, in)
 
-	if err := r.service.Delete(t.Context(), viewer, mustUUID(t, saved.ID)); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.Delete(reading(t.Context()), viewer, mustUUID(t, saved.ID)); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a viewer deleting: %v", err)
 	}
 	if got := types(r.events(t, saved.ID)); len(got) != 1 {

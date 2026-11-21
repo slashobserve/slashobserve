@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
@@ -33,7 +34,7 @@ func (r *rig) serve(t *testing.T, by auth.Principal, method, path string, body a
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	imports.NewHandler(r.imports, r.access).Register(auth.NewRoutes(router.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), by))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), by), datasource.Access{By: by}))
 	})))
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -52,11 +53,11 @@ func importBody(title string) map[string]string {
 
 func TestImportsOfARestrictedFolderNeverLeak(t *testing.T) {
 	r := newRig(t)
-	open, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON(openTitle, "prom", 1)})
+	open, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON(openTitle, "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	hidden, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON(hiddenTitle, "prom", 1)})
+	hidden, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON(hiddenTitle, "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,11 +65,11 @@ func TestImportsOfARestrictedFolderNeverLeak(t *testing.T) {
 
 	for _, by := range []auth.Principal{editorNoGrant, commenterNoGrant, viewerNoGrant} {
 		t.Run(by.Name, func(t *testing.T) {
-			metas, _, err := r.imports.List(t.Context(), by, imports.ListParams{Limit: 50})
+			metas, _, err := r.imports.List(reading(t.Context()), by, imports.ListParams{Limit: 50})
 			if err != nil || len(metas) != 1 || metas[0].Title != openTitle {
 				t.Fatalf("list = %+v, err %v, want only %q", metas, err, openTitle)
 			}
-			metas, _, err = r.imports.List(t.Context(), by, imports.ListParams{Limit: 50, DashboardID: uuid(t, hidden.Dashboard.ID)})
+			metas, _, err = r.imports.List(reading(t.Context()), by, imports.ListParams{Limit: 50, DashboardID: uuid(t, hidden.Dashboard.ID)})
 			if err != nil || len(metas) != 0 {
 				t.Fatalf("list by the hidden dashboard = %+v, err %v, want nothing", metas, err)
 			}
@@ -90,7 +91,7 @@ func TestImportsOfARestrictedFolderNeverLeak(t *testing.T) {
 
 	for _, by := range []auth.Principal{groupViewer, ada} {
 		t.Run(by.Name+" has access", func(t *testing.T) {
-			metas, _, err := r.imports.List(t.Context(), by, imports.ListParams{Limit: 50})
+			metas, _, err := r.imports.List(reading(t.Context()), by, imports.ListParams{Limit: 50})
 			if err != nil || len(metas) != 2 {
 				t.Fatalf("list = %+v, err %v, want both imports", metas, err)
 			}
@@ -112,7 +113,7 @@ func TestViewersAndCommentersWithoutAGrantCannotImport(t *testing.T) {
 					t.Errorf("POST %s = %d %s, want 403 %s", path, rec.Code, rec.Body, roleErrorCode)
 				}
 			}
-			if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 50}); err != nil || len(metas) != 0 {
+			if metas, _, err := r.imports.List(reading(t.Context()), ada, imports.ListParams{Limit: 50}); err != nil || len(metas) != 0 {
 				t.Errorf("imports after the refusals = %+v, err %v", metas, err)
 			}
 		})

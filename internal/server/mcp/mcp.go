@@ -81,13 +81,14 @@ func hasRegisteredClient(ctx context.Context) bool {
 type handler struct {
 	call        func(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
 	callClaim   func(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
+	claimTools  map[string]bool
 	authn       Authenticator
 	logger      *slog.Logger
 	origin      *url.URL
 	metadataURL string
 	transport   http.Handler
 	slots       slots
-	types       func() []spec.DatasourceType
+	types       func(context.Context) []spec.DatasourceType
 
 	runs           RunSessions
 	runTransports  map[tools.Mode]http.Handler
@@ -99,7 +100,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{call: reg.Call, callClaim: reg.CallClaim, authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, runs: opts.Runs}
+	h := &handler{call: reg.Call, callClaim: reg.CallClaim, claimTools: claimToolNames(reg.List()), authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, runs: opts.Runs}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithPromptCapabilities(false),
@@ -244,6 +245,7 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 			ctx = origin.With(ctx, clientOrigin(ctx, req))
 		}
 		answer, err := h.answerFor(ctx, name, input, req, kind)
+		h.recordToolCall(ctx, name, kind, time.Since(start), answer, err)
 		if err != nil {
 			if ctx.Err() != nil {
 				h.logger.InfoContext(ctx, "mcp tool call canceled by client", h.failureAttrs(ctx, name, principal, "canceled", err)...)
@@ -339,6 +341,7 @@ func rawInput(args any) (json.RawMessage, error) {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	openMCPScope(r.Context())
 	w.Header().Set("Cache-Control", "no-store")
 	if !h.originAllowed(r.Header.Get("Origin")) {
 		writeError(w, http.StatusForbidden, "forbidden_origin", "origin not allowed")
@@ -359,14 +362,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", internalErrorMsg)
 		return
 	}
-	if !ok {
+	if !ok || (cred.Loopback && !isLoopbackPeer(r)) {
+		auth.RejectCredential(r.Context(), header)
 		h.unauthenticated(w, "invalid credentials", true)
 		return
 	}
-	if cred.Loopback && !isLoopbackPeer(r) {
-		h.unauthenticated(w, "invalid credentials", true)
-		return
-	}
+	attribute(r.Context(), cred)
 	if cred.Run != nil {
 		h.serveRun(w, r, cred)
 		return

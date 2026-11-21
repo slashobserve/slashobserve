@@ -36,7 +36,7 @@ func commentCalls() map[string]string {
 
 func TestCommentToolsRejectAgentRuns(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	runs := map[string]Run{
 		"create run":       {Mode: ModeCreate},
 		"revise run":       {Mode: ModeRevise, DashboardID: dashA, ParentVersion: 1},
@@ -75,7 +75,7 @@ func TestMCPOnlyTools(t *testing.T) {
 
 func TestCommentToolsNeedComments(t *testing.T) {
 	r := New(Deps{})
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	for tool, input := range commentCalls() {
 		t.Run(tool, func(t *testing.T) {
 			res, err := r.Call(ctx, tool, []byte(input))
@@ -402,7 +402,7 @@ func TestCommentPageNamesWhatWasListed(t *testing.T) {
 
 func (r *accessRig) privateFinding(t *testing.T, by auth.Principal) findings.Finding {
 	t.Helper()
-	f, _, err := r.findings.Save(t.Context(), by, findings.SaveInput{Title: "Checkout is slow", Markdown: "the 5xx rate rose", From: time.Now().Add(-time.Hour), To: time.Now()})
+	f, _, err := r.findings.Save(reading(t.Context()), by, findings.SaveInput{Title: "Checkout is slow", Markdown: "the 5xx rate rose", From: time.Now().Add(-time.Hour), To: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,7 +476,7 @@ func TestCommentToolsWorkOnAnObservation(t *testing.T) {
 
 func TestCommentToolsOnAnAnnotation(t *testing.T) {
 	r := newAccessRig(t)
-	note, err := r.notes.Create(t.Context(), adminCaller, annotations.CreateInput{Text: "deploy v2"})
+	note, err := r.notes.Create(reading(t.Context()), adminCaller, annotations.CreateInput{Text: "deploy v2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -572,7 +572,7 @@ func TestCommentToolsStartARunOnlyWhenAskedTo(t *testing.T) {
 	dash := r.seed(t, openTitle).String()
 	target := `"target":"dashboard:` + dash + `"`
 	var account string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
 		t.Fatal(err)
 	}
 	token := "@[runner](service_account:" + account + ")"
@@ -624,7 +624,7 @@ func TestStartRunsNeedsTheMentionRuns(t *testing.T) {
 func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
 	r := newAccessRig(t)
 	var account string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
 		t.Fatal(err)
 	}
 	token := "@[runner](service_account:" + account + ")"
@@ -642,7 +642,7 @@ func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
 		}
 	}
 	var queued int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests`).Scan(&queued); err != nil || queued != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests`).Scan(&queued); err != nil || queued != 0 {
 		t.Fatalf("%d runs queued, err %v", queued, err)
 	}
 }
@@ -676,7 +676,7 @@ func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := r.threads.List(t.Context(), adminCaller, threads.ListQuery{Target: parsed, Status: threads.StatusAll, Limit: 10})
+	page, err := r.threads.List(reading(t.Context()), adminCaller, threads.ListQuery{Target: parsed, Status: threads.StatusAll, Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -689,7 +689,7 @@ func TestCommentToolsPassTheBlockAndTheQuotedMessageToTheThreadsService(t *testi
 
 func TestListMentionablePeopleNeedsTheCommentAbilityAndPagesWithMore(t *testing.T) {
 	r := newAccessRig(t)
-	note, err := r.notes.Create(t.Context(), adminCaller, annotations.CreateInput{Text: "deploy v2"})
+	note, err := r.notes.Create(reading(t.Context()), adminCaller, annotations.CreateInput{Text: "deploy v2"})
 	if err != nil {
 		t.Fatal(err)
 	}

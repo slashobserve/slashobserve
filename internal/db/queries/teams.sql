@@ -21,8 +21,11 @@ RETURNING id, name, created_by_name, created_at;
 -- name: DeleteTeam :execrows
 DELETE FROM teams WHERE id = @id;
 
--- name: AddTeamMember :exec
+-- name: AddTeamMember :execrows
 INSERT INTO team_members (team_id, user_id) VALUES (@team_id, @user_id) ON CONFLICT DO NOTHING;
 
 -- name: RemoveTeamMember :execrows
 DELETE FROM team_members WHERE team_id = @team_id AND user_id = @user_id;
+
+-- name: GetUserName :one
+SELECT coalesce(name, '')::text FROM users WHERE id = @id;

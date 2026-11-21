@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -256,6 +257,7 @@ func (w *Worker) record(ctx context.Context, c *claim, e activity.Event, deliver
 		return false
 	}
 	c.failures = failures
+	w.recordDelivery(ctx, c.row, e, got)
 	if failed {
 		w.Logger.WarnContext(ctx, "webhook delivery failed",
 			slog.String("webhook_id", c.row.ID.String()), slog.Int("status_code", got.status), slog.String("error_code", got.errorCode))
@@ -264,6 +266,25 @@ func (w *Worker) record(ctx context.Context, c *claim, e activity.Event, deliver
 		}
 	}
 	return !failed
+}
+
+func (w *Worker) recordDelivery(ctx context.Context, row dbsqlc.Webhook, e activity.Event, got attempt) {
+	outcome := audit.OutcomeSuccess
+	if got.outcome != outcomeDelivered {
+		outcome = audit.OutcomeFailed
+	}
+	err := audit.RecordNow(context.WithoutCancel(ctx), audit.Event{
+		Action:   "webhook.deliver",
+		Outcome:  outcome,
+		Reason:   got.errorCode,
+		Status:   got.status,
+		Target:   audit.Target{Kind: "webhook", ID: row.ID.String(), Name: row.Name},
+		Duration: got.duration,
+		Data:     map[string]any{"event_type": e.Type},
+	})
+	if err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		w.logFailure(ctx, "record webhook delivery for audit", "webhook_audit_failed", err, row)
+	}
 }
 
 func disableReason(failures int32, got attempt) string {

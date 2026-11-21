@@ -39,7 +39,7 @@ func hasKey(v any, key string) bool {
 
 func TestFreezeReturnsTheDataBodyWithNoQueryText(t *testing.T) {
 	hn := newHarness(t)
-	frozen, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("sum(up)"), observations.BlockPanelID, frozenFrom, frozenTo)
+	frozen, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("sum(up)"), observations.BlockPanelID, frozenFrom, frozenTo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestFreezeReturnsTheDataBodyWithNoQueryText(t *testing.T) {
 
 func TestFreezeMarksADashboardThatReadsTheUser(t *testing.T) {
 	hn := newHarness(t)
-	frozen, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard(`up{user="${__user.login}"}`), observations.BlockPanelID, frozenFrom, frozenTo)
+	frozen, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard(`up{user="${__user.login}"}`), observations.BlockPanelID, frozenFrom, frozenTo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,14 +92,14 @@ func TestFreezeSharesThePerPrincipalSlots(t *testing.T) {
 		}
 		releases = append(releases, release)
 	}
-	_, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
+	_, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
 	if !errors.Is(err, queryproxy.ErrUpstreamBusy) {
 		t.Errorf("busy: %v", err)
 	}
 	for _, release := range releases {
 		release()
 	}
-	if _, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo); err != nil {
+	if _, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo); err != nil {
 		t.Errorf("after release: %v", err)
 	}
 }
@@ -111,7 +111,7 @@ func TestFreezeRefusesOversizeData(t *testing.T) {
 			hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 				return bigFrames(bytes), nil
 			}
-			_, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
+			_, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
 			if !errors.Is(err, observations.ErrSnapshotTooLarge) {
 				t.Errorf("err = %v", err)
 			}
@@ -122,12 +122,12 @@ func TestFreezeRefusesOversizeData(t *testing.T) {
 func TestFreezeReturnsAQueryFailureAsIs(t *testing.T) {
 	hn := newHarness(t)
 	hn.ds.failText = map[string]error{"up": errors.New("boom")}
-	_, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
+	_, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), observations.BlockPanelID, frozenFrom, frozenTo)
 	var qe *queryproxy.QueryError
 	if !errors.As(err, &qe) {
 		t.Errorf("err = %v", err)
 	}
-	if _, err := hn.h.Freeze(t.Context(), viewerUser, blockDashboard("up"), "missing", frozenFrom, frozenTo); !errors.Is(err, queryproxy.ErrPanelNotFound) {
+	if _, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), "missing", frozenFrom, frozenTo); !errors.Is(err, queryproxy.ErrPanelNotFound) {
 		t.Errorf("missing panel: %v", err)
 	}
 }

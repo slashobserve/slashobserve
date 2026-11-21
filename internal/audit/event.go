@@ -16,6 +16,8 @@ const (
 	OutcomeUnknown Outcome = "unknown"
 )
 
+const ReasonNoChange = "no_change"
+
 type ActorKind string
 
 const (
@@ -107,6 +109,7 @@ type Result struct {
 	Outcome Outcome
 	Reason  string
 	Target  Target
+	Data    map[string]any
 }
 
 type Event struct {

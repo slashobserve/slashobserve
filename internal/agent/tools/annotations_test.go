@@ -159,7 +159,7 @@ func TestEveryRunReadsAnnotationsAsItsPerson(t *testing.T) {
 func annotationRows(t *testing.T, r *accessRig) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM annotations").Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT count(*) FROM annotations").Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -200,7 +200,7 @@ func TestCreateAnnotationOnADashboardFollowsFolderAccess(t *testing.T) {
 
 func TestCreateAnnotationIsRefusedInsideARun(t *testing.T) {
 	r := New(Deps{})
-	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
+	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
 	for _, mode := range []Mode{ModeCreate, ModeInvestigate} {
 		res, err := r.Call(WithRun(editor, Run{Mode: mode}), nameCreateAnnotation, []byte(`{"text":"deploy v2"}`))
 		if err != nil {
@@ -254,7 +254,7 @@ func TestUpdateAnnotationChangesWhatTheCallerAdded(t *testing.T) {
 
 func TestUpdateAnnotationIsRefusedInsideARun(t *testing.T) {
 	r := New(Deps{})
-	editor := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
+	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
 	res, err := r.Call(WithRun(editor, Run{Mode: ModeInvestigate}), nameUpdateAnnotation, []byte(`{"id":"0a1b2c3d-0000-4000-8000-000000000001","text":"x"}`))
 	if err != nil {
 		t.Fatal(err)

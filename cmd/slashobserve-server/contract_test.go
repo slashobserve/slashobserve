@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -29,26 +30,31 @@ func freeLoopbackAddr(t *testing.T) string {
 	return addr
 }
 
-func TestTheRealRouterMatchesTheAPIDocument(t *testing.T) {
-	addr := freeLoopbackAddr(t)
-	for name, value := range map[string]string{
+func startServer(t *testing.T, databaseURL string, extraEnv map[string]string) (addr string, exited chan error) {
+	t.Helper()
+	addr = freeLoopbackAddr(t)
+	env := map[string]string{
 		"SLASHOBSERVE_HTTP_ADDR":                  addr,
-		"SLASHOBSERVE_DATABASE_URL":               dbtest.New(t).URL(),
+		"SLASHOBSERVE_DATABASE_URL":               databaseURL,
 		"SLASHOBSERVE_PUBLIC_URL":                 "http://" + addr,
 		"SLASHOBSERVE_OIDC_ISSUER_URL":            "http://127.0.0.1:1/dex",
 		"SLASHOBSERVE_OIDC_CLIENT_ID":             "slashobserve",
 		"SLASHOBSERVE_OIDC_CLIENT_SECRET":         "unused",
 		"SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS": "example.com",
 		"SLASHOBSERVE_SECRET_KEY":                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-		"SLASHOBSERVE_API_CONTRACT_CHECK":         "true",
 		"SLASHOBSERVE_LOG_LEVEL":                  "error",
-	} {
+	}
+	maps.Copy(env, extraEnv)
+	for name, value := range env {
 		t.Setenv(name, value)
 	}
-
-	exited := make(chan error, 1)
+	exited = make(chan error, 1)
 	go func() { exited <- run() }()
+	return addr, exited
+}
 
+func serveThenTerminate(t *testing.T, addr string, exited chan error) {
+	t.Helper()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	deadline := time.After(2 * time.Minute)
@@ -77,4 +83,9 @@ func TestTheRealRouterMatchesTheAPIDocument(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestTheRealRouterMatchesTheAPIDocument(t *testing.T) {
+	addr, exited := startServer(t, dbtest.New(t).URL(), map[string]string{"SLASHOBSERVE_API_CONTRACT_CHECK": "true"})
+	serveThenTerminate(t, addr, exited)
 }
