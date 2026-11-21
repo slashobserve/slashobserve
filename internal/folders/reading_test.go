@@ -35,3 +35,26 @@ func TestContentOutsideAnAdminsOnlyFolderIsReadAsEveryoneReadsIt(t *testing.T) {
 		t.Fatal("a context without access gained one")
 	}
 }
+
+func TestReadingAnAdminsOnlyFolderMarksOnlyARunThatMayReadIt(t *testing.T) {
+	admin := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
+	for _, c := range []struct {
+		name   string
+		access datasource.Access
+		folder folders.Folder
+		marked bool
+	}{
+		{"an Admin's private run in an Admins-only folder", datasource.Access{By: admin}, folders.Folder{AdminsOnly: true}, true},
+		{"an Admin's run for Admins in an Admins-only folder", datasource.Access{By: admin, Audience: datasource.AudienceAdmins}, folders.Folder{AdminsOnly: true}, true},
+		{"an Admin's private run in a shared folder", datasource.Access{By: admin}, folders.Folder{}, false},
+		{"the system in an Admins-only folder", datasource.Access{System: true}, folders.Folder{AdminsOnly: true}, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ctx, marked := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), c.access))
+			folders.Read(ctx, c.folder)
+			if marked() != c.marked {
+				t.Fatalf("marked = %v, want %v", marked(), c.marked)
+			}
+		})
+	}
+}

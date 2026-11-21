@@ -101,6 +101,34 @@ export function threadTarget(item: InboxItem): string | null {
     : null
 }
 
+const builtInAgentName = "Observe Agent"
+
+function answeringActor(item: InboxItem): string {
+  return item.actor.run_id === null ? item.actor.label : builtInAgentName
+}
+
+function repliedText(item: InboxItem): ItemText {
+  if (item.question !== null) {
+    return {
+      actor: answeringActor(item),
+      verb: "answered",
+      object: item.question,
+    }
+  }
+  if (item.actor.run_id !== null) {
+    return {
+      actor: builtInAgentName,
+      verb: "answered on",
+      object: threadObject(item),
+    }
+  }
+  return {
+    actor: item.actor.label,
+    verb: "replied on",
+    object: threadObject(item),
+  }
+}
+
 function threadObject(item: InboxItem): string {
   return titleOf(item) ?? kindWords[objectRef(item)?.kind ?? item.target.kind]
 }
@@ -177,7 +205,7 @@ export function itemText(item: InboxItem): ItemText {
     case "thread.mentioned":
       return { actor, verb: "mentioned you on", object: threadObject(item) }
     case "thread.replied":
-      return { actor, verb: "replied on", object: threadObject(item) }
+      return repliedText(item)
     case "access_request.opened":
       return {
         actor,

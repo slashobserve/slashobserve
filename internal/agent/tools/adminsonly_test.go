@@ -115,17 +115,24 @@ func TestAnAdminsOnlyDatasourceAnswersANonAdminToolLikeAMissingOne(t *testing.T)
 	}
 }
 
-func TestARunReadsAnAdminsOnlyDatasourceOnlyForAnAdminWritingForThemself(t *testing.T) {
+func TestARunReadsAnAdminsOnlyDatasourceOnlyForAnAdminWritingWhereOnlyAdminsRead(t *testing.T) {
 	admin := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
 	editor := auth.Principal{Kind: auth.KindUser, ID: "e", Role: auth.RoleEditor}
+	private := RunWrites{}
+	adminsFolder := RunWrites{Shared: true, AdminsOnly: true}
+	sharedFolder := RunWrites{Shared: true}
 	cases := []struct {
 		name   string
 		access datasource.Access
 		reads  bool
+		code   string
 	}{
-		{"an Admin's run", RunAccess(revisions.Request{RequestedBy: admin}), true},
-		{"an Editor's run", RunAccess(revisions.Request{RequestedBy: editor}), false},
-		{"an Admin's run writing for everyone", datasource.Access{By: admin, Audience: datasource.AudienceEveryone}, false},
+		{"an Admin's private run", RunAccess(revisions.Request{RequestedBy: admin}, private), true, ""},
+		{"an Admin's run writing into a folder only Admins read", RunAccess(revisions.Request{RequestedBy: admin}, adminsFolder), true, ""},
+		{"an Admin's run writing where others read", RunAccess(revisions.Request{RequestedBy: admin}, sharedFolder), false, CodeAdminsOnlyDatasource},
+		{"an Editor's private run", RunAccess(revisions.Request{RequestedBy: editor}, private), false, string(queryproxy.CodeUnknownDatasource)},
+		{"an Editor's run writing into a folder only Admins read", RunAccess(revisions.Request{RequestedBy: editor}, adminsFolder), false, string(queryproxy.CodeUnknownDatasource)},
+		{"a run with no access worked out", datasource.Access{}, false, string(queryproxy.CodeUnknownDatasource)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -138,21 +145,40 @@ func TestARunReadsAnAdminsOnlyDatasourceOnlyForAnAdminWritingForThemself(t *test
 			if res.IsError == tc.reads || (touched.Load() != 0) != tc.reads {
 				t.Fatalf("query_instant = %s, touched %d", content(t, res), touched.Load())
 			}
+			if !tc.reads && !strings.Contains(content(t, res), `"code":"`+tc.code+`"`) {
+				t.Fatalf("query_instant = %s, want code %s", content(t, res), tc.code)
+			}
+			if tc.code == CodeAdminsOnlyDatasource && !strings.Contains(content(t, res), "private chat") {
+				t.Fatalf("query_instant = %s, want where the data can be read", content(t, res))
+			}
 		})
 	}
 }
 
-func TestTheRunAudienceIsTheRequesters(t *testing.T) {
-	if got := RunAudience(revisions.Request{}); got != datasource.AudienceCaller {
-		t.Fatalf("RunAudience = %q, want the requester's own audience", got)
+func TestTheRunAudienceFollowsWhoReadsWhatTheRunWrites(t *testing.T) {
+	cases := []struct {
+		writes RunWrites
+		want   datasource.Audience
+	}{
+		{RunWrites{}, datasource.AudienceCaller},
+		{RunWrites{Shared: true, AdminsOnly: true}, datasource.AudienceAdmins},
+		{RunWrites{Shared: true}, datasource.AudienceEveryone},
+	}
+	for _, tc := range cases {
+		if got := RunAudience(tc.writes); got != tc.want {
+			t.Fatalf("RunAudience(%+v) = %q, want %q", tc.writes, got, tc.want)
+		}
 	}
 	by := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
 	run, err := RunFor(revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, RequestedBy: by})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if run.Access.By.ID != by.ID || run.Access.Audience != datasource.AudienceCaller || run.Access.System {
-		t.Fatalf("run access = %+v", run.Access)
+	if run.Access.By.ID != "" || run.Access.Audience != datasource.AudienceCaller || run.Access.System {
+		t.Fatalf("RunFor decided access %+v; the run session works it out from where the run writes", run.Access)
+	}
+	if !Withheld(RunAccess(revisions.Request{RequestedBy: by}, RunWrites{Shared: true})) || Withheld(RunAccess(revisions.Request{RequestedBy: by}, RunWrites{})) {
+		t.Fatal("Withheld does not follow an Admin writing for everyone")
 	}
 }
 
@@ -200,5 +226,26 @@ func TestTheSpecGuideTeachesTheAuditTrailOnlyToAnAdmin(t *testing.T) {
 		if got, want := r.DatasourceTypes(ctx), who.Role == auth.RoleAdmin; slices.Contains(got, prompts.AuditTrail) != want {
 			t.Errorf("%s: the observe prompt's types = %v", who.Role, got)
 		}
+	}
+}
+
+func TestLookingUpAnAdminsOnlyDatasourcesTypeDoesNotMarkTheRun(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	reg, err := datasource.NewRegistry(logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: &fakeDS{typ: "loki"}}); err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	admin := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
+	ctx, read := datasource.NotingRestrictedReads(auth.WithPrincipal(t.Context(), admin))
+	res, err := r.Call(WithRun(ctx, Run{Mode: ModeInvestigate, Access: RunAccess(revisions.Request{RequestedBy: admin}, RunWrites{})}), nameListMetrics, []byte(`{"datasource":"audit"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError || read() {
+		t.Fatalf("list_metrics on a logs datasource only Admins read = %s, marked %v", content(t, res), read())
 	}
 }

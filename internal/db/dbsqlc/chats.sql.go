@@ -60,6 +60,31 @@ func (q *Queries) ArchiveChat(ctx context.Context, arg ArchiveChatParams) (Archi
 	return i, err
 }
 
+const attachRunChatToDashboard = `-- name: AttachRunChatToDashboard :exec
+UPDATE chats SET dashboard_id = $1
+FROM agent_requests r
+WHERE r.id = $2 AND chats.id = r.chat_id
+  AND chats.owner_kind = $3 AND chats.owner_id = $4
+  AND chats.dashboard_id IS NULL AND chats.observation_id IS NULL
+`
+
+type AttachRunChatToDashboardParams struct {
+	DashboardID pgtype.UUID
+	RunID       pgtype.UUID
+	OwnerKind   string
+	OwnerID     pgtype.UUID
+}
+
+func (q *Queries) AttachRunChatToDashboard(ctx context.Context, arg AttachRunChatToDashboardParams) error {
+	_, err := q.db.Exec(ctx, attachRunChatToDashboard,
+		arg.DashboardID,
+		arg.RunID,
+		arg.OwnerKind,
+		arg.OwnerID,
+	)
+	return err
+}
+
 const createChat = `-- name: CreateChat :one
 INSERT INTO chats (id, owner_kind, owner_id, title, dashboard_id, observation_id)
 VALUES ($1, $2, $3, $4::text, $5::uuid, $6::uuid)
@@ -173,7 +198,7 @@ func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (GetChatRow, e
 }
 
 const listChatRequests = `-- name: ListChatRequests :many
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
 `
 
 func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]AgentRequest, error) {
@@ -245,6 +270,7 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 			&i.AppliesFindingID,
 			&i.SubjectObservationID,
 			&i.Investigation,
+			&i.ReadRestricted,
 		); err != nil {
 			return nil, err
 		}

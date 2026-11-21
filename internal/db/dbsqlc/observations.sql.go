@@ -169,7 +169,7 @@ const createObservation = `-- name: CreateObservation :one
 INSERT INTO observations (folder_id, title, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id)
 VALUES ($1, $2, $3::timestamptz, $4::timestamptz,
   $5, $6, $7, $8::text, $9::text, $10::uuid)
-RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at
+RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer
 `
 
 type CreateObservationParams struct {
@@ -216,6 +216,7 @@ func (q *Queries) CreateObservation(ctx context.Context, arg CreateObservationPa
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
@@ -423,7 +424,7 @@ func (q *Queries) KeepBlock(ctx context.Context, arg KeepBlockParams) (Observati
 }
 
 const listObservations = `-- name: ListObservations :many
-SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at FROM observations
+SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer FROM observations
 WHERE folder_id = ANY($1::uuid[])
   AND ($2::uuid IS NULL OR folder_id = $2::uuid)
   AND ($3::text IS NULL OR state = $3::text)
@@ -498,6 +499,7 @@ func (q *Queries) ListObservations(ctx context.Context, arg ListObservationsPara
 			&i.ResolvedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CopiedRestrictedAnswer,
 		); err != nil {
 			return nil, err
 		}
@@ -510,7 +512,7 @@ func (q *Queries) ListObservations(ctx context.Context, arg ListObservationsPara
 }
 
 const lockObservation = `-- name: LockObservation :one
-SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at FROM observations WHERE id = $1 FOR UPDATE
+SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer FROM observations WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockObservation(ctx context.Context, id pgtype.UUID) (Observation, error) {
@@ -533,12 +535,13 @@ func (q *Queries) LockObservation(ctx context.Context, id pgtype.UUID) (Observat
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
 
 const moveObservation = `-- name: MoveObservation :one
-UPDATE observations SET folder_id = $1, updated_at = clock_timestamp() WHERE id = $2 RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at
+UPDATE observations SET folder_id = $1, updated_at = clock_timestamp() WHERE id = $2 RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer
 `
 
 type MoveObservationParams struct {
@@ -566,12 +569,13 @@ func (q *Queries) MoveObservation(ctx context.Context, arg MoveObservationParams
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
 
 const observationByID = `-- name: ObservationByID :one
-SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at FROM observations WHERE id = $1
+SELECT id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer FROM observations WHERE id = $1
 `
 
 func (q *Queries) ObservationByID(ctx context.Context, id pgtype.UUID) (Observation, error) {
@@ -594,6 +598,7 @@ func (q *Queries) ObservationByID(ctx context.Context, id pgtype.UUID) (Observat
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
@@ -642,7 +647,7 @@ const reopenObservation = `-- name: ReopenObservation :one
 UPDATE observations
 SET state = 'open', resolved_at = NULL, updated_at = clock_timestamp()
 WHERE id = $1 AND state = ANY($2::text[])
-RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at
+RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer
 `
 
 type ReopenObservationParams struct {
@@ -670,6 +675,7 @@ func (q *Queries) ReopenObservation(ctx context.Context, arg ReopenObservationPa
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
@@ -678,7 +684,7 @@ const resolveObservation = `-- name: ResolveObservation :one
 UPDATE observations
 SET state = 'resolved', summary = $1, resolved_at = clock_timestamp(), updated_at = clock_timestamp()
 WHERE id = $2 AND state = ANY($3::text[])
-RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at
+RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer
 `
 
 type ResolveObservationParams struct {
@@ -707,6 +713,7 @@ func (q *Queries) ResolveObservation(ctx context.Context, arg ResolveObservation
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
@@ -830,7 +837,7 @@ const updateObservation = `-- name: UpdateObservation :one
 UPDATE observations
 SET title = $1, time_from = $2::timestamptz, time_to = $3::timestamptz, updated_at = clock_timestamp()
 WHERE id = $4
-RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at
+RETURNING id, folder_id, title, state, summary, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, resolved_at, created_at, updated_at, copied_restricted_answer
 `
 
 type UpdateObservationParams struct {
@@ -865,6 +872,7 @@ func (q *Queries) UpdateObservation(ctx context.Context, arg UpdateObservationPa
 		&i.ResolvedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }

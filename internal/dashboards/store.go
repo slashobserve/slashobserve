@@ -99,6 +99,8 @@ type newVersion struct {
 	summary        string
 	author         Author
 	requestID      pgtype.UUID
+	answerOf       pgtype.UUID
+	copyOf         placement.Copied
 	origin         origin.Origin
 	unverified     Unverified
 	folder         folders.Folder
@@ -109,6 +111,20 @@ type newVersion struct {
 type store struct {
 	db    *db.DB
 	guard *placement.Guard
+}
+
+func (st store) place(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID, in newVersion) error {
+	if err := st.guard.Save(ctx, q, folders.ContentDashboard, folderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+		return err
+	}
+	return placement.Answer(ctx, q, in.contentRun(), folderID)
+}
+
+func (in newVersion) contentRun() pgtype.UUID {
+	if in.requestID.Valid {
+		return in.requestID
+	}
+	return in.answerOf
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
@@ -143,7 +159,11 @@ func (st store) createIn(ctx context.Context, q *dbsqlc.Queries, in newVersion) 
 	if err != nil {
 		return Dashboard{}, Version{}, fmt.Errorf("author id: %w", err)
 	}
-	if err := st.guard.Save(ctx, q, folders.ContentDashboard, in.folder.ID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+	if err := st.place(ctx, q, in.folder.ID, in); err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	copied, err := placement.Copy(ctx, q, in.copyOf, in.folder.ID)
+	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
 	originKind, originClient := in.origin.Columns()
@@ -152,17 +172,18 @@ func (st store) createIn(ctx context.Context, q *dbsqlc.Queries, in newVersion) 
 		via = viaAgent
 	}
 	row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
-		Title:               in.spec.Title,
-		Tags:                tagsOf(in.spec),
-		CreatedByKind:       in.author.Kind,
-		CreatedByID:         authorID,
-		CreatedByName:       in.author.Name,
-		CreatedByEmail:      pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
-		CreatedOrigin:       originKind,
-		CreatedOriginClient: originClient,
-		CreatedVia:          via,
-		CreatedRunID:        in.requestID,
-		FolderID:            in.folder.ID,
+		Title:                  in.spec.Title,
+		Tags:                   tagsOf(in.spec),
+		CreatedByKind:          in.author.Kind,
+		CreatedByID:            authorID,
+		CreatedByName:          in.author.Name,
+		CreatedByEmail:         pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		CreatedOrigin:          originKind,
+		CreatedOriginClient:    originClient,
+		CreatedVia:             via,
+		CreatedRunID:           in.contentRun(),
+		FolderID:               in.folder.ID,
+		CopiedRestrictedAnswer: copied,
 	})
 	if err != nil {
 		return Dashboard{}, Version{}, fmt.Errorf("create dashboard: %w", err)
@@ -312,6 +333,9 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 			if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
 				return err
 			}
+		}
+		if err := placement.Answer(ctx, q, in.contentRun(), row.FolderID); err != nil {
+			return err
 		}
 		meta, err := insertVersion(ctx, q, in, int(row.LatestVersion))
 		if err != nil {

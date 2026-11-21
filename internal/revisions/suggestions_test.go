@@ -158,7 +158,7 @@ func TestSuggestionsDoNotCountTowardTheDashboardRevisionCap(t *testing.T) {
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth revision: %v", err)
 	}
-	items, _, err := svc.List(reading(context.Background()), dash, 100, "")
+	items, _, err := svc.List(reading(context.Background()), user, dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("revisions list holds %d items, err %v; suggestions must stay out of it", len(items), err)
 	}

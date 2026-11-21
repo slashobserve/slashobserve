@@ -36,7 +36,7 @@ var (
 )
 
 type Dashboards interface {
-	Create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string) (dashboards.Dashboard, dashboards.Version, error)
+	CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (dashboards.Dashboard, dashboards.Version, error)
 	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
 }
 
@@ -144,6 +144,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 		}
 		a, err := s.annotations.Create(ctx, by, annotations.CreateInput{
 			DashboardID: dashboardID, From: at, Text: row.Title + " " + links.Observation(nil, id.String()), Tags: []string{findings.PinTag},
+			CopyOf: placement.Copied{Kind: folders.ContentObservation, ID: id},
 		})
 		switch {
 		case errors.Is(err, annotations.ErrNotFound):
@@ -266,6 +267,7 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	if err != nil {
 		return none(err)
 	}
+	s.attachRunChat(ctx, by, runToAttach(parent, blockID, panels), made.ID)
 	return made, version, created, nil
 }
 
@@ -318,7 +320,7 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 	if err := q.DeleteObservationDashboard(ctx, dbsqlc.DeleteObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("replace made dashboard: %w", err)
 	}
-	d, v, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, madeDashboardSummary)
+	d, v, err := s.dashboards.CreateCopy(ctx, by, raw, madeDashboardSummary, placement.Copied{Kind: folders.ContentObservation, ID: key.Observation})
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, err
 	}
@@ -330,4 +332,26 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("record made dashboard: %w", err)
 	}
 	return d, v, true, nil
+}
+
+func (s *Service) attachRunChat(ctx context.Context, by auth.Principal, runID pgtype.UUID, dashboardID string) {
+	if !runID.Valid {
+		return
+	}
+	dashboard, dashErr := db.ParseUUID(dashboardID)
+	owner, ownerErr := db.ParseUUID(by.ID)
+	err := errors.Join(dashErr, ownerErr)
+	if err == nil {
+		err = s.store.db.Queries().AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{DashboardID: dashboard, RunID: runID, OwnerKind: string(by.Kind), OwnerID: owner})
+	}
+	if err != nil {
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its observation", logattrs.Failure("chat_attach_failed", err, slog.String("dashboard_id", dashboardID), slog.String("run_id", runID.String()))...)
+	}
+}
+
+func runToAttach(parent dbsqlc.Observation, blockID pgtype.UUID, panels []dbsqlc.ObservationBlock) pgtype.UUID {
+	if blockID.Valid && len(panels) == 1 && panels[0].RunID.Valid {
+		return panels[0].RunID
+	}
+	return parent.RunID
 }

@@ -94,5 +94,6 @@ Archived runs are listed, because archiving only hides a run from its requester'
 It returns 20 runs by default and at most 50 with `limit`, has no cursor, leaves out suggestion runs and archived runs, and says `truncated: true` when more active runs exist.
 A run someone else started names the agent and the dashboard or observation, never the request: its `title` is null and `mine` is false.
 A dashboard or observation in a folder you cannot see no longer brings someone else's run into your list, and it comes back as null on a run you started.
+Unless you are an Admin, someone else's run is left out when it is `restricted` or its answer is kept with Admins for what it is about (see [Chat](chat.md)).
 An Admin gets no wider list here, because the Agents page above already shows the whole workspace.
 It needs a signed-in person, and a service-account key gets 403 `user_session_required`.
