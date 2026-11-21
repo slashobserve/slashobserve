@@ -20,6 +20,7 @@ import {
   noModelAskText,
   openChatOf,
   privateText,
+  reviseSharedText,
   type AskSpot,
 } from "./ask-popover"
 
@@ -142,6 +143,12 @@ function stubServer(turns: ObserveRequest[] = []) {
         )
       }
       if (pathname === "/api/v1/chats/c1") return Response.json(chatOf(turns))
+      if (pathname.startsWith("/api/v1/chats/")) {
+        return Response.json(
+          { error: { code: "not_found", message: "Not found" } },
+          { status: 404 }
+        )
+      }
       const known = turns.find(({ id }) => pathname === `/api/v1/observe/${id}`)
       if (known !== undefined) return Response.json({ request: known })
       return Response.json({ service_accounts: [], connected: [] })
@@ -281,8 +288,10 @@ describe("AskPopover", () => {
   it("asks privately in the open chat with the spot, the value shown and the window, then shows it working", async () => {
     const posts = stubServer()
     const onChatStarted = vi.fn()
+    const queryClient = seeded()
+    queryClient.setQueryData(chatKeys.detail("c1"), chatOf([]))
     openDraft()
-    const { user } = renderAsk({ openChatId: "c1", onChatStarted })
+    const { user } = renderAsk({ openChatId: "c1", onChatStarted, queryClient })
     await user.type(
       await screen.findByRole("textbox", { name: "Ask about this" }),
       "Why is payments slow?{Enter}"
@@ -302,6 +311,11 @@ describe("AskPopover", () => {
       await screen.findByRole("list", { name: "Your chat on this spot" })
     ).toHaveTextContent("Why is payments slow?")
     expect(await screen.findByText("Looking into it")).toBeVisible()
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Ask a follow-up" })
+      ).toHaveFocus()
+    )
     expect(useCanvasTool.getState().openTurn).toMatchObject({
       requestId: "q1",
       chatId: "c1",
@@ -324,6 +338,38 @@ describe("AskPopover", () => {
     expect(posts[0]).not.toHaveProperty("chat_id")
   })
 
+  it.each([
+    ["an Admin reads someone else's", "c1", { read_only: true }],
+    [
+      "is about another dashboard",
+      "c1",
+      { dashboard_id: "7d1c9a40-0000-4000-8000-000000000000" },
+    ],
+    ["is archived, unknown or a turn's id", "c9", null],
+  ])(
+    "starts a new chat when the open chat %s",
+    async (_, openChatId, change) => {
+      const posts = stubServer()
+      const queryClient = seeded()
+      if (change !== null) {
+        const open = chatOf([])
+        queryClient.setQueryData(chatKeys.detail("c1"), {
+          ...open,
+          chat: { ...open.chat, ...change },
+        })
+      }
+      const onChatStarted = vi.fn()
+      openDraft()
+      const { user } = renderAsk({ openChatId, onChatStarted, queryClient })
+      const field = await screen.findByRole("textbox", {
+        name: "Ask about this",
+      })
+      await user.type(field, "Why?{Enter}")
+      await waitFor(() => expect(onChatStarted).toHaveBeenCalledWith("q1"))
+      expect(posts[0]).not.toHaveProperty("chat_id")
+    }
+  )
+
   it("swaps the working state for the answer with Revise and the answer menu", async () => {
     stubServer([working])
     const queryClient = seeded()
@@ -336,9 +382,10 @@ describe("AskPopover", () => {
       await screen.findByText("Payments waits on the card network.")
     ).toBeVisible()
     expect(screen.queryByText("Looking into it")).toBeNull()
-    expect(
-      screen.getByRole("button", { name: "Revise the dashboard" })
-    ).toBeVisible()
+    const revise = screen.getByRole("button", { name: "Revise the dashboard" })
+    expect(revise).toBeVisible()
+    expect(revise).toHaveAccessibleDescription(reviseSharedText)
+    expect(screen.getByText(reviseSharedText)).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Answer actions" }))
     expect(
       await screen.findByRole("menuitem", { name: /^Share to thread/ })
@@ -454,6 +501,42 @@ describe("AskPopover", () => {
       requestId: "r2",
     })
     expect(field).toHaveValue("and yesterday")
+  })
+
+  it("leaves the box closed and a newer draft alone when a slow send returns after it closed", async () => {
+    const posts = stubServer()
+    const served = globalThis.fetch
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        if (request.method === "POST") await held
+        return served(request)
+      })
+    )
+    const onChatStarted = vi.fn()
+    const { user } = renderAsk({ onChatStarted })
+    act(() => openDraft())
+    await user.type(
+      await screen.findByRole("textbox", { name: "Ask about this" }),
+      "why the spike{Enter}"
+    )
+    const comment = { ...spot, tool: "comment" as const, at: { x: 9, y: 9 } }
+    act(() => {
+      useCanvasTool.getState().close()
+      useCanvasTool.getState().openDraft(comment)
+    })
+    release()
+    await waitFor(() => expect(posts).toHaveLength(1))
+    await act(async () => {})
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft: comment,
+      openTurn: null,
+    })
+    expect(onChatStarted).not.toHaveBeenCalled()
   })
 
   it("says why it cannot ask when no model is connected", async () => {

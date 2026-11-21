@@ -54,6 +54,7 @@ import {
 } from "@/spec"
 
 import { activeTool, useCanvasTool } from "./canvas-tools"
+import { conversationActionsFor } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
@@ -426,8 +427,7 @@ export const PanelContainer = memo(function PanelContainer({
     canvas === null
       ? "select"
       : activeTool(canvasTool, {
-          comment: true,
-          ask: agentAvailable,
+          ...conversationActionsFor(panel, canComment, agentAvailable),
           idle: !canvas.gate.layoutEditing,
         })
   const shownWindow = useMemo(

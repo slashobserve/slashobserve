@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { askedHere, sitsOn, spotTarget } from "./canvas-host"
+import { askedHere, isAbout, ownerOf, sitsOn, spotTarget } from "./canvas-host"
 
 const dashboard = { kind: "dashboard", id: "d1" } as const
 const observation = { kind: "observation", id: "o1" } as const
@@ -20,6 +20,28 @@ describe("sitsOn", () => {
     expect(sitsOn(observation, "b1", { panel_id: "b1", block_id: "b2" })).toBe(
       false
     )
+  })
+})
+
+describe("ownerOf", () => {
+  it("names a dashboard row's panel and an observation row's block", () => {
+    const row = { panel_id: "p1", block_id: "b1" }
+    expect(ownerOf(dashboard, row)).toBe("p1")
+    expect(ownerOf(observation, row)).toBe("b1")
+    expect(ownerOf(observation, { panel_id: "p1" })).toBeNull()
+  })
+})
+
+describe("isAbout", () => {
+  it("continues only a chat about the page's own dashboard or observation", () => {
+    const onDashboard = { dashboard_id: "d1", observation_id: null }
+    const onObservation = { dashboard_id: null, observation_id: "o1" }
+    expect(isAbout(onDashboard, dashboard)).toBe(true)
+    expect(isAbout(onDashboard, observation)).toBe(false)
+    expect(isAbout(onObservation, observation)).toBe(true)
+    expect(
+      isAbout({ ...onObservation, observation_id: "o2" }, observation)
+    ).toBe(false)
   })
 })
 

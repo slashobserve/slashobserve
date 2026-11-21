@@ -36,7 +36,7 @@ import {
   spotTurnIds,
 } from "./ask-spot"
 import { CanvasPopover, keepsTyping } from "./canvas-composer"
-import { spotTarget, type CanvasSubject } from "./canvas-host"
+import { isAbout, ownerOf, spotTarget, type CanvasSubject } from "./canvas-host"
 
 export type AskSpot = {
   ownerId: string
@@ -48,6 +48,8 @@ export type AskSpot = {
 type AskedTurn = { requestId: string; chatId: string }
 
 export const privateText = "Only you and Admins can see this."
+export const reviseSharedText =
+  "A revision is visible to everyone who can see the dashboard."
 export const noModelAskText =
   "No model is connected to this server, so the agent cannot answer."
 
@@ -66,6 +68,29 @@ const newChat = "new"
 
 export function openChatOf(chat: string | undefined): string | null {
   return chat === undefined || chat === newChat ? null : chat
+}
+
+type OpenChat = {
+  read_only: boolean
+  dashboard_id: string | null
+  observation_id: string | null
+}
+
+function useContinuedChat(
+  openChatId: string | null,
+  subject: CanvasSubject
+): string | null {
+  const open = useChat(openChatId ?? undefined).data?.chat
+  return continuedChat(openChatId, open, subject)
+}
+
+function continuedChat(
+  openChatId: string | null,
+  open: OpenChat | undefined,
+  subject: CanvasSubject
+): string | null {
+  if (openChatId === null || open === undefined) return null
+  return !open.read_only && isAbout(open, subject) ? openChatId : null
 }
 
 export function useOpenChat() {
@@ -91,12 +116,16 @@ function useReturnFocus() {
   )
   useEffect(
     () => () => {
-      const active = document.activeElement
-      const dropped = active === null || active === document.body
-      if (dropped && origin !== null && origin.isConnected) origin.focus()
+      if (focusDropped() && origin !== null && origin.isConnected)
+        origin.focus()
     },
     [origin]
   )
+}
+
+function focusDropped(): boolean {
+  const active = document.activeElement
+  return active === null || active === document.body
 }
 
 function closeAsk() {
@@ -136,19 +165,22 @@ function AskDraft({
   openChatId,
   onChatStarted,
 }: Omit<Props, "turn" | "surfaceRef">) {
+  const [ownDraft] = useState(() => useCanvasTool.getState().draft)
+  const chatId = useContinuedChat(openChatId, subject)
   const model = useComposer({
     draft: useAskText(),
     subject,
-    place: { kind: "canvas", tool: "ask", chatId: openChatId },
+    place: { kind: "canvas", tool: "ask", chatId },
     target: spotTarget(subject, spot.ownerId, spot.anchor),
     gate,
     onSent: (sent) => {
       if (sent.via !== "chat") return
-      const chatId = sent.request.chat_id ?? sent.request.id
-      if (chatId !== openChatId) onChatStarted(chatId)
+      if (useCanvasTool.getState().draft !== ownDraft) return
+      const asked = sent.request.chat_id ?? sent.request.id
+      if (asked !== openChatId) onChatStarted(asked)
       useCanvasTool.getState().showTurn({
         requestId: sent.request.id,
-        chatId,
+        chatId: asked,
         ...spot,
       })
     },
@@ -211,6 +243,7 @@ function AgentPart({
         about={subject}
         onRevised={async (next) => onAsked(next)}
         showToEveryone={false}
+        reviseNote={reviseSharedText}
       />
     </div>
   )
@@ -269,9 +302,13 @@ function AskThread({
 }) {
   const chat = useChat(turn.chatId)
   const [askedHere, setAskedHere] = useState<string[]>([])
+  const placed = (chat.data?.turns ?? []).map((each) => ({
+    ...each,
+    panel_id: ownerOf(subject, each),
+  }))
   const ids = spotTurnIds(
-    chat.data?.turns ?? [],
-    { requestId: turn.requestId, anchor: spot.anchor },
+    placed,
+    { requestId: turn.requestId, panelId: spot.ownerId, anchor: spot.anchor },
     askedHere
   )
   function asked(request: ObserveRequest) {
@@ -289,6 +326,10 @@ function AskThread({
       if (sent.via === "chat") asked(sent.request)
     },
   })
+  const field = model.field
+  useEffect(() => {
+    if (focusDropped()) field.current?.focus()
+  }, [field])
   return (
     <>
       <div className="flex items-center gap-0.5 border-b py-1.5 pr-1.5 pl-3">

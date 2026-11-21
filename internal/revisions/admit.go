@@ -339,7 +339,7 @@ func anchorOf(raw []byte) *anchor.Anchor {
 		return nil
 	}
 	var a anchor.Anchor
-	if err := json.Unmarshal(raw, &a); err != nil {
+	if err := json.Unmarshal(raw, &a); err != nil || a.Validate() != nil {
 		return nil
 	}
 	return &a

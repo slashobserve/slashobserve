@@ -9,6 +9,7 @@ import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { Conversation } from "./conversation"
+import type { ChatPanel } from "./panel-target"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -127,10 +128,13 @@ function renderChatPage(request: ObserveRequest) {
   })
 }
 
-function renderConversation(request: ObserveRequest = root) {
+function renderConversation(
+  request: ObserveRequest = root,
+  panel: ChatPanel | null = null
+) {
   const queryClient = seededClient(request)
   return renderWithProviders(
-    <Conversation requestId={rootId} layout="page" />,
+    <Conversation requestId={rootId} layout="page" panel={panel} />,
     { queryClient, route: { path: "/", url: "/" } }
   )
 }
@@ -209,6 +213,39 @@ describe("Conversation", () => {
       dashboard_id: dashboardId,
       chat_id: rootId,
     })
+  })
+
+  it("asks about the panel it was opened on, with its chip and the focus in the box", async () => {
+    const fetch = stubServer()
+    const onRemove = vi.fn()
+    const { user } = renderConversation(root, {
+      id: "p1",
+      title: "Latency",
+      onRemove,
+    })
+    const box = await screen.findByRole("textbox", {
+      name: "Message the agent",
+    })
+    await waitFor(() => expect(box).toHaveFocus())
+    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
+      "Latency"
+    )
+    await user.type(box, "why the spike?{Enter}")
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await posted.clone().json()).toMatchObject({
+      dashboard_id: dashboardId,
+      panel_id: "p1",
+    })
+    await user.click(screen.getByRole("button", { name: "Remove Latency" }))
+    expect(onRemove).toHaveBeenCalledTimes(1)
   })
 
   async function sentFollowUp(fetch: ReturnType<typeof stubServer>) {

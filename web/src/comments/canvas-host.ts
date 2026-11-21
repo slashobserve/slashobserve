@@ -28,14 +28,24 @@ export function useCanvasHost(): CanvasHost | null {
 
 type Placed = { panel_id?: string | null; block_id?: string | null }
 
+export function ownerOf(subject: CanvasSubject, row: Placed): string | null {
+  return (subject.kind === "dashboard" ? row.panel_id : row.block_id) ?? null
+}
+
 export function sitsOn(
   subject: CanvasSubject,
   ownerId: string,
   row: Placed
 ): boolean {
+  return ownerOf(subject, row) === ownerId
+}
+
+type About = { dashboard_id: string | null; observation_id: string | null }
+
+export function isAbout(chat: About, subject: CanvasSubject): boolean {
   return subject.kind === "dashboard"
-    ? row.panel_id === ownerId
-    : row.block_id === ownerId
+    ? chat.dashboard_id === subject.id
+    : chat.observation_id === subject.id
 }
 
 export function spotTarget(

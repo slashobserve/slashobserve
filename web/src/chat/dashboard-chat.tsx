@@ -28,6 +28,12 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { chatOptionMeta } from "./chat-rows"
 import { useChat, useChats, type Chat } from "./chats-queries"
 import { Conversation } from "./conversation"
+import {
+  panelChips,
+  panelTarget,
+  useFocusOnPanel,
+  type ChatPanel,
+} from "./panel-target"
 
 const listedChats = 50
 const allChatsValue = "all-chats"
@@ -41,6 +47,7 @@ type Props = {
   dashboardTitle: string
   chatId: string | undefined
   onOpenChat: OpenChat
+  panel?: ChatPanel | null
 }
 
 function withOpenChat(chats: readonly Chat[], open: Chat | undefined): Chat[] {
@@ -55,6 +62,7 @@ export function DashboardChat({
   dashboardTitle,
   chatId,
   onOpenChat,
+  panel = null,
 }: Props) {
   const navigate = useNavigate()
   const now = useNow()
@@ -163,6 +171,7 @@ export function DashboardChat({
           <NewChat
             dashboardId={dashboardId}
             dashboardTitle={dashboardTitle}
+            panel={panel}
             onSent={(request) =>
               onOpenChat(request.chat_id ?? request.id, { replace: true })
             }
@@ -174,6 +183,7 @@ export function DashboardChat({
               requestId={openId}
               layout="pane"
               asks={!elsewhere}
+              panel={elsewhere ? null : panel}
               onSent={follow}
             />
             {elsewhere ? <ElsewhereNote chatId={openId} /> : null}
@@ -187,18 +197,22 @@ export function DashboardChat({
 function NewChat({
   dashboardId,
   dashboardTitle,
+  panel,
   onSent,
 }: {
   dashboardId: string
   dashboardTitle: string
+  panel: ChatPanel | null
   onSent: (request: ObserveRequest) => void
 }) {
   const model = useComposer({
     subject: { kind: "dashboard", id: dashboardId },
     place: { kind: "chat", chatId: null },
+    target: panelTarget(panel),
     gate: ungated,
     onSent: (sent) => (sent.via === "chat" ? onSent(sent.request) : undefined),
   })
+  useFocusOnPanel(panel, model.field)
   return (
     <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 pb-1">
       <p className="text-[13px] text-muted-foreground">
@@ -211,7 +225,10 @@ function NewChat({
           layout="page"
           rows={2}
           autoFocus
-          contextChips={[{ id: "dashboard", label: dashboardTitle }]}
+          contextChips={[
+            { id: "dashboard", label: dashboardTitle },
+            ...panelChips(panel),
+          ]}
           placeholder={`Ask about ${dashboardTitle}`}
         />
         <p className="mt-1.5 text-center text-xs text-muted-foreground">

@@ -110,6 +110,7 @@ export function ChatAnswer({
   about,
   onRevised,
   showToEveryone,
+  reviseNote,
 }: {
   request: ObserveRequest
   finding: Finding
@@ -117,6 +118,7 @@ export function ChatAnswer({
   about: Subject | null
   onRevised: (next: ObserveRequest) => Promise<void>
   showToEveryone?: boolean
+  reviseNote?: string
 }) {
   const dashboardId = request.dashboard_id
   const revised: Subject | null =
@@ -161,7 +163,12 @@ export function ChatAnswer({
       canSave={own}
       revise={
         mayRevise
-          ? { onRevise: revise, pending, blocked: reviseBlock(gate, true) }
+          ? {
+              onRevise: revise,
+              pending,
+              blocked: reviseBlock(gate, true),
+              note: reviseNote,
+            }
           : undefined
       }
       chatId={request.chat_id ?? undefined}

@@ -113,7 +113,6 @@ function AskPinStack({
             <li key={pin.key}>
               <button
                 type="button"
-                aria-label={pinName(spot.panelTitle, pin.anchor)}
                 className="flex w-full flex-col items-start rounded-control px-2 py-1.5 text-left text-[13px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => {
                   setListing(false)
@@ -153,7 +152,12 @@ export function AskPins({
   view,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
-  const { requests } = useMyRequests(askedHere(subject), listedTurns)
+  const { requests } = useMyRequests(
+    askedHere(subject),
+    listedTurns,
+    true,
+    false
+  )
   const stacks = useMemo(
     () =>
       stackPins(

@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useCanvasTool } from "@/dashboards/canvas-tools"
 import { useLayoutStore } from "@/dashboards/edit/layout-store"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { routeTree } from "@/routeTree.gen"
@@ -446,6 +447,55 @@ describe("dashboard page panel keys", () => {
     ).toHaveValue("why the spike")
     useLayoutStore.getState().end()
   })
+
+  it("points Ask mode only at data panels, as the a key and the Ask buttons do", async () => {
+    renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    const latency = await screen.findByRole("article", { name: "Latency" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    const pointed = (panel: HTMLElement) =>
+      panel.closest(".cursor-crosshair") !== null
+    act(() => useCanvasTool.getState().setTool("ask"))
+    await waitFor(() => expect(pointed(latency)).toBe(true))
+    expect(pointed(note)).toBe(false)
+    act(() => useCanvasTool.getState().setTool("comment"))
+    await waitFor(() => expect(pointed(note)).toBe(true))
+    act(() => useCanvasTool.getState().setTool("select"))
+  })
+
+  it.each([
+    ["reads", { comment: true, edit: true, manage: true, create: true }, true],
+    [
+      "does not read",
+      { comment: false, edit: false, manage: false, create: false },
+      false,
+    ],
+  ])(
+    "%s the anchored questions for pins by whether the viewer can ask",
+    async (_, permissions, fetched) => {
+      mockServer({
+        ...envelope,
+        dashboard: { ...envelope.dashboard, permissions },
+      })
+      renderDashboard()
+      await screen.findByRole("article", { name: "Latency" })
+      await waitFor(() => expect(agentRequested()).toBe(true))
+      const anchored = () =>
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([input]) =>
+            (typeof input === "string"
+              ? input
+              : (input as Request).url
+            ).includes("anchored=true")
+          )
+      if (fetched) await waitFor(() => expect(anchored()).toBe(true))
+      else {
+        await act(async () => {})
+        expect(anchored()).toBe(false)
+      }
+    }
+  )
 
   it("enters Ask mode with a over no panel and leaves it with a again", async () => {
     const { user } = renderDashboard()

@@ -56,6 +56,7 @@ type Props = {
     onRevise: () => Promise<RevisionAsked>
     pending: boolean
     blocked: string | null
+    note?: string
   }
   menu?: AnswerMenu
   chatId?: string
@@ -356,7 +357,16 @@ export function AnswerCard({
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const blockedId = useId()
+  const noteId = useId()
   const blocked = revise?.blocked ?? null
+  const reviseNote = revise?.note
+  const describedBy =
+    [
+      blocked === null ? null : blockedId,
+      reviseNote === undefined ? null : noteId,
+    ]
+      .filter((id) => id !== null)
+      .join(" ") || undefined
   const change = finding.suggested_change
   const observationId = finding.observation_id
   const promoted =
@@ -400,7 +410,7 @@ export function AnswerCard({
             disabled={revise.pending || revisionAsked || blocked !== null}
             focusableWhenDisabled
             aria-busy={revise.pending}
-            aria-describedby={blocked === null ? undefined : blockedId}
+            aria-describedby={describedBy}
             onClick={() =>
               void revise.onRevise().then((asked) => {
                 if (asked) markAsked(finding.id)
@@ -439,6 +449,11 @@ export function AnswerCard({
       {blocked === null || revise === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}
+        </p>
+      )}
+      {reviseNote === undefined || change === null ? null : (
+        <p id={noteId} className="text-xs text-muted-foreground">
+          {reviseNote}
         </p>
       )}
       {unfolded ? (
