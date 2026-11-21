@@ -166,16 +166,16 @@ func recordOf(row dbsqlc.Datasource) (Record, error) {
 }
 
 func (s *Service) row(ctx context.Context, uid string) (dbsqlc.Datasource, error) {
+	if in, err := s.registry.For(ctx, uid); err == nil {
+		switch in.Source {
+		case datasource.SourceFile:
+			return dbsqlc.Datasource{}, ErrReadOnly
+		case datasource.SourceBuiltin:
+			return dbsqlc.Datasource{}, ErrBuiltIn
+		}
+	}
 	row, err := s.db.Queries().GetDatasource(ctx, uid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if in, err := s.registry.For(ctx, uid); err == nil {
-			switch in.Source {
-			case datasource.SourceFile:
-				return dbsqlc.Datasource{}, ErrReadOnly
-			case datasource.SourceBuiltin:
-				return dbsqlc.Datasource{}, ErrBuiltIn
-			}
-		}
 		return dbsqlc.Datasource{}, ErrNotFound
 	}
 	return row, err
