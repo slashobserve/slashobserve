@@ -45,7 +45,7 @@ const (
 	panelCheckTitle         = "Panel block"
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
-	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order, and the observation and its blocks are created together: when a block is refused nothing is created and the result names the block index and the reason. Returns the id and url."
+	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are created with it, in order: a refused block creates nothing and the result names its index. Returns the id and url."
 	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
