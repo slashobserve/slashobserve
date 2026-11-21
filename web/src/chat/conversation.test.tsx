@@ -387,7 +387,7 @@ describe("Conversation", () => {
       await waitFor(() => expect(router?.state.location.pathname).toBe(page))
       expect(
         await screen.findByRole("button", { name: "Revision asked for" })
-      ).toBeDisabled()
+      ).toHaveAttribute("aria-disabled", "true")
     }
   )
 
@@ -401,7 +401,9 @@ describe("Conversation", () => {
       name: "Revise the dashboard",
     })
     await user.click(button)
-    await waitFor(() => expect(button).toBeEnabled())
+    await waitFor(() =>
+      expect(button).not.toHaveAttribute("aria-disabled", "true")
+    )
     expect(
       screen.queryByRole("button", { name: "Revision asked for" })
     ).toBeNull()
@@ -414,7 +416,7 @@ describe("Conversation", () => {
     const button = await screen.findByRole("button", {
       name: "Revise the dashboard",
     })
-    await waitFor(() => expect(button).toBeDisabled())
+    await waitFor(() => expect(button).toHaveAttribute("aria-disabled", "true"))
     expect(button).toHaveAccessibleDescription(noModelReviseText)
     expect(
       fetch.mock.calls.some(([request]) => request.method === "POST")

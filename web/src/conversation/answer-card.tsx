@@ -390,6 +390,7 @@ export function AnswerCard({
             type="button"
             size="sm"
             disabled={revise.pending || revisionAsked || blocked !== null}
+            focusableWhenDisabled
             aria-busy={revise.pending}
             aria-describedby={blocked === null ? undefined : blockedId}
             onClick={() =>
@@ -422,6 +423,11 @@ export function AnswerCard({
           />
         )}
       </div>
+      {revise === undefined || change === null ? null : (
+        <span role="status" className="sr-only">
+          {revisionAsked ? "The revision was asked for." : ""}
+        </span>
+      )}
       {blocked === null || revise === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}

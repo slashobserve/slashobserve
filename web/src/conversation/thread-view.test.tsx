@@ -254,7 +254,7 @@ describe("ThreadView", () => {
         )
     )
     expect(await screen.findByText("Observe Agent")).toBeVisible()
-    expect(screen.queryByRole("status")).toBeNull()
+    expect(screen.queryByText(/is working on it/)).toBeNull()
     expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
     const chip = await screen.findByRole("button", {
       name: "1 evidence panel",
@@ -308,7 +308,7 @@ describe("ThreadView", () => {
       const button = await screen.findByRole("button", {
         name: "Revise the dashboard",
       })
-      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute("aria-disabled", "true")
       expect(button).toHaveAccessibleDescription(reason)
       expect(screen.getByText(reason)).toBeVisible()
       expect(fetch.mock.calls.some(([input]) => input.method === "POST")).toBe(
@@ -384,7 +384,7 @@ describe("ThreadView", () => {
     )
     expect(
       await screen.findByRole("button", { name: "Revision asked for" })
-    ).toBeDisabled()
+    ).toHaveAttribute("aria-disabled", "true")
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
@@ -409,7 +409,9 @@ describe("ThreadView", () => {
       name: "Revise the dashboard",
     })
     await user.click(button)
-    await waitFor(() => expect(button).toBeEnabled())
+    await waitFor(() =>
+      expect(button).not.toHaveAttribute("aria-disabled", "true")
+    )
     expect(
       screen.queryByRole("button", { name: "Revision asked for" })
     ).toBeNull()

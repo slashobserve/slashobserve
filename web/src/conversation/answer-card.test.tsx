@@ -214,6 +214,29 @@ describe("AnswerCard", () => {
     expect(onRevise).toHaveBeenCalledOnce()
   })
 
+  it("keeps focus on the button and announces it once the revision is asked for", async () => {
+    const { user } = renderCard({
+      finding: finding({ suggested_change: "Add a p99 latency panel" }),
+      revise: {
+        onRevise: vi.fn(async () => true),
+        pending: false,
+        blocked: null,
+      },
+    })
+    const button = await screen.findByRole("button", {
+      name: "Revise the dashboard",
+    })
+    button.focus()
+    await user.keyboard("{Enter}")
+    expect(
+      await screen.findByRole("button", { name: "Revision asked for" })
+    ).toHaveAttribute("aria-disabled", "true")
+    expect(document.activeElement).toBe(button)
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "The revision was asked for."
+    )
+  })
+
   it("shows a suggested change to a reader who cannot revise, without the button", async () => {
     const view = renderCard({
       revise: {
