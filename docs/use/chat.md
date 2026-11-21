@@ -336,7 +336,7 @@ A run that starts from such an answer in any of those ways is marked `restricted
 What it was placed in then holds it as it would hold a restricted answer, so that content moves, is copied and has its folder opened only as [Folders](../teams/folders.md) describes, except the dashboard or observation the answer is about, which moves freely.
 Once the dashboard or observation has moved to a folder others read, nothing is refused.
 Deleting it while it is in a folder only Admins can read, or deleting a run whose answer is kept this way, does not free what was placed from the answer: each dashboard and observation it was placed in keeps holding it.
-A run about a dashboard that files into an observation, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
+A run about a dashboard that files into an observation it did not open, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
 
 A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
 A `restricted` run answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them.
