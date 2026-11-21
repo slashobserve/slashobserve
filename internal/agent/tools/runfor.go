@@ -99,10 +99,11 @@ func RunFor(req revisions.Request) (Run, error) {
 			run.From, run.To = *req.From, *req.To
 		}
 	}
-	for _, id := range []string{req.ObservationID, req.SubjectObservationID} {
-		if id != "" {
-			run.Observations = append(run.Observations, id)
-		}
+	if req.Investigation && req.ObservationID != "" {
+		run.Observations = append(run.Observations, req.ObservationID)
+	}
+	if req.SubjectObservationID != "" {
+		run.Observations = append(run.Observations, req.SubjectObservationID)
 	}
 	if req.DashboardID == "" {
 		return run, nil

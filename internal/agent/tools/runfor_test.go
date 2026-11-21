@@ -14,6 +14,7 @@ const (
 	runForDashboardID = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 
 	runForObservationID = "cccccccc-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+	runForSubjectID     = "dddddddd-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 )
 
 func TestRunForMapsEachSourceToItsMode(t *testing.T) {
@@ -31,9 +32,13 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1},
 			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
 		},
-		"an ask into an observation keeps its window and panel": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to, Observations: []string{runForObservationID}},
+		"an investigation into an observation keeps its window and panel": {
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Investigation: true, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to, Investigation: true, Observations: []string{runForObservationID}},
+		},
+		"an ask is not about the observation its answer was saved into": {
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, SubjectObservationID: runForSubjectID, Prompt: "why", Attempt: 2},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 2, Prompt: "why", Observations: []string{runForSubjectID}},
 		},
 		"a private ask about an observation with half a window has none": {
 			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, From: &from},
