@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { closeWhileCached } from "@/lib/page-cache"
 import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
@@ -35,13 +36,14 @@ const eventNames = [
   "role.changed",
   "version.created",
   "dashboard.deleted",
+  "dashboard.moved",
   "comment.created",
   "comment.updated",
   "revision.updated",
   "proposal.updated",
 ] as const
 
-const hiddenGraceMs = 5 * 60_000
+const hiddenGraceMs = 15_000
 
 function cachedLatestVersion(
   queryClient: QueryClient,
@@ -224,6 +226,9 @@ export function useDashboardEvents(
           )
           void checkDashboard({ deletedBy: event.authorName })
           return
+        case "dashboard.moved":
+          invalidate(dashboardKeys.latest(dashboardId), dashboardKeys.list())
+          return
         case "comment.created":
         case "comment.updated":
           invalidate(dashboardKeys.comments(dashboardId))
@@ -334,12 +339,14 @@ export function useDashboardEvents(
     }
 
     document.addEventListener("visibilitychange", onVisibilityChange)
+    const stopWatchingCache = closeWhileCached(suspend, onVisibilityChange)
     if (document.hidden) onVisibilityChange()
     open()
 
     return () => {
       disposed = true
       document.removeEventListener("visibilitychange", onVisibilityChange)
+      stopWatchingCache()
       clearTimeout(retryTimer)
       clearTimeout(hiddenTimer)
       clearTimeout(reconnectingTimer)

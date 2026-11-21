@@ -33,7 +33,7 @@ func TestAFileDatasourceMadeAdminsOnlyStopsTheServerWhileSharedContentReadsIt(t 
 		t.Fatalf("record = %v", record)
 	}
 	for _, want := range []string{
-		`makes "audit" Admins only, but 1 dashboards`,
+		`makes "audit" Admins only, but 1 dashboard, proposal, observation or saved search outside folders only Admins can read uses it`,
 		`dashboard ` + dashboard + ` "Salaries" in folder "General"`,
 		"while the datasource is still everyone",
 		"keep audience: everyone in the file",

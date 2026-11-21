@@ -41,10 +41,11 @@ func (r *Registry) folderEntries() []entry {
 }
 
 type folderItemOut struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	General   bool   `json:"general"`
-	CanCreate bool   `json:"can_create"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	General    bool   `json:"general"`
+	CanCreate  bool   `json:"can_create"`
+	AdminsOnly *bool  `json:"admins_only,omitempty"`
 }
 
 type folderListOut struct {
@@ -70,6 +71,9 @@ func (r *Registry) listFolders(ctx context.Context, input json.RawMessage) (Resu
 	items := make([]folderItemOut, len(visible))
 	for i, f := range visible {
 		items[i] = folderItemOut{ID: f.ID.String(), Title: f.Title, General: f.General, CanCreate: levels.Of(f.ID).Create}
+		if principal.Role == auth.RoleAdmin {
+			items[i].AdminsOnly = &f.AdminsOnly
+		}
 	}
 	kept, cut := fit(items, listBudget)
 	return success("Listed "+plural(len(kept), "folder", "folders"), folderListOut{Folders: kept, Truncated: cut || len(all) > len(visible)}), nil

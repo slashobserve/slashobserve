@@ -17,7 +17,8 @@ func TestFoldersList(t *testing.T) {
 	listed := `{"folders":[` +
 		folderJSON(manageFolder, "My Dashboards", false, true, 3, "edit") + "," +
 		folderJSON(generalFolder, "General", true, false, 7, "view") + "," +
-		folderJSON(manageCopy, "Payments", false, false, 2, "admin") + `]}`
+		folderJSON(manageCopy, "Payments", false, false, 2, "admin") + "," +
+		strings.Replace(folderJSON(manageCopy, "Payroll", false, false, 0, "admin"), `"restricted":false`, `"restricted":true,"admins_only":true`, 1) + `]}`
 	f := newManageFake(t, manageReply{http.MethodGet, "/api/v1/folders", 200, listed})
 	stdout, stderr, code := f.run("folders", "list")
 	if code != 0 || stderr != "" {
@@ -29,6 +30,7 @@ func TestFoldersList(t *testing.T) {
 		manageFolder + " My Dashboards (yours) 3 edit",
 		generalFolder + " General (General) 7 view",
 		manageCopy + " Payments 2 admin",
+		manageCopy + " Payroll (Only Admins) 0 admin",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout lacks %q:\n%s", want, stdout)

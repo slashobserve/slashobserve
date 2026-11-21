@@ -251,6 +251,8 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 
 `list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
+For an Admin key each folder also carries `admins_only`, true for a folder only Admins can read; a save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
+A key below Admin never sees the field, and no tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 `create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
 
 `rename_folder` takes a `folder_id` and a `title` and needs the Manage permission on the folder.
@@ -329,7 +331,7 @@ It needs Edit on the search's folder, which a Viewer key lacks (`forbidden_role`
 No tool renames, moves or deletes a saved search: people do that on the web or with `observe saved-searches`.
 
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
-`create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the blocks are added in order after the observation exists, and the first refused one stops the rest and answers `block_refused` with its `block_index` and the `observation_id` that was created.
+`create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the observation and its blocks are created together, so when a block is refused nothing is created and the call answers `block_refused` with the `block_index` and the reason.
 `get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources and its full `panel`, in the shape `update_block` takes, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit, and a block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 `list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id`, one `state` (`open` or `resolved`) or a `title` that contains the given text, and pages with `next_cursor`.
 

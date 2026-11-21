@@ -92,16 +92,12 @@ func (g *Guard) adminsOnlyUIDs(ctx context.Context, q *dbsqlc.Queries) ([]string
 	return uids, nil
 }
 
-func (g *Guard) FolderHolder(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID) (Holder, bool, error) {
+func (g *Guard) FolderCensus(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID) (Census, error) {
 	uids, err := g.adminsOnlyUIDs(ctx, q)
 	if err != nil || len(uids) == 0 {
-		return Holder{}, false, err
+		return Census{}, err
 	}
-	c, err := scan(ctx, q, scope{uids: uids, folderID: folderID, keep: 1, stopAt: 1})
-	if err != nil || len(c.Listed) == 0 {
-		return Holder{}, false, err
-	}
-	return c.Listed[0], true, nil
+	return scan(ctx, q, scope{uids: uids, folderID: folderID, keep: MaxListed})
 }
 
 func SharedCensus(ctx context.Context, q *dbsqlc.Queries, uid string) (Census, error) {
@@ -110,11 +106,15 @@ func SharedCensus(ctx context.Context, q *dbsqlc.Queries, uid string) (Census, e
 
 func (g *Guard) OpeningGuard() folders.OpeningGuard {
 	return func(ctx context.Context, q *dbsqlc.Queries, folder dbsqlc.Folder) error {
-		h, held, err := g.FolderHolder(ctx, q, folder.ID)
-		if err != nil || !held {
+		c, err := g.FolderCensus(ctx, q, folder.ID)
+		if err != nil || !c.Held() {
 			return err
 		}
-		return folders.RestrictedOpening(h.ContentItem, h.Datasource)
+		items := make([]folders.ContentItem, len(c.Listed))
+		for i, h := range c.Listed {
+			items[i] = h.ContentItem
+		}
+		return folders.RestrictedOpening(items, c.Unlisted(), c.Listed[0].Datasource)
 	}
 }
 

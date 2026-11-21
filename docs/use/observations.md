@@ -285,7 +285,7 @@ A link can expire at a time you choose, and it stops working then; revoking it s
 An observation has at most 20 links across all its revisions.
 
 A link serves the stored revision only, never the live observation, a live panel or a query, and it shows who published it by name and by no id.
-An observation in My Dashboards cannot have a link, and one in a folder only Admins can read is refused with `409 admins_only_folder`.
+An observation in My Dashboards cannot have a link, and one in a folder only Admins can read is refused with `409 admins_only_folder`, which says to move it to a folder that is not Only Admins, or names the Admins-only datasource it reads (also in a `datasource` field) when it cannot leave.
 A revision with a snapshot of data that depends on who is viewing, from `${__user.*}` in a query, cannot have a link, because nobody could read it on a public address.
 
 ### Share a revision in the web app

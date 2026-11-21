@@ -220,7 +220,7 @@ func TestDatasourcesEditPrintsTheContentThatBlocksMakingItAdminsOnly(t *testing.
 		"move them first (restricted_content)",
 		`saved search s1 "Errors" in folder "Team"`,
 		`dashboard d1 "Checkout" in folder "General"`,
-		"and 7 more in folders other people can read",
+		"and 7 more not listed",
 		"and 2 in people's My Dashboards",
 	} {
 		if code != 1 || !strings.Contains(stderr, want) {

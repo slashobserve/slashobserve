@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -44,7 +45,7 @@ const (
 var (
 	ErrNotFound        = errors.New("public link not found")
 	ErrPersonalFolder  = errors.New("a dashboard in My Dashboards cannot have a public link; move it to a shared folder first")
-	ErrAdminsOnly      = errors.New("a folder only Admins can read cannot have public links; move it to another folder first")
+	ErrAdminsOnly      = errors.New("a dashboard in a folder only Admins can read cannot have public links; move it to a folder that is not Only Admins first")
 	ErrUserScoped      = errors.New("the dashboard's queries read the viewer's identity, so it cannot be shared publicly")
 	ErrInvalidExpiry   = errors.New("expires_at must be in the future")
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")
@@ -54,6 +55,33 @@ var (
 
 	ErrOptionsUnavailable = errors.New("the options of a variable could not be read")
 )
+
+type adminsOnlyRefusal struct {
+	sentinel   error
+	noun       string
+	datasource string
+}
+
+func (e *adminsOnlyRefusal) Error() string {
+	return fmt.Sprintf("this %s reads the datasource %q, which only Admins can query, so it lives in a folder only Admins can read and public links are not available for it", e.noun, e.datasource)
+}
+
+func (e *adminsOnlyRefusal) Unwrap() error { return e.sentinel }
+
+func refuseAdminsOnly(sentinel error, noun, datasource string) error {
+	if datasource == "" {
+		return sentinel
+	}
+	return &adminsOnlyRefusal{sentinel: sentinel, noun: noun, datasource: datasource}
+}
+
+func adminsOnlyDatasource(err error) string {
+	var refusal *adminsOnlyRefusal
+	if errors.As(err, &refusal) {
+		return refusal.datasource
+	}
+	return ""
+}
 
 type VariableOptions interface {
 	VariableOptions(ctx context.Context, dashboardID pgtype.UUID, version int, d *spec.Dashboard, name string, earlier map[string][]string) ([]string, error)
@@ -118,6 +146,7 @@ type Service struct {
 	access     *folders.Access
 	dashboards *dashboards.Service
 	registry   *datasource.Registry
+	guard      *placement.Guard
 	publicURL  *url.URL
 	logger     *slog.Logger
 	now        func() time.Time
@@ -131,7 +160,7 @@ func New(database *db.DB, access *folders.Access, dashboardService *dashboards.S
 	if logger == nil {
 		logger = slog.Default()
 	}
-	s := &Service{db: database, access: access, dashboards: dashboardService, registry: registry, publicURL: publicURL, logger: logger, now: time.Now}
+	s := &Service{db: database, access: access, dashboards: dashboardService, registry: registry, guard: placement.New(registry), publicURL: publicURL, logger: logger, now: time.Now}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -283,7 +312,11 @@ func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsq
 			return err
 		}
 		if adminsOnly {
-			return ErrAdminsOnly
+			datasource, err := s.guard.DashboardDatasource(ctx, q, params.DashboardID)
+			if err != nil {
+				return err
+			}
+			return refuseAdminsOnly(ErrAdminsOnly, "dashboard", datasource)
 		}
 		count, err := q.CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: params.DashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 		if err != nil {
@@ -468,8 +501,12 @@ func (s *Service) linkable(ctx context.Context, by auth.Principal, dashboardID p
 	if err != nil {
 		return err
 	}
-	if folder.AdminsOnly {
-		return ErrAdminsOnly
+	if !folder.AdminsOnly {
+		return nil
 	}
-	return nil
+	datasource, err := s.guard.DashboardDatasource(ctx, s.db.Queries(), dashboardID)
+	if err != nil {
+		return err
+	}
+	return refuseAdminsOnly(ErrAdminsOnly, "dashboard", datasource)
 }

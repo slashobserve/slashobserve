@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -106,7 +107,7 @@ func (a *app) datasourcesListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List the datasources with their health",
-		Long:  "list prints each datasource's uid, type, health, the dashboards that use it and when it was last checked.\nAn unhealthy one shows why.",
+		Long:  "list prints each datasource's uid, type, health, who can query it (for an Admin key), the dashboards that use it and when it was last checked.\nAn unhealthy one shows why.",
 		Args:  noArgs,
 		RunE:  a.runDatasourcesList,
 	}
@@ -144,11 +145,20 @@ func (a *app) runDatasourcesList(cmd *cobra.Command, _ []string) error {
 		out.notice("No datasources yet")
 		return nil
 	}
+	withAudience := slices.ContainsFunc(list.Datasources, func(ds datasourceEntry) bool { return ds.Audience != "" })
+	header := []string{"UID", "TYPE", "NAME", "HEALTH", "SOURCE", "DASHBOARDS", "CHECKED"}
 	rows := make([][]string, 0, len(list.Datasources))
 	for _, ds := range list.Datasources {
-		rows = append(rows, []string{text(ds.UID), text(ds.Type), text(ds.Name), datasourceHealth(ds), text(ds.Source), strconv.Itoa(ds.DashboardCount), when(ds.CheckedAt)})
+		row := []string{text(ds.UID), text(ds.Type), text(ds.Name), datasourceHealth(ds), text(ds.Source), strconv.Itoa(ds.DashboardCount), when(ds.CheckedAt)}
+		if withAudience {
+			row = slices.Insert(row, 5, text(ds.Audience))
+		}
+		rows = append(rows, row)
 	}
-	out.table([]string{"UID", "TYPE", "NAME", "HEALTH", "SOURCE", "DASHBOARDS", "CHECKED"}, rows)
+	if withAudience {
+		header = slices.Insert(header, 5, "AUDIENCE")
+	}
+	out.table(header, rows)
 	return nil
 }
 

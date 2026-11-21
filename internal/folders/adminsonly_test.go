@@ -155,7 +155,7 @@ func TestSharingAFolderThatHoldsRestrictedContentIsRefused(t *testing.T) {
 		t.Fatalf("set = %d %s", got.Code, got.Body)
 	}
 	guarded := engineAs(t, d, rootAdmin, func(_ context.Context, _ *dbsqlc.Queries, f dbsqlc.Folder) error {
-		return RestrictedOpening(ContentItem{Kind: ContentDashboard, ID: "d1", Title: "Salaries", FolderID: f.ID.String(), FolderTitle: f.Title}, "payroll-db")
+		return RestrictedOpening([]ContentItem{{Kind: ContentDashboard, ID: "d1", Title: "Salaries", FolderID: f.ID.String(), FolderTitle: f.Title}}, 0, "payroll-db")
 	})
 
 	for name, body := range map[string]string{

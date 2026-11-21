@@ -113,9 +113,12 @@ VALUES ($1::uuid, '{"type":"stat","datasource":"${ds}"}', '[]', '{"frames":[]}',
 		t.Run(name, func(t *testing.T) {
 			folder := foldertest.AdminsOnly(t, r.d, name)
 			want := add(folder)
-			h, held, err := g.FolderHolder(t.Context(), r.d.Queries(), folder)
-			if err != nil || !held || h.Kind != want || h.Datasource != "audit" || h.FolderID != folder.String() {
-				t.Fatalf("holder = %+v %v %v", h, held, err)
+			c, err := g.FolderCensus(t.Context(), r.d.Queries(), folder)
+			if err != nil || len(c.Listed) != 1 {
+				t.Fatalf("census = %+v %v", c, err)
+			}
+			if h := c.Listed[0]; h.Kind != want || h.Datasource != "audit" || h.FolderID != folder.String() {
+				t.Fatalf("holder = %+v", h)
 			}
 			if shared, err := SharedCensus(t.Context(), r.d.Queries(), "audit"); err != nil || shared.Held() {
 				t.Fatalf("shared holders of content in an admins only folder = %+v %v", shared, err)
@@ -128,8 +131,8 @@ func TestAFolderHoldsNothingWhenTheTextOnlyNamesTheDatasource(t *testing.T) {
 	r := newHoldersRig(t)
 	folder := foldertest.Open(t, r.d, "Team")
 	r.dashboard(t, folder, namesAudit)
-	if h, held, err := New(nil).FolderHolder(t.Context(), r.d.Queries(), folder); err != nil || held {
-		t.Fatalf("holder = %+v %v %v", h, held, err)
+	if c, err := New(nil).FolderCensus(t.Context(), r.d.Queries(), folder); err != nil || c.Held() {
+		t.Fatalf("census = %+v %v", c, err)
 	}
 	r.dashboard(t, folder, readsAudit)
 	shared, err := SharedCensus(t.Context(), r.d.Queries(), "audit")
@@ -187,5 +190,17 @@ func TestTheBootRefusalNamesNoItemInAPersonalFolder(t *testing.T) {
 	}
 	if strings.Contains(text, "My payroll search") || strings.Contains(text, mine.String()) {
 		t.Fatalf("refusal names the personal item:\n%s", text)
+	}
+}
+
+func TestAFolderCensusListsTwentyHoldersAndCountsTheRest(t *testing.T) {
+	r := newHoldersRig(t)
+	folder := foldertest.AdminsOnly(t, r.d, "Payroll")
+	for range MaxListed + 2 {
+		r.d.Exec(t, `INSERT INTO saved_searches (kind, title, datasource_uid, query, time_from, time_to, folder_id, created_by_kind, created_by_id, created_by_name) VALUES ('metrics', 'Pay', 'audit', 'up', 'now-1h', 'now', $1, 'user', gen_random_uuid(), 'Ada')`, folder)
+	}
+	c, err := New(nil).FolderCensus(t.Context(), r.d.Queries(), folder)
+	if err != nil || len(c.Listed) != MaxListed || c.Unlisted() != 2 {
+		t.Fatalf("census = %d listed, %d unlisted, %v", len(c.Listed), c.Unlisted(), err)
 	}
 }

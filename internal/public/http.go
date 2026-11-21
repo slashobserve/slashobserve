@@ -229,6 +229,14 @@ func optionalTime(t *time.Time) *string {
 	return &s
 }
 
+func abortAdminsOnly(c *gin.Context, err error) {
+	body := gin.H{"error": err.Error(), "code": folders.CodeAdminsOnlyFolder}
+	if datasource := adminsOnlyDatasource(err); datasource != "" {
+		body["datasource"] = datasource
+	}
+	c.AbortWithStatusJSON(http.StatusConflict, body)
+}
+
 func (h *Handler) refuse(c *gin.Context, err error) bool {
 	switch {
 	case err == nil:
@@ -244,7 +252,7 @@ func (h *Handler) refuse(c *gin.Context, err error) bool {
 	case errors.Is(err, ErrPersonalFolder):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", err.Error())
 	case errors.Is(err, ErrAdminsOnly):
-		httpapi.AbortError(c, http.StatusConflict, "admins_only_folder", err.Error())
+		abortAdminsOnly(c, err)
 	case errors.Is(err, ErrUserScoped):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "user_scoped", err.Error())
 	case errors.Is(err, ErrInvalidExpiry):
@@ -462,7 +470,7 @@ func (h *Handler) refuseRCA(c *gin.Context, err error) bool {
 	case errors.Is(err, ErrRCAPersonalFolder):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, err.Error())
 	case errors.Is(err, ErrRCAAdminsOnly):
-		httpapi.AbortError(c, http.StatusConflict, "admins_only_folder", err.Error())
+		abortAdminsOnly(c, err)
 	case errors.Is(err, ErrRCAUserScoped):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "user_scoped", err.Error())
 	case errors.Is(err, ErrTooManyRCALinks):
