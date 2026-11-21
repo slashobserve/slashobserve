@@ -261,7 +261,10 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	err = s.locked(ctx, key.lockName(), func(q *dbsqlc.Queries) error {
 		var err error
 		made, version, created, err = s.makeOrReadDashboard(ctx, q, by, key, raw, again)
-		return err
+		if err != nil {
+			return err
+		}
+		return attachRunChat(ctx, q, by, parent.RunID, made.ID)
 	})
 	if err != nil {
 		return none(err)
@@ -330,4 +333,23 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("record made dashboard: %w", err)
 	}
 	return d, v, true, nil
+}
+
+func attachRunChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, runID pgtype.UUID, dashboardID string) error {
+	if !runID.Valid {
+		return nil
+	}
+	dashboard, err := db.ParseUUID(dashboardID)
+	if err != nil {
+		return fmt.Errorf("read the made dashboard id: %w", err)
+	}
+	owner, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return fmt.Errorf("read the caller id: %w", err)
+	}
+	err = q.AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{DashboardID: dashboard, RunID: runID, OwnerKind: string(by.Kind), OwnerID: owner})
+	if err != nil {
+		return fmt.Errorf("attach the chat to the dashboard made from its observation: %w", err)
+	}
+	return nil
 }

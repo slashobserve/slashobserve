@@ -373,6 +373,7 @@ A new title from `update_observation` also renames the chat the observation shar
 
 `pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
 `make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.
+When the observation came from your own chat and that chat is about nothing else, the chat becomes about the new dashboard.
 An observation with no dashboard to pin to answers `observation_has_no_dashboard`, and one with no live panel block answers `observation_has_no_panels`.
 No tool removes a block: people do that in the web app or through the HTTP API.
 
