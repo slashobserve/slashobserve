@@ -35,6 +35,20 @@ describe("SseParser", () => {
     expect(parser.lastEventId).toBe("x-2")
   })
 
+  test("applies an id only when its frame is dispatched", () => {
+    const parser = new SseParser("x-1")
+    expect(parser.push("id: x-2\nevent: audit\ndata: {}\n")).toEqual([])
+    expect(parser.lastEventId).toBe("x-1")
+    parser.push("\n")
+    expect(parser.lastEventId).toBe("x-2")
+  })
+
+  test("applies the id of a frame with no data at its blank line", () => {
+    const parser = new SseParser()
+    expect(parser.push("id: x-3\n\n")).toEqual([])
+    expect(parser.lastEventId).toBe("x-3")
+  })
+
   test("drops a frame with no data", () => {
     expect(new SseParser().push("event: audit\n\n")).toEqual([])
   })
@@ -132,6 +146,20 @@ describe("readSse", () => {
       signal: new AbortController().signal,
       onFrame: vi.fn(),
     })
+    expect(read).toMatchObject({ end: { kind: "dropped" }, lastEventId: "x-7" })
+  })
+
+  test("resumes before a frame the connection cut in half", async () => {
+    fetchMock.mockResolvedValue(
+      streamed(["id: x-7\ndata: {}\n\nid: x-8\nevent: audit\ndata: {"], true)
+    )
+    const onFrame = vi.fn()
+    const read = await readSse("/s", {
+      lastEventId: "",
+      signal: new AbortController().signal,
+      onFrame,
+    })
+    expect(onFrame).toHaveBeenCalledTimes(1)
     expect(read).toMatchObject({ end: { kind: "dropped" }, lastEventId: "x-7" })
   })
 

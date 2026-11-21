@@ -5,6 +5,7 @@ const lineBreak = /\r\n|\r|\n/
 export class SseParser {
   lastEventId: string
   retryMs: number | null = null
+  private idBuffer: string
   private buffer = ""
   private pendingCr = false
   private data: string[] = []
@@ -12,6 +13,7 @@ export class SseParser {
 
   constructor(lastEventId = "") {
     this.lastEventId = lastEventId
+    this.idBuffer = lastEventId
   }
 
   push(text: string): SseFrame[] {
@@ -36,6 +38,7 @@ export class SseParser {
 
   private line(line: string, frames: SseFrame[]) {
     if (line === "") {
+      this.lastEventId = this.idBuffer
       if (this.data.length > 0) {
         frames.push({
           event: this.event === "" ? "message" : this.event,
@@ -60,7 +63,7 @@ export class SseParser {
         this.event = value
         break
       case "id":
-        if (!value.includes("\0")) this.lastEventId = value
+        if (!value.includes("\0")) this.idBuffer = value
         break
       case "retry":
         if (/^\d+$/.test(value)) this.retryMs = Number(value)
