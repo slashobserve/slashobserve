@@ -282,10 +282,14 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	if !ok {
 		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
-	health := s.statuses.Health(datasource.WithAccess(ctx, tools.RunAccess(req)))
+	access, err := runAccess(ctx, s.db.Queries(), req)
+	if err != nil {
+		return tools.BriefAnswer{}, err
+	}
+	health := s.statuses.Health(datasource.WithAccess(ctx, access))
 	var answer tools.BriefAnswer
 	ended := false
-	err := s.with(ctx, req, func(ctx context.Context, sess *session) error {
+	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		var err error
 		answer, err = sess.brief(ctx, why, health)
 		ended = sess.ended
@@ -300,6 +304,7 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 func (sess *session) brief(ctx context.Context, why brief.Reason, health []datasource.Status) (tools.BriefAnswer, error) {
 	mode := sess.state.Guard.Mode
 	task := briefTask(sess.req, mode)
+	task.Withheld = tools.Withheld(sess.access)
 	current, build, restarted, err := sess.settleBuildOnLatest(ctx)
 	if err != nil || sess.ended {
 		return tools.BriefAnswer{}, err

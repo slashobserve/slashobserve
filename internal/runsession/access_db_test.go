@@ -2,19 +2,153 @@ package runsession
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-func TestTheScopeOfARunReadsDatasourcesAsItsRequesterAndNothingMore(t *testing.T) {
+func (r *rig) folder(adminsOnly bool) pgtype.UUID {
+	r.t.Helper()
+	var id pgtype.UUID
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO folders (title, admins_only) VALUES ('Audit', $1) RETURNING id`, adminsOnly).Scan(&id); err != nil {
+		r.t.Fatal(err)
+	}
+	return id
+}
+
+func (r *rig) askInThread(req revisions.Request) {
+	r.t.Helper()
+	var thread, message pgtype.UUID
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO threads (dashboard_id) VALUES ($1) RETURNING id`, r.dash).Scan(&thread); err != nil {
+		r.t.Fatal(err)
+	}
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1, 'q', 'user', $2, 'Ada') RETURNING id`,
+		thread, mustUUID(r.t, userID)).Scan(&message); err != nil {
+		r.t.Fatal(err)
+	}
+	r.d.Exec(r.t, "UPDATE agent_requests SET thread_message_id = $2 WHERE id = $1", mustUUID(r.t, req.ID), message)
+}
+
+func asRole(req revisions.Request, role auth.Role) revisions.Request {
+	req.RequestedBy.Role = role
+	return req
+}
+
+func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing.T) {
+	cases := []struct {
+		name       string
+		start      func(r *rig) revisions.Request
+		adminsOnly bool
+		role       auth.Role
+		want       datasource.Audience
+		reads      bool
+	}{
+		{"an Admin's revision of a dashboard in a shared folder", (*rig).revise, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's revision of a dashboard only Admins read", (*rig).revise, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Editor's revision of a dashboard only Admins read", (*rig).revise, true, auth.RoleEditor, datasource.AudienceAdmins, false},
+		{"an Admin's investigation into an observation in a shared folder", (*rig).investigate, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's investigation into an observation only Admins read", (*rig).investigate, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Editor's investigation into an observation only Admins read", (*rig).investigate, true, auth.RoleEditor, datasource.AudienceAdmins, false},
+		{"an Admin's suggestion on a dashboard in a shared folder", (*rig).suggest, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's suggestion on a dashboard only Admins read", (*rig).suggest, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Admin's thread apply on a dashboard in a shared folder", func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's thread apply on a dashboard only Admins read", func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			folder := r.folder(tc.adminsOnly)
+			r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, folder)
+			req := asRole(tc.start(r), tc.role)
+			r.d.Exec(t, "UPDATE observations SET folder_id = $2 WHERE id = (SELECT observation_id FROM agent_requests WHERE id = $1)", mustUUID(t, req.ID), folder)
+			run, err := r.svc.Scope(context.Background(), req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if run.Access.System || run.Access.By.ID != req.RequestedBy.ID || run.Access.By.Role != tc.role || run.Access.Audience != tc.want {
+				t.Fatalf("run access = %+v, want the requester %+v writing for %q", run.Access, req.RequestedBy, tc.want)
+			}
+			if datasource.ReadsRestricted(datasource.WithAccess(context.Background(), run.Access)) != tc.reads {
+				t.Fatalf("reads Admins-only data = %v, want %v", !tc.reads, tc.reads)
+			}
+		})
+	}
+}
+
+func TestARunThatAsksPrivatelyKeepsTheRequestersAccess(t *testing.T) {
 	r := newRig(t)
-	req := r.revise()
+	r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, r.folder(false))
+	req := asRole(r.investigate(), auth.RoleAdmin)
+	r.d.Exec(t, "UPDATE agent_requests SET observation_id = NULL WHERE id = $1", mustUUID(t, req.ID))
 	run, err := r.svc.Scope(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if run.Access.System || run.Access.By.ID != req.RequestedBy.ID || run.Access.By.Role != req.RequestedBy.Role || run.Access.Audience != tools.RunAudience(req) {
-		t.Fatalf("run access = %+v, want the requester %+v", run.Access, req.RequestedBy)
+	if run.Access.Audience != datasource.AudienceCaller || !datasource.ReadsRestricted(datasource.WithAccess(context.Background(), run.Access)) {
+		t.Fatalf("run access = %+v, want the Admin requester's own access", run.Access)
 	}
 }
+
+func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead(t *testing.T) {
+	for _, adminsOnly := range []bool{false, true} {
+		r := newRig(t)
+		r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, r.folder(adminsOnly))
+		req := asRole(r.revise(), auth.RoleAdmin)
+		brief, err := r.svc.Brief(context.Background(), req, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(brief.Message, datasource.WithheldNote) == adminsOnly {
+			t.Fatalf("Only Admins folder %v: brief carries the withheld note %v", adminsOnly, !adminsOnly)
+		}
+	}
+	r := newRig(t)
+	req := r.revise()
+	brief, err := r.svc.Brief(context.Background(), req, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(brief.Message, datasource.WithheldNote) {
+		t.Fatal("an Editor's brief mentions Admin-only data")
+	}
+}
+
+func TestACallThatReachedAnAdminsOnlyDatasourceMarksTheRun(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "audit", Audience: datasource.AudienceAdmins, Datasource: fakeDatasource{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name   string
+		role   auth.Role
+		uid    string
+		marked bool
+	}{
+		{"an Admin reading it", auth.RoleAdmin, "audit", true},
+		{"an Editor refused it", auth.RoleEditor, "audit", false},
+		{"an Admin reading nothing restricted", auth.RoleAdmin, "missing", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			req := asRole(r.revise(), tc.role)
+			r.call(req, "list_metrics", `{}`, nil, func(ctx context.Context) (tools.Result, error) {
+				_, _ = registry.For(datasource.WithAccess(ctx, datasource.Access{By: req.RequestedBy}), tc.uid)
+				return tools.Result{Content: map[string]any{"ok": true}}, nil
+			})
+			if got := r.stored(req).ReadRestricted; got != tc.marked {
+				t.Fatalf("read_restricted = %v, want %v", got, tc.marked)
+			}
+		})
+	}
+}
+
+type fakeDatasource struct{ datasource.Datasource }
+
+func (fakeDatasource) Type() string { return "prometheus" }

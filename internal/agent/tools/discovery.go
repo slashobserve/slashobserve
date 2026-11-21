@@ -119,6 +119,9 @@ func (r *Registry) instance(ctx context.Context, uid string) (datasource.Instanc
 		return datasource.Instance{}, invalid("datasource is required; call list_datasources"), false
 	}
 	inst, err := r.deps.Datasources.For(ctx, uid)
+	if errors.Is(err, datasource.ErrWithheld) {
+		return datasource.Instance{}, toolError(CodeAdminsOnlyDatasource, err.Error()), false
+	}
 	if err != nil {
 		code := string(queryproxy.CodeUnknownDatasource)
 		return datasource.Instance{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(uid, maxStepNameBytes))), false

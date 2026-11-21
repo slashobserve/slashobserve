@@ -106,6 +106,7 @@ type AgentRequest struct {
 	Kind                 string
 	AppliesFindingID     pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	ReadRestricted       bool
 }
 
 type AgentRequestBuild struct {
