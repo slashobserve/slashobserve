@@ -52,6 +52,7 @@ export function RestrictedHolders({ error }: { error: DatasourceError }) {
               , in {item.folder_title}
             </li>
           ))}
+          {error.unlisted > 0 ? <li>and {error.unlisted} more</li> : null}
           {error.hidden > 0 ? (
             <li>{personalFolderCount(error.hidden)}</li>
           ) : null}

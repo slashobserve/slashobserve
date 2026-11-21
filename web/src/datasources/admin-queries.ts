@@ -22,6 +22,7 @@ export class DatasourceError extends ApiError {
   readonly fields: { field: string; message: string }[]
   readonly usedBy: DatasourceUser[]
   readonly held: HeldItem[]
+  readonly unlisted: number
   readonly hidden: number
 
   constructor(base: ApiError, body: unknown) {
@@ -37,6 +38,7 @@ export class DatasourceError extends ApiError {
       ? (record.used_by as DatasourceUser[])
       : []
     this.held = Array.isArray(record.items) ? (record.items as HeldItem[]) : []
+    this.unlisted = typeof record.unlisted === "number" ? record.unlisted : 0
     this.hidden = typeof record.hidden === "number" ? record.hidden : 0
   }
 }

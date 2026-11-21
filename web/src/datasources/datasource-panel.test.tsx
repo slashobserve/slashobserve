@@ -108,6 +108,7 @@ describe("DatasourcePanel audience", () => {
               folder_title: "Ops",
             },
           ],
+          unlisted: 4,
           hidden: 3,
         },
         409
@@ -124,6 +125,7 @@ describe("DatasourcePanel audience", () => {
       "/f/f2"
     )
     expect(screen.getByText(/Dashboard:/)).toHaveTextContent("in Finance")
+    expect(screen.getByText("and 4 more")).toBeInTheDocument()
     expect(screen.getByText("3 in personal folders")).toBeInTheDocument()
     expect(
       screen.getByText(/Move them to an Only Admins folder/)
