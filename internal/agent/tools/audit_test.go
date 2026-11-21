@@ -45,6 +45,22 @@ func TestAuditToolsAreReadOnlyAndMCPOnly(t *testing.T) {
 	}
 }
 
+func TestAuditToolsTakeTheirFilterAsQuery(t *testing.T) {
+	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
+	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents} {
+		properties := schemaProperties(t, registry.entries[name].tool.InputSchema)
+		if _, ok := properties["query"]; !ok {
+			t.Errorf("%s has no query property", name)
+		}
+		if _, ok := properties["q"]; ok {
+			t.Errorf("%s still has a q property", name)
+		}
+		if desc := registry.entries[name].tool.Description; strings.Contains(desc, " q ") {
+			t.Errorf("%s description still names q: %s", name, desc)
+		}
+	}
+}
+
 func TestListAuditFieldsFitsOneAnswer(t *testing.T) {
 	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
 	res, err := registry.Call(auth.WithPrincipal(t.Context(), adminCaller), nameListAuditFields, nil)
@@ -109,7 +125,7 @@ func TestSearchAuditEventsCutsLargePagesAndPagesOnWithoutGaps(t *testing.T) {
 		if size := jsonSize(res.Content); size > maxContentBytes {
 			t.Fatalf("page %d is %d bytes", pages, size)
 		}
-		out := res.Content.(trail.SearchJSON)
+		out := res.Content.(auditSearchAnswer)
 		if len(out.Events) == 0 || len(out.Events) >= defaultAuditEvents {
 			t.Fatalf("page %d kept %d events", pages, len(out.Events))
 		}
@@ -126,22 +142,80 @@ func TestSearchAuditEventsCutsLargePagesAndPagesOnWithoutGaps(t *testing.T) {
 	}
 }
 
+func TestSearchAuditEventsSaysWhenTheSizeCapCutAPage(t *testing.T) {
+	r := newAuditToolRig(t)
+	events := make([]trailtest.Event, 0, 30)
+	for i := range 30 {
+		events = append(events, trailtest.Event{At: r.base.Add(-time.Duration(i+1) * time.Minute), TargetKind: "dashboard", TargetName: fmt.Sprintf("%02d %s", i, strings.Repeat("x", 1500))})
+	}
+	trailtest.Insert(t, r.db, events...)
+	read := func(input map[string]any) (events int, truncated bool, note string, more bool) {
+		raw, err := json.Marshal(r.call(t, nameSearchAuditEvents, input).Content)
+		var out struct {
+			Events     []json.RawMessage `json:"events"`
+			NextCursor *string           `json:"next_cursor"`
+			Truncated  bool              `json:"truncated"`
+			Note       string            `json:"note"`
+		}
+		if err != nil || json.Unmarshal(raw, &out) != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		return len(out.Events), out.Truncated, out.Note, out.NextCursor != nil
+	}
+	input := r.window()
+	input["limit"] = 100
+	n, truncated, note, more := read(input)
+	want := fmt.Sprintf("the answer size cap cut this page to %d events; continue with next_cursor", n)
+	if n >= 30 || !truncated || note != want || !more {
+		t.Errorf("a cut page: %d events, truncated %v, note %q, more %v; want note %q", n, truncated, note, more, want)
+	}
+	input["limit"] = 3
+	if n, truncated, note, more = read(input); n != 3 || truncated || note != "" || !more {
+		t.Errorf("a page ended by the limit: %d events, truncated %v, note %q, more %v", n, truncated, note, more)
+	}
+	input["since"] = r.base.Add(-time.Minute).Add(-time.Second).Format(time.RFC3339)
+	input["limit"] = 100
+	if n, truncated, note, more = read(input); n != 1 || truncated || note != "" || more {
+		t.Errorf("the end of the results: %d events, truncated %v, note %q, more %v", n, truncated, note, more)
+	}
+}
+
 func TestAuditToolsNameTheBytesOfAParseError(t *testing.T) {
 	r := newAuditToolRig(t)
 	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents} {
-		input := map[string]any{"q": "outcome:denied and status:x"}
+		input := map[string]any{"query": "outcome:denied and status:x"}
 		if name == nameListAuditFacets {
 			input["field"] = "actor_name"
 		}
 		res := r.call(t, name, input)
 		body, ok := res.Content.(errorBody)
-		if !res.IsError || !ok || body.Code != trail.CodeQueryInvalid || !strings.Contains(body.Message, "(bytes 19 to 27 of q)") {
+		if !res.IsError || !ok || body.Code != trail.CodeQueryInvalid || !strings.Contains(body.Message, "(bytes 19 to 27 of query)") {
 			t.Errorf("%s = %+v", name, res)
 		}
 	}
 	res := r.call(t, nameSearchAuditEvents, map[string]any{"since": "now-400d"})
 	if body, ok := res.Content.(errorBody); !res.IsError || !ok || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "366 days") {
 		t.Errorf("a long window = %+v", res)
+	}
+}
+
+func TestAuditToolsWarnAboutAMisspelledOperator(t *testing.T) {
+	r := newAuditToolRig(t)
+	warning := `"andd" is searched as text; did you mean "and"?`
+	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram} {
+		input := r.window()
+		input["query"] = "outcome:denied andd origin:mcp"
+		if name == nameListAuditFacets {
+			input["field"] = "actor_name"
+		}
+		res := r.call(t, name, input)
+		raw, err := json.Marshal(res.Content)
+		var body struct {
+			Warnings []string `json:"warnings"`
+		}
+		if err != nil || json.Unmarshal(raw, &body) != nil || res.IsError || len(body.Warnings) != 1 || body.Warnings[0] != warning {
+			t.Errorf("%s = %s", name, raw)
+		}
 	}
 }
 
@@ -155,7 +229,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	)
 
 	facets := r.window()
-	facets["field"], facets["q"] = "actor_name", "outcome:denied"
+	facets["field"], facets["query"] = "actor_name", "outcome:denied"
 	res := r.call(t, nameListAuditFacets, facets)
 	if out, ok := res.Content.(trail.FacetsJSON); !ok || len(out.Values) != 1 || out.Values[0].Value != "Ada" || out.Values[0].Count != 2 {
 		t.Errorf("facets = %+v", res)
@@ -169,7 +243,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 
 	aggregate := r.window()
-	aggregate["q"] = `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`
+	aggregate["query"] = `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`
 	res = r.call(t, nameAggregateAuditEvents, aggregate)
 	if out, ok := res.Content.(trail.AggregationJSON); !ok || len(out.Rows) != 2 || out.Truncated {
 		t.Errorf("aggregate = %+v", res)
@@ -185,7 +259,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 }
 
-func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
+func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) {
 	r := newAuditToolRig(t)
 	recorder := audit.New(audit.Config{DB: r.db.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
 	audit.Install(recorder)
@@ -200,7 +274,7 @@ func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
 	facets := r.window()
 	facets["field"] = "origin"
 	aggregate := r.window()
-	aggregate["q"] = `{"aggs":{"by":{"terms":{"field":"origin"}}}}`
+	aggregate["query"] = `{"aggs":{"by":{"terms":{"field":"origin"}}}}`
 	calls := []struct {
 		name  string
 		input any
@@ -239,10 +313,7 @@ func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	want := make([]string, 0, len(calls))
-	for _, c := range calls {
-		want = append(want, c.name+" mcp claude-code "+adminCaller.Name)
-	}
+	want := []string{nameSearchAuditEvents + " mcp claude-code " + adminCaller.Name}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("recorded %q, want %q", got, want)
 	}

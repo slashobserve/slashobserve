@@ -285,26 +285,28 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) (Obser
 
 const insertSnapshot = `-- name: InsertSnapshot :one
 INSERT INTO snapshots (observation_id, panel, query, frames, user_scoped, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, datasource_uids)
 VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5, $6, $7,
-  $8, $9, $10, $11::text, $12::text, $13::uuid)
-RETURNING id, observation_id, panel, query, frames, user_scoped, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, created_at
+  $8, $9, $10, $11::text, $12::text, $13::uuid,
+  $14::text[])
+RETURNING id, observation_id, panel, query, frames, user_scoped, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, created_at, datasource_uids
 `
 
 type InsertSnapshotParams struct {
-	ObservationID pgtype.UUID
-	Panel         []byte
-	Query         []byte
-	Frames        []byte
-	UserScoped    bool
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	CreatedByKind string
-	CreatedByID   pgtype.UUID
-	CreatedByName string
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
-	RunID         pgtype.UUID
+	ObservationID  pgtype.UUID
+	Panel          []byte
+	Query          []byte
+	Frames         []byte
+	UserScoped     bool
+	TimeFrom       pgtype.Timestamptz
+	TimeTo         pgtype.Timestamptz
+	CreatedByKind  string
+	CreatedByID    pgtype.UUID
+	CreatedByName  string
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
+	RunID          pgtype.UUID
+	DatasourceUids []string
 }
 
 func (q *Queries) InsertSnapshot(ctx context.Context, arg InsertSnapshotParams) (Snapshot, error) {
@@ -322,6 +324,7 @@ func (q *Queries) InsertSnapshot(ctx context.Context, arg InsertSnapshotParams) 
 		arg.Origin,
 		arg.OriginClient,
 		arg.RunID,
+		arg.DatasourceUids,
 	)
 	var i Snapshot
 	err := row.Scan(
@@ -340,6 +343,7 @@ func (q *Queries) InsertSnapshot(ctx context.Context, arg InsertSnapshotParams) 
 		&i.OriginClient,
 		&i.RunID,
 		&i.CreatedAt,
+		&i.DatasourceUids,
 	)
 	return i, err
 }
@@ -699,7 +703,7 @@ func (q *Queries) ShiftBlocks(ctx context.Context, arg ShiftBlocksParams) error 
 }
 
 const snapshotByID = `-- name: SnapshotByID :one
-SELECT id, observation_id, panel, query, frames, user_scoped, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, created_at FROM snapshots WHERE id = $1
+SELECT id, observation_id, panel, query, frames, user_scoped, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, created_at, datasource_uids FROM snapshots WHERE id = $1
 `
 
 func (q *Queries) SnapshotByID(ctx context.Context, id pgtype.UUID) (Snapshot, error) {
@@ -721,6 +725,7 @@ func (q *Queries) SnapshotByID(ctx context.Context, id pgtype.UUID) (Snapshot, e
 		&i.OriginClient,
 		&i.RunID,
 		&i.CreatedAt,
+		&i.DatasourceUids,
 	)
 	return i, err
 }

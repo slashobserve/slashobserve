@@ -17,8 +17,8 @@ ORDER BY r.created_at DESC
 LIMIT 1;
 
 -- name: AccessGranterCandidates :many
-SELECT u.id, u.role,
-  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
+SELECT u.id, u.role, f.admins_only,
+  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(u.groups))
@@ -58,9 +58,9 @@ LIMIT @row_limit;
 SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text AS title,
   r.requester_kind, r.requester_id, r.requester_name,
   coalesce(u.role, sa.role, '')::text AS role,
-  f.personal,
+  f.personal, f.admins_only,
   coalesce(f.owner_id = u.id, false)::boolean AS owner,
-  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
+  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = u.id OR p.group_name = ANY(coalesce(u.groups, '{}'::text[])))

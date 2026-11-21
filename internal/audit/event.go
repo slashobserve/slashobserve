@@ -46,9 +46,11 @@ const (
 )
 
 const (
-	OriginWeb = "web"
-	OriginAPI = "api"
-	OriginJob = "job"
+	OriginWeb     = "web"
+	OriginAPI     = "api"
+	OriginJob     = "job"
+	OriginAgent   = "agent"
+	OriginUnknown = "unknown"
 )
 
 type Target struct {

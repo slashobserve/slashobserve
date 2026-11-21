@@ -46,13 +46,14 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type windowJSON struct {
-	Form  string `json:"form"`
-	Since string `json:"since"`
-	Until string `json:"until"`
+	Form     string   `json:"form"`
+	Since    string   `json:"since"`
+	Until    string   `json:"until"`
+	Warnings []string `json:"warnings"`
 }
 
 func windowOf(p Prepared) windowJSON {
-	return windowJSON{Form: string(p.Query.Form), Since: httpapi.FormatTime(p.Window.From), Until: httpapi.FormatTime(p.Window.To)}
+	return windowJSON{Form: string(p.Query.Form), Since: httpapi.FormatTime(p.Window.From), Until: httpapi.FormatTime(p.Window.To), Warnings: append([]string{}, p.Query.Warnings...)}
 }
 
 type SearchJSON struct {
@@ -136,6 +137,7 @@ func AggregationOf(p Prepared, a Aggregation) AggregationJSON {
 type FieldJSON struct {
 	Name        string   `json:"name"`
 	Alias       *string  `json:"alias"`
+	Aliases     []string `json:"aliases"`
 	Type        string   `json:"type"`
 	Description string   `json:"description"`
 	Values      []string `json:"values"`
@@ -150,9 +152,10 @@ func FieldsOf() []FieldJSON {
 	out := make([]FieldJSON, 0, len(fields))
 	for _, f := range fields {
 		fj := FieldJSON{Name: f.Name, Type: string(f.Type), Description: f.Description, Values: f.Values}
-		if f.Alias != "" {
-			fj.Alias = &f.Alias
+		if len(f.Aliases) > 0 {
+			fj.Alias = &f.Aliases[0]
 		}
+		fj.Aliases = append([]string{}, f.Aliases...)
 		if fj.Values == nil {
 			fj.Values = []string{}
 		}
@@ -222,7 +225,7 @@ func (h *Handler) facets(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, ActionSearch, false)
+	p, ok := h.prepare(c, noAction, false)
 	if !ok {
 		return
 	}
@@ -239,7 +242,7 @@ func (h *Handler) histogram(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, ActionSearch, false)
+	p, ok := h.prepare(c, noAction, false)
 	if !ok {
 		return
 	}
@@ -265,7 +268,7 @@ func bucketsParam(c *gin.Context) (int, bool) {
 }
 
 func (h *Handler) aggregate(c *gin.Context) {
-	p, ok := h.prepare(c, ActionSearch, false)
+	p, ok := h.prepare(c, noAction, false)
 	if !ok {
 		return
 	}

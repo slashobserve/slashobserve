@@ -65,16 +65,18 @@ var (
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
+	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
 	readKeys     = []string{"form", "since", "until", "query", "row_count"}
-	searchKeys   = []string{"view", "field"}
+	searchKeys   = []string{"view"}
 	exportKeys   = []string{"format", "truncated"}
 	jobKeys      = []string{"trigger", "duration_ms"}
 	importKeys   = []string{"connection_id"}
 	countKeys    = []string{"count"}
 	providerKeys = []string{"provider_error"}
 	overflowKeys = []string{"overflow"}
+	streamKeys   = []string{"stream"}
 	tokenKeys    = []string{"grant_type"}
 	deliverKeys  = []string{"event_type"}
 
@@ -180,7 +182,7 @@ var catalog = map[Action]Spec{
 	"run.archive":     change(CategoryAgent),
 	"agent.tool_call": access(CategoryAgent),
 
-	"query.run": access(CategoryQuery),
+	"query.run": access(CategoryQuery, streamKeys),
 
 	"user.role_change":           change(CategoryAdmin, personKeys),
 	"user.sign_out_everywhere":   change(CategoryAdmin, personKeys),
@@ -218,7 +220,7 @@ var catalog = map[Action]Spec{
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),
 	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin, permissionKeys),
+	"folder.permissions_change":  change(CategoryAdmin, permissionKeys, sharingKeys),
 	"team.create":                change(CategoryAdmin),
 	"team.delete":                change(CategoryAdmin),
 	"team.member_add":            change(CategoryAdmin, memberKeys),

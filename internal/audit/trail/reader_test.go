@@ -116,6 +116,35 @@ func TestPagesNeitherRepeatNorSkipWhileEventsArrive(t *testing.T) {
 	}
 }
 
+func TestAnActorIsFoundByEmailAndByNameInEveryQueryLanguage(t *testing.T) {
+	r := newReaderRig(t)
+	const adaID = "7d1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11"
+	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'i', 's', 'Admin@Example.com', 'Ada Admin')`, adaID)
+	ids := trailtest.Insert(t, r.db,
+		trailtest.Event{At: r.at(-5), Actor: "Ada Admin", ActorID: adaID},
+		trailtest.Event{At: r.at(-6), Actor: "Grace"},
+	)
+	for _, text := range []string{
+		`actor.email:"admin@example.com"`, `actor:"admin@example.com"`, `actor.email:admin@exam*`, `actor:Ada*`, `actor.name:"Ada Admin"`, `actor_name:"Ada Admin"`,
+		`lucene: actor.email:"admin@example.com"`, `{"query":{"term":{"actor.email":"admin@example.com"}}}`,
+		`actor.id:` + adaID,
+	} {
+		page, err := r.reader.Search(t.Context(), r.window(t, text, -time.Hour, 0), 10)
+		if err != nil {
+			t.Fatalf("Search(%q): %v", text, err)
+		}
+		if got := idsOf(page.Events); len(got) != 1 || got[0] != ids[0] {
+			t.Errorf("Search(%q) = %v, want only the event of the user", text, got)
+		}
+	}
+	for _, text := range []string{`actor.name:"admin@example.com"`, `actor.email:"Ada Admin"`, `actor.email:nobody@example.com`} {
+		page, err := r.reader.Search(t.Context(), r.window(t, text, -time.Hour, 0), 10)
+		if err != nil || len(page.Events) != 0 {
+			t.Errorf("Search(%q) = %v, %v, want no event", text, idsOf(page.Events), err)
+		}
+	}
+}
+
 func TestFacetsCountTheMatchingValuesMostFirst(t *testing.T) {
 	r := newReaderRig(t)
 	var seeds []trailtest.Event

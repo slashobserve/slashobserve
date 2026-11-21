@@ -3,6 +3,7 @@ package proxyhttp
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"sync"
 	"testing"
@@ -12,22 +13,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 type fakePanels struct {
-	mu    sync.Mutex
-	spec  *spec.Dashboard
-	err   error
-	calls int
+	mu     sync.Mutex
+	spec   *spec.Dashboard
+	folder folders.Folder
+	err    error
+	calls  int
 }
 
-func (f *fakePanels) PanelDashboard(context.Context, auth.Principal, pgtype.UUID) (*spec.Dashboard, time.Time, time.Time, error) {
+func (f *fakePanels) PanelData(context.Context, auth.Principal, pgtype.UUID) (*spec.Dashboard, folders.Folder, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
-	return f.spec, time.Time{}, time.Time{}, f.err
+	return f.spec, f.folder, f.err
 }
 
 func (f *fakePanels) lookups() int {
@@ -50,7 +53,11 @@ func blockDashboard(query string) *spec.Dashboard {
 func (hn *harness) observationRouter(p ObservationPanels) *gin.Engine {
 	router := gin.New()
 	api := router.Group("/api/v1", func(c *gin.Context) {
-		principal := auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: "alice", Email: "alice@example.com", Name: "alice", Role: auth.RoleViewer}
+		role := auth.Role(c.GetHeader("X-Role"))
+		if role == "" {
+			role = auth.RoleViewer
+		}
+		principal := auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: "alice", Email: "alice@example.com", Name: "alice", Role: role}
 		signIn(c, principal)
 	})
 	NewObservationData(hn.h, p).Register(auth.NewRoutes(api))
@@ -134,5 +141,41 @@ func TestObservationBlockDataRunsWithTheVariablesBakedIntoTheBlock(t *testing.T)
 	}
 	if v := query.Variables[0]; v.Name != "service" || !slices.Equal(v.Values, []string{"checkout", "cart"}) {
 		t.Errorf("variable %+v", v)
+	}
+}
+
+func TestAnAdminReadsAPanelBlockInASharedFolderAsEveryoneDoes(t *testing.T) {
+	hn, audit := adminsOnlyHarness(t)
+	f := &fakePanels{spec: &spec.Dashboard{
+		SpecVersion: spec.Version,
+		Title:       "Checkout 5xx",
+		Time:        spec.TimeRange{From: "2025-10-09T08:00:00Z", To: "2025-10-09T14:00:00Z"},
+		Variables:   []spec.Variable{{Name: "ds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus}},
+		Panels: []spec.Panel{
+			{ID: observations.BlockPanelID, Type: spec.Table, Title: "picked", Datasource: "${ds}", GridPos: spec.GridPos{W: 12, H: 8}, Queries: []spec.Query{{Query: "count(up)"}}},
+		},
+	}}
+	router := hn.observationRouter(f)
+	path := "/api/v1/blocks/" + hn.id.String() + "/data?" + window
+	read := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("X-Kind", string(auth.KindUser))
+		req.Header.Set("X-Role", string(auth.RoleAdmin))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := read(); rec.Code != http.StatusOK {
+		t.Fatalf("shared folder: status %d %s", rec.Code, rec.Body)
+	}
+	if ranges, instants, _, _ := audit.counts(); ranges+instants != 0 {
+		t.Fatal("an Admin's read of a panel block in a shared folder reached the admins only datasource")
+	}
+	f.folder.AdminsOnly = true
+	if rec := read(); rec.Code != http.StatusOK {
+		t.Fatalf("admins only folder: status %d %s", rec.Code, rec.Body)
+	}
+	if ranges, instants, _, _ := audit.counts(); ranges+instants == 0 {
+		t.Fatal("an Admin's read of a panel block in an Admins-only folder never reached the admins only datasource")
 	}
 }

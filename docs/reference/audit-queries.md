@@ -5,13 +5,15 @@ description: The fields of an audit event, the three query forms the audit trail
 
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
-Every read of the trail is itself recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
-A query that is refused is recorded too, as a `failed` event with its reason.
+A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
+A search is recorded once per caller and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
+The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
+A query that is refused is recorded every time, as a `failed` event with its reason.
 
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.
-A field with an alias takes either name in a query.
+A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
 
 | Field | Alias | Type | What it holds |
 | ----- | ----- | ---- | ------------- |
@@ -19,20 +21,21 @@ A field with an alias takes either name in a query.
 | `id` | | uuid | Event id |
 | `category` | | enum | `auth`, `access`, `content`, `conversation`, `agent`, `query`, `admin` or `system` |
 | `action` | | text | What was attempted, such as `dashboard.update`; `dashboard.*` matches a prefix |
-| `outcome` | | enum | `success`, `denied` or `failed`; an event whose commit the server could not confirm reads `unknown`, which a query cannot name |
+| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm |
 | `reason` | | text | The API error code of a refusal or failure, such as `forbidden_role` |
 | `status` | | int | HTTP status of the request |
 | `duration_ms` | `duration` | int | How long the action took, in milliseconds |
-| `actor_kind` | | enum | Whose permissions were used: `user`, `service_account`, `anonymous` or `system` |
-| `actor_id` | | uuid | The user or service account |
-| `actor_name` | `actor` | text | The actor's name when the event happened |
-| `actor_role` | | text | The actor's role when the event happened |
+| `actor_kind` | `actor.kind` | enum | Whose permissions were used: `user`, `service_account`, `anonymous` or `system` |
+| `actor_id` | `actor.id` | uuid | The user or service account |
+| `actor_name` | `actor`, `actor.name` | text | The actor's name when the event happened; `actor` alone also matches the actor's current email address |
+| `actor_email` | `actor.email` | text | The current email address of the user who acted, read from the user and not stored in the event; a service account has none; a query can match it but not count it |
+| `actor_role` | `actor.role` | text | The actor's role when the event happened |
 | `initiator` | | enum | Who started it: `person`, `agent` or `system` |
 | `agent_id`, `agent_name` | | uuid, text | The agent that acted |
 | `run_id` | `run` | uuid | The agent run that made the event |
 | `auth_method` | | enum | `session`, `api_key`, `oauth`, `public_link` or `none` |
 | `credential_id` | | text | The session, key, grant or public link used, never the secret |
-| `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent`, `job` or `provision` |
+| `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent` (what the built-in agent does with its run key), `job`, `provision` or `unknown` (history copied from activity that recorded no origin) |
 | `origin_client` | | text | The connected client's name |
 | `tool` | | text | The MCP or agent tool |
 | `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16` |
@@ -41,12 +44,17 @@ A field with an alias takes either name in a query.
 | `trace_id` | | text | The request's trace id, when one was sent |
 | `http_method`, `route` | | text | The request's method and route template |
 | `target` | | target | What the event was about as `kind/id`, such as `dashboard/8f3c...`; `dashboard` alone and `dashboard/8f*` work too |
-| `target_kind`, `target_id`, `target_name` | | text | The parts of the target, and its name when the event happened |
+| `target_kind`, `target_id`, `target_name` | `target.kind`, `target.id`, `target.name` | text | The parts of the target, and its name when the event happened |
 | `folder_id`, `dashboard_id`, `observation_id`, `thread_id`, `chat_id` | | uuid | The objects the event touched |
 | `datasource_uid` | `datasource` | text | The datasource a query ran on |
 | `server_id`, `server_version` | | text | The server replica and build that recorded the event |
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
+A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
+Repeated refusals are folded so an attack cannot flood the trail: `auth.credential_rejected`, `auth.csrf_rejected` and `auth.login_failed` events that share an action, reason, target, actor and provider error are one key.
+The first event of a key is written at once with `data.count` of 1.
+The rest of that key's minute become one later event whose `data.count` is how many more there were, and there is no later event when there were none, so the `count` of all the events of a key adds up to the refusals.
+When more than 1000 keys are open, refusals of new keys fold under one anonymous event marked `data.overflow` that names no actor or target, and those follow the same rule.
 Free text, a word with no field, matches the action, the actor's and the target's names, the reason, the tool, the route and a query's text.
 
 ## Query forms
@@ -85,7 +93,11 @@ An aggregation whose buckets would make more than 100,000 rows is refused with t
 {"aggs": {"by_origin": {"terms": {"field": "origin"}, "aggs": {"people": {"cardinality": {"field": "actor_id"}}}}}}
 ```
 
-A query that cannot be read answers 422 `query_invalid` with the parser's message and `start` and `end`, the byte offsets in the query to underline; over MCP the message names the same offsets.
+A query that cannot be read answers 422 `query_invalid` with the parser's message and `start` and `end`, the byte offsets in the query to underline; over MCP the message names the same offsets, and the CLI prints the query with a caret line under the span and keeps `start` and `end` in the `--json` error.
+
+A word between two terms that is a known misspelling of an operator (`andd`, `adn`, `nad`, `annd`, `orr`, `nto`, `nott`), or in Lucene an operator in the wrong case (`a or b`, `a And b`), is still searched as text, so the query keeps its meaning, but the search, facets, histogram and aggregate answers list it in `warnings`, such as `"andd" is searched as text; did you mean "and"?`.
+In a Lucene query a lowercase `and` gets the same warning, since only `AND`, `OR` and `NOT` are operators there.
+`warnings` is an empty list when there is nothing to warn about; the CLI prints each on standard error as `warning: ...`.
 
 ## Window and limits
 
@@ -130,7 +142,9 @@ Each stream reads the trail every 2 seconds, one read at a time, under a 5 secon
 | Export as NDJSON or CSV | `GET /api/v1/audit/export` | | `observe audit export` |
 | Follow new events | `GET /api/v1/audit/stream` | `search_audit_events` | `observe audit search --follow` |
 
+The filter is the `q` parameter of the API and the `query` argument of the MCP tools and the `--query` flag of the CLI.
 Every route answers 403 `forbidden_role` to a caller below Admin.
 An export has no MCP tool, because an MCP answer holds at most 16 KiB; an agent pages the same events with `search_audit_events`, 20 a call by default and at most 100.
+When the 16 KiB cap, not `limit` or the end of the results, ends a page early, the answer carries `truncated: true` and a `note` that says how many events it kept; `next_cursor` continues from there.
 The stream has no MCP tool of its own, as the activity stream has none: an agent reads new events by calling `search_audit_events` again.
 No route or tool changes or deletes an audit event.

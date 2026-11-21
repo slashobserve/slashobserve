@@ -266,6 +266,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error())
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
 		httpapi.AbortError(c, http.StatusConflict, "personal_folder", moveIntoPersonal)
+	case folders.AbortRestricted(c, err):
 	case errors.Is(err, folders.ErrForbidden):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 	case errors.Is(err, folders.ErrNoAccess):

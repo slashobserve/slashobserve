@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -34,7 +35,7 @@ type Service struct {
 }
 
 func New(database *db.DB, access *folders.Access, sources *datasource.Registry, publicURL *url.URL, logger *slog.Logger) *Service {
-	return &Service{store: &store{db: database}, access: access, sources: sources, publicURL: publicURL, logger: logger}
+	return &Service{store: &store{db: database, guard: placement.New(sources)}, access: access, sources: sources, publicURL: publicURL, logger: logger}
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput) (SavedSearch, error) {

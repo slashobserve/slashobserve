@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 type auditedMCP struct {
@@ -159,6 +160,41 @@ func TestAToolCallInsideARunCarriesTheRun(t *testing.T) {
 	got := a.only(t, "agent.tool_call")
 	if got.runID != runRequestID || got.authMethod != "api_key" || got.actorName != "Rae" || got.initiator != "agent" || got.origin != "mcp" || got.tool != "get_spec_guide" {
 		t.Fatalf("event = %+v", got)
+	}
+}
+
+func TestEverythingTheBuiltInAgentDoesWithItsRunKeyIsRecordedAsTheAgent(t *testing.T) {
+	f := newAssignedRunFixture(t, tools.ModeCreate, revisions.AssignBuiltin)
+	f.handler.call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+		by := audit.By{Actor: audit.Actor{Kind: audit.ActorUser, Name: "Rae"}, Origin: audit.Origin{Kind: "cli"}}
+		if err := audit.RecordNow(ctx, audit.Event{Action: "run.finish", By: &by}); err != nil {
+			return tools.Result{}, err
+		}
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	a := mountAudited(t, f.handler)
+	rec := a.post(rpc(1, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}), map[string]string{"Authorization": runToken}, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tools/call = %d: %s", rec.Code, rec.Body)
+	}
+	for _, action := range []string{"agent.tool_call", "run.finish"} {
+		if got := a.only(t, action); got.origin != "agent" || got.runID != runRequestID {
+			t.Errorf("%s = %+v, want origin agent in run %s", action, got, runRequestID)
+		}
+	}
+}
+
+func TestARunKeyHeldByAnOutsideAgentIsStillRecordedAsMCP(t *testing.T) {
+	for _, assignee := range []revisions.AssigneeKind{revisions.AssignGrant, revisions.AssignServiceAccount} {
+		f := newAssignedRunFixture(t, tools.ModeCreate, assignee)
+		a := mountAudited(t, f.handler)
+		rec := a.post(rpc(1, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}), map[string]string{"Authorization": runToken}, "")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("tools/call = %d: %s", rec.Code, rec.Body)
+		}
+		if got := a.only(t, "agent.tool_call"); got.origin != "mcp" {
+			t.Errorf("%s: %+v, want origin mcp", assignee, got)
+		}
 	}
 }
 

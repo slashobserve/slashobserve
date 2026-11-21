@@ -40,6 +40,8 @@ type Query struct {
 	Clause map[string]any
 	Aggs   []Agg
 	Size   *int
+
+	Warnings []string
 }
 
 func Parse(text string) (Query, error) {
@@ -97,6 +99,7 @@ func parseKQL(body string, offset int) (Query, error) {
 		start, end := kqlSpan(body, err)
 		return Query{}, &Error{Pos: offset + start, End: offset + end, Msg: err.Error()}
 	}
+	q.Warnings = kqlWarnings(body)
 	return q, nil
 }
 

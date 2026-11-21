@@ -251,8 +251,13 @@ type lintResponse struct {
 	Diagnostics []datasource.Diagnostic `json:"diagnostics"`
 }
 
+func readingStored(c *gin.Context, f folders.Folder) context.Context {
+	c.Request = c.Request.WithContext(folders.ReadingIn(c.Request.Context(), f))
+	return c.Request.Context()
+}
+
 func (h *Handler) data(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := readingStored(c, folders.DashboardFrom(c).Folder)
 	query, ok := h.readQuery(c)
 	if !ok {
 		return
@@ -544,7 +549,7 @@ func dataBody(e dataEntry, cached bool, executedAt time.Time, sourcePanel string
 }
 
 func (h *Handler) values(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx := readingStored(c, folders.DashboardFrom(c).Folder)
 	query, ok := h.readQuery(c)
 	if !ok {
 		return

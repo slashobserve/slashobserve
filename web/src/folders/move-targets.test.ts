@@ -10,6 +10,7 @@ function folder(id: string, extra: Partial<Folder> = {}, edit = true): Folder {
     general: false,
     personal: false,
     restricted: false,
+    admins_only: false,
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,

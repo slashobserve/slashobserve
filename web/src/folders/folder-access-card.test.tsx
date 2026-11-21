@@ -41,13 +41,26 @@ function person(id: string, name: string, email: string) {
   }
 }
 
-function renderCard(role: Role, entries: unknown[] = []) {
+type Put = (body: unknown) => Response
+
+function renderCard(
+  role: Role,
+  entries: unknown[] = [],
+  { adminsOnly = false, put }: { adminsOnly?: boolean; put?: Put } = {}
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const path = new URL(request.url).pathname
       if (path === `/api/v1/folders/${folderId}/permissions`) {
-        return json({ entries })
+        if (request.method === "PUT" && put !== undefined) {
+          return put(await request.json())
+        }
+        return json({
+          restricted: adminsOnly || entries.length > 0,
+          admins_only: adminsOnly,
+          entries,
+        })
       }
       if (path === "/api/v1/users") {
         return json({
@@ -138,5 +151,61 @@ describe("FolderAccessCard", () => {
     )
     await user.type(await screen.findByLabelText("Add a person or group"), "e")
     expect(screen.queryByRole("option")).not.toBeInTheDocument()
+  })
+
+  it("offers Only Admins to an Admin and sends it with an empty list", async () => {
+    const sent: unknown[] = []
+    const user = renderCard("admin", [], {
+      put: (body) => {
+        sent.push(body)
+        return json({ restricted: true, admins_only: true, entries: [] })
+      },
+    })
+    await user.click(await screen.findByRole("radio", { name: /Only Admins/ }))
+    await user.click(
+      await screen.findByRole("button", { name: "Make Admins only" })
+    )
+    await vi.waitFor(() =>
+      expect(sent).toEqual([{ entries: [], admins_only: true }])
+    )
+  })
+
+  it("never offers Only Admins to someone who is not an Admin", async () => {
+    renderCard("editor")
+    await screen.findByRole("radio", { name: /Everyone, by role/ })
+    expect(
+      screen.queryByRole("radio", { name: /Only Admins/ })
+    ).not.toBeInTheDocument()
+  })
+
+  it("asks before opening an Admins-only folder and shows the server's refusal", async () => {
+    const sent: unknown[] = []
+    const refusal =
+      'the dashboard "Salaries" in this folder reads the datasource "payroll", which only Admins can query; move it to another folder only Admins can read before you share this one'
+    const user = renderCard("admin", [], {
+      adminsOnly: true,
+      put: (body) => {
+        sent.push(body)
+        return new Response(
+          JSON.stringify({
+            error: refusal,
+            code: "restricted_content",
+            datasource: "payroll",
+          }),
+          { status: 409, headers: { "Content-Type": "application/json" } }
+        )
+      },
+    })
+    expect(
+      await screen.findByRole("radio", { name: /Only Admins/ })
+    ).toBeChecked()
+    await user.click(screen.getByRole("radio", { name: /Everyone, by role/ }))
+    await user.click(
+      await screen.findByRole("button", { name: "Open to everyone" })
+    )
+    expect(
+      await screen.findByText(/reads the datasource "payroll"/)
+    ).toBeVisible()
+    expect(sent).toEqual([{ entries: [], admins_only: false }])
   })
 })

@@ -14,7 +14,7 @@ import (
 const createFolder = `-- name: CreateFolder :one
 INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id
+RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id, admins_only
 `
 
 type CreateFolderParams struct {
@@ -43,6 +43,7 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Fol
 		&i.UpdatedAt,
 		&i.Personal,
 		&i.OwnerID,
+		&i.AdminsOnly,
 	)
 	return i, err
 }
@@ -95,9 +96,9 @@ func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID,
 }
 
 const folderFacts = `-- name: FolderFacts :many
-SELECT f.id, f.title, f.general, f.personal,
+SELECT f.id, f.title, f.general, f.personal, f.admins_only,
   coalesce(f.owner_id = $1::uuid, false)::boolean AS owner,
-  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
+  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = $1::uuid OR p.group_name = ANY($2::text[]))
@@ -120,6 +121,7 @@ type FolderFactsRow struct {
 	Title      string
 	General    bool
 	Personal   bool
+	AdminsOnly bool
 	Owner      bool
 	Restricted bool
 	Grants     []string
@@ -145,6 +147,7 @@ func (q *Queries) FolderFacts(ctx context.Context, arg FolderFactsParams) ([]Fol
 			&i.Title,
 			&i.General,
 			&i.Personal,
+			&i.AdminsOnly,
 			&i.Owner,
 			&i.Restricted,
 			&i.Grants,
@@ -174,7 +177,7 @@ func (q *Queries) FolderHasContents(ctx context.Context, id pgtype.UUID) (bool, 
 }
 
 const getFolder = `-- name: GetFolder :one
-SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id FROM folders WHERE id = $1
+SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id, admins_only FROM folders WHERE id = $1
 `
 
 func (q *Queries) GetFolder(ctx context.Context, id pgtype.UUID) (Folder, error) {
@@ -191,6 +194,7 @@ func (q *Queries) GetFolder(ctx context.Context, id pgtype.UUID) (Folder, error)
 		&i.UpdatedAt,
 		&i.Personal,
 		&i.OwnerID,
+		&i.AdminsOnly,
 	)
 	return i, err
 }
@@ -376,7 +380,7 @@ func (q *Queries) ListFolderPermissions(ctx context.Context, folderID pgtype.UUI
 }
 
 const lockFolder = `-- name: LockFolder :one
-SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id FROM folders WHERE id = $1 FOR UPDATE
+SELECT id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id, admins_only FROM folders WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockFolder(ctx context.Context, id pgtype.UUID) (Folder, error) {
@@ -393,6 +397,7 @@ func (q *Queries) LockFolder(ctx context.Context, id pgtype.UUID) (Folder, error
 		&i.UpdatedAt,
 		&i.Personal,
 		&i.OwnerID,
+		&i.AdminsOnly,
 	)
 	return i, err
 }
@@ -400,7 +405,7 @@ func (q *Queries) LockFolder(ctx context.Context, id pgtype.UUID) (Folder, error
 const renameFolder = `-- name: RenameFolder :one
 UPDATE folders SET title = $1, updated_at = now()
 WHERE id = $2 AND NOT general AND NOT personal
-RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id
+RETURNING id, title, general, created_by_kind, created_by_id, created_by_name, created_at, updated_at, personal, owner_id, admins_only
 `
 
 type RenameFolderParams struct {
@@ -422,8 +427,23 @@ func (q *Queries) RenameFolder(ctx context.Context, arg RenameFolderParams) (Fol
 		&i.UpdatedAt,
 		&i.Personal,
 		&i.OwnerID,
+		&i.AdminsOnly,
 	)
 	return i, err
+}
+
+const setFolderAdminsOnly = `-- name: SetFolderAdminsOnly :exec
+UPDATE folders SET admins_only = $1, updated_at = now() WHERE id = $2
+`
+
+type SetFolderAdminsOnlyParams struct {
+	AdminsOnly bool
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetFolderAdminsOnly(ctx context.Context, arg SetFolderAdminsOnlyParams) error {
+	_, err := q.db.Exec(ctx, setFolderAdminsOnly, arg.AdminsOnly, arg.ID)
+	return err
 }
 
 const usersByEmail = `-- name: UsersByEmail :many

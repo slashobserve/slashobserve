@@ -23,10 +23,20 @@ type cond struct {
 	op     string
 	arg    any
 	cast   string
+	email  emailMatch
 }
 
 func (c cond) sql(b *builder) string {
-	return c.column + " " + c.op + " " + b.add(c.arg) + c.cast
+	arg := b.add(c.arg)
+	plain := c.column + " " + c.op + " " + arg + c.cast
+	byEmail := "actor_id IN (SELECT id FROM users WHERE lower(email) " + c.op + " lower(" + arg + "))"
+	switch c.email {
+	case emailOnly:
+		return byEmail
+	case emailOrName:
+		return "(" + plain + " OR " + byEmail + ")"
+	}
+	return plain
 }
 
 func (f *Field) equal(text string) ([]cond, error) {
@@ -44,7 +54,7 @@ func (f *Field) equal(text string) ([]cond, error) {
 	case TypeDate:
 		return f.dateValue(text, "=")
 	default:
-		return []cond{{column: f.column, op: "=", arg: text}}, nil
+		return []cond{{column: f.column, op: "=", arg: text, email: f.email}}, nil
 	}
 }
 
@@ -59,6 +69,9 @@ func (f *Field) ordered(key, text string) ([]cond, error) {
 	op, ok := orderedOps[key]
 	if !ok {
 		return nil, fmt.Errorf("range accepts gt, gte, lt and lte, not %q", key)
+	}
+	if f.email == emailOnly {
+		return nil, fmt.Errorf("range is not supported on %s, which is matched by equality or a wildcard", f.Name)
 	}
 	switch f.Type {
 	case TypeText:

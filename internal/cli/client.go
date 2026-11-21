@@ -50,6 +50,8 @@ type apiError struct {
 	code    string
 	raw     []byte
 	issues  []apiIssue
+	start   *int
+	end     *int
 }
 
 type apiIssue struct {
@@ -97,6 +99,8 @@ func (e *apiError) hint() string {
 		return outboundDomainHint
 	case e.code == "observation_thread_exists":
 		return e.threadExistsHint()
+	case e.code == "restricted_content":
+		return e.restrictedItemsHint()
 	case e.status == http.StatusBadRequest && strings.Contains(e.message, "cursor"):
 		return badCursorHint
 	}
@@ -315,6 +319,8 @@ func decodeAPIError(status int, data []byte) error {
 		Error  string     `json:"error"`
 		Code   string     `json:"code"`
 		Issues []apiIssue `json:"issues"`
+		Start  *int       `json:"start"`
+		End    *int       `json:"end"`
 	}
 	if json.Unmarshal(data, &body) != nil {
 		return &apiError{status: status, raw: data}
@@ -322,7 +328,7 @@ func decodeAPIError(status int, data []byte) error {
 	for i := range body.Issues {
 		body.Issues[i].Path, body.Issues[i].Message = text(body.Issues[i].Path), text(body.Issues[i].Message)
 	}
-	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data, issues: body.Issues}
+	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data, issues: body.Issues, start: body.Start, end: body.End}
 }
 
 type transportFailure struct{ error }
@@ -360,4 +366,27 @@ func decode[T any](data []byte) (T, error) {
 		return value, errors.New("the server sent a response the CLI cannot read; check that the CLI and the server versions match")
 	}
 	return value, nil
+}
+
+func (e *apiError) restrictedItemsHint() string {
+	var body struct {
+		Items []struct {
+			Kind        string `json:"kind"`
+			ID          string `json:"id"`
+			Title       string `json:"title"`
+			FolderTitle string `json:"folder_title"`
+		} `json:"items"`
+		Hidden int `json:"hidden"`
+	}
+	if json.Unmarshal(e.raw, &body) != nil || len(body.Items) == 0 && body.Hidden == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(body.Items)+1)
+	for _, it := range body.Items {
+		lines = append(lines, fmt.Sprintf("  %s %s %q in folder %q", strings.ReplaceAll(it.Kind, "_", " "), it.ID, it.Title, it.FolderTitle))
+	}
+	if body.Hidden > 0 {
+		lines = append(lines, fmt.Sprintf("  and %d in people's My Dashboards", body.Hidden))
+	}
+	return strings.Join(lines, "\n")
 }

@@ -27,6 +27,7 @@ type permissionEntry struct {
 
 type folderPermissions struct {
 	Restricted bool              `json:"restricted"`
+	AdminsOnly bool              `json:"admins_only"`
 	Entries    []permissionEntry `json:"entries"`
 }
 
@@ -103,7 +104,7 @@ func (a *app) foldersPermissionsCommand() *cobra.Command {
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.permissionsShowCommand(), a.permissionsGrantCommand(), a.permissionsRevokeCommand(), a.permissionsOpenCommand())
+	cmd.AddCommand(a.permissionsShowCommand(), a.permissionsGrantCommand(), a.permissionsRevokeCommand(), a.permissionsOpenCommand(), a.permissionsAdminsOnlyCommand())
 	return cmd
 }
 
@@ -116,7 +117,11 @@ func (a *app) readPermissions(cmd *cobra.Command, c *client, id string) (folderP
 }
 
 func (a *app) replacePermissions(cmd *cobra.Command, c *client, id string, entries []map[string]string, done func(*output)) error {
-	data, err := c.send(cmd.Context(), http.MethodPut, "folders/"+id+"/permissions", map[string]any{"entries": entries})
+	return a.sendPermissions(cmd, c, id, map[string]any{"entries": entries}, done)
+}
+
+func (a *app) sendPermissions(cmd *cobra.Command, c *client, id string, body map[string]any, done func(*output)) error {
+	data, err := c.send(cmd.Context(), http.MethodPut, "folders/"+id+"/permissions", body)
 	if err != nil {
 		return err
 	}
@@ -144,6 +149,10 @@ func (a *app) permissionsShowCommand() *cobra.Command {
 				perms, err := decode[folderPermissions](data)
 				if err != nil {
 					return err
+				}
+				if perms.AdminsOnly {
+					out.line("Only Admins can read this folder.")
+					return nil
 				}
 				if !perms.Restricted {
 					out.line("Open to everyone by role: the folder has no access list.")
@@ -289,5 +298,33 @@ func (a *app) permissionsOpenCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm opening the folder")
+	return cmd
+}
+
+func (a *app) permissionsAdminsOnlyCommand() *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "admins-only <folder-id> --yes",
+		Short: "Make a folder one only Admins can read",
+		Long:  "admins-only removes the folder's access list and lets only Admins read it, its creator included.\nOnly such a folder can hold dashboards, observations and saved searches that read an Admins-only datasource.\nIt needs an Admin key, never applies to General or a personal folder, and removes everyone else's access, so --yes is required.\nGrant or open the folder to undo it.",
+		Args:  exactArgs(1, "one folder id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			if !yes {
+				return usagef("folder %s will be readable by Admins only, its creator and access list included; rerun with --yes", id)
+			}
+			c, err := a.newClient()
+			if err != nil {
+				return err
+			}
+			return a.sendPermissions(cmd, c, id, map[string]any{"entries": []map[string]string{}, "admins_only": true}, func(out *output) {
+				out.confirm("Only Admins can read folder %s", text(id))
+			})
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm removing everyone else's access")
 	return cmd
 }

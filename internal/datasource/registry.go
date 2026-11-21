@@ -262,6 +262,19 @@ func (r *Registry) AdminsOnly(uid string) bool {
 	return r.instances[uid].Audience == AudienceAdmins
 }
 
+func (r *Registry) AdminsOnlyUIDs() []string {
+	r.instancesMu.RLock()
+	defer r.instancesMu.RUnlock()
+	var uids []string
+	for uid, in := range r.instances {
+		if in.Audience == AudienceAdmins {
+			uids = append(uids, uid)
+		}
+	}
+	slices.Sort(uids)
+	return uids
+}
+
 func (r *Registry) all() []Instance {
 	r.instancesMu.RLock()
 	out := make([]Instance, 0, len(r.instances))

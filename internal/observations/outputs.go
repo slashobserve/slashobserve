@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -45,6 +46,10 @@ type Annotations interface {
 }
 
 type Option func(*Service)
+
+func WithPlacement(g *placement.Guard) Option {
+	return func(s *Service) { s.guard = g }
+}
 
 func WithOutputs(d Dashboards, a Annotations) Option {
 	return func(s *Service) { s.dashboards, s.annotations = d, a }

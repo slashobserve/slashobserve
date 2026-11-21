@@ -28,6 +28,10 @@ func DashboardFrom(c *gin.Context) DashboardAccess {
 	return d
 }
 
+func SetDashboard(c *gin.Context, d DashboardAccess) {
+	c.Set(dashboardKey{}, d)
+}
+
 func folderFrom(c *gin.Context) folderAccess {
 	v, _ := c.Get(folderKey{})
 	f, _ := v.(folderAccess)
@@ -57,7 +61,7 @@ func (a *Access) RequireDashboard(n Need) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsAccess(n.Level(), access.Folder.Title))
 			return
 		}
-		c.Set(dashboardKey{}, access)
+		SetDashboard(c, access)
 		c.Next()
 	}
 }

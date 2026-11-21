@@ -100,10 +100,17 @@ func Main(args []string, std IO, version string) int {
 }
 
 func errorJSON(err error, message string) string {
+	var start, end *int
+	var api *apiError
+	if errors.As(err, &api) {
+		start, end = api.start, api.end
+	}
 	data, marshalErr := json.Marshal(struct {
 		Error string `json:"error"`
 		Code  string `json:"code"`
-	}{Error: message, Code: errorCode(err)})
+		Start *int   `json:"start,omitempty"`
+		End   *int   `json:"end,omitempty"`
+	}{Error: message, Code: errorCode(err), Start: start, End: end})
 	if marshalErr != nil {
 		return message
 	}

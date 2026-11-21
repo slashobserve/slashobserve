@@ -13,11 +13,22 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type store struct {
-	db *db.DB
+	db    *db.DB
+	guard *placement.Guard
+}
+
+func (s *store) place(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.SavedSearch, moved bool) error {
+	refs := []string{row.DatasourceUid}
+	if moved {
+		return s.guard.Move(ctx, q, folders.ContentSavedSearch, row.FolderID, refs)
+	}
+	return s.guard.Save(ctx, q, folders.ContentSavedSearch, row.FolderID, refs)
 }
 
 type eventData struct {
@@ -71,6 +82,9 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in validated, folder
 	}
 	var row dbsqlc.SavedSearch
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := s.guard.Save(ctx, q, folders.ContentSavedSearch, folderID, []string{in.DatasourceUID}); err != nil {
+			return err
+		}
 		var err error
 		if row, err = q.InsertSavedSearch(ctx, params); err != nil {
 			return err
@@ -140,8 +154,13 @@ func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pg
 		if before.FolderID != checkedFolder {
 			return errFolderMoved
 		}
-		row, err = applyChange(ctx, q, by, before, c)
-		return err
+		if row, err = applyChange(ctx, q, by, before, c); err != nil {
+			return err
+		}
+		if c.content == nil && !c.moveTo.Valid {
+			return nil
+		}
+		return s.place(ctx, q, row, c.moveTo.Valid)
 	})
 	switch {
 	case errors.Is(err, errFolderMoved):

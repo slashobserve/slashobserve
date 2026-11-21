@@ -59,7 +59,34 @@ const title = "Who can see this folder"
 const intro =
   "With nobody listed, everyone follows their role. Once you add someone, only the people and groups below, plus admins, can see it."
 
-type Access = "everyone" | "listed"
+type Access = "everyone" | "listed" | "admins"
+
+type Confirming = "clear" | "open" | "admins"
+
+const confirmText: Record<Confirming, { description: string; action: string }> =
+  {
+    clear: {
+      description: "Everyone will see this folder by role.",
+      action: "Remove everyone",
+    },
+    open: {
+      description: "Everyone will see this folder by role.",
+      action: "Open to everyone",
+    },
+    admins: {
+      description:
+        "Only Admins will see this folder and everything in it, the person who created it included.",
+      action: "Make Admins only",
+    },
+  }
+
+function confirmTitle(confirming: Confirming, count: number): string {
+  if (confirming === "open") return "Open this folder to everyone?"
+  if (confirming === "admins") return "Make this folder Admins only?"
+  return count === 1
+    ? "Remove the 1 person or group?"
+    : `Remove all ${count} people and groups?`
+}
 
 function peopleText(count: number): string {
   return `${count} ${count === 1 ? "person" : "people"}`
@@ -125,12 +152,16 @@ function AccessCard({
   readOnly: boolean
 }) {
   const save = useSetFolderPermissions(folderId)
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const mayChooseAdminsOnly = roleAtLeast(principal.role, "admin")
   const addInput = useRef<HTMLInputElement>(null)
   const [revealed, setRevealed] = useState(false)
-  const [confirmingClear, setConfirmingClear] = useState(false)
+  const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const entries = permissions.entries
-  const listed = entries.length > 0 || revealed
+  const adminsOnly = permissions.admins_only && !revealed
+  const listed = !adminsOnly && (entries.length > 0 || revealed)
+  const access: Access = adminsOnly ? "admins" : listed ? "listed" : "everyone"
   const pending = save.isPending
   const listedEmails = new Set(
     entries.flatMap((entry) =>
@@ -140,13 +171,16 @@ function AccessCard({
 
   function apply(change: GrantChange, onDone?: () => void) {
     setProblem(null)
-    save.mutate(entriesForPut(entries, change), {
-      onSuccess: () => {
-        toast.success("Access updated")
-        onDone?.()
-      },
-      onError: (error) => setProblem(problemText(error, change)),
-    })
+    save.mutate(
+      { entries: entriesForPut(entries, change) },
+      {
+        onSuccess: () => {
+          toast.success("Access updated")
+          onDone?.()
+        },
+        onError: (error) => setProblem(problemText(error, change)),
+      }
+    )
   }
 
   function chooseAccess(next: Access) {
@@ -154,13 +188,30 @@ function AccessCard({
       setRevealed(true)
       return
     }
-    if (entries.length > 0) setConfirmingClear(true)
+    if (next === "admins") setConfirming("admins")
+    else if (entries.length > 0) setConfirming("clear")
+    else if (permissions.admins_only) setConfirming("open")
     else setRevealed(false)
   }
 
-  function changeClearOpen(open: boolean) {
+  function confirm(target: Confirming) {
+    setProblem(null)
+    save.mutate(
+      { entries: [], admins_only: target === "admins" },
+      {
+        onSuccess: () => {
+          toast.success("Access updated")
+          setRevealed(false)
+          setConfirming(null)
+        },
+        onError: (error) => setProblem(problemText(error, null)),
+      }
+    )
+  }
+
+  function changeConfirmOpen(open: boolean) {
     if (open || pending) return
-    setConfirmingClear(false)
+    setConfirming(null)
     setProblem(null)
     save.reset()
   }
@@ -169,13 +220,17 @@ function AccessCard({
     <SettingsCard title={title} hint={intro}>
       {readOnly ? (
         <p className="border-b px-4 py-3 text-[13px]">
-          {listed ? "Only the people and groups below" : "Everyone, by role"}
+          {adminsOnly
+            ? "Only Admins"
+            : listed
+              ? "Only the people and groups below"
+              : "Everyone, by role"}
         </p>
       ) : (
         <fieldset className="border-b px-4 py-3">
           <legend className="sr-only">Folder access</legend>
           <RadioGroup
-            value={listed ? "listed" : "everyone"}
+            value={access}
             disabled={pending}
             onValueChange={(next) => chooseAccess(next as Access)}
           >
@@ -198,6 +253,19 @@ function AccessCard({
                 </span>
               </span>
             </label>
+            {mayChooseAdminsOnly ? (
+              <label className="flex items-start gap-2 text-[13px]">
+                <RadioGroupItem value="admins" className="mt-0.5" />
+                <span>
+                  Only Admins
+                  <span className="block text-xs text-muted-foreground">
+                    Hidden from everyone but Admins, the person who created it
+                    included. Content that reads an Admins-only datasource can
+                    only be saved in such a folder.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </RadioGroup>
         </fieldset>
       )}
@@ -228,7 +296,7 @@ function AccessCard({
           onAdd={apply}
         />
       ) : null}
-      {problem !== null && !confirmingClear ? (
+      {problem !== null && confirming === null ? (
         <div className="px-4 pb-3">
           <Alert variant="destructive">
             <AlertDescription>{problem}</AlertDescription>
@@ -244,16 +312,14 @@ function AccessCard({
           every folder.
         </p>
       )}
-      <AlertDialog open={confirmingClear} onOpenChange={changeClearOpen}>
+      <AlertDialog open={confirming !== null} onOpenChange={changeConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {entries.length === 1
-                ? "Remove the 1 person or group?"
-                : `Remove all ${entries.length} people and groups?`}
+              {confirmTitle(confirming ?? "clear", entries.length)}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Everyone will see this folder by role.
+              {confirmText[confirming ?? "clear"].description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {problem !== null ? (
@@ -270,12 +336,7 @@ function AccessCard({
               disabled={pending}
               focusableWhenDisabled
               aria-busy={pending}
-              onClick={() =>
-                apply({ kind: "clear" }, () => {
-                  setRevealed(false)
-                  setConfirmingClear(false)
-                })
-              }
+              onClick={() => confirm(confirming ?? "clear")}
             >
               {pending ? (
                 <LoaderCircleIcon
@@ -283,7 +344,7 @@ function AccessCard({
                   className="motion-safe:animate-spin"
                 />
               ) : null}
-              Remove everyone
+              {confirmText[confirming ?? "clear"].action}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

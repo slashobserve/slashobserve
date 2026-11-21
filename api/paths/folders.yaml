@@ -230,7 +230,7 @@ folders-id-permissions:
     operationId: setFolderPermissions
     x-audit: { action: folder.permissions_change, target: { kind: folder, id: path.id } }
     x-surfaces:
-      cli: [observe folders permissions grant, observe folders permissions revoke, observe folders permissions open]
+      cli: [observe folders permissions grant, observe folders permissions revoke, observe folders permissions open, observe folders permissions admins-only]
     summary: Replace the people and groups a folder is restricted to.
     description: >-
       Needs the Manage permission on the folder.
@@ -239,6 +239,8 @@ folders-id-permissions:
       Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group.
       A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone.
       The General folder is never restricted.
+      `admins_only: true` with an empty `entries` list makes the folder one only Admins can read, its creator included; only an Admin can set it, never on a personal folder, and any other change clears it.
+      A folder that holds content reading an Admins-only datasource cannot be opened or given entries (409 `restricted_content`, with that content in `items`).
     requestBody:
       required: true
       content:
@@ -248,6 +250,9 @@ folders-id-permissions:
             additionalProperties: false
             required: [entries]
             properties:
+              admins_only:
+                type: boolean
+                description: True to make the folder one only Admins can read; `entries` must then be empty.
               entries:
                 type: array
                 maxItems: 50
@@ -281,16 +286,19 @@ folders-id-permissions:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The folder is General (`general_folder`).
+        description: >-
+          The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
         description: >-
-          No signed-in person matches an entry (`unknown_user`), or an email belongs to more than one person.
+          No signed-in person matches an entry (`unknown_user`), an email belongs to more than one person, or `admins_only` came with entries (`invalid_request`).
           `email` is set when the entry was an email.
         content:
           application/json:

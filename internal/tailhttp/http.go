@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -133,6 +134,11 @@ func (h *Handler) serve(c *gin.Context) {
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Accel-Buffering", "no")
 	c.Status(http.StatusOK)
+	audit.Conclude(c.Request.Context(), audit.Result{
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "datasource", ID: req.uid},
+		Data:    map[string]any{"stream": true},
+	})
 	defer func() { _ = http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}) }()
 	if !write(c, fmt.Sprintf("retry: %d\n\n", retryMilliseconds)) ||
 		!writeEvent(c, "ready", readyData{DatasourceUID: req.uid, From: httpapi.FormatTime(req.from)}) ||
