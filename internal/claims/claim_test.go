@@ -6,12 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-
-	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -172,27 +167,6 @@ func TestCleanTextCutsAtRunesAndDropsInvalidBytes(t *testing.T) {
 	} {
 		if got := CleanText(tc.in, tc.max); got != tc.want {
 			t.Errorf("%s: CleanText(%q, %d) = %q, want %q", name, tc.in, tc.max, got, tc.want)
-		}
-	}
-}
-
-func TestTheAgentOfARunIsTheAssigneeThatTookIt(t *testing.T) {
-	id := pgtype.UUID{Bytes: [16]byte{0x33, 1}, Valid: true}
-	for _, tc := range []struct {
-		kind revisions.AssigneeKind
-		name string
-		want audit.Agent
-	}{
-		{revisions.AssignBuiltin, "", audit.Agent{Name: "Observe Agent"}},
-		{revisions.AssignGrant, " Claude\u0007 Code ", audit.Agent{ID: uuid.NullUUID{UUID: id.Bytes, Valid: true}, Name: "Claude Code"}},
-		{revisions.AssignServiceAccount, "ci-agent", audit.Agent{ID: uuid.NullUUID{UUID: id.Bytes, Valid: true}, Name: "ci-agent"}},
-	} {
-		run := dbsqlc.AgentRequest{AssignedKind: string(tc.kind), AssignedID: id}
-		if tc.kind == revisions.AssignBuiltin {
-			run.AssignedID = pgtype.UUID{}
-		}
-		if got := assignedAgent(run, tc.name); got != tc.want {
-			t.Errorf("%s: agent = %+v, want %+v", tc.kind, got, tc.want)
 		}
 	}
 }

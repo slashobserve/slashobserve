@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 )
@@ -18,6 +19,7 @@ type Entry struct {
 	TargetID pgtype.UUID
 	Owner    Owner
 	Actor    actor.Actor
+	Agent    audit.Agent
 	Data     any
 }
 

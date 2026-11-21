@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/google/uuid"
+
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -51,11 +54,35 @@ func AssigneeActor(row dbsqlc.AgentRequest, assigneeName string) actor.Actor {
 	return RunActor(row)
 }
 
-func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
-	return runActivityWith(row, typ, nil)
+const builtInAgentName = "Observe Agent"
+
+func AssignedAgent(row dbsqlc.AgentRequest, assigneeName string) audit.Agent {
+	id := uuid.NullUUID{UUID: row.AssignedID.Bytes, Valid: row.AssignedID.Valid}
+	switch AssigneeKind(row.AssignedKind) {
+	case AssignBuiltin:
+		return audit.Agent{Name: builtInAgentName}
+	case AssignGrant:
+		return audit.Agent{ID: id, Name: origin.CleanClient(assigneeName)}
+	}
+	return audit.Agent{ID: id, Name: assigneeName}
 }
 
-func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) activity.Entry {
+func assigneeNameOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (string, error) {
+	if AssigneeKind(row.AssignedKind) == AssignBuiltin {
+		return "", nil
+	}
+	name, err := q.GetAssigneeName(ctx, dbsqlc.GetAssigneeNameParams{Kind: row.AssignedKind, ID: row.AssignedID})
+	if err != nil {
+		return "", fmt.Errorf("read the agent that took the run: %w", err)
+	}
+	return name, nil
+}
+
+func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
+	return runActivityWith(row, typ, "", nil)
+}
+
+func runActivityWith(row dbsqlc.AgentRequest, typ string, assigneeName string, extra map[string]any) activity.Entry {
 	columns := requesterColumns(row)
 	data := map[string]any{"source": row.Source}
 	switch typ {
@@ -93,13 +120,17 @@ func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) 
 		}
 	}
 	maps.Copy(data, extra)
-	return activity.Entry{
+	entry := activity.Entry{
 		Type:     typ,
 		TargetID: row.ID,
 		Owner:    activity.OnDashboard(row.DashboardID),
 		Actor:    actor.FromColumns(columns),
 		Data:     data,
 	}
+	if columns.RunID.Valid {
+		entry.Agent = AssignedAgent(row, assigneeName)
+	}
+	return entry
 }
 
 func storedCost(runUsage []byte) (float64, bool) {
@@ -157,12 +188,16 @@ func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, 
 			extra = outcome.data()
 		}
 	}
-	entry := runActivityWith(row, typ, extra)
+	assigneeName, err := assigneeNameOf(ctx, q, row)
+	if err != nil {
+		return err
+	}
+	entry := runActivityWith(row, typ, assigneeName, extra)
 	var live *events.Event
 	if ev, ok := revisionEvent(row); ok {
 		live = &ev
 	}
-	_, err := activity.Append(ctx, q, entry, live)
+	_, err = activity.Append(ctx, q, entry, live)
 	return err
 }
 

@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -150,6 +152,52 @@ func TestRunActivityActsAsTheRequesterAndOnlyCarriesTheRunIdOnceItRuns(t *testin
 				t.Errorf("run id = %q, want %q", got.RunID, tc.wantRunID)
 			}
 		})
+	}
+}
+
+func TestRunActivityNamesTheAgentOnEveryEventOfTheRunSession(t *testing.T) {
+	accountID := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
+	grantID := pgtype.UUID{Bytes: [16]byte{8}, Valid: true}
+	assignees := []struct {
+		name     string
+		kind     AssigneeKind
+		id       pgtype.UUID
+		assignee string
+		want     audit.Agent
+	}{
+		{"the built-in agent", AssignBuiltin, pgtype.UUID{}, "", audit.Agent{Name: "Observe Agent"}},
+		{"a connected agent", AssignGrant, grantID, " Claude Code ", audit.Agent{ID: uuid.NullUUID{UUID: grantID.Bytes, Valid: true}, Name: "Claude Code"}},
+		{"a service account", AssignServiceAccount, accountID, "ci-bot", audit.Agent{ID: uuid.NullUUID{UUID: accountID.Bytes, Valid: true}, Name: "ci-bot"}},
+	}
+	events := []struct {
+		typ    string
+		status Status
+		agent  bool
+	}{
+		{activity.TypeRunQueued, StatusQueued, false},
+		{activity.TypeRunStarted, StatusRunning, true},
+		{activity.TypeRunSucceeded, StatusSucceeded, true},
+		{activity.TypeRunFailed, StatusFailed, true},
+		{activity.TypeRunCanceled, StatusFailed, true},
+		{activity.TypeRunCanceling, StatusRunning, false},
+		{activity.TypeRunReleased, StatusQueued, true},
+		{activity.TypeRunKept, StatusFailed, false},
+	}
+	for _, a := range assignees {
+		for _, ev := range events {
+			t.Run(a.name+" "+ev.typ, func(t *testing.T) {
+				row := runRow(ev.status, SourcePrompt)
+				row.AssignedKind, row.AssignedID = string(a.kind), a.id
+				got := runActivityWith(row, ev.typ, a.assignee, nil).Agent
+				want := audit.Agent{}
+				if ev.agent {
+					want = a.want
+				}
+				if got != want {
+					t.Fatalf("agent = %+v, want %+v", got, want)
+				}
+			})
+		}
 	}
 }
 
@@ -297,5 +345,26 @@ func TestAssigneeActorReadsAsTheAgentThatTookTheRun(t *testing.T) {
 				t.Fatalf("actor = %+v label %q, want label %q, run %v, kind %s, id %s", got, got.Label(), tt.want, tt.wantRun, tt.wantKind, tt.wantID)
 			}
 		})
+	}
+}
+
+func TestTheAgentOfARunIsTheAssigneeThatTookIt(t *testing.T) {
+	id := pgtype.UUID{Bytes: [16]byte{0x33, 1}, Valid: true}
+	for _, tc := range []struct {
+		kind AssigneeKind
+		name string
+		want audit.Agent
+	}{
+		{AssignBuiltin, "", audit.Agent{Name: "Observe Agent"}},
+		{AssignGrant, " Claude\u0007 Code ", audit.Agent{ID: uuid.NullUUID{UUID: id.Bytes, Valid: true}, Name: "Claude Code"}},
+		{AssignServiceAccount, "ci-agent", audit.Agent{ID: uuid.NullUUID{UUID: id.Bytes, Valid: true}, Name: "ci-agent"}},
+	} {
+		run := dbsqlc.AgentRequest{AssignedKind: string(tc.kind), AssignedID: id}
+		if tc.kind == AssignBuiltin {
+			run.AssignedID = pgtype.UUID{}
+		}
+		if got := AssignedAgent(run, tc.name); got != tc.want {
+			t.Errorf("%s: agent = %+v, want %+v", tc.kind, got, tc.want)
+		}
 	}
 }
