@@ -48,6 +48,10 @@ A field with an alias takes either name in a query.
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
 A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
+Repeated refusals are folded so an attack cannot flood the trail: `auth.credential_rejected`, `auth.csrf_rejected` and `auth.login_failed` events that share an action, reason, target, actor and provider error are one key.
+The first event of a key is written at once with `data.count` of 1.
+The rest of that key's minute become one later event whose `data.count` is how many more there were, and there is no later event when there were none, so the `count` of all the events of a key adds up to the refusals.
+When more than 1000 keys are open, refusals of new keys fold under one anonymous event marked `data.overflow` that names no actor or target, and those follow the same rule.
 Free text, a word with no field, matches the action, the actor's and the target's names, the reason, the tool, the route and a query's text.
 
 ## Query forms

@@ -106,7 +106,7 @@ func TestACrossOriginSignOutIsRecordedAsRefusedForThePerson(t *testing.T) {
 	}
 }
 
-func TestRepeatedRefusalsOfOneKindAreOneEventWithTheirCount(t *testing.T) {
+func TestTheFirstRefusalOfAKeyIsRecordedAtOnceAndTheRepeatsAreOneLaterEventWithTheirCount(t *testing.T) {
 	r := newAuditRig(t)
 	token, _, err := opaquetoken.New("sok_")
 	if err != nil {
@@ -119,13 +119,12 @@ func TestRepeatedRefusalsOfOneKindAreOneEventWithTheirCount(t *testing.T) {
 			first = request
 		}
 	}
-	got := r.storedRefusal(t, first)
-	if got.data != `{"count": 5}` {
-		t.Fatalf("data = %s, want count 5", got.data)
+	if got := r.storedRefusal(t, first); got.data != `{"count": 1}` {
+		t.Fatalf("data of the first refusal = %s, want count 1", got.data)
 	}
-	var rows int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM audit_events WHERE action = 'auth.credential_rejected'`).Scan(&rows); err != nil || rows != 1 {
-		t.Fatalf("rows = %d, %v, want 1", rows, err)
+	var rows, later int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*), count(*) FILTER (WHERE data = '{"count": 4}') FROM audit_events WHERE action = 'auth.credential_rejected'`).Scan(&rows, &later); err != nil || rows != 2 || later != 1 {
+		t.Fatalf("rows = %d with %d later row of count 4, %v, want 2 and 1", rows, later, err)
 	}
 }
 

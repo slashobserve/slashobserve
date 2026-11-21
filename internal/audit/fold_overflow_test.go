@@ -47,20 +47,26 @@ func dataOf(t *testing.T, row dbsqlc.InsertAuditEventParams) map[string]any {
 func TestTheOverflowBucketBelongsToNoOneActorOrTarget(t *testing.T) {
 	f := newFolds(time.Minute, 1)
 	now := time.Now()
-	f.absorb(loginFailure(1, ""), now)
-	f.absorb(loginFailure(2, ""), now)
-	f.absorb(loginFailure(3, ""), now)
+	var rows []dbsqlc.InsertAuditEventParams
+	for actor := byte(1); actor <= 4; actor++ {
+		if first, enqueue := f.absorb(loginFailure(actor, ""), now); enqueue {
+			rows = append(rows, first)
+		}
+	}
+	rows = append(rows, f.due(now.Add(time.Minute))...)
 	var overflow *dbsqlc.InsertAuditEventParams
-	for _, row := range f.due(now.Add(time.Minute)) {
+	var counted float64
+	for _, row := range rows {
 		if dataOf(t, row)["overflow"] == true {
 			overflow = &row
+			counted += dataOf(t, row)["count"].(float64)
 		}
 	}
 	if overflow == nil {
 		t.Fatal("no row is marked as the overflow bucket")
 	}
-	if got := dataOf(t, *overflow)["count"]; got != float64(2) {
-		t.Fatalf("overflow count = %v, want 2", got)
+	if counted != 3 {
+		t.Fatalf("overflow count over its rows = %v, want 3", counted)
 	}
 	if overflow.ActorID.Valid || overflow.ActorName.Valid || overflow.TargetKind.Valid || overflow.TargetID.Valid || overflow.TargetName.Valid ||
 		overflow.ClientIp != nil || overflow.UserAgent.Valid || overflow.RequestID.Valid || overflow.CredentialID.Valid || overflow.AuthMethod.Valid || overflow.TraceID.Valid {
@@ -74,17 +80,20 @@ func TestTheOverflowBucketBelongsToNoOneActorOrTarget(t *testing.T) {
 func TestFoldingKeepsProviderErrorsApart(t *testing.T) {
 	f := newFolds(time.Minute, 10)
 	now := time.Now()
-	f.absorb(loginFailure(1, "access_denied"), now)
-	f.absorb(loginFailure(1, "temporarily_unavailable"), now)
-	f.absorb(loginFailure(1, "access_denied"), now)
-	rows := f.due(now.Add(time.Minute))
-	if len(rows) != 2 {
-		t.Fatalf("folded events = %d, want one per provider error", len(rows))
+	var rows []dbsqlc.InsertAuditEventParams
+	for _, providerError := range []string{"access_denied", "temporarily_unavailable", "access_denied"} {
+		if first, enqueue := f.absorb(loginFailure(1, providerError), now); enqueue {
+			rows = append(rows, first)
+		}
+	}
+	rows = append(rows, f.due(now.Add(time.Minute))...)
+	if len(rows) != 3 {
+		t.Fatalf("rows = %d, want a first row per provider error and a later row for the repeated one", len(rows))
 	}
 	seen := map[string]float64{}
 	for _, row := range rows {
 		data := dataOf(t, row)
-		seen[data["provider_error"].(string)] = data["count"].(float64)
+		seen[data["provider_error"].(string)] += data["count"].(float64)
 	}
 	if seen["access_denied"] != 2 || seen["temporarily_unavailable"] != 1 {
 		t.Fatalf("counts = %v", seen)
