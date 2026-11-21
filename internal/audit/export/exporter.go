@@ -165,7 +165,7 @@ func (x *Exporter) step(ctx context.Context, size int, checkRetention bool) (pro
 	if err != nil {
 		return x.refused(ctx, events, err)
 	}
-	if err := x.advance(ctx, events[len(events)-1]); err != nil {
+	if err := x.advance(ctx, events); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
 	x.skipped, x.refusedAll = 0, false
@@ -207,7 +207,7 @@ func (x *Exporter) refused(ctx context.Context, events []trail.Positioned, sendE
 		}
 		return progress{}, stage{"audit_export_receiver_refuses_events", sendErr}
 	}
-	if err := x.advance(ctx, events[0]); err != nil {
+	if err := x.advance(ctx, events[:1]); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
 	x.skipped++
@@ -230,10 +230,21 @@ func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {
 		slog.Int64("rejected", receipt.Rejected), slog.Int("status", receipt.Status))
 }
 
-func (x *Exporter) advance(ctx context.Context, last trail.Positioned) error {
+func (x *Exporter) advance(ctx context.Context, sent []trail.Positioned) error {
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), advanceTimeout)
 	defer cancel()
-	return x.Cursor.Advance(writeCtx, last.At, occurredAt(last.Event))
+	var newest time.Time
+	for _, e := range sent {
+		newest = later(newest, occurredAt(e.Event))
+	}
+	return x.Cursor.Advance(writeCtx, sent[len(sent)-1].At, newest)
+}
+
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
 }
 
 func occurredAt(e trail.Event) time.Time {

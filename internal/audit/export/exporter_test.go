@@ -678,3 +678,17 @@ func TestTextTheReceiverSendsBackIsNeverLogged(t *testing.T) {
 		t.Fatalf("log = %s", logged)
 	}
 }
+
+func TestTheCursorStoresTheNewestTimeOfTheBatchNotTheTimeOfItsLastEvent(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two")
+	r.source.events[0].Event.OccurredAt = "2026-11-21T10:40:00Z"
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 11, 21, 10, 40, 0, 0, time.UTC)
+	if len(r.cursor.exportedAt) != 1 || !r.cursor.exportedAt[0].Equal(want) {
+		t.Fatalf("stored times = %v, want %v", r.cursor.exportedAt, want)
+	}
+}
