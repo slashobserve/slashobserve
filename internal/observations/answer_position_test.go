@@ -14,7 +14,7 @@ import (
 func (r rig) runAskedOn(t *testing.T, by auth.Principal, block observations.Block) dbsqlc.AgentRequest {
 	t.Helper()
 	run := r.run(t, by, pgtype.UUID{}, "Why?", nil, nil)
-	r.db.Exec(t, `UPDATE agent_requests SET block_id = $2::uuid WHERE id = $1::uuid`, run.ID.String(), block.ID)
+	r.db.Exec(t, `UPDATE agent_requests SET block_id = $2::uuid, anchor = '{"kind":"title","pos":{"x":0,"y":0}}' WHERE id = $1::uuid`, run.ID.String(), block.ID)
 	run.BlockID = mustUUID(t, block.ID)
 	return run
 }
@@ -111,18 +111,40 @@ func TestARunAskedOnTheWholePageStillAppends(t *testing.T) {
 	}
 }
 
-func TestAnAnswerWhoseBlockWasDeletedMeanwhileAppends(t *testing.T) {
+func TestAnAnswerWhoseBlockWasDeletedMeanwhileStaysUnderItsRunBlock(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
 	r.addText(t, editor, o, "a")
 	asked := r.addText(t, editor, o, "b")
 	r.addText(t, editor, o, "c")
 	run := r.runAskedOn(t, editor, asked)
+	r.mustOpenForRun(t, observations.RunOpen{Run: run, By: editor, ObservationID: mustUUID(t, o.ID), Strict: true})
 	r.link(t, run, o)
 	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := r.conclude(t, editor, recordInput(t, run, evidencePanel)); err != nil {
+		t.Fatal(err)
+	}
+	want := []observations.Kind{observations.KindText, observations.KindRun, observations.KindText, observations.KindPanel, observations.KindText}
+	if kinds := r.kindsOf(t, editor, o.ID); !slices.Equal(kinds, want) {
+		t.Errorf("kinds %v, want %v", kinds, want)
+	}
+}
+
+func TestAnAnswerShownOnThePageWhoseBlockWasDeletedAppends(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	r.addText(t, editor, o, "a")
+	asked := r.addText(t, editor, o, "b")
+	r.addText(t, editor, o, "c")
+	run := r.runAskedOn(t, editor, asked)
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
+		t.Fatal(err)
+	}
+	c := recordInput(t, run, evidencePanel)
+	c.Into = mustUUID(t, o.ID)
+	if _, _, err := r.conclude(t, editor, c); err != nil {
 		t.Fatal(err)
 	}
 	want := []observations.Kind{observations.KindText, observations.KindText, observations.KindText, observations.KindPanel}

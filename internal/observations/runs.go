@@ -311,14 +311,13 @@ func conclusionPosition(ctx context.Context, q *dbsqlc.Queries, observationID, r
 	case err != nil:
 		return nil, fmt.Errorf("read run: %w", err)
 	}
-	under, err := positionUnder(ctx, q, observationID, run.BlockID)
-	if err != nil || under == nil {
-		return nil, err
+	if !run.BlockID.Valid && len(run.Anchor) == 0 {
+		return nil, nil
 	}
 	runBlock, err := q.RunBlockOfRun(ctx, dbsqlc.RunBlockOfRunParams{ObservationID: observationID, RunID: runID})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return under, nil
+		return positionUnder(ctx, q, observationID, run.BlockID)
 	case err != nil:
 		return nil, fmt.Errorf("read run block: %w", err)
 	}
