@@ -21,6 +21,7 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     general: false,
     personal: false,
     restricted: false,
+    admins_only: false,
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,
@@ -286,6 +287,7 @@ describe("accessSummary", () => {
       accessSummary(
         folder("c", "Checkout", {
           restricted: true,
+          admins_only: false,
           grantees: ["Ishan", "sre", "Priya"],
           grantee_count: 3,
         })
@@ -298,6 +300,7 @@ describe("accessSummary", () => {
       accessSummary(
         folder("c", "Checkout", {
           restricted: true,
+          admins_only: false,
           grantees: ["a", "b", "c", "d", "e"],
           grantee_count: 8,
         })
@@ -312,6 +315,12 @@ describe("accessSummary", () => {
 
   it("says only you for the caller's own My Dashboards", () => {
     expect(accessSummary(myDashboards(me))).toBe("Only you")
+  })
+
+  it("marks a folder only Admins can read", () => {
+    expect(
+      accessSummary({ ...payments, restricted: true, admins_only: true })
+    ).toBe("Only Admins")
   })
 })
 

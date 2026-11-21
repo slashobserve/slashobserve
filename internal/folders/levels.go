@@ -42,6 +42,7 @@ func (l Level) String() string {
 
 type Facts struct {
 	Restricted bool
+	AdminsOnly bool
 	Grants     []Level
 	Creator    bool
 	Personal   bool
@@ -73,6 +74,9 @@ func LevelFor(role auth.Role, f Facts) Level {
 	}
 	if role == auth.RoleAdmin {
 		return LevelAdmin
+	}
+	if f.AdminsOnly {
+		return LevelNone
 	}
 	base, creator := roleLevels(role)
 	if base == LevelNone || f.Restricted && len(f.Grants) == 0 && !f.Creator {

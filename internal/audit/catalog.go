@@ -65,6 +65,7 @@ var (
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
+	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
 	readKeys     = []string{"form", "since", "until", "query", "row_count"}
@@ -215,7 +216,7 @@ var catalog = map[Action]Spec{
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),
 	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin, permissionKeys),
+	"folder.permissions_change":  change(CategoryAdmin, permissionKeys, sharingKeys),
 	"team.create":                change(CategoryAdmin),
 	"team.delete":                change(CategoryAdmin),
 	"team.member_add":            change(CategoryAdmin, memberKeys),

@@ -335,6 +335,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		return
 	}
 	switch {
+	case folders.AbortRestricted(c, err):
 	case errors.As(err, &input):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, input.Code, input.Message)
 	case errors.As(err, &unresolved):

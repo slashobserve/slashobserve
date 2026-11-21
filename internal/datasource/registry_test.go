@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
@@ -423,5 +424,33 @@ func TestACheckOfAReplacedDatasourceNeitherCachesNorBlocksTheNewOne(t *testing.T
 	<-done
 	if got := registry.Health(everything(t)); !got[0].Healthy {
 		t.Fatalf("the finished check of the old definition replaced the cached status: %+v", got[0])
+	}
+}
+
+func TestHealthHasNoRowForADatasourceTheCallerCannotQuery(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "open", Datasource: failingHealth{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: failingHealth{err: errors.New("down")}}); err != nil {
+		t.Fatal(err)
+	}
+	uids := func(ctx context.Context) []string {
+		var out []string
+		for _, s := range registry.Health(ctx) {
+			out = append(out, s.UID)
+		}
+		return out
+	}
+	editor := datasource.WithAccess(t.Context(), datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "e", Role: auth.RoleEditor}})
+	admin := datasource.WithAccess(t.Context(), datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}})
+	if got := uids(editor); len(got) != 1 || got[0] != "open" {
+		t.Fatalf("editor health rows = %v, want only open", got)
+	}
+	if _, ok := registry.Recheck(editor, "audit"); ok {
+		t.Fatal("an editor rechecked the admins only datasource")
+	}
+	if got := uids(admin); len(got) != 2 {
+		t.Fatalf("admin health rows = %v, want both", got)
 	}
 }

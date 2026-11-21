@@ -1320,7 +1320,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1337,7 +1337,10 @@ components:
           description: True for the caller's own My Dashboards folder, which only they see, Admins included. It is never restricted, renamed or shared, takes new dashboards but no moves, and lists first.
         restricted:
           type: boolean
-          description: True when the folder lists people or groups; false means open to everyone by instance role.
+          description: True when the folder lists people or groups or only Admins can read it; false means open to everyone by instance role.
+        admins_only:
+          type: boolean
+          description: True when only Admins can read the folder, whoever made it. Such a folder lists no people or groups, and only such a folder can hold content that reads an Admins-only datasource.
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
@@ -1395,10 +1398,13 @@ components:
     FolderPermissions:
       type: object
       additionalProperties: false
-      required: [restricted, entries]
+      required: [restricted, admins_only, entries]
       properties:
         restricted:
           type: boolean
+        admins_only:
+          type: boolean
+          description: True when only Admins can read the folder; `entries` is then empty.
         entries:
           type: array
           items:
@@ -1836,6 +1842,44 @@ components:
                 type: string
               message:
                 type: string
+    RestrictedContentError:
+      type: object
+      additionalProperties: false
+      required: [error, code, datasource]
+      properties:
+        error:
+          type: string
+          description: Names the datasource and says to use a folder only Admins can read.
+        code:
+          type: string
+          enum: [restricted_content]
+        datasource:
+          type: string
+          description: The uid of the Admins-only datasource the content reads.
+        items:
+          type: array
+          maxItems: 20
+          description: The content that blocks the change, when the change is to a folder or a datasource rather than to one piece of content.
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, id, title, folder_id, folder_title]
+            properties:
+              kind:
+                type: string
+                enum: [dashboard, observation, saved_search, proposal]
+              id:
+                type: string
+              title:
+                type: string
+              folder_id:
+                type: string
+              folder_title:
+                type: string
+        hidden:
+          type: integer
+          minimum: 1
+          description: How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none.
     DatasourceInUseError:
       type: object
       additionalProperties: false

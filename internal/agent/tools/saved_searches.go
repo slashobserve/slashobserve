@@ -351,6 +351,9 @@ func rejectInRun(ctx context.Context, name string) (Result, bool) {
 }
 
 func savedSearchFailure(err error) (Result, error) {
+	if res, ok := restrictedRefusal(err); ok {
+		return res, nil
+	}
 	var invalidInput *savedsearches.InvalidInputError
 	switch {
 	case errors.As(err, &invalidInput):

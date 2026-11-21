@@ -46,12 +46,13 @@ func (r *Registry) discoveryEntries() []entry {
 }
 
 type datasourceOut struct {
-	UID     string `json:"uid"`
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Healthy bool   `json:"healthy"`
-	Message string `json:"message,omitempty"`
-	Detail  string `json:"detail,omitempty"`
+	UID      string `json:"uid"`
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Healthy  bool   `json:"healthy"`
+	Message  string `json:"message,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	Audience string `json:"audience,omitempty"`
 }
 
 type datasourcesOut struct {
@@ -68,12 +69,23 @@ func (r *Registry) listDatasources(ctx context.Context, input json.RawMessage) (
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
+	admin := datasource.ReadsRestricted(ctx)
 	items := make([]datasourceOut, len(statuses))
 	for i, s := range statuses {
 		items[i] = datasourceStatusOut(s)
+		if admin {
+			items[i].Audience = string(r.audienceOf(s.UID))
+		}
 	}
 	items, truncated := fit(items, listBudget)
 	return success("Listed "+plural(len(items), "datasource", "datasources"), datasourcesOut{Datasources: items, Truncated: truncated}), nil
+}
+
+func (r *Registry) audienceOf(uid string) datasource.Audience {
+	if r.deps.Datasources.AdminsOnly(uid) {
+		return datasource.AudienceAdmins
+	}
+	return datasource.AudienceEveryone
 }
 
 func datasourceStatusOut(s datasource.Status) datasourceOut {

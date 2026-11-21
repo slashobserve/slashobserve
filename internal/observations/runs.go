@@ -79,7 +79,7 @@ func (s *Service) openForRun(ctx context.Context, q *dbsqlc.Queries, in RunOpen)
 	if err != nil {
 		return pgtype.UUID{}, fmt.Errorf("encode run block: %w", err)
 	}
-	_, err = insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull}, state, who)
+	_, err = s.insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull}, state, who)
 	switch {
 	case errors.Is(err, ErrTooManyBlocks):
 		s.logger.WarnContext(ctx, "run block not added: the observation is full",
@@ -256,7 +256,7 @@ func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries,
 	blocks = append(blocks, s.conclusionPanels(ctx, in)...)
 	var added []string
 	for _, b := range blocks {
-		row, err := insertBlock(ctx, q, parent, b, state, who)
+		row, err := s.insertBlock(ctx, q, parent, b, state, who)
 		switch {
 		case errors.Is(err, ErrTooManyPanels), errors.Is(err, ErrTooManyBlocks):
 			if b.kind == KindText {

@@ -166,7 +166,7 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 			t.Fatalf("set = %d %s", rec.Code, rec.Body)
 		}
 		got := onlyEventAfter(t, d, earlier, rec)
-		wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "added", "changed", "count_after", "count_before", "removed", "truncated")
+		wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "added", "admins_only", "admins_only_before", "changed", "count_after", "count_before", "removed", "truncated")
 		return got
 	}
 	sre := map[string]any{"kind": "group", "name": "sre", "level": "edit"}
@@ -175,13 +175,13 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 	}
 
 	first := put(`[{"group":"sre","level":"edit"}]`)
-	want := map[string]any{"added": []any{sre}, "removed": []any{}, "changed": []any{}, "count_before": 0.0, "count_after": 1.0, "truncated": false}
+	want := map[string]any{"added": []any{sre}, "removed": []any{}, "changed": []any{}, "count_before": 0.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(first.Data, want) {
 		t.Fatalf("first = %v, want %v", first.Data, want)
 	}
 
 	second := put(`[{"user_id":"` + user.ID.String() + `","level":"view"}]`)
-	want = map[string]any{"added": []any{bo("view")}, "removed": []any{sre}, "changed": []any{}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	want = map[string]any{"added": []any{bo("view")}, "removed": []any{sre}, "changed": []any{}, "count_before": 1.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(second.Data, want) {
 		t.Fatalf("second = %v, want %v", second.Data, want)
 	}
@@ -189,7 +189,7 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 	third := put(`[{"user_id":"` + user.ID.String() + `","level":"edit"}]`)
 	changed := bo("edit")
 	changed["from_level"] = "view"
-	want = map[string]any{"added": []any{}, "removed": []any{}, "changed": []any{changed}, "count_before": 1.0, "count_after": 1.0, "truncated": false}
+	want = map[string]any{"added": []any{}, "removed": []any{}, "changed": []any{changed}, "count_before": 1.0, "count_after": 1.0, "truncated": false, "admins_only": false, "admins_only_before": false}
 	if !reflect.DeepEqual(third.Data, want) {
 		t.Fatalf("third = %v, want %v", third.Data, want)
 	}
@@ -301,7 +301,7 @@ func TestAChangeThatChangesNothingStillRecordsOneEventWithTheReasonNoChange(t *t
 		t.Fatalf("set = %d %s", rec.Code, rec.Body)
 	}
 	permissions := onlyEventAfter(t, d, earlier, rec)
-	wantFolderEvent(t, permissions, "folder.permissions_change", id, "Steady", "added", "changed", "count_after", "count_before", "removed", "truncated")
+	wantFolderEvent(t, permissions, "folder.permissions_change", id, "Steady", "added", "admins_only", "admins_only_before", "changed", "count_after", "count_before", "removed", "truncated")
 	if permissions.Reason != "no_change" {
 		t.Errorf("permissions reason = %q, want no_change", permissions.Reason)
 	}

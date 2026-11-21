@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 var (
@@ -129,5 +131,32 @@ func TestFreezeReturnsAQueryFailureAsIs(t *testing.T) {
 	}
 	if _, err := hn.h.Freeze(as(t.Context(), viewerUser), viewerUser, blockDashboard("up"), "missing", frozenFrom, frozenTo); !errors.Is(err, queryproxy.ErrPanelNotFound) {
 		t.Errorf("missing panel: %v", err)
+	}
+}
+
+func TestFreezeNamesTheDatasourcesItResolved(t *testing.T) {
+	hn, _ := adminsOnlyHarness(t)
+	adminUser := auth.Principal{Kind: auth.KindUser, ID: "root", Name: "root", Role: auth.RoleAdmin}
+	d := blockDashboard("count(up)")
+	d.Variables = []spec.Variable{{Name: "ds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus}}
+	d.Panels[0].Datasource = "${ds}"
+	for _, c := range []struct {
+		name   string
+		access datasource.Access
+		want   string
+	}{
+		{"as everyone", datasource.Access{By: adminUser, Audience: datasource.AudienceEveryone}, "prom"},
+		{"as the Admin", datasource.Access{By: adminUser}, "audit"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := datasource.WithAccess(auth.WithPrincipal(t.Context(), adminUser), c.access)
+			frozen, err := hn.h.Freeze(ctx, adminUser, d, observations.BlockPanelID, frozenFrom, frozenTo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Contains(frozen.Datasources, c.want) {
+				t.Fatalf("datasources = %v, want %q among them", frozen.Datasources, c.want)
+			}
+		})
 	}
 }

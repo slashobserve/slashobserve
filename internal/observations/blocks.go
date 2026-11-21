@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -35,6 +36,7 @@ type frozenSnapshot struct {
 	panel, query, frames json.RawMessage
 	userScoped           bool
 	from, to             time.Time
+	datasources          []string
 }
 
 func validateWidth(w Width) error {
@@ -62,7 +64,7 @@ func normalBody(kind Kind, raw json.RawMessage) (json.RawMessage, error) {
 	return nil, invalid(CodeBodyNotEditable, "only the body of a text or panel block can be changed")
 }
 
-func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput, readable blockFilter) (preparedBlock, error) {
+func (s *Service) prepare(ctx context.Context, by auth.Principal, folder folders.Folder, observationID pgtype.UUID, in BlockInput, readable blockFilter) (preparedBlock, error) {
 	width := in.Width
 	if width == "" {
 		width = WidthFull
@@ -82,7 +84,7 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, observationID 
 		if len(in.Body) > 0 {
 			return preparedBlock{}, invalid(CodeInvalidBlock, "a snapshot block takes no body; name the panel block with from_block_id")
 		}
-		frozen, err := s.freeze(ctx, by, observationID, in.FromBlockID, readable)
+		frozen, err := s.freeze(ctx, by, folder, observationID, in.FromBlockID, readable)
 		if err != nil {
 			return preparedBlock{}, err
 		}
@@ -99,7 +101,7 @@ type blockFilter func(dbsqlc.ObservationBlock) bool
 
 func anyBlock(dbsqlc.ObservationBlock) bool { return true }
 
-func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, sourceID pgtype.UUID, readable blockFilter) (frozenSnapshot, error) {
+func (s *Service) freeze(ctx context.Context, by auth.Principal, folder folders.Folder, observationID, sourceID pgtype.UUID, readable blockFilter) (frozenSnapshot, error) {
 	notPanel := invalid(CodeInvalidBlock, "from_block_id must name a panel block of this observation")
 	if !sourceID.Valid || !observationID.Valid {
 		return frozenSnapshot{}, notPanel
@@ -121,7 +123,7 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, 
 	if err != nil {
 		return frozenSnapshot{}, err
 	}
-	frozen, err := s.freezer.Freeze(ctx, by, d, BlockPanelID, from, to)
+	frozen, err := s.freezer.Freeze(folders.ReadingIn(ctx, folder), by, d, BlockPanelID, from, to)
 	if err != nil {
 		return frozenSnapshot{}, err
 	}
@@ -136,7 +138,17 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, 
 	if err != nil {
 		return frozenSnapshot{}, err
 	}
-	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to}, nil
+	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to, datasources: frozenRefs(d, frozen)}, nil
+}
+
+func frozenRefs(d *spec.Dashboard, frozen Frozen) []string {
+	refs := queryproxy.DatasourceRefs(d)
+	for _, uid := range frozen.Datasources {
+		if !slices.Contains(refs, uid) {
+			refs = append(refs, uid)
+		}
+	}
+	return refs
 }
 
 func splitQueries(panel json.RawMessage) (json.RawMessage, json.RawMessage, error) {
@@ -182,22 +194,39 @@ func blockRange(body PanelBody, observationFrom, observationTo *time.Time, now t
 }
 
 func (s *Service) PanelDashboard(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (*spec.Dashboard, time.Time, time.Time, error) {
-	block, err := s.store.block(ctx, blockID)
+	parent, _, block, err := s.panelBlock(ctx, by, blockID)
 	if err != nil {
 		return nil, time.Time{}, time.Time{}, err
-	}
-	parent, _, abilities, err := s.open(ctx, by, block.ObservationID)
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, err
-	}
-	if Kind(block.Kind) != KindPanel || !visibleTo(block, abilities, actor.Of(by, origin.Origin{}, "")) {
-		return nil, time.Time{}, time.Time{}, ErrNotFound
 	}
 	return wrapBlock(parent, block)
 }
 
+func (s *Service) PanelData(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (*spec.Dashboard, folders.Folder, error) {
+	parent, folder, block, err := s.panelBlock(ctx, by, blockID)
+	if err != nil {
+		return nil, folders.Folder{}, err
+	}
+	d, _, _, err := wrapBlock(parent, block)
+	return d, folder, err
+}
+
+func (s *Service) panelBlock(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (dbsqlc.Observation, folders.Folder, dbsqlc.ObservationBlock, error) {
+	block, err := s.store.block(ctx, blockID)
+	if err != nil {
+		return dbsqlc.Observation{}, folders.Folder{}, dbsqlc.ObservationBlock{}, err
+	}
+	parent, folder, abilities, err := s.open(ctx, by, block.ObservationID)
+	if err != nil {
+		return dbsqlc.Observation{}, folders.Folder{}, dbsqlc.ObservationBlock{}, err
+	}
+	if Kind(block.Kind) != KindPanel || !visibleTo(block, abilities, actor.Of(by, origin.Origin{}, "")) {
+		return dbsqlc.Observation{}, folders.Folder{}, dbsqlc.ObservationBlock{}, ErrNotFound
+	}
+	return parent, folder, block, nil
+}
+
 func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID pgtype.UUID, in BlockInput) (Block, error) {
-	_, _, abilities, err := s.open(ctx, by, observationID)
+	_, folder, abilities, err := s.open(ctx, by, observationID)
 	if err != nil {
 		return Block{}, err
 	}
@@ -205,7 +234,7 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 		return Block{}, folders.ErrForbidden
 	}
 	viewer := actor.Of(by, origin.Origin{}, "")
-	prepared, err := s.prepare(ctx, by, observationID, in, func(b dbsqlc.ObservationBlock) bool { return visibleTo(b, abilities, viewer) })
+	prepared, err := s.prepare(ctx, by, folder, observationID, in, func(b dbsqlc.ObservationBlock) bool { return visibleTo(b, abilities, viewer) })
 	if err != nil {
 		return Block{}, err
 	}
@@ -224,7 +253,7 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 		}
 		placed := prepared
 		placed.position = storedPosition(readableBlocks(rows, abilities, by), prepared.position)
-		if added, err = insertBlock(ctx, q, row, placed, state, by); err != nil {
+		if added, err = s.insertBlock(ctx, q, row, placed, state, by); err != nil {
 			return err
 		}
 		held, who = abilities, by
@@ -258,7 +287,10 @@ func readerPosition(shown []dbsqlc.ObservationBlock, stored int32) int {
 	return len(slices.DeleteFunc(slices.Clone(shown), func(b dbsqlc.ObservationBlock) bool { return b.Position >= stored }))
 }
 
-func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
+func (s *Service) insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
+	if err := s.placeBlock(ctx, q, parent, p.kind, p.body, p.snapshot); err != nil {
+		return dbsqlc.ObservationBlock{}, err
+	}
 	counts, err := q.CountBlocks(ctx, parent.ID)
 	if err != nil {
 		return dbsqlc.ObservationBlock{}, fmt.Errorf("count observation blocks: %w", err)
@@ -283,19 +315,20 @@ func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observati
 	body, snapshotID := p.body, pgtype.UUID{}
 	if p.snapshot != nil {
 		snap, err := q.InsertSnapshot(ctx, dbsqlc.InsertSnapshotParams{
-			ObservationID: parent.ID,
-			Panel:         p.snapshot.panel,
-			Query:         p.snapshot.query,
-			Frames:        p.snapshot.frames,
-			UserScoped:    p.snapshot.userScoped,
-			TimeFrom:      pgtype.Timestamptz{Time: p.snapshot.from, Valid: true},
-			TimeTo:        pgtype.Timestamptz{Time: p.snapshot.to, Valid: true},
-			CreatedByKind: cols.Kind,
-			CreatedByID:   cols.ID,
-			CreatedByName: cols.Name,
-			Origin:        cols.Origin,
-			OriginClient:  cols.Client,
-			RunID:         cols.RunID,
+			ObservationID:  parent.ID,
+			Panel:          p.snapshot.panel,
+			Query:          p.snapshot.query,
+			Frames:         p.snapshot.frames,
+			UserScoped:     p.snapshot.userScoped,
+			DatasourceUids: p.snapshot.datasources,
+			TimeFrom:       pgtype.Timestamptz{Time: p.snapshot.from, Valid: true},
+			TimeTo:         pgtype.Timestamptz{Time: p.snapshot.to, Valid: true},
+			CreatedByKind:  cols.Kind,
+			CreatedByID:    cols.ID,
+			CreatedByName:  cols.Name,
+			Origin:         cols.Origin,
+			OriginClient:   cols.Client,
+			RunID:          cols.RunID,
 		})
 		if err != nil {
 			return dbsqlc.ObservationBlock{}, fmt.Errorf("insert snapshot: %w", err)
@@ -396,6 +429,9 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 		}
 		params, err := changedBlock(ctx, q, current, in)
 		if err != nil {
+			return err
+		}
+		if err := s.placeBlock(ctx, q, parent, Kind(current.Kind), params.Body, nil); err != nil {
 			return err
 		}
 		row, err := q.UpdateBlock(ctx, params)

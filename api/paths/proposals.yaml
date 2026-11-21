@@ -139,7 +139,19 @@ proposals-id-merge:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/ProposalMergeConflict"
+        description: >-
+          The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`),
+          the proposal has a newer revision than the one named (`proposal_changed`),
+          or the proposal is no longer open (`invalid_transition`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/ProposalChanged"
+                - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

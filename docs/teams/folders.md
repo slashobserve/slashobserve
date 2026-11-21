@@ -18,7 +18,7 @@ A move needs Edit on both folders and saves no version.
 A folder can be deleted only when it holds no dashboards, observations or saved searches.
 A title is 1 to 100 characters and unique without regard to case, and no shared folder can be called My Dashboards.
 
-A folder is open or restricted, and the folder's settings page (**Folder settings** on the Dashboards page) switches it:
+A folder is open, restricted or Admins only, and the folder's settings page (**Folder settings** on the Dashboards page) switches it:
 
 - An open folder has no list.
   Everyone sees it and has the access their role gives: Admins manage it, Editors edit, Commenters comment and Viewers view.
@@ -26,8 +26,14 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
   Only the people on the list, the person who created the folder and Admins see it.
   Everyone else gets no trace of its dashboards: they are missing from lists, search, tags and datasource counts, their panel data, events and comments are refused, and the agent cannot reach them.
   Removing the last entry opens the folder to everyone again.
-  Choosing **Only the people and groups below** restricts nothing until someone is listed, and the page says so; the server stores no empty restriction.
+  Choosing **Only the people and groups below** restricts nothing until someone is listed, and the page says so.
   An instance Admin gets suggestions from the people who have signed in as they type an address; everyone else types the address, and a group is always typed as its name.
+- An Admins-only folder has no list, and only Admins see it, the person who created it included.
+  Only an Admin chooses **Only Admins**, and General and My Dashboards cannot be made Admins only.
+  Its row on the Dashboards page reads "Only Admins".
+  Listing someone or opening the folder ends it.
+  It is the only kind of folder that can hold a dashboard, observation or saved search that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it); while it holds one, listing someone or opening it is refused with `409 restricted_content`, which names the datasource and the content to move first.
+  It has no [public links](../use/public-links.md): choosing **Only Admins** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder` until the links are revoked.
 
 ## My Dashboards
 
@@ -85,8 +91,8 @@ Groups come from the `groups` claim of the ID token, as in [Roles](roles.md), an
 A service-account key matches no entry, because entries name people and groups.
 A key therefore sees a restricted folder only when its service account is an Admin or created the folder.
 To let automation work in a restricted folder, use a key of an Admin service account.
-A key that manages the folder, such as one of an Admin service account, can change the list with `observe folders permissions show`, `grant`, `revoke` and `open`; see [the command line](../use/cli.md#folders).
-Over REST, `GET /api/v1/folders/{id}/permissions` reads the list and `PUT` replaces all of it in one call.
+A key that manages the folder, such as one of an Admin service account, can change the list with `observe folders permissions show`, `grant`, `revoke` and `open`, and an Admin key makes a folder Admins only with `admins-only`; see [the command line](../use/cli.md#folders).
+Over REST, `GET /api/v1/folders/{id}/permissions` reads the list and `PUT` replaces all of it in one call; `{"entries": [], "admins_only": true}` makes the folder Admins only.
 
 The agent works as the person or key that asked.
 The request needs Comment on the dashboard's folder, and the server checks it when the request is queued and again when a worker starts it.

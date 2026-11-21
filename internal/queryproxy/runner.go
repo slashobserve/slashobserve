@@ -126,6 +126,13 @@ type Runner struct {
 
 type RunnerOption func(*Runner)
 
+func (r *Runner) Registry() *datasource.Registry {
+	if r == nil {
+		return nil
+	}
+	return r.reg
+}
+
 func WithValueCache() RunnerOption {
 	return func(r *Runner) { r.values = newValueCache(r.logger) }
 }

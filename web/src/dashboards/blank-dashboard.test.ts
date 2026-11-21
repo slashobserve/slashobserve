@@ -16,6 +16,7 @@ function folder(
     general: kind === "general",
     personal: kind === "personal",
     restricted: false,
+    admins_only: false,
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,

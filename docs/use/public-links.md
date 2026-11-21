@@ -20,6 +20,10 @@ Some dashboards cannot have a public link:
 - A dashboard in My Dashboards is private until you publish it, so move it to a shared folder first.
 - A dashboard whose queries read the viewer's identity through `${__user.*}` has nobody to read on a public link.
   Creating a link for it is refused, and an existing link stops working, and shows as not usable, once a new version starts using `${__user.*}`.
+- A dashboard in a folder only Admins can read stays inside the team, so no link can be created for it, and the same holds for an RCA revision of an observation there.
+  A dashboard with an unexpired link, or an observation whose RCA has one, cannot move into such a folder, and its folder cannot be made Admins only, until the link is revoked (`409 admins_only_folder`), so a link never reaches content that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it).
+  A link whose dashboard or observation is in such a folder anyway answers like a link that does not exist.
+  The public view and its panel data still refuse such a dashboard, as if the link did not exist.
 
 A dashboard has at most 20 unexpired links, and an expired link stops counting.
 Give a link a label of up to 80 characters when you create it, so the list says what each one is for.
@@ -107,5 +111,5 @@ curl -s -X POST "$OBSERVE_SERVER/api/v1/dashboards/$DASHBOARD_ID/public-links" \
 ```
 
 The answer's `url` is the address to share.
-Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 422 `user_scoped`, `invalid_expiry`, `unknown_variable`, `selection_not_allowed` (a free link whose selections hold a value that is not one of the variable's options) or `too_many_links`, and 502 `variable_options_unavailable` when the options could not be read to check them.
+Answers: 403 `forbidden_role` without Manage, 409 `personal_folder` for a dashboard in My Dashboards, 409 `admins_only_folder` for one in a folder only Admins can read, 422 `user_scoped`, `invalid_expiry`, `unknown_variable`, `selection_not_allowed` (a free link whose selections hold a value that is not one of the variable's options) or `too_many_links`, and 502 `variable_options_unavailable` when the options could not be read to check them.
 A public route answers 404 `not_found` for a token that is unknown, revoked or expired, and a free link answers 400 `selection_not_allowed` for a value that is not one of the variable's options.

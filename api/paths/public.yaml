@@ -85,7 +85,7 @@ dashboards-id-public-links:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The dashboard is in My Dashboards (`personal_folder`); move it to a shared folder first.
+        description: The dashboard is in My Dashboards (`personal_folder`) or in a folder only Admins can read (`admins_only_folder`); move it to a shared folder first.
         content:
           application/json:
             schema:
