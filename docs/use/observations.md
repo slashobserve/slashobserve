@@ -110,11 +110,12 @@ A person who can only comment suggests that snapshot, as with any other block.
 A panel block's panel menu has **Edit panel** for an editor and **Suggest an edit** for a commenter.
 It opens the same panel editor as a dashboard panel, in the right pane in place of the discussion: the query, the display and the JSON view, with a preview of the draft over the block's window and with the block's variables.
 The preview runs with exactly the access the block's own data has, so it needs comment access to the observation and the datasource's access, and an Admins-only datasource runs only in an Admins-only folder.
-Nothing changes until you save, and `Esc`, **Close panel editor** or leaving the page asks first when the draft has changes.
+Nothing changes until you save, and `Esc`, **Close panel editor**, leaving the page or opening another block, **New query** or **From a dashboard** asks first when the draft has changes; **Keep editing** keeps the editor and its draft.
 
 **Save** changes the block in place and keeps its width, height and window.
 A commenter's **Suggest edit** leaves the block as it is and adds the edited copy right after it as a requested block, which an editor keeps or discards like any other suggestion; keeping it adds a second block, so an editor who wants only the edit then deletes the original.
 When someone changed the block since you opened it, the editor says so and keeps your draft.
+When someone deletes the block while your draft has changes, the editor says so and keeps the draft: **Add as a new block**, or **Suggest as a new block** for a commenter, puts it back where the block was, and **Discard** throws it away.
 A snapshot and a published RCA revision are frozen, so neither offers the editor.
 
 Over [MCP](mcp.md) `update_block` changes a panel block's `body`, and on the [CLI](cli.md#observations) `observe o edit-block <block-id> --panel-file <path>` does the same.

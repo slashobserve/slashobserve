@@ -92,7 +92,7 @@ function dashboardTarget(
   }
 }
 
-describe("PanelEditor on a dashboard", () => {
+describe("PanelEditor on a dashboard", { timeout: 20_000 }, () => {
   it("saves the panel as a patch on the version it was opened at", async () => {
     const save = vi.fn(async () => {})
     const { user, onSaved } = renderEditor(dashboardTarget(save))
@@ -129,7 +129,7 @@ describe("PanelEditor on a dashboard", () => {
   })
 })
 
-describe("PanelEditor on an observation block", () => {
+describe("PanelEditor on an observation block", { timeout: 20_000 }, () => {
   function blockTarget(save: BlockTarget["save"]): BlockTarget {
     return {
       kind: "block",

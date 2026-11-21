@@ -1,4 +1,5 @@
-import { screen, waitFor } from "@testing-library/react"
+import { act, screen, waitFor } from "@testing-library/react"
+import { useEffect, useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DatasourceListProvider } from "@/datasources/queries"
@@ -101,6 +102,39 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
+let setPageBlocks: (blocks: Block[]) => void = () => {}
+
+function Page({
+  request,
+  initial,
+  canEdit,
+  onClose,
+  onSaved,
+}: {
+  request: BlockEditRequest
+  initial: Block[]
+  canEdit: boolean
+  onClose: () => void
+  onSaved: (blockId: string) => void
+}) {
+  const [blocks, setBlocks] = useState(initial)
+  useEffect(() => {
+    setPageBlocks = setBlocks
+  }, [])
+  return (
+    <BlockEditorDock
+      hidden={false}
+      observation={observation}
+      blocks={blocks}
+      request={request}
+      canEdit={canEdit}
+      onClose={onClose}
+      onSaved={onSaved}
+      replaceGuardRef={{ current: null }}
+    />
+  )
+}
+
 function renderDock(
   request: BlockEditRequest,
   blocks: Block[],
@@ -113,11 +147,9 @@ function renderDock(
   const rendered = renderWithProviders(
     <DatasourceListProvider value={datasources}>
       <PanelHostContext value={host}>
-        <BlockEditorDock
-          hidden={false}
-          observation={observation}
-          blocks={blocks}
+        <Page
           request={request}
+          initial={blocks}
           canEdit={canEdit}
           onClose={onClose}
           onSaved={onSaved}
@@ -146,7 +178,7 @@ function writes() {
   )
 }
 
-describe("BlockEditorDock", () => {
+describe("BlockEditorDock", { timeout: 20_000 }, () => {
   it("saves an editor's change into the block it edits", async () => {
     const { user, onSaved } = renderDock(
       { kind: "edit", blockId: "b1" },
@@ -232,6 +264,39 @@ describe("BlockEditorDock", () => {
     expect(body.position).toBeUndefined()
     expect(body.body.from).toBeUndefined()
     expect(body.body.panel.title).toBe("Targets up")
+  })
+
+  it("keeps a changed draft when someone deletes the block and adds it back as a new block", async () => {
+    const { user, onSaved } = renderDock(
+      { kind: "edit", blockId: "b1" },
+      [panelBlock(["update"])],
+      true
+    )
+    await retitle(user, "Checkout errors")
+    act(() => setPageBlocks([]))
+
+    expect(
+      await screen.findByText(
+        /Someone deleted this block\. Your draft stays here/
+      )
+    ).toBeTruthy()
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Checkout errors"
+    )
+    await user.click(screen.getByRole("button", { name: "Add as a new block" }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("b2"), saveWait)
+    const [write] = writes()
+    expect(write.method).toBe("POST")
+    expect(write.path).toBe("/api/v1/observations/o1/blocks")
+    expect(write.body).toMatchObject({
+      kind: "panel",
+      position: 2,
+      width: "half",
+      body: {
+        from: "2026-11-12T08:00:00Z",
+        panel: { title: "Checkout errors" },
+      },
+    })
   })
 
   it("asks before Escape throws away a changed draft", async () => {

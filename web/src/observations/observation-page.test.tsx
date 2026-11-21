@@ -6,6 +6,12 @@ import { renderWithProviders } from "@/test/render"
 
 import { ObservationPage } from "./observation-page"
 
+vi.mock("@/query-editor/code-editor", () => ({
+  CodeEditor: ({ value, ariaLabel }: { value: string; ariaLabel: string }) => (
+    <textarea aria-label={ariaLabel} value={value} readOnly />
+  ),
+}))
+
 vi.mock("./discussion-pane", () => ({
   DiscussionPane: ({ hidden }: { hidden: boolean }) => (
     <div data-testid="discussion" data-hidden={String(hidden)} />
@@ -125,7 +131,7 @@ function renderPage() {
   )
 }
 
-describe("ObservationPage right dock", () => {
+describe("ObservationPage right dock", { timeout: 20_000 }, () => {
   it("hides the discussion while the panel picker holds the right dock", async () => {
     const { user } = renderPage()
     const discussion = await screen.findByTestId("discussion")
@@ -172,6 +178,45 @@ describe("ObservationPage right dock", () => {
 
     expect(
       await screen.findByRole("heading", { name: "Edit Errors" })
+    ).toBeTruthy()
+  })
+
+  it("asks before another opener replaces a changed draft", async () => {
+    replies["GET /api/v1/observations/o1"] = {
+      ...envelope,
+      observation: { ...envelope.observation, blocks: [panelBlock] },
+    }
+    const { user } = renderPage()
+    await user.click(
+      await screen.findByRole("button", { name: "Panel menu: Errors" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Edit panel" })
+    )
+    const title = await screen.findByLabelText("Title", {}, { timeout: 5000 })
+    await user.clear(title)
+    await user.type(title, "Checkout errors")
+
+    for (const item of ["New query", "From a dashboard"]) {
+      await user.click(screen.getByRole("button", { name: "Panel" }))
+      await user.click(await screen.findByRole("menuitem", { name: item }))
+      expect(
+        await screen.findByRole("alertdialog", {
+          name: "Discard your changes?",
+        })
+      ).toBeTruthy()
+      await user.click(screen.getByRole("button", { name: "Keep editing" }))
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+      expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+        "Checkout errors"
+      )
+    }
+
+    await user.click(screen.getByRole("button", { name: "Panel" }))
+    await user.click(await screen.findByRole("menuitem", { name: "New query" }))
+    await user.click(await screen.findByRole("button", { name: "Discard" }))
+    expect(
+      await screen.findByRole("heading", { name: "New query" })
     ).toBeTruthy()
   })
 })

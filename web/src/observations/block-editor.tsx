@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react"
 import { createPortal } from "react-dom"
 
@@ -19,6 +20,7 @@ import { EditorViewSwitch } from "@/activity/editor-view-switch"
 import type { DraftLocation } from "@/activity/leaves-draft"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isEditablePanel, type EditablePanel } from "@/panel-editor/draft"
@@ -72,7 +74,13 @@ const suggestionOutcome = "An editor keeps or discards your suggestion"
 const blockGrid = { x: 0, y: 0, w: 24, h: 8 }
 const noChoices = {}
 
-type Leave = "close" | "saved"
+type Leave = "close" | "saved" | "replace"
+
+export type ReplaceGuard = (replace: () => void) => void
+
+function discardFocus(kind: Leave | null) {
+  return kind === "replace" ? ("none" as const) : ("trigger" as const)
+}
 
 export type EditableBlock = {
   blockId: string | null
@@ -171,6 +179,7 @@ type Props = {
   canEdit: boolean
   onClose: () => void
   onSaved: (blockId: string) => void
+  replaceGuardRef: RefObject<ReplaceGuard | null>
 }
 
 export function BlockEditorDock(props: Props) {
@@ -189,19 +198,36 @@ function saveModeOf(block: Block | undefined): SaveMode {
 function useBlockSave(
   observationId: string,
   block: Block | undefined,
+  deletedBlock: Block | null,
   editable: EditableBlock | null,
   canEdit: boolean,
   savedId: { current: string | null }
 ): BlockTarget | null {
   const update = useUpdateBlock(observationId)
   const add = useAddBlock(observationId)
-  if (editable === null || (editable.blockId !== null && block === undefined)) {
-    return null
-  }
+  if (editable === null) return null
   const base = {
     kind: "block" as const,
     observationId,
     blockId: editable.blockId,
+  }
+  if (deletedBlock !== null) {
+    return {
+      ...base,
+      saveLabel: canEdit ? "Add as a new block" : "Suggest as a new block",
+      outcome: canEdit ? null : suggestionOutcome,
+      save: (panel) =>
+        add
+          .mutateAsync({
+            kind: "panel",
+            body: { ...deletedBlock.body, panel: storedBlockPanel(panel) },
+            width: deletedBlock.width,
+            position: deletedBlock.position,
+          })
+          .then(({ block: added }) => {
+            savedId.current = added.id
+          }),
+    }
   }
   if (block === undefined) {
     return {
@@ -262,6 +288,7 @@ function BlockEditorPane({
   canEdit,
   onClose,
   onSaved,
+  replaceGuardRef,
 }: Props) {
   const headingId = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -285,9 +312,16 @@ function BlockEditorPane({
   )
   const [retained, setRetained] = useState(current)
   if (current !== null && current !== retained) setRetained(current)
+  const [lastBlock, setLastBlock] = useState(block)
+  if (block !== undefined && block !== lastBlock) setLastBlock(block)
+  const pendingReplace = useRef<(() => void) | null>(null)
 
   const onLeave = useCallback(
     (kind: Leave) => {
+      if (kind === "replace") {
+        pendingReplace.current?.()
+        return
+      }
       if (kind === "saved" && savedId.current !== null) {
         onSaved(savedId.current)
         return
@@ -315,10 +349,31 @@ function BlockEditorPane({
     leaves: leavesObservation,
     onLeave,
     trigger: () => triggerOf(request),
+    discardFocus,
   })
   const editable = current ?? (dirty ? retained : null)
-  const target = useBlockSave(observation.id, block, editable, canEdit, savedId)
-  const mode = saveModeOf(block)
+  const deleted = request.kind === "edit" && block === undefined
+  const deletedBlock = deleted && editable !== null ? (lastBlock ?? null) : null
+  const target = useBlockSave(
+    observation.id,
+    block,
+    deletedBlock,
+    editable,
+    canEdit,
+    savedId
+  )
+  const mode = saveModeOf(block ?? lastBlock)
+
+  useEffect(() => {
+    const guard: ReplaceGuard = (replace) => {
+      pendingReplace.current = replace
+      leave("replace")
+    }
+    replaceGuardRef.current = guard
+    return () => {
+      if (replaceGuardRef.current === guard) replaceGuardRef.current = null
+    }
+  }, [leave, replaceGuardRef])
   const spec = useMemo(
     () => (editable === null ? null : blockSpec(observation.title, editable)),
     [editable, observation.title]
@@ -341,7 +396,9 @@ function BlockEditorPane({
     body = (
       <div className="flex flex-col items-start gap-3 px-4 py-4">
         <p className="text-[13px] text-muted-foreground">
-          This block cannot be edited.
+          {deleted
+            ? "Someone deleted this block."
+            : "This block cannot be edited."}
         </p>
         <Button variant="outline" onClick={() => leave("close")}>
           Close
@@ -412,6 +469,14 @@ function BlockEditorPane({
           onClose={() => leave("close")}
           closeLabel="Close panel editor"
         />
+        {deletedBlock === null ? null : (
+          <Alert variant="destructive" className="mx-4 mt-3 w-auto">
+            <AlertDescription>
+              Someone deleted this block. Your draft stays here: add it as a new
+              block, or discard it.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex min-h-0 flex-1 flex-col">{body}</div>
         {dialog}
       </div>

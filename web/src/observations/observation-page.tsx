@@ -20,6 +20,7 @@ import {
   BlockEditorContext,
   BlockEditorDock,
   type BlockEditRequest,
+  type ReplaceGuard,
 } from "./block-editor"
 import { BlockList, type Reveal } from "./block-list"
 import {
@@ -96,6 +97,8 @@ function LoadedObservation({
   const [moving, setMoving] = useState(false)
   const [picking, setPicking] = useState(false)
   const [editing, setEditing] = useState<BlockEditRequest | null>(null)
+  const [editorKey, setEditorKey] = useState(0)
+  const replaceGuard = useRef<ReplaceGuard | null>(null)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -110,15 +113,29 @@ function LoadedObservation({
     [observation.from, observation.to]
   )
   const inspecting = inspect.block !== undefined
+  const replaceEditor = useCallback((replace: () => void) => {
+    if (replaceGuard.current === null) replace()
+    else replaceGuard.current(replace)
+  }, [])
   const blockEditor = useMemo(
     () => ({
       open: (request: BlockEditRequest) => {
-        setPicking(false)
-        setEditing(request)
+        if (
+          request.kind === "edit" &&
+          editing?.kind === "edit" &&
+          editing.blockId === request.blockId
+        ) {
+          return
+        }
+        replaceEditor(() => {
+          setPicking(false)
+          setEditing(request)
+          setEditorKey((key) => key + 1)
+        })
       },
       canSuggest: permissions.comment,
     }),
-    [permissions.comment]
+    [permissions.comment, editing, replaceEditor]
   )
   const closeEditor = useCallback(() => setEditing(null), [])
   const savedFromEditor = useCallback((blockId: string) => {
@@ -209,8 +226,13 @@ function LoadedObservation({
               canEdit={permissions.edit}
               picking={picking}
               onPickingChange={(next) => {
-                if (next) setEditing(null)
-                setPicking(next)
+                if (!next) setPicking(false)
+                else {
+                  replaceEditor(() => {
+                    setEditing(null)
+                    setPicking(true)
+                  })
+                }
               }}
               onAdded={added}
             />
@@ -235,7 +257,7 @@ function LoadedObservation({
       {editing !== null ? (
         <PageRangeContext value={pageRange}>
           <BlockEditorDock
-            key={editing.kind === "edit" ? editing.blockId : "new"}
+            key={editorKey}
             hidden={rca.open || moving}
             observation={observation}
             blocks={blocks}
@@ -243,6 +265,7 @@ function LoadedObservation({
             canEdit={permissions.edit}
             onClose={closeEditor}
             onSaved={savedFromEditor}
+            replaceGuardRef={replaceGuard}
           />
         </PageRangeContext>
       ) : null}
