@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { panelOf, renderPublishing } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
 import type { AlertAnchorLayout } from "./anchors"
+import { alertModel } from "./alert-model"
 import AlertlistPanel from "./alertlist-panel"
 
 const now = Date.parse("2026-11-21T11:00:00Z")
@@ -63,5 +64,22 @@ describe("alert list anchors", () => {
     )
     view.unmount()
     expect(store.current()).toBeNull()
+  })
+
+  it("publishes a reveal that scrolls the alert's row into view", () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { store, view } = renderPublishing(
+      AlertlistPanel,
+      panelOf("alertlist"),
+      frames
+    )
+    const second = alertModel(frames, {}, now).alerts[1]
+    const layout = store.current()?.layout as AlertAnchorLayout
+    layout.reveal?.(second.key)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect(scroll.mock.contexts[0]).toBe(
+      view.container.querySelectorAll("li")[1]
+    )
   })
 })

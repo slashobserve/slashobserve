@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { panelOf, renderPublishing } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
@@ -34,5 +34,17 @@ describe("log anchors", () => {
     const { store, view } = renderPublishing(LogsPanel, panelOf("logs"), frames)
     view.unmount()
     expect(store.current()).toBeNull()
+  })
+
+  it("publishes a reveal that scrolls the line's row into view", () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { store, view } = renderPublishing(LogsPanel, panelOf("logs"), frames)
+    const layout = store.current()?.layout as LogAnchorLayout
+    const key = layout.lines[1].entry.key
+    layout.reveal?.(key)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect((scroll.mock.contexts[0] as HTMLElement).dataset.key).toBe(key)
+    expect(view.container.contains(scroll.mock.contexts[0])).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
-import { bottomEdge, edgeHeight, visibleBand } from "./list-anchors"
+import { bottomEdge, edgeHeight, revealKey, visibleBand } from "./list-anchors"
 
 const view = { x: 0, y: 20, width: 300, height: 100 }
 
@@ -38,5 +38,20 @@ describe("bottomEdge", () => {
       width: 300,
       height: edgeHeight,
     })
+  })
+})
+
+describe("revealKey", () => {
+  it("hands the key to reveal and says it did", () => {
+    const reveal = vi.fn()
+    expect(revealKey(reveal, "k1")).toBe(true)
+    expect(reveal).toHaveBeenCalledWith("k1")
+  })
+
+  it("does nothing without a reveal or a key", () => {
+    const reveal = vi.fn()
+    expect(revealKey(undefined, "k1")).toBe(false)
+    expect(revealKey(reveal, undefined)).toBe(false)
+    expect(reveal).not.toHaveBeenCalled()
   })
 })

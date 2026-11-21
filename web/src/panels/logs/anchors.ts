@@ -10,7 +10,7 @@ import {
   type Rect,
   type Size,
 } from "../anchors"
-import { bottomEdge } from "../list-anchors"
+import { bottomEdge, revealKey } from "../list-anchors"
 import type { LogEntry } from "./logs-model"
 
 export type LogAnchorLayout = {
@@ -20,6 +20,7 @@ export type LogAnchorLayout = {
     entry: Pick<LogEntry, "key" | "time" | "message" | "labels">
   }[]
   elsewhere?: readonly string[]
+  reveal?: (key: string) => void
 }
 
 export function hitTest(layout: LogAnchorLayout, point: Point): Anchor | null {
@@ -38,10 +39,26 @@ export function hitTest(layout: LogAnchorLayout, point: Point): Anchor | null {
   })
 }
 
+function hiddenKey(
+  layout: LogAnchorLayout,
+  anchor: Anchor
+): string | undefined {
+  if (anchor.kind !== "log_line") return undefined
+  if (layout.lines.some(({ entry }) => clip(entry.key) === anchor.id)) {
+    return undefined
+  }
+  return (layout.elsewhere ?? []).find((key) => clip(key) === anchor.id)
+}
+
 export function locate(layout: LogAnchorLayout, anchor: Anchor): Rect | null {
   if (anchor.kind !== "log_line") return null
-  const named = (key: string) => clip(key) === anchor.id
-  const drawn = layout.lines.find(({ entry }) => named(entry.key))
+  const drawn = layout.lines.find(({ entry }) => clip(entry.key) === anchor.id)
   if (drawn !== undefined) return drawn.rect
-  return (layout.elsewhere ?? []).some(named) ? bottomEdge(layout.body) : null
+  return hiddenKey(layout, anchor) === undefined
+    ? null
+    : bottomEdge(layout.body)
+}
+
+export function reveal(layout: LogAnchorLayout, anchor: Anchor): boolean {
+  return revealKey(layout.reveal, hiddenKey(layout, anchor))
 }

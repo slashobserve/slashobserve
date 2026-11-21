@@ -8,7 +8,7 @@ import {
   type Rect,
   type Size,
 } from "../anchors"
-import { bottomEdge } from "../list-anchors"
+import { bottomEdge, revealKey } from "../list-anchors"
 import type { Span } from "./trace-model"
 
 export type SpanAnchorLayout = {
@@ -18,6 +18,7 @@ export type SpanAnchorLayout = {
     span: Pick<Span, "id" | "service" | "operation">
   }[]
   elsewhere?: readonly string[]
+  reveal?: (id: string) => void
 }
 
 export function hitTest(layout: SpanAnchorLayout, point: Point): Anchor | null {
@@ -32,10 +33,24 @@ export function hitTest(layout: SpanAnchorLayout, point: Point): Anchor | null {
   })
 }
 
+function hiddenId(
+  layout: SpanAnchorLayout,
+  anchor: Anchor
+): string | undefined {
+  if (anchor.kind !== "span") return undefined
+  if (layout.spans.some(({ span }) => clip(span.id) === anchor.id)) {
+    return undefined
+  }
+  return (layout.elsewhere ?? []).find((id) => clip(id) === anchor.id)
+}
+
 export function locate(layout: SpanAnchorLayout, anchor: Anchor): Rect | null {
   if (anchor.kind !== "span") return null
-  const named = (id: string) => clip(id) === anchor.id
-  const drawn = layout.spans.find(({ span }) => named(span.id))
+  const drawn = layout.spans.find(({ span }) => clip(span.id) === anchor.id)
   if (drawn !== undefined) return drawn.rect
-  return (layout.elsewhere ?? []).some(named) ? bottomEdge(layout.body) : null
+  return hiddenId(layout, anchor) === undefined ? null : bottomEdge(layout.body)
+}
+
+export function reveal(layout: SpanAnchorLayout, anchor: Anchor): boolean {
+  return revealKey(layout.reveal, hiddenId(layout, anchor))
 }

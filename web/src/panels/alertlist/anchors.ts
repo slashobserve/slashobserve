@@ -9,15 +9,17 @@ import {
   type Rect,
   type Size,
 } from "../anchors"
-import { bottomEdge } from "../list-anchors"
+import { bottomEdge, revealKey } from "../list-anchors"
 import type { Alert } from "./alert-model"
 
 type AnchorAlert = Pick<Alert, "name" | "labels">
+type HiddenAlert = AnchorAlert & Pick<Alert, "key">
 
 export type AlertAnchorLayout = {
   body: Size
   rows: readonly { rect: Rect; alert: AnchorAlert }[]
-  elsewhere?: readonly AnchorAlert[]
+  elsewhere?: readonly HiddenAlert[]
+  reveal?: (key: string) => void
 }
 
 function alertLabels(alert: AnchorAlert): Record<string, string> {
@@ -41,11 +43,28 @@ export function hitTest(
   })
 }
 
+function hiddenAlert(
+  layout: AlertAnchorLayout,
+  anchor: Anchor
+): HiddenAlert | undefined {
+  if (anchor.kind !== "row") return undefined
+  if (layout.rows.some(({ alert }) => named(alert, anchor))) return undefined
+  return (layout.elsewhere ?? []).find((alert) => named(alert, anchor))
+}
+
+function named(alert: AnchorAlert, anchor: Anchor): boolean {
+  return namesLabels(anchor.row, alertLabels(alert))
+}
+
 export function locate(layout: AlertAnchorLayout, anchor: Anchor): Rect | null {
   if (anchor.kind !== "row") return null
-  const named = (alert: AnchorAlert) =>
-    namesLabels(anchor.row, alertLabels(alert))
-  const drawn = layout.rows.find(({ alert }) => named(alert))
+  const drawn = layout.rows.find(({ alert }) => named(alert, anchor))
   if (drawn !== undefined) return drawn.rect
-  return (layout.elsewhere ?? []).some(named) ? bottomEdge(layout.body) : null
+  return hiddenAlert(layout, anchor) === undefined
+    ? null
+    : bottomEdge(layout.body)
+}
+
+export function reveal(layout: AlertAnchorLayout, anchor: Anchor): boolean {
+  return revealKey(layout.reveal, hiddenAlert(layout, anchor)?.key)
 }

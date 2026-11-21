@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -874,7 +875,8 @@ function isFormField(target: EventTarget | null): boolean {
 
 function spanAnchorLayout(
   scroller: HTMLElement,
-  spans: readonly Span[]
+  spans: readonly Span[],
+  reveal: (id: string) => void
 ): SpanAnchorLayout {
   const root = surfaceOf(scroller)
   const { width, height } = root.getBoundingClientRect()
@@ -905,6 +907,7 @@ function spanAnchorLayout(
     body: { width, height },
     spans: drawn,
     elsewhere: spans.flatMap(({ id }) => (shown.has(id) ? [] : [id])),
+    reveal,
   }
 }
 
@@ -1027,19 +1030,36 @@ export function TraceView(props: TraceViewProps) {
   }, [focusedId, range.start, range.end])
 
   const publish = useAnchorPublisher("traces")
+  const reveal = useCallback(
+    (id: string) => {
+      const list = listRef.current
+      const index = rows.findIndex(
+        (row) => row.kind === "span" && row.span.id === id
+      )
+      if (list === null || index < 0) return
+      const row = list.querySelector(rowSelector(id))
+      if (row === null) {
+        list.scrollTop = Math.max(index * rowHeight - height / 2, 0)
+      } else {
+        row.scrollIntoView?.({ block: "nearest" })
+      }
+    },
+    [rows, height]
+  )
   useLayoutEffect(() => {
     const list = listRef.current
     if (list === null) {
       publish(null)
       return
     }
-    const measure = () => publish(spanAnchorLayout(list, filtered.spans))
+    const spans = rows.flatMap((row) => (row.kind === "span" ? [row.span] : []))
+    const measure = () => publish(spanAnchorLayout(list, spans, reveal))
     measure()
     list.addEventListener("scroll", measure, { passive: true })
     return () => list.removeEventListener("scroll", measure)
   }, [
     publish,
-    filtered.spans,
+    reveal,
     rows,
     range.start,
     range.end,

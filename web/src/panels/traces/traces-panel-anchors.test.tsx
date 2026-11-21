@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { renderInStore } from "../anchor-harness"
 import { createFieldResolver } from "../field-config"
@@ -72,5 +72,16 @@ describe("trace anchors", () => {
     const { store, view: mounted } = view()
     mounted.unmount()
     expect(store.current()).toBeNull()
+  })
+
+  it("publishes a reveal that scrolls the span's row into view", () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    const { store, view: mounted } = view()
+    const layout = store.current()?.layout as SpanAnchorLayout
+    layout.reveal?.("b")
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect((scroll.mock.contexts[0] as HTMLElement).dataset.spanId).toBe("b")
+    expect(mounted.container.contains(scroll.mock.contexts[0])).toBe(true)
   })
 })

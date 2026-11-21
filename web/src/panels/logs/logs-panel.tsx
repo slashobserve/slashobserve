@@ -658,7 +658,8 @@ function logAnchorLayout(
   scroller: HTMLElement,
   list: HTMLElement,
   entries: readonly LogEntry[],
-  body: Size
+  body: Size,
+  reveal: (key: string) => void
 ): LogAnchorLayout {
   const root = surfaceOf(scroller)
   const view = rectWithin(scroller, root)
@@ -677,6 +678,7 @@ function logAnchorLayout(
     body,
     lines,
     elsewhere: entries.flatMap(({ key }) => (shown.has(key) ? [] : [key])),
+    reveal,
   }
 }
 
@@ -830,6 +832,20 @@ export function LogsView({
   })
 
   const publish = useAnchorPublisher("logs")
+  const reveal = useCallback(
+    (key: string) => {
+      const index = keys.indexOf(key)
+      if (index < 0 || scrollElement === null) return
+      if (windowed) {
+        scrollElement.scrollTo({ top: offsets[index] })
+        return
+      }
+      Array.from(listRef.current?.children ?? [])
+        .find((row) => (row as HTMLElement).dataset.key === key)
+        ?.scrollIntoView?.({ block: "nearest" })
+    },
+    [keys, windowed, offsets, scrollElement]
+  )
   useLayoutEffect(() => {
     const list = listRef.current
     if (scrollElement === null || list === null) {
@@ -837,7 +853,9 @@ export function LogsView({
       return
     }
     const measure = () =>
-      publish(logAnchorLayout(scrollElement, list, entries, { width, height }))
+      publish(
+        logAnchorLayout(scrollElement, list, entries, { width, height }, reveal)
+      )
     measure()
     scrollElement.addEventListener("scroll", measure, { passive: true })
     const observer = new ResizeObserver(measure)
@@ -847,7 +865,16 @@ export function LogsView({
       scrollElement.removeEventListener("scroll", measure)
       observer.disconnect()
     }
-  }, [publish, scrollElement, entries, range.start, range.end, width, height])
+  }, [
+    publish,
+    scrollElement,
+    entries,
+    range.start,
+    range.end,
+    reveal,
+    width,
+    height,
+  ])
 
   const scrolledKey = useRef<string | null>(null)
   useEffect(() => {

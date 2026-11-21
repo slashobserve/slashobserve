@@ -18,3 +18,12 @@ export function visibleBand(rect: Rect, view: Rect): Rect | null {
   const bottom = Math.min(rect.y + rect.height, view.y + view.height)
   return { ...rect, y: top, height: bottom - top }
 }
+
+export function revealKey(
+  reveal: ((key: string) => void) | undefined,
+  key: string | undefined
+): boolean {
+  if (reveal === undefined || key === undefined) return false
+  reveal(key)
+  return true
+}

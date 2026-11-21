@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { edgeHeight } from "../list-anchors"
 
-import { hitTest, locate, type AlertAnchorLayout } from "./anchors"
+import { hitTest, locate, reveal, type AlertAnchorLayout } from "./anchors"
 
 const layout: AlertAnchorLayout = {
   body: { width: 300, height: 100 },
@@ -63,7 +63,7 @@ describe("alert list locate", () => {
   it("points at the bottom edge for an alert scrolled out of view", () => {
     const scrolled: AlertAnchorLayout = {
       ...layout,
-      elsewhere: [{ name: "DiskFull", labels: [] }],
+      elsewhere: [{ key: "disk", name: "DiskFull", labels: [] }],
     }
     expect(
       locate(scrolled, {
@@ -83,5 +83,33 @@ describe("alert list locate", () => {
       })
     ).toBeNull()
     expect(locate(layout, { kind: "position", pos: { x: 0, y: 0 } })).toBeNull()
+  })
+})
+
+describe("alert list reveal", () => {
+  const hidden: AlertAnchorLayout = {
+    ...layout,
+    elsewhere: [{ key: "disk", name: "DiskFull", labels: [] }],
+  }
+  const onDisk = {
+    kind: "row" as const,
+    pos: { x: 0, y: 0 },
+    row: { alertname: "DiskFull" },
+  }
+
+  it("asks the panel to scroll an alert that is out of view into view", () => {
+    const scroll = vi.fn()
+    expect(reveal({ ...hidden, reveal: scroll }, onDisk)).toBe(true)
+    expect(scroll).toHaveBeenCalledWith("disk")
+  })
+
+  it("does nothing for an alert already in view or gone", () => {
+    const scroll = vi.fn()
+    const drawn = { ...onDisk, row: { alertname: "HighErrorRate" } }
+    expect(reveal({ ...hidden, reveal: scroll }, drawn)).toBe(false)
+    const gone = { ...onDisk, row: { alertname: "Nope" } }
+    expect(reveal({ ...hidden, reveal: scroll }, gone)).toBe(false)
+    expect(reveal(hidden, onDisk)).toBe(false)
+    expect(scroll).not.toHaveBeenCalled()
   })
 })

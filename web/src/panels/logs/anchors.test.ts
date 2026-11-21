@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { edgeHeight } from "../list-anchors"
 
-import { hitTest, locate, type LogAnchorLayout } from "./anchors"
+import { hitTest, locate, reveal, type LogAnchorLayout } from "./anchors"
 
 const layout: LogAnchorLayout = {
   body: { width: 400, height: 100 },
@@ -67,5 +67,34 @@ describe("logs locate", () => {
       locate(layout, { kind: "log_line", pos: { x: 0, y: 0 }, id: "row-9" })
     ).toBeNull()
     expect(locate(layout, { kind: "position", pos: { x: 0, y: 0 } })).toBeNull()
+  })
+})
+
+describe("logs reveal", () => {
+  const scrolled = { ...layout, elsewhere: ["row-9"] }
+  const pos = { x: 0, y: 0 }
+
+  it("asks the panel to scroll a line that is out of view into view", () => {
+    const scroll = vi.fn()
+    expect(
+      reveal(
+        { ...scrolled, reveal: scroll },
+        { kind: "log_line", pos, id: "row-9" }
+      )
+    ).toBe(true)
+    expect(scroll).toHaveBeenCalledWith("row-9")
+  })
+
+  it("does nothing for a line already in view or gone", () => {
+    const scroll = vi.fn()
+    const withScroll = { ...scrolled, reveal: scroll }
+    expect(reveal(withScroll, { kind: "log_line", pos, id: "row-0" })).toBe(
+      false
+    )
+    expect(reveal(withScroll, { kind: "log_line", pos, id: "row-7" })).toBe(
+      false
+    )
+    expect(reveal(scrolled, { kind: "log_line", pos, id: "row-9" })).toBe(false)
+    expect(scroll).not.toHaveBeenCalled()
   })
 })

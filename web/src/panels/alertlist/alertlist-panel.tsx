@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { useLayoutEffect, useMemo, useRef } from "react"
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
 
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import type { Size } from "../anchors"
@@ -118,7 +118,8 @@ function CountTiles({ counts }: { counts: AlertCounts }) {
 function alertAnchorLayout(
   list: HTMLElement,
   alerts: readonly Alert[],
-  body: Size
+  body: Size,
+  reveal: (key: string) => void
 ): AlertAnchorLayout {
   const root = surfaceOf(list)
   const view = rectWithin(list, root)
@@ -131,7 +132,7 @@ function alertAnchorLayout(
     if (rect === null) elsewhere.push(alert)
     else rows.push({ rect, alert })
   })
-  return { body, rows, elsewhere }
+  return { body, rows, elsewhere, reveal }
 }
 
 const AlertlistPanel: PanelRenderer = ({
@@ -150,6 +151,15 @@ const AlertlistPanel: PanelRenderer = ({
   const listed = !model.reason && !empty && view === "list"
   const listRef = useRef<HTMLUListElement>(null)
   const publish = useAnchorPublisher("alertlist")
+  const reveal = useCallback(
+    (key: string) => {
+      const index = model.alerts.findIndex((alert) => alert.key === key)
+      listRef.current?.children
+        .item(index)
+        ?.scrollIntoView?.({ block: "nearest" })
+    },
+    [model.alerts]
+  )
   useLayoutEffect(() => {
     const list = listRef.current
     if (list === null) {
@@ -157,11 +167,11 @@ const AlertlistPanel: PanelRenderer = ({
       return
     }
     const measure = () =>
-      publish(alertAnchorLayout(list, model.alerts, { width, height }))
+      publish(alertAnchorLayout(list, model.alerts, { width, height }, reveal))
     measure()
     list.addEventListener("scroll", measure, { passive: true })
     return () => list.removeEventListener("scroll", measure)
-  }, [publish, listed, model.alerts, width, height])
+  }, [publish, listed, model.alerts, reveal, width, height])
   return (
     <div
       data-view={view}
