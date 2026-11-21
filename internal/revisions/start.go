@@ -33,6 +33,8 @@ type StartRequest struct {
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
 	TimeZone      *string        `json:"time_zone"`
+
+	AppliesFindingID *string `json:"applies_finding_id"`
 }
 
 type Started struct {
@@ -61,29 +63,23 @@ var (
 type turnInput struct {
 	clientID pgtype.UUID
 	point    Point
+	applies  pgtype.UUID
 }
 
 func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest) (Started, error) {
-	ctx, prompt, err := checkStartText(ctx, req)
+	ctx, prompt, turn, err := s.turnOf(ctx, by, req)
 	if err != nil {
 		return Started{}, err
 	}
-	var turn turnInput
-	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
-		return Started{}, err
+	if replay, found, err := s.startedBefore(ctx, by, turn, req, prompt); err != nil || found {
+		return replay, err
 	}
-	if turn.point, err = pointOf(req); err != nil {
-		return Started{}, err
-	}
-	if msg := newChatConflict(req); msg != "" {
-		return Started{}, refused("%s", msg)
-	}
-	if turn.clientID.Valid {
-		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
+	row, err := s.startKind(ctx, by, req, prompt, turn)
+	if errors.Is(err, ErrFindingApplied) {
+		if replay, found, err := s.applyingRun(ctx, by, turn.applies); err != nil || found {
 			return replay, err
 		}
 	}
-	row, err := s.startKind(ctx, by, req, prompt, turn)
 	if errors.Is(err, errClientIDTaken) {
 		replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt)
 		if err == nil && !found {
@@ -92,6 +88,41 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 		return replay, err
 	}
 	return Started{AgentRequest: row}, err
+}
+
+func (s *Service) turnOf(ctx context.Context, by auth.Principal, req StartRequest) (context.Context, string, turnInput, error) {
+	ctx, prompt, err := checkStartText(ctx, req)
+	if err != nil {
+		return ctx, "", turnInput{}, err
+	}
+	var turn turnInput
+	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
+		return ctx, "", turnInput{}, err
+	}
+	if turn.point, err = pointOf(req); err != nil {
+		return ctx, "", turnInput{}, err
+	}
+	if msg := newChatConflict(req); msg != "" {
+		return ctx, "", turnInput{}, refused("%s", msg)
+	}
+	if req.AppliesFindingID != nil {
+		if turn.applies, prompt, err = s.suggestedChange(ctx, by, req); err != nil {
+			return ctx, "", turnInput{}, err
+		}
+	}
+	return ctx, prompt, turn, nil
+}
+
+func (s *Service) startedBefore(ctx context.Context, by auth.Principal, turn turnInput, req StartRequest, prompt string) (Started, bool, error) {
+	if turn.clientID.Valid {
+		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
+			return replay, found, err
+		}
+	}
+	if turn.applies.Valid {
+		return s.applyingRun(ctx, by, turn.applies)
+	}
+	return Started{}, false, nil
 }
 
 func (r StartRequest) newChat() bool { return r.NewChat != nil && *r.NewChat }
@@ -107,12 +138,18 @@ func newChatConflict(req StartRequest) string {
 }
 
 func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
-	if req.Prompt == nil {
+	var prompt string
+	switch {
+	case req.AppliesFindingID != nil && req.Prompt != nil:
+		return ctx, "", refused("applies_finding_id and prompt exclude each other: the prompt is the answer's suggested change")
+	case req.AppliesFindingID == nil && req.Prompt == nil:
 		return ctx, "", refused("prompt is required")
-	}
-	prompt, err := CheckPrompt("prompt", *req.Prompt)
-	if err != nil {
-		return ctx, "", &StartError{Message: err.Error(), Cause: err}
+	case req.Prompt != nil:
+		checked, err := CheckPrompt("prompt", *req.Prompt)
+		if err != nil {
+			return ctx, "", &StartError{Message: err.Error(), Cause: err}
+		}
+		prompt = checked
 	}
 	if req.TimeZone != nil {
 		zone, err := CheckTimeZone(*req.TimeZone)
@@ -216,7 +253,7 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if dashboardID.Valid {
-		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, Point: turn.point, chat: chat, clientID: turn.clientID}, req.BaseVersion)
+		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, Point: turn.point, AppliesFindingID: turn.applies, chat: chat, clientID: turn.clientID}, req.BaseVersion)
 	}
 	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chat, clientID: turn.clientID})
 }

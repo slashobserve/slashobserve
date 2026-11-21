@@ -393,8 +393,6 @@ func (th *Threads) failApply(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrAnswerNotHere):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, revisions.ErrFindingApplied):
-		httpapi.AbortError(c, http.StatusConflict, CodeAlreadyApplied, err.Error())
 	case errors.Is(err, revisions.ErrTooManyRevisions), errors.Is(err, revisions.ErrUnavailable):
 		reply = revisions.StartReplyFor(err)
 		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)

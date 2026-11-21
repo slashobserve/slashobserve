@@ -272,7 +272,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	}
 }
 
-var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound}
+var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound, ErrFindingNotFound}
 
 func failureReplyFor(err error) (Reply, bool) {
 	switch {
@@ -288,6 +288,8 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRevisions):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
+	case errors.Is(err, ErrFindingApplied):
+		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRequests):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
 	case errors.Is(err, ErrAgentBusy):

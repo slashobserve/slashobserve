@@ -123,7 +123,7 @@ func ReplyFor(err error) (Reply, bool) {
 	switch {
 	case errors.As(err, &conflict):
 		return Reply{Status: http.StatusConflict, Code: "version_conflict", Message: "dashboard has a newer version", Latest: conflict.Latest}, true
-	case errors.Is(err, ErrBuildNotFound), errors.Is(err, ErrRequestNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrChatNotFound), errors.Is(err, folders.ErrNotFound):
+	case errors.Is(err, ErrBuildNotFound), errors.Is(err, ErrRequestNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrChatNotFound), errors.Is(err, ErrFindingNotFound), errors.Is(err, folders.ErrNotFound):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
 	case errors.Is(err, ErrBuildRunning):
 		return Reply{Status: http.StatusConflict, Code: "build_running", Message: ErrBuildRunning.Error()}, true
@@ -135,6 +135,8 @@ func ReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: ErrClientIDReused.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
 		return Reply{Status: http.StatusConflict, Code: "not_continuable", Message: ErrNotContinuable.Error()}, true
+	case errors.Is(err, ErrFindingApplied):
+		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: ErrFindingApplied.Error()}, true
 	case errors.Is(err, ErrAssigneeUnavailable):
 		return Reply{Status: http.StatusConflict, Code: "assignee_unavailable", Message: ErrAssigneeUnavailable.Error()}, true
 	case errors.Is(err, ErrRequestFinished):

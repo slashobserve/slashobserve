@@ -20,7 +20,6 @@ const (
 
 	ApplyLead             = "Revise the dashboard: "
 	CodeNoSuggestedChange = "no_suggested_change"
-	CodeAlreadyApplied    = "already_applied"
 )
 
 var (

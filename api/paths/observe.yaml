@@ -138,6 +138,8 @@ observe:
       When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`.
       That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`.
       With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version.
+      With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`.
+      While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's.
       A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
       Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees.
       With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`).
@@ -167,14 +169,18 @@ observe:
           schema:
             type: object
             additionalProperties: false
-            required: [prompt]
             properties:
               prompt:
                 type: string
+                description: What to ask or change; required unless `applies_finding_id` is set.
               dashboard_id:
                 type: string
                 format: uuid
                 description: The dashboard to revise with `kind` `revise`, or to ask or investigate about.
+              applies_finding_id:
+                type: string
+                format: uuid
+                description: With `kind` `revise`, the answer whose `suggested_change` is the prompt; excludes `prompt`.
               base_version:
                 type: integer
                 minimum: 1
@@ -227,7 +233,7 @@ observe:
                 description: The block of `observation_id` the anchor sits on; needs `anchor`.
     responses:
       "200":
-        description: The `client_id` was already sent with this prompt; the request it started, with `replayed` true.
+        description: The `client_id` was already sent with this prompt, or a request of yours already applies `applies_finding_id`; that request, with `replayed` true.
         content:
           application/json:
             schema:
@@ -251,6 +257,12 @@ observe:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: Someone else's request already applies `applies_finding_id` (`already_applied`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

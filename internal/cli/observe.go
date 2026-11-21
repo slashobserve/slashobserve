@@ -76,6 +76,7 @@ type promptOptions struct {
 	dashboard string
 	revise    bool
 	newChat   bool
+	apply     string
 	chat      string
 	follows   string
 	at        string
@@ -92,6 +93,7 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 	flags := root.Flags()
 	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "ask about this dashboard; with --revise, change it")
 	flags.BoolVar(&a.prompt.revise, "revise", false, "change --dashboard with this prompt instead of only answering about it")
+	flags.StringVar(&a.prompt.apply, "apply", "", "with --revise and no prompt: change --dashboard as this answer's suggested change says, by its finding id")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
 	flags.BoolVar(&a.prompt.newChat, "new-chat", false, "start a new chat instead of joining your latest one on --dashboard")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
@@ -101,6 +103,9 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 }
 
 func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
+	if a.prompt.apply != "" {
+		return a.runApplyAnswer(cmd, args)
+	}
 	if len(args) == 0 {
 		_, _ = fmt.Fprintf(a.std.Err, "a prompt is required\n\n%s", cmd.UsageString())
 		return usageError{}
@@ -121,6 +126,33 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	return a.submit(cmd.Context(), c, payload, a.prompt.noWait, a.prompt.timeout)
+}
+
+func (a *app) runApplyAnswer(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return usagef("--apply takes no prompt: the answer's suggested change is the prompt")
+	}
+	if !a.prompt.revise {
+		return usagef("--apply needs --revise")
+	}
+	if a.prompt.timeout <= 0 {
+		return usagef("--timeout must be positive")
+	}
+	finding, err := parseID(a.prompt.apply)
+	if err != nil {
+		return err
+	}
+	payload, err := a.prompt.payload("")
+	if err != nil {
+		return err
+	}
+	delete(payload, "prompt")
+	payload["applies_finding_id"] = finding
 	c, err := a.newClient()
 	if err != nil {
 		return err
