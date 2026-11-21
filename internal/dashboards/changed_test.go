@@ -151,7 +151,7 @@ func numberedPanels(n int) []panelDef {
 
 func (r *rig) createSpec(t *testing.T, s specDef) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, s.json(), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, s.json(), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func (r *rig) createSpec(t *testing.T, s specDef) pgtype.UUID {
 
 func (r *rig) importSpec(t *testing.T, s specDef) (pgtype.UUID, Version) {
 	t.Helper()
-	dash, ver, _, _, err := r.service.CreateImported(t.Context(), testUser, pgtype.UUID{}, s.json(), "import", pgtype.UUID{}, nil)
+	dash, ver, _, _, err := r.service.CreateImported(reading(t.Context()), testUser, pgtype.UUID{}, s.json(), "import", pgtype.UUID{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func (r *rig) importSpec(t *testing.T, s specDef) (pgtype.UUID, Version) {
 
 func (r *rig) mergedPatch(t *testing.T, id pgtype.UUID, parent int, patch spec.PanelPatch) []byte {
 	t.Helper()
-	base, err := r.service.VersionSpec(t.Context(), id, parent)
+	base, err := r.service.VersionSpec(reading(t.Context()), id, parent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestChangedSaveBlocksAChangedPanelThatFails(t *testing.T) {
 	if len(invalid.Issues) != 1 || !strings.HasPrefix(invalid.Issues[0].Path, "/panels/2/") {
 		t.Fatalf("issues %v, want one under /panels/2", invalid.Issues)
 	}
-	if latest, err := r.service.LatestVersion(t.Context(), id); err != nil || latest != 1 {
+	if latest, err := r.service.LatestVersion(reading(t.Context()), id); err != nil || latest != 1 {
 		t.Fatalf("latest %d, err %v", latest, err)
 	}
 }
@@ -554,11 +554,11 @@ func TestTitleAndTagsSavesShowInGetAndList(t *testing.T) {
 	if _, err := r.saveChanged(t, id, 1, patch); err != nil {
 		t.Fatal(err)
 	}
-	dash, ver, err := r.service.Get(t.Context(), id)
+	dash, ver, err := r.service.Get(reading(t.Context()), id)
 	if err != nil || dash.Title != "Renamed board" || ver.Spec.Title != "Renamed board" || len(dash.Tags) != 1 || dash.Tags[0] != "linux" {
 		t.Fatalf("get: %+v, err %v", dash, err)
 	}
-	page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 10})
+	page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 1 || page.Items[0].Title != "Renamed board" || len(page.Items[0].Tags) != 1 || page.Items[0].Tags[0] != "linux" {
 		t.Fatalf("list: %+v, err %v", page.Items, err)
 	}

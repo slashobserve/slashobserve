@@ -73,7 +73,7 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 	if err != nil {
 		return Services{}, err
 	}
-	inst, err := r.instance(req.Datasource)
+	inst, err := r.instance(ctx, req.Datasource)
 	if err != nil {
 		return Services{}, err
 	}

@@ -35,13 +35,13 @@ func slotsInUse(r *Runner, datasourceUID string) int {
 func TestNamesReportsABusyUpstreamAfterTheWaitBound(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := namesRunner(t, fake, WithUpstreamWait(30*time.Millisecond))
-	release, err := runner.AcquireUpstream(context.Background(), "ds")
+	release, err := runner.AcquireUpstream(reading(context.Background()), "ds")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	start := time.Now()
-	_, err = runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics})
+	_, err = runner.Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics})
 	if !errors.Is(err, ErrUpstreamBusy) {
 		t.Fatalf("err = %v, want ErrUpstreamBusy", err)
 	}
@@ -57,20 +57,20 @@ func TestNamesReportsABusyUpstreamAfterTheWaitBound(t *testing.T) {
 	}
 
 	release()
-	if _, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics}); err != nil {
+	if _, err := runner.Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics}); err != nil {
 		t.Fatalf("Names after release: %v", err)
 	}
 }
 
 func TestNamesKeepsTheCallersCancellationApartFromABusyUpstream(t *testing.T) {
 	runner := namesRunner(t, newFake("prometheus"), WithUpstreamWait(time.Minute))
-	release, err := runner.AcquireUpstream(context.Background(), "ds")
+	release, err := runner.AcquireUpstream(reading(context.Background()), "ds")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(reading(context.Background()))
 	time.AfterFunc(20*time.Millisecond, cancel)
 	_, err = runner.Names(ctx, NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics})
 	if !errors.Is(err, context.Canceled) || errors.Is(err, ErrUpstreamBusy) {
@@ -143,7 +143,7 @@ func TestNamesRunnerRules(t *testing.T) {
 			if req.Datasource == "" {
 				req.Datasource = "ds"
 			}
-			got, err := runner.Names(context.Background(), req)
+			got, err := runner.Names(reading(context.Background()), req)
 
 			if got := slotsInUse(runner, "ds"); got != 0 {
 				t.Fatalf("%d upstream slots still held", got)
@@ -221,7 +221,7 @@ func TestNamesClipsHelpAtAUTF8Boundary(t *testing.T) {
 			fake.onDiscover = func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 				return &datasource.Catalog{Metrics: []datasource.Metric{{Name: "m", Help: tt.help}}}, nil
 			}
-			got, err := namesRunner(t, fake).Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics})
+			got, err := namesRunner(t, fake).Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -237,7 +237,7 @@ func TestNamesPassesTheRangeToDiscoveryAndRejectsHalfOfOne(t *testing.T) {
 	to := from.Add(6 * time.Hour)
 	fake := newFake("loki")
 	runner := namesRunner(t, fake)
-	if _, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: datasource.TimeRange{From: from, To: to}}); err != nil {
+	if _, err := runner.Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: datasource.TimeRange{From: from, To: to}}); err != nil {
 		t.Fatal(err)
 	}
 	sent := fake.discoverRequests()
@@ -245,7 +245,7 @@ func TestNamesPassesTheRangeToDiscoveryAndRejectsHalfOfOne(t *testing.T) {
 		t.Fatalf("discover requests = %#v, want one over %v to %v", sent, from, to)
 	}
 	for name, rng := range map[string]datasource.TimeRange{"from only": {From: from}, "to only": {To: to}} {
-		_, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: rng})
+		_, err := runner.Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverLabels, Range: rng})
 		if !errors.Is(err, ErrInvalidRequest) || err.Error() != "from and to must be given together" {
 			t.Fatalf("%s: err = %v, want the half range rejected", name, err)
 		}
@@ -261,7 +261,7 @@ func TestNamesReleasesTheSlotWhenDiscoveryIsCanceled(t *testing.T) {
 		return nil, context.Canceled
 	}
 	runner := namesRunner(t, fake)
-	if _, err := runner.Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics}); !errors.Is(err, context.Canceled) {
+	if _, err := runner.Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}
 	if got := slotsInUse(runner, "ds"); got != 0 {
@@ -303,7 +303,7 @@ func TestNamesRoutesScopedRequestsToTheInventory(t *testing.T) {
 			}
 			req := tt.req
 			req.Datasource = "ds"
-			got, err := namesRunner(t, fake).Names(context.Background(), req)
+			got, err := namesRunner(t, fake).Names(reading(context.Background()), req)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -326,7 +326,7 @@ func TestNamesRoutesScopedRequestsToTheInventory(t *testing.T) {
 
 func TestNamesRejectsAScopeOverTheFieldLimit(t *testing.T) {
 	fake := newFake("prometheus")
-	_, err := namesRunner(t, fake).Names(context.Background(), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics, Scope: strings.Repeat("s", 257)})
+	_, err := namesRunner(t, fake).Names(reading(context.Background()), NamesRequest{Datasource: "ds", Kind: datasource.DiscoverMetrics, Scope: strings.Repeat("s", 257)})
 	if !errors.Is(err, ErrInvalidRequest) || err.Error() != "scope must be at most 256 bytes" {
 		t.Fatalf("err = %v, want the scope length rejected", err)
 	}

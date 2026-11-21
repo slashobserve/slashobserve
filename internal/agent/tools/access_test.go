@@ -116,7 +116,7 @@ func textOf(t *testing.T, res Result) string {
 
 func (r *accessRig) seed(t *testing.T, title string, tags ...string) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.service.Create(t.Context(), adminCaller, pgtype.UUID{}, []byte(boardSpec(title, tags...)), "create")
+	dash, _, err := r.service.Create(reading(t.Context()), adminCaller, pgtype.UUID{}, []byte(boardSpec(title, tags...)), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func (r *accessRig) seed(t *testing.T, title string, tags ...string) pgtype.UUID
 
 func (r *accessRig) newFolder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	folder, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func (r *accessRig) seedHidden(t *testing.T) hiddenBoards {
 	b := hiddenBoards{open: r.seed(t, openTitle, "open-tag"), hidden: r.seed(t, hiddenTitle, hiddenTag)}
 	b.folder = foldertest.Restricted(t, r.db, hiddenFolder, privateGroup)
 	foldertest.Move(t, r.db, b.hidden, b.folder)
-	_, message, err := r.threads.Open(t.Context(), adminCaller, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: b.hidden}, Body: "who gets paid what"}, nil)
+	_, message, err := r.threads.Open(reading(t.Context()), adminCaller, threads.OpenInput{Target: threads.Target{Kind: threads.KindDashboard, ID: b.hidden}, Body: "who gets paid what"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func (r *accessRig) createdIn(t *testing.T, res Result) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash, _, err := r.service.Get(t.Context(), id)
+	dash, _, err := r.service.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func (r *accessRig) createdSaved(t *testing.T, res Result) string {
 
 func (r *accessRig) person(t *testing.T, subject string, role auth.Role) auth.Principal {
 	t.Helper()
-	u, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{
+	u, err := r.db.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{
 		OidcIssuer: "i", OidcSubject: subject, Email: subject + "@example.com", Name: subject,
 	})
 	if err != nil {
@@ -353,7 +353,7 @@ func folderOf(t *testing.T, r *accessRig, res Result) pgtype.UUID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	folderID, err := r.db.Queries().DashboardFolder(t.Context(), id)
+	folderID, err := r.db.Queries().DashboardFolder(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,7 +42,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err != nil {
 		return SavedSearch{}, err
 	}
-	if err := s.checkDatasource(checked); err != nil {
+	if err := s.checkDatasource(ctx, checked); err != nil {
 		return SavedSearch{}, err
 	}
 	folder, err := s.access.CreationFolder(ctx, by, in.FolderID)
@@ -61,9 +61,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	return s.render(ctx, by, row)
 }
 
-func (s *Service) checkDatasource(in validated) error {
-	inst, found := s.sources.Get(in.DatasourceUID)
-	if !found {
+func (s *Service) checkDatasource(ctx context.Context, in validated) error {
+	inst, err := s.sources.For(ctx, in.DatasourceUID)
+	if err != nil {
 		return &InvalidInputError{Code: CodeUnknownDatasource, Message: "datasource " + in.DatasourceUID + " does not exist"}
 	}
 	return fitDatasource(in.Kind, spec.DatasourceType(inst.Datasource.Type()))
@@ -150,7 +150,7 @@ func (s *Service) updateOnce(ctx context.Context, by auth.Principal, id pgtype.U
 		changed.moveTo = in.FolderID
 	}
 	if in.changesContent() {
-		if changed.content, err = s.mergeContent(current, in, time.Now()); err != nil {
+		if changed.content, err = s.mergeContent(ctx, current, in, time.Now()); err != nil {
 			return SavedSearch{}, err
 		}
 	}

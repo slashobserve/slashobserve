@@ -131,7 +131,7 @@ func importEvent(action audit.Action, row dbsqlc.GrafanaSync) audit.Event {
 }
 
 func (s *Service) StartSync(ctx context.Context, by auth.Principal, id pgtype.UUID, req SyncRequest) (Sync, error) {
-	if err := s.checkMapping(req.Mapping); err != nil {
+	if err := s.checkMapping(ctx, req.Mapping); err != nil {
 		return Sync{}, err
 	}
 	_, client, err := s.client(ctx, id)

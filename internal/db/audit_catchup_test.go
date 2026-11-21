@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
@@ -44,7 +45,7 @@ VALUES ('dashboard.version_created', 'dashboard', $1, 'user', gen_random_uuid(),
 }
 
 func TestTheBackfillAllowlistMatchesTheCatalog(t *testing.T) {
-	d := newMigratedTo(t, auditEventsVersion)
+	d := dbtest.New(t)
 	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT type, action, category, keys FROM audit_activity_actions`)
 	if err != nil {
 		t.Fatal(err)

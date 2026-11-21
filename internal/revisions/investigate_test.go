@@ -24,7 +24,7 @@ func investigate(t *testing.T, svc *revisions.Service, p revisions.InvestigatePa
 	if p.By.ID == "" {
 		p.By = user
 	}
-	row, err := svc.SubmitInvestigate(context.Background(), p)
+	row, err := svc.SubmitInvestigate(reading(context.Background()), p)
 	if err != nil {
 		t.Fatalf("investigate: %v", err)
 	}
@@ -54,11 +54,11 @@ func TestInvestigateCapsEachRequester(t *testing.T) {
 	for range revisions.MaxActiveInvestigatePerPrincipal {
 		investigate(t, svc, revisions.InvestigateParams{})
 	}
-	_, err := svc.SubmitInvestigate(context.Background(), revisions.InvestigateParams{Prompt: "one more", By: user})
+	_, err := svc.SubmitInvestigate(reading(context.Background()), revisions.InvestigateParams{Prompt: "one more", By: user})
 	if !errors.Is(err, revisions.ErrTooManyRequests) || !errors.Is(err, revisions.ErrTooManyInvestigations) {
 		t.Fatalf("the fourth investigation: %v", err)
 	}
-	if _, err := svc.SubmitObserve(context.Background(), user, "a dashboard still queues"); err != nil {
+	if _, err := svc.SubmitObserve(reading(context.Background()), user, "a dashboard still queues"); err != nil {
 		t.Fatalf("observe beside three investigations: %v", err)
 	}
 }
@@ -68,10 +68,10 @@ func TestInvestigateNeedsAnEditorAndAKnownPanel(t *testing.T) {
 	svc, d := newPanelService(t, panels)
 	dash := seedDashboard(t, d, 1)
 	viewer := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Vic", Role: auth.RoleViewer}
-	if _, err := svc.SubmitInvestigate(context.Background(), revisions.InvestigateParams{Prompt: "why", By: viewer}); !errors.Is(err, revisions.ErrForbidden) {
+	if _, err := svc.SubmitInvestigate(reading(context.Background()), revisions.InvestigateParams{Prompt: "why", By: viewer}); !errors.Is(err, revisions.ErrForbidden) {
 		t.Errorf("a viewer: %v", err)
 	}
-	if _, err := svc.SubmitInvestigate(context.Background(), revisions.InvestigateParams{Prompt: "why", By: user, DashboardID: dash, PanelID: "nope"}); !errors.Is(err, revisions.ErrUnknownPanel) {
+	if _, err := svc.SubmitInvestigate(reading(context.Background()), revisions.InvestigateParams{Prompt: "why", By: user, DashboardID: dash, PanelID: "nope"}); !errors.Is(err, revisions.ErrUnknownPanel) {
 		t.Errorf("an unknown panel: %v", err)
 	}
 	row := investigate(t, svc, revisions.InvestigateParams{DashboardID: dash, PanelID: "errors"})
@@ -87,7 +87,7 @@ func TestInvestigationsNeverHoldTheDashboard(t *testing.T) {
 	if claimed, found := claimOne(t, svc); !found || claimed.ID != investigation.ID {
 		t.Fatalf("claimed %+v, want the investigation", claimed)
 	}
-	active, err := d.Queries().CountActiveAgentRequests(context.Background(), dash)
+	active, err := d.Queries().CountActiveAgentRequests(reading(context.Background()), dash)
 	if err != nil || active != 0 {
 		t.Fatalf("active revisions = %d, %v", active, err)
 	}
@@ -96,7 +96,7 @@ func TestInvestigationsNeverHoldTheDashboard(t *testing.T) {
 	if !found || claimed.ID.String() != rev.ID {
 		t.Fatalf("claimed %+v, want the revision beside the running investigation", claimed)
 	}
-	if _, err := svc.Get(context.Background(), dash, investigation.ID); !errors.Is(err, revisions.ErrNotFound) {
+	if _, err := svc.Get(reading(context.Background()), dash, investigation.ID); !errors.Is(err, revisions.ErrNotFound) {
 		t.Errorf("the investigation in the revision history: %v", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestInvestigationsCannotBeContinued(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	row := investigate(t, svc, revisions.InvestigateParams{})
 	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_finding' WHERE id = $1", row.ID)
-	if _, err := svc.Continue(context.Background(), row.ID, user, ""); !errors.Is(err, revisions.ErrNotContinuable) {
+	if _, err := svc.Continue(reading(context.Background()), row.ID, user, ""); !errors.Is(err, revisions.ErrNotContinuable) {
 		t.Fatalf("continue: %v", err)
 	}
 }
@@ -113,7 +113,7 @@ func TestInvestigationsCannotBeContinued(t *testing.T) {
 func TestCancelOfAQueuedInvestigationFailsIt(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
 	row := investigate(t, svc, revisions.InvestigateParams{})
-	got, err := svc.Cancel(context.Background(), row.ID, user)
+	got, err := svc.Cancel(reading(context.Background()), row.ID, user)
 	if err != nil || got.Status != string(revisions.StatusFailed) || got.FailureCode.String != string(revisions.FailureCanceled) {
 		t.Fatalf("cancel: %+v, %v", got, err)
 	}
@@ -125,7 +125,7 @@ func TestAnExhaustedInvestigationWithAFindingSucceeds(t *testing.T) {
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'running', status = 'running', attempts = $2, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID, revisions.MaxAttempts)
 	claimOne(t, svc)
-	got, err := svc.GetByID(context.Background(), row.ID)
+	got, err := svc.GetByID(reading(context.Background()), row.ID)
 	if err != nil || got.Status != string(revisions.StatusSucceeded) || got.FailureCode.Valid {
 		t.Fatalf("exhausted investigation = %+v, %v", got, err)
 	}
@@ -160,7 +160,7 @@ func TestTheWorkerFinishesAnInvestigationByItsFinding(t *testing.T) {
 			var final dbsqlc.AgentRequest
 			waitFor(t, "the investigation to finish", func() bool {
 				var err error
-				final, err = svc.GetByID(context.Background(), row.ID)
+				final, err = svc.GetByID(reading(context.Background()), row.ID)
 				return err == nil && final.FinishedAt.Valid
 			})
 			if final.Status != string(c.wantStatus) || final.FailureCode.String != c.wantCode {
@@ -180,10 +180,10 @@ func TestTheWorkerFinishesAnAnsweredRequestByItsFinding(t *testing.T) {
 		submit func(*revisions.Service, pgtype.UUID) (dbsqlc.AgentRequest, error)
 	}{
 		{"a new-dashboard request", revisions.SourceObserve, func(svc *revisions.Service, _ pgtype.UUID) (dbsqlc.AgentRequest, error) {
-			return svc.SubmitObserve(context.Background(), user, "what all logs are available?")
+			return svc.SubmitObserve(reading(context.Background()), user, "what all logs are available?")
 		}},
 		{"a dashboard chat prompt", revisions.SourcePrompt, func(svc *revisions.Service, dash pgtype.UUID) (dbsqlc.AgentRequest, error) {
-			return svc.SubmitFollowUp(context.Background(), dash, nil, "", "what does this dashboard show?", user)
+			return svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "what does this dashboard show?", user)
 		}},
 	}
 	for _, c := range cases {
@@ -203,7 +203,7 @@ func TestTheWorkerFinishesAnAnsweredRequestByItsFinding(t *testing.T) {
 			var final dbsqlc.AgentRequest
 			waitFor(t, "the request to finish", func() bool {
 				var err error
-				final, err = svc.GetByID(context.Background(), row.ID)
+				final, err = svc.GetByID(reading(context.Background()), row.ID)
 				return err == nil && final.FinishedAt.Valid
 			})
 			if final.Status != string(revisions.StatusSucceeded) || final.FailureCode.Valid || final.ResultVersion.Valid || final.DashboardID != row.DashboardID {

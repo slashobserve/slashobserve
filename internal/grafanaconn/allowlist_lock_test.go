@@ -16,8 +16,8 @@ func holdingTheAllowlistLock(t *testing.T, r *rig) (release func()) {
 	free := make(chan struct{})
 	finished := make(chan error, 1)
 	go func() {
-		finished <- r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-			if err := q.LockOutboundDomains(t.Context()); err != nil {
+		finished <- r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+			if err := q.LockOutboundDomains(reading(t.Context())); err != nil {
 				return err
 			}
 			close(held)
@@ -66,7 +66,7 @@ func addForConnection(t *testing.T, r *rig, host string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.domains.AddForConnection(t.Context(), r.admin, p); err != nil {
+	if _, err := r.domains.AddForConnection(reading(t.Context()), r.admin, p); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -77,7 +77,7 @@ func TestCreatingAConnectionWaitsForTheOutboundAllowlistLockEvenWhenTheHostIsAll
 	release := holdingTheAllowlistLock(t, r)
 	done := make(chan error, 1)
 	go func() {
-		_, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Production", URL: grafanaURL, Token: grafanaToken})
+		_, err := r.svc.Create(reading(t.Context()), r.admin, grafanaconn.Input{Name: "Production", URL: grafanaURL, Token: grafanaToken})
 		done <- err
 	}()
 	expectBlockedUntil(t, "create", done, release, nil)
@@ -91,11 +91,11 @@ func TestMovingAConnectionToAnAllowedHostWaitsForTheOutboundAllowlistLock(t *tes
 	done := make(chan error, 1)
 	newURL, replacement := "https://grafana2.example.com", "glsa_new"
 	go func() {
-		_, err := r.svc.Update(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &replacement})
+		_, err := r.svc.Update(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.Patch{URL: &newURL, Token: &replacement})
 		done <- err
 	}()
 	expectBlockedUntil(t, "update", done, release, func() {
-		row, err := r.db.Queries().GetGrafanaConnection(t.Context(), uuidOf(t, conn.ID))
+		row, err := r.db.Queries().GetGrafanaConnection(reading(t.Context()), uuidOf(t, conn.ID))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -139,7 +139,7 @@ func TestSyncImportsEveryDashboardIntoItsFolder(t *testing.T) {
 		t.Fatal("the root dashboard lost its tags or links")
 	}
 
-	stored, err := r.svc.Get(t.Context(), uuidOf(t, conn.ID))
+	stored, err := r.svc.Get(reading(t.Context()), uuidOf(t, conn.ID))
 	if err != nil || stored.LastSync == nil || stored.LastSync.ID != done.ID || stored.LastSync.State != grafanaconn.SyncFinished || stored.LastSync.Failed != 1 {
 		t.Fatalf("last sync %+v, err %v", stored.LastSync, err)
 	}
@@ -197,7 +197,7 @@ func TestSyncImportsOnlyTheChosenFolders(t *testing.T) {
 func TestSyncRefusesAMappingToAnUnknownDatasource(t *testing.T) {
 	r := newRig(t)
 	conn := r.connect(t)
-	_, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true, Mapping: map[string]string{"graf-prom": "nope"}})
+	_, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true, Mapping: map[string]string{"graf-prom": "nope"}})
 	var invalid *grafanaconn.InvalidError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("error %v, want InvalidError", err)
@@ -210,28 +210,28 @@ func TestSyncRunsOneAtATimePerConnection(t *testing.T) {
 	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
 	conn := r.connect(t)
 
-	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
+	started, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
 	if err != nil || started.State != grafanaconn.SyncRunning {
 		t.Fatalf("started %+v, err %v", started.SyncSummary, err)
 	}
-	if _, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true}); !errors.Is(err, grafanaconn.ErrSyncRunning) {
+	if _, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true}); !errors.Is(err, grafanaconn.ErrSyncRunning) {
 		t.Fatalf("second start: %v, want ErrSyncRunning", err)
 	}
 	peer := r.peer(t)
-	seen, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	seen, err := peer.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil || seen.ID != started.ID || seen.State != grafanaconn.SyncRunning {
 		t.Fatalf("another server sees %+v, err %v", seen.SyncSummary, err)
 	}
-	if _, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+	if _, err := peer.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
 		t.Fatalf("unknown sync: %v", err)
 	}
 	close(hold)
 	r.svc.Wait()
-	done, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	done, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil || done.State != grafanaconn.SyncFinished || done.Done != 1 {
 		t.Fatalf("done %+v, err %v", done.SyncSummary, err)
 	}
-	if _, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+	if _, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
 		t.Fatalf("unknown sync: %v", err)
 	}
 }
@@ -242,7 +242,7 @@ func TestSyncIsHandedOnWhenTheServerStops(t *testing.T) {
 	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
 	conn := r.connect(t)
 
-	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
+	started, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +259,7 @@ func TestSyncIsHandedOnWhenTheServerStops(t *testing.T) {
 	peer := r.peer(t)
 	peer.ResumeOnce(t.Context())
 	peer.Wait()
-	done, err := peer.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	done, err := peer.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil || done.State != grafanaconn.SyncFinished || done.Done != 1 {
 		t.Fatalf("done %+v, err %v", done.SyncSummary, err)
 	}
@@ -273,11 +273,11 @@ func TestSyncIsHandedOnWhenTheServerStops(t *testing.T) {
 
 func TestSyncFailsAfterItsLeaseExpiresTwice(t *testing.T) {
 	r := newRig(t)
-	first, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "First", URL: grafanaURL, Token: grafanaToken})
+	first, err := r.svc.Create(reading(t.Context()), r.admin, grafanaconn.Input{Name: "First", URL: grafanaURL, Token: grafanaToken})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Second", URL: grafanaURL, Token: grafanaToken})
+	second, err := r.svc.Create(reading(t.Context()), r.admin, grafanaconn.Input{Name: "Second", URL: grafanaURL, Token: grafanaToken})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,14 +287,14 @@ func TestSyncFailsAfterItsLeaseExpiresTwice(t *testing.T) {
 	r.svc.ResumeOnce(t.Context())
 	r.svc.Wait()
 
-	failed, err := r.svc.SyncStatus(t.Context(), uuidOf(t, first.ID), crashedTwice)
+	failed, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, first.ID), crashedTwice)
 	if err != nil || failed.State != grafanaconn.SyncFailed || failed.Error != grafanaconn.ExhaustedMessage {
 		t.Fatalf("first %+v, err %v", failed.SyncSummary, err)
 	}
 	if n := r.count(t, "SELECT lease_losses FROM grafana_syncs WHERE id = $1", crashedTwice); n != 2 {
 		t.Fatalf("first has %d lease losses, want 2", n)
 	}
-	resumed, err := r.svc.SyncStatus(t.Context(), uuidOf(t, second.ID), crashedOnce)
+	resumed, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, second.ID), crashedOnce)
 	if err != nil || resumed.State != grafanaconn.SyncFinished {
 		t.Fatalf("second %+v, err %v", resumed.SyncSummary, err)
 	}
@@ -311,7 +311,7 @@ func TestSyncFailsWhenItsStarterIsNoLongerAnAdmin(t *testing.T) {
 	r.svc.ResumeOnce(t.Context())
 	r.svc.Wait()
 
-	got, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), id)
+	got, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), id)
 	if err != nil || got.State != grafanaconn.SyncFailed || got.Error != grafanaconn.StarterGoneMessage {
 		t.Fatalf("got %+v, err %v", got.SyncSummary, err)
 	}
@@ -322,27 +322,27 @@ func TestCancelSync(t *testing.T) {
 	r := newRigWith(t, rigOptions{secretKey: secretKey, hold: hold})
 	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
 	conn := r.connect(t)
-	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
+	started, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), grafanaconn.SyncRequest{All: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	canceled, err := r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), started.ID)
+	canceled, err := r.svc.CancelSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), started.ID)
 	if err != nil || canceled.State != grafanaconn.SyncCanceled || canceled.FinishedAt == nil {
 		t.Fatalf("canceled %+v, err %v", canceled.SyncSummary, err)
 	}
-	_, err = r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), started.ID)
+	_, err = r.svc.CancelSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), started.ID)
 	var refusal *lifecycle.Refusal
 	if !errors.Is(err, lifecycle.ErrInvalidTransition) || !errors.As(err, &refusal) || refusal.State != "canceled" || len(refusal.Allowed) != 0 {
 		t.Fatalf("second cancel: %v", err)
 	}
-	if _, err := r.svc.CancelSync(t.Context(), r.admin, uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+	if _, err := r.svc.CancelSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), "unknown"); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
 		t.Fatalf("unknown sync: %v", err)
 	}
 
 	close(hold)
 	r.svc.Wait()
-	after, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	after, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil || after.State != grafanaconn.SyncCanceled {
 		t.Fatalf("after %+v, err %v", after.SyncSummary, err)
 	}
@@ -361,10 +361,10 @@ func TestConnectionKeepsTwentySyncs(t *testing.T) {
 	if n := r.count(t, "SELECT count(*) FROM grafana_syncs"); n != 20 {
 		t.Fatalf("%d syncs kept, want 20", n)
 	}
-	if _, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), ids[0]); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
+	if _, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), ids[0]); !errors.Is(err, grafanaconn.ErrSyncNotFound) {
 		t.Fatalf("the oldest sync: %v, want ErrSyncNotFound", err)
 	}
-	stored, err := r.svc.Get(t.Context(), uuidOf(t, conn.ID))
+	stored, err := r.svc.Get(reading(t.Context()), uuidOf(t, conn.ID))
 	if err != nil || stored.LastSync == nil || stored.LastSync.ID != ids[20] {
 		t.Fatalf("last sync %+v, err %v", stored.LastSync, err)
 	}

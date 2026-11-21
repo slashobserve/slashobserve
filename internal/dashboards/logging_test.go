@@ -54,7 +54,7 @@ func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(testUser)))
 	})
 	engine.GET("/api/v1/dashboards/:id", r.service.getDashboard)
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(reading(t.Context()))
 	cancel()
 
 	rec := httptest.NewRecorder()

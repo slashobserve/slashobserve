@@ -25,7 +25,7 @@ func TestSavePatchRemovesAPanelWithoutRunningAQuery(t *testing.T) {
 	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
 	p.reset()
 
-	res, err := r.service.SavePatch(t.Context(), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: spec.PanelPatch{Delete: []string{"p1"}}, Summary: "Remove p1"})
+	res, err := r.service.SavePatch(reading(t.Context()), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: spec.PanelPatch{Delete: []string{"p1"}}, Summary: "Remove p1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestSavePatchDuplicatesAPanelRunningOnlyTheCopy(t *testing.T) {
 	p.reset()
 
 	copied := panelDef{id: "p0_copy", query: "copy0"}
-	res, err := r.service.SavePatch(t.Context(), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(3, copied), Summary: "Duplicate p0"})
+	res, err := r.service.SavePatch(reading(t.Context()), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(3, copied), Summary: "Duplicate p0"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,11 +66,11 @@ func TestSavePatchReplaysARetriedPatch(t *testing.T) {
 	id := r.createSpec(t, specDef{panels: numberedPanels(2)})
 	in := PatchInput{DashboardID: id, Parent: 1, Patch: spec.PanelPatch{Delete: []string{"p0"}}, Summary: "Remove p0"}
 
-	first, err := r.service.SavePatch(t.Context(), testUser, in)
+	first, err := r.service.SavePatch(reading(t.Context()), testUser, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := r.service.SavePatch(t.Context(), testUser, in)
+	again, err := r.service.SavePatch(reading(t.Context()), testUser, in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestSavePatchNamesTheFailingPanel(t *testing.T) {
 	id := r.createSpec(t, specDef{panels: numberedPanels(2)})
 	p.setFail("broken", true)
 
-	_, err := r.service.SavePatch(t.Context(), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(2, panelDef{id: "p2", query: "broken"}), Summary: "Add p2"})
+	_, err := r.service.SavePatch(reading(t.Context()), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(2, panelDef{id: "p2", query: "broken"}), Summary: "Add p2"})
 	patchErr := wantPatchError(t, err)
 	if len(patchErr.Issues) == 0 || !strings.HasPrefix(patchErr.Issues[0].Path, "/panels/2") || patchErr.PanelIDs["/panels/2"] != "p2" {
 		t.Fatalf("issues %+v ids %v, want an issue on /panels/2 owned by p2", patchErr.Issues, patchErr.PanelIDs)
@@ -99,14 +99,14 @@ func TestSavePatchRejectsWhatTheCheckRefusesBeforeSaving(t *testing.T) {
 		return []spec.Issue{{Path: "/panels/0", Code: spec.CodeSchema, Message: "refused"}}
 	}
 
-	_, err := r.service.SavePatch(t.Context(), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(0, panelDef{id: "p0", query: "m0b"}), Summary: "Edit", Check: refuse})
+	_, err := r.service.SavePatch(reading(t.Context()), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: upsert(0, panelDef{id: "p0", query: "m0b"}), Summary: "Edit", Check: refuse})
 	if patchErr := wantPatchError(t, err); patchErr.Issues[0].Message != "refused" || patchErr.PanelIDs["/panels/0"] != "p0" {
 		t.Fatalf("patch error %+v, want the check's issue on p0", patchErr)
 	}
 	if got := p.texts(); len(got) != 0 {
 		t.Fatalf("queries run %v, want none", got)
 	}
-	if _, latest, err := r.service.Get(t.Context(), id); err != nil || latest.Number != 1 {
+	if _, latest, err := r.service.Get(reading(t.Context()), id); err != nil || latest.Number != 1 {
 		t.Fatalf("latest version %d (err %v), want 1", latest.Number, err)
 	}
 }

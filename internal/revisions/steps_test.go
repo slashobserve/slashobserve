@@ -13,7 +13,7 @@ import (
 
 func TestAnAttemptKeepsItsMostRecentSteps(t *testing.T) {
 	svc, d := newService(t, succeedWith(1))
-	ctx := context.Background()
+	ctx := reading(context.Background())
 	row, err := svc.SubmitObserve(ctx, user, "steps")
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestReleasedRunKeepsItsStepsAndTheReplacementKeepsTheMostRecent(t *testing.
 		return revisions.Result{}, ctx.Err()
 	}))
 	steps = revisions.NewSteps(d.DB, quietLogger())
-	row, err := svc.SubmitObserve(context.Background(), user, "steps")
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "steps")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,11 +86,11 @@ func TestReleasedRunKeepsItsStepsAndTheReplacementKeepsTheMostRecent(t *testing.
 	}), quietLogger())
 	startWorker(t, next, d, revisions.WorkerOptions{})
 	waitFor(t, "the replacement run to finish", func() bool {
-		got, err := next.GetByID(context.Background(), row.ID)
+		got, err := next.GetByID(reading(context.Background()), row.ID)
 		return err == nil && got.Status == string(revisions.StatusFailed)
 	})
 
-	got, err := next.GetByID(context.Background(), row.ID)
+	got, err := next.GetByID(reading(context.Background()), row.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

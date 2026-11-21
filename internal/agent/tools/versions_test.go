@@ -14,7 +14,7 @@ import (
 
 func (r *accessRig) saveVersion(t *testing.T, id pgtype.UUID, parent int, title string) {
 	t.Helper()
-	_, err := r.service.Save(t.Context(), adminCaller, dashboards.SaveInput{DashboardID: id, Parent: parent, Spec: []byte(boardSpec(title)), Summary: "retitle to " + title})
+	_, err := r.service.Save(reading(t.Context()), adminCaller, dashboards.SaveInput{DashboardID: id, Parent: parent, Spec: []byte(boardSpec(title)), Summary: "retitle to " + title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestRestoreDashboardVersionSavesTheOldVersionAsANewOne(t *testing.T) {
 	if res.IsError || !ok || saved.Version != 3 || saved.DashboardID != id {
 		t.Fatalf("restore = %s", textOf(t, res))
 	}
-	versions, _, err := r.service.ListVersions(t.Context(), b.open, 1, "")
+	versions, _, err := r.service.ListVersions(reading(t.Context()), b.open, 1, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestRestoreAndMoveRefuseAConnectionInProposeMode(t *testing.T) {
 			t.Errorf("%s in propose mode answered %s, want proposal_required", name, code)
 		}
 	}
-	dash, _, err := r.service.Get(context.Background(), id)
+	dash, _, err := r.service.Get(reading(context.Background()), id)
 	if err != nil || dash.LatestVersion != 2 || dash.Folder.Title != "General" {
 		t.Errorf("dashboard after the refusals = %#v, %v", dash, err)
 	}

@@ -17,33 +17,33 @@ func withUID(raw []byte, uid string) []byte {
 
 func TestOnlyTheFirstImportOfAGrafanaUIDHoldsIt(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop again", "prom", 1)})
+	second, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop again", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if first.Record.GrafanaUID != "abc" || second.Record.GrafanaUID != "" {
 		t.Fatalf("grafana uids %q and %q, want abc and empty", first.Record.GrafanaUID, second.Record.GrafanaUID)
 	}
-	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, first.Dashboard.ID))
+	stored, err := r.imports.ForDashboard(reading(t.Context()), uuid(t, first.Dashboard.ID))
 	if err != nil || stored.GrafanaUID != "abc" {
 		t.Fatalf("stored grafana uid %q, err %v", stored.GrafanaUID, err)
 	}
-	found, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "abc")
+	found, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), "abc")
 	if err != nil || !ok || found.DashboardID.String() != first.Dashboard.ID || found.GrafanaVersion != 0 {
 		t.Fatalf("by uid: %+v, found %t, err %v", found, ok, err)
 	}
 
-	if err := r.dashboard.Delete(t.Context(), ada, uuid(t, first.Dashboard.ID)); err != nil {
+	if err := r.dashboard.Delete(reading(t.Context()), ada, uuid(t, first.Dashboard.ID)); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "abc"); err != nil || ok {
+	if _, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), "abc"); err != nil || ok {
 		t.Fatalf("after deleting the holder: found %t, err %v", ok, err)
 	}
-	third, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop third", "prom", 1)})
+	third, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop third", "prom", 1)})
 	if err != nil || third.Record.GrafanaUID != "abc" {
 		t.Fatalf("an import after the holder was deleted: uid %q, err %v", third.Record.GrafanaUID, err)
 	}
@@ -53,11 +53,11 @@ func TestAGrafanaUIDOutsideGrafanasRulesIsNotHeld(t *testing.T) {
 	for _, uid := range []string{"", "has space", "slash/uid", strings.Repeat("a", 41)} {
 		t.Run(uid, func(t *testing.T) {
 			r := newRig(t)
-			got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: withUID(grafanaJSON("Shop", "prom", 1), uid)})
+			got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: withUID(grafanaJSON("Shop", "prom", 1), uid)})
 			if err != nil || got.Record.GrafanaUID != "" {
 				t.Fatalf("grafana uid %q, err %v", got.Record.GrafanaUID, err)
 			}
-			if _, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), uid); err != nil || ok {
+			if _, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), uid); err != nil || ok {
 				t.Fatalf("by uid: found %t, err %v", ok, err)
 			}
 		})
@@ -66,11 +66,11 @@ func TestAGrafanaUIDOutsideGrafanasRulesIsNotHeld(t *testing.T) {
 
 func TestABatchImportNamesItsFolderAndGrafanaVersion(t *testing.T) {
 	r := newRig(t)
-	team, err := r.access.ForImport(t.Context(), ada, "Team")
+	team, err := r.access.ForImport(reading(t.Context()), ada, "Team")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := r.imports.Import(t.Context(), ada, imports.Request{
+	got, err := r.imports.Import(reading(t.Context()), ada, imports.Request{
 		JSON:           withUID(grafanaJSON("Shop", "prom", 1), "shop-1"),
 		Folder:         "Ignored",
 		FolderID:       team.Folder.ID,
@@ -82,7 +82,7 @@ func TestABatchImportNamesItsFolderAndGrafanaVersion(t *testing.T) {
 	if got.Dashboard.Folder.ID != team.Folder.ID {
 		t.Errorf("folder %s, want Team %s", got.Dashboard.Folder.ID.String(), team.Folder.ID.String())
 	}
-	found, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "shop-1")
+	found, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), "shop-1")
 	if err != nil || !ok || found.GrafanaVersion != 7 {
 		t.Fatalf("by uid: %+v, found %t, err %v", found, ok, err)
 	}
@@ -90,12 +90,12 @@ func TestABatchImportNamesItsFolderAndGrafanaVersion(t *testing.T) {
 
 func TestReimportSavesANewVersionAndRefreshesTheRecord(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: withUID(grafanaJSON("Shop", "prom", 1), "shop-1"), GrafanaVersion: 1})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: withUID(grafanaJSON("Shop", "prom", 1), "shop-1"), GrafanaVersion: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := uuid(t, first.Dashboard.ID)
-	got, err := r.imports.Reimport(t.Context(), ada, id, imports.Request{JSON: withUID(grafanaJSON("Shop v2", "prom", 2), "shop-1"), GrafanaVersion: 2})
+	got, err := r.imports.Reimport(reading(t.Context()), ada, id, imports.Request{JSON: withUID(grafanaJSON("Shop v2", "prom", 2), "shop-1"), GrafanaVersion: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestReimportSavesANewVersionAndRefreshesTheRecord(t *testing.T) {
 	if got.Record.ID != first.Record.ID || got.Record.Version != 2 || got.Record.Title != "Shop v2" || got.Record.GrafanaUID != "shop-1" || got.Record.Report.Counts.Total != 2 || !got.Record.Report.Verified {
 		t.Fatalf("record %+v", got.Record)
 	}
-	found, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "shop-1")
+	found, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), "shop-1")
 	if err != nil || !ok || found.GrafanaVersion != 2 || found.DashboardID != id {
 		t.Fatalf("by uid: %+v, found %t, err %v", found, ok, err)
 	}
@@ -113,17 +113,17 @@ func TestReimportSavesANewVersionAndRefreshesTheRecord(t *testing.T) {
 
 func TestReimportRunsEveryQueryLikeAnyLaterSave(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	broken := []byte(strings.Replace(string(grafanaJSON("Shop", "prom", 1)), `"expr":"up"`, `"expr":"`+brokenQuery+`"`, 1))
-	_, err = r.imports.Reimport(t.Context(), ada, uuid(t, first.Dashboard.ID), imports.Request{JSON: broken, GrafanaVersion: 2})
+	_, err = r.imports.Reimport(reading(t.Context()), ada, uuid(t, first.Dashboard.ID), imports.Request{JSON: broken, GrafanaVersion: 2})
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want InvalidSpecError", err)
 	}
-	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
+	if latest, err := r.dashboard.LatestVersion(reading(t.Context()), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
 		t.Fatalf("latest = %d, err %v", latest, err)
 	}
 }
@@ -140,17 +140,17 @@ func TestMappingForKeepsOnlyTheEntriesADashboardCanUse(t *testing.T) {
 	svc := imports.New(nil, nil, nil, registry, logger)
 	shared := map[string]string{"old-prom": "prom2", "other": "prom", "typo": "missing"}
 
-	got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), shared)
+	got := svc.MappingFor(datasource.WithAccess(reading(t.Context()), datasource.Access{System: true}), grafanaJSON("Shop", "old-prom", 1), shared)
 	if len(got) != 1 || got["old-prom"] != "prom2" {
 		t.Fatalf("mapping %v, want only old-prom to prom2", got)
 	}
-	if got := svc.MappingFor(grafanaJSON("Shop", "typo", 1), shared); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(reading(t.Context()), datasource.Access{System: true}), grafanaJSON("Shop", "typo", 1), shared); len(got) != 0 {
 		t.Fatalf("mapping %v, want no entry for a target that is not a candidate", got)
 	}
-	if got := svc.MappingFor([]byte("not json"), shared); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(reading(t.Context()), datasource.Access{System: true}), []byte("not json"), shared); len(got) != 0 {
 		t.Fatalf("mapping %v for unreadable JSON, want empty", got)
 	}
-	if got := svc.MappingFor(grafanaJSON("Shop", "old-prom", 1), nil); len(got) != 0 {
+	if got := svc.MappingFor(datasource.WithAccess(reading(t.Context()), datasource.Access{System: true}), grafanaJSON("Shop", "old-prom", 1), nil); len(got) != 0 {
 		t.Fatalf("mapping %v with no shared mapping, want empty", got)
 	}
 }

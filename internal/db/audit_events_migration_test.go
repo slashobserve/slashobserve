@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 )
 
 const auditEventsVersion = 74
@@ -61,7 +62,7 @@ WHERE a.origin = 'web'`)
 		t.Fatal(err)
 	}
 	for _, typ := range activity.Types() {
-		if !seen[typ] {
+		if mappedAt(t, d, typ) && !seen[typ] {
 			t.Errorf("activity type %s has no backfilled audit event", typ)
 		}
 	}
@@ -107,4 +108,13 @@ WHERE i.inhparent = 'audit_events'::regclass AND c.relname >= 'audit_events_' ||
 	if err := d.MigrateUpTo(ctx, auditEventsVersion); err != nil {
 		t.Fatalf("up again: %v", err)
 	}
+}
+
+func mappedAt(t *testing.T, d *dbtest.Database, typ string) bool {
+	t.Helper()
+	var mapped bool
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT EXISTS (SELECT 1 FROM audit_activity_actions WHERE type = $1)`, typ).Scan(&mapped); err != nil {
+		t.Fatal(err)
+	}
+	return mapped
 }

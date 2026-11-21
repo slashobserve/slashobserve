@@ -28,7 +28,7 @@ func contentFields(t *testing.T, res Result) map[string]json.RawMessage {
 
 func TestGetSpecGuideInARunReturnsOnlyTheSchema(t *testing.T) {
 	r := New(Deps{})
-	ctx := WithRun(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer}), Run{Mode: ModeCreate})
+	ctx := WithRun(auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleViewer}), Run{Mode: ModeCreate})
 	res, err := r.Call(ctx, nameGetSpecGuide, []byte(`{}`))
 	if err != nil {
 		t.Fatal(err)

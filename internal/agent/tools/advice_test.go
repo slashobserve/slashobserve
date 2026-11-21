@@ -157,7 +157,7 @@ func TestAdviceCapsNotesAtTwenty(t *testing.T) {
 func TestAdviceInventoryIsKeptPerRequestOrCaller(t *testing.T) {
 	families := []datasource.Family{{Name: "up"}}
 	user := func(id string) context.Context {
-		return auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleEditor})
+		return auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: id, Role: auth.RoleEditor})
 	}
 	runA := WithRun(user("advice-store-user"), Run{Mode: ModeCreate, RequestID: "advice-store-run-a"})
 	runB := WithRun(user("advice-store-user"), Run{Mode: ModeCreate, RequestID: "advice-store-run-b"})
@@ -183,7 +183,7 @@ func TestAdviceInventoryIsKeptPerRequestOrCaller(t *testing.T) {
 
 func TestAdviceStoreForgetsTheOldestInventory(t *testing.T) {
 	run := func(i int) context.Context {
-		return WithRun(context.Background(), Run{Mode: ModeCreate, RequestID: fmt.Sprintf("advice-evict-%d", i)})
+		return WithRun(reading(context.Background()), Run{Mode: ModeCreate, RequestID: fmt.Sprintf("advice-evict-%d", i)})
 	}
 	for i := range maxStoredInventories + 1 {
 		inventories.put(run(i), []datasource.Family{{Name: "up"}})
@@ -226,7 +226,7 @@ func TestSaveResultsNameTheFamiliesNoPanelQueries(t *testing.T) {
 		{Name: "http_request_duration_seconds", Type: "histogram"},
 		{Name: "up"},
 	})
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindServiceAccount, ID: "a1d71ce0-0000-4000-8000-000000000542", Name: "ci", Role: auth.RoleEditor})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindServiceAccount, ID: "a1d71ce0-0000-4000-8000-000000000542", Name: "ci", Role: auth.RoleEditor})
 	call := func(tool, input string) Result {
 		t.Helper()
 		res, err := r.Call(ctx, tool, []byte(input))
@@ -312,7 +312,7 @@ func TestABuildSaveNotesOnlyThePanelItSaved(t *testing.T) {
 }
 
 func TestBuildAdviceShrinksTheChangedPanelsToStayUnderTheBudget(t *testing.T) {
-	ctx := WithRun(context.Background(), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", Attempt: 1})
+	ctx := WithRun(reading(context.Background()), Run{Mode: ModeCreate, Build: true, RequestID: "build-advice-budget", Attempt: 1})
 	families := make([]datasource.Family, 80)
 	for i := range families {
 		families[i] = datasource.Family{Name: fmt.Sprintf("%s_%02d", strings.Repeat("f", 120), i)}

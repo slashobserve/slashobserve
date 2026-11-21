@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -122,7 +123,7 @@ func (p *Provisioner) run(ctx context.Context, requested bool) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.store.db.WithSessionLock(ctx, sessionLockName, func(ctx context.Context) error {
+	return p.store.db.WithSessionLock(datasource.WithAccess(ctx, datasource.Access{System: true}), sessionLockName, func(ctx context.Context) error {
 		return p.provisionAll(ctx, requested)
 	})
 }

@@ -14,8 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/config"
-	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
@@ -172,19 +170,23 @@ func (r *provisionRig) fileKeys(accountID string) (active, revoked int) {
 	return active, revoked
 }
 
-func fileAccount(t *testing.T, role string) (config.ServiceAccount, string) {
+type revealed string
+
+func (r revealed) Reveal() string { return string(r) }
+
+func fileAccount(t *testing.T, role string) (FileAccount, string) {
 	t.Helper()
 	key, _, err := opaquetoken.New(keyPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return config.ServiceAccount{Name: "demo-loadgen", Role: role, Description: "Posts the demo's deploy markers", Key: datasource.NewSecret(key)}, key
+	return FileAccount{Name: "demo-loadgen", Role: role, Description: "Posts the demo's deploy markers", Key: revealed(key)}, key
 }
 
 func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 	r := newProvisionRig(t)
 	account, key := fileAccount(t, "editor")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	if code := r.bearer(key); code != http.StatusOK {
@@ -196,7 +198,7 @@ func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 	}
 	id := listed[0].ID
 
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	if active, revoked := r.fileKeys(id); active != 1 || revoked != 0 {
@@ -205,7 +207,7 @@ func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 
 	rotated, newKey := fileAccount(t, "viewer")
 	rotated.Description = "Reads the demo"
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{rotated}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{rotated}); err != nil {
 		t.Fatal(err)
 	}
 	if r.bearer(key) != http.StatusUnauthorized || r.bearer(newKey) != http.StatusOK {
@@ -218,7 +220,7 @@ func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 		t.Fatalf("accounts = %+v, want the same account as a viewer with the new description", listed)
 	}
 
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err == nil || !strings.Contains(err.Error(), "used before") {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err == nil || !strings.Contains(err.Error(), "used before") {
 		t.Fatalf("going back to a revoked key = %v, want a refusal", err)
 	}
 
@@ -232,20 +234,20 @@ func TestEnsureProvisionedCreatesUpdatesAndRotates(t *testing.T) {
 func TestEnsureProvisionedAppliesTakesRunsFromTheFile(t *testing.T) {
 	r := newProvisionRig(t)
 	account, _ := fileAccount(t, "viewer")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	if listed := r.accounts(); listed[0].TakesRuns {
 		t.Fatalf("accounts = %+v, want takes_runs false by default", listed)
 	}
 	account.TakesRuns = true
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	if listed := r.accounts(); !listed[0].TakesRuns {
 		t.Fatalf("accounts = %+v, want takes_runs true after the file turned it on", listed)
 	}
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	if listed := r.accounts(); !listed[0].TakesRuns {
@@ -259,7 +261,7 @@ func TestEnsureProvisionedNeverAdoptsAnAccountMadeThroughTheAPI(t *testing.T) {
 		t.Fatalf("create = %d %s", rec.Code, rec.Body)
 	}
 	account, key := fileAccount(t, "admin")
-	err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account})
+	err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account})
 	var refused *ProvisionRefusedError
 	if !errors.As(err, &refused) || refused.Name != "demo-loadgen" || !strings.Contains(err.Error(), "never taken over") {
 		t.Fatalf("got %v, want a refusal naming the account", err)
@@ -278,7 +280,7 @@ func TestEnsureProvisionedNeverAdoptsAnAccountMadeThroughTheAPI(t *testing.T) {
 func TestProvisionedAccountsRefuseRoleChangesAndRevocation(t *testing.T) {
 	r := newProvisionRig(t)
 	account, _ := fileAccount(t, "editor")
-	if err := r.service.EnsureProvisioned(t.Context(), []config.ServiceAccount{account}); err != nil {
+	if err := r.service.EnsureProvisioned(t.Context(), []FileAccount{account}); err != nil {
 		t.Fatal(err)
 	}
 	id := r.accounts()[0].ID

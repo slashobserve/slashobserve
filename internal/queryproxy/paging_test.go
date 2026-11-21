@@ -39,7 +39,7 @@ func pageParams(page int, cursor string) PageParams {
 
 func TestRunPageRefusesDatasourcesThatDoNotPage(t *testing.T) {
 	r := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
-	inst, _ := r.reg.Get("prom")
+	inst, _ := registered(t, r.reg, "prom")
 	_, err := r.RunPage(context.Background(), inst, pageParams(1, ""))
 	if !errors.Is(err, ErrInvalidRequest) || err.Error() != NotPageSource {
 		t.Fatalf("err = %v, want %q", err, NotPageSource)

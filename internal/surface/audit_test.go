@@ -34,7 +34,6 @@ var pendingAuditActions = []audit.Action{
 	"chat.delete",
 	"chat.turn",
 	"dashboard.export",
-	"datasource.audience_change",
 	"finding.apply",
 	"folder.move",
 	"logs.export",

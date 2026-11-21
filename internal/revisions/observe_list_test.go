@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -42,7 +43,7 @@ func observeRouterAs(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})))
 	return r
 }
@@ -77,7 +78,7 @@ func listObserve(t *testing.T, r http.Handler, query string) listedPage {
 
 func observeFor(t *testing.T, svc *revisions.Service, who auth.Principal, prompt string) string {
 	t.Helper()
-	row, err := svc.SubmitObserve(context.Background(), who, prompt)
+	row, err := svc.SubmitObserve(reading(context.Background()), who, prompt)
 	if err != nil {
 		t.Fatalf("observe %q: %v", prompt, err)
 	}
@@ -97,7 +98,7 @@ func TestListObserveShowsOnlyTheCallersRequestsNewestFirst(t *testing.T) {
 	accountOwn := observeFor(t, svc, account, "account first")
 	second := observeFor(t, svc, user, "second")
 	same := observeFor(t, svc, lookalike, "same id, other kind")
-	followUp, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "follow-up", user)
+	followUp, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "follow-up", user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func TestListObservePagesWithoutOverlapAndEndsWithANullCursor(t *testing.T) {
 	for _, prompt := range []string{"a", "b", "c"} {
 		created = append(created, observeFor(t, svc, user, prompt))
 	}
-	row, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "d", BaseVersion: 1, By: user})
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "d", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,11 +172,11 @@ func TestListObserveFiltersBySourceAndRefusesBadQueries(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	observe := observeFor(t, svc, user, "new dashboard")
-	prompt, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "follow-up", BaseVersion: 1, By: user})
+	prompt, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "follow-up", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := svc.Submit(context.Background(), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourceComment, Prompt: "comment", BaseVersion: 1, By: user})
+	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourceComment, Prompt: "comment", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +260,7 @@ func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	if rev.Source != revisions.SourceObserve || rev.BaseVersion != nil || rev.ResultVersion == nil || *rev.ResultVersion != 2 {
 		t.Fatalf("Get = %+v", rev)
 	}
-	items, _, err := svc.List(context.Background(), dash, 10, "")
+	items, _, err := svc.List(reading(context.Background()), dash, 10, "")
 	if err != nil || len(items) != 1 || items[0].ID != id || items[0].BaseVersion != nil {
 		t.Fatalf("List = %+v, %v", items, err)
 	}
@@ -326,7 +327,7 @@ func TestPostStoresAKnownPanelAndRefusesAnUnknownOne(t *testing.T) {
 	if panels.asked != before+1 {
 		t.Fatalf("the panel check ran %d times", panels.asked-before)
 	}
-	if items, _, err := svc.List(context.Background(), dash, 10, ""); err != nil || len(items) != 2 {
+	if items, _, err := svc.List(reading(context.Background()), dash, 10, ""); err != nil || len(items) != 2 {
 		t.Fatalf("a refused request was stored: %d items, %v", len(items), err)
 	}
 }
@@ -475,7 +476,7 @@ func TestListObserveSearchesTitlesAndPromptsLiterally(t *testing.T) {
 	titled := observeFor(t, svc, user, "something else")
 	percent := observeFor(t, svc, user, "orders 50% done")
 	observeFor(t, svc, user, "500 errors")
-	followUp, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "on a dashboard", user)
+	followUp, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "on a dashboard", user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +542,7 @@ func TestPatchObserveSetsAndClearsTheTitle(t *testing.T) {
 func TestOnlyTheRequesterChangesOrArchivesARequest(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
-	row, err := svc.SubmitFollowUp(context.Background(), dash, nil, "", "on a dashboard", user)
+	row, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "on a dashboard", user)
 	if err != nil {
 		t.Fatal(err)
 	}

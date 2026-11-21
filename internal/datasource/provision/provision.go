@@ -47,7 +47,7 @@ func Build(logger *slog.Logger, sources []config.Datasource) (*datasource.Regist
 			closeAll()
 			return nil, &BuildError{UID: src.UID, Message: serverMessage(err), Err: err}
 		}
-		instances = append(instances, datasource.Instance{UID: src.UID, Name: src.Name, GrafanaUIDs: src.GrafanaUIDs, Datasource: ds})
+		instances = append(instances, datasource.Instance{UID: src.UID, Name: src.Name, GrafanaUIDs: src.GrafanaUIDs, Audience: src.Audience, Datasource: ds})
 	}
 	registry, err := datasource.NewRegistry(logger, instances...)
 	if err != nil {

@@ -18,7 +18,7 @@ import (
 
 func (r *rig) saveConcurrent(t *testing.T, dash pgtype.UUID, parent int, raw []byte) {
 	t.Helper()
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, parent, raw, "concurrent edit"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, parent, raw, "concurrent edit"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -36,18 +36,18 @@ func TestARebaseMovesTheBuildOntoADisjointNewerVersion(t *testing.T) {
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1", "p2"), "p1"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	r.saveConcurrent(t, dash, 1, renamed(panelsSpec("t", "p1", "p2"), "p2", "p2 renamed"))
 
-	onto, rebased, err := r.service.RebaseBuild(t.Context(), testUser, id, buildAttempt)
+	onto, rebased, err := r.service.RebaseBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil || !rebased || onto != 2 {
 		t.Fatalf("rebase = onto %d, rebased %v, err %v", onto, rebased, err)
 	}
-	build, _, err := r.service.Build(t.Context(), id)
+	build, _, err := r.service.Build(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestARebaseMovesTheBuildOntoADisjointNewerVersion(t *testing.T) {
 		t.Fatalf("build = base %d, saves %d, p1 query %q, p2 title %q", build.BaseVersion, build.Saves, p1.Panel.Queries[0].Query, p2.Panel.Title)
 	}
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	ver := commit.Version
 	if err != nil || ver.Number != 3 || ver.ParentVersion == nil || *ver.ParentVersion != 2 {
 		t.Fatalf("commit after the rebase = version %d, err %v", ver.Number, err)
@@ -68,18 +68,18 @@ func TestARebaseKeepsADashboardFieldTheBuildChangedWhenTheNewerVersionLeftItAlon
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: panelsSpec("retitled", "p1", "p2"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	r.saveConcurrent(t, dash, 1, renamed(panelsSpec("t", "p1", "p2"), "p2", "p2 renamed"))
 
-	onto, rebased, err := r.service.RebaseBuild(t.Context(), testUser, id, buildAttempt)
+	onto, rebased, err := r.service.RebaseBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil || !rebased || onto != 2 {
 		t.Fatalf("rebase = onto %d, rebased %v, err %v", onto, rebased, err)
 	}
-	build, _, err := r.service.Build(t.Context(), id)
+	build, _, err := r.service.Build(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,15 +94,15 @@ func TestARebaseRefusesABuildThatChangedWhatTheNewerVersionChanged(t *testing.T)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
 	before := requeried(panelsSpec("t", "p1", "p2"), "p1")
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: before}); err != nil {
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: before}); err != nil {
 		t.Fatal(err)
 	}
 	r.saveConcurrent(t, dash, 1, renamed(panelsSpec("t", "p1", "p2"), "p1", "p1 renamed"))
 
-	if _, rebased, err := r.service.RebaseBuild(t.Context(), testUser, id, buildAttempt); err != nil || rebased {
+	if _, rebased, err := r.service.RebaseBuild(reading(t.Context()), testUser, id, buildAttempt); err != nil || rebased {
 		t.Fatalf("rebase = %v, err %v, want no rebase", rebased, err)
 	}
-	build, _, err := r.service.Build(t.Context(), id)
+	build, _, err := r.service.Build(reading(t.Context()), id)
 	if err != nil || build.BaseVersion != 1 {
 		t.Fatalf("build base = %d, err %v, want the build untouched", build.BaseVersion, err)
 	}
@@ -116,7 +116,7 @@ func TestARebaseRefusesABuildPanelThatFailsOnTheNewerVersion(t *testing.T) {
 	r, p := newProbeRig(t)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1", "p2"), "p1"),
 	}); err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestARebaseRefusesABuildPanelThatFailsOnTheNewerVersion(t *testing.T) {
 	r.saveConcurrent(t, dash, 1, renamed(panelsSpec("t", "p1", "p2"), "p2", "p2 renamed"))
 	p.setFail("rate(errors", true)
 
-	if _, rebased, err := r.service.RebaseBuild(t.Context(), testUser, id, buildAttempt); err != nil || rebased {
+	if _, rebased, err := r.service.RebaseBuild(reading(t.Context()), testUser, id, buildAttempt); err != nil || rebased {
 		t.Fatalf("rebase = %v, err %v, want no rebase", rebased, err)
 	}
 }
@@ -133,17 +133,17 @@ func TestARebaseByALostAttemptWritesNothing(t *testing.T) {
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1", "p2"), "p1"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 	r.saveConcurrent(t, dash, 1, renamed(panelsSpec("t", "p1", "p2"), "p2", "p2 renamed"))
 
-	if _, _, err := r.service.RebaseBuild(t.Context(), testUser, id, buildAttempt+1); !errors.Is(err, ErrBuildLost) {
+	if _, _, err := r.service.RebaseBuild(reading(t.Context()), testUser, id, buildAttempt+1); !errors.Is(err, ErrBuildLost) {
 		t.Fatalf("err = %v, want ErrBuildLost", err)
 	}
-	if build, _, err := r.service.Build(t.Context(), id); err != nil || build.BaseVersion != 1 {
+	if build, _, err := r.service.Build(reading(t.Context()), id); err != nil || build.BaseVersion != 1 {
 		t.Fatalf("build base = %d, err %v, want it untouched", build.BaseVersion, err)
 	}
 }
@@ -154,7 +154,7 @@ func (r *rig) runningRevision(t *testing.T) (dash, id pgtype.UUID) {
 	t.Helper()
 	dash = r.createDashboard(t, "p1", "p2")
 	id = r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1", "p2"), "p1"),
 	}); err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func TestACommentersBuildCommitsAsAProposalAndDeletesTheBuild(t *testing.T) {
 	var seen []ProposeInput
 	r.proposeThroughTheDatabase(&seen)
 
-	commit, err := r.service.CommitBuild(t.Context(), commenterNoGrant, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), commenterNoGrant, id, buildAttempt)
 	if err != nil || commit.Proposal == nil || commit.Proposal.ID != proposalID || commit.Version.Number != 0 || commit.Replayed {
 		t.Fatalf("commit = proposal %+v, version %d, replayed %v, err %v", commit.Proposal, commit.Version.Number, commit.Replayed, err)
 	}
@@ -186,7 +186,7 @@ func TestACommentersBuildCommitsAsAProposalAndDeletesTheBuild(t *testing.T) {
 	if len(seen) != 1 || seen[0].DashboardID != dash || seen[0].BaseVersion != 1 || seen[0].RequestID != id || !seen[0].Partial || seen[0].Spec == nil {
 		t.Fatalf("proposer saw %+v", seen)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || found {
 		t.Fatalf("the build survived its proposal: found = %v, err %v", found, err)
 	}
 	if got := r.latestNumber(t, dash); got != 1 {
@@ -211,7 +211,7 @@ func TestAnEditorsBuildCommitsAsAVersionUnlessTheRunActsInProposeMode(t *testing
 			var seen []ProposeInput
 			r.proposeThroughTheDatabase(&seen)
 
-			commit, err := r.service.CommitBuild(tc.ctx(t.Context()), testUser, id, buildAttempt)
+			commit, err := r.service.CommitBuild(tc.ctx(reading(t.Context())), testUser, id, buildAttempt)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -226,7 +226,7 @@ func TestAProposeModeBuildThatRemovedAPanelIsRefusedAtCommitAndKeepsTheBuild(t *
 	r, _ := newProbeRig(t)
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
-	if _, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	if _, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1"), "p1"),
 	}); err != nil {
 		t.Fatal(err)
@@ -234,7 +234,7 @@ func TestAProposeModeBuildThatRemovedAPanelIsRefusedAtCommitAndKeepsTheBuild(t *
 	var seen []ProposeInput
 	r.proposeThroughTheDatabase(&seen)
 
-	_, err := r.service.CommitBuild(grantmode.With(t.Context(), grantmode.Propose), testUser, id, buildAttempt)
+	_, err := r.service.CommitBuild(grantmode.With(reading(t.Context()), grantmode.Propose), testUser, id, buildAttempt)
 	var refused *ProposalRequiredError
 	if !errors.As(err, &refused) || len(refused.Removed) != 1 || refused.Removed[0].ID != "p2" || refused.Removed[0].Kind != spec.UnitPanel {
 		t.Fatalf("err = %v, want proposal_required removing panel p2", err)
@@ -242,11 +242,11 @@ func TestAProposeModeBuildThatRemovedAPanelIsRefusedAtCommitAndKeepsTheBuild(t *
 	if len(seen) != 0 {
 		t.Fatalf("the proposer ran %d times", len(seen))
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || !found {
 		t.Fatalf("the build was lost: found = %v, err %v", found, err)
 	}
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	if err != nil || commit.Version.Number != 2 {
 		t.Fatalf("the same build outside propose mode: version %d, err %v", commit.Version.Number, err)
 	}
@@ -258,17 +258,17 @@ func TestACommitByACallerWhoCannotEvenCommentOrWithoutAProposerIsForbiddenAndKee
 	var seen []ProposeInput
 	r.proposeThroughTheDatabase(&seen)
 
-	if _, err := r.service.CommitBuild(t.Context(), viewerNoGrant, id, buildAttempt); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.CommitBuild(reading(t.Context()), viewerNoGrant, id, buildAttempt); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a viewer: err = %v, want forbidden", err)
 	}
 	r.service.SetProposer(nil)
-	if _, err := r.service.CommitBuild(t.Context(), commenterNoGrant, id, buildAttempt); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.CommitBuild(reading(t.Context()), commenterNoGrant, id, buildAttempt); !errors.Is(err, folders.ErrForbidden) {
 		t.Fatalf("a commenter with no proposer: err = %v, want forbidden", err)
 	}
 	if len(seen) != 0 {
 		t.Fatalf("the proposer ran %d times", len(seen))
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || !found {
 		t.Fatalf("the build was lost: found = %v, err %v", found, err)
 	}
 }
@@ -278,7 +278,7 @@ func TestACommenterMayAddToARevisionBuildButAViewerMayNot(t *testing.T) {
 	dash := r.createDashboard(t, "p1", "p2")
 	id := r.runningRequest(t, dash)
 	save := func(by auth.Principal) error {
-		_, err := r.service.SaveBuild(t.Context(), by, BuildSave{
+		_, err := r.service.SaveBuild(reading(t.Context()), by, BuildSave{
 			RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: 1, Spec: requeried(panelsSpec("t", "p1", "p2"), "p1"),
 		})
 		return err

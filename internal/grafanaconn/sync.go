@@ -67,9 +67,9 @@ type Sync struct {
 	Results      []SyncResult
 }
 
-func (s *Service) checkMapping(mapping map[string]string) error {
+func (s *Service) checkMapping(ctx context.Context, mapping map[string]string) error {
 	known := map[string]bool{}
-	for _, d := range s.imports.Datasources() {
+	for _, d := range s.imports.Datasources(ctx) {
 		known[d.UID] = true
 	}
 	for key, target := range mapping {
@@ -222,7 +222,7 @@ func (s *Service) importOne(ctx context.Context, by auth.Principal, p syncPlan, 
 		res.Outcome, res.DashboardID = OutcomeSkipped, existing.DashboardID.String()
 		return res
 	}
-	req := imports.Request{JSON: f.raw, GrafanaVersion: f.version, Mapping: s.imports.MappingFor(f.raw, p.mapping)}
+	req := imports.Request{JSON: f.raw, GrafanaVersion: f.version, Mapping: s.imports.MappingFor(ctx, f.raw, p.mapping)}
 	p.target(&req, f.hit.FolderUID)
 	res.Outcome = OutcomeImported
 	imported, err := whenFree(ctx, func() (imports.Imported, error) {

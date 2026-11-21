@@ -617,7 +617,7 @@ func TestGetSchemaTruncation(t *testing.T) {
 
 func TestListDatasourcesCanceled(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx, cancel := context.WithCancel(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleEditor}))
+	ctx, cancel := context.WithCancel(auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleEditor}))
 	cancel()
 	res, err := r.Call(ctx, nameListDatasources, []byte(`{}`))
 	if !errors.Is(err, context.Canceled) || res.Content != nil {

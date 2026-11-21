@@ -21,7 +21,7 @@ func TestCancelOfARunWithALiveLeaseMovesItToCanceling(t *testing.T) {
 	rev := submit(t, svc, dash, "live")
 	claimOne(t, svc)
 
-	got, err := svc.Cancel(context.Background(), mustUUID(t, rev.ID), user)
+	got, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,11 +37,11 @@ func TestARepeatCancelOfACancelingRunChangesNothing(t *testing.T) {
 	rev := submit(t, svc, dash, "live")
 	claimOne(t, svc)
 	id := mustUUID(t, rev.ID)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := svc.Cancel(context.Background(), id, user)
+	got, err := svc.Cancel(reading(context.Background()), id, user)
 	if err != nil {
 		t.Fatalf("repeat cancel: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestACancelingRunIsNotClaimedAndTheClaimSweepSettlesItOnceItsLeaseExpired(t
 	rev := submit(t, svc, dash, "live")
 	id := mustUUID(t, rev.ID)
 	claimOne(t, svc)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 	if _, found := claimOne(t, svc); found {
@@ -68,7 +68,7 @@ func TestACancelingRunIsNotClaimedAndTheClaimSweepSettlesItOnceItsLeaseExpired(t
 	if _, found := claimOne(t, svc); found {
 		t.Fatal("a canceling run was claimed after its lease expired")
 	}
-	stored, err := svc.GetByID(context.Background(), id)
+	stored, err := svc.GetByID(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,14 +84,14 @@ func TestTheClaimSweepSettlesACancelingRunWithASavedVersionAsSucceeded(t *testin
 	rev := submit(t, svc, dash, "live")
 	id := mustUUID(t, rev.ID)
 	claimOne(t, svc)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 	saveVersionUnder(t, d, dash, id, 2)
 	expireLease(t, d, id)
 
 	claimOne(t, svc)
-	stored, err := svc.GetByID(context.Background(), id)
+	stored, err := svc.GetByID(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,14 +124,14 @@ func TestReleasingACancelingRunSettlesItCanceledInsteadOfRequeueingIt(t *testing
 	rev := submit(t, svc, dash, "live")
 	id := mustUUID(t, rev.ID)
 	claimed, _ := claimOne(t, svc)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := svc.ReleaseRow(context.Background(), claimed, false); err != nil {
+	if _, err := svc.ReleaseRow(reading(context.Background()), claimed, false); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	stored, err := svc.GetByID(context.Background(), id)
+	stored, err := svc.GetByID(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,18 +148,18 @@ func TestRetryByAnotherViewerStartsANewRunOwnedByTheCallerAndLeavesTheRequesters
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "add a panel")
 	id := mustUUID(t, rev.ID)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 
-	next, err := svc.Retry(context.Background(), id, otherUser)
+	next, err := svc.Retry(reading(context.Background()), id, otherUser)
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}
 	if next.ID == id || next.RequestedByID.String() != otherUserID || next.Prompt != "add a panel" || next.State != string(revisions.StateQueued) || next.DashboardID != dash {
 		t.Fatalf("retry = %+v, want a new queued run for the caller with the same prompt on the same dashboard", next)
 	}
-	original, err := svc.GetByID(context.Background(), id)
+	original, err := svc.GetByID(reading(context.Background()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,22 +169,22 @@ func TestRetryByAnotherViewerStartsANewRunOwnedByTheCallerAndLeavesTheRequesters
 	if next.RetriesID.Valid {
 		t.Fatalf("another viewer's retry points the requester's turn at %s", next.RetriesID)
 	}
-	if _, err := svc.Retry(context.Background(), id, user); err != nil {
+	if _, err := svc.Retry(reading(context.Background()), id, user); err != nil {
 		t.Fatalf("the requester's own retry after another viewer's: %v", err)
 	}
 }
 
 func TestRetryOfAnObserveRunStartsANewObserveRun(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
-	row, err := svc.SubmitObserve(context.Background(), user, "checkout dashboard")
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "checkout dashboard")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Cancel(context.Background(), row.ID, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), row.ID, user); err != nil {
 		t.Fatal(err)
 	}
 
-	next, err := svc.Retry(context.Background(), row.ID, user)
+	next, err := svc.Retry(reading(context.Background()), row.ID, user)
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestRetryOfAnUnfinishedRunIsRefusedWithTheStateAndWhatIsAllowed(t *testing.
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "still waiting")
 
-	_, err := svc.Retry(context.Background(), mustUUID(t, rev.ID), user)
+	_, err := svc.Retry(reading(context.Background()), mustUUID(t, rev.ID), user)
 	var refusal *lifecycle.Refusal
 	if !errors.As(err, &refusal) || !errors.Is(err, lifecycle.ErrInvalidTransition) {
 		t.Fatalf("err = %v, want a refusal", err)
@@ -213,14 +213,14 @@ func TestKeepingABuildRecordsRunKept(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "stopped")
 	id := mustUUID(t, rev.ID)
-	if _, err := svc.Cancel(context.Background(), id, user); err != nil {
+	if _, err := svc.Cancel(reading(context.Background()), id, user); err != nil {
 		t.Fatal(err)
 	}
 
 	var kept bool
-	err := d.InTx(context.Background(), func(q *dbsqlc.Queries) error {
+	err := d.InTx(reading(context.Background()), func(q *dbsqlc.Queries) error {
 		var err error
-		kept, err = revisions.KeepBuild(context.Background(), q, id, dash, 2)
+		kept, err = revisions.KeepBuild(reading(context.Background()), q, id, dash, 2)
 		return err
 	})
 	if err != nil || !kept {
@@ -241,9 +241,9 @@ func TestKeepingTheBuildOfARunningRunChangesNothing(t *testing.T) {
 	claimOne(t, svc)
 
 	var kept bool
-	err := d.InTx(context.Background(), func(q *dbsqlc.Queries) error {
+	err := d.InTx(reading(context.Background()), func(q *dbsqlc.Queries) error {
 		var err error
-		kept, err = revisions.KeepBuild(context.Background(), q, id, dash, 2)
+		kept, err = revisions.KeepBuild(reading(context.Background()), q, id, dash, 2)
 		return err
 	})
 	if err != nil || kept {

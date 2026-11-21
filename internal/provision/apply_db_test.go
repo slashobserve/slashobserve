@@ -16,6 +16,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -34,7 +35,7 @@ func newApplyRig(t *testing.T) *applyRig {
 	t.Helper()
 	r := newRig(t)
 	person := func(name string, role auth.Role) auth.Principal {
-		row, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
+		row, err := r.db.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -50,7 +51,7 @@ func newApplyRig(t *testing.T) *applyRig {
 
 func (r *applyRig) apply(t *testing.T, by auth.Principal, path, content string) provision.Result {
 	t.Helper()
-	res, err := r.applier.Apply(t.Context(), by, path, json.RawMessage(content))
+	res, err := r.applier.Apply(reading(t.Context()), by, path, json.RawMessage(content))
 	if err != nil {
 		t.Fatalf("Apply %s: %v", path, err)
 	}
@@ -88,7 +89,7 @@ func TestApplyCreatesThenSkipsAnUnchangedFileThenAddsOneVersion(t *testing.T) {
 
 func TestApplyAdoptsTheOneDashboardWithTheTitleAndSkipsIdenticalContent(t *testing.T) {
 	r := newApplyRig(t)
-	dash, _, err := r.dashboards.Create(t.Context(), r.editor, r.folderID(t, "General"), []byte(specJSON("Payments", "up")), "by hand")
+	dash, _, err := r.dashboards.Create(reading(t.Context()), r.editor, r.folderID(t, "General"), []byte(specJSON("Payments", "up")), "by hand")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestApplyAdoptsTheOneDashboardWithTheTitleAndSkipsIdenticalContent(t *testi
 	if changed.Outcome != provision.OutcomeUpdated || changed.DashboardID != dash.ID || changed.Version != 2 {
 		t.Fatalf("case-insensitive adoption = %+v", changed)
 	}
-	bindings, err := r.applier.Applied(t.Context(), r.viewer, r.folderID(t, "General"))
+	bindings, err := r.applier.Applied(reading(t.Context()), r.viewer, r.folderID(t, "General"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func TestApplyRefusesAmbiguousAndProvisionedDashboards(t *testing.T) {
 	r := newApplyRig(t)
 	general := r.folderID(t, "General")
 	for _, title := range []string{"Twin", "twin"} {
-		if _, _, err := r.dashboards.Create(t.Context(), r.editor, general, []byte(specJSON(title, "up")), "by hand"); err != nil {
+		if _, _, err := r.dashboards.Create(reading(t.Context()), r.editor, general, []byte(specJSON(title, "up")), "by hand"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -136,12 +137,12 @@ func TestApplyRefusesAmbiguousAndProvisionedDashboards(t *testing.T) {
 func TestApplyRefusesAFolderTheCallerCannotSeeAsTakenWithoutFilingTheDashboardElsewhere(t *testing.T) {
 	r := newApplyRig(t)
 	admin := auth.Principal{Kind: auth.KindUser, ID: r.editor.ID, Name: "root", Role: auth.RoleAdmin}
-	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Secret"})
+	folder, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Secret"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, title := range []string{"Twin", "twin"} {
-		if _, _, err := r.dashboards.Create(t.Context(), admin, folder.ID, []byte(specJSON(title, "up")), "by hand"); err != nil {
+		if _, _, err := r.dashboards.Create(reading(t.Context()), admin, folder.ID, []byte(specJSON(title, "up")), "by hand"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -149,7 +150,7 @@ func TestApplyRefusesAFolderTheCallerCannotSeeAsTakenWithoutFilingTheDashboardEl
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO folder_permissions (folder_id, user_id, level) VALUES ($1, $2, 'view')`, folder.ID, vic); err != nil {
+	if _, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `INSERT INTO folder_permissions (folder_id, user_id, level) VALUES ($1, $2, 'view')`, folder.ID, vic); err != nil {
 		t.Fatal(err)
 	}
 
@@ -161,7 +162,7 @@ func TestApplyRefusesAFolderTheCallerCannotSeeAsTakenWithoutFilingTheDashboardEl
 		t.Errorf("apply into a hidden folder = %+v, want %q and no dashboard", res, provision.CodeFolderExists)
 	}
 	var filed int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards WHERE title = 'TWIN'`).Scan(&filed); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM dashboards WHERE title = 'TWIN'`).Scan(&filed); err != nil {
 		t.Fatal(err)
 	}
 	if filed != 0 {
@@ -191,7 +192,7 @@ func TestApplyEscapedFolderInvalidSpecAndRole(t *testing.T) {
 		t.Errorf("viewer update = %+v", update)
 	}
 
-	if _, err := r.applier.Apply(t.Context(), r.editor, "../escape.json", json.RawMessage(specJSON("x", "up"))); err == nil {
+	if _, err := r.applier.Apply(reading(t.Context()), r.editor, "../escape.json", json.RawMessage(specJSON("x", "up"))); err == nil {
 		t.Error("a path outside the directory was accepted")
 	}
 }
@@ -206,7 +207,7 @@ func TestApplyHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 	r := newApplyRig(t)
 	general := r.folderID(t, "General").String()
 	for _, title := range []string{"Twin", "twin"} {
-		if _, _, err := r.dashboards.Create(t.Context(), r.editor, r.folderID(t, "General"), []byte(specJSON(title, "up")), "by hand"); err != nil {
+		if _, _, err := r.dashboards.Create(reading(t.Context()), r.editor, r.folderID(t, "General"), []byte(specJSON(title, "up")), "by hand"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -240,7 +241,7 @@ func TestApplyHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			engine := gin.New()
 			group := engine.Group("/api/v1", func(c *gin.Context) {
-				c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), tc.by))
+				c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), tc.by), datasource.Access{By: tc.by}))
 			})
 			provision.NewApplyHandler(r.applier, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(group))
 			req := httptest.NewRequest(tc.method, "/api/v1"+tc.path, strings.NewReader(tc.body))
@@ -263,7 +264,7 @@ func TestApplyHTTPResponsesMatchTheAPIDocument(t *testing.T) {
 				Options:                options,
 			}
 			input.SetBodyBytes(rec.Body.Bytes())
-			if err := openapi3filter.ValidateResponse(t.Context(), input); err != nil {
+			if err := openapi3filter.ValidateResponse(reading(t.Context()), input); err != nil {
 				t.Fatalf("status %d body %s breaks the document: %v", rec.Code, rec.Body.String(), err)
 			}
 		})

@@ -80,7 +80,7 @@ func (r *Registry) lintQuery(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}
@@ -196,7 +196,7 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 }
 
 func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error) {
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}
@@ -255,7 +255,7 @@ func pageOutOf(out queryproxy.PageResult) *pageOut {
 }
 
 func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in instantInput, format string, dataPoints int) (Result, error) {
-	inst, res, ok := r.instance(in.Datasource)
+	inst, res, ok := r.instance(ctx, in.Datasource)
 	if !ok {
 		return res, nil
 	}

@@ -119,7 +119,7 @@ func (r *rig) run(t *testing.T) provision.Report {
 
 func (r *rig) report(t *testing.T) provision.Report {
 	t.Helper()
-	report, err := r.provisioner.Report(t.Context())
+	report, err := r.provisioner.Report(reading(t.Context()))
 	if err != nil {
 		t.Fatalf("Report: %v", err)
 	}
@@ -143,7 +143,7 @@ func (r *rig) latest(t *testing.T, dashboardID string) (dashboards.Dashboard, da
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash, ver, err := r.dashboards.Get(t.Context(), id)
+	dash, ver, err := r.dashboards.Get(reading(t.Context()), id)
 	if err != nil {
 		t.Fatalf("Get %s: %v", dashboardID, err)
 	}
@@ -156,7 +156,7 @@ func (r *rig) versions(t *testing.T, dashboardID string) []dashboards.VersionMet
 	if err != nil {
 		t.Fatal(err)
 	}
-	metas, _, err := r.dashboards.ListVersions(t.Context(), id, 100, "")
+	metas, _, err := r.dashboards.ListVersions(reading(t.Context()), id, 100, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,12 +167,12 @@ func (r *rig) folderID(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
 	if title == "General" {
 		var id pgtype.UUID
-		if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE general`).Scan(&id); err != nil {
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id FROM folders WHERE general`).Scan(&id); err != nil {
 			t.Fatal(err)
 		}
 		return id
 	}
-	id, err := r.db.Queries().FolderByTitle(t.Context(), title)
+	id, err := r.db.Queries().FolderByTitle(reading(t.Context()), title)
 	if err != nil {
 		t.Fatalf("folder %q: %v", title, err)
 	}
@@ -355,7 +355,7 @@ func TestRunErrorWhenOffOrTheDirectoryIsMissing(t *testing.T) {
 	if err := missing.Run(t.Context()); !errors.Is(err, provision.ErrDirUnreadable) {
 		t.Fatalf("Run on a missing directory = %v, want ErrDirUnreadable", err)
 	}
-	report, err := off.Report(t.Context())
+	report, err := off.Report(reading(t.Context()))
 	if err != nil || report.Dir != "" || len(report.Dashboards) != 0 || len(report.Errors) != 0 {
 		t.Fatalf("report when off = %+v, %v", report, err)
 	}

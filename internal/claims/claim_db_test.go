@@ -43,13 +43,18 @@ func TestMain(m *testing.M) {
 
 type principals struct {
 	gone atomic.Bool
+	role atomic.Value
 }
 
 func (p *principals) Principal(_ context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
 	if p.gone.Load() {
 		return auth.Principal{}, auth.ErrPrincipalGone
 	}
-	return auth.Principal{Kind: kind, ID: id, Name: ada.Name, Email: ada.Email, Role: auth.RoleEditor}, nil
+	role := auth.RoleEditor
+	if stored, ok := p.role.Load().(auth.Role); ok {
+		role = stored
+	}
+	return auth.Principal{Kind: kind, ID: id, Name: ada.Name, Email: ada.Email, Role: role}, nil
 }
 
 type fixture struct {
