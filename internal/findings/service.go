@@ -428,7 +428,14 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
-	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+	made, version, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, err
+	}
+	if err := s.store.attachChat(ctx, by, f.AgentRequestID, made.ID); err != nil {
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its answer", logattrs.Failure("chat_attach_failed", err, slog.String("finding_id", f.ID), slog.String("dashboard_id", made.ID))...)
+	}
+	return made, version, nil
 }
 
 type Placement struct {

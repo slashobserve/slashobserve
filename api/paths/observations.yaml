@@ -668,6 +668,7 @@ observations-id-dashboard:
       Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved.
       The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel.
       Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`.
+      The caller's own chat that wrote the observation becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call.
       An observation without a live panel block answers 409 `observation_has_no_panels`.
     requestBody:
       required: true
@@ -733,6 +734,7 @@ blocks-id-dashboard:
     description: >-
       Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404.
       The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+      The chat attached is the chat of the run that wrote the block, or of the run that wrote the observation when the block has none, on the same terms.
     requestBody:
       required: true
       content:

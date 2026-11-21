@@ -266,6 +266,7 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	if err != nil {
 		return none(err)
 	}
+	s.attachRunChat(ctx, by, runToAttach(parent, blockID, panels), made.ID)
 	return made, version, created, nil
 }
 
@@ -330,4 +331,26 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("record made dashboard: %w", err)
 	}
 	return d, v, true, nil
+}
+
+func (s *Service) attachRunChat(ctx context.Context, by auth.Principal, runID pgtype.UUID, dashboardID string) {
+	if !runID.Valid {
+		return
+	}
+	dashboard, dashErr := db.ParseUUID(dashboardID)
+	owner, ownerErr := db.ParseUUID(by.ID)
+	err := errors.Join(dashErr, ownerErr)
+	if err == nil {
+		err = s.store.db.Queries().AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{DashboardID: dashboard, RunID: runID, OwnerKind: string(by.Kind), OwnerID: owner})
+	}
+	if err != nil {
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its observation", logattrs.Failure("chat_attach_failed", err, slog.String("dashboard_id", dashboardID), slog.String("run_id", runID.String()))...)
+	}
+}
+
+func runToAttach(parent dbsqlc.Observation, blockID pgtype.UUID, panels []dbsqlc.ObservationBlock) pgtype.UUID {
+	if blockID.Valid && len(panels) == 1 && panels[0].RunID.Valid {
+		return panels[0].RunID
+	}
+	return parent.RunID
 }

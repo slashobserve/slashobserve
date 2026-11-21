@@ -60,6 +60,31 @@ func (q *Queries) ArchiveChat(ctx context.Context, arg ArchiveChatParams) (Archi
 	return i, err
 }
 
+const attachRunChatToDashboard = `-- name: AttachRunChatToDashboard :exec
+UPDATE chats SET dashboard_id = $1
+FROM agent_requests r
+WHERE r.id = $2 AND chats.id = r.chat_id
+  AND chats.owner_kind = $3 AND chats.owner_id = $4
+  AND chats.dashboard_id IS NULL AND chats.observation_id IS NULL
+`
+
+type AttachRunChatToDashboardParams struct {
+	DashboardID pgtype.UUID
+	RunID       pgtype.UUID
+	OwnerKind   string
+	OwnerID     pgtype.UUID
+}
+
+func (q *Queries) AttachRunChatToDashboard(ctx context.Context, arg AttachRunChatToDashboardParams) error {
+	_, err := q.db.Exec(ctx, attachRunChatToDashboard,
+		arg.DashboardID,
+		arg.RunID,
+		arg.OwnerKind,
+		arg.OwnerID,
+	)
+	return err
+}
+
 const createChat = `-- name: CreateChat :one
 INSERT INTO chats (id, owner_kind, owner_id, title, dashboard_id, observation_id)
 VALUES ($1, $2, $3, $4::text, $5::uuid, $6::uuid)
