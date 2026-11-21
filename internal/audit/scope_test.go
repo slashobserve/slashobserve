@@ -52,3 +52,16 @@ func TestAQueryRunCarriesTheWidestWindowItsReadsCovered(t *testing.T) {
 		t.Fatalf("an action without from and to keys got %v", got)
 	}
 }
+
+func TestARequestNamesTheDatasourceItsReadsWentThrough(t *testing.T) {
+	ctx := Open(t.Context(), Scope{})
+	st := stateOf(ctx)
+	if got := st.readDatasource(); got != "" {
+		t.Fatalf("datasource before any read = %q", got)
+	}
+	NoteRead(ctx, Read{Datasource: "slashobserve-audit"})
+	NoteRead(ctx, Read{})
+	if got := st.readDatasource(); got != "slashobserve-audit" {
+		t.Fatalf("datasource = %q, want the one the read named", got)
+	}
+}

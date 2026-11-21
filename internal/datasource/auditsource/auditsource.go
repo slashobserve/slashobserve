@@ -101,7 +101,7 @@ func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
 	scope, _ := audit.ScopeOf(ctx)
 	key, err := readKey(scope, req)
 	repeated := err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now())
-	audit.NoteRead(ctx, audit.Read{From: req.window.From, To: req.window.To, Repeated: repeated})
+	audit.NoteRead(ctx, audit.Read{Datasource: UID, From: req.window.From, To: req.window.To, Repeated: repeated})
 }
 
 func readKey(scope audit.Scope, req searchRequest) ([]byte, error) {

@@ -25,6 +25,7 @@ type state struct {
 	repeated  int
 	readFrom  time.Time
 	readTo    time.Time
+	readOn    string
 	result    *Result
 }
 
@@ -76,8 +77,9 @@ func Skip(ctx context.Context) {
 }
 
 type Read struct {
-	From, To time.Time
-	Repeated bool
+	Datasource string
+	From, To   time.Time
+	Repeated   bool
 }
 
 func NoteRead(ctx context.Context, r Read) {
@@ -97,6 +99,15 @@ func NoteRead(ctx context.Context, r Read) {
 	if r.To.After(st.readTo) {
 		st.readTo = r.To
 	}
+	if r.Datasource != "" {
+		st.readOn = r.Datasource
+	}
+}
+
+func (st *state) readDatasource() string {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.readOn
 }
 
 func (st *state) withReadWindow(action Action, data map[string]any) map[string]any {

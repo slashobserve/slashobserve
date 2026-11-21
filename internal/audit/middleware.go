@@ -136,13 +136,14 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	}
 	data = st.withReadWindow(action, data)
 	row, err := r.row(ctx, Event{
-		Action:   action,
-		Outcome:  outcome,
-		Reason:   reason,
-		Status:   o.status,
-		Target:   target,
-		Data:     data,
-		Duration: o.took,
+		Action:     action,
+		Outcome:    outcome,
+		Reason:     reason,
+		Status:     o.status,
+		Target:     target,
+		Datasource: st.readDatasource(),
+		Data:       data,
+		Duration:   o.took,
 	})
 	if err != nil {
 		r.logger.WarnContext(ctx, "audit request event not built", logattrs.Failure("audit_event_invalid", err)...)

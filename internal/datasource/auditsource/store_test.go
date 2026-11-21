@@ -160,16 +160,19 @@ func TestAReadThroughTheDatasourceIsOneQueryRunPerQueryAndPeriodInTenMinutes(t *
 	stop()
 	<-done
 
-	rows, err := r.d.SQLDB(t).QueryContext(t.Context(), `SELECT action, outcome, coalesce(data->>'from', ''), coalesce(data->>'to', '') FROM audit_events WHERE route = '/api/v1/datasources/{uid}/query' ORDER BY occurred_at, id`)
+	rows, err := r.d.SQLDB(t).QueryContext(t.Context(), `SELECT action, outcome, coalesce(data->>'from', ''), coalesce(data->>'to', ''), coalesce(datasource_uid, '') FROM audit_events WHERE route = '/api/v1/datasources/{uid}/query' ORDER BY occurred_at, id`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = rows.Close() }()
 	var got []string
 	for rows.Next() {
-		var action, outcome, from, to string
-		if err := rows.Scan(&action, &outcome, &from, &to); err != nil {
+		var action, outcome, from, to, uid string
+		if err := rows.Scan(&action, &outcome, &from, &to, &uid); err != nil {
 			t.Fatal(err)
+		}
+		if outcome == "success" && uid != UID {
+			t.Errorf("a successful query.run names datasource %q, want %q", uid, UID)
 		}
 		if len(got) == 0 && (from != r.base.UTC().Format(time.RFC3339) || to != r.base.Add(30*time.Minute).UTC().Format(time.RFC3339)) {
 			t.Errorf("the first query.run holds from %q and to %q, want its 30 minute range", from, to)
