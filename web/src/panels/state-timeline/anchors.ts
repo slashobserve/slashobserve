@@ -48,6 +48,54 @@ export function hitTest(
   })
 }
 
+function timeAt(layout: TimelineAnchorLayout, x: number): number {
+  const { range, plot } = layout
+  return range.from + ((x - plot.x) / plot.width) * (range.to - range.from)
+}
+
+export function rangeTest(
+  layout: TimelineAnchorLayout,
+  start: Point,
+  end: Point
+): Anchor | null {
+  const { plot, range } = layout
+  if (!inRect(plot, start) || !inRect(plot, end)) return null
+  if (!(range.from < range.to) || !(plot.width > 0)) return null
+  const [low, high] = start.x <= end.x ? [start, end] : [end, start]
+  const from = msToIso(timeAt(layout, low.x))
+  const to = msToIso(timeAt(layout, high.x))
+  if (from === null || to === null) return null
+  return {
+    kind: "range",
+    pos: positionOf(
+      { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+      layout.body
+    ),
+    from,
+    to,
+  }
+}
+
+function locateRange(
+  layout: TimelineAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  const { plot, range } = layout
+  if (!(range.from < range.to)) return null
+  const left = Math.max(0, timeShare(layout, Date.parse(anchor.from ?? "")))
+  const right = Math.min(
+    plot.width,
+    timeShare(layout, Date.parse(anchor.to ?? ""))
+  )
+  if (!(left <= right)) return null
+  return {
+    x: plot.x + left,
+    y: plot.y,
+    width: right - left,
+    height: plot.height,
+  }
+}
+
 function rowIndex(layout: TimelineAnchorLayout, anchor: Anchor): number {
   return layout.rows.findIndex(({ name }) =>
     namesLabels(anchor.series, seriesLabels(undefined, name))
@@ -63,6 +111,7 @@ export function locate(
   layout: TimelineAnchorLayout,
   anchor: Anchor
 ): Rect | null {
+  if (anchor.kind === "range") return locateRange(layout, anchor)
   if (anchor.kind !== "point" && anchor.kind !== "series") return null
   const { plot, range, rowHeight } = layout
   const index = rowIndex(layout, anchor)

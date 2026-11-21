@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { inRect } from "../anchors"
 
-import { hitTest, locate, type HeatmapAnchorLayout } from "./anchors"
+import { hitTest, locate, rangeTest, type HeatmapAnchorLayout } from "./anchors"
 
 const layout: HeatmapAnchorLayout = {
   body: { width: 240, height: 140 },
@@ -75,5 +75,50 @@ describe("heatmap locate", () => {
       })
     ).toBeNull()
     expect(locate(layout, { kind: "position", pos })).toBeNull()
+  })
+})
+
+describe("heatmap rangeTest", () => {
+  const start = { x: 40 + 50, y: 10 + 20 }
+  const end = { x: 40 + 150, y: 10 + 60 }
+
+  it("names the time span of a drag, whichever way it goes", () => {
+    const expected = {
+      kind: "range",
+      pos: { x: 140 / 240, y: 50 / 140 },
+      from: new Date(60_000).toISOString(),
+      to: new Date(180_000).toISOString(),
+    }
+    expect(rangeTest(layout, start, end)).toEqual(expected)
+    expect(rangeTest(layout, end, start)).toEqual(expected)
+  })
+
+  it("is found again as a band across the plot", () => {
+    const anchor = rangeTest(layout, start, end)
+    expect(anchor).not.toBeNull()
+    expect(locate(layout, anchor!)).toEqual({
+      x: 40 + 50,
+      y: 10,
+      width: 100,
+      height: 100,
+    })
+  })
+
+  it("returns null for a drag that leaves the plot or a plot with no time span", () => {
+    expect(rangeTest(layout, start, { x: 10, y: 50 })).toBeNull()
+    const single = { ...layout, model: { ...layout.model, xs: [0] } }
+    expect(rangeTest(single, start, end)).toBeNull()
+  })
+
+  it("reads a range outside the time steps as gone", () => {
+    const pos = { x: 0, y: 0 }
+    expect(
+      locate(layout, {
+        kind: "range",
+        pos,
+        from: new Date(300_000).toISOString(),
+        to: new Date(400_000).toISOString(),
+      })
+    ).toBeNull()
   })
 })

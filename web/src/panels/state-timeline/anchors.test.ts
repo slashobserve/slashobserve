@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import { inRect } from "../anchors"
 
-import { hitTest, locate, type TimelineAnchorLayout } from "./anchors"
+import {
+  hitTest,
+  locate,
+  rangeTest,
+  type TimelineAnchorLayout,
+} from "./anchors"
 
 const layout: TimelineAnchorLayout = {
   body: { width: 300, height: 100 },
@@ -89,5 +94,47 @@ describe("state timeline locate", () => {
       })
     ).toBeNull()
     expect(locate(layout, { kind: "position", pos })).toBeNull()
+  })
+})
+
+describe("state timeline rangeTest", () => {
+  const start = { x: 100 + 50, y: 10 }
+  const end = { x: 100 + 150, y: 40 }
+
+  it("names the time span of a drag, whichever way it goes", () => {
+    const expected = {
+      kind: "range",
+      pos: { x: 200 / 300, y: 25 / 100 },
+      from: new Date(500).toISOString(),
+      to: new Date(1500).toISOString(),
+    }
+    expect(rangeTest(layout, start, end)).toEqual(expected)
+    expect(rangeTest(layout, end, start)).toEqual(expected)
+  })
+
+  it("is found again as a band across the plot", () => {
+    const anchor = rangeTest(layout, start, end)
+    expect(anchor).not.toBeNull()
+    expect(locate(layout, anchor!)).toEqual({
+      x: 150,
+      y: 0,
+      width: 100,
+      height: 60,
+    })
+  })
+
+  it("returns null for a drag that leaves the plot", () => {
+    expect(rangeTest(layout, start, { x: 20, y: 10 })).toBeNull()
+  })
+
+  it("reads a range outside the time range as gone", () => {
+    expect(
+      locate(layout, {
+        kind: "range",
+        pos: { x: 0, y: 0 },
+        from: new Date(5_000).toISOString(),
+        to: new Date(6_000).toISOString(),
+      })
+    ).toBeNull()
   })
 })
