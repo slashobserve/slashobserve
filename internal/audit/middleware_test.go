@@ -356,6 +356,27 @@ func TestARefusedReadOnARouteDeclaredNoneWithATargetIsRecordedEveryTime(t *testi
 	}
 }
 
+func TestARefusedQueryRunNamesTheDatasourceItWasRefusedOn(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	status, code := http.StatusForbidden, "forbidden_datasource"
+	engine := s.engine(t, func(c *gin.Context) { c.JSON(status, gin.H{"error": "refused", "code": code}) })
+	_, forbidden := serve(t, engine, http.MethodPost, "/api/v1/datasources/prod-logs/query")
+	status, code = http.StatusTooManyRequests, "rate_limited"
+	_, limited := serve(t, engine, http.MethodPost, "/api/v1/datasources/prod-logs/query")
+	status, code = http.StatusUnprocessableEntity, "invalid_request"
+	_, invalid := serve(t, engine, http.MethodPost, "/api/v1/datasources/prod-logs/query")
+	s.run(t)()
+	for name, tc := range map[string]struct {
+		request uuid.UUID
+		outcome string
+	}{"a 403": {forbidden, "denied"}, "a 429": {limited, "denied"}, "a 422": {invalid, "failed"}} {
+		want := []queryEvent{{outcome: tc.outcome, datasource: "prod-logs", targetID: "prod-logs"}}
+		if got := s.queryEventsOf(t, tc.request); !slices.Equal(got, want) {
+			t.Errorf("%s recorded %+v, want %+v", name, got, want)
+		}
+	}
+}
+
 func TestARepeatOfAQueryIsRecordedOncePerRunAndCredentialNotOncePerPerson(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
 	base := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
