@@ -211,8 +211,18 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 			}
 		default:
 			w.holdHandedOff(true)
-			w.abandonAll(w.flush(ctx, batch), 0)
+			w.abandonAll(w.flushUntilNothingMovesOrIsLeft(ctx, batch), 0)
 			return
+		}
+	}
+}
+
+func (w *Writer) flushUntilNothingMovesOrIsLeft(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) []dbsqlc.InsertAuditEventParams {
+	for {
+		before := len(w.held)
+		batch = w.flush(ctx, batch)
+		if len(w.held) == 0 || len(w.held) >= before || ctx.Err() != nil {
+			return batch
 		}
 	}
 }

@@ -312,3 +312,18 @@ func TestADroppedBatchIsCountedFromItsOwnRows(t *testing.T) {
 		t.Fatalf("lost = %d, want the gap's 4 put back with the 2 events", got)
 	}
 }
+
+func TestShutdownWritesEveryHeldStatementWhileTheDatabaseIsHealthy(t *testing.T) {
+	s := newStoreRig(t, writerLimits{batch: 2, every: time.Hour}, 0)
+	stop := s.run(t)
+	for _, row := range s.views(t, 6) {
+		s.recorder.writer.handOff(row)
+	}
+	stop()
+	if n := s.count(t, "action = 'dashboard.view'"); n != 6 {
+		t.Fatalf("stored views after shutdown = %d, want all 6 held rows", n)
+	}
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 0 {
+		t.Fatalf("dropped %s = %d, want 0", DroppedWriteFailed, got)
+	}
+}
