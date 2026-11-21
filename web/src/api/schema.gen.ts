@@ -6710,7 +6710,7 @@ export interface components {
             observation_id: string | null;
             /**
              * Format: uuid
-             * @description The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, and when `redacted`.
+             * @description The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, when `redacted`, and when the caller cannot open that observation, as for `observation_id`.
              */
             subject_observation_id: string | null;
             /**

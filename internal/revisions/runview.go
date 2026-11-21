@@ -226,6 +226,9 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, row.ObservationID); err != nil {
 		return agentRequestJSON{}, err
 	}
+	if out.SubjectID, err = r.shownObservation(ctx, caller, out.SubjectID, row.SubjectObservationID); err != nil {
+		return agentRequestJSON{}, err
+	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
 	}
