@@ -6,6 +6,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func TestTheJSONOfAFindingSaysWhetherItsRunReadAdminOnlyData(t *testing.T) {
@@ -19,7 +20,8 @@ func TestTheJSONOfAFindingSaysWhetherItsRunReadAdminOnlyData(t *testing.T) {
 func TestAFindingThatReadAdminOnlyDataIsPinnedOrMadeADashboardOnlyWhereOnlyAdminsRead(t *testing.T) {
 	r := newRig(t)
 	request := r.investigation(t, admin, r.open)
-	f := r.save(t, admin, findings.SaveInput{AgentRequestID: request, DashboardID: r.open})
+	notes := panelOf(t, `{"id":"evidence-1","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":12,"h":8},"content":"Root changed it"}`)
+	f := r.save(t, admin, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Evidence: []spec.Panel{notes}})
 	r.db.Exec(t, `UPDATE agent_requests SET read_restricted = true WHERE id = $1`, request)
 	id := mustUUID(t, f.ID)
 
