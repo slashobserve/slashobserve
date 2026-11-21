@@ -176,21 +176,43 @@ func TestAuditStreamSendsNewMatchingEventsAndRecordsOneSearch(t *testing.T) {
 	}
 }
 
+func (s *activityStream) framesUntilClosed(t *testing.T) []frame {
+	t.Helper()
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream did not end")
+	}
+	var frames []frame
+	var f frame
+	for len(s.lines) > 0 {
+		line := <-s.lines
+		switch {
+		case line == "" && f.event != "":
+			frames = append(frames, f)
+			f = frame{}
+		case strings.HasPrefix(line, "event: "):
+			f.event = strings.TrimPrefix(line, "event: ")
+		case strings.HasPrefix(line, "data: "):
+			f.data = strings.TrimPrefix(line, "data: ")
+		}
+	}
+	return frames
+}
+
 func TestAuditStreamEndsWhenTheCallerIsNoLongerAnAdmin(t *testing.T) {
 	r := newAuditRig(t, admin)
 	r.handler.pingInterval = 10 * time.Millisecond
-	s := r.open(t, "")
+	s := r.open(t, "action:dashboard.delete")
 	r.principals.becomes(auth.Principal{Kind: auth.KindUser, ID: adminID, Name: "Root", Role: auth.RoleEditor})
-	f := s.nextFrame(t)
+	frames := s.framesUntilClosed(t)
+	if len(frames) != 1 {
+		t.Fatalf("frames %+v, want one forbidden frame", frames)
+	}
 	var body struct {
 		Code       string `json:"code"`
 		NeededRole string `json:"needed_role"`
 	}
-	if err := json.Unmarshal([]byte(f.data), &body); err != nil || f.event != "forbidden" || body.Code != "forbidden_role" || body.NeededRole != "admin" {
-		t.Fatalf("frame %+v (%v)", f, err)
-	}
-	if !s.closedWithin(waitTimeout) {
-		t.Fatal("the stream outlived the caller's Admin role")
+	if err := json.Unmarshal([]byte(frames[0].data), &body); err != nil || frames[0].event != "forbidden" || body.Code != "forbidden_role" || body.NeededRole != "admin" {
+		t.Fatalf("frame %+v (%v)", frames[0], err)
 	}
 }
 
