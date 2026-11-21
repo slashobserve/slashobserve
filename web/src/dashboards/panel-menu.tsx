@@ -50,6 +50,7 @@ import {
   editPanelQuery,
   useConversationActions,
 } from "./panel-actions"
+import { PanelHoverActions } from "./panel-hover-actions"
 import {
   RemovePanelDialog,
   type PanelLayoutActions,
@@ -336,6 +337,14 @@ export function PanelMenu({
   if (block) items.push(...block.actions)
   return (
     <>
+      {onDashboard && !inToolbar ? (
+        <PanelHoverActions
+          panel={panel}
+          canComment={canComment}
+          idle={idle}
+          composerRef={composerRef}
+        />
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
