@@ -21,7 +21,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `id` | | uuid | Event id |
 | `category` | | enum | `auth`, `access`, `content`, `conversation`, `agent`, `query`, `admin` or `system` |
 | `action` | | text | What was attempted, such as `dashboard.update`; `dashboard.*` matches a prefix |
-| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm |
+| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm; a `run.finish` is `success` when the run saved its result and `failed` when it failed, timed out or was canceled, and its `result` says which of `succeeded`, `failed` or `canceled` |
 | `reason` | | text | The API error code of a refusal or failure, such as `forbidden_role` |
 | `status` | | int | HTTP status of the request |
 | `duration_ms` | `duration` | int | How long the action took, in milliseconds |
