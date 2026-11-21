@@ -116,7 +116,7 @@ function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
         ...base,
         ...chat,
         kind: "investigate",
-        ...(subject?.kind === "dashboard" ? { dashboardId: subject.id } : {}),
+        ...subjectFields(subject),
         ...(subject?.kind === "dashboard" && draft.target?.panelId
           ? { panelId: draft.target.panelId }
           : {}),

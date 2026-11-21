@@ -122,6 +122,27 @@ describe("planSend into a chat", () => {
   })
 })
 
+describe("planSend investigating the observation a chat is about", () => {
+  it("names the observation with the chat", () => {
+    expect(
+      planSend(openChat, observation, privately, {
+        ...draft,
+        command: "investigate",
+      })
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        chatId: "c1",
+        kind: "investigate",
+        observationId: "o1",
+      },
+      opens: "same",
+    })
+  })
+})
+
 describe("planSend into a thread", () => {
   it("replies in the open thread with the recipient the person chose", () => {
     expect(

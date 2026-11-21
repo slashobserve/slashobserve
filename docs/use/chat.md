@@ -13,7 +13,7 @@ A request for the meaning of an observability term, such as "what does p99 mean"
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
 A request for a dashboard builds one, and a message in a dashboard's chat is a question about that dashboard: it gets an answer in the chat and leaves the dashboard as it is, even when it asks for a change.
 The dashboard changes only when you choose **Revise the dashboard** on an answer.
-The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation.
+The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation, and in a chat about an observation it writes into that observation.
 When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 
 On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
