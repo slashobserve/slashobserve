@@ -145,6 +145,20 @@ func (q *Queries) MarkRunReadRestricted(ctx context.Context, id pgtype.UUID) err
 	return err
 }
 
+const runInheritsReadRestricted = `-- name: RunInheritsReadRestricted :one
+SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id JOIN agent_requests a ON a.id = m.run_id WHERE asked.id = r.thread_message_id AND a.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests a ON a.id = f.agent_request_id WHERE f.id = r.applies_finding_id AND a.read_restricted)
+  OR EXISTS (SELECT 1 FROM agent_requests a WHERE a.id = r.continues_id AND a.read_restricted))::boolean
+FROM agent_requests r WHERE r.id = $1
+`
+
+func (q *Queries) RunInheritsReadRestricted(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, runInheritsReadRestricted, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const upsertRunSession = `-- name: UpsertRunSession :exec
 INSERT INTO run_sessions (agent_request_id, attempt, state)
 VALUES ($1, $2, $3)

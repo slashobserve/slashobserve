@@ -936,6 +936,9 @@ func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, err
 			if request, err = withChatTranscript(ctx, q, request); err != nil {
 				return err
 			}
+			if request, err = inheritReadRestricted(ctx, q, request); err != nil {
+				return err
+			}
 		}
 		claimed, found = claimResult{request: request, firstClaim: row.FirstClaim}, true
 		return recordRun(ctx, q, request, ActionClaim)
