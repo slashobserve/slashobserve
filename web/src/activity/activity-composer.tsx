@@ -144,9 +144,12 @@ export function ActivityComposer({
     target.kind === "panel" && !targetMissing ? target.panelId : null
   const askingAgent = useActivityStore((state) => state.askingAgent)
   const setAskingAgent = useActivityStore((state) => state.setAskingAgent)
+  const askingInThread = askingAgent && replying !== null
   useEffect(() => {
-    if (askingAgent) setAskingAgent(false)
-  }, [askingAgent, setAskingAgent])
+    if (!askingAgent) return
+    if (askingInThread) onLeaveThread()
+    else setAskingAgent(false)
+  }, [askingAgent, askingInThread, setAskingAgent, onLeaveThread])
 
   const model = useComposer({
     subject: { kind: "dashboard", id: dashboardId },
@@ -161,7 +164,7 @@ export function ActivityComposer({
     people: replying?.people,
     draft: { value: draft, onChange: onDraftChange },
     runningRequestId,
-    addressAgent: askingAgent,
+    addressAgent: askingAgent && !askingInThread,
     onSent: () => undefined,
   })
   const { field } = model

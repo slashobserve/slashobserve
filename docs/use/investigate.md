@@ -40,7 +40,7 @@ The Investigate chip shows above the box, and the send asks the question instead
 In a chat about a dashboard, the investigation is about that dashboard and its answer appears in the same conversation.
 Without a dashboard, the send opens a new chat page for it.
 
-On a dashboard, **Ask** in a panel's menu opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
+On a dashboard, **Ask** in a panel's menu opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel, even when the box was replying in another thread; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
 The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
 To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 

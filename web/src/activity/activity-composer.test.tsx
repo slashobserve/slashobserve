@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { act, screen, waitFor, within } from "@testing-library/react"
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -237,6 +237,31 @@ describe("ActivityComposer", () => {
       within(await form()).getByRole("button", { name: /To: Observe Agent/ })
     )
     expect(within(await form()).getByText("To: everyone here")).toBeVisible()
+  })
+
+  it("leaves the thread being replied in when the agent is asked from a panel, and opens a new thread on that panel", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({
+      replying: thread,
+      target: { kind: "panel", panelId: "errors" },
+    })
+    expect(
+      await within(await form()).findByText("Replying in Latency")
+    ).toBeVisible()
+    act(() => useActivityStore.getState().setAskingAgent(true))
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("form")).queryByText("Replying in Latency")
+      ).toBeNull()
+    )
+    expect(
+      await within(await form()).findByText("To: Observe Agent")
+    ).toBeVisible()
+    await user.click(await field())
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/threads")
+    expect(posts[0].body).toMatchObject({ panel_id: "errors", to: "agent" })
   })
 
   it("asks the mentioned agent and shows the run line", async () => {
