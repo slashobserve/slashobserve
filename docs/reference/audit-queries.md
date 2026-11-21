@@ -149,3 +149,22 @@ An export has no MCP tool, because an MCP answer holds at most 16 KiB; an agent 
 When the 16 KiB cap, not `limit` or the end of the results, ends a page early, the answer carries `truncated: true` and a `note` that says how many events it kept; `next_cursor` continues from there.
 The stream has no MCP tool of its own, as the activity stream has none: an agent reads new events by calling `search_audit_events` again.
 No route or tool changes or deletes an audit event.
+
+## The audit datasource
+
+Every server has the built-in datasource `slashobserve-audit`, named Audit trail, which serves this trail in the OpenSearch format so the Logs page, panels and the agent read it like an OpenSearch datasource.
+It is listed with type `opensearch` and source `builtin`, only Admins and Admin keys see or query it, and nobody can edit or remove it; see [Datasources in the app](../connect/datasources-in-the-app.md).
+A datasources file entry with the uid `slashobserve-audit` stops the server at start with `audit_datasource_failed`.
+
+It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
+Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.
+The time field is `occurred_at`, and the field list marks the fields that `terms` can group by.
+
+It answers searches sorted by `occurred_at`, oldest or newest first, paged with `from` and `size` up to 10,000 events deep, with totals counted up to 10,000 and at most 1,000 events a read.
+It answers `date_histogram` and `terms` buckets, `date_histogram` with a `time_zone` as above, and the `cardinality`, `value_count`, `min`, `max`, `avg`, `sum` and `percentiles` metrics.
+Any other request, body key, sort field or aggregation is refused with 400 and a message that names it, which a panel shows as its query error.
+
+Reading through it is recorded as `query.run`, never as `audit.search`: the Logs page and the agent's queries record one event per query, with the datasource uid as its target, and a panel records nothing beyond the dashboard view.
+The same query from the same caller on the same route within 10 minutes is recorded once when it succeeds, so a live tail or a refresh does not fill the trail; a refused or failed query is recorded every time.
+The whole fleet runs at most 4 queries on it at once, and its queries are left out of the [proxy metrics](../operate/metrics.md) so `/metrics` never shows when Admins read the trail.
+
