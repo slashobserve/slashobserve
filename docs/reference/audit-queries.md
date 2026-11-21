@@ -50,7 +50,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `server_id`, `server_version` | | text | The server replica and build that recorded the event |
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
-A `run.finish` recorded before 21 November 2026 says `success` whatever the run's result, so read `data.result` on those events, which a query cannot filter on; every later one agrees with its run.
+A `run.finish` recorded by a server older than 0.1.4 says `success` whatever the run's result, so read `data.result` on those events, which a query cannot filter on; every later one agrees with its run.
 A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
 Repeated refusals are folded so an attack cannot flood the trail: `auth.credential_rejected`, `auth.csrf_rejected` and `auth.login_failed` events that share an action, reason, target, actor and provider error are one key.
 The first event of a key is written at once with `data.count` of 1.
