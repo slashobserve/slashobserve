@@ -136,6 +136,19 @@ func arrangedBlocks(rows []dbsqlc.ObservationBlock, items []BlockLayout) []place
 	return placed
 }
 
+func unknownLayoutBlock(rows []dbsqlc.ObservationBlock, items []BlockLayout, abilities folders.Abilities, viewer actor.Actor) *InvalidInputError {
+	onPage := make(map[pgtype.UUID]bool, len(rows))
+	for _, row := range rows {
+		onPage[row.ID] = visibleTo(row, abilities, viewer)
+	}
+	for _, item := range items {
+		if !onPage[item.ID] {
+			return invalid(CodeInvalidBlock, fmt.Sprintf("block %s is not on this observation", item.ID))
+		}
+	}
+	return nil
+}
+
 func placedAs(row dbsqlc.ObservationBlock, item BlockLayout) placedBlock {
 	block := placedBlock{id: row.ID, width: Width(row.Width), height: heightOf(row.Height)}
 	if item.Width != nil {
@@ -200,6 +213,9 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 		rows, err := q.BlocksOfObservation(ctx, parent.ID)
 		if err != nil {
 			return fmt.Errorf("list observation blocks: %w", err)
+		}
+		if refused := unknownLayoutBlock(rows, items, abilities, who); refused != nil {
+			return refused
 		}
 		placed := arrangedBlocks(rows, items)
 		if !unchangedLayout(rows, placed) {

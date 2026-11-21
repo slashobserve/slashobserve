@@ -249,6 +249,7 @@ func TestObservationRoutesAnswerEveryDocumentedError(t *testing.T) {
 		{"a layout with a repeated block", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q},{"id":%q}]}`, text.ID, text.ID), 422, "invalid_block"},
 		{"a layout with a height out of range", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"height":50}]}`, text.ID), 422, "invalid_block"},
 		{"a layout with a width that is unknown", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"width":"quarter"}]}`, text.ID), 422, "invalid_block"},
+		{"a layout naming a block that is not on the observation", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q},{"id":%q}]}`, text.ID, missing), 422, "invalid_block"},
 		{"a layout with an id that is not one", editor, http.MethodPut, base + "/layout", `{"blocks":[{"id":"nope"}]}`, 400, "invalid_request"},
 		{"a commenter arranging", commenter, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q}]}`, text.ID), 403, "forbidden_role"},
 		{"an observation nobody sees arranged", editor, http.MethodPut, "/api/v1/observations/" + missing + "/layout", `{"blocks":[]}`, 404, "not_found"},

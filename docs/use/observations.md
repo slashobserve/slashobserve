@@ -109,7 +109,7 @@ Blocks sit side by side in rows of three thirds when the page is wide enough: th
 A person with edit access arranges the page without a menu.
 Drag a block by the grip at its top left corner to drop it before or after another block, and drag the corner at its bottom right to snap its width to a third, a half, two thirds or the full page and, on a panel or snapshot block, to set its height in steps of 20 pixels.
 Focus the grip and press the arrow keys to move the block, **Shift** with the left or right arrow to change its width, and **Shift** with the up or down arrow to change a panel's height by 40 pixels; each change is announced.
-Below 900 pixels the page shows one column, so the width does not apply.
+Below 720 pixels the page shows one column, so the width does not apply.
 
 Arranging never conflicts with a text edit that is open on the same block, because a block's version counts its content and not its place or size.
 When two people arrange at once the last arrangement wins.

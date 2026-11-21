@@ -2716,7 +2716,7 @@ export interface paths {
         get?: never;
         /**
          * Arrange the blocks of an observation.
-         * @description Sets the order of the page and, for each block that names one, its `width` and `height`; a field a block leaves out keeps its value, and a `height` of `null` returns it to the default. Needs Edit on the folder; a caller who can only comment answers 403. It never reads or changes a block's `version` or `updated_at`, so an arrangement cannot make someone's edit of a block's text stale, and the last arrangement to arrive wins. An id that names no block of this observation is skipped, and a block the list leaves out stays right after the block it followed, so a block someone added meanwhile keeps its place. The answer is the page as stored, and an arrangement that changes nothing records nothing.
+         * @description Sets the order of the page and, for each block that names one, its `width` and `height`; a field a block leaves out keeps its value, and a `height` of `null` returns it to the default. Needs Edit on the folder; a caller who can only comment answers 403. It never reads or changes a block's `version` or `updated_at`, so an arrangement cannot make someone's edit of a block's text stale, and the last arrangement to arrive wins. An id that names no block of this observation, or one the caller cannot see, refuses the whole request with 422 `invalid_block` and the id, and nothing changes; a block the list leaves out stays right after the block it followed, so a block someone added meanwhile keeps its place. The answer is the page as stored, and an arrangement that changes nothing records nothing.
          */
         put: operations["arrangeObservationBlocks"];
         post?: never;

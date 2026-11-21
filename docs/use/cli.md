@@ -383,7 +383,7 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
 `bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--width third|half|two_thirds|full`, `--half` or `--full` (its width), `--height <pixels>` (120 to 960, or 0 for the automatic height) and `--position <n>` (which moves the blocks in between); it needs something to change.
-`bin/observe o arrange <observation-id> <block-id>[:<width>[:<height>]]...` sets the order of the blocks you name, with an optional width and a height in pixels or `auto` after each id; a block you leave out keeps its place after the block it followed.
+`bin/observe o arrange <observation-id> <block-id>[:<width>[:<height>]]...` sets the order of the blocks you name, with an optional width and a height in pixels or `auto` after each id; a block you leave out keeps its place after the block it followed, and an id that is not a block of the observation is refused by name.
 It takes no `--version`, because a layout change never conflicts with a content edit.
 `bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
 Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.

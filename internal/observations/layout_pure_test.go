@@ -4,9 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 func TestArrangedOrderPlacesTheNamedBlocksThenKeepsTheRestAfterTheirPredecessor(t *testing.T) {
@@ -82,6 +88,33 @@ func TestValidateLayoutRefusesTooManyRepeatsAndOutOfRangeValues(t *testing.T) {
 		var invalidErr *InvalidInputError
 		if !tc.ok && !errors.As(err, &invalidErr) {
 			t.Errorf("%s: got %v, want an invalid error", tc.name, err)
+		}
+	}
+}
+
+func TestALayoutRefusesABlockThatIsNotOnThePageOrIsNotVisibleToTheCaller(t *testing.T) {
+	asked := block(2, KindText, BlockRequested, 1, WidthFull, `{}`)
+	asked.CreatedByKind, asked.CreatedByID = "user", uuidOf(9)
+	rows := []dbsqlc.ObservationBlock{block(1, KindText, BlockLive, 0, WidthFull, `{}`), asked}
+	caller := actor.Actor{Kind: auth.KindUser, ID: uuidOf(7).String()}
+	cases := []struct {
+		name      string
+		items     []BlockLayout
+		abilities folders.Abilities
+		unknown   pgtype.UUID
+	}{
+		{"every block is on the page", []BlockLayout{{ID: uuidOf(1)}}, folders.Abilities{}, pgtype.UUID{}},
+		{"a block of another observation", []BlockLayout{{ID: uuidOf(1)}, {ID: uuidOf(5)}}, folders.Abilities{}, uuidOf(5)},
+		{"a request someone else made, seen by a caller who cannot edit", []BlockLayout{{ID: uuidOf(2)}}, folders.Abilities{}, uuidOf(2)},
+		{"a request someone else made, seen by an editor", []BlockLayout{{ID: uuidOf(2)}}, folders.Abilities{Edit: true}, pgtype.UUID{}},
+	}
+	for _, tc := range cases {
+		err := unknownLayoutBlock(rows, tc.items, tc.abilities, caller)
+		switch {
+		case !tc.unknown.Valid && err != nil:
+			t.Errorf("%s: refused: %v", tc.name, err)
+		case tc.unknown.Valid && (err == nil || err.Code != CodeInvalidBlock || !strings.Contains(err.Message, tc.unknown.String())):
+			t.Errorf("%s: got %v, want a refusal naming %s", tc.name, err, tc.unknown)
 		}
 	}
 }

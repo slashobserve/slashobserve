@@ -679,6 +679,14 @@ func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
 	if cleared.IsError || r.view(t, editorCaller, id).Blocks[0].Height != nil {
 		t.Errorf("a null height did not clear: %#v", cleared.Content)
 	}
+	if !strings.Contains(cleared.Step, "1 block") || strings.Contains(cleared.Step, "2 blocks") {
+		t.Errorf("a call naming one block said %q", cleared.Step)
+	}
+	stranger := "00000000-0000-4000-8000-0000000000aa"
+	refused := r.call(t, editorCaller, nameArrangeBlocks, fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q},{"block_id":%q}]}`, id, first.BlockID, stranger))
+	if !refused.IsError || !strings.Contains(fmt.Sprint(refused.Content), stranger) {
+		t.Errorf("a block of another observation was not refused by name: %#v", refused.Content)
+	}
 	for name, input := range map[string]string{
 		"a commenter":           fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q}]}`, id, first.BlockID),
 		"a bad width":           fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"quarter"}]}`, id, first.BlockID),

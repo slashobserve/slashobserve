@@ -689,7 +689,7 @@ func (r *Registry) arrangeBlocks(ctx context.Context, input json.RawMessage) (Re
 	for i, b := range arranged {
 		out.Blocks[i] = arrangedBlockOut{BlockID: b.ID, Position: b.Position, Width: string(b.Width), Height: b.Height}
 	}
-	return success("Arranged observation "+out.ObservationID+": "+plural(len(arranged), "block", "blocks"), out), nil
+	return success("Arranged observation "+out.ObservationID+": "+plural(len(items), "block", "blocks"), out), nil
 }
 
 func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage) (Result, error) {

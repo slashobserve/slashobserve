@@ -3,6 +3,7 @@ package observations_test
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -97,6 +98,24 @@ func TestAnUnchangedLayoutRecordsNothingAndAChangeRecordsOneUpdate(t *testing.T)
 	types := r.activityTypes(t, o)
 	if len(types) != before+1 || types[len(types)-1] != activity.TypeObservationUpdated {
 		t.Fatalf("activity %v", types)
+	}
+}
+
+func TestALayoutNamingABlockOfAnotherObservationIsRefusedAndChangesNothing(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	other := r.create(t, editor, r.shared)
+	r.addText(t, editor, o, "a")
+	b := r.addText(t, editor, o, "b")
+	stranger := r.addText(t, editor, other, "x")
+	items := append(layoutOf(b), layoutOf(stranger)...)
+	_, err := r.service.Arrange(reading(t.Context()), editor, mustUUID(t, o.ID), items, pgtype.UUID{})
+	var refused *observations.InvalidInputError
+	if !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock || !strings.Contains(refused.Message, stranger.ID) {
+		t.Fatalf("got %v, want an invalid_block naming %s", err, stranger.ID)
+	}
+	if order := r.positions(t, editor, o); !slices.Equal(order, []string{"a", "b"}) {
+		t.Errorf("stored order %v after the refusal", order)
 	}
 }
 

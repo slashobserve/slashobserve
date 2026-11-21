@@ -222,18 +222,10 @@ func (a *app) observationArrangeCommand() *cobra.Command {
 				}
 				blocks = append(blocks, item)
 			}
-			return a.observationCall(cmd, http.MethodPut, "observations/"+id+"/layout", map[string]any{"blocks": blocks}, func(out *output, data []byte) error {
-				arranged, err := decode[layoutEnvelope](data)
-				if err != nil {
-					return err
-				}
-				out.confirm("Arranged %d blocks", len(arranged.Blocks))
+			return a.observationCall(cmd, http.MethodPut, "observations/"+id+"/layout", map[string]any{"blocks": blocks}, func(out *output, _ []byte) error {
+				out.confirm("Arranged %d %s", len(blocks), plural(len(blocks), "block", "blocks"))
 				return nil
 			})
 		},
 	}
-}
-
-type layoutEnvelope struct {
-	Blocks []observationBlockRow `json:"blocks"`
 }

@@ -82,6 +82,15 @@ func TestArrangeSendsTheOrderWithWidthsAndHeights(t *testing.T) {
 	}
 }
 
+func TestArrangeCountsTheBlocksItPlaced(t *testing.T) {
+	second := "22222222-2222-4222-8222-222222222222"
+	server, _ := recordingServer(t, `{"blocks":[{"id":"`+testBlock+`"},{"id":"`+second+`"}]}`)
+	stdout, stderr, code := runWith(server, "o", "arrange", testObservation, second)
+	if code != 0 || !strings.Contains(stdout, "Arranged 1 block\n") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+}
+
 func TestArrangeRefusesWhatIsNotALayout(t *testing.T) {
 	for _, args := range [][]string{
 		{"o", "arrange", testObservation},
