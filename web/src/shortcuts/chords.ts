@@ -39,18 +39,19 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     action: "ask",
     keys: ["a"],
     description:
-      "Turn on Ask mode when no panel is under the pointer, so a click on any spot asks the agent about it",
+      "Ask the agent about the whole panel under the pointer, or turn Ask mode on and off",
   },
   {
     action: "comment",
     keys: ["c"],
-    description: "Write a comment: open the activity pane and focus its box",
+    description:
+      "Comment on the whole panel under the pointer, or turn Comment mode on and off",
   },
   {
     action: "close",
     keys: ["Escape"],
     description:
-      "Close the panel view or Inspect, leave TV mode and full screen, go back from the Comment or Ask tool, or clear the selected panel",
+      "Close the panel view or Inspect, leave TV mode and full screen, leave Comment or Ask mode, or clear the selected panel",
   },
   {
     action: "zoomOut",

@@ -14,6 +14,11 @@ import {
 } from "@/components/ui/tooltip"
 import type { Anchor, Point } from "@/panels/anchors"
 import { useAgentInfo } from "@/observe/queries"
+import {
+  dashboardShortcuts,
+  keyLabel,
+  type ShortcutAction,
+} from "@/shortcuts/chords"
 
 import type { DashboardPermissions } from "./permissions"
 
@@ -79,10 +84,23 @@ export function openKeyDraft(panelId: string, tool: DraftTool) {
     .openDraft({ panelId, tool, anchor: null, at: null, surface: null })
 }
 
-const toolKeys: Record<CanvasTool, string> = {
-  select: "V",
-  comment: "C",
-  ask: "A",
+const toolShortcuts: Record<CanvasTool, ShortcutAction> = {
+  select: "close",
+  comment: "comment",
+  ask: "ask",
+}
+
+function ariaShortcut(keys: readonly string[]): string | undefined {
+  if (keys.length !== 1) return undefined
+  const [key] = keys
+  return key.length === 1 ? key.toUpperCase() : key
+}
+
+function toolKeys(tool: CanvasTool): readonly string[] {
+  return (
+    dashboardShortcuts.find(({ action }) => action === toolShortcuts[tool])
+      ?.keys ?? []
+  )
 }
 
 const toolNames: Record<CanvasTool, string> = {
@@ -131,7 +149,7 @@ function ToolButton({
   onClick: () => void
   icon: ReactNode
 }) {
-  const key = toolKeys[tool]
+  const keys = toolKeys(tool)
   return (
     <Tooltip>
       <TooltipTrigger
@@ -141,7 +159,7 @@ function ToolButton({
             size="sm"
             className={toolClass}
             aria-pressed={pressed}
-            aria-keyshortcuts={key}
+            aria-keyshortcuts={ariaShortcut(keys)}
             disabled={disabled}
             onClick={onClick}
           />
@@ -156,7 +174,7 @@ function ToolButton({
           aria-hidden="true"
           className="rounded-chip border px-[5px] font-[inherit] text-xs"
         >
-          {key}
+          {keys.map(keyLabel).join(" ")}
         </kbd>
       </TooltipContent>
     </Tooltip>

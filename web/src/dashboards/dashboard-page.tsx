@@ -70,7 +70,12 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
-import { focusComment } from "./panel-actions"
+import {
+  askAboutThisPanel,
+  commentOnThisPanel,
+  conversationActionsFor,
+  focusComment,
+} from "./panel-actions"
 import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
@@ -80,6 +85,8 @@ import {
   useCursorSyncShortcut,
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { askKeyAction } from "./ask-key"
+import { commentKeyAction } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -438,8 +445,7 @@ function DashboardView({
   useEffect(() => {
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
-  const pointing = useCanvasTool((state) => state.tool !== "select")
-  const agentAvailable = useAgentInfo().data?.available === true
+  const tool = useCanvasTool((state) => state.tool)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
@@ -585,6 +591,7 @@ function DashboardView({
           const next = move(Date.now())
           if (next) setSearch((state) => ({ ...state, ...next }))
         }
+  const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
   useDashboardShortcuts({
@@ -604,11 +611,51 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
-    comment: () => focusComment(setSearch, composerRef),
+    comment: () => {
+      const onCanvas = !kiosk && viewed === undefined
+      const action = commentKeyAction({
+        commenting: tool === "comment",
+        panelId: shortcutPanel()?.id,
+        canComment: permissions.comment,
+        editing,
+        onCanvas,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("comment")
+        case "panel":
+          commentOnThisPanel(setSearch, action.panelId, onCanvas, composerRef)
+          return
+        case "pane":
+          return focusComment(setSearch, composerRef)
+      }
+    },
     ask: () => {
-      if (shortcutPanel() !== undefined) return
-      if (!editing && permissions.comment && agentAvailable) {
-        useCanvasTool.getState().setTool("ask")
+      const onCanvas = !kiosk && viewed === undefined
+      const panel = shortcutPanel()
+      const action = askKeyAction({
+        asking: tool === "ask",
+        panelId: panel?.id,
+        panelAskable:
+          panel !== undefined &&
+          conversationActionsFor(panel, permissions.comment, agentAvailable)
+            .ask,
+        mayAsk: permissions.comment && agentAvailable,
+        editing,
+        onCanvas,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("ask")
+        case "panel":
+          askAboutThisPanel(setSearch, action.panelId, onCanvas)
+          return
+        case "none":
+          return
       }
     },
     inspect: () => {
@@ -629,7 +676,7 @@ function DashboardView({
         ? closeView
         : kiosk
           ? leaveKiosk
-          : pointing
+          : tool !== "select"
             ? () => useCanvasTool.getState().setTool("select")
             : selectedId !== null
               ? () => useSelectionStore.getState().clear()

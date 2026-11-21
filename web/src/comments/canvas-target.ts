@@ -48,6 +48,19 @@ export function pointerAnchor(
   )
 }
 
+export const minDrag = 5
+
+export function dragAnchor(
+  surface: CanvasSurface,
+  start: Point,
+  end: Point
+): Anchor | null {
+  const { module, published } = surface
+  if (module?.rangeTest === undefined || published === null) return null
+  if (Math.abs(end.x - start.x) < minDrag) return null
+  return module.rangeTest(published.layout as never, start, end)
+}
+
 export function titleAnchor(point: Point, body: Size): Anchor {
   return { kind: "title", pos: positionOf({ x: point.x, y: 0 }, body) }
 }
@@ -58,6 +71,12 @@ export function outlineOf(
 ): Rect | null {
   if (anchor === null || placedByPosition.has(anchor.kind)) return null
   return locatorOf(surface)?.(anchor) ?? null
+}
+
+export function revealAnchor(surface: CanvasSurface, anchor: Anchor): boolean {
+  const { module, published } = surface
+  if (module?.reveal === undefined || published === null) return false
+  return module.reveal(published.layout as never, anchor)
 }
 
 export function withWindow(
