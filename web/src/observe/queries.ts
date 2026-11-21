@@ -435,6 +435,21 @@ export function useShareAnswer(id: string, target: string) {
   })
 }
 
+export function useWithdrawShare(target: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId: string) =>
+      api
+        .DELETE("/threads/{thread_id}/share", {
+          params: { path: { thread_id: threadId } },
+        })
+        .then(unwrap),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+    },
+  })
+}
+
 export function useRetryRequest(id: string) {
   const queryClient = useQueryClient()
   return useMutation({

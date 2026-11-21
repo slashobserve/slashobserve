@@ -1,5 +1,5 @@
 import { lazy, Suspense, useId, useMemo, useState } from "react"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { ChevronDownIcon, ChevronUpIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -14,12 +14,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { plainTitle } from "@/comments/plain-title"
-import { useThreads } from "@/comments/thread-queries"
+import { ApiError } from "@/api/errors"
+import { dashboardIdOf, useThreads } from "@/comments/thread-queries"
 import { EvidencePanel } from "@/findings/evidence-panel"
 import { evidencePanels, type Finding } from "@/findings/queries"
-import { observationLink } from "@/lib/links"
+import { dashboardLink, observationLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { sentence, useSaveAnswer, useShareAnswer } from "@/observe/queries"
+import {
+  sentence,
+  useSaveAnswer,
+  useShareAnswer,
+  useWithdrawShare,
+} from "@/observe/queries"
 
 const FindingMarkdown = lazy(() =>
   import("@/findings/finding-markdown").then((module) => ({
@@ -30,7 +36,7 @@ const FindingMarkdown = lazy(() =>
 const evidenceHeight = 220
 const threadLabelLength = 60
 
-type AnswerMenu = { shareTarget: string | null }
+type AnswerMenu = { shareTarget: string | null; sharedThreadId: string | null }
 
 type Props = {
   finding: Finding
@@ -123,26 +129,96 @@ function Choice({ title, detail }: { title: string; detail: string }) {
   )
 }
 
+function SharedThreadItem({
+  target,
+  threadId,
+}: {
+  target: string
+  threadId: string
+}) {
+  const dashboardId = dashboardIdOf(target)
+  const here = useParams({ strict: false }).dashboardId === dashboardId
+  if (dashboardId === null) return null
+  return (
+    <DropdownMenuItem
+      render={
+        here ? (
+          <Link
+            from="/d/$dashboardId/{-$slug}"
+            to="."
+            search={(prev) => ({
+              ...prev,
+              tab: undefined,
+              chat: undefined,
+              thread: threadId,
+            })}
+          />
+        ) : (
+          <Link {...dashboardLink(dashboardId)} search={{ thread: threadId }} />
+        )
+      }
+    >
+      <Choice
+        title="Shared in the thread"
+        detail="Opens the thread with your question and this answer."
+      />
+    </DropdownMenuItem>
+  )
+}
+
+function withdrawProblem(error: Error): string {
+  if (error instanceof ApiError && error.code === "others_wrote") {
+    return "Someone else wrote in the thread, so the answer stays shared."
+  }
+  if (error instanceof ApiError && error.status === 404) {
+    return "This answer is no longer shared in a thread."
+  }
+  return sentence(error.message)
+}
+
 function AnswerMenuButton({
   finding,
   requestId,
-  shareTarget,
+  menu,
 }: {
   finding: Finding
   requestId: string
-  shareTarget: string | null
+  menu: AnswerMenu
 }) {
+  const { shareTarget } = menu
   const share = useShareAnswer(requestId, shareTarget ?? "")
+  const withdraw = useWithdrawShare(shareTarget ?? "")
+  const [sharedHere, setSharedHere] = useState<string | null | undefined>()
+  const sharedThreadId =
+    sharedHere === undefined ? menu.sharedThreadId : sharedHere
+  const busy = share.isPending || withdraw.isPending
 
   function shareIn(threadId?: string) {
     share.mutate(threadId, {
-      onSuccess: () =>
+      onSuccess: (result) => {
+        setSharedHere(result.thread_id)
         toast.success(
           threadId === undefined
             ? "Everyone here can see this answer now"
             : "Shared to the thread"
-        ),
+        )
+      },
       onError: toastError,
+    })
+  }
+
+  function withdrawFrom(threadId: string) {
+    withdraw.mutate(threadId, {
+      onSuccess: () => {
+        setSharedHere(null)
+        toast.success("Only you can see this answer again")
+      },
+      onError: (error) => {
+        if (error instanceof ApiError && error.status === 404) {
+          setSharedHere(null)
+        }
+        toast.error(withdrawProblem(error))
+      },
     })
   }
 
@@ -172,19 +248,29 @@ function AnswerMenuButton({
         <EllipsisIcon aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[264px]">
-        {shareTarget === null ? null : (
+        {shareTarget === null ? null : sharedThreadId !== null ? (
           <>
+            <SharedThreadItem target={shareTarget} threadId={sharedThreadId} />
             <DropdownMenuItem
-              disabled={share.isPending}
-              onClick={() => shareIn()}
+              disabled={busy}
+              onClick={() => withdrawFrom(sharedThreadId)}
             >
+              <Choice
+                title="Withdraw"
+                detail="Deletes the thread and makes this answer private again, while no one else has written in it."
+              />
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <>
+            <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
               <Choice
                 title="Show to everyone"
                 detail="Opens a thread with your question and this answer for everyone who can see it."
               />
             </DropdownMenuItem>
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger disabled={share.isPending}>
+              <DropdownMenuSubTrigger disabled={busy}>
                 <Choice
                   title="Share to thread"
                   detail="Adds your question and this answer to an open thread."
@@ -268,7 +354,7 @@ export function AnswerCard({
           <AnswerMenuButton
             finding={finding}
             requestId={requestId}
-            shareTarget={menu.shareTarget}
+            menu={menu}
           />
         )}
       </div>

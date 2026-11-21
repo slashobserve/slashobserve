@@ -127,7 +127,7 @@ export function askedAgent(sent: SentMessage): boolean {
 
 const dashboardTarget = "dashboard:"
 
-function dashboardIdOf(target: string): string | null {
+export function dashboardIdOf(target: string): string | null {
   return target.startsWith(dashboardTarget)
     ? target.slice(dashboardTarget.length)
     : null

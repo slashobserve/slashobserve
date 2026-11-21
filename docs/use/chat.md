@@ -19,6 +19,9 @@ When it has none to write into, because no folder can take a new one or the one 
 On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** sends the suggested change as the next turn of the chat.
 The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
 Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
+Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which deletes the thread and makes the answer private again.
+Withdraw works only while every message in the thread is yours or the agent's reply to you; once someone else wrote in it, the answer stays shared.
+After a withdraw you can share the answer again, which opens a new thread.
 
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 

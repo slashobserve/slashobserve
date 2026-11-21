@@ -278,7 +278,9 @@ describe("AnswerCard", () => {
       message_id: "m9",
       replayed: false,
     })
-    const { user } = renderCard({ menu: { shareTarget: "dashboard:d1" } })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
     )
@@ -303,7 +305,9 @@ describe("AnswerCard", () => {
       message_id: "m9",
       replayed: false,
     })
-    const { user } = renderCard({ menu: { shareTarget: "dashboard:d1" } })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
     )
@@ -322,8 +326,124 @@ describe("AnswerCard", () => {
     })
   })
 
+  async function shareToEveryone(user: ReturnType<typeof renderCard>["user"]) {
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    )
+    await waitFor(() => expect(toasts.success).toHaveBeenCalled())
+    await user.click(screen.getByRole("button", { name: "Answer actions" }))
+  }
+
+  function stubResponses(...responses: { status: number; body?: unknown }[]) {
+    const queue = [...responses]
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => {
+      const next = queue.shift() ?? { status: 500 }
+      return next.body === undefined
+        ? new Response(null, { status: next.status })
+        : new Response(JSON.stringify(next.body), {
+            status: next.status,
+            headers: { "Content-Type": "application/json" },
+          })
+    })
+    vi.stubGlobal("fetch", fetch)
+    return fetch
+  }
+
+  const shared = {
+    status: 201,
+    body: { thread_id: "t9", message_id: "m9", replayed: false },
+  }
+
+  it("links to the thread a shared answer is in and offers Withdraw", async () => {
+    stubResponses(shared)
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await shareToEveryone(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toHaveAttribute("href", "/d/d1?thread=t9")
+    expect(screen.getByRole("menuitem", { name: /^Withdraw/ })).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeNull()
+  })
+
+  it("withdraws a shared answer back to only the asker", async () => {
+    const fetch = stubResponses(shared, { status: 204 })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await shareToEveryone(user)
+    await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+    expect(await sent(fetch, 1)).toEqual({
+      line: "DELETE /api/v1/threads/t9/share",
+      body: null,
+    })
+    await waitFor(() =>
+      expect(toasts.success).toHaveBeenLastCalledWith(
+        "Only you can see this answer again"
+      )
+    )
+    await user.click(screen.getByRole("button", { name: "Answer actions" }))
+    expect(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeVisible()
+  })
+
+  it("keeps the answer shared once someone else wrote in the thread", async () => {
+    stubResponses(shared, {
+      status: 409,
+      body: { error: "someone else wrote", code: "others_wrote" },
+    })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await shareToEveryone(user)
+    await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "Someone else wrote in the thread, so the answer stays shared."
+      )
+    )
+    await user.click(screen.getByRole("button", { name: "Answer actions" }))
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toBeVisible()
+  })
+
+  it("forgets a share the server no longer has", async () => {
+    stubResponses(shared, {
+      status: 404,
+      body: { error: "not found", code: "not_found" },
+    })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await shareToEveryone(user)
+    await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "This answer is no longer shared in a thread."
+      )
+    )
+    await user.click(screen.getByRole("button", { name: "Answer actions" }))
+    expect(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeVisible()
+  })
+
   it("offers only Copy answer when there is nowhere to share", async () => {
-    const { user } = renderCard({ menu: { shareTarget: null } })
+    const { user } = renderCard({
+      menu: { shareTarget: null, sharedThreadId: null },
+    })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
     )
