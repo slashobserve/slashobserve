@@ -661,6 +661,9 @@ func (r *Registry) arrangeBlocks(ctx context.Context, input json.RawMessage) (Re
 	if !ok {
 		return res, nil
 	}
+	if len(in.Blocks) == 0 {
+		return invalid("blocks must list at least one block, in the order the page should show them"), nil
+	}
 	items := make([]observations.BlockLayout, len(in.Blocks))
 	for i, b := range in.Blocks {
 		blockID, res, ok := parseBlockID(b.BlockID)
