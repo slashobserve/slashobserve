@@ -27,7 +27,7 @@ func windowData(p Prepared) map[string]any {
 		"form":  string(p.Query.Form),
 		"since": p.Window.From.UTC().Format(time.RFC3339Nano),
 		"until": p.Window.To.UTC().Format(time.RFC3339Nano),
-		"query": audit.CapQuery(p.Text),
+		"query": audit.RecordedQuery(p.Text),
 	}
 }
 
@@ -37,7 +37,7 @@ func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) 
 		if problem, ok := ProblemOf(err); ok {
 			r.write(ctx, audit.Event{
 				Action: action, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
-				Data: map[string]any{"query": audit.CapQuery(req.Text)},
+				Data: map[string]any{"query": audit.RecordedQuery(req.Text)},
 			})
 		}
 		return Prepared{}, err
@@ -85,7 +85,7 @@ func (r *Reader) readFailed(ctx context.Context, p Prepared, v read, err error) 
 func (r *Reader) writeFailed(ctx context.Context, v read, text string, err error) {
 	if problem, ok := ProblemOf(err); ok {
 		data := v.data()
-		data["query"] = audit.CapQuery(text)
+		data["query"] = audit.RecordedQuery(text)
 		r.write(ctx, audit.Event{Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status, Data: data})
 	}
 }

@@ -78,6 +78,11 @@ The attributes use the standard names where one exists: `user.id`, `client.addre
 Every other field is under `slashobserve.audit.`, for example `slashobserve.audit.outcome`, `slashobserve.audit.category`, `slashobserve.audit.actor_name`, `slashobserve.audit.target_kind` and `slashobserve.audit.run_id`; a field an event does not have is left out.
 The full list of fields is in [Audit queries](../reference/audit-queries.md#fields).
 
+The data of a `query.run` and of an `audit.search` event carries the query text, and the export sends it to the collector as it was recorded.
+The text is stored as typed, cut at 4 KiB, with only the user and password of a URL replaced by `***`.
+A query that contains any other secret, such as a key in a table function or a token in a log search, puts that secret in the trail and in the collector, with the retention and readers of each.
+Give the collector no wider an audience than the Admins who can read the trail.
+
 ## Watching it
 
 `slashobserve_audit_export_lag_seconds` is the time between the newest audit event in the database and the last event the export sent.

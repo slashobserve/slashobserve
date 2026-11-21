@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -43,7 +44,10 @@ func Noted(ctx context.Context) []Query {
 	return slices.Clone(st.queries)
 }
 
-func CapQuery(text string) string {
+var urlUserinfo = regexp.MustCompile("([A-Za-z][A-Za-z0-9+.-]*://)[^\\s/'\"`]*@")
+
+func RecordedQuery(text string) string {
+	text = urlUserinfo.ReplaceAllString(text, "${1}***@")
 	if len(text) <= MaxQueryBytes {
 		return text
 	}
@@ -98,7 +102,7 @@ func (r queryRead) event(base Event) Event {
 	if data == nil {
 		data = map[string]any{}
 	}
-	data["query"] = CapQuery(r.text())
+	data["query"] = RecordedQuery(r.text())
 	data["row_count"] = r.rows
 	if !r.from.IsZero() {
 		data["from"] = r.from.UTC().Format(time.RFC3339)
