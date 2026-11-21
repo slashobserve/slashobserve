@@ -193,18 +193,25 @@ describe("ChatsPage rows", () => {
     expect(screen.getByText("2 chats.")).toBeInTheDocument()
   })
 
-  it("puts pinned chats first", async () => {
+  it("keeps the server's order, which puts your pinned chats first", async () => {
     stub([
-      chat("c1", "Newest chat"),
-      chat("c2", "Pinned chat", { pinned_at: "2026-11-20T10:00:00Z" }),
+      chat("c1", "Pinned older chat", { pinned_at: "2026-11-20T10:00:00Z" }),
+      chat("c2", "Newest chat"),
+      chat("c3", "Pinned on a later page", {
+        pinned_at: "2026-11-21T08:00:00Z",
+      }),
     ])
     render()
-    await screen.findByRole("link", { name: /Pinned chat/ })
+    await screen.findByRole("link", { name: /Pinned older chat/ })
     const titles = screen
       .getAllByRole("row")
       .slice(1)
       .map((row) => within(row).getAllByRole("link")[0].textContent)
-    expect(titles).toEqual(["Pinned chat", "Newest chat"])
+    expect(titles).toEqual([
+      "Pinned older chat",
+      "Newest chat",
+      "Pinned on a later page",
+    ])
   })
 
   it("offers Rename, Pin and Delete on your own chat", async () => {

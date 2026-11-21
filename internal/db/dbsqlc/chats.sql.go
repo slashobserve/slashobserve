@@ -248,9 +248,11 @@ WHERE ($1::uuid IS NULL OR (c.owner_kind = $2::text AND c.owner_id = $1::uuid))
   AND ($6::text IS NULL OR c.title ILIKE $6::text OR EXISTS (
     SELECT 1 FROM agent_requests t WHERE t.chat_id = c.id AND t.prompt ILIKE $6::text))
   AND ($7::timestamptz IS NULL
-    OR (c.last_turn_at, c.id) < ($7::timestamptz, $8::uuid))
-ORDER BY c.last_turn_at DESC, c.id DESC
-LIMIT $9
+    OR (($8::boolean AND c.pinned_at IS NOT NULL) = $9::boolean
+      AND (c.last_turn_at, c.id) < ($7::timestamptz, $10::uuid))
+    OR ($9::boolean AND NOT ($8::boolean AND c.pinned_at IS NOT NULL)))
+ORDER BY ($8::boolean AND c.pinned_at IS NOT NULL) DESC, c.last_turn_at DESC, c.id DESC
+LIMIT $11
 `
 
 type ListChatsParams struct {
@@ -261,6 +263,8 @@ type ListChatsParams struct {
 	Pinned        pgtype.Bool
 	Pattern       pgtype.Text
 	CursorAt      pgtype.Timestamptz
+	PinnedFirst   bool
+	CursorPinned  bool
 	CursorID      pgtype.UUID
 	RowLimit      int32
 }
@@ -293,6 +297,8 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 		arg.Pinned,
 		arg.Pattern,
 		arg.CursorAt,
+		arg.PinnedFirst,
+		arg.CursorPinned,
 		arg.CursorID,
 		arg.RowLimit,
 	)

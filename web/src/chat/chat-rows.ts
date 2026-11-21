@@ -19,15 +19,6 @@ export function dashboardLabel(
   return titles.get(dashboardId) ?? unseenDashboardLabel
 }
 
-export function pinnedFirst(chats: readonly Chat[]): Chat[] {
-  const pinned = chats
-    .filter((chat) => chat.pinned_at !== null)
-    .toSorted(
-      (a, b) => Date.parse(b.pinned_at ?? "") - Date.parse(a.pinned_at ?? "")
-    )
-  return [...pinned, ...chats.filter((chat) => chat.pinned_at === null)]
-}
-
 export type DashboardChoice = { id: string; label: string }
 
 export function dashboardChoices(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { MessageSquareIcon, PinIcon, SearchIcon } from "lucide-react"
 
@@ -29,7 +29,6 @@ import {
   dashboardChoices,
   dashboardLabel,
   noDashboardLabel,
-  pinnedFirst,
   type DashboardTitles,
 } from "./chat-rows"
 import { useChats, useDashboardTitles, type Chat } from "./chats-queries"
@@ -65,7 +64,6 @@ export function ChatsPage({ search, onSearch }: Props) {
     },
     pageSize
   )
-  const rows = useMemo(() => pinnedFirst(chats), [chats])
   const footer = chatFooterText(chats.length, null, query.hasNextPage)
 
   const newChat = (
@@ -134,7 +132,7 @@ export function ChatsPage({ search, onSearch }: Props) {
         />
       ) : query.data === undefined ? (
         <ChatsSkeleton />
-      ) : rows.length === 0 ? (
+      ) : chats.length === 0 ? (
         <div className="rounded-card border bg-background">
           {filtered ? (
             <EmptyState
@@ -153,7 +151,7 @@ export function ChatsPage({ search, onSearch }: Props) {
         </div>
       ) : (
         <>
-          <ChatTable chats={rows} titles={titles} everyone={everyone} />
+          <ChatTable chats={chats} titles={titles} everyone={everyone} />
           {footer === null ? null : (
             <p className="mt-2 text-xs text-muted-foreground">{footer}</p>
           )}

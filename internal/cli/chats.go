@@ -70,8 +70,8 @@ func (a *app) chatsListCommand() *cobra.Command {
 	var page pageOptions
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List your chats, the one most recently asked in first",
-		Long:  "list prints your chats, the one most recently asked in first, with how many turns each has and the state of its last turn.\nArchived chats are left out.",
+		Short: "List your chats, pinned ones first, then the one most recently asked in",
+		Long:  "list prints your chats, pinned ones first and then the one most recently asked in, with how many turns each has and the state of its last turn.\n--scope all orders everyone's chats by their last turn only.\nArchived chats are left out.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := page.check(); err != nil {

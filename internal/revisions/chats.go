@@ -93,10 +93,11 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 	if f.Everyone && !reader.admin {
 		return nil, "", ErrForbidden
 	}
-	after, ok := httpapi.DecodeTimeCursor(cursor)
+	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
+	pinnedFirst := !f.Everyone
 	ownerKind, ownerID := reader.only(!f.Everyone)
 	params := dbsqlc.ListChatsParams{
 		OwnerKind:     ownerKind,
@@ -104,6 +105,8 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 		DashboardID:   f.DashboardID,
 		ObservationID: f.ObservationID,
 		Pattern:       pgtype.Text{String: "%" + escapeLike(f.Query) + "%", Valid: f.Query != ""},
+		PinnedFirst:   pinnedFirst,
+		CursorPinned:  pinnedFirst && afterPinned,
 		RowLimit:      httpapi.Int32(limit + 1),
 	}
 	if f.Pinned != nil {
@@ -120,7 +123,8 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
-		next = httpapi.EncodeTimeCursor(rows[limit-1].LastTurnAt.Time, rows[limit-1].ID.String())
+		last := rows[limit-1]
+		next = encodeListCursor(pinnedFirst && last.PinnedAt.Valid, last.LastTurnAt.Time, last.ID.String())
 	}
 	chats := make([]Chat, len(rows))
 	for i, row := range rows {

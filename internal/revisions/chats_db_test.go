@@ -3,6 +3,7 @@ package revisions_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -302,5 +303,53 @@ func TestChatsAreListedAndArchivedByTheirOwnerAndReadByAdmins(t *testing.T) {
 	}
 	if len(archives) != 1 || archives[0].targetID != older.String() || archives[0].actorID != userID || strings.Contains(archives[0].whole, "which logs") || strings.Contains(archives[0].whole, renamed) {
 		t.Fatalf("chat.archive events = %+v", archives)
+	}
+}
+
+func chatIDs(chats []revisions.Chat) []pgtype.UUID {
+	ids := make([]pgtype.UUID, len(chats))
+	for i, c := range chats {
+		ids[i] = c.ID
+	}
+	return ids
+}
+
+func pageThrough(t *testing.T, svc *revisions.Service, by auth.Principal, f revisions.ChatFilter) []pgtype.UUID {
+	t.Helper()
+	var ids []pgtype.UUID
+	cursor := ""
+	for range 10 {
+		page, next, err := svc.Chats(context.Background(), by, f, 1, cursor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, chatIDs(page)...)
+		if next == "" {
+			return ids
+		}
+		cursor = next
+	}
+	t.Fatalf("paging did not end: %v", ids)
+	return nil
+}
+
+func TestYourPinnedChatsComeFirstOnEveryPageAndEveryonesAreByLastTurn(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	ctx := context.Background()
+	oldest := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("oldest")})
+	middle := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("middle")})
+	newest := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("newest")})
+	pinned := true
+	if _, err := svc.UpdateListFields(ctx, oldest, user, nil, false, &pinned); err != nil {
+		t.Fatal(err)
+	}
+
+	mine := pageThrough(t, svc, user, revisions.ChatFilter{})
+	if want := []pgtype.UUID{oldest, newest, middle}; !slices.Equal(mine, want) {
+		t.Fatalf("your chats page by page = %v, want the pinned one first, then by last turn %v", mine, want)
+	}
+	everyone := pageThrough(t, svc, bea, revisions.ChatFilter{Everyone: true})
+	if want := []pgtype.UUID{newest, middle, oldest}; !slices.Equal(everyone, want) {
+		t.Fatalf("everyone's chats page by page = %v, want them by last turn only %v", everyone, want)
 	}
 }

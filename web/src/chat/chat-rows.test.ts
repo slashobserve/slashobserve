@@ -5,7 +5,6 @@ import {
   chatWhen,
   dashboardChoices,
   dashboardLabel,
-  pinnedFirst,
   turnsText,
 } from "./chat-rows"
 import type { Chat } from "./chats-queries"
@@ -57,25 +56,6 @@ describe("dashboardLabel", () => {
 
   test("says Dashboard while the titles load", () => {
     expect(dashboardLabel("d1", undefined)).toBe("Dashboard")
-  })
-})
-
-describe("pinnedFirst", () => {
-  test("moves pinned chats ahead, most recently pinned first, and keeps the rest in order", () => {
-    const ordered = pinnedFirst([
-      chat("a"),
-      chat("p-old", { pinned_at: "2026-11-01T00:00:00Z" }),
-      chat("b"),
-      chat("p-new", { pinned_at: "2026-11-10T00:00:00Z" }),
-      chat("c"),
-    ])
-    expect(ordered.map((entry) => entry.id)).toEqual([
-      "p-new",
-      "p-old",
-      "a",
-      "b",
-      "c",
-    ])
   })
 })
 

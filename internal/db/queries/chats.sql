@@ -62,8 +62,10 @@ WHERE (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_k
   AND (sqlc.narg('pattern')::text IS NULL OR c.title ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM agent_requests t WHERE t.chat_id = c.id AND t.prompt ILIKE sqlc.narg('pattern')::text))
   AND (sqlc.narg('cursor_at')::timestamptz IS NULL
-    OR (c.last_turn_at, c.id) < (sqlc.narg('cursor_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
-ORDER BY c.last_turn_at DESC, c.id DESC
+    OR ((@pinned_first::boolean AND c.pinned_at IS NOT NULL) = @cursor_pinned::boolean
+      AND (c.last_turn_at, c.id) < (sqlc.narg('cursor_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+    OR (@cursor_pinned::boolean AND NOT (@pinned_first::boolean AND c.pinned_at IS NOT NULL)))
+ORDER BY (@pinned_first::boolean AND c.pinned_at IS NOT NULL) DESC, c.last_turn_at DESC, c.id DESC
 LIMIT @row_limit;
 
 -- name: ListChatRequests :many
