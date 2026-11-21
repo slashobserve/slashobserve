@@ -66,7 +66,17 @@ func TestTheChatRoutesMatchTheDocumentAndServeOnlyTheOwner(t *testing.T) {
 		t.Fatalf("detail %+v", detail)
 	}
 
-	admin.call(t, http.MethodGet, chat, "", http.StatusNotFound)
+	var read struct {
+		Chat struct {
+			ReadOnly bool `json:"read_only"`
+			Owner    struct {
+				Name string `json:"name"`
+			} `json:"owner"`
+		} `json:"chat"`
+	}
+	if err := json.Unmarshal(admin.call(t, http.MethodGet, chat, "", http.StatusOK).Body.Bytes(), &read); err != nil || !read.Chat.ReadOnly || read.Chat.Owner.Name != user.Name {
+		t.Fatalf("an Admin read %+v, %v", read, err)
+	}
 	admin.call(t, http.MethodDelete, chat, "", http.StatusNotFound)
 	var theirs chatPage
 	if err := json.Unmarshal(admin.call(t, http.MethodGet, "/api/v1/chats", "", http.StatusOK).Body.Bytes(), &theirs); err != nil || len(theirs.Chats) != 1 || theirs.Chats[0].ID == first.String() {

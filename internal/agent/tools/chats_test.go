@@ -53,11 +53,22 @@ func TestListChatsDefaultsToTwentyAndRejectsABadInput(t *testing.T) {
 	if res.IsError || runs.gotLimits[0] != 20 || runs.chatFilter != (revisions.ChatFilter{}) || !strings.Contains(string(contentJSON(t, res)), `"chats":[]`) {
 		t.Fatalf("res = %+v limits %v filter %+v", res, runs.gotLimits, runs.chatFilter)
 	}
-	for _, input := range []string{`{"limit":51}`, `{"observation_id":"x"}`, `{"dashboard_id":"x"}`, `{"q":""}`, `{"scope":"all"}`} {
+	for _, input := range []string{`{"limit":51}`, `{"observation_id":"x"}`, `{"dashboard_id":"x"}`, `{"q":""}`, `{"scope":"everyone"}`} {
 		bad := &fakeRuns{}
 		if code := errorCode(t, callRunTool(t, bad, nameListChats, input)); code != codeInvalidRequest || bad.invoked {
 			t.Errorf("%s: code %q, invoked %v", input, code, bad.invoked)
 		}
+	}
+}
+
+func TestListChatsAsksForEveryonesChatsWithScopeAll(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"chats":[],"next_cursor":null}`)}
+	if res := callRunTool(t, runs, nameListChats, `{"scope":"all"}`); res.IsError || !runs.chatFilter.Everyone {
+		t.Fatalf("res = %+v filter %+v", res, runs.chatFilter)
+	}
+	refused := &fakeRuns{err: revisions.ErrForbidden}
+	if code := errorCode(t, callRunTool(t, refused, nameListChats, `{"scope":"all"}`)); code != "forbidden_role" {
+		t.Errorf("a non-Admin asking for everyone's chats: code %q, want forbidden_role", code)
 	}
 }
 

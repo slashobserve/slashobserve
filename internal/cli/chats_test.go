@@ -41,8 +41,29 @@ func TestChatsListSendsFiltersAndPrintsEachChat(t *testing.T) {
 	}
 }
 
+func TestChatsListForEveryoneNamesEachOwner(t *testing.T) {
+	reply := `{"chats":[{"id":"` + stoppedID + `","title":"Checkout latency","dashboard_id":null,"observation_id":null,"pinned_at":null,"created_at":"2026-01-01T00:00:00Z","last_turn_at":"2026-01-01T00:05:00Z","turns":1,"last_turn":null,"owner":{"kind":"user","name":"Grace"},"read_only":true}],"next_cursor":null}`
+	var got url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query()
+		_, _ = w.Write([]byte(reply))
+	}))
+	t.Cleanup(server.Close)
+	stdout, stderr, code := runWith(server, "chats", "list", "--scope", "all")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if got.Get("scope") != "all" {
+		t.Fatalf("query %v lacks scope=all", got)
+	}
+	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	if !strings.Contains(lines[0], "OWNER") || !strings.Contains(lines[1], "Grace") {
+		t.Fatalf("output %q does not name the owner", stdout)
+	}
+}
+
 func TestChatsListRejectsABadIDAndALimitOverFifty(t *testing.T) {
-	for _, args := range [][]string{{"--dashboard", "nope"}, {"--observation", "nope"}, {"--limit", "51"}} {
+	for _, args := range [][]string{{"--dashboard", "nope"}, {"--observation", "nope"}, {"--limit", "51"}, {"--scope", "everyone"}} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, append([]string{"chats", "list"}, args...)...)
 		if code != 2 {
 			t.Fatalf("%v: exit %d, stderr %q", args, code, stderr)

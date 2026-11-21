@@ -36,6 +36,13 @@ type chatJSON struct {
 	LastTurnAt    string        `json:"last_turn_at"`
 	Turns         int           `json:"turns"`
 	LastTurn      *chatTurnJSON `json:"last_turn"`
+	Owner         chatOwnerJSON `json:"owner"`
+	ReadOnly      bool          `json:"read_only"`
+}
+
+type chatOwnerJSON struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
 }
 
 type chatListJSON struct {
@@ -58,6 +65,8 @@ func newChatJSON(c Chat) chatJSON {
 		CreatedAt:     httpapi.FormatTime(c.CreatedAt),
 		LastTurnAt:    httpapi.FormatTime(c.LastTurnAt),
 		Turns:         c.Turns,
+		Owner:         chatOwnerJSON(c.Owner),
+		ReadOnly:      c.ReadOnly,
 	}
 	if c.LastTurn != nil {
 		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt}
@@ -87,7 +96,7 @@ func (r *RunDesk) Chat(ctx context.Context, caller auth.Principal, id pgtype.UUI
 	}
 	body := chatDetailJSON{Chat: newChatJSON(chat), Turns: make([]agentRequestJSON, len(turns))}
 	for i, turn := range turns {
-		if body.Turns[i], err = r.render(ctx, turn, caller, false); err != nil {
+		if body.Turns[i], err = r.render(ctx, turn, caller, chat.ReadOnly); err != nil {
 			return nil, err
 		}
 	}
@@ -125,6 +134,15 @@ func (h *ObserveHandler) listChats(c *gin.Context) {
 
 func chatFilter(c *gin.Context) (ChatFilter, bool) {
 	var filter ChatFilter
+	if raw, present := c.GetQuery("scope"); present {
+		switch ListScope(raw) {
+		case ScopeMine, ScopeAll:
+			filter.Everyone = ListScope(raw) == ScopeAll
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "scope must be mine or all")
+			return filter, false
+		}
+	}
 	if raw, present := c.GetQuery("q"); present {
 		q, err := CheckQuery(raw)
 		if err != nil {

@@ -4854,7 +4854,7 @@ components:
     Chat:
       type: object
       additionalProperties: false
-      required: [id, title, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, turns, last_turn]
+      required: [id, title, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, turns, last_turn, owner, read_only]
       properties:
         id:
           type: string
@@ -4889,6 +4889,20 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/ChatTurnSummary"
+        owner:
+          type: object
+          additionalProperties: false
+          required: [kind, name]
+          description: Who started the chat, by the name on its first request.
+          properties:
+            kind:
+              type: string
+              enum: [user, service_account]
+            name:
+              type: string
+        read_only:
+          type: boolean
+          description: True when the caller reads the chat only as an Admin, so it sends no turn and takes no action on it.
     ChatList:
       type: object
       additionalProperties: false

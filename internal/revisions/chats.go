@@ -29,6 +29,13 @@ type Chat struct {
 	LastTurnAt    time.Time
 	Turns         int
 	LastTurn      *ChatTurn
+	Owner         ChatOwner
+	ReadOnly      bool
+}
+
+type ChatOwner struct {
+	Kind string
+	Name string
 }
 
 type ChatTurn struct {
@@ -42,6 +49,32 @@ type ChatFilter struct {
 	ObservationID pgtype.UUID
 	Pinned        *bool
 	Query         string
+	Everyone      bool
+}
+
+type chatReader struct {
+	kind  string
+	id    pgtype.UUID
+	admin bool
+}
+
+func readerOf(by auth.Principal) (chatReader, error) {
+	id, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return chatReader{}, fmt.Errorf("chat owner id: %w", err)
+	}
+	return chatReader{kind: string(by.Kind), id: id, admin: by.Role.AtLeast(auth.RoleAdmin)}, nil
+}
+
+func (r chatReader) only(owned bool) (pgtype.Text, pgtype.UUID) {
+	if !owned {
+		return pgtype.Text{}, pgtype.UUID{}
+	}
+	return pgtype.Text{String: r.kind, Valid: true}, r.id
+}
+
+func (r chatReader) owns(kind string, id pgtype.UUID) bool {
+	return kind == r.kind && id == r.id
 }
 
 func chatTitle(title pgtype.Text, firstPrompt string) string {
@@ -52,16 +85,20 @@ func chatTitle(title pgtype.Text, firstPrompt string) string {
 }
 
 func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, limit int, cursor string) ([]Chat, string, error) {
-	ownerID, err := db.ParseUUID(by.ID)
+	reader, err := readerOf(by)
 	if err != nil {
-		return nil, "", fmt.Errorf("chat owner id: %w", err)
+		return nil, "", err
+	}
+	if f.Everyone && !reader.admin {
+		return nil, "", ErrForbidden
 	}
 	after, ok := httpapi.DecodeTimeCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
+	ownerKind, ownerID := reader.only(!f.Everyone)
 	params := dbsqlc.ListChatsParams{
-		OwnerKind:     string(by.Kind),
+		OwnerKind:     ownerKind,
 		OwnerID:       ownerID,
 		DashboardID:   f.DashboardID,
 		ObservationID: f.ObservationID,
@@ -95,6 +132,8 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 			CreatedAt:     row.CreatedAt.Time.UTC(),
 			LastTurnAt:    row.LastTurnAt.Time.UTC(),
 			Turns:         int(row.Turns),
+			Owner:         ChatOwner{Kind: row.OwnerKind, Name: row.OwnerName},
+			ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
 		}
 		if row.LastTurnID.Valid {
 			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt}
@@ -104,12 +143,13 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 }
 
 func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (Chat, []dbsqlc.AgentRequest, error) {
-	ownerID, err := db.ParseUUID(by.ID)
+	reader, err := readerOf(by)
 	if err != nil {
-		return Chat{}, nil, fmt.Errorf("chat owner id: %w", err)
+		return Chat{}, nil, err
 	}
 	q := s.db.Queries()
-	row, err := q.GetChat(ctx, dbsqlc.GetChatParams{ID: id, OwnerKind: string(by.Kind), OwnerID: ownerID})
+	ownerKind, ownerID := reader.only(!reader.admin)
+	row, err := q.GetChat(ctx, dbsqlc.GetChatParams{ID: id, OwnerKind: ownerKind, OwnerID: ownerID})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Chat{}, nil, ErrChatNotFound
@@ -130,6 +170,8 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 		LastTurnAt:    row.LastTurnAt.Time.UTC(),
 		Turns:         len(turns),
+		Owner:         ChatOwner{Kind: row.OwnerKind, Name: row.OwnerName},
+		ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
 	}
 	first := ""
 	if len(turns) > 0 {

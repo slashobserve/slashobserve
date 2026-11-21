@@ -123,10 +123,12 @@ A request that saved no observation is refused and left as it was.
 
 ### Your chats
 
-Every prompt you send is a turn of a chat, which only you can read; an Admin cannot read another person's chat.
+Every prompt you send is a turn of a chat, which you and Admins can read and nobody else sees.
 `bin/observe chats list` prints your chats, the one most recently asked in first, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
+`--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
+An Admin may show anyone's chat, read only, and each such read is recorded in the audit trail as `chat.view`.
 `chats archive <chat-id>` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 
 ### Discovering what a datasource holds

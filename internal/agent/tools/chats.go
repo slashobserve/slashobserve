@@ -18,10 +18,11 @@ const (
 	defaultListChats = 20
 	maxListChats     = 50
 
-	descListChats = "List your chats with the built-in agent, the one most recently asked in first, 20 per page by default. A chat is the run of requests you sent about one thing; only you read your chats, Admins included. Keep chats about a dashboard_id or an observation_id, pinned or unpinned ones, or those whose title or any prompt contains q. Each has its id, title, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, how many turns it has and its last turn. Read one with get_chat, and send its id as chat_id to start_run to ask the next turn. Page with next_cursor."
-	descGetChat   = "Read one of your chats with its turns, oldest first, each the run it started as get_run returns it without steps. A chat of someone else's, an archived chat or an unknown id answers not_found. When the turns do not all fit, truncated is true and next_offset reads the rest."
+	descListChats = "List your chats with the built-in agent, the one most recently asked in first, 20 per page by default. A chat is the run of requests one person sent about one thing; its owner and Admins read it, nobody else. scope all lists every person's chats, Admin only. Keep chats about a dashboard_id or an observation_id, pinned or unpinned ones, or those whose title or any prompt contains q. Each has its id, title, owner, read_only, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, how many turns it has and its last turn. Read one with get_chat, and send its id as chat_id to start_run to ask the next turn. Page with next_cursor."
+	descGetChat   = "Read one of your chats, or as an Admin anyone's read only, with its turns, oldest first, each the run it started as get_run returns it without steps. Another person's chat for a non-Admin, an archived chat or an unknown id answers not_found. When the turns do not all fit, truncated is true and next_offset reads the rest."
 
 	schemaListChats = `{"type":"object","properties":{` +
+		`"scope":{"type":"string","enum":["mine","all"],"description":"mine, the default, or all for every person's chats, which needs the Admin role."},` +
 		`"dashboard_id":{"type":"string","format":"uuid","description":"Only chats about this dashboard, from list_dashboards."},` +
 		`"observation_id":{"type":"string","format":"uuid","description":"Only chats about this observation."},` +
 		`"pinned":{"type":"boolean","description":"true keeps only pinned chats, false only unpinned ones."},` +
@@ -43,6 +44,7 @@ func (r *Registry) chatEntries() []entry {
 }
 
 type listChatsInput struct {
+	Scope         string  `json:"scope"`
 	DashboardID   string  `json:"dashboard_id"`
 	ObservationID string  `json:"observation_id"`
 	Pinned        *bool   `json:"pinned"`
@@ -52,7 +54,12 @@ type listChatsInput struct {
 }
 
 func (in listChatsInput) parse() (revisions.ChatFilter, int, Result, bool) {
-	filter := revisions.ChatFilter{Pinned: in.Pinned}
+	filter := revisions.ChatFilter{Pinned: in.Pinned, Everyone: revisions.ListScope(in.Scope) == revisions.ScopeAll}
+	switch revisions.ListScope(in.Scope) {
+	case "", revisions.ScopeMine, revisions.ScopeAll:
+	default:
+		return filter, 0, invalid("scope must be mine or all"), false
+	}
 	if in.Q != nil {
 		q, err := revisions.CheckQuery(*in.Q)
 		if err != nil {

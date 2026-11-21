@@ -101,18 +101,38 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (Chat, e
 }
 
 const getChat = `-- name: GetChat :one
-SELECT id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at FROM chats WHERE id = $1 AND owner_kind = $2 AND owner_id = $3
+SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, coalesce(owner.requested_by_name, '')::text AS owner_name
+FROM chats c
+LEFT JOIN LATERAL (
+  SELECT t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+) owner ON true
+WHERE c.id = $1
+  AND ($2::uuid IS NULL OR (c.owner_kind = $3::text AND c.owner_id = $2::uuid))
 `
 
 type GetChatParams struct {
 	ID        pgtype.UUID
-	OwnerKind string
 	OwnerID   pgtype.UUID
+	OwnerKind pgtype.Text
 }
 
-func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (Chat, error) {
-	row := q.db.QueryRow(ctx, getChat, arg.ID, arg.OwnerKind, arg.OwnerID)
-	var i Chat
+type GetChatRow struct {
+	ID            pgtype.UUID
+	OwnerKind     string
+	OwnerID       pgtype.UUID
+	Title         pgtype.Text
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	PinnedAt      pgtype.Timestamptz
+	ArchivedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	LastTurnAt    pgtype.Timestamptz
+	OwnerName     string
+}
+
+func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (GetChatRow, error) {
+	row := q.db.QueryRow(ctx, getChat, arg.ID, arg.OwnerID, arg.OwnerKind)
+	var i GetChatRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerKind,
@@ -124,6 +144,7 @@ func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (Chat, error) 
 		&i.ArchivedAt,
 		&i.CreatedAt,
 		&i.LastTurnAt,
+		&i.OwnerName,
 	)
 	return i, err
 }
@@ -209,17 +230,18 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 }
 
 const listChats = `-- name: ListChats :many
-SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt,
+SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
 FROM chats c
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
 LEFT JOIN LATERAL (
-  SELECT t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+  SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) first ON true
 LEFT JOIN LATERAL (
   SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
-WHERE c.owner_kind = $1 AND c.owner_id = $2 AND c.archived_at IS NULL
+WHERE ($1::uuid IS NULL OR (c.owner_kind = $2::text AND c.owner_id = $1::uuid))
+  AND c.archived_at IS NULL
   AND ($3::uuid IS NULL OR c.dashboard_id = $3::uuid)
   AND ($4::uuid IS NULL OR c.observation_id = $4::uuid)
   AND ($5::boolean IS NULL OR (c.pinned_at IS NOT NULL) = $5::boolean)
@@ -232,8 +254,8 @@ LIMIT $9
 `
 
 type ListChatsParams struct {
-	OwnerKind     string
 	OwnerID       pgtype.UUID
+	OwnerKind     pgtype.Text
 	DashboardID   pgtype.UUID
 	ObservationID pgtype.UUID
 	Pinned        pgtype.Bool
@@ -256,6 +278,7 @@ type ListChatsRow struct {
 	LastTurnAt     pgtype.Timestamptz
 	Turns          int64
 	FirstPrompt    string
+	OwnerName      string
 	LastTurnID     pgtype.UUID
 	LastTurnState  string
 	LastTurnPrompt string
@@ -263,8 +286,8 @@ type ListChatsRow struct {
 
 func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListChatsRow, error) {
 	rows, err := q.db.Query(ctx, listChats,
-		arg.OwnerKind,
 		arg.OwnerID,
+		arg.OwnerKind,
 		arg.DashboardID,
 		arg.ObservationID,
 		arg.Pinned,
@@ -293,6 +316,7 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 			&i.LastTurnAt,
 			&i.Turns,
 			&i.FirstPrompt,
+			&i.OwnerName,
 			&i.LastTurnID,
 			&i.LastTurnState,
 			&i.LastTurnPrompt,

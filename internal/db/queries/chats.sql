@@ -4,7 +4,13 @@ VALUES (@id, @owner_kind, @owner_id, sqlc.narg('title')::text, sqlc.narg('dashbo
 RETURNING *;
 
 -- name: GetChat :one
-SELECT * FROM chats WHERE id = @id AND owner_kind = @owner_kind AND owner_id = @owner_id;
+SELECT c.*, coalesce(owner.requested_by_name, '')::text AS owner_name
+FROM chats c
+LEFT JOIN LATERAL (
+  SELECT t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+) owner ON true
+WHERE c.id = @id
+  AND (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_kind')::text AND c.owner_id = sqlc.narg('owner_id')::uuid));
 
 -- name: TouchChat :one
 UPDATE chats SET last_turn_at = clock_timestamp()
@@ -38,17 +44,18 @@ UPDATE chats SET dashboard_id = @dashboard_id
 WHERE id = @id AND dashboard_id IS NULL AND observation_id IS NULL;
 
 -- name: ListChats :many
-SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt,
+SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
 FROM chats c
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
 LEFT JOIN LATERAL (
-  SELECT t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+  SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) first ON true
 LEFT JOIN LATERAL (
   SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
-WHERE c.owner_kind = @owner_kind AND c.owner_id = @owner_id AND c.archived_at IS NULL
+WHERE (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_kind')::text AND c.owner_id = sqlc.narg('owner_id')::uuid))
+  AND c.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR c.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('observation_id')::uuid IS NULL OR c.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (c.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)

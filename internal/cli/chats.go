@@ -3,7 +3,9 @@ package cli
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -25,6 +27,12 @@ type chatRow struct {
 	LastTurnAt    string       `json:"last_turn_at"`
 	Turns         int          `json:"turns"`
 	LastTurn      *chatTurnRow `json:"last_turn"`
+	Owner         chatOwnerRow `json:"owner"`
+	ReadOnly      bool         `json:"read_only"`
+}
+
+type chatOwnerRow struct {
+	Name string `json:"name"`
 }
 
 type chatListBody struct {
@@ -38,6 +46,7 @@ type chatDetailBody struct {
 }
 
 type chatListOptions struct {
+	scope       string
 	query       string
 	pinned      bool
 	dashboard   string
@@ -48,7 +57,7 @@ func (a *app) chatsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "chats",
 		Short: "List, read and archive your chats with the agent",
-		Long:  "chats works the chats you had with the built-in agent: each prompt you send is a turn of one.\nOnly you can read your chats; an Admin cannot read another person's.\nobserve --chat <id> asks the next turn of a chat.",
+		Long:  "chats works the chats you had with the built-in agent: each prompt you send is a turn of one.\nYou and Admins can read your chats, and nobody else sees them; an Admin reads anyone's read only.\nobserve --chat <id> asks the next turn of a chat.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -95,15 +104,24 @@ func (a *app) chatsListCommand() *cobra.Command {
 				if chat.LastTurn != nil {
 					state = requestStateWord(chat.LastTurn.State)
 				}
-				rows = append(rows, []string{text(chat.ID), state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), firstLine(chat.Title)})
+				row := []string{text(chat.ID)}
+				if opts.everyone() {
+					row = append(row, text(chat.Owner.Name))
+				}
+				rows = append(rows, append(row, state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), firstLine(chat.Title)))
 			}
-			out.table([]string{"ID", "LAST TURN", "TURNS", "ASKED", "TITLE"}, rows)
+			header := []string{"ID", "LAST TURN", "TURNS", "ASKED", "TITLE"}
+			if opts.everyone() {
+				header = []string{"ID", "OWNER", "LAST TURN", "TURNS", "ASKED", "TITLE"}
+			}
+			out.table(header, rows)
 			pageFooter(out, len(list.Chats), nil, list.NextCursor)
 			return nil
 		},
 	}
 	addPageFlags(cmd, &page, maxChatPage)
 	flags := cmd.Flags()
+	flags.StringVar(&opts.scope, "scope", "", "mine (default) or all, every person's chats, which needs the Admin role")
 	flags.StringVar(&opts.query, "q", "", "keep chats whose title or any prompt contains this text")
 	flags.BoolVar(&opts.pinned, "pinned", false, "keep only pinned chats, or only unpinned ones with --pinned=false")
 	flags.StringVar(&opts.dashboard, "dashboard", "", "keep only the chats about this dashboard id")
@@ -111,7 +129,17 @@ func (a *app) chatsListCommand() *cobra.Command {
 	return cmd
 }
 
+func (o chatListOptions) everyone() bool {
+	return o.scope == "all"
+}
+
 func (o chatListOptions) apply(cmd *cobra.Command, query url.Values) error {
+	if o.scope != "" {
+		if !slices.Contains(requestScopes, o.scope) {
+			return usagef("--scope must be one of %s", strings.Join(requestScopes, ", "))
+		}
+		query.Set("scope", o.scope)
+	}
 	if o.query != "" {
 		query.Set("q", o.query)
 	}
@@ -134,8 +162,8 @@ func (o chatListOptions) apply(cmd *cobra.Command, query url.Values) error {
 func (a *app) chatsShowCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <chat-id>",
-		Short: "Print one of your chats with every turn, oldest first",
-		Long:  "show prints one of your chats and its turns, oldest first, each with its request id, state and prompt.\nobserve status <request-id> prints one turn in full.",
+		Short: "Print one of your chats, or as an Admin anyone's, with every turn, oldest first",
+		Long:  "show prints one of your chats and its turns, oldest first, each with its request id, state and prompt.\nAn Admin may show anyone's chat, read only, and the read is recorded in the audit trail.\nobserve status <request-id> prints one turn in full.",
 		Args:  exactArgs(1, "one chat id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -161,6 +189,7 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			}
 			out.fields([][2]string{
 				{"Chat", text(detail.Chat.ID)},
+				{"Owner", text(detail.Chat.Owner.Name)},
 				{"Title", firstLine(detail.Chat.Title)},
 				{"Dashboard", orDash(detail.Chat.DashboardID)},
 				{"Observation", orDash(detail.Chat.ObservationID)},

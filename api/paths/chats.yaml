@@ -5,13 +5,21 @@ chats:
     x-surfaces:
       mcp: [list_chats]
       cli: [observe chats list]
-    summary: List your chats, the one most recently asked in first.
+    summary: "List your chats, the one most recently asked in first, or everyone's for an Admin."
     description: >-
-      A chat is the run of requests one person sent about one thing, started by `POST /observe`; only its owner lists or reads it, and Admins cannot read another person's chat.
+      A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it.
+      With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403.
+      `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin.
       `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively.
       Archived chats are left out.
       `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
     parameters:
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum: [mine, all]
+          default: mine
       - name: q
         in: query
         schema:
@@ -54,6 +62,8 @@ chats:
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 chats-id:
@@ -66,14 +76,16 @@ chats-id:
         format: uuid
   get:
     operationId: getChat
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { action: chat.view, target: { kind: chat, id: path.id } }
     x-surfaces:
       mcp: [get_chat]
       cli: [observe chats show]
-    summary: Read one of your chats with every turn, oldest first.
+    summary: Read one of your chats, or as an Admin anyone's, with every turn, oldest first.
     description: >-
       Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps.
-      A chat of someone else's, an archived chat or an unknown id answers 404, for an Admin as well.
+      An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`.
+      A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404.
+      Each read is recorded in the audit trail as `chat.view` with the chat as its target.
     responses:
       "200":
         description: The chat and its turns.
