@@ -3,6 +3,7 @@ package revisions_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -80,6 +81,32 @@ func TestAnInvestigationAskedInAThreadSkipsThePersonAndInstanceCaps(t *testing.T
 	row, err := svc.EnqueueAssignedInvestigate(ctx, d.Queries(), revisions.InvestigateParams{Prompt: "asked in a thread", By: user, Ask: true})
 	if err != nil || revisions.SourceOf(row) != revisions.SourceInvestigate {
 		t.Fatalf("an asked investigation with both caps full: %+v, %v", row, err)
+	}
+}
+
+func TestPrivateAsksInOneChatSkipEveryCapAndWaitTheirTurn(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	for range revisions.MaxActiveInvestigatePerPrincipal {
+		investigate(t, svc, revisions.InvestigateParams{})
+	}
+	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', 'investigate', (SELECT id FROM observations LIMIT 1))`)
+	}
+	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why is checkout slow?"), Kind: text(revisions.KindAsk), DashboardID: text(dash.String())})
+	chat := chatOfTurn(t, d, first)
+	for i := range revisions.MaxActive + revisions.MaxActiveInvestigate {
+		startTurn(t, svc, user, revisions.StartRequest{Prompt: text(fmt.Sprintf("and what about step %d?", i)), Kind: text(revisions.KindAsk), DashboardID: text(dash.String()), ChatID: text(chat)})
+	}
+	var queued int
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM agent_requests WHERE chat_id = $1::uuid AND state = 'queued'", chat).Scan(&queued); err != nil {
+		t.Fatal(err)
+	}
+	if want := 1 + revisions.MaxActive + revisions.MaxActiveInvestigate; queued != want {
+		t.Fatalf("unfinished turns in the chat = %d, want %d", queued, want)
+	}
+	if _, err := svc.Start(reading(t.Context()), user, revisions.StartRequest{Prompt: text("file it"), Kind: text(revisions.KindInvestigate), DashboardID: text(dash.String())}); !errors.Is(err, revisions.ErrTooManyInvestigations) {
+		t.Fatalf("an investigation beside them still meets its cap: %v", err)
 	}
 }
 
