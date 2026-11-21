@@ -112,37 +112,6 @@ func mustNotContain(t *testing.T, who, what, body string, ids ...string) {
 	}
 }
 
-var textlessRunData = []string{"attempt", "cost_usd", "failure_code", "source"}
-
-func keptRunEntries(t *testing.T, page, run string) []string {
-	t.Helper()
-	var body struct {
-		Activity []struct {
-			Type   string `json:"type"`
-			Target struct {
-				ID string `json:"id"`
-			} `json:"target"`
-			Data map[string]any `json:"data"`
-		} `json:"activity"`
-	}
-	if err := json.Unmarshal([]byte(page), &body); err != nil {
-		t.Fatal(err)
-	}
-	var kept []string
-	for _, e := range body.Activity {
-		if e.Target.ID != run {
-			continue
-		}
-		for key := range e.Data {
-			if !slices.Contains(textlessRunData, key) {
-				t.Errorf("the %s entry carries %q", e.Type, key)
-			}
-		}
-		kept = append(kept, e.Type)
-	}
-	return kept
-}
-
 func failAllRuns(t *testing.T, svc *revisions.Service, d *dbtest.Database, ids ...string) {
 	t.Helper()
 	stop := startWorker(t, svc, d, revisions.WorkerOptions{})
@@ -163,12 +132,13 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs mention " + privateWord)})
 	followUp := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a latency panel"), DashboardID: text(dash.String())})
-	inv := investigate(t, svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why is " + privateWord + " failing"}).ID
+	inv := investigate(t, svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why is checkout failing"}).ID
 	homeChat, followUpChat := chatOfTurn(t, d, home), chatOfTurn(t, d, followUp)
 	failAllRuns(t, svc, d, home.String(), followUp.String(), inv.String())
 
 	w := newPrivateWalk(t, svc, d)
-	private := []string{home.String(), inv.String()}
+	private := []string{home.String()}
+	shared := []string{followUp.String(), inv.String()}
 	for _, tc := range []struct {
 		who  auth.Principal
 		full bool
@@ -187,22 +157,21 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 		listed := w.http(tc.who, chats, http.StatusOK) + w.mcp(tc.who, "list_chats", chatsTool, false)
 		listedRuns := w.http(tc.who, runs, http.StatusOK) + w.mcp(tc.who, "list_runs", mcpRuns, false)
 		agents := w.http(tc.who, "/api/v1/agents/runs?kind=builtin", http.StatusOK)
-		page := w.http(tc.who, "/api/v1/activity", http.StatusOK)
-		feed := page + w.mcp(tc.who, "list_activity", `{}`, false)
+		feed := w.http(tc.who, "/api/v1/activity", http.StatusOK) + w.mcp(tc.who, "list_activity", `{}`, false)
 		inbox := w.http(tc.who, "/api/v1/inbox", http.StatusOK)
 		found := w.http(tc.who, "/api/v1/search?q="+privateWord, http.StatusOK)
 
-		w.http(tc.who, "/api/v1/observe/"+followUp.String(), http.StatusOK)
-		mustNotContain(t, name, "search", found, private...)
-		mustContain(t, name, "activity", feed, inv.String())
-		if kept := keptRunEntries(t, page, inv.String()); !slices.Equal(kept, []string{"run.failed", "run.started", "run.queued"}) {
-			t.Errorf("%s: the dashboard keeps the investigation's entries %v, want queued, started and failed", name, kept)
+		for _, id := range shared {
+			w.http(tc.who, "/api/v1/observe/"+id, http.StatusOK)
+			w.mcp(tc.who, "get_run", `{"id":"`+id+`"}`, false)
 		}
+		mustNotContain(t, name, "search", found, private...)
+		mustContain(t, name, "activity", feed, shared...)
 
 		if tc.full {
 			mustContain(t, name, "the chat list", listed, homeChat, followUpChat)
-			mustContain(t, name, "the run list", listedRuns, private...)
-			mustContain(t, name, "the Agents page", agents, private...)
+			mustContain(t, name, "the run list", listedRuns, home.String(), inv.String())
+			mustContain(t, name, "the Agents page", agents, home.String(), inv.String())
 			mustContain(t, name, "activity", feed, home.String())
 			for _, id := range private {
 				mustContain(t, name, "the run", w.http(tc.who, "/api/v1/observe/"+id, http.StatusOK)+w.mcp(tc.who, "get_run", `{"id":"`+id+`"}`, false), privateWord)
@@ -213,9 +182,9 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 			}
 			w.chatReadOnly(tc.who, followUpChat)
 			if tc.who.ID == user.ID {
-				mustContain(t, name, "the inbox", inbox, private...)
+				mustContain(t, name, "the inbox", inbox, home.String(), inv.String())
 			} else {
-				mustNotContain(t, name, "the inbox", inbox, private...)
+				mustNotContain(t, name, "the inbox", inbox, home.String(), inv.String())
 			}
 			continue
 		}
@@ -224,7 +193,7 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 		mustNotContain(t, name, "the run list", listedRuns, private...)
 		mustNotContain(t, name, "the Agents page", agents, private...)
 		mustNotContain(t, name, "activity", feed, home.String())
-		mustNotContain(t, name, "the inbox", inbox, private...)
+		mustNotContain(t, name, "the inbox", inbox, home.String(), inv.String())
 		for _, id := range private {
 			w.http(tc.who, "/api/v1/observe/"+id, http.StatusNotFound)
 			w.mcp(tc.who, "get_run", `{"id":"`+id+`"}`, true)

@@ -149,10 +149,7 @@ func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	h.call(t, http.MethodPatch, "/api/v1/observe/"+build, `{"title":"Checkout","pinned":true}`, http.StatusOK)
 	h.call(t, http.MethodPatch, "/api/v1/observe/"+build, `{"title":null}`, http.StatusOK)
 	h.call(t, http.MethodPatch, "/api/v1/observe/"+build, `{}`, http.StatusBadRequest)
-	followUp := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a latency panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
-	someoneElse := newDocumentedObserve(t, svc, account, nil)
-	someoneElse.call(t, http.MethodPatch, "/api/v1/observe/"+followUp, `{"pinned":true}`, http.StatusForbidden)
-	someoneElse.call(t, http.MethodPatch, "/api/v1/observe/"+investigation, `{"pinned":true}`, http.StatusNotFound)
+	newDocumentedObserve(t, svc, account, nil).call(t, http.MethodPatch, "/api/v1/observe/"+investigation, `{"pinned":true}`, http.StatusForbidden)
 
 	for _, query := range []string{"", "?q=checkout", "?pinned=true", "?source=investigate", "?dashboard_id=" + dash.String(), "?limit=1"} {
 		h.call(t, http.MethodGet, "/api/v1/observe"+query, "", http.StatusOK)
