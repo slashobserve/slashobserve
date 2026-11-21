@@ -23,6 +23,7 @@ type StartRequest struct {
 	To            *string `json:"to"`
 	ObservationID *string `json:"observation_id"`
 	FollowsID     *string `json:"follows_id"`
+	ChatID        *string `json:"chat_id"`
 	TimeZone      *string `json:"time_zone"`
 }
 
@@ -75,19 +76,25 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	chatID, err := uuidField("chat_id", req.ChatID)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		return dbsqlc.AgentRequest{}, refused("base_version must be a positive 32-bit integer")
 	}
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
-	if dashboardID.Valid {
+	switch {
+	case dashboardID.Valid && chatID.Valid:
+		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, chat: chatNamed(chatID)}, req.BaseVersion)
+	case dashboardID.Valid:
 		return s.SubmitFollowUp(ctx, dashboardID, req.BaseVersion, "", prompt, by)
-	}
-	if followsID.Valid {
+	case followsID.Valid:
 		return s.SubmitObserveFollowUp(ctx, by, prompt, followsID)
 	}
-	return s.SubmitObserve(ctx, by, prompt)
+	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chatNamed(chatID)})
 }
 
 func buildFieldConflict(req StartRequest) string {
@@ -100,6 +107,8 @@ func buildFieldConflict(req StartRequest) string {
 		return "base_version needs dashboard_id"
 	case req.DashboardID != nil && req.FollowsID != nil:
 		return "follows_id and dashboard_id exclude each other"
+	case req.ChatID != nil && req.FollowsID != nil:
+		return "follows_id and chat_id exclude each other"
 	}
 	return ""
 }
@@ -119,8 +128,14 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 	if req.BaseVersion != nil {
 		return dbsqlc.AgentRequest{}, refused("base_version is not allowed for kind investigate")
 	}
+	if req.ChatID != nil && req.FollowsID != nil {
+		return dbsqlc.AgentRequest{}, refused("follows_id and chat_id exclude each other")
+	}
 	params := InvestigateParams{Prompt: prompt, By: by}
 	var err error
+	if params.chat, err = s.investigationChat(ctx, by, req); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if params.DashboardID, err = uuidField("dashboard_id", req.DashboardID); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
@@ -143,4 +158,20 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	return s.SubmitInvestigate(ctx, params)
+}
+
+func (s *Service) investigationChat(ctx context.Context, by auth.Principal, req StartRequest) (chatChoice, error) {
+	chatID, err := uuidField("chat_id", req.ChatID)
+	if err != nil {
+		return chatChoice{}, err
+	}
+	followsID, err := uuidField("follows_id", req.FollowsID)
+	if err != nil || !followsID.Valid {
+		return chatNamed(chatID), err
+	}
+	parent, err := s.GetObserve(ctx, followsID, by)
+	if err != nil {
+		return chatChoice{}, err
+	}
+	return chatChoice{mode: sameChat, id: chatRoot(parent.ID, parent.ChatID)}, nil
 }

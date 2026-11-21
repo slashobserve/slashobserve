@@ -12,9 +12,15 @@ import (
 )
 
 const archiveChat = `-- name: ArchiveChat :one
-UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp())
-WHERE id = $1 AND owner_kind = $2 AND owner_id = $3
-RETURNING id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at
+WITH archived AS (
+  UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp())
+  WHERE chats.id = $1 AND owner_kind = $2 AND owner_id = $3
+  RETURNING id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at
+), turns AS (
+  UPDATE agent_requests SET archived_at = coalesce(agent_requests.archived_at, clock_timestamp())
+  FROM archived WHERE agent_requests.chat_id = archived.id
+)
+SELECT id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at FROM archived
 `
 
 type ArchiveChatParams struct {
@@ -23,9 +29,22 @@ type ArchiveChatParams struct {
 	OwnerID   pgtype.UUID
 }
 
-func (q *Queries) ArchiveChat(ctx context.Context, arg ArchiveChatParams) (Chat, error) {
+type ArchiveChatRow struct {
+	ID            pgtype.UUID
+	OwnerKind     string
+	OwnerID       pgtype.UUID
+	Title         pgtype.Text
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	PinnedAt      pgtype.Timestamptz
+	ArchivedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	LastTurnAt    pgtype.Timestamptz
+}
+
+func (q *Queries) ArchiveChat(ctx context.Context, arg ArchiveChatParams) (ArchiveChatRow, error) {
 	row := q.db.QueryRow(ctx, archiveChat, arg.ID, arg.OwnerKind, arg.OwnerID)
-	var i Chat
+	var i ArchiveChatRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerKind,
@@ -78,31 +97,6 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (Chat, e
 		&i.CreatedAt,
 		&i.LastTurnAt,
 	)
-	return i, err
-}
-
-const ensureChat = `-- name: EnsureChat :one
-INSERT INTO chats AS c (id, owner_kind, owner_id) VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE SET last_turn_at = clock_timestamp()
-WHERE c.owner_kind = excluded.owner_kind AND c.owner_id = excluded.owner_id
-RETURNING c.id, (c.xmax = 0) AS created
-`
-
-type EnsureChatParams struct {
-	ID        pgtype.UUID
-	OwnerKind string
-	OwnerID   pgtype.UUID
-}
-
-type EnsureChatRow struct {
-	ID      pgtype.UUID
-	Created bool
-}
-
-func (q *Queries) EnsureChat(ctx context.Context, arg EnsureChatParams) (EnsureChatRow, error) {
-	row := q.db.QueryRow(ctx, ensureChat, arg.ID, arg.OwnerKind, arg.OwnerID)
-	var i EnsureChatRow
-	err := row.Scan(&i.ID, &i.Created)
 	return i, err
 }
 
@@ -215,9 +209,13 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 }
 
 const listChats = `-- name: ListChats :many
-SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, last.id AS last_turn_id, last.state AS last_turn_state, last.prompt AS last_turn_prompt
+SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt,
+  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
 FROM chats c
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
+LEFT JOIN LATERAL (
+  SELECT t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+) first ON true
 LEFT JOIN LATERAL (
   SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
@@ -257,6 +255,7 @@ type ListChatsRow struct {
 	CreatedAt      pgtype.Timestamptz
 	LastTurnAt     pgtype.Timestamptz
 	Turns          int64
+	FirstPrompt    string
 	LastTurnID     pgtype.UUID
 	LastTurnState  string
 	LastTurnPrompt string
@@ -293,6 +292,7 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 			&i.CreatedAt,
 			&i.LastTurnAt,
 			&i.Turns,
+			&i.FirstPrompt,
 			&i.LastTurnID,
 			&i.LastTurnState,
 			&i.LastTurnPrompt,
@@ -336,6 +336,42 @@ type TouchChatParams struct {
 
 func (q *Queries) TouchChat(ctx context.Context, arg TouchChatParams) (Chat, error) {
 	row := q.db.QueryRow(ctx, touchChat, arg.ID, arg.OwnerKind, arg.OwnerID)
+	var i Chat
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerKind,
+		&i.OwnerID,
+		&i.Title,
+		&i.DashboardID,
+		&i.ObservationID,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.CreatedAt,
+		&i.LastTurnAt,
+	)
+	return i, err
+}
+
+const touchLatestDashboardChat = `-- name: TouchLatestDashboardChat :one
+UPDATE chats SET last_turn_at = clock_timestamp()
+WHERE id = (
+  SELECT l.id FROM chats l
+  WHERE l.owner_kind = $1 AND l.owner_id = $2 AND l.dashboard_id = $3 AND l.archived_at IS NULL
+  ORDER BY l.last_turn_at DESC, l.id DESC
+  LIMIT 1
+  FOR UPDATE
+)
+RETURNING id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at
+`
+
+type TouchLatestDashboardChatParams struct {
+	OwnerKind   string
+	OwnerID     pgtype.UUID
+	DashboardID pgtype.UUID
+}
+
+func (q *Queries) TouchLatestDashboardChat(ctx context.Context, arg TouchLatestDashboardChatParams) (Chat, error) {
+	row := q.db.QueryRow(ctx, touchLatestDashboardChat, arg.OwnerKind, arg.OwnerID, arg.DashboardID)
 	var i Chat
 	err := row.Scan(
 		&i.ID,

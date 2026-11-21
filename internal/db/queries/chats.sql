@@ -11,19 +11,40 @@ UPDATE chats SET last_turn_at = clock_timestamp()
 WHERE id = @id AND owner_kind = @owner_kind AND owner_id = @owner_id AND archived_at IS NULL
 RETURNING *;
 
--- name: ArchiveChat :one
-UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp())
-WHERE id = @id AND owner_kind = @owner_kind AND owner_id = @owner_id
+-- name: TouchLatestDashboardChat :one
+UPDATE chats SET last_turn_at = clock_timestamp()
+WHERE id = (
+  SELECT l.id FROM chats l
+  WHERE l.owner_kind = @owner_kind AND l.owner_id = @owner_id AND l.dashboard_id = @dashboard_id AND l.archived_at IS NULL
+  ORDER BY l.last_turn_at DESC, l.id DESC
+  LIMIT 1
+  FOR UPDATE
+)
 RETURNING *;
+
+-- name: ArchiveChat :one
+WITH archived AS (
+  UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp())
+  WHERE chats.id = @id AND owner_kind = @owner_kind AND owner_id = @owner_id
+  RETURNING *
+), turns AS (
+  UPDATE agent_requests SET archived_at = coalesce(agent_requests.archived_at, clock_timestamp())
+  FROM archived WHERE agent_requests.chat_id = archived.id
+)
+SELECT * FROM archived;
 
 -- name: SetChatSubjectDashboard :exec
 UPDATE chats SET dashboard_id = @dashboard_id
 WHERE id = @id AND dashboard_id IS NULL AND observation_id IS NULL;
 
 -- name: ListChats :many
-SELECT c.*, turns.count AS turns, last.id AS last_turn_id, last.state AS last_turn_state, last.prompt AS last_turn_prompt
+SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt,
+  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
 FROM chats c
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
+LEFT JOIN LATERAL (
+  SELECT t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
+) first ON true
 LEFT JOIN LATERAL (
   SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
@@ -40,9 +61,3 @@ LIMIT @row_limit;
 
 -- name: ListChatRequests :many
 SELECT * FROM agent_requests WHERE chat_id = @chat_id ORDER BY created_at, id;
-
--- name: EnsureChat :one
-INSERT INTO chats AS c (id, owner_kind, owner_id) VALUES (@id, @owner_kind, @owner_id)
-ON CONFLICT (id) DO UPDATE SET last_turn_at = clock_timestamp()
-WHERE c.owner_kind = excluded.owner_kind AND c.owner_id = excluded.owner_id
-RETURNING c.id, (c.xmax = 0) AS created;

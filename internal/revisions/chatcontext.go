@@ -12,9 +12,16 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+)
+
+const (
+	actionChatCreate audit.Action = "chat.create"
+	actionChatTurn   audit.Action = "chat.turn"
+	actionChatDelete audit.Action = "chat.delete"
 )
 
 const (
@@ -29,31 +36,126 @@ type chatTurn struct {
 	answer string
 }
 
-type observeChat struct {
-	id      pgtype.UUID
-	context string
-	retries pgtype.UUID
+type chatMode int
+
+const (
+	noChat chatMode = iota
+	newChat
+	givenChat
+	sameChat
+	dashboardChat
+)
+
+type chatChoice struct {
+	mode chatMode
+	id   pgtype.UUID
 }
 
-var errChatNotYours = errors.New("chat belongs to someone else")
+func chatNamed(id pgtype.UUID) chatChoice {
+	if !id.Valid {
+		return chatChoice{mode: newChat}
+	}
+	return chatChoice{mode: givenChat, id: id}
+}
+
+type chatSubject struct {
+	dashboard, observation pgtype.UUID
+}
+
+func (c chatSubject) of(row dbsqlc.Chat) bool {
+	return row.DashboardID == c.dashboard && row.ObservationID == c.observation
+}
 
 type chatSlot struct {
 	chat, turn pgtype.UUID
+	created    bool
+	subject    chatSubject
 }
 
-func ensureChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requesterID, chatID pgtype.UUID) (chatSlot, error) {
-	slot := chatSlot{chat: chatID}
-	if !chatID.Valid {
-		slot.chat = pgtype.UUID{Bytes: uuid.New(), Valid: true}
-		slot.turn = slot.chat
+func lockChatSubject(ctx context.Context, q *dbsqlc.Queries, subject chatSubject) error {
+	var err error
+	switch {
+	case subject.observation.Valid:
+		_, err = q.LockObservation(ctx, subject.observation)
+	case subject.dashboard.Valid:
+		_, err = q.LockDashboardKeyShare(ctx, subject.dashboard)
 	}
-	if _, err := q.EnsureChat(ctx, dbsqlc.EnsureChatParams{ID: slot.chat, OwnerKind: string(by.Kind), OwnerID: requesterID}); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return chatSlot{}, errChatNotYours
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("lock the chat subject: %w", err)
+	}
+	return nil
+}
+
+func takeChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, choice chatChoice, subject chatSubject) (chatSlot, error) {
+	if choice.mode == noChat {
+		return chatSlot{}, nil
+	}
+	ownerID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return chatSlot{}, fmt.Errorf("chat owner id: %w", err)
+	}
+	if err := lockChatSubject(ctx, q, subject); err != nil {
+		return chatSlot{}, err
+	}
+	owner := string(by.Kind)
+	switch choice.mode {
+	case givenChat, sameChat:
+		row, err := q.TouchChat(ctx, dbsqlc.TouchChatParams{ID: choice.id, OwnerKind: owner, OwnerID: ownerID})
+		switch {
+		case err == nil && (choice.mode == sameChat || subject.of(row)):
+			return chatSlot{chat: row.ID, subject: subject}, nil
+		case err == nil:
+			return chatSlot{}, refused("chat_id names a chat about another dashboard or observation")
+		case !errors.Is(err, pgx.ErrNoRows):
+			return chatSlot{}, fmt.Errorf("touch chat: %w", err)
+		case choice.mode == givenChat:
+			return chatSlot{}, ErrChatNotFound
 		}
-		return chatSlot{}, fmt.Errorf("ensure chat: %w", err)
+	case dashboardChat:
+		row, err := q.TouchLatestDashboardChat(ctx, dbsqlc.TouchLatestDashboardChatParams{OwnerKind: owner, OwnerID: ownerID, DashboardID: subject.dashboard})
+		switch {
+		case err == nil:
+			return chatSlot{chat: row.ID, subject: subject}, nil
+		case !errors.Is(err, pgx.ErrNoRows):
+			return chatSlot{}, fmt.Errorf("touch the latest chat on the dashboard: %w", err)
+		}
 	}
-	return slot, nil
+	id := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	if _, err := q.CreateChat(ctx, dbsqlc.CreateChatParams{ID: id, OwnerKind: owner, OwnerID: ownerID, DashboardID: subject.dashboard, ObservationID: subject.observation}); err != nil {
+		return chatSlot{}, fmt.Errorf("create chat: %w", err)
+	}
+	return chatSlot{chat: id, turn: id, created: true, subject: subject}, nil
+}
+
+func recordChatTurn(ctx context.Context, q *dbsqlc.Queries, slot chatSlot, row dbsqlc.AgentRequest) error {
+	if !slot.chat.Valid {
+		return nil
+	}
+	chat := uuid.NullUUID{UUID: slot.chat.Bytes, Valid: true}
+	target := audit.Target{Kind: "chat", ID: slot.chat.String(), DashboardID: nullUUID(slot.subject.dashboard), ObservationID: nullUUID(slot.subject.observation)}
+	by := requesterColumns(row).AuditBy()
+	if slot.created {
+		if err := audit.Record(ctx, q, audit.Event{Action: actionChatCreate, Target: target, Chat: chat, By: by}); err != nil {
+			return err
+		}
+	}
+	return audit.Record(ctx, q, audit.Event{Action: actionChatTurn, Target: target, Chat: chat, By: by})
+}
+
+func nullUUID(id pgtype.UUID) uuid.NullUUID {
+	return uuid.NullUUID{UUID: id.Bytes, Valid: id.Valid}
+}
+
+func againChat(row dbsqlc.AgentRequest, by auth.Principal) chatChoice {
+	switch {
+	case !row.ChatID.Valid:
+		return chatChoice{}
+	case sameActor(requesterOf(row), by):
+		return chatChoice{mode: sameChat, id: row.ChatID}
+	case Source(row.Source) == SourcePrompt:
+		return chatChoice{mode: dashboardChat}
+	}
+	return chatChoice{mode: newChat}
 }
 
 func chatRoot(id, chat pgtype.UUID) pgtype.UUID {
@@ -93,7 +195,7 @@ func chatTranscript(turns []chatTurn) string {
 	return strings.Join(kept, "\n")
 }
 
-func answerOf(row dbsqlc.ListChatTurnsRow) string {
+func answerOf(row dbsqlc.ChatTurnsBeforeRow) string {
 	switch {
 	case row.Answer.Valid:
 		return row.Answer.String
@@ -105,24 +207,26 @@ func answerOf(row dbsqlc.ListChatTurnsRow) string {
 	return ""
 }
 
-func (s *Service) chatTranscript(ctx context.Context, by auth.Principal, chatID, dashboardID pgtype.UUID) (string, error) {
-	requesterID, err := db.ParseUUID(by.ID)
-	if err != nil {
-		return "", fmt.Errorf("requester id: %w", err)
+func withChatTranscript(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (dbsqlc.AgentRequest, error) {
+	if !row.ChatID.Valid || row.ThreadMessageID.Valid || row.ThreadContext.Valid {
+		return row, nil
 	}
-	rows, err := s.db.Queries().ListChatTurns(ctx, dbsqlc.ListChatTurnsParams{
-		RequestedByKind: string(by.Kind),
-		RequestedByID:   requesterID,
-		ChatID:          chatID,
-		DashboardID:     dashboardID,
-		RowLimit:        maxChatTurns,
-	})
+	rows, err := q.ChatTurnsBefore(ctx, dbsqlc.ChatTurnsBeforeParams{ChatID: row.ChatID, BeforeID: row.ID, RowLimit: maxChatTurns})
 	if err != nil {
-		return "", fmt.Errorf("list chat turns: %w", err)
+		return row, fmt.Errorf("read the earlier turns of the chat: %w", err)
 	}
 	turns := make([]chatTurn, 0, len(rows))
 	for i := len(rows) - 1; i >= 0; i-- {
 		turns = append(turns, chatTurn{prompt: rows[i].Prompt, answer: answerOf(rows[i])})
 	}
-	return chatTranscript(turns), nil
+	transcript := chatTranscript(turns)
+	if transcript == "" {
+		return row, nil
+	}
+	stored := pgtype.Text{String: transcript, Valid: true}
+	if err := q.SetRequestThreadContext(ctx, dbsqlc.SetRequestThreadContextParams{ID: row.ID, ThreadContext: stored}); err != nil {
+		return row, fmt.Errorf("store the chat transcript: %w", err)
+	}
+	row.ThreadContext = stored
+	return row, nil
 }

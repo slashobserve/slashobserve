@@ -456,16 +456,27 @@ WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[
 RETURNING *;
 
 -- name: UpdateAgentRequestListFields :one
+WITH chat AS (
+  UPDATE chats
+  SET title = CASE WHEN @set_title::boolean THEN sqlc.narg('title')::text ELSE chats.title END,
+    pinned_at = CASE WHEN sqlc.narg('pinned')::boolean IS NULL THEN chats.pinned_at
+      WHEN sqlc.narg('pinned')::boolean THEN coalesce(chats.pinned_at, clock_timestamp())
+      ELSE NULL END
+  WHERE chats.id = @id
+)
 UPDATE agent_requests
 SET title = CASE WHEN @set_title::boolean THEN sqlc.narg('title')::text ELSE title END,
   pinned_at = CASE WHEN sqlc.narg('pinned')::boolean IS NULL THEN pinned_at
     WHEN sqlc.narg('pinned')::boolean THEN coalesce(pinned_at, clock_timestamp())
     ELSE NULL END
-WHERE id = @id
+WHERE agent_requests.id = @id
 RETURNING *;
 
 -- name: ArchiveAgentRequest :execrows
-UPDATE agent_requests SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE id = @id;
+WITH chat AS (
+  UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE chats.id = @id
+)
+UPDATE agent_requests SET archived_at = coalesce(agent_requests.archived_at, clock_timestamp()) WHERE agent_requests.id = @id;
 
 -- name: GetAssigneeName :one
 SELECT coalesce(
@@ -501,20 +512,6 @@ RETURNING r.*;
 -- name: SetRequestObservation :one
 UPDATE agent_requests SET observation_id = @observation_id WHERE id = @id
 RETURNING *;
-
--- name: ListChatTurns :many
-SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary
-FROM agent_requests r
-LEFT JOIN findings f ON f.agent_request_id = r.id
-LEFT JOIN dashboard_versions v ON v.agent_request_id = r.id
-WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id
-  AND r.source <> 'suggest' AND r.archived_at IS NULL AND r.state = 'succeeded'
-  AND (
-    (sqlc.narg('chat_id')::uuid IS NOT NULL AND (r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid))
-    OR (sqlc.narg('dashboard_id')::uuid IS NOT NULL AND r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
-  )
-ORDER BY r.created_at DESC, r.id DESC
-LIMIT @row_limit;
 
 -- name: ListRunsAwaitingReply :many
 SELECT r.* FROM agent_requests r

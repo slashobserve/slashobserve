@@ -52,7 +52,10 @@ func (q *Queries) AppendAgentRequestStep(ctx context.Context, arg AppendAgentReq
 }
 
 const archiveAgentRequest = `-- name: ArchiveAgentRequest :execrows
-UPDATE agent_requests SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE id = $1
+WITH chat AS (
+  UPDATE chats SET archived_at = coalesce(archived_at, clock_timestamp()) WHERE chats.id = $1
+)
+UPDATE agent_requests SET archived_at = coalesce(agent_requests.archived_at, clock_timestamp()) WHERE agent_requests.id = $1
 `
 
 func (q *Queries) ArchiveAgentRequest(ctx context.Context, id pgtype.UUID) (int64, error) {
@@ -2074,69 +2077,6 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 	return items, nil
 }
 
-const listChatTurns = `-- name: ListChatTurns :many
-SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary
-FROM agent_requests r
-LEFT JOIN findings f ON f.agent_request_id = r.id
-LEFT JOIN dashboard_versions v ON v.agent_request_id = r.id
-WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2
-  AND r.source <> 'suggest' AND r.archived_at IS NULL AND r.state = 'succeeded'
-  AND (
-    ($3::uuid IS NOT NULL AND (r.chat_id = $3::uuid OR r.id = $3::uuid))
-    OR ($4::uuid IS NOT NULL AND r.dashboard_id = $4::uuid)
-  )
-ORDER BY r.created_at DESC, r.id DESC
-LIMIT $5
-`
-
-type ListChatTurnsParams struct {
-	RequestedByKind string
-	RequestedByID   pgtype.UUID
-	ChatID          pgtype.UUID
-	DashboardID     pgtype.UUID
-	RowLimit        int32
-}
-
-type ListChatTurnsRow struct {
-	ID             pgtype.UUID
-	Prompt         string
-	ResultVersion  pgtype.Int4
-	Answer         pgtype.Text
-	VersionSummary pgtype.Text
-}
-
-func (q *Queries) ListChatTurns(ctx context.Context, arg ListChatTurnsParams) ([]ListChatTurnsRow, error) {
-	rows, err := q.db.Query(ctx, listChatTurns,
-		arg.RequestedByKind,
-		arg.RequestedByID,
-		arg.ChatID,
-		arg.DashboardID,
-		arg.RowLimit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListChatTurnsRow
-	for rows.Next() {
-		var i ListChatTurnsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Prompt,
-			&i.ResultVersion,
-			&i.Answer,
-			&i.VersionSummary,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRunsAwaitingReply = `-- name: ListRunsAwaitingReply :many
 SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id FROM agent_requests r
 WHERE r.state = ANY($1::text[])
@@ -3033,12 +2973,20 @@ func (q *Queries) SucceedSuggestRequest(ctx context.Context, arg SucceedSuggestR
 }
 
 const updateAgentRequestListFields = `-- name: UpdateAgentRequestListFields :one
+WITH chat AS (
+  UPDATE chats
+  SET title = CASE WHEN $1::boolean THEN $2::text ELSE chats.title END,
+    pinned_at = CASE WHEN $3::boolean IS NULL THEN chats.pinned_at
+      WHEN $3::boolean THEN coalesce(chats.pinned_at, clock_timestamp())
+      ELSE NULL END
+  WHERE chats.id = $4
+)
 UPDATE agent_requests
 SET title = CASE WHEN $1::boolean THEN $2::text ELSE title END,
   pinned_at = CASE WHEN $3::boolean IS NULL THEN pinned_at
     WHEN $3::boolean THEN coalesce(pinned_at, clock_timestamp())
     ELSE NULL END
-WHERE id = $4
+WHERE agent_requests.id = $4
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
 `
 

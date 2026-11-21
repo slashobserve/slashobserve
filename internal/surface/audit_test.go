@@ -19,6 +19,8 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
 	"thread.agent_set":  "the asks service, when a message changes which agent a thread asks or turns it off",
+	"chat.create":       "the run funnel, in the transaction of a chat's first turn",
+	"chat.turn":         "the run funnel, in the transaction of every turn a chat takes",
 }
 
 var pendingAuditActions = []audit.Action{
@@ -30,9 +32,7 @@ var pendingAuditActions = []audit.Action{
 	"block.add",
 	"block.edit",
 	"block.remove",
-	"chat.create",
 	"chat.delete",
-	"chat.turn",
 	"dashboard.export",
 	"datasource.audience_change",
 	"finding.apply",
