@@ -76,12 +76,22 @@ type SseEnd =
   | { kind: "closed" }
   | { kind: "dropped" }
   | { kind: "aborted" }
+  | { kind: "not-a-stream"; contentType: string }
   | { kind: "refused"; response: Response; body: unknown }
 
 export type SseRead = {
   end: SseEnd
   lastEventId: string
   retryMs: number | null
+}
+
+const minRetryMs = 1_000
+
+function mediaType(response: Response): string {
+  return (response.headers.get("content-type") ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase()
 }
 
 export async function readSse(
@@ -96,7 +106,8 @@ export async function readSse(
   const finish = (end: SseEnd): SseRead => ({
     end: options.signal.aborted ? { kind: "aborted" } : end,
     lastEventId: parser.lastEventId,
-    retryMs: parser.retryMs,
+    retryMs:
+      parser.retryMs === null ? null : Math.max(minRetryMs, parser.retryMs),
   })
   const headers: Record<string, string> = { accept: "text/event-stream" }
   if (options.lastEventId !== "") headers["last-event-id"] = options.lastEventId
@@ -114,6 +125,11 @@ export async function readSse(
   if (!response.ok || response.body === null) {
     const body: unknown = await response.json().catch(() => null)
     return finish({ kind: "refused", response, body })
+  }
+  const contentType = mediaType(response)
+  if (contentType !== "text/event-stream") {
+    response.body.cancel().catch(() => {})
+    return finish({ kind: "not-a-stream", contentType })
   }
   const reader = response.body.getReader()
   const decoder = new TextDecoder()

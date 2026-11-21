@@ -66,19 +66,42 @@ describe("useAuditStream", () => {
     expect(onRestart).not.toHaveBeenCalled()
   })
 
-  it("reconnects after the server ends the stream, waiting the retry it sent", async () => {
-    const first = new FakeStream()
-    fetchMock
-      .mockResolvedValueOnce(first.response)
-      .mockResolvedValueOnce(new FakeStream().response)
-    mount()
-    act(() => {
-      first.write("retry: 5\n\n")
-      first.frame("audit", event, "x-3")
-      first.end()
-    })
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
-    expect(lastEventIdOf(call(1).init)).toBe("x-3")
+  it("reconnects after the server ends the stream, waiting at least a second", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    try {
+      const first = new FakeStream()
+      fetchMock
+        .mockResolvedValueOnce(first.response)
+        .mockResolvedValueOnce(new FakeStream().response)
+      mount()
+      act(() => {
+        first.write("retry: 5\n\n")
+        first.frame("audit", event, "x-3")
+        first.end()
+      })
+      await act(() => vi.advanceTimersByTimeAsync(999))
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(lastEventIdOf(call(1).init)).toBe("x-3")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("turns itself off when the answer is not an event stream", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("<html></html>", {
+        headers: { "content-type": "text/html" },
+      })
+    )
+    const { onStop } = mount()
+    await waitFor(() =>
+      expect(onStop).toHaveBeenCalledWith(
+        "Live stopped: the server answered with text/html instead of an event stream."
+      )
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it("turns itself off on a forbidden frame", async () => {

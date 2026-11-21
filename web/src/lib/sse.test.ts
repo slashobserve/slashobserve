@@ -121,6 +121,32 @@ describe("readSse", () => {
     expect(init.headers).not.toHaveProperty("last-event-id")
   })
 
+  test("waits at least a second whatever retry the server sends", async () => {
+    fetchMock.mockResolvedValue(streamed(["retry: 5\n\n"]))
+    const read = await readSse("/s", {
+      lastEventId: "",
+      signal: new AbortController().signal,
+      onFrame: vi.fn(),
+    })
+    expect(read.retryMs).toBe(1000)
+  })
+
+  test("reports a 200 that is not an event stream without reading it", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("data: {}\n\n", {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      })
+    )
+    const onFrame = vi.fn()
+    const read = await readSse("/s", {
+      lastEventId: "",
+      signal: new AbortController().signal,
+      onFrame,
+    })
+    expect(read.end).toEqual({ kind: "not-a-stream", contentType: "text/html" })
+    expect(onFrame).not.toHaveBeenCalled()
+  })
+
   test("reports a refused status with its body", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ code: "too_many_streams" }), {

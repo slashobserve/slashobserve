@@ -84,3 +84,8 @@ export function withLiveEvent(
   }
   return [event, ...live].slice(0, liveRowLimit)
 }
+
+export function notAStreamText(contentType: string): string {
+  const answer = contentType === "" ? "no content type" : contentType
+  return `Live stopped: the server answered with ${answer} instead of an event stream.`
+}

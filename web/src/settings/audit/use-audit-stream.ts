@@ -8,6 +8,7 @@ import {
   type AuditEvent,
   auditStreamUrl,
   parseAuditFrame,
+  notAStreamText,
   stopFrameText,
   streamRefusal,
 } from "./stream"
@@ -98,6 +99,10 @@ export function useAuditStream({
         if (read.end.kind === "dropped") {
           await pause(backoffDelay(attempt++), signal)
           continue
+        }
+        if (read.end.kind === "not-a-stream") {
+          stop(notAStreamText(read.end.contentType))
+          return
         }
         const reason = toApiError(read.end.response, read.end.body)
         const refusal = streamRefusal(
