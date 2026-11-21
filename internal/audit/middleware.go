@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -47,7 +46,7 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 			Initiator: InitiatorPerson,
 			Auth:      Auth{Method: AuthNone},
 			Origin:    Origin{Kind: unauthenticatedOrigin(c.Request)},
-			IP:        peer(c.Request.RemoteAddr),
+			IP:        clientAddr(c.ClientIP()),
 			UserAgent: c.Request.UserAgent(),
 			Method:    method,
 			Route:     template,
@@ -225,12 +224,8 @@ func unauthenticatedOrigin(r *http.Request) string {
 	return OriginWeb
 }
 
-func peer(remoteAddr string) netip.Addr {
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		host = remoteAddr
-	}
-	addr, err := netip.ParseAddr(host)
+func clientAddr(address string) netip.Addr {
+	addr, err := netip.ParseAddr(address)
 	if err != nil {
 		return netip.Addr{}
 	}
