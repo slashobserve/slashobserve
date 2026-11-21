@@ -344,7 +344,7 @@ describe("AuditSettings", () => {
     expect(
       within(screen.getByRole("group", { name: "Outcome values" })).getByRole(
         "button",
-        { name: "success 42" }
+        { name: "success 41" }
       )
     ).toBeInTheDocument()
     const rows = within(table).getAllByRole("row").slice(1)
