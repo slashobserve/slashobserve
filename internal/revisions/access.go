@@ -74,6 +74,8 @@ func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtyp
 			return ErrForbidden
 		}
 		return refusal(source, true, by.Role, access.Folder.Title)
+	case access.Provisioned && source != SourceInvestigate:
+		return folders.ErrProvisioned
 	}
 	return nil
 }

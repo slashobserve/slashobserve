@@ -693,3 +693,19 @@ func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.
 		})
 	}
 }
+
+func TestAMentionOnAStarterDashboardPostsTheCommentAndQueuesNoRun(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, dash.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	thread, message, run, refusal := r.openWithRun(t, testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe change this panel"})
+	if run != nil || refusal == nil || refusal.Code != RefusalProvisioned {
+		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
+	}
+	if message.ID == "" || thread.ID == "" || r.messageCount(t) != 1 || len(r.queuedRuns(t)) != 0 {
+		t.Fatalf("message = %+v, %d messages, %d runs", message, r.messageCount(t), len(r.queuedRuns(t)))
+	}
+}

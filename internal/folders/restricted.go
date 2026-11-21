@@ -14,6 +14,7 @@ import (
 const (
 	CodeRestrictedContent = "restricted_content"
 	CodeAdminsOnlyFolder  = "admins_only_folder"
+	CodeProvisioned       = "provisioned"
 )
 
 var (
@@ -117,6 +118,10 @@ type contentItemJSON struct {
 }
 
 func AbortRestricted(c *gin.Context, err error) bool {
+	if errors.Is(err, ErrProvisioned) {
+		httpapi.AbortError(c, http.StatusConflict, CodeProvisioned, err.Error())
+		return true
+	}
 	if LinkedRefusal(err) {
 		httpapi.AbortError(c, http.StatusConflict, CodeAdminsOnlyFolder, err.Error())
 		return true

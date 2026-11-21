@@ -125,8 +125,9 @@ func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgty
 	access, err := c.service.access.Dashboard(ctx, c.by, dashboardID)
 	switch {
 	case err == nil:
-		c.edits[dashboardID] = access.Abilities.Edit
-		return access.Abilities.Edit, nil
+		may := access.Shown().Edit
+		c.edits[dashboardID] = may
+		return may, nil
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.edits[dashboardID] = false
 		return false, nil
@@ -149,7 +150,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, dashb
 	may := err == nil
 	switch {
 	case err == nil,
-		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound),
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, folders.ErrProvisioned),
 		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.seen[key] = may
 		return may, nil

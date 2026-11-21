@@ -40,7 +40,9 @@ const askNeedsEditorLabel = "Ask @observe (needs the Editor role)"
 
 type Props = {
   panel: LayoutPanel
-  permissions: Pick<DashboardPermissions, "comment" | "edit">
+  permissions: Pick<DashboardPermissions, "comment" | "edit"> & {
+    propose: boolean
+  }
   canInvestigate: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
   from: string | undefined
@@ -147,7 +149,6 @@ export function PanelToolbar({
   const below = useFlipBelow(root)
   const title = panelTitle(panel)
   const data = isDataPanel(panel)
-  const canPropose = permissions.comment && !permissions.edit
 
   useLayoutEffect(() => {
     if (!root.current) return
@@ -220,7 +221,7 @@ export function PanelToolbar({
           <MessageSquarePlusIcon aria-hidden="true" />
         </ToolbarButton>
       ) : null}
-      {permissions.edit && data && agentAvailable ? (
+      {(permissions.edit || canInvestigate) && data && agentAvailable ? (
         <ToolbarButton
           label={canInvestigate ? "Ask @observe" : askNeedsEditorLabel}
           tooltip={
@@ -236,7 +237,7 @@ export function PanelToolbar({
           <AtSignIcon aria-hidden="true" />
         </ToolbarButton>
       ) : null}
-      {(permissions.edit || canPropose) && isEditablePanel(panel) ? (
+      {(permissions.edit || permissions.propose) && isEditablePanel(panel) ? (
         <ToolbarButton
           label={permissions.edit ? "Edit query" : "Suggest an edit"}
           tooltip={finishFirst(

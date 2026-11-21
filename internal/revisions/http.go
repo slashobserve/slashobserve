@@ -278,6 +278,8 @@ func failureReplyFor(err error) (Reply, bool) {
 	switch {
 	case slices.ContainsFunc(missingForFail, func(target error) bool { return errors.Is(err, target) }):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
+	case errors.Is(err, folders.ErrProvisioned):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeProvisioned, Message: err.Error()}, true
 	case errors.Is(err, ErrChatReadOnly):
 		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: err.Error()}, true
 	case errors.Is(err, ErrForbidden):
