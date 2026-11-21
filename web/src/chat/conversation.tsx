@@ -21,7 +21,7 @@ import { revisionsQuery } from "@/revisions/queries"
 
 import { Composer } from "@/conversation/composer"
 import { ungated } from "@/conversation/delivery"
-import type { Opens } from "@/conversation/send-plan"
+import type { Opens, Subject } from "@/conversation/send-plan"
 import { useComposer } from "@/conversation/use-composer"
 
 import { AskAgainButton } from "./ask-again"
@@ -198,22 +198,21 @@ function PaneHeading({ requestId }: { requestId: string }) {
 
 function ConversationComposer({
   chatId,
-  dashboardId,
+  subject,
   dashboardTitle,
   disabled,
   runningRequestId,
   onSent,
 }: {
   chatId: string | null
-  dashboardId: string | null
+  subject: Subject | null
   dashboardTitle: string | undefined
   disabled: boolean
   runningRequestId: string | undefined
   onSent: (request: ObserveRequest, opens: Opens) => Promise<void>
 }) {
   const model = useComposer({
-    subject:
-      dashboardId === null ? null : { kind: "dashboard", id: dashboardId },
+    subject,
     place: { kind: "chat", chatId },
     gate: ungated,
     runningRequestId,
@@ -232,9 +231,11 @@ function ConversationComposer({
           : [{ id: "dashboard", label: dashboardTitle }]
       }
       placeholder={
-        dashboardId !== null
+        subject?.kind === "dashboard"
           ? `Ask about ${dashboardTitle ?? "this dashboard"}`
-          : "Ask a follow-up, or describe a dashboard to build"
+          : subject?.kind === "observation"
+            ? "Ask about this observation"
+            : "Ask a follow-up, or describe a dashboard to build"
       }
     />
   )
@@ -244,7 +245,7 @@ type ViewProps = {
   requestId: string
   layout: ConversationLayout
   chatId: string | null
-  dashboardId: string | null
+  subject: Subject | null
   dashboardTitle: string | undefined
   turns: Turn[]
   ready: boolean
@@ -259,7 +260,7 @@ function ConversationView({
   requestId,
   layout,
   chatId,
-  dashboardId,
+  subject,
   dashboardTitle,
   turns,
   ready,
@@ -307,7 +308,7 @@ function ConversationView({
   }
 
   const agentOff = agent.data?.available === false
-  const hasDashboard = dashboardId !== null
+  const hasDashboard = subject?.kind === "dashboard"
   const latestTurn = turns.at(-1)
   const waitingForAnswer =
     !hasDashboard &&
@@ -370,7 +371,7 @@ function ConversationView({
                   turn.summary.requested_by.id === principal.id ? (
                     <AskAgainButton
                       prompt={turn.summary.prompt}
-                      dashboardId={dashboardId ?? undefined}
+                      subject={subject}
                       chatId={chatId ?? undefined}
                       disabled={active}
                       onSent={openSent}
@@ -410,7 +411,7 @@ function ConversationView({
         >
           <ConversationComposer
             chatId={chatId}
-            dashboardId={dashboardId}
+            subject={subject}
             dashboardTitle={dashboardTitle}
             disabled={waitingForAnswer}
             runningRequestId={runningRequestId}
@@ -431,6 +432,19 @@ function ConversationView({
   )
 }
 
+function subjectOf(
+  about:
+    { dashboard_id: string | null; observation_id: string | null } | undefined
+): Subject | null {
+  if (about?.dashboard_id != null) {
+    return { kind: "dashboard", id: about.dashboard_id }
+  }
+  if (about?.observation_id != null) {
+    return { kind: "observation", id: about.observation_id }
+  }
+  return null
+}
+
 export function Conversation({
   requestId,
   layout,
@@ -448,8 +462,13 @@ export function Conversation({
   const chatId = root.data?.chat_id ?? undefined
   const readsChat = chatId !== undefined
   const chat = useChat(chatId)
-  const dashboardId =
-    root.data?.dashboard_id ?? chat.data?.chat.dashboard_id ?? null
+  const subject = subjectOf(
+    chat.data?.chat ?? {
+      dashboard_id: root.data?.dashboard_id ?? null,
+      observation_id: null,
+    }
+  )
+  const dashboardId = subject?.kind === "dashboard" ? subject.id : null
   const readOnly = root.data?.read_only === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
@@ -508,7 +527,7 @@ export function Conversation({
       requestId={requestId}
       layout={layout}
       chatId={root.data.chat_id ?? null}
-      dashboardId={dashboardId}
+      subject={subject}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}
       readOnly={readOnly}

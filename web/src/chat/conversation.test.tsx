@@ -33,10 +33,38 @@ const root = {
   steps: [],
 } as Partial<ObserveRequest> as ObserveRequest
 
-function stubServer() {
+const observationId = "8d9e0f1a-2b3c-4d5e-8f60-718293a4b5c6"
+
+function chatAbout(subject: {
+  dashboard_id?: string
+  observation_id?: string
+}) {
+  return {
+    chat: {
+      id: rootId,
+      title: "why is p99 up?",
+      dashboard_id: null,
+      observation_id: null,
+      ...subject,
+      pinned_at: null,
+      created_at: "2026-11-21T10:00:00Z",
+      last_turn_at: "2026-11-21T10:00:00Z",
+      turns: 1,
+      last_turn: null,
+      owner: { kind: "user", name: "Ada" },
+      read_only: false,
+    },
+    turns: [],
+  }
+}
+
+function stubServer(chat?: ReturnType<typeof chatAbout>) {
   const fetch = vi.fn<(request: Request) => Promise<Response>>(
     async (request) => {
       const url = new URL(request.url)
+      if (chat !== undefined && url.pathname === `/api/v1/chats/${rootId}`) {
+        return Response.json(chat)
+      }
       if (request.method === "POST" && url.pathname === "/api/v1/observe") {
         const body = (await request.clone().json()) as { prompt: string }
         return Response.json(
@@ -54,9 +82,9 @@ function stubServer() {
   return fetch
 }
 
-function renderConversation() {
+function renderConversation(request: ObserveRequest = root) {
   const queryClient = testQueryClient()
-  queryClient.setQueryData(observeKeys.request(rootId), root)
+  queryClient.setQueryData(observeKeys.request(rootId), request)
   queryClient.setQueryData(observeKeys.agent(), {
     available: true,
     provider: "anthropic",
@@ -96,5 +124,55 @@ describe("Conversation", () => {
       dashboard_id: dashboardId,
       chat_id: rootId,
     })
+  })
+
+  async function sentFollowUp(fetch: ReturnType<typeof stubServer>) {
+    const { user } = renderConversation({
+      ...root,
+      dashboard_id: null,
+      kind: "build",
+    } as ObserveRequest)
+    const box = await screen.findByRole("textbox", {
+      name: "Message the agent",
+    })
+    await vi.waitFor(() =>
+      expect(
+        fetch.mock.calls.some(
+          ([request]) =>
+            new URL(request.url).pathname === `/api/v1/chats/${rootId}`
+        )
+      ).toBe(true)
+    )
+    await user.type(box, "and yesterday?{Enter}")
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    return (await posted.clone().json()) as Record<string, unknown>
+  }
+
+  it("asks about the dashboard the chat became about after its first turn", async () => {
+    const fetch = stubServer(chatAbout({ dashboard_id: dashboardId }))
+    expect(await sentFollowUp(fetch)).toMatchObject({
+      kind: "ask",
+      chat_id: rootId,
+      dashboard_id: dashboardId,
+    })
+  })
+
+  it("asks about the observation the chat is about", async () => {
+    const fetch = stubServer(chatAbout({ observation_id: observationId }))
+    const body = await sentFollowUp(fetch)
+    expect(body).toMatchObject({
+      kind: "ask",
+      chat_id: rootId,
+      observation_id: observationId,
+    })
+    expect(body).not.toHaveProperty("dashboard_id")
   })
 })

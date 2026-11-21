@@ -202,17 +202,22 @@ function NewChat({
   return (
     <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 pb-1">
       <p className="text-[13px] text-muted-foreground">
-        Ask the agent about {dashboardTitle}, or for a change to it. Only you
-        can see this chat.
+        Ask the agent about {dashboardTitle}. When a change fits, the answer
+        offers it with Revise the dashboard.
       </p>
-      <Composer
-        model={model}
-        layout="page"
-        rows={2}
-        autoFocus
-        contextChips={[{ id: "dashboard", label: dashboardTitle }]}
-        placeholder={`Ask about ${dashboardTitle}, or for a change to it`}
-      />
+      <div>
+        <Composer
+          model={model}
+          layout="page"
+          rows={2}
+          autoFocus
+          contextChips={[{ id: "dashboard", label: dashboardTitle }]}
+          placeholder={`Ask about ${dashboardTitle}`}
+        />
+        <p className="mt-1.5 text-center text-xs text-muted-foreground">
+          Only you can see this chat.
+        </p>
+      </div>
     </div>
   )
 }

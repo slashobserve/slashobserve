@@ -152,7 +152,11 @@ describe("DashboardChat", () => {
     const { user } = renderAddress("c1")
     await screen.findByTestId("conversation")
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    expect(composerBox()).toBeInTheDocument()
+    expect(composerBox()).toHaveAttribute(
+      "placeholder",
+      "Ask about Checkout health"
+    )
+    expect(screen.getByText("Only you can see this chat.")).toBeVisible()
     expect(screen.queryByTestId("conversation")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled()
   })

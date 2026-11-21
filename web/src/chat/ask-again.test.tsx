@@ -62,7 +62,9 @@ describe("AskAgainButton", () => {
 
   it("asks it again about the dashboard the chat is about", async () => {
     const fetch = stubCreate()
-    const { user, onSent } = render({ dashboardId: "d1" })
+    const { user, onSent } = render({
+      subject: { kind: "dashboard", id: "d1" },
+    })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     const sent = (await fetch.mock.calls[0][0].json()) as Record<
