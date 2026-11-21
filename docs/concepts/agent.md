@@ -299,7 +299,7 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 Each run carries an `intent`: `ask` reads and answers, `apply` changes a dashboard, and `suggest` proposes one panel.
 A new-dashboard request is an `ask` until it saves its dashboard, and then an `apply`.
-The `source` that run listings show (`observe`, `prompt`, `comment`, `suggest` or `investigate`) is worked out from the intent and what the run is about, and `?source=` filters on that worked-out value.
+Run listings show the `intent` and the run's `kind`, `build` or `investigate`; a private ask lists as `investigate`.
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
@@ -320,7 +320,7 @@ The tool-level roles do not apply inside a run, because the requester was alread
 
 ### Private asks
 
-A private ask is a question about one dashboard or one observation, asked in a chat of yours: `observe investigate --private`, `start_run` with `kind: ask`, or `POST /observe` with `kind: ask`.
+A private ask is a question about one dashboard or one observation, asked in a chat of yours: `observe investigate --private`, `start_run` or `POST /observe` with `kind` `ask` (the default) and a `dashboard_id` or `observation_id`, or `observe --dashboard <id>`.
 It needs Comment on what it is about, and it does not count toward the investigation limits.
 It writes nothing anyone else reads: no observation is opened or written, no dashboard version is saved, and its activity events are seen only by you and Admins.
 Its run and its answer are read only by you and, read only, by Admins.

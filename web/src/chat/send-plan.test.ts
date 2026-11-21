@@ -14,7 +14,7 @@ describe("planSend", () => {
 
   it("revises in place for a plain prompt with a dashboard", () => {
     expect(planSend({ command: null, text: "add p99", dashboardId })).toEqual({
-      input: { prompt: "add p99", dashboardId },
+      input: { prompt: "add p99", dashboardId, kind: "revise" },
       opens: "same",
     })
   })
@@ -28,7 +28,10 @@ describe("planSend", () => {
   it("revises the open dashboard", () => {
     expect(
       planSend({ command: "revise", text: "add p99", dashboardId })
-    ).toEqual({ input: { prompt: "add p99", dashboardId }, opens: "same" })
+    ).toEqual({
+      input: { prompt: "add p99", dashboardId, kind: "revise" },
+      opens: "same",
+    })
   })
 
   it("refuses to revise without a dashboard", () => {
@@ -104,6 +107,9 @@ describe("planSend", () => {
         dashboardId: "d1",
         followsId: "turn-1",
       })
-    ).toEqual({ input: { prompt: "change", dashboardId: "d1" }, opens: "same" })
+    ).toEqual({
+      input: { prompt: "change", dashboardId: "d1", kind: "revise" },
+      opens: "same",
+    })
   })
 })

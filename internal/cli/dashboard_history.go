@@ -8,7 +8,7 @@ import (
 
 type revisionRow struct {
 	ID          string  `json:"id"`
-	Source      string  `json:"source"`
+	Intent      string  `json:"intent"`
 	Prompt      string  `json:"prompt"`
 	State       string  `json:"state"`
 	BaseVersion *int    `json:"base_version"`
@@ -85,9 +85,9 @@ func (a *app) dashboardRevisionsCommand() *cobra.Command {
 			}
 			rows := make([][]string, 0, len(list.Revisions))
 			for _, r := range list.Revisions {
-				rows = append(rows, []string{text(r.ID), text(r.State), text(r.Source), versionText(r.BaseVersion), versionText(r.ResultVer), firstLine(r.Prompt)})
+				rows = append(rows, []string{text(r.ID), text(r.State), text(r.Intent), versionText(r.BaseVersion), versionText(r.ResultVer), firstLine(r.Prompt)})
 			}
-			out.table([]string{"ID", "STATE", "SOURCE", "BASE", "SAVED", "PROMPT"}, rows)
+			out.table([]string{"ID", "STATE", "INTENT", "BASE", "SAVED", "PROMPT"}, rows)
 			pageFooter(out, len(list.Revisions), nil, list.NextCursor)
 			return nil
 		},
@@ -107,7 +107,7 @@ func printRevision(out *output, r revisionRow) {
 	out.fields([][2]string{
 		{"ID", text(r.ID)},
 		{"State", text(r.State)},
-		{"Source", text(r.Source)},
+		{"Intent", text(r.Intent)},
 		{"Base version", versionText(r.BaseVersion)},
 		{"Saved version", versionText(r.ResultVer)},
 		{"Created", when(r.CreatedAt)},

@@ -100,7 +100,7 @@ export const offeredRun = z.object({
   id: z.string().min(1),
   attempt: z.number().int().min(1),
   kind: z.string(),
-  source: z.string().default(""),
+  intent: z.string().default(""),
   prompt: z.string().default(""),
   dashboard_id: z.string().nullish(),
 })

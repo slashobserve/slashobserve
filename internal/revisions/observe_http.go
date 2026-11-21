@@ -76,7 +76,6 @@ type agentRequestJSON struct {
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind"`
 	Intent         Intent             `json:"intent"`
-	Source         Source             `json:"source"`
 	Trigger        string             `json:"trigger"`
 	Title          string             `json:"title"`
 	Prompt         string             `json:"prompt"`
@@ -140,7 +139,6 @@ type requestSummaryJSON struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
 	Intent         Intent     `json:"intent"`
-	Source         Source     `json:"source"`
 	Trigger        string     `json:"trigger"`
 	Title          string     `json:"title"`
 	PinnedAt       *string    `json:"pinned_at"`
@@ -151,6 +149,8 @@ type requestSummaryJSON struct {
 	DashboardID    *string    `json:"dashboard_id"`
 	DashboardTitle *string    `json:"dashboard_title"`
 	PanelID        *string    `json:"panel_id"`
+	BaseVersion    *int       `json:"base_version"`
+	CommentID      *string    `json:"comment_id"`
 	ResultVersion  *int       `json:"result_version"`
 	URL            *string    `json:"url"`
 	Error          *string    `json:"error"`
@@ -316,15 +316,6 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 	if !scopeAndStates(c, &filter) {
 		return filter, false
 	}
-	if raw, present := c.GetQuery("source"); present {
-		switch Source(raw) {
-		case SourceObserve, SourcePrompt, SourceComment, SourceInvestigate:
-			filter.Source = raw
-		default:
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "source must be observe, prompt, comment or investigate")
-			return filter, false
-		}
-	}
 	if raw, present := c.GetQuery("q"); present {
 		q, err := CheckQuery(raw)
 		if err != nil {
@@ -375,6 +366,14 @@ func optionalUUID(id pgtype.UUID) *string {
 	}
 	s := id.String()
 	return &s
+}
+
+func optionalInt(n pgtype.Int4) *int {
+	if !n.Valid {
+		return nil
+	}
+	v := int(n.Int32)
+	return &v
 }
 
 func optionalText(t pgtype.Text) *string {

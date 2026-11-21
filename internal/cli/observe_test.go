@@ -222,7 +222,7 @@ func runAgainst(t *testing.T, status int, reply string, args ...string) (control
 }
 
 func TestCancelPostsAndPrintsTheRequest(t *testing.T) {
-	reply := `{"request":{"id":"` + stoppedID + `","status":"failed","source":"observe","failure_code":"canceled","steps":[]}}`
+	reply := `{"request":{"id":"` + stoppedID + `","status":"failed","intent":"ask","failure_code":"canceled","steps":[]}}`
 	call, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "cancel", stoppedID)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
@@ -428,10 +428,10 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 
 func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
 	var stdout bytes.Buffer
-	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Source: "prompt", Trigger: "person"})
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Intent: "apply", Trigger: "person"})
 	lines := strings.Split(stdout.String(), "\n")
-	if len(lines) < 5 || strings.Fields(lines[3])[0] != "Source" || strings.Fields(lines[4])[0] != "Trigger" || strings.Fields(lines[4])[1] != "person" {
-		t.Fatalf("output lacks the trigger after the source:\n%s", stdout.String())
+	if len(lines) < 5 || strings.Fields(lines[3])[0] != "Intent" || strings.Fields(lines[3])[1] != "apply" || strings.Fields(lines[4])[0] != "Trigger" || strings.Fields(lines[4])[1] != "person" {
+		t.Fatalf("output lacks the trigger after the intent:\n%s", stdout.String())
 	}
 }
 
@@ -486,10 +486,10 @@ func TestAPromptThatOnlyAsksAQuestionPrintsTheFinding(t *testing.T) {
 			data, _ := io.ReadAll(r.Body)
 			posted = string(data)
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"queued","steps":[]}}`)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","intent":"ask","status":"queued","steps":[]}}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"succeeded","dashboard_id":null,"result_version":null,"url":"https://observe.example.com/findings/f1","steps":[],"finding":`+findingJSON+`}}`)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","intent":"ask","status":"succeeded","dashboard_id":null,"result_version":null,"url":"https://observe.example.com/findings/f1","steps":[],"finding":`+findingJSON+`}}`)
 	}))
 	t.Cleanup(server.Close)
 
@@ -511,10 +511,10 @@ func TestAFindingFromHomeSaysWhichDashboardToAskOn(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"queued","steps":[]}}`)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","intent":"ask","status":"queued","steps":[]}}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","source":"observe","status":"succeeded","prompt":"on Checkout add Ada's stat panel","dashboard_id":null,"result_version":null,"steps":[],"finding":`+finding+`}}`)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","intent":"ask","status":"succeeded","prompt":"on Checkout add Ada's stat panel","dashboard_id":null,"result_version":null,"steps":[],"finding":`+finding+`}}`)
 	}))
 	t.Cleanup(server.Close)
 
@@ -522,7 +522,7 @@ func TestAFindingFromHomeSaysWhichDashboardToAskOn(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
-	want := "Add a stat panel\n\nThe change goes on Checkout.\n\nhttps://observe.example.com/o/f1\n\nThis change is made on the dashboard Checkout. Ask there:\n  observe --dashboard " + askOnDashboardID + ` 'on Checkout add Ada'\''s stat panel'` + "\n"
+	want := "Add a stat panel\n\nThe change goes on Checkout.\n\nhttps://observe.example.com/o/f1\n\nThis change is made on the dashboard Checkout. Ask there:\n  observe --revise --dashboard " + askOnDashboardID + ` 'on Checkout add Ada'\''s stat panel'` + "\n"
 	if stdout != want {
 		t.Errorf("stdout %q\nwant %q", stdout, want)
 	}

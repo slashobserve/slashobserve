@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	sourceInvestigate = "investigate"
-	kindAsk           = "ask"
+	kindInvestigate = "investigate"
+	kindAsk         = "ask"
+	kindRevise      = "revise"
 )
 
 type investigateOptions struct {
@@ -47,7 +48,7 @@ func printAskOn(out *output, askOn *findingAskOn, prompt string) {
 	}
 	out.line("")
 	out.line("This change is made on the dashboard %s. Ask there:", text(askOn.Title))
-	out.line("  observe --dashboard %s %s", text(askOn.DashboardID), shellWord(text(prompt)))
+	out.line("  observe --revise --dashboard %s %s", text(askOn.DashboardID), shellWord(text(prompt)))
 }
 
 func shellWord(s string) string {
@@ -102,7 +103,7 @@ func (o investigateOptions) kind() string {
 	if o.private {
 		return kindAsk
 	}
-	return sourceInvestigate
+	return kindInvestigate
 }
 
 func (o investigateOptions) check(question string) error {
@@ -169,7 +170,7 @@ func printFinding(out *output, f findingSummary, requestID string) {
 	out.line("")
 	if f.SuggestedChange != "" {
 		out.line("Suggested change: %s", text(f.SuggestedChange))
-		out.line("  observe --dashboard %s %s", text(f.DashboardID), shellWord(text(f.SuggestedChange)))
+		out.line("  observe --revise --dashboard %s %s", text(f.DashboardID), shellWord(text(f.SuggestedChange)))
 		out.line("")
 	}
 	if f.saved() {

@@ -6,6 +6,7 @@ import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import type { RequestSummary } from "@/observe/queries"
 import type { ProposalSummary } from "@/proposals/queries"
+import { requestOrigin } from "@/observe/request-origin"
 import { isActive, type Revision } from "@/revisions/queries"
 
 type ImportRecord = components["schemas"]["ImportRecord"]
@@ -241,7 +242,7 @@ export function buildTimeline(input: {
   for (const request of input.requests) {
     const hasThread =
       request.comment_id !== null && threadIds.has(request.comment_id)
-    if (request.source !== "observe" && !hasThread) {
+    if (requestOrigin(request) !== "observe" && !hasThread) {
       entries.push({
         kind: "request",
         key: `request:${request.id}`,

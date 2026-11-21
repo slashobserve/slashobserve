@@ -72,7 +72,7 @@ When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 l
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
 A prompt that only asks a question ends with an answer that stays in the chat, which the CLI prints as `observe investigate` does, followed by the hint `observe save-answer <request-id>`.
 `bin/observe save-answer <request-id>` files that answer as an [observation](observations.md) and prints its address; only the person who asked can, and saving twice prints the same address.
-When the prompt asked to change one existing dashboard, the answer ends with that dashboard's title and the `observe --dashboard <id> '<prompt>'` command that asks for the change there.
+When the prompt asked to change one existing dashboard, the answer ends with that dashboard's title and the `observe --revise --dashboard <id> '<prompt>'` command that asks for the change there.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 The CLI sends no time zone, so the agent writes the times in its answer in UTC, where the web app uses the zone of your browser.
@@ -86,7 +86,7 @@ It opens only `http` and `https` addresses.
 A prompt whose first word is a command name (`access`, `activity`, `annotate`, `annotations`, `cancel`, `chats`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `folders`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `save-answer`, `saved-searches`, `search`, `share-answer`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
-`--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
+`--dashboard <dashboard-id>` asks about that dashboard privately, as `observe investigate --private` does, and with `--revise` it sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md); `--revise` without `--dashboard` exits 2.
 `--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
 `--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
 `--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`.
@@ -104,9 +104,9 @@ While a request is running, `observe status` also prints a `Live text` section w
 
 ### Your requests
 
-`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard and title.
 The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
-`--state` (repeatable, or comma-separated), `--source` (`observe`, `prompt`, `comment` or `investigate`), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
 `--scope all` lists every principal's requests and needs the Admin role.
 It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
 Archived requests are left out.

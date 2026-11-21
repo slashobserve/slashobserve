@@ -17,6 +17,7 @@ import {
   useObserveRequest,
   type ObserveRequest,
 } from "@/observe/queries"
+import { requestOrigin } from "@/observe/request-origin"
 import { revisionsQuery } from "@/revisions/queries"
 
 import { AskAgainButton } from "./ask-again"
@@ -314,7 +315,7 @@ function ConversationView({
                 answerActions={
                   !readOnly &&
                   index === turns.length - 1 &&
-                  turn.summary.source === "observe" &&
+                  requestOrigin(turn.summary) === "observe" &&
                   turn.summary.requested_by.id === principal.id ? (
                     <AskAgainButton
                       prompt={turn.summary.prompt}

@@ -1,6 +1,7 @@
 import type { StatusTone } from "@/components/status-label"
 import { buildStatusText } from "@/observe/build"
 import { requestStatusView, type RequestSummary } from "@/observe/queries"
+import { requestOrigin } from "@/observe/request-origin"
 
 export function chatState(state: RequestSummary["state"]): {
   word: "Running" | "Stopped" | "Done"
@@ -40,7 +41,7 @@ function savedText(request: RequestSummary): string {
   if (request.dashboard_id === null && request.dashboard_title === null) {
     return requestStatusView(request).text
   }
-  const verb = request.source === "observe" ? "Saved" : "Revised"
+  const verb = requestOrigin(request) === "observe" ? "Saved" : "Revised"
   return `${verb} ${request.dashboard_title ?? "a dashboard"}`
 }
 

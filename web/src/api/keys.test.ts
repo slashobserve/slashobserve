@@ -84,7 +84,7 @@ describe("observeKeys", () => {
   test("the caller's requests share the mineAll root", () => {
     for (const filters of [
       {},
-      { source: "observe" as const },
+      { chatId: "c1" },
       { q: "latency", pinned: true, dashboardId: "d1" },
     ]) {
       expect(
@@ -96,7 +96,7 @@ describe("observeKeys", () => {
   test("the caller's requests differ by filters and by limit", () => {
     expect(observeKeys.mine({}, 5)).not.toEqual(observeKeys.mine({}, 20))
     expect(observeKeys.mine({}, 5)).not.toEqual(
-      observeKeys.mine({ source: "observe" }, 5)
+      observeKeys.mine({ chatId: "c1" }, 5)
     )
     expect(observeKeys.mine({ q: "a" }, 5)).not.toEqual(
       observeKeys.mine({ q: "b" }, 5)

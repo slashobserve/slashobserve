@@ -182,7 +182,7 @@ func TestCreateObserveRejectsAMalformedOrConflictingFollowsID(t *testing.T) {
 	r := observeRouterFor(svc, user)
 	for name, body := range map[string]string{
 		"not a uuid":       `{"prompt":"x","follows_id":"nope"}`,
-		"with a dashboard": fmt.Sprintf(`{"prompt":"x","follows_id":"00000000-0000-4000-8000-000000000001","dashboard_id":%q}`, dash),
+		"with a dashboard": fmt.Sprintf(`{"prompt":"x","kind":"revise","follows_id":"00000000-0000-4000-8000-000000000001","dashboard_id":%q}`, dash),
 	} {
 		if rec := call(r, http.MethodPost, "/api/v1/observe", body); rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
 			t.Fatalf("%s: %d %s", name, rec.Code, rec.Body)

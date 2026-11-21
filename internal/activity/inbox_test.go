@@ -113,7 +113,7 @@ func (r rig) failedRun(t *testing.T, requester actor.Actor) (run pgtype.UUID, se
 	run = r.run(t, requester, "failed")
 	runActor := requester
 	runActor.RunID = run.String()
-	return run, r.append(t, Entry{Type: TypeRunFailed, TargetID: run, Owner: General(), Actor: runActor, Data: map[string]any{"source": "observe"}})
+	return run, r.append(t, Entry{Type: TypeRunFailed, TargetID: run, Owner: General(), Actor: runActor, Data: map[string]any{"intent": "ask"}})
 }
 
 func (r rig) promptRun(t *testing.T, requester actor.Actor, prompt, state string, version any) pgtype.UUID {
@@ -133,7 +133,7 @@ func (r rig) endedPromptRun(t *testing.T, requester actor.Actor, prompt, state s
 	runActor := requester
 	runActor.RunID = run.String()
 	typ := TypeRunSucceeded
-	data := map[string]any{"source": "prompt"}
+	data := map[string]any{"intent": "apply"}
 	if state == "failed" {
 		typ = TypeRunFailed
 	}

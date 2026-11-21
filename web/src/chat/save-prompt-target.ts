@@ -1,9 +1,7 @@
-import type { RequestSummary } from "@/observe/queries"
+import { requestOrigin, type OriginFields } from "@/observe/request-origin"
 
-export function canSaveAsPrompt(
-  request: Pick<RequestSummary, "source">
-): boolean {
-  return request.source === "observe"
+export function canSaveAsPrompt(request: OriginFields): boolean {
+  return requestOrigin(request) === "observe"
 }
 
 export function savePromptButtonId(requestId: string): string {

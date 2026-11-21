@@ -57,7 +57,7 @@ func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
 
 func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) activity.Entry {
 	columns := requesterColumns(row)
-	data := map[string]any{"source": SourceOf(row)}
+	data := map[string]any{"intent": row.Intent}
 	switch typ {
 	case activity.TypeRunQueued:
 		if row.ContinuesID.Valid {

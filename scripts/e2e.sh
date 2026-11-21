@@ -1797,7 +1797,7 @@ revisions_suite() {
 
   out="$(api GET "/dashboards/$id/revisions/$rid")"
   if [[ "$out" != 200 ]] || ! grep -q '"status":"succeeded"' "$TMP/api.body" || ! grep -q '"result_version":2' "$TMP/api.body" \
-    || ! grep -q '"source":"comment"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$cid\"" "$TMP/api.body" \
+    || ! grep -q '"intent":"apply"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$cid\"" "$TMP/api.body" \
     || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"attempts":1' "$TMP/api.body" \
     || ! grep -q '"error":null' "$TMP/api.body" || ! grep -q '"base_version":1' "$TMP/api.body" \
     || ! grep -q '"prompt":"Show this per route"' "$TMP/api.body" || ! grep -q '"requested_by":{"kind":"service_account"' "$TMP/api.body"; then
@@ -1816,7 +1816,7 @@ revisions_suite() {
   pass "the revision records its result, author and comment, and the comment is resolved by version 2"
 
   out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"  Add a p99 latency panel ","base_version":2}')"
-  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"source":"prompt"' "$TMP/api.body" \
+  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"intent":"apply"' "$TMP/api.body" \
     || ! grep -q '"comment_id":null' "$TMP/api.body" || ! grep -q '"panel_id":null' "$TMP/api.body"; then
     fail "a follow-up prompt is queued ($out: $(cat "$TMP/api.body"))"
   fi
@@ -1900,7 +1900,7 @@ revisions_suite() {
   [[ "$out" == 201 && -n "$treply" ]] || fail "create the thread reply ($out: $(cat "$TMP/api.body"))"
   sse_open "$tdid" "$tstream"
   out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"Show this per route","base_version":1,"comment_id":"'"$treply"'"}')"
-  if [[ "$out" != 202 ]] || ! grep -q '"source":"comment"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$troot\"" "$TMP/api.body" \
+  if [[ "$out" != 202 ]] || ! grep -q '"intent":"apply"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$troot\"" "$TMP/api.body" \
     || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
     fail "a request sent from a reply is queued against the thread's root ($out: $(cat "$TMP/api.body"))"
   fi
@@ -1934,7 +1934,7 @@ sys.exit(0 if len(c)==1 and c[0]["status"]=="resolved" and c[0]["resolved_by_ver
   [[ "$out" == 201 ]] || fail "create the panel revision dashboard ($out: $(cat "$TMP/api.body"))"
   pid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
   out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":"'"$panel"'"}')"
-  if [[ "$out" != 202 ]] || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"source":"prompt"' "$TMP/api.body"; then
+  if [[ "$out" != 202 ]] || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"intent":"apply"' "$TMP/api.body"; then
     fail "a revision aimed at one panel is queued ($out: $(cat "$TMP/api.body"))"
   fi
   prid="$(revision_id_of "$TMP/api.body")"
@@ -1998,7 +1998,7 @@ suggestions_suite() {
     fail "a suggestion must not save a version ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$did/revisions")"
-  if [[ "$out" != 200 ]] || grep -q "$sid" "$TMP/api.body" || grep -q '"source":"suggest"' "$TMP/api.body"; then
+  if [[ "$out" != 200 ]] || grep -q "$sid" "$TMP/api.body" || grep -q '"intent":"suggest"' "$TMP/api.body"; then
     fail "a suggestion must not appear in the dashboard's revisions ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$did/revisions/$sid")"
@@ -2132,7 +2132,7 @@ observe_suite() {
 
   out="$(api POST /observe -d '{"prompt":"demo shop RED metrics by endpoint"}')"
   [[ "$out" == 202 ]] || fail "queue a new dashboard request ($out: $(cat "$TMP/api.body"))"
-  observe_expect "the queued observe request" '"source":"observe"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null' '"origin":"api"'
+  observe_expect "the queued observe request" '"kind":"build"' '"intent":"ask"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null' '"origin":"api"'
   id="$(observe_id_of "$TMP/api.body")"
   [[ -n "$id" ]] || fail "the queued observe request has no id ($(cat "$TMP/api.body"))"
   grep -qi "^location: /api/v1/observe/$id" "$TMP/api.headers" || fail "the observe response has no Location header ($(cat "$TMP/api.headers"))"
@@ -2154,9 +2154,9 @@ observe_suite() {
   expect_version_data "$did" 1
   pass "the observed dashboard has version 1, exists once, and every panel returns data"
 
-  out="$(api POST /observe -d '{"prompt":"add a requests by pod panel","dashboard_id":"'"$did"'"}')"
+  out="$(api POST /observe -d '{"prompt":"add a requests by pod panel","kind":"revise","dashboard_id":"'"$did"'"}')"
   [[ "$out" == 202 ]] || fail "queue a follow-up prompt ($out: $(cat "$TMP/api.body"))"
-  observe_expect "the queued follow-up" '"source":"prompt"' '"base_version":1' "\"dashboard_id\":\"$did\""
+  observe_expect "the queued follow-up" '"intent":"apply"' '"base_version":1' "\"dashboard_id\":\"$did\""
   fid="$(observe_id_of "$TMP/api.body")"
   observe_wait "$fid" 90
   observe_expect "the finished follow-up" '"status":"succeeded"' '"result_version":2'
@@ -2167,7 +2167,7 @@ observe_suite() {
     fail "the revisions of the dashboard hold the follow-up and the observe request ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$did/revisions/$id")"
-  if [[ "$out" != 200 ]] || ! grep -q '"source":"observe"' "$TMP/api.body" || ! grep -q '"base_version":null' "$TMP/api.body"; then
+  if [[ "$out" != 200 ]] || ! grep -q '"intent":"apply"' "$TMP/api.body" || ! grep -q '"base_version":null' "$TMP/api.body"; then
     fail "the observe request is a revision of its dashboard with no base version ($out: $(cat "$TMP/api.body"))"
   fi
   expect_version_data "$did" 2
@@ -2184,10 +2184,6 @@ observe_suite() {
   listed_first="$(observe_listed_ids "$TMP/api.body" | sed -n 1p)"
   listed_second="$(observe_listed_ids "$TMP/api.body" | sed -n 2p)"
   [[ -n "$listed_first" && -n "$listed_second" ]] || fail "the observe list should hold at least two requests ($(cat "$TMP/api.body"))"
-  out="$(api GET "/observe?source=observe&limit=100")"
-  if [[ "$out" != 200 ]] || ! grep -qF "\"id\":\"$id\"" "$TMP/api.body" || grep -qF "\"id\":\"$fid\"" "$TMP/api.body"; then
-    fail "the observe list filtered by source=observe ($out: $(cat "$TMP/api.body"))"
-  fi
   out="$(api GET "/observe?limit=1")"
   page_id="$(observe_listed_ids "$TMP/api.body" | sed -n 1p)"
   [[ "$page_id" == "$listed_first" ]] || fail "the first observe page should hold the newest request ('$page_id' instead of '$listed_first')"
@@ -2201,7 +2197,7 @@ observe_suite() {
   if [[ "$page_id" == "$listed_first" || "$page_id" != "$listed_second" ]]; then
     fail "the second observe page should hold the second request ('$page_id', expected '$listed_second' and not '$listed_first')"
   fi
-  for bad in source=bogus source= limit=0 limit=101 cursor=%40%40; do
+  for bad in limit=0 limit=101 cursor=%40%40; do
     out="$(api GET "/observe?$bad")"
     [[ "$out" == 400 ]] || fail "the observe list with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
   done
@@ -2241,15 +2237,15 @@ observe_suite() {
   long_prompt="$(printf 'a%.0s' $(seq 1 4001))"
   for bad in '{}' '{"prompt":"   "}' '{"prompt":"a\u0000b"}' '{"prompt":"a\u202eb"}' '{"prompt":"x","base_version":1}' \
     '{"prompt":"x","dashboard_id":"not-a-uuid"}' "{\"prompt\":\"x\",\"dashboard_id\":\"$LOOKALIKE_UUID\"}" \
-    "{\"prompt\":\"x\",\"dashboard_id\":\"$did\",\"base_version\":0}" '{"prompt":"x","extra":1}' "{\"prompt\":\"$long_prompt\"}"; do
+    "{\"prompt\":\"x\",\"dashboard_id\":\"$did\",\"kind\":\"revise\",\"base_version\":0}" '{"prompt":"x","extra":1}' "{\"prompt\":\"$long_prompt\"}"; do
     out="$(api POST /observe -d "$bad")"
     if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
       fail "invalid observe request ${bad:0:60} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
     fi
   done
-  out="$(api POST /observe -d '{"prompt":"x","dashboard_id":"'"$nil_id"'"}')"
+  out="$(api POST /observe -d '{"prompt":"x","kind":"revise","dashboard_id":"'"$nil_id"'"}')"
   [[ "$out" == 404 ]] || fail "observe request for an unknown dashboard ($out: $(cat "$TMP/api.body"))"
-  out="$(api POST /observe -d '{"prompt":"x","dashboard_id":"'"$did"'","base_version":99}')"
+  out="$(api POST /observe -d '{"prompt":"x","kind":"revise","dashboard_id":"'"$did"'","base_version":99}')"
   [[ "$out" == 404 ]] || fail "observe request against an unknown version ($out: $(cat "$TMP/api.body"))"
   out="$(api GET "/observe/$nil_id")"
   [[ "$out" == 404 ]] || fail "read an unknown agent request ($out: $(cat "$TMP/api.body"))"

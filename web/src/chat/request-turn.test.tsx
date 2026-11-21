@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { OriginFields } from "@/observe/request-origin"
 import { renderWithProviders } from "@/test/render"
 
 import {
@@ -19,7 +20,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 
 const failed: TurnSummary = {
   id: "a77cc709-1b2c-4d3e-8f4a-5b6c7d8e9f01",
-  source: "prompt",
+  intent: "apply",
+  base_version: 1,
+  comment_id: null,
   prompt: "Add a latency panel",
   status: "failed",
   state: "failed",
@@ -137,7 +140,9 @@ describe("RequestTurn with a build saved before the run finished", () => {
 describe("RequestTurn while a run settles", () => {
   const answered: TurnSummary = {
     ...failed,
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     status: "succeeded",
     state: "succeeded",
     result_kind: "observation",
@@ -179,11 +184,11 @@ describe("RequestTurn while a run settles", () => {
   })
 })
 
-const building: Pick<
-  TurnSummary,
-  "source" | "status" | "dashboard_id" | "build"
-> = {
-  source: "observe",
+const building: OriginFields &
+  Pick<TurnSummary, "status" | "dashboard_id" | "build"> = {
+  intent: "apply",
+  base_version: null,
+  comment_id: null,
   status: "running",
   dashboard_id: null,
   build: {

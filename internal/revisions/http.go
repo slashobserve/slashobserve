@@ -46,7 +46,7 @@ type authorJSON struct {
 type revisionJSON struct {
 	ID             string     `json:"id"`
 	DashboardID    string     `json:"dashboard_id"`
-	Source         Source     `json:"source"`
+	Intent         Intent     `json:"intent"`
 	CommentID      *string    `json:"comment_id"`
 	PanelID        *string    `json:"panel_id"`
 	Prompt         string     `json:"prompt"`
@@ -301,7 +301,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 	out := revisionJSON{
 		ID:             r.ID,
 		DashboardID:    r.DashboardID,
-		Source:         r.Source,
+		Intent:         r.Intent,
 		CommentID:      httpapi.OptionalString(r.CommentID),
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,

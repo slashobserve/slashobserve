@@ -38,7 +38,9 @@ function request(id: string, requester: string, title: string) {
     kind: "build",
     title,
     pinned_at: null,
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     trigger: "person",
     prompt: title,
     status: "succeeded",
@@ -128,7 +130,7 @@ function twoTurnChat() {
   return [
     {
       ...request("t2", "u1", "make it blue"),
-      source: "prompt",
+      base_version: 1,
       dashboard_id: "d1",
       chat_id: "t1",
     },

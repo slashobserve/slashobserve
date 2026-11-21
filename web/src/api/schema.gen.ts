@@ -2179,13 +2179,13 @@ export interface paths {
         };
         /**
          * List agent requests, newest first: the caller's own, or everyone's for an Admin.
-         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`), comment revisions (`comment`) or investigations (`investigate`). `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. A `scope=all` list is recorded as `run.list` once per caller in 10 minutes.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. A `scope=all` list is recorded as `run.list` once per caller in 10 minutes.
          */
         get: operations["listObserveRequests"];
         put?: never;
         /**
-         * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a build with `dashboard_id`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). With `kind` `ask` the request is a private ask about `dashboard_id` or `observation_id`, one of them: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins. `panel_id`, `from`, `to` and `observation_id` need `kind` `ask` or `investigate`, `kind` must be `build`, `ask` or `investigate`, `base_version` is not allowed for an ask or an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * Ask the agent a question, have it build a new dashboard, revise an existing one, or investigate.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. `kind` says what the request may do: `ask`, the default, reads and answers; `revise` changes the dashboard named by `dashboard_id`; `investigate` reads data into an observation. An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). An `ask` with `dashboard_id` or `observation_id`, one of them, is a private ask about it: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins. `kind` must be `ask`, `revise` or `investigate`, `revise` needs `dashboard_id` and takes no `panel_id`, `from`, `to` or `observation_id`, `base_version` needs `revise`, `from` and `to` on an `ask` need `dashboard_id` or `observation_id`, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2327,7 +2327,7 @@ export interface paths {
         put?: never;
         /**
          * Continue a stopped agent request in a new request that takes over its build.
-         * @description The new request copies the stopped request's source, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The new request copies the stopped request's intent, dashboard, comment, panel, prompt and base version, records `continues_id`, and takes the build, so the agent continues from the panels already built with its own model-call budget. The stopped request gains `continued_by` and can no longer be saved or continued. A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`. Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request. Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request. A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`. The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one. The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["continueObserveRequest"];
         delete?: never;
@@ -3907,7 +3907,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision with source `prompt` whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -4546,13 +4546,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             /**
-             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
              * @enum {string}
              */
             intent: "ask" | "apply";
-            /** @enum {string} */
-            source: "comment" | "prompt" | "observe" | "investigate";
-            /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word. */
+            /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
@@ -4598,8 +4596,6 @@ export interface components {
                 id: string;
                 /** @enum {string} */
                 intent: "ask" | "apply";
-                /** @enum {string} */
-                source: "comment" | "prompt" | "observe" | "investigate";
                 /** @enum {string} */
                 state: "queued" | "running" | "canceling";
                 /** Format: date-time */
@@ -6219,10 +6215,10 @@ export interface components {
             /** Format: uuid */
             dashboard_id: string;
             /**
-             * @description `observe` is the new-dashboard request that created the dashboard; it appears once it has succeeded.
+             * @description Always `apply`; the new-dashboard request that created the dashboard is the one with a null `base_version`, and it appears once it has succeeded.
              * @enum {string}
              */
-            source: "comment" | "prompt" | "observe";
+            intent: "apply";
             /**
              * Format: uuid
              * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
@@ -6481,12 +6477,10 @@ export interface components {
             /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
             /**
-             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
              * @enum {string}
              */
             intent: "ask" | "apply";
-            /** @enum {string} */
-            source: "comment" | "prompt" | "observe" | "investigate";
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
@@ -6687,12 +6681,10 @@ export interface components {
             id: string;
             requested_by: components["schemas"]["Author"];
             /**
-             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
              * @enum {string}
              */
             intent: "ask" | "apply";
-            /** @enum {string} */
-            source: "comment" | "prompt" | "observe" | "investigate";
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
@@ -6718,6 +6710,13 @@ export interface components {
             /** @description The dashboard's current title; null when the request has no dashboard or the dashboard is in a folder you cannot see. */
             dashboard_title: string | null;
             panel_id: string | null;
+            /** @description The version an `apply` run started from; null for a new-dashboard request and for an ask. */
+            base_version: number | null;
+            /**
+             * Format: uuid
+             * @description The comment thread an `apply` run answers; null for a chat turn.
+             */
+            comment_id: string | null;
             result_version: number | null;
             url: string | null;
             error: string | null;
@@ -14399,7 +14398,6 @@ export interface operations {
         parameters: {
             query?: {
                 scope?: "mine" | "all";
-                source?: "observe" | "prompt" | "comment" | "investigate";
                 state?: ("queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled")[];
                 q?: string;
                 pinned?: boolean;
@@ -14451,16 +14449,16 @@ export interface operations {
                     prompt: string;
                     /**
                      * Format: uuid
-                     * @description The dashboard to revise; omit to build a new dashboard.
+                     * @description The dashboard to revise with `kind` `revise`, or to ask or investigate about.
                      */
                     dashboard_id?: string;
-                    /** @description A version that exists on the dashboard; only allowed together with `dashboard_id`. */
+                    /** @description A version that exists on the dashboard; only allowed with `kind` `revise`. */
                     base_version?: number;
                     /**
-                     * @default build
+                     * @default ask
                      * @enum {string}
                      */
-                    kind?: "build" | "ask" | "investigate";
+                    kind?: "ask" | "revise" | "investigate";
                     /** @description The panel an investigation is about; needs `dashboard_id`. */
                     panel_id?: string;
                     /** @description The start of the window an investigation looks at, a relative time like `now-1h` or epoch milliseconds. */
@@ -14469,7 +14467,7 @@ export interface operations {
                     to?: string;
                     /**
                      * Format: uuid
-                     * @description The chat of yours this request is the next turn of; without it a new chat starts, or a build with `dashboard_id` joins your latest chat on that dashboard.
+                     * @description The chat of yours this request is the next turn of; without it a new chat starts, or a `revise` joins your latest chat on that dashboard.
                      */
                     chat_id?: string;
                     /**
@@ -14480,7 +14478,7 @@ export interface operations {
                     follows_id?: string;
                     /**
                      * Format: uuid
-                     * @description Investigate only. The observation to write into; without it a new observation is made in the dashboard's folder, or in your own folder when you cannot edit that one.
+                     * @description The observation a private ask is about, or the one an investigation writes into; without it an investigation makes a new observation in the dashboard's folder, or in your own folder when you cannot edit that one.
                      */
                     observation_id?: string;
                     /** @description The IANA time zone the person reads times in, such as `Asia/Kolkata`; the answer gives times in it, labelled. Without it times are UTC. */

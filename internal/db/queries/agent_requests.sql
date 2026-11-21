@@ -292,12 +292,6 @@ LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.a
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
-    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
-    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
-    WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
-    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -334,12 +328,6 @@ LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.a
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
 WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
-    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
-    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
-    WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
-    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -361,12 +349,6 @@ SELECT count(*) AS total
 FROM agent_requests r
 WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
-    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
-    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
-    WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
-    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -384,12 +366,6 @@ SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id
 FROM agent_requests r
 WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
-    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
-    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
-    WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
-    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)

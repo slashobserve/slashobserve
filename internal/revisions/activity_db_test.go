@@ -119,9 +119,10 @@ VALUES ($1, 1, '{}', 's', 'user', $2::uuid, 'Ada', $3)`, dash, userID, mustUUID(
 	if queued.RunID != "" || started.RunID != row.ID.String() || succeeded.RunID != row.ID.String() {
 		t.Errorf("run ids = %q, %q, %q; want none for the request and the request id once it runs", queued.RunID, started.RunID, succeeded.RunID)
 	}
+	wantIntent := map[string]string{"run.queued": "ask", "run.started": "ask", "run.succeeded": "apply"}
 	for _, r := range records {
-		if r.ActorID != userID || r.ActorName != user.Name || r.Data["source"] != "observe" {
-			t.Errorf("%s actor %q %q data %v, want the requester and source observe", r.Type, r.ActorID, r.ActorName, r.Data)
+		if r.ActorID != userID || r.ActorName != user.Name || r.Data["intent"] != wantIntent[r.Type] {
+			t.Errorf("%s actor %q %q data %v, want the requester and intent %s", r.Type, r.ActorID, r.ActorName, r.Data, wantIntent[r.Type])
 		}
 	}
 	if started.Data["attempt"] != float64(1) || succeeded.Data["result_version"] != float64(1) {
@@ -372,8 +373,8 @@ func TestARepairRunThatSavedAVersionRecordsTheDashboardTitleAndRepairedPanelCoun
 	records := runRecords(t, d, mustUUID(t, rev.ID))
 	assertTypes(t, records, "run.queued", "run.started", "run.succeeded")
 	got := records[2].Data
-	if got["source"] != "prompt" || got["result_version"] != float64(2) {
-		t.Errorf("run.succeeded data = %v, want its source and result_version unchanged", got)
+	if got["intent"] != "apply" || got["result_version"] != float64(2) {
+		t.Errorf("run.succeeded data = %v, want its intent and result_version unchanged", got)
 	}
 	if got["dashboard_title"] != "Node resources" || got["panels_repaired"] != float64(1) {
 		t.Errorf("run.succeeded data = %v, want the dashboard title and one repaired panel", got)

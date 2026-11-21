@@ -46,7 +46,6 @@ type requesterJSON struct {
 type runJSON struct {
 	ID          string        `json:"id"`
 	Intent      string        `json:"intent"`
-	Source      string        `json:"source"`
 	Title       string        `json:"title"`
 	State       string        `json:"state"`
 	ResultKind  string        `json:"result_kind"`
@@ -204,7 +203,6 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	out := runJSON{
 		ID:          row.ID.String(),
 		Intent:      row.Intent,
-		Source:      string(revisions.RunShape{Intent: revisions.Intent(row.Intent), BaseVersion: row.BaseVersion, CommentID: row.CommentID, ThreadMessageID: row.ThreadMessageID, DashboardID: row.DashboardID, ObservationID: row.ObservationID, SubjectID: row.SubjectObservationID}.Source()),
 		State:       row.State,
 		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
 		FailureCode: optionalText(row.FailureCode),
@@ -214,7 +212,7 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
 		Openable:    row.RequestedByKind == "user" && row.RequestedByID == callerID,
 	}
-	out.Title = runTitle(row.Title.String, row.Prompt, out.Source)
+	out.Title = runTitle(row.Title.String, row.Prompt, out.Intent)
 	if row.Priced {
 		out.CostUSD = &row.CostUsd
 	}
@@ -227,14 +225,14 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	return out
 }
 
-func runTitle(title, prompt, source string) string {
+func runTitle(title, prompt, intent string) string {
 	if title != "" {
 		return title
 	}
 	first, _, _ := strings.Cut(strings.TrimSpace(prompt), "\n")
 	first = strings.TrimSpace(first)
 	if first == "" {
-		return source
+		return intent
 	}
 	if runes := []rune(first); len(runes) > maxTitleRunes {
 		return string(runes[:maxTitleRunes])

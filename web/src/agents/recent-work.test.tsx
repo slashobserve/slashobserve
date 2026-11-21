@@ -34,7 +34,7 @@ function page(items: Item[], scope = "you", nextCursor: string | null = null) {
     scope,
     next_cursor: nextCursor,
     items: items.map((entry) => ({
-      source: "prompt",
+      intent: "apply",
       result_kind: "none",
       failure_code: null,
       created_at: new Date(Date.now() - 3 * 60_000).toISOString(),

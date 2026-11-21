@@ -12,6 +12,11 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { dashboardLink } from "@/lib/links"
+import {
+  requestOrigin,
+  type OriginFields,
+  type RequestOrigin,
+} from "@/observe/request-origin"
 
 import { failureText } from "./failure-text"
 
@@ -61,35 +66,36 @@ export function OpenDashboardLink({
   )
 }
 
-type FailedRequest = Pick<
-  ObserveRequest,
-  | "id"
-  | "source"
-  | "dashboard_id"
-  | "error"
-  | "failure_code"
-  | "continued_by"
-  | "retried_by"
-  | "allowed_actions"
->
+type FailedRequest = OriginFields &
+  Pick<
+    ObserveRequest,
+    | "id"
+    | "dashboard_id"
+    | "error"
+    | "failure_code"
+    | "continued_by"
+    | "retried_by"
+    | "allowed_actions"
+  >
 
 export type RunOpens = "chat" | "build"
 
 function newRunPage(
-  request: Pick<ObserveRequest, "source" | "dashboard_id">,
+  request: OriginFields & Pick<ObserveRequest, "dashboard_id">,
   opens: RunOpens
 ): "/b/$requestId" | "/c/$requestId" | null {
-  if (request.source === "observe") {
+  const origin = requestOrigin(request)
+  if (origin === "observe") {
     return opens === "build" ? "/b/$requestId" : "/c/$requestId"
   }
-  if (request.source === "investigate" && request.dashboard_id === null) {
+  if (origin === "investigate" && request.dashboard_id === null) {
     return "/c/$requestId"
   }
   return null
 }
 
 export function useOpenNewRun(
-  request: Pick<ObserveRequest, "source" | "dashboard_id">,
+  request: OriginFields & Pick<ObserveRequest, "dashboard_id">,
   onRevised: (request: ObserveRequest) => void,
   opens: RunOpens = "chat"
 ): (next: ObserveRequest) => Promise<void> {
@@ -109,16 +115,16 @@ export function useOpenNewRun(
 }
 
 function NextRunNote({
-  source,
+  origin,
   runId,
   children,
 }: {
-  source: FailedRequest["source"]
+  origin: RequestOrigin
   runId: string | null
   children: string
 }) {
   if (runId === null) return null
-  return source === "observe" ? (
+  return origin === "observe" ? (
     <Link
       to="/c/$requestId"
       params={{ requestId: runId }}
@@ -131,8 +137,8 @@ function NextRunNote({
   )
 }
 
-function failureHeading(source: FailedRequest["source"]): string {
-  switch (source) {
+function failureHeading(origin: RequestOrigin): string {
+  switch (origin) {
     case "observe":
       return "The dashboard could not be built"
     case "investigate":
@@ -190,7 +196,9 @@ export function TurnFailure({
             <p className="font-semibold">You stopped this run</p>
           ) : (
             <>
-              <p className="font-semibold">{failureHeading(request.source)}</p>
+              <p className="font-semibold">
+                {failureHeading(requestOrigin(request))}
+              </p>
               <p className="wrap-anywhere text-muted-foreground">
                 {explained?.meaning ??
                   sentence(request.error ?? "The request failed")}
@@ -206,10 +214,16 @@ export function TurnFailure({
         </div>
         {followedUp || canRetry || request.dashboard_id !== null ? (
           <div className="flex flex-wrap items-center gap-2">
-            <NextRunNote source={request.source} runId={request.continued_by}>
+            <NextRunNote
+              origin={requestOrigin(request)}
+              runId={request.continued_by}
+            >
               Continued in a new run
             </NextRunNote>
-            <NextRunNote source={request.source} runId={request.retried_by}>
+            <NextRunNote
+              origin={requestOrigin(request)}
+              runId={request.retried_by}
+            >
               Tried again in a new run
             </NextRunNote>
             {canRetry ? (

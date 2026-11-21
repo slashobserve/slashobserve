@@ -215,10 +215,14 @@ export function ActivityFeed({
     ],
     [openProposals, mergedProposals]
   )
-  const investigations = useMyRequests({
-    source: "investigate",
+  const activeRuns = useMyRequests({
     dashboardId,
+    states: ["queued", "running", "canceling"],
   }).requests
+  const investigations = useMemo(
+    () => activeRuns.filter((request) => request.kind === "investigate"),
+    [activeRuns]
+  )
   useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
   const scopeId = useId()

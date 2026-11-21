@@ -19,7 +19,7 @@ Without it the server starts a new observation, and the request carries the id o
 Starting an investigation needs the Editor role or above, and view access on the dashboard when one is named.
 A caller may have 3 investigations queued or running at once, and the instance 10.
 Investigations do not wait for other requests on the same dashboard, because they never change it.
-The request lists with `source` `investigate`, and `GET /api/v1/observe/{id}` returns its finding once it succeeds.
+The request lists with `kind` `investigate`, and `GET /api/v1/observe/{id}` returns its finding once it succeeds.
 When the finding is saved, its conclusion and evidence panels are written into the observation, as described in [Observations](../use/observations.md#investigations-write-into-an-observation).
 
 ## The finding
