@@ -105,6 +105,8 @@ Each count in it is of dashboards, not problems, over every dashboard in the fol
 
 Each dashboard carries a `state`: `unchecked`, `outdated`, `skipped`, `failing` or `healthy`, computed on the server from its last check.
 `no_data`, `duplicate_title` and `unopened` stay problems in the list but do not make a dashboard `failing`; see [States](../reference/states.md).
+An `outdated` dashboard still lists the problems of the older check, but they belong to `checked_version`, so the counts above and the `kind` filter leave out its `query_failed`, `variable_failed` and `no_data` problems until the next check, and the web shows it as **Recheck pending** instead of listing them.
+Its `duplicate_title` and `unopened` problems are current and stay.
 
 Each dashboard carries `repair`, its latest health repair whatever its age, or null when it never had one.
 Its `state` is the status of the repair's run: `queued`, `running`, `succeeded` or `failed`.
@@ -166,7 +168,8 @@ Its `outcome` is what the repair came to: `queued`, `running`, `repaired`, `stil
 }
 ```
 
-`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role` and `queue_full`.
+`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` and `queue_full`.
+A starter dashboard is skipped as `provisioned`, because the server keeps it current with each release; duplicate it to repair a copy.
 It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `POST /api/v1/health/run` needs the Admin role and answers 202 while the run starts in the background.

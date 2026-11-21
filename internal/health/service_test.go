@@ -378,6 +378,49 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 	}
 }
 
+func TestAnOutdatedDashboardCountsAsNeitherFailingNorWithoutDataUntilItIsChecked(t *testing.T) {
+	r := newRig(t)
+	failing := r.create(t, boardSpec("Failing", "fail_series"))
+	r.create(t, boardSpec("Empty", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	_, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{
+		DashboardID: failing, Parent: 1, Spec: boardSpec("Failing", "up"), Summary: "edit",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (health.Summary{Dashboards: 1, NoData: 1}); page.Summary == nil || *page.Summary != want {
+		t.Errorf("summary = %+v, want %+v", page.Summary, want)
+	}
+	for _, it := range page.Items {
+		if it.ID == failing.String() {
+			t.Errorf("an outdated dashboard with only old problems is listed as %+v", it)
+		}
+	}
+	byKind, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Kind: health.KindQueryFailed, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(byKind.Items) != 0 {
+		t.Errorf("kind query_failed lists %d dashboards, want 0", len(byKind.Items))
+	}
+	one, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{DashboardIDs: []pgtype.UUID{failing}, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(one.Items) != 1 || one.Items[0].State != health.StateOutdated {
+		t.Errorf("reading the dashboard by id = %+v, want one outdated item", one.Items)
+	}
+}
+
 func TestListShowsEachDashboardsLatestHealthRepair(t *testing.T) {
 	r := newRig(t)
 	queued := r.create(t, boardSpec("Queued", "empty_series"))

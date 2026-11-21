@@ -80,3 +80,34 @@ func TestRepairWaitsForTheCheckOfTheLatestVersion(t *testing.T) {
 		t.Fatalf("repair = %+v, want nothing_to_repair while the problems belong to an older version", out)
 	}
 }
+
+func TestAStarterDashboardIsNotEditableForRepairAndIsSkippedAsProvisioned(t *testing.T) {
+	r := newRig(t)
+	starter := r.create(t, boardSpec("Starter", "up", "empty_series"))
+	ordinary := r.create(t, boardSpec("Ordinary", "up", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, starter.String())
+
+	items := r.list(t, r.editor, "")
+	if items[starter.String()].CanEdit || !items[ordinary.String()].CanEdit {
+		t.Errorf("can edit: starter %v, ordinary %v, want false and true", items[starter.String()].CanEdit, items[ordinary.String()].CanEdit)
+	}
+	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{starter, ordinary})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Queued) != 1 || out.Queued[0].DashboardID != ordinary.String() {
+		t.Errorf("queued = %+v, want only the ordinary dashboard", out.Queued)
+	}
+	if !slices.Equal(out.Skipped, []repairs.Skipped{{DashboardID: starter.String(), Reason: repairs.ReasonProvisioned}}) {
+		t.Errorf("skipped = %+v, want the starter as provisioned", out.Skipped)
+	}
+	var runs int
+	r.scan(t, `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, starter.String(), &runs)
+	if runs != 0 {
+		t.Errorf("%d runs queued on the starter, want none", runs)
+	}
+}

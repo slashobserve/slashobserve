@@ -130,3 +130,49 @@ func TestContentOnAnAdminsOnlyDatasourceNeverLeavesTheAdminsOnlyFolder(t *testin
 		t.Fatalf("a non-Admin creator reads the dashboard: %v", err)
 	}
 }
+
+func TestADuplicateWithoutAFolderGoesToTheSourcesFolderWhenTheCallerCanCreateThere(t *testing.T) {
+	r := newPlacementRig(t)
+	ctx := reading(t.Context())
+	locked, other := r.folder(t, "Payroll", true), r.folder(t, "Team", false)
+	dash, _, err := r.service.Create(ctx, placementAdmin, locked, auditSpec("Salaries"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, _ := db.ParseUUID(dash.ID)
+
+	copied, _, err := r.service.Duplicate(ctx, placementAdmin, source, pgtype.UUID{}, "Salaries copy")
+	if err != nil {
+		t.Fatalf("duplicate without a folder: %v", err)
+	}
+	if got := r.folderOfDashboard(t, mustUUID(t, copied.ID)); got != locked {
+		t.Fatalf("the copy is in folder %v, want the source's folder %v", got, locked)
+	}
+
+	_, _, err = r.service.Duplicate(ctx, placementAdmin, source, other, "Salaries elsewhere")
+	restricted(t, err, "audit")
+}
+
+func TestADuplicateWithoutAFolderByAViewerOfTheSourcesFolderIsRefusedAndCreatesNothing(t *testing.T) {
+	r := newPlacementRig(t)
+	ctx := reading(t.Context())
+	open := r.folder(t, "Team", false)
+	dash, _, err := r.service.Create(ctx, placementAdmin, open, panelsSpec("Latency", "rps"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, _ := db.ParseUUID(dash.ID)
+	viewer := auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Role: auth.RoleViewer}
+
+	_, _, err = r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
+	if !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("a Viewer's duplicate = %v, want ErrForbidden", err)
+	}
+	var count int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("%d dashboards after the refused duplicate, want 1", count)
+	}
+}

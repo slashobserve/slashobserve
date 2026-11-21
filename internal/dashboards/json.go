@@ -222,6 +222,6 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {
 	return DashboardVersionJSON{
 		Dashboard: newDashboardJSON(d),
-		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec, Unverified: v.Unverified.withEmptyLists()},
+		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec, Unverified: v.Unverified.Shown(d.Provisioned).withEmptyLists()},
 	}
 }

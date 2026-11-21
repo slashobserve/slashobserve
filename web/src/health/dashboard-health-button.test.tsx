@@ -124,14 +124,142 @@ describe("DashboardHealthButton", () => {
   })
 
   test("opens the healthy popover with when and on which version it was checked", async () => {
-    serve([item({ problems: [], state: "outdated" })])
+    serve([item({ problems: [], state: "healthy" })])
     const { user } = renderButton()
     await user.click(await screen.findByRole("button", { name: "Queries OK" }))
     expect(await screen.findByText("No problems found")).toBeTruthy()
+    expect(screen.getByText(/on version 4/)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
+  })
+
+  test("says a changed dashboard waits for a recheck instead of showing the old problems", async () => {
+    serve([item({ state: "outdated" })])
+    const { user } = renderButton()
+    await user.click(
+      await screen.findByRole("button", { name: "Recheck pending" })
+    )
+    expect(
+      await screen.findByText(
+        "This dashboard changed since the last check and is waiting for a recheck."
+      )
+    ).toBeTruthy()
     expect(
       screen.getByText(/on version 4, before the latest version/)
     ).toBeTruthy()
+    expect(screen.queryByText("Query fails")).toBeNull()
     expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: "2 problems" })).toBeNull()
+  })
+
+  test("shows a duplicate title next to the pending recheck when no repair is on record", async () => {
+    serve([
+      item({
+        state: "outdated",
+        problems: [
+          queryFailed,
+          {
+            kind: "duplicate_title",
+            panel_id: null,
+            panel_title: null,
+            variable: null,
+            code: null,
+            message: null,
+          },
+        ],
+      } as Partial<HealthItem>),
+    ])
+    const { user } = renderButton()
+    await user.click(await screen.findByRole("button", { name: "1 problem" }))
+    expect(
+      await screen.findByText(
+        "This dashboard changed since the last check and is waiting for a recheck."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("Query fails")).toBeNull()
+  })
+
+  test.each([
+    ["repaired", "Repaired"],
+    ["failed", "Repair failed"],
+  ])(
+    "keeps a %s repair on record next to the pending recheck, never Queries OK",
+    async (outcome, status) => {
+      serve([
+        item({
+          state: "outdated",
+          repair: {
+            request_id: "r1",
+            state: outcome,
+            outcome,
+            version: outcome === "repaired" ? 5 : null,
+            error: null,
+            updated_at: "2026-11-06T10:00:00Z",
+          },
+        } as unknown as Partial<HealthItem>),
+      ])
+      const { user } = renderButton()
+      expect(screen.queryByRole("button", { name: "Queries OK" })).toBeNull()
+      await user.click(await screen.findByRole("button", { name: status }))
+      expect(
+        await screen.findByText(
+          "This dashboard changed since the last check and is waiting for a recheck."
+        )
+      ).toBeTruthy()
+      expect(screen.getAllByText(status).length).toBeGreaterThan(0)
+      expect(screen.queryByText("No problems found")).toBeNull()
+    }
+  )
+
+  test("says a recheck is pending when the repair on record is still failing", async () => {
+    serve([
+      item({
+        state: "outdated",
+        repair: {
+          request_id: "r1",
+          state: "still_failing",
+          outcome: "still_failing",
+          version: 5,
+          error: null,
+          updated_at: "2026-11-06T10:00:00Z",
+        },
+      } as unknown as Partial<HealthItem>),
+    ])
+    renderButton()
+    expect(
+      await screen.findByRole("button", { name: "Recheck pending" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Queries OK" })).toBeNull()
+  })
+
+  test("keeps a duplicate title as a current problem while a recheck is pending", async () => {
+    serve([
+      item({
+        state: "outdated",
+        repair: {
+          request_id: "r1",
+          state: "failed",
+          outcome: "failed",
+          version: null,
+          error: null,
+          updated_at: "2026-11-06T10:00:00Z",
+        },
+        problems: [
+          noData,
+          {
+            kind: "duplicate_title",
+            panel_id: null,
+            panel_title: null,
+            variable: null,
+            code: null,
+            message: null,
+          },
+        ],
+      } as Partial<HealthItem>),
+    ])
+    renderButton()
+    expect(
+      await screen.findByRole("button", { name: "1 problem" })
+    ).toBeTruthy()
   })
 
   test("reads a running repair, not Queries OK", async () => {
@@ -202,15 +330,13 @@ describe("DashboardHealthButton", () => {
   })
 
   test("opens with Enter, says when and on which version it checked, and returns focus on Escape", async () => {
-    serve([item({ state: "outdated" })])
+    serve([item({ state: "failing" })])
     const { user } = renderButton()
     const trigger = await screen.findByRole("button", { name: "2 problems" })
     trigger.focus()
     await user.keyboard("{Enter}")
     expect(await screen.findByText("Health")).toBeTruthy()
-    expect(
-      screen.getByText(/on version 4, before the latest version/)
-    ).toBeTruthy()
+    expect(screen.getByText(/on version 4/)).toBeTruthy()
     expect(screen.getByText("Query fails")).toBeTruthy()
     await user.keyboard("{Escape}")
     await waitFor(() => expect(screen.queryByText("Health")).toBeNull())
