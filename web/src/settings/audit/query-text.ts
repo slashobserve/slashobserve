@@ -12,7 +12,7 @@ export type FacetField = { name: string; alias: string | null }
 
 export type TermState = "include" | "exclude" | null
 
-type Found = { clauses: KqlNode[]; index: number; state: TermState }
+type Found = { clauses: KqlNode[]; indexes: number[]; state: TermState }
 
 function namesOf(field: FacetField): string[] {
   return field.alias === null ? [field.name] : [field.name, field.alias]
@@ -46,11 +46,11 @@ function find(body: string, field: FacetField, value: string): Found | null {
   const clauses = flatClauses(node)
   if (clauses === null) return null
   const names = namesOf(field)
-  const index = clauses.findIndex(
-    (clause) => stateOf(clause, names, value) !== null
+  const indexes = clauses.flatMap((clause, index) =>
+    stateOf(clause, names, value) === null ? [] : [index]
   )
-  if (index === -1) return null
-  return { clauses, index, state: stateOf(clauses[index], names, value) }
+  if (indexes.length === 0) return null
+  return { clauses, indexes, state: stateOf(clauses[indexes[0]], names, value) }
 }
 
 export function canEditTerms(text: string): boolean {
@@ -95,11 +95,14 @@ export function toggleTerm(
   if (found === null) {
     return kql.prefix + appendKql(kql.body, field.name, value, exclude)
   }
-  const rest = found.clauses.filter((_, index) => index !== found.index)
-  if (found.state === wanted) return kql.prefix + printed(rest)
-  const replaced = [...found.clauses]
-  replaced[found.index] = term(field.name, value, exclude)
-  return kql.prefix + printed(replaced)
+  const [first, ...copies] = found.indexes
+  const dropped = found.state === wanted ? found.indexes : copies
+  const clauses = found.clauses.map((clause, index) =>
+    index === first ? term(field.name, value, exclude) : clause
+  )
+  return (
+    kql.prefix + printed(clauses.filter((_, index) => !dropped.includes(index)))
+  )
 }
 
 export function requestQuery(requestId: string): string {

@@ -41,6 +41,28 @@ describe("toggleTerm", () => {
     expect(toggleTerm("outcome:denied", outcome, "denied", false)).toBe("")
   })
 
+  test("removes every copy of a term written twice", () => {
+    expect(
+      toggleTerm(
+        "outcome:denied and origin:mcp and outcome:denied",
+        outcome,
+        "denied",
+        false
+      )
+    ).toBe("origin : mcp")
+  })
+
+  test("flips a term written twice into one copy", () => {
+    expect(
+      toggleTerm(
+        "outcome:denied and origin:mcp and not outcome:denied",
+        outcome,
+        "denied",
+        true
+      )
+    ).toBe('not outcome : "denied" and origin : mcp')
+  })
+
   test("finds a term written with the field's alias", () => {
     expect(toggleTerm('actor:"Ada"', actor, "Ada", false)).toBe("")
   })
