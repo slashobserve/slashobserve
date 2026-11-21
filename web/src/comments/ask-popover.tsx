@@ -79,7 +79,7 @@ function useContinuedChat(
   return continuedChat(openChatId, open, dashboardId)
 }
 
-export function continuedChat(
+function continuedChat(
   openChatId: string | null,
   open: OpenChat | undefined,
   dashboardId: string
