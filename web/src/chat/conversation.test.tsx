@@ -127,10 +127,16 @@ function renderChatPage(request: ObserveRequest) {
   })
 }
 
-function renderConversation(request: ObserveRequest = root) {
+function renderConversation(
+  request: ObserveRequest = root,
+  layout: "page" | "pane" = "page"
+) {
   const queryClient = seededClient(request)
+  queryClient.setQueryData(datasourceKeys.list(), {
+    datasources: [{ uid: "prom", type: "prometheus", healthy: true }],
+  })
   return renderWithProviders(
-    <Conversation requestId={rootId} layout="page" />,
+    <Conversation requestId={rootId} layout={layout} />,
     { queryClient, route: { path: "/", url: "/" } }
   )
 }
@@ -492,5 +498,43 @@ describe("Conversation", () => {
     expect(row!.parentElement).toContainElement(
       screen.getByText("p99 rose after the deploy.")
     )
+  })
+
+  it("suggests two follow-ups in the side panel of a chat that nothing was asked in yet, and asks one there", async () => {
+    const fetch = stubServer(chatAbout({ dashboard_id: dashboardId }))
+    const { user } = renderConversation(answered(), "pane")
+    const group = await screen.findByRole("group", {
+      name: "Suggested follow-ups",
+    })
+    const chips = Array.from(group.querySelectorAll("button"))
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "Which services had the most errors in the last hour?",
+      "Which routes are slowest right now?",
+    ])
+    await user.click(chips[1])
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await posted.clone().json()).toMatchObject({
+      prompt: "Which routes are slowest right now?",
+      kind: "ask",
+      dashboard_id: dashboardId,
+      chat_id: rootId,
+    })
+  })
+
+  it("suggests none on the chat page", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(answered())
+    await screen.findByText("p99 rose after the deploy.")
+    expect(
+      screen.queryByRole("group", { name: "Suggested follow-ups" })
+    ).toBeNull()
   })
 })
