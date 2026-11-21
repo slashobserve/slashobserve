@@ -7,6 +7,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 )
@@ -43,14 +45,23 @@ func (e emitter) data() eventData {
 }
 
 func (e emitter) append(ctx context.Context, q *dbsqlc.Queries, typ string, data eventData, live *events.Event) error {
+	return e.appendWith(ctx, q, typ, data, nil, live)
+}
+
+func (e emitter) appendWith(ctx context.Context, q *dbsqlc.Queries, typ string, data eventData, auditOnly map[string]any, live *events.Event) error {
 	_, err := activity.Append(ctx, q, activity.Entry{
-		Type:     typ,
-		TargetID: e.thread.ID,
-		Owner:    e.scope.activity,
-		Actor:    e.actor,
-		Data:     data,
+		Type:      typ,
+		TargetID:  e.thread.ID,
+		Owner:     e.scope.activity,
+		Actor:     e.actor,
+		Data:      data,
+		AuditOnly: auditOnly,
 	}, live)
 	return err
+}
+
+func (e emitter) sent(message dbsqlc.ThreadMessage) map[string]any {
+	return audit.MessageData(message.Body, string(anchor.KindOf(e.thread.Anchor)))
 }
 
 func (e emitter) live(typ string, commentID, parentID pgtype.UUID, status string) *events.Event {
@@ -82,7 +93,7 @@ func (e emitter) opened(ctx context.Context, q *dbsqlc.Queries, message dbsqlc.T
 		version := e.thread.DashboardVersion.Int32
 		data.Version, data.PanelID = &version, e.thread.PanelID.String
 	}
-	if err := e.append(ctx, q, activity.TypeThreadOpened, data, e.live(events.TypeCommentCreated, message.ID, pgtype.UUID{}, e.thread.Status)); err != nil {
+	if err := e.appendWith(ctx, q, activity.TypeThreadOpened, data, e.sent(message), e.live(events.TypeCommentCreated, message.ID, pgtype.UUID{}, e.thread.Status)); err != nil {
 		return err
 	}
 	return e.mentioned(ctx, q, message, mentions)
@@ -91,7 +102,7 @@ func (e emitter) opened(ctx context.Context, q *dbsqlc.Queries, message dbsqlc.T
 func (e emitter) replied(ctx context.Context, q *dbsqlc.Queries, message dbsqlc.ThreadMessage, mentions []Mention) error {
 	data := e.data()
 	data.MessageID = message.ID.String()
-	if err := e.append(ctx, q, activity.TypeThreadReplied, data, e.live(events.TypeCommentCreated, message.ID, e.thread.ID, e.thread.Status)); err != nil {
+	if err := e.appendWith(ctx, q, activity.TypeThreadReplied, data, e.sent(message), e.live(events.TypeCommentCreated, message.ID, e.thread.ID, e.thread.Status)); err != nil {
 		return err
 	}
 	return e.mentioned(ctx, q, message, mentions)

@@ -3,6 +3,7 @@ package audit
 import (
 	"maps"
 	"slices"
+	"unicode/utf8"
 )
 
 type Action string
@@ -55,6 +56,7 @@ var (
 	proposalKeys = []string{"title", "revision", "base_version", "version"}
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
 	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
+	messageKeys  = []string{"anchor_kind", "body_length"}
 	usageKeys    = []string{"model", "input_tokens", "output_tokens"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
@@ -86,6 +88,14 @@ var (
 	permissionKeys = []string{"added", "removed", "changed", "count_before", "count_after", "truncated"}
 	memberKeys     = []string{"user_id", "user_name"}
 )
+
+func MessageData(body, anchorKind string) map[string]any {
+	data := map[string]any{"body_length": utf8.RuneCountInString(body)}
+	if anchorKind != "" {
+		data["anchor_kind"] = anchorKind
+	}
+	return data
+}
 
 func change(c Category, data ...[]string) Spec {
 	return Spec{Category: c, Class: ClassChange, Data: slices.Concat(data...)}
@@ -156,8 +166,8 @@ var catalog = map[Action]Spec{
 	"grafana_import.start":      change(CategoryContent, importKeys),
 	"grafana_import.cancel":     change(CategoryContent, importKeys),
 
-	"thread.open":                 change(CategoryConversation, threadKeys),
-	"thread.message":              change(CategoryConversation, threadKeys),
+	"thread.open":                 change(CategoryConversation, threadKeys, messageKeys),
+	"thread.message":              change(CategoryConversation, threadKeys, messageKeys),
 	"thread.message_edit":         change(CategoryConversation, threadKeys),
 	"thread.message_delete":       change(CategoryConversation, threadKeys),
 	"thread.resolve":              change(CategoryConversation, threadKeys),
@@ -165,7 +175,7 @@ var catalog = map[Action]Spec{
 	"thread.mention":              change(CategoryConversation, threadKeys),
 	"thread.agent_set":            change(CategoryConversation),
 	"chat.create":                 change(CategoryConversation),
-	"chat.turn":                   change(CategoryConversation),
+	"chat.turn":                   change(CategoryConversation, messageKeys),
 	"chat.archive":                change(CategoryConversation),
 	"run.share":                   change(CategoryConversation),
 	"run.withdraw":                change(CategoryConversation),
