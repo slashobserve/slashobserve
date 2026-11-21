@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete"
 import { Compartment, EditorState, Prec } from "@codemirror/state"
-import { EditorView, keymap } from "@codemirror/view"
+import { EditorView } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
 
@@ -41,6 +41,19 @@ const appearance = Prec.highest(
     ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "transparent" },
   })
 )
+
+const IME_KEY_CODE = 229
+
+function isPlainEnter(event: KeyboardEvent) {
+  return (
+    event.key === "Enter" &&
+    event.keyCode !== IME_KEY_CODE &&
+    !event.shiftKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  )
+}
 
 function accessMode(readOnly: boolean) {
   return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]
@@ -108,17 +121,16 @@ export function CodeEditor({
                 lintLines(),
               ],
           Prec.high(
-            keymap.of([
-              {
-                key: "Enter",
-                run: () => {
-                  const submit = latest.current.onSubmit
-                  if (submit === undefined) return false
-                  submit()
-                  return true
-                },
+            EditorView.domEventHandlers({
+              keydown: (event, view) => {
+                const submit = latest.current.onSubmit
+                if (submit === undefined || !isPlainEnter(event)) return false
+                if (view.composing || event.isComposing) return false
+                event.preventDefault()
+                submit()
+                return true
               },
-            ])
+            })
           ),
           appearance,
           access.current.of(accessMode(current.readOnly)),

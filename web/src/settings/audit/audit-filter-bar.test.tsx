@@ -60,6 +60,18 @@ describe("AuditFilterBar keys", () => {
     expect(onRun).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ["isComposing", { isComposing: true }],
+    ["keyCode 229", { keyCode: 229 }],
+  ])(
+    "does not search on an Enter that confirms IME input (%s)",
+    (_name, init) => {
+      const { content, onRun } = setup()
+      press(content, { key: "Enter", code: "Enter", ...init })
+      expect(onRun).not.toHaveBeenCalled()
+    }
+  )
+
   it("adds a line on Shift+Enter instead of searching", () => {
     const { content, onRun } = setup()
     press(content, { key: "Enter", code: "Enter", shiftKey: true })
