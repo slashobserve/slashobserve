@@ -321,6 +321,7 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 `--private` asks privately about one of `--dashboard` or `--observation`: it needs only Comment on it, writes nothing into it and opens no observation, and the answer is read only by you and, read only, by Admins (see [Private asks](../concepts/agent.md#private-asks)).
 `bin/observe share-answer <request-id>` then shows that answer to everyone who can read what it was about: it opens a comment thread there with your question and the answer, and on an observation it also writes the answer onto the page; `--thread <thread-id>` adds both to that thread instead.
 Only the person who asked can share, a run is shared once, and sharing again prints the same thread.
+`bin/observe comments withdraw <thread-id>` takes it back to only you while nobody else has written in that thread.
 
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
 Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
@@ -443,6 +444,8 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
 - `bin/observe comments delete <comment-id>` deletes one comment: its author may while they can still comment, unless an agent run wrote it, and anyone who manages the target's folder may delete any comment, including an agent's reply.
   Deleting the first comment of a thread deletes the whole thread, which its author may do only while nobody else has written in it; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
+- `bin/observe comments withdraw <comment-id>` withdraws an answer you shared with `share-answer` back to only you: it deletes that thread, takes the id of the thread or of any of its comments, and works only for the person who asked while every comment in the thread is theirs or their run's reply.
+  On an observation the answer already written onto the page stays, the answer can be shared again later, and `-q` hides its confirmation.
 - `bin/observe comments people --on <kind>:<id>` lists up to 20 people, other than you, who can see the target, with the mention to paste into a comment.
   `--search <text>` keeps those whose name or email contains the text, and a notice says when more people match.
   A person who cannot see the target is not listed, and mentioning one is refused with `invalid_mention`.

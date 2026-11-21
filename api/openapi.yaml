@@ -142,6 +142,8 @@ paths:
     $ref: "./paths/threads.yaml#/threads-threadid-reopen"
   /threads/{thread_id}/read:
     $ref: "./paths/threads.yaml#/threads-threadid-read"
+  /threads/{thread_id}/share:
+    $ref: "./paths/threads.yaml#/threads-threadid-share"
   /messages/{message_id}:
     $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:

@@ -1477,6 +1477,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/threads/{thread_id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a shared answer back to only you.
+         * @description Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread: it deletes the thread with every message in it and makes each of those runs a private question again, read only by its requester and Admins. It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`). On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block. The run can be shared again afterwards, which opens a new thread. Each withdrawn run is recorded as `run.withdraw`, and the thread's deletion as a `thread.deleted` activity event. Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404. It is a delete, so no MCP tool reaches it.
+         */
+        delete: operations["withdrawSharedAnswer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{message_id}": {
         parameters: {
             query?: never;
@@ -12227,6 +12250,41 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    withdrawSharedAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The thread is deleted and its answers are private again. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Someone other than the asker wrote in the thread, so the answer stays shared (`others_wrote`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

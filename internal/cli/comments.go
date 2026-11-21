@@ -177,6 +177,7 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
 		a.commentsDeleteCommand(),
+		a.commentsWithdrawCommand(),
 		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
@@ -592,6 +593,25 @@ func (a *app) commentsDeleteCommand() *cobra.Command {
 			}
 			return a.observationCall(cmd, http.MethodDelete, "messages/"+id, nil, func(out *output, _ []byte) error {
 				out.confirm("Deleted comment %s", text(id))
+				return nil
+			})
+		},
+	}
+}
+
+func (a *app) commentsWithdrawCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "withdraw <comment-id>",
+		Short: "Withdraw an answer you shared, back to only you",
+		Long:  "withdraw undoes observe share-answer: it deletes the thread your shared question and its answer opened, and the answer is read again only by you and Admins.\nIt takes the id of the thread or of any of its comments, and only the person who asked can withdraw, while nobody else has written in the thread.\nOn an observation the answer already written onto the page stays.\nYou can share the answer again later with observe share-answer.",
+		Args:  exactArgs(1, "one comment id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodDelete, "threads/"+id+"/share", nil, func(out *output, _ []byte) error {
+				out.confirm("Withdrew the answer shared in thread %s", text(id))
 				return nil
 			})
 		},
