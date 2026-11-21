@@ -92,9 +92,11 @@ var declaredRoutes = sync.OnceValues(func() (routeTable, error) {
 	return routes, nil
 })
 
-func (d Declaration) hidesTarget(status int) bool {
+const codeNotFound = "not_found"
+
+func (d Declaration) hidesTarget(status int, code string) bool {
 	_, namesTarget := d.Target.PathParam()
-	return namesTarget && status == http.StatusNotFound
+	return namesTarget && status == http.StatusNotFound && code == codeNotFound
 }
 
 func (t routeTable) lookup(method, template string) (Declaration, bool) {

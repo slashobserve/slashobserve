@@ -152,16 +152,16 @@ func TestAuthAndSystemActionsAreNoLongerPending(t *testing.T) {
 
 const publicTokenParam = "{token}"
 
-func TestEveryUnrecordedReadThatNamesAnIdDeclaresWhatARefusedReadIsAbout(t *testing.T) {
+func TestEveryUnrecordedRouteThatNamesAnIdDeclaresWhatARefusedCallIsAbout(t *testing.T) {
 	declared, _ := readAuditDeclarations(apitest.Load(t))
 	for _, op := range declared {
-		method, path, _ := strings.Cut(op.where, " ")
+		_, path, _ := strings.Cut(op.where, " ")
 		d := op.declaration
-		if method != "get" || d.None == "" || !strings.Contains(path, "{") || strings.Contains(path, publicTokenParam) {
+		if d.None == "" || !strings.Contains(path, "{") || strings.Contains(path, publicTokenParam) {
 			continue
 		}
 		if _, named := d.Target.PathParam(); !named {
-			t.Errorf("%s declares %s none and names an id in its path: add target { kind, id: path.<name> } so a refused read is recorded (%s); a public token is never a target", op.where, audit.Extension, op.file)
+			t.Errorf("%s declares %s none and names an id in its path: add target { kind, id: path.<name> } so a refused call is recorded (%s); a public token is never a target", op.where, audit.Extension, op.file)
 		}
 	}
 }

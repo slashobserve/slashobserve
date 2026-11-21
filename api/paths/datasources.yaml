@@ -88,7 +88,7 @@ datasources-uid-recheck:
         type: string
   post:
     operationId: recheckDatasource
-    x-audit: { none: "refreshes the health status of a datasource" }
+    x-audit: { none: "refreshes the health status of a datasource", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [recheck_datasource]
       cli: [observe datasources recheck]

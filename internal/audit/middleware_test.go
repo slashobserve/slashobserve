@@ -31,6 +31,8 @@ func (s storeRig) engine(t *testing.T, handler gin.HandlerFunc) *gin.Engine {
 	engine := gin.New()
 	api := engine.Group("/api/v1", mw)
 	api.POST("/dashboards/:id/versions", handler)
+	api.POST("/dashboards/:id/viewers", handler)
+	api.GET("/dashboards/:id/import", handler)
 	api.GET("/dashboards/:id", handler)
 	api.GET("/dashboards/:id/versions/:version", handler)
 	api.GET("/dashboards", handler)
@@ -41,7 +43,15 @@ func (s storeRig) engine(t *testing.T, handler gin.HandlerFunc) *gin.Engine {
 
 func serve(t *testing.T, engine *gin.Engine, method, path string) (*httptest.ResponseRecorder, uuid.UUID) {
 	t.Helper()
+	return serveWith(t, engine, method, path, nil)
+}
+
+func serveWith(t *testing.T, engine *gin.Engine, method, path string, header map[string]string) (*httptest.ResponseRecorder, uuid.UUID) {
+	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
 	req.RemoteAddr = "192.0.2.7:4100"
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)
@@ -343,5 +353,70 @@ func TestARefusedReadOnARouteDeclaredNoneWithATargetIsRecordedEveryTime(t *testi
 	}
 	if got := s.eventsOf(t, found); len(got) != 0 {
 		t.Errorf("a successful read recorded %+v, want nothing", got)
+	}
+}
+
+func TestARepeatOfAQueryIsRecordedOncePerRunAndCredentialNotOncePerPerson(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	base := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+	engine := s.engine(t, func(c *gin.Context) {
+		Update(c.Request.Context(), func(sc *Scope) {
+			if run := c.GetHeader("X-Run"); run != "" {
+				sc.Initiator, sc.RunID = InitiatorAgent, uuid.NullUUID{UUID: uuid.MustParse(run), Valid: true}
+			}
+			sc.Auth.CredentialID = c.GetHeader("X-Key")
+		})
+		NoteQuery(c.Request.Context(), Query{Datasource: "loki", Text: `{app="shop"}`, From: base, To: base.Add(15 * time.Minute)})
+		c.JSON(http.StatusOK, gin.H{})
+	})
+	const runA, runB = "00000000-0000-4000-8000-00000000000a", "00000000-0000-4000-8000-00000000000b"
+	path := "/api/v1/datasources/loki/query"
+	_, logsPage := serveWith(t, engine, http.MethodPost, path, nil)
+	_, logsPageAgain := serveWith(t, engine, http.MethodPost, path, nil)
+	_, firstRunA := serveWith(t, engine, http.MethodPost, path, map[string]string{"X-Run": runA})
+	_, secondRunA := serveWith(t, engine, http.MethodPost, path, map[string]string{"X-Run": runA})
+	_, firstRunB := serveWith(t, engine, http.MethodPost, path, map[string]string{"X-Run": runB})
+	_, keyOne := serveWith(t, engine, http.MethodPost, path, map[string]string{"X-Key": "key-1"})
+	_, keyTwo := serveWith(t, engine, http.MethodPost, path, map[string]string{"X-Key": "key-2"})
+	s.run(t)()
+	for name, tc := range map[string]struct {
+		request uuid.UUID
+		want    int
+	}{
+		"the Logs page":          {logsPage, 1},
+		"the Logs page again":    {logsPageAgain, 0},
+		"run A":                  {firstRunA, 1},
+		"run A again":            {secondRunA, 0},
+		"run B":                  {firstRunB, 1},
+		"the first service key":  {keyOne, 1},
+		"the second service key": {keyTwo, 1},
+	} {
+		if got := s.queryEventsOf(t, tc.request); len(got) != tc.want {
+			t.Errorf("%s recorded %+v, want %d events", name, got, tc.want)
+		}
+	}
+}
+
+func TestARefusedCallThatNamesAHiddenIdIsRecordedOnEveryMethodButOnlyForANotFound(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	status, code := http.StatusNotFound, "not_found"
+	engine := s.engine(t, func(c *gin.Context) { c.JSON(status, gin.H{"error": "refused", "code": code}) })
+	_, probe := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/viewers")
+	_, probeAgain := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/viewers")
+	code = "not_imported"
+	_, notImported := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID+"/import")
+	code = "version_not_found"
+	_, noVersion := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID+"/versions/9")
+	s.run(t)()
+	want := requestEvent{action: string(ActionRefuse), outcome: "denied", reason: "not_found", targetKind: "dashboard", targetID: dashboardID, route: "/api/v1/dashboards/{id}/viewers", method: "POST", status: 404}
+	for name, request := range map[string]uuid.UUID{"first": probe, "second": probeAgain} {
+		if got := s.eventsOf(t, request); len(got) != 1 || got[0] != want {
+			t.Errorf("%s POST probe = %+v, want %+v", name, got, want)
+		}
+	}
+	for name, request := range map[string]uuid.UUID{"not_imported": notImported, "version_not_found": noVersion} {
+		if got := s.eventsOf(t, request); len(got) != 0 {
+			t.Errorf("a 404 %s under a visible dashboard recorded %+v, want nothing", name, got)
+		}
 	}
 }

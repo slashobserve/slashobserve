@@ -222,7 +222,7 @@ datasources-uid-lint:
         type: string
   post:
     operationId: lintDatasourceQuery
-    x-audit: { none: "checks query syntax without running it" }
+    x-audit: { none: "checks query syntax without running it", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [lint_query]
       cli: [observe datasources lint]

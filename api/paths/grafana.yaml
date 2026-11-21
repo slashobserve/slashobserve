@@ -183,7 +183,7 @@ grafana-id-test:
         format: uuid
   post:
     operationId: testGrafanaConnection
-    x-audit: { none: "connection test; changes nothing" }
+    x-audit: { none: "connection test; changes nothing", target: { kind: grafana_connection, id: path.id } }
     x-surfaces:
       cli: [observe grafana connect]
     summary: Check that Grafana answers with the stored token.

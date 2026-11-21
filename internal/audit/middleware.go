@@ -101,7 +101,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		return
 	}
 	action := o.declared.Action
-	outcome := outcomeFor(o.status, o.declared)
+	outcome := outcomeFor(o.status, o.code, o.declared)
 	reason := o.code
 	target := o.declared.target(o.params)
 	var data map[string]any
@@ -126,7 +126,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		action = cmp.Or(action, inTx[0].action)
 	}
 	if action == "" {
-		if !refused(o.status) && !o.declared.hidesTarget(o.status) {
+		if !refused(o.status) && !o.declared.hidesTarget(o.status, o.code) {
 			return
 		}
 		action = ActionRefuse
@@ -196,16 +196,16 @@ func (d Declaration) target(params gin.Params) Target {
 }
 
 func OutcomeForStatus(status int) Outcome {
-	return outcomeFor(status, Declaration{})
+	return outcomeFor(status, "", Declaration{})
 }
 
-func outcomeFor(status int, declared Declaration) Outcome {
+func outcomeFor(status int, code string, declared Declaration) Outcome {
 	switch {
 	case redirected(status):
 		return OutcomeUnknown
 	case status < http.StatusBadRequest:
 		return OutcomeSuccess
-	case refused(status), declared.hidesTarget(status):
+	case refused(status), declared.hidesTarget(status, code):
 		return OutcomeDenied
 	}
 	return OutcomeFailed

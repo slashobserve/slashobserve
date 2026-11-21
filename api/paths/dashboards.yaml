@@ -956,7 +956,7 @@ dashboards-id-views:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: recordDashboardView
-    x-audit: { none: "recently opened counter; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "recently opened counter; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: Record that the caller opened the dashboard.
     description: >-
       Needs View on the dashboard.
@@ -1015,7 +1015,7 @@ dashboards-id-viewers:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: reportDashboardViewer
-    x-audit: { none: "presence ping; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "presence ping; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: Report that the caller has the dashboard open, and list who else does.
     description: >-
       Needs View on the dashboard.

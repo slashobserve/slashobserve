@@ -88,16 +88,21 @@ func TestOutcomeFor(t *testing.T) {
 			401: OutcomeDenied, 403: OutcomeDenied, 429: OutcomeDenied,
 			400: OutcomeFailed, 409: OutcomeFailed, 422: OutcomeFailed, 500: OutcomeFailed, 503: OutcomeFailed,
 		} {
-			if got := outcomeFor(status, d); got != want {
+			if got := outcomeFor(status, "", d); got != want {
 				t.Errorf("status %d on %+v = %s, want %s", status, d, got, want)
 			}
 		}
 	}
-	if got := outcomeFor(404, onTarget); got != OutcomeDenied {
+	if got := outcomeFor(404, "not_found", onTarget); got != OutcomeDenied {
 		t.Errorf("404 on a route with a target id = %s, want denied", got)
 	}
+	for _, code := range []string{"not_imported", "version_not_found", ""} {
+		if got := outcomeFor(404, code, onTarget); got != OutcomeFailed {
+			t.Errorf("404 %q on a route with a target id = %s, want failed", code, got)
+		}
+	}
 	for _, d := range []Declaration{onKind, {}} {
-		if got := outcomeFor(404, d); got != OutcomeFailed {
+		if got := outcomeFor(404, "not_found", d); got != OutcomeFailed {
 			t.Errorf("404 on %+v = %s, want failed", d, got)
 		}
 	}
