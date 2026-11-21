@@ -1,4 +1,4 @@
-import { agentRefPath } from "@/agents/agent-ref"
+import { agentRefPath, type AgentRef } from "@/agents/agent-ref"
 import type { StatusTone } from "@/components/status-label"
 import {
   chatPath,
@@ -46,6 +46,10 @@ function targetGone(event: AuditEvent): boolean {
   return event.outcome === "success" && removalAction.test(event.action)
 }
 
+function agentPath(ref: AgentRef): string {
+  return `/agents/${encodeURIComponent(agentRefPath(ref))}`
+}
+
 export function targetPath(event: AuditEvent): string | null {
   const id = event.target_id
   if (!present(id) || targetGone(event)) return null
@@ -63,9 +67,9 @@ export function targetPath(event: AuditEvent): string | null {
     case "run":
       return chatPath(id)
     case "service_account":
-      return `/agents/${agentRefPath({ kind: "service_account", id })}`
+      return agentPath({ kind: "service_account", id })
     case "grant":
-      return `/agents/${agentRefPath({ kind: "grant", id })}`
+      return agentPath({ kind: "grant", id })
     default:
       return null
   }

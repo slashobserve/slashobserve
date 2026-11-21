@@ -99,6 +99,19 @@ describe("targetPath", () => {
     )
   })
 
+  test("encodes the id in an agent link", () => {
+    expect(
+      targetPath({
+        ...dashboard,
+        target_kind: "service_account",
+        target_id: "a/b c?",
+      })
+    ).toBe("/agents/sa-a%2Fb%20c%3F")
+    expect(
+      targetPath({ ...dashboard, target_kind: "grant", target_id: "x#y" })
+    ).toBe("/agents/grant-x%23y")
+  })
+
   test("has no link for a kind with no page, a missing id or a deleted target", () => {
     expect(targetPath({ ...dashboard, target_kind: "datasource" })).toBe(null)
     expect(targetPath({ ...dashboard, target_id: null })).toBe(null)
