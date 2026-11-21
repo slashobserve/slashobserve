@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { ApiError, toApiError } from "@/api/errors"
 import { backoffDelay } from "@/dashboards/live/reconnect"
 import type { WireFrame } from "@/dashboards/queries"
+import { closeWhileCached } from "@/lib/page-cache"
 import { requestZone } from "@/lib/time"
 
 import { startTail, mergeTail, type TailBuffer } from "./frames"
@@ -64,6 +65,7 @@ export function useLiveTail({
     let probe: AbortController | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let disposed = false
+    let failed = false
     let attempt = 0
     let resumeFrom: string | undefined
 
@@ -72,6 +74,7 @@ export function useLiveTail({
         current.session === session ? { ...current, ...change } : current
       )
     const fail = (error: ApiError) => {
+      failed = true
       source?.close()
       source = undefined
       update({ error, connected: false })
@@ -161,13 +164,28 @@ export function useLiveTail({
       })
     }
 
-    open()
-    return () => {
-      disposed = true
+    function close() {
       clearTimeout(retryTimer)
+      retryTimer = undefined
       probe?.abort()
       source?.close()
       source = undefined
+    }
+
+    const stopWatchingCache = closeWhileCached(
+      () => {
+        close()
+        update({ connected: false })
+      },
+      () => {
+        if (!failed && source === undefined && retryTimer === undefined) open()
+      }
+    )
+    open()
+    return () => {
+      disposed = true
+      stopWatchingCache()
+      close()
     }
   }, [uid, query, running, session])
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { createLimiter } from "./limiter"
+import { createLimiter, panelRequestLimiter } from "./limiter"
 
 function deferred<T = void>() {
   let resolve!: (value: T) => void
@@ -77,5 +77,22 @@ describe("createLimiter", () => {
       })
     ).rejects.toThrow("sync")
     await expect(limiter.run(async () => "ok")).resolves.toBe("ok")
+  })
+})
+
+describe("panelRequestLimiter", () => {
+  it("runs four panel requests at once, leaving the sixth HTTP/1.1 connection for saves beside one dashboard stream", async () => {
+    const gate = deferred()
+    let started = 0
+    const runs = Array.from({ length: 6 }, () =>
+      panelRequestLimiter.run(() => {
+        started++
+        return gate.promise
+      })
+    )
+    expect(started).toBe(4)
+    gate.resolve()
+    await Promise.all(runs)
+    expect(started).toBe(6)
   })
 })

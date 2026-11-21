@@ -187,4 +187,31 @@ describe("useLiveTail", () => {
     expect(source.closed).toBe(true)
     expect(result.current.isFetching).toBe(false)
   })
+
+  it("closes the stream while the page sits in the back/forward cache and resumes from the newest line when it returns", () => {
+    mount()
+    const first = latestSource()
+    act(() => first.send("ready", { from: "now-10s" }))
+    act(() =>
+      first.send(
+        "lines",
+        lines(["1000000001"], "2026-11-07T12:00:29.000000001Z")
+      )
+    )
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pagehide"), { persisted: true })
+      )
+    })
+    expect(first.closed).toBe(true)
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pageshow"), { persisted: true })
+      )
+    })
+    expect(FakeEventSource.instances).toHaveLength(2)
+    expect(
+      new URL(latestSource().url, "http://localhost").searchParams.get("from")
+    ).toBe("2026-11-07T12:00:29.000000001Z")
+  })
 })

@@ -405,3 +405,60 @@ func TestOneNotificationPerSave(t *testing.T) {
 		}
 	}
 }
+
+func TestAMoveNotifiesTheDashboardStream(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	target := r.newFolder(t, "Payments")
+
+	ctx, cancel := context.WithCancel(reading(t.Context()))
+	defer cancel()
+	listening := make(chan struct{})
+	payloads := make(chan string, 16)
+	listenDone := make(chan error, 1)
+	go func() {
+		listenDone <- r.db.Listen(ctx, events.Channel, func() { close(listening) }, func(p string) { payloads <- p })
+	}()
+	select {
+	case <-listening:
+	case <-time.After(activityWait):
+		t.Fatal("the listener never started")
+	}
+
+	if _, _, err := r.service.Move(reading(t.Context()), testUser, dash, target); err != nil {
+		t.Fatal(err)
+	}
+	const sentinel = "end-of-move"
+	if _, err := r.db.SQLDB(t).ExecContext(reading(t.Context()), `SELECT pg_notify($1, $2)`, events.Channel, sentinel); err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+	for {
+		select {
+		case p := <-payloads:
+			if p != sentinel {
+				got = append(got, p)
+				continue
+			}
+			cancel()
+			<-listenDone
+			if len(got) != 1 {
+				t.Fatalf("payloads = %v, want exactly one for the move", got)
+			}
+			var payload map[string]any
+			if err := json.Unmarshal([]byte(got[0]), &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload["type"] != events.TypeDashboardMoved || payload["dashboard_id"] != dash.String() {
+				t.Fatalf("payload = %s, want type %s and the dashboard id", got[0], events.TypeDashboardMoved)
+			}
+			if author, _ := payload["author"].(map[string]any); author["id"] != testUserID {
+				t.Fatalf("payload = %s, want the mover as author", got[0])
+			}
+			return
+		case <-time.After(activityWait):
+			t.Fatalf("no sentinel after the move; payloads so far = %v", got)
+		}
+	}
+}

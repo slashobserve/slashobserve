@@ -12,6 +12,7 @@ const (
 	TypeCommentUpdated = "comment.updated"
 
 	TypeDashboardDeleted = "dashboard.deleted"
+	TypeDashboardMoved   = "dashboard.moved"
 
 	TypeRevisionUpdated = "revision.updated"
 

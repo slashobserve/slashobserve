@@ -190,6 +190,7 @@ Resolving and replying need the same access as commenting.
 
 The version button in the dashboard's top row reads "Live · v3" when you are on the latest version and "v2 of 3" when you have pinned an older one.
 "Live" becomes "Connecting" or "Reconnecting" while the page has no connection for live updates.
+A dashboard in a background tab lets go of that connection after 15 seconds and catches up with what changed when you return to it.
 Choose it to see the five newest versions, each with its number, summary, author and time, and "Latest" on the newest.
 Picking one pins it in the page address as `version=2`, so a link shares exactly that version.
 
