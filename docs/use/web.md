@@ -197,6 +197,7 @@ A click on the title bar comments on the panel's title, and Tab to the title and
 The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
 A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
+In the table view of a panel that is not a table, a click or drag in Comment mode comments on the whole panel.
 The copies of a repeated panel take no canvas comments: Comment mode does nothing on a copy, **Comment** or `c` on a copy starts the comment in the activity pane, and pins show only on the first panel.
 
 ### Comment pins

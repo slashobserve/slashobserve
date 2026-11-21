@@ -654,6 +654,7 @@ export const PanelContainer = memo(function PanelContainer({
           tool={pointing}
           body={body}
           shownRange={shownWindow}
+          wholePanel={tableView && panel.type !== "table"}
         />
       ) : null}
       {askSpot !== null &&
