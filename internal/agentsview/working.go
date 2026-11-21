@@ -78,10 +78,11 @@ func (h *Handler) workingPage(ctx context.Context, caller auth.Principal, limit 
 		return workingPageJSON{}, fmt.Errorf("folder access: %w", err)
 	}
 	rows, err := h.db.Queries().ListWorkingRuns(ctx, dbsqlc.ListWorkingRunsParams{
-		Folders:    levels.Visible(),
-		CallerKind: string(caller.Kind),
-		CallerID:   callerID,
-		RowLimit:   httpapi.Int32(limit + 1),
+		Folders:     levels.Visible(),
+		CallerKind:  string(caller.Kind),
+		CallerID:    callerID,
+		CallerAdmin: caller.Role.AtLeast(auth.RoleAdmin),
+		RowLimit:    httpapi.Int32(limit + 1),
 	})
 	if err != nil {
 		return workingPageJSON{}, fmt.Errorf("list working runs: %w", err)

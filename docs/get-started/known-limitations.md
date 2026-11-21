@@ -28,6 +28,9 @@ Datasources come from the server's [datasources file](../reference/datasources-f
 There is no per-team or per-folder datasource permission.
 A restricted folder hides its dashboards, not the datasources they read (see [Folders and access](../teams/folders.md)).
 To keep a team away from data, give the datasource account only the access you want every person here to have.
+A run keeps [Admin-only data](../use/chat.md#answers-that-read-admin-only-data) out of what others read only for what the run itself reads: an Admin's own connected agent can read the audit trail outside a run and paste it into a run whose answer others read, and the server cannot see that.
+Content that leaves the server and comes back is not traced either: an Admin who exports a dashboard that holds such an answer, or copies a panel out of it by hand, and imports or pastes it into a folder others read is not stopped, because the server sees only a new dashboard.
+Runs from before the server traced Admin-only data are marked only when the audit trail recorded a query of theirs against the built-in audit trail or an app datasource set to `audience: admins`: a run that only read content in a folder only Admins can read is not marked, because nothing recorded that read, and neither is a run that queried a datasources file entry set to `audience: admins` or whose audit events were already removed by the retention window.
 
 ## Sharing, snapshots and reports
 

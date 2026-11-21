@@ -148,6 +148,7 @@ findings-id-pin:
         description: >-
           The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:
@@ -200,6 +201,7 @@ findings-id-dashboard:
         description: >-
           The finding has no evidence panels (`finding_has_no_evidence`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the finding is `restricted` and your default folder is not one only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:

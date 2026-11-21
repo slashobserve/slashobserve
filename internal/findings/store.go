@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type store struct {
@@ -73,10 +74,14 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		if row.AgentRequestID.Valid {
 			data["agent_request_id"] = row.AgentRequestID.String()
 		}
+		owner, err := createdOwner(ctx, q, row)
+		if err != nil {
+			return err
+		}
 		_, err = activity.Append(ctx, q, activity.Entry{
 			Type:     activity.TypeFindingCreated,
 			TargetID: row.ID,
-			Owner:    activityOwner(row.DashboardID, row.ObservationID),
+			Owner:    owner,
 			Actor:    by,
 			Data:     data,
 		}, nil)
@@ -141,7 +146,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
-	f.SharedIn = row.RequestThreadMessageID
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.KeptWithAdmins
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err
 }
 
@@ -158,7 +163,7 @@ func (s *store) forRequestIn(ctx context.Context, q *dbsqlc.Queries, requestID p
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
-	f.SharedIn = row.RequestThreadMessageID
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.KeptWithAdmins
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
 }
 
@@ -179,8 +184,8 @@ func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, vi
 	if err != nil {
 		return nil, fmt.Errorf("list findings of dashboard: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
 }
 
@@ -194,8 +199,8 @@ func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, visible 
 	if err != nil {
 		return nil, fmt.Errorf("list findings of folder: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
 }
 
@@ -213,9 +218,17 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	if err != nil {
 		return nil, fmt.Errorf("list findings of creator: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
+}
+
+func createdOwner(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Finding) (activity.Owner, error) {
+	kept, err := placement.AnswerKeptWithAdmins(ctx, q, row.AgentRequestID)
+	if err != nil || !kept {
+		return activityOwner(row.DashboardID, row.ObservationID), err
+	}
+	return activity.OnObservation(row.ObservationID), nil
 }
 
 func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
@@ -280,14 +293,15 @@ func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Ann
 	return a, nil
 }
 
-func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID)) ([]Finding, error) {
+func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID, bool)) ([]Finding, error) {
 	out := make([]Finding, len(rows))
 	for i, r := range rows {
-		row, folder := split(r)
+		row, folder, restricted := split(r)
 		f, err := findingOf(row, folder, pgtype.Timestamptz{}, Author{})
 		if err != nil {
 			return nil, err
 		}
+		f.Restricted = restricted
 		out[i] = f
 	}
 	return out, nil

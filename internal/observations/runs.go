@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
@@ -208,6 +209,9 @@ func (s *Service) writeConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, 
 	state, ok := addedState(abilities)
 	if !ok {
 		return folders.ErrForbidden
+	}
+	if err := placement.Answer(ctx, q, in.runID, parent.FolderID); err != nil {
+		return err
 	}
 	under, err := conclusionPosition(ctx, q, parent.ID, in.runID)
 	if err != nil {

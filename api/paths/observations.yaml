@@ -273,6 +273,7 @@ observations-id-move:
         description: >-
           The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`).
           Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`).
         content:
           application/json:
@@ -605,6 +606,7 @@ observations-id-pin:
       The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none.
       Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`.
       Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+      An observation that holds an answer that read Admin-only data is pinned only onto a dashboard in a folder only Admins can read, and the annotation then holds that answer.
     requestBody:
       required: true
       content:
@@ -641,6 +643,7 @@ observations-id-pin:
         description: >-
           The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the observation holds an answer that read Admin-only data and the dashboard is not in a folder only Admins can read (`restricted_answer`).
         content:
           application/json:
             schema:
@@ -706,6 +709,7 @@ observations-id-dashboard:
         description: >-
           The observation has no live panel block (`observation_has_no_panels`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`).
         content:
           application/json:
             schema:
@@ -770,10 +774,13 @@ blocks-id-dashboard:
       "409":
         description: >-
           The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":

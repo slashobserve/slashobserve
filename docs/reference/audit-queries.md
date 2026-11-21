@@ -191,5 +191,12 @@ Any other request, body key, sort field or aggregation is refused with 400 and a
 Reading through it is recorded as `query.run`, never as `audit.search`, with the datasource uid as its target and the same `data` as any other datasource: the query text, its rows and its range.
 A panel on a saved dashboard records nothing beyond the dashboard view.
 The repeat rule of the section above is what keeps a dashboard that reads the trail on a refresh from filling it: a panel that refreshes the last 15 minutes is recorded at most once each 15 minutes.
+
+An agent run reads it only when everyone who can read what the run writes is an Admin, so an answer never shows audit data to someone who could not query it.
+An Admin's private chat reads it, whether or not the chat is about a dashboard or an observation, because the answer stays the Admin's until they share it.
+A thread ask, a build, an investigation, a revision or a suggestion reads it only when the thread's dashboard or observation, the build's folder, the observation it files into or the dashboard it changes is in a folder only Admins can read, such as Audit.
+Anywhere else the run does not see it: its brief says the audit data is available in a private chat or in a folder only Admins can read, and a query on it answers the tool error `admins_only_datasource`, recorded as a denied `agent.tool_call`.
+The same rule holds for the built-in agent and for a connected agent that took the run over MCP, because both reach datasources through the run's session.
+
 The whole fleet runs at most 4 queries on it at once, and its queries are left out of the [proxy metrics](../operate/metrics.md) so `/metrics` never shows when Admins read the trail.
 
