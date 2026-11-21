@@ -312,7 +312,7 @@ A run never changes its own mode, and only a run on Home takes `ask_on_dashboard
 
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
-An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it, so a Commenter's question there is answered in the thread and files nothing.
+An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it and is answered in the thread, writing nothing on the observation's page, whoever asks it.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
@@ -334,7 +334,8 @@ The run then names that thread as `shared_thread_id`, which only you see.
 A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
 
 While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
-On an observation the answer already written onto the page stays, and no MCP tool withdraws, because none deletes.
+On an observation the run and its answer leave the observation's lists, but the answer's text that was written onto the page stays there as page content until an editor removes it.
+No MCP tool withdraws, because none deletes.
 
 ### When the requester cannot edit
 
