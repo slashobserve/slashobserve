@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	runIntentVersion       = 84
-	runIntentMigrationFile = "00084_run_intent.sql"
+	runIntentVersion       = 86
+	runIntentMigrationFile = "00086_run_intent.sql"
 	intentDashboard        = "00000000-0000-4000-8000-0000000084d1"
 	intentObservation      = "00000000-0000-4000-8000-0000000084a1"
 )

@@ -3,10 +3,12 @@ package revisions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -228,6 +230,9 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
 	}
+	if out.SharedThread, err = r.service.sharedThreadShownTo(ctx, row, caller); err != nil {
+		return agentRequestJSON{}, err
+	}
 	if mayHaveFinding(row) && r.opts.Finding != nil {
 		if err := r.attachFinding(ctx, caller, row, &out); err != nil {
 			return agentRequestJSON{}, err
@@ -246,6 +251,20 @@ func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assig
 		return nil, fmt.Errorf("get assignee name: %w", err)
 	}
 	return &assigneeJSON{Kind: kind, ID: row.AssignedID.String(), Name: httpapi.OptionalString(name)}, nil
+}
+
+func (s *Service) sharedThreadShownTo(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal) (*string, error) {
+	if !row.ChatID.Valid || !row.ThreadMessageID.Valid || !sameActor(requesterOf(row), caller) {
+		return nil, nil
+	}
+	thread, err := s.db.Queries().GetThreadOfMessage(ctx, row.ThreadMessageID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("read the thread a run is shared in: %w", err)
+	}
+	return optionalUUID(thread.ID), nil
 }
 
 func mayHaveFinding(row dbsqlc.AgentRequest) bool {
