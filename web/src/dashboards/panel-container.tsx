@@ -62,6 +62,7 @@ import {
   type CanvasDraft,
   type OpenTurn,
 } from "./canvas-tools"
+import { conversationActionsFor } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
@@ -456,8 +457,7 @@ export const PanelContainer = memo(function PanelContainer({
   )
   const pointing = onCanvas
     ? activeTool(canvasTool, {
-        comment: true,
-        ask: agentAvailable,
+        ...conversationActionsFor(panel, canComment, agentAvailable),
         idle: !layoutSession,
       })
     : "select"

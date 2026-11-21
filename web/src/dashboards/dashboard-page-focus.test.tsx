@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useCanvasTool } from "@/dashboards/canvas-tools"
 import { useLayoutStore } from "@/dashboards/edit/layout-store"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { routeTree } from "@/routeTree.gen"
@@ -445,6 +446,21 @@ describe("dashboard page panel keys", () => {
       await screen.findByRole("textbox", { name: "Ask about this" })
     ).toHaveValue("why the spike")
     useLayoutStore.getState().end()
+  })
+
+  it("points Ask mode only at data panels, as the a key and the Ask buttons do", async () => {
+    renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    const latency = await screen.findByRole("article", { name: "Latency" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    const pointed = (panel: HTMLElement) =>
+      panel.closest(".cursor-crosshair") !== null
+    act(() => useCanvasTool.getState().setTool("ask"))
+    await waitFor(() => expect(pointed(latency)).toBe(true))
+    expect(pointed(note)).toBe(false)
+    act(() => useCanvasTool.getState().setTool("comment"))
+    await waitFor(() => expect(pointed(note)).toBe(true))
+    act(() => useCanvasTool.getState().setTool("select"))
   })
 
   it("enters Ask mode with a over no panel and leaves it with a again", async () => {
