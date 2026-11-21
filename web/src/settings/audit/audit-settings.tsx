@@ -40,6 +40,7 @@ import {
   sameSearchLater,
   type AuditView,
 } from "./search"
+import { neighborsOf } from "./step"
 import { withLiveEvent } from "./stream"
 import { useAuditStream } from "./use-audit-stream"
 
@@ -157,10 +158,21 @@ export function AuditSettings({
     () => new Set(loaded.map((event) => event.id)),
     [loaded]
   )
-  const shown = [
-    ...liveRows.filter((event) => !loadedIds.has(event.id)),
-    ...loaded,
-  ]
+  const shown = useMemo(
+    () => [...liveRows.filter((event) => !loadedIds.has(event.id)), ...loaded],
+    [liveRows, loadedIds, loaded]
+  )
+
+  const neighbors = useMemo(
+    () =>
+      view.event === null
+        ? neighborsOf([], "")
+        : neighborsOf(
+            shown.map((event) => event.id),
+            view.event
+          ),
+    [shown, view.event]
+  )
 
   const canFollow = followsNow(shownView) && window !== null
   const following = liveOn && canFollow && !events.isError
@@ -368,6 +380,7 @@ export function AuditSettings({
       {view.event !== null ? (
         <AuditDetail
           id={view.event}
+          neighbors={neighbors}
           onSelect={(id) => onView({ ...shownView, event: id })}
           onQuery={(q) => search({ ...shownView, q })}
           onClose={() => onView({ ...shownView, event: null })}

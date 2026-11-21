@@ -8,6 +8,8 @@ import {
 } from "@/logs/kql"
 import { splitForm } from "@/logs/query-form"
 
+import type { AuditEvent } from "./stream"
+
 export type FacetField = { name: string; alias: string | null }
 
 export type TermState = "include" | "exclude" | null
@@ -155,4 +157,24 @@ export function requestQuery(requestId: string): string {
 
 export function runQuery(runId: string): string {
   return `run_id:${escapeKql(runId)}`
+}
+
+function filled(value: string | null | undefined): value is string {
+  return value !== null && value !== undefined && value !== ""
+}
+
+export function actorQuery(event: AuditEvent): string {
+  if (filled(event.actor_id)) return `actor_id:${escapeKql(event.actor_id)}`
+  if (filled(event.actor_name)) {
+    return `actor_name:${escapeKql(event.actor_name)}`
+  }
+  return `actor_kind:${escapeKql(event.actor_kind)}`
+}
+
+export function targetQuery(event: AuditEvent): string | null {
+  const { target_kind: kind, target_id: id } = event
+  if (filled(kind) && filled(id)) return `target:${escapeKql(`${kind}/${id}`)}`
+  if (filled(id)) return `target_id:${escapeKql(id)}`
+  if (filled(kind)) return `target_kind:${escapeKql(kind)}`
+  return null
 }

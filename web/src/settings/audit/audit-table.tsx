@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react"
+
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -22,6 +24,12 @@ export function AuditTable({
   selected: string | null
   onSelect: (id: string) => void
 }) {
+  const body = useRef<HTMLTableSectionElement>(null)
+  useEffect(() => {
+    body.current
+      ?.querySelector('[aria-current="true"]')
+      ?.scrollIntoView?.({ block: "nearest" })
+  }, [selected])
   return (
     <TableCard label="Audit events" minWidth={720} stackOnNarrow>
       <thead>
@@ -34,7 +42,7 @@ export function AuditTable({
           <HeaderCell>Origin</HeaderCell>
         </tr>
       </thead>
-      <tbody>
+      <tbody ref={body}>
         {events.map((event) => (
           <tr
             key={event.id}

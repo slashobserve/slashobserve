@@ -1,12 +1,15 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  actorQuery,
   canEditTerms,
   requestQuery,
   runQuery,
+  targetQuery,
   termState,
   toggleTerm,
 } from "./query-text"
+import type { AuditEvent } from "./stream"
 
 const actor = { name: "actor_name", alias: "actor" }
 const outcome = { name: "outcome", alias: null }
@@ -155,5 +158,39 @@ describe("related queries", () => {
   test("quote the request and run ids", () => {
     expect(requestQuery("0193")).toBe('request_id:"0193"')
     expect(runQuery("5b1e")).toBe('run_id:"5b1e"')
+  })
+})
+
+describe("actor and target filters", () => {
+  const base = {
+    actor_kind: "user",
+    actor_id: "a1",
+    actor_name: "Ada",
+    target_kind: "dashboard",
+    target_id: "d1",
+  } as AuditEvent
+
+  test("filter to the actor by id, then name, then kind", () => {
+    expect(actorQuery(base)).toBe('actor_id:"a1"')
+    expect(actorQuery({ ...base, actor_id: null })).toBe('actor_name:"Ada"')
+    expect(
+      actorQuery({
+        ...base,
+        actor_id: null,
+        actor_name: null,
+        actor_kind: "system",
+      })
+    ).toBe('actor_kind:"system"')
+  })
+
+  test("filter to the target by kind and id", () => {
+    expect(targetQuery(base)).toBe('target:"dashboard/d1"')
+    expect(targetQuery({ ...base, target_kind: null })).toBe('target_id:"d1"')
+    expect(targetQuery({ ...base, target_id: null })).toBe(
+      'target_kind:"dashboard"'
+    )
+    expect(targetQuery({ ...base, target_id: null, target_kind: null })).toBe(
+      null
+    )
   })
 })

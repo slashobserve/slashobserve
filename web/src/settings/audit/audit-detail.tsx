@@ -1,4 +1,7 @@
+import { useEffect, useEffectEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { FilterIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
@@ -14,24 +17,39 @@ import {
   eventFields,
   outcomeLabels,
   outcomeTones,
+  targetPath,
 } from "./event-text"
 import { auditEventQuery } from "./queries"
-import { requestQuery, runQuery } from "./query-text"
+import { actorQuery, requestQuery, runQuery, targetQuery } from "./query-text"
+import { stepFromKey, type Neighbors } from "./step"
 import type { AuditEvent } from "./stream"
 
 export function AuditDetail({
   id,
+  neighbors,
   onSelect,
   onQuery,
   onClose,
 }: {
   id: string
+  neighbors: Neighbors
   onSelect: (id: string) => void
   onQuery: (q: string) => void
   onClose: () => void
 }) {
   const detail = useQuery(auditEventQuery(id))
   const event = detail.data?.event
+
+  const step = useEffectEvent((key: KeyboardEvent) => {
+    const next = stepFromKey(key, neighbors)
+    if (next === null) return
+    key.preventDefault()
+    onSelect(next)
+  })
+  useEffect(() => {
+    document.addEventListener("keydown", step)
+    return () => document.removeEventListener("keydown", step)
+  }, [])
   return (
     <SidePanel
       title={event?.action ?? "Audit event"}
@@ -57,7 +75,7 @@ export function AuditDetail({
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          <EventFields event={detail.data.event} />
+          <EventFields event={detail.data.event} onQuery={onQuery} />
           <Related
             title="Other events in this request"
             empty="No other event was recorded for this request."
@@ -86,7 +104,93 @@ export function AuditDetail({
   )
 }
 
-function EventFields({ event }: { event: AuditEvent }) {
+function targetField(event: AuditEvent): string {
+  return event.target_name ? "target_name" : "target_id"
+}
+
+function FilterButton({
+  label,
+  query,
+  onQuery,
+}: {
+  label: string
+  query: string | null
+  onQuery: (q: string) => void
+}) {
+  if (query === null) return null
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      aria-label={label}
+      title={label}
+      className="ml-1 align-middle"
+      onClick={() => onQuery(query)}
+    >
+      <FilterIcon aria-hidden="true" />
+    </Button>
+  )
+}
+
+function FieldValue({
+  event,
+  name,
+  value,
+  onQuery,
+}: {
+  event: AuditEvent
+  name: string
+  value: string
+  onQuery: (q: string) => void
+}) {
+  if (name === "outcome") {
+    return (
+      <StatusLabel tone={outcomeTones[event.outcome]}>
+        {outcomeLabels[event.outcome]}
+      </StatusLabel>
+    )
+  }
+  if (name === "actor_name") {
+    return (
+      <>
+        {value}
+        <FilterButton
+          label={`Filter to actor ${value}`}
+          query={actorQuery(event)}
+          onQuery={onQuery}
+        />
+      </>
+    )
+  }
+  if (name === targetField(event)) {
+    const path = targetPath(event)
+    return (
+      <>
+        {path === null ? (
+          value
+        ) : (
+          <Link to={path} className="underline underline-offset-4">
+            {value}
+          </Link>
+        )}
+        <FilterButton
+          label={`Filter to target ${value}`}
+          query={targetQuery(event)}
+          onQuery={onQuery}
+        />
+      </>
+    )
+  }
+  return value
+}
+
+function EventFields({
+  event,
+  onQuery,
+}: {
+  event: AuditEvent
+  onQuery: (q: string) => void
+}) {
   const data = eventData(event)
   return (
     <div className="flex flex-col gap-3">
@@ -95,13 +199,12 @@ function EventFields({ event }: { event: AuditEvent }) {
           <div key={field.name} className="contents">
             <dt className="text-muted-foreground">{field.label}</dt>
             <dd className="m-0 wrap-anywhere">
-              {field.name === "outcome" ? (
-                <StatusLabel tone={outcomeTones[event.outcome]}>
-                  {outcomeLabels[event.outcome]}
-                </StatusLabel>
-              ) : (
-                field.value
-              )}
+              <FieldValue
+                event={event}
+                name={field.name}
+                value={field.value}
+                onQuery={onQuery}
+              />
             </dd>
           </div>
         ))}
