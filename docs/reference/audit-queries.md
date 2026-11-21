@@ -73,6 +73,7 @@ Only the fields an action declares are kept, and no event holds a message body, 
 | `dashboard.view` | `version` | The version number the reader was shown |
 | `observation.view` | `updated_at` | When the observation last changed before the reader opened it, as an RFC 3339 time, since an observation has no versions |
 | `observation.arrange` | `title`, `changed` | An arrangement of an observation's blocks that changed something, with `changed` listing which of `height`, `order` and `width` did; it is not an `observation.update`; over the API a request that changes nothing is still recorded, without `changed` |
+| `saved_prompt.create`, `saved_prompt.update`, `saved_prompt.share`, `saved_prompt.unshare`, `saved_prompt.delete` | `owner_id`, `changed`, `from_name` | A change to a prompt that is shared, or that becomes shared or private, with the prompt's owner, which of `name`, `body` and `shared` changed and the name before; a prompt that is private before and after is never recorded, and the text is never recorded |
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model that ran and the tokens it used, as the run reported them, left out when the run reported none; the activity feed does not carry them |
 | `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The length of the message or prompt in characters, never its text, and the kind of point its thread or turn is anchored to, such as `series` or `position`, left out when there is none |
 

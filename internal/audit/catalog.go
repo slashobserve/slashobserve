@@ -58,6 +58,7 @@ var (
 	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
 	messageKeys  = []string{"anchor_kind", "body_length"}
 	arrangeKeys  = []string{"title", "changed"}
+	promptKeys   = []string{"changed", "from_name", "owner_id"}
 	usageKeys    = []string{"model", "input_tokens", "output_tokens"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
@@ -143,6 +144,11 @@ var catalog = map[Action]Spec{
 	"saved_search.update":       change(CategoryContent, savedKeys),
 	"saved_search.move":         change(CategoryContent, savedKeys),
 	"saved_search.delete":       change(CategoryContent, savedKeys),
+	"saved_prompt.create":       change(CategoryContent, promptKeys),
+	"saved_prompt.update":       change(CategoryContent, promptKeys),
+	"saved_prompt.share":        change(CategoryContent, promptKeys),
+	"saved_prompt.unshare":      change(CategoryContent, promptKeys),
+	"saved_prompt.delete":       change(CategoryContent, promptKeys),
 	"observation.create":        change(CategoryContent, obsKeys),
 	"observation.update":        change(CategoryContent, obsKeys),
 	"observation.move":          change(CategoryContent, obsKeys),

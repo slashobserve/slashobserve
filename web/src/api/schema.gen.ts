@@ -481,7 +481,7 @@ export interface paths {
         put?: never;
         /**
          * Save a prompt.
-         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`). At most 100 prompts per person.
+         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`). At most 100 prompts per person. A prompt saved shared is recorded in the audit trail as `saved_prompt.create`; a personal prompt is not.
          */
         post: operations["createSavedPrompt"];
         delete?: never;
@@ -504,14 +504,14 @@ export interface paths {
         post?: never;
         /**
          * Delete a saved prompt.
-         * @description Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared. A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+         * @description Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared. A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`. Deleting a shared prompt is recorded in the audit trail as `saved_prompt.delete`; deleting a personal one is not.
          */
         delete: operations["deleteSavedPrompt"];
         options?: never;
         head?: never;
         /**
          * Change a saved prompt.
-         * @description Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared. Only the fields sent change. Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
+         * @description Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared. Only the fields sent change. A change to a shared prompt is recorded in the audit trail as `saved_prompt.update`, and making a prompt shared or personal as `saved_prompt.share` or `saved_prompt.unshare`; a prompt that is personal before and after is not recorded. Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
          */
         patch: operations["updateSavedPrompt"];
         trace?: never;

@@ -58,6 +58,9 @@ Deleting a shared prompt removes it for everyone, and `observe run` stops findin
 Only the owner can edit a prompt.
 An Admin can also edit and delete any shared prompt, but cannot see another person's private prompts.
 
+The [audit trail](../reference/audit-queries.md#event-data) records a shared prompt being saved, changed, made private and deleted, and a prompt being shared, with who did it and which of the name, text and sharing changed, never the text.
+A prompt that is private before and after a change is not recorded.
+
 ## Who can use them
 
 | Role      | Saved prompts                                                                                                                           |

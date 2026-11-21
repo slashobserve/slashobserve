@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -170,6 +171,7 @@ func (h *Handler) create(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	var inserted dbsqlc.InsertSavedPromptRow
+	var recorded bool
 	err = h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := q.LockSavedPromptOwner(ctx, caller.ID); err != nil {
 			return err
@@ -182,6 +184,10 @@ func (h *Handler) create(c *gin.Context) {
 			return errTooMany
 		}
 		inserted, err = q.InsertSavedPrompt(ctx, dbsqlc.InsertSavedPromptParams{OwnerID: ownerID, Name: name, Body: body, Shared: shared})
+		if err != nil {
+			return err
+		}
+		recorded, err = recordCreated(ctx, q, promptState{id: inserted.ID, owner: ownerID, name: name, body: body, shared: shared})
 		return err
 	})
 	if h.refuse(c, err) {
@@ -191,6 +197,7 @@ func (h *Handler) create(c *gin.Context) {
 		h.fail(c, "save prompt", "", err)
 		return
 	}
+	h.skipUnlessRecorded(ctx, recorded)
 	id := inserted.ID.String()
 	h.logger.InfoContext(ctx, "saved a prompt", slog.String("actor_id", caller.ID), slog.String("prompt_id", id), slog.Bool("shared", shared))
 	ownerName := caller.Name
@@ -223,6 +230,7 @@ func (h *Handler) update(c *gin.Context) {
 	caller := httpapi.Caller(c)
 	ctx := c.Request.Context()
 	var updated dbsqlc.UpdateSavedPromptRow
+	var recorded bool
 	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		current, err := h.editable(ctx, q, caller, id)
 		if err != nil {
@@ -230,6 +238,12 @@ func (h *Handler) update(c *gin.Context) {
 		}
 		name, body, shared := patch.Apply(current.Name, current.Body, current.Shared)
 		updated, err = q.UpdateSavedPrompt(ctx, dbsqlc.UpdateSavedPromptParams{ID: id, Name: name, Body: body, Shared: shared})
+		if err != nil {
+			return err
+		}
+		recorded, err = recordChanged(ctx, q,
+			promptState{id: id, owner: current.OwnerID, name: current.Name, body: current.Body, shared: current.Shared},
+			promptState{id: id, owner: current.OwnerID, name: updated.Name, body: updated.Body, shared: updated.Shared})
 		return err
 	})
 	if h.refuse(c, err) {
@@ -239,6 +253,7 @@ func (h *Handler) update(c *gin.Context) {
 		h.fail(c, "change saved prompt", id.String(), err)
 		return
 	}
+	h.skipUnlessRecorded(ctx, recorded)
 	h.logger.InfoContext(ctx, "changed a saved prompt", slog.String("actor_id", caller.ID), slog.String("prompt_id", id.String()), slog.Bool("shared", updated.Shared))
 	c.JSON(http.StatusOK, promptOf(record(updated), caller))
 }
@@ -250,14 +265,17 @@ func (h *Handler) remove(c *gin.Context) {
 	}
 	caller := httpapi.Caller(c)
 	ctx := c.Request.Context()
-	var shared bool
+	var shared, recorded bool
 	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		current, err := h.editable(ctx, q, caller, id)
 		if err != nil {
 			return err
 		}
 		shared = current.Shared
-		_, err = q.DeleteSavedPrompt(ctx, id)
+		if _, err = q.DeleteSavedPrompt(ctx, id); err != nil {
+			return err
+		}
+		recorded, err = recordDeleted(ctx, q, promptState{id: id, owner: current.OwnerID, name: current.Name, body: current.Body, shared: current.Shared})
 		return err
 	})
 	if h.refuse(c, err) {
@@ -267,8 +285,15 @@ func (h *Handler) remove(c *gin.Context) {
 		h.fail(c, "delete saved prompt", id.String(), err)
 		return
 	}
+	h.skipUnlessRecorded(ctx, recorded)
 	h.logger.InfoContext(ctx, "deleted a saved prompt", slog.String("actor_id", caller.ID), slog.String("prompt_id", id.String()), slog.Bool("shared", shared))
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) skipUnlessRecorded(ctx context.Context, recorded bool) {
+	if !recorded {
+		audit.Skip(ctx)
+	}
 }
 
 func (h *Handler) editable(ctx context.Context, q *dbsqlc.Queries, caller auth.Principal, id pgtype.UUID) (dbsqlc.GetVisibleSavedPromptForUpdateRow, error) {
