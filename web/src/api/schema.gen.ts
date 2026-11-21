@@ -12446,7 +12446,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). */
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;

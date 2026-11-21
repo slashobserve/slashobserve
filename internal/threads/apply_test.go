@@ -130,6 +130,10 @@ func TestAMentionOnAStarterDashboardAnswersButItsChangeIsNotApplied(t *testing.T
 	if _, err := r.asks.Apply(reading(t.Context()), testUser, mustParse(t, thread), mustParse(t, f.ID)); !errors.Is(err, folders.ErrProvisioned) {
 		t.Fatalf("applying a change to a starter: %v, want the provisioned refusal", err)
 	}
+	refused := r.call(t, testUser, http.MethodPost, "/threads/"+thread+"/apply", map[string]string{"finding_id": f.ID})
+	if refused.status != http.StatusConflict || refused.at(t, "code") != folders.CodeProvisioned {
+		t.Fatalf("apply over HTTP = %d %v, want 409 provisioned", refused.status, refused.body)
+	}
 	if runs := r.runsApplying(t, mustParse(t, f.ID)); len(runs) != 0 {
 		t.Fatalf("%d runs apply the change to a starter", len(runs))
 	}

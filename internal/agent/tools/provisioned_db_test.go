@@ -2,6 +2,7 @@ package tools
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -73,5 +74,22 @@ func TestSaveFailureNamesAProvisionedRefusal(t *testing.T) {
 	}
 	if _, err := saveFailure(errors.New("other")); err == nil {
 		t.Fatal("an unknown error must not be reported as a tool result")
+	}
+}
+
+func TestStartingOrApplyingARunOnAStarterNamesTheProvisionedRefusal(t *testing.T) {
+	err := fmt.Errorf("check the run: %w", folders.ErrProvisioned)
+	applied, ok := applyRefusal(err)
+	if !ok {
+		t.Fatal("apply_suggested_change does not report the provisioned refusal as a tool result")
+	}
+	started, failed := runFailure(err)
+	if failed != nil {
+		t.Fatalf("start_run: %v, want a tool result", failed)
+	}
+	for name, res := range map[string]Result{"apply_suggested_change": applied, "start_run": started} {
+		if got := errorCode(t, res); got != folders.CodeProvisioned {
+			t.Errorf("%s: code = %q, want provisioned", name, got)
+		}
 	}
 }
