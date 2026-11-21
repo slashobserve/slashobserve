@@ -59,6 +59,23 @@ func (q *Queries) DashboardFolder(ctx context.Context, id pgtype.UUID) (pgtype.U
 	return folder_id, err
 }
 
+const dashboardPlacement = `-- name: DashboardPlacement :one
+SELECT d.folder_id, EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
+FROM dashboards d WHERE d.id = $1
+`
+
+type DashboardPlacementRow struct {
+	FolderID    pgtype.UUID
+	Provisioned bool
+}
+
+func (q *Queries) DashboardPlacement(ctx context.Context, id pgtype.UUID) (DashboardPlacementRow, error) {
+	row := q.db.QueryRow(ctx, dashboardPlacement, id)
+	var i DashboardPlacementRow
+	err := row.Scan(&i.FolderID, &i.Provisioned)
+	return i, err
+}
+
 const deleteFolderIfEmpty = `-- name: DeleteFolderIfEmpty :execrows
 DELETE FROM folders
 WHERE folders.id = $1 AND NOT folders.general

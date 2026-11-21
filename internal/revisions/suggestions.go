@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -26,6 +27,9 @@ func (s *Service) SubmitSuggestion(ctx context.Context, dashboardID pgtype.UUID,
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
+	}
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentSuggest, DashboardID: dashboardID}, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	if err := s.checkSuggestion(ctx, dashboardID, version, panelID, draft); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -65,6 +69,9 @@ func (s *Service) SubmitSuggestion(ctx context.Context, dashboardID pgtype.UUID,
 		})
 		if err != nil {
 			return fmt.Errorf("enqueue suggest request: %w", err)
+		}
+		if row, err = placement.InheritRestricted(ctx, q, row); err != nil {
+			return err
 		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 			return fmt.Errorf("notify workers: %w", err)

@@ -6,6 +6,7 @@ import { datasourceKeys, observeKeys } from "@/api/keys"
 import { noModelReviseText } from "@/conversation/delivery"
 import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
+import { redactedRun } from "@/test/agent-request"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { Conversation } from "./conversation"
@@ -26,8 +27,10 @@ const root = {
   state: "succeeded",
   intent: "ask",
   kind: "investigate",
+  investigation: false,
   dashboard_id: dashboardId,
   observation_id: null,
+  subject_observation_id: null,
   read_only: false,
   allowed_actions: [],
   requested_by: { kind: "user", id: "u1", name: "Ada" },
@@ -127,10 +130,16 @@ function renderChatPage(request: ObserveRequest) {
   })
 }
 
-function renderConversation(request: ObserveRequest = root) {
+function renderConversation(
+  request: ObserveRequest = root,
+  layout: "page" | "pane" = "page"
+) {
   const queryClient = seededClient(request)
+  queryClient.setQueryData(datasourceKeys.list(), {
+    datasources: [{ uid: "prom", type: "prometheus", healthy: true }],
+  })
   return renderWithProviders(
-    <Conversation requestId={rootId} layout="page" />,
+    <Conversation requestId={rootId} layout={layout} />,
     { queryClient, route: { path: "/", url: "/" } }
   )
 }
@@ -144,6 +153,7 @@ const finding: Finding = {
   dashboard_id: null,
   folder_id: null,
   ask_on: null,
+  restricted: false,
   title: "p99 rose after the deploy",
   markdown: "p99 rose after the deploy.",
   evidence: [],
@@ -169,7 +179,6 @@ const finding: Finding = {
 function answered(patch: Partial<ObserveRequest> = {}) {
   return {
     ...root,
-    kind: "build",
     result_kind: "answer",
     finding,
     shared_thread_id: null,
@@ -301,6 +310,80 @@ describe("Conversation", () => {
     expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
   })
 
+  it("offers sharing into the observation an answer was about after it was saved into another", async () => {
+    stubServer(null)
+    const { user } = renderConversation(
+      answered({
+        chat_id: null,
+        dashboard_id: null,
+        subject_observation_id: observationId,
+        observation_id: "o9",
+        result_kind: "observation",
+        finding: { ...finding, observation_id: "o9" },
+      })
+    )
+    expect(
+      await screen.findByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    ).toHaveTextContent("writes the answer onto the page")
+    expect(
+      screen.getByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeVisible()
+  })
+
+  it.each([
+    [
+      "saved into the observation it was about",
+      {
+        dashboard_id: null,
+        subject_observation_id: observationId,
+        observation_id: observationId,
+        finding: { ...finding, observation_id: observationId },
+      },
+      chatAbout({ observation_id: observationId }),
+    ],
+    [
+      "about an observation the asker can no longer read",
+      {
+        dashboard_id: null,
+        subject_observation_id: null,
+        observation_id: "o9",
+        finding: { ...finding, observation_id: "o9" },
+      },
+      chatAbout({ observation_id: observationId }),
+    ],
+    [
+      "about no observation",
+      {
+        subject_observation_id: null,
+        observation_id: "o9",
+        finding: { ...finding, observation_id: "o9" },
+      },
+      chatAbout({ dashboard_id: dashboardId }),
+    ],
+  ])(
+    "offers no sharing once an answer %s is saved",
+    async (_name, patch, chat) => {
+      stubServer(chat)
+      const { user } = renderConversation(
+        answered({ result_kind: "observation", ...patch })
+      )
+      await openAnswerMenu(user)
+      expect(
+        await screen.findByRole("menuitem", { name: /^Copy answer/ })
+      ).toBeVisible()
+      expect(
+        screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+      ).toBeNull()
+      expect(
+        screen.queryByRole("menuitem", { name: /^Share to thread/ })
+      ).toBeNull()
+    }
+  )
+
   it("keeps the shared thread on an answer shared and then saved", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(
@@ -360,11 +443,11 @@ describe("Conversation", () => {
   } as ObserveRequest
 
   it.each([
-    ["a new revision", { status: 202, body: { request: revision } }, "/c/r2"],
+    ["a new revision", { status: 202, body: { request: revision } }, true],
     [
       "a replay of the first one",
       { status: 200, body: { request: revision, replayed: true } },
-      "/c/r2",
+      true,
     ],
     [
       "a change already applied",
@@ -372,11 +455,11 @@ describe("Conversation", () => {
         status: 409,
         body: { error: "already applied", code: "already_applied" },
       },
-      `/c/${rootId}`,
+      false,
     ],
   ])(
-    "says the revision was asked for after %s",
-    async (_name, answer, page) => {
+    "says the revision was asked for, in the same chat, after %s",
+    async (_name, answer, joins) => {
       const chat = {
         ...chatAbout({ dashboard_id: dashboardId }),
         turns: [answered()],
@@ -386,10 +469,15 @@ describe("Conversation", () => {
       await user.click(
         await screen.findByRole("button", { name: "Revise the dashboard" })
       )
-      await waitFor(() => expect(router?.state.location.pathname).toBe(page))
       expect(
         await screen.findByRole("button", { name: "Revision asked for" })
       ).toHaveAttribute("aria-disabled", "true")
+      expect(router?.state.location.pathname).toBe(`/c/${rootId}`)
+      if (joins) {
+        expect(
+          await screen.findByText("Add a p99 panel", { exact: true })
+        ).toBeVisible()
+      }
     }
   )
 
@@ -425,6 +513,22 @@ describe("Conversation", () => {
     ).toBe(false)
   })
 
+  it("keeps the finding card, with no Revise, for an investigation", async () => {
+    stubServer()
+    renderConversation(
+      answered({
+        investigation: true,
+        observation_id: observationId,
+        result_kind: "observation",
+        finding: { ...finding, observation_id: observationId },
+      })
+    )
+    expect(await screen.findByText(/^Found/)).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+  })
+
   it("offers no Revise on an answer whose turn has no dashboard, in a chat about one", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     renderConversation(answered({ dashboard_id: null }))
@@ -453,6 +557,42 @@ describe("Conversation", () => {
     await waitFor(() => expect(reads()).toBe(before + 1))
   })
 
+  it("shows a run from someone else's private chat without its words or actions", async () => {
+    stubServer(null)
+    const { user } = renderConversation(
+      redactedRun({
+        id: rootId,
+        status: "failed",
+        state: "failed",
+        finished_at: "2026-11-21T10:01:00Z",
+        error: "the agent stopped",
+        failure_code: "no_progress",
+        steps: [
+          {
+            at: "2026-11-21T10:00:30Z",
+            attempt: 0,
+            phase: "discover",
+            tool: "list_metrics",
+            status: "ok",
+            message: "",
+            duration_ms: 10,
+          },
+        ],
+      })
+    )
+    expect(
+      await screen.findByText("Asked in a private chat", { selector: "div" })
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(document.title).toBe("Asked in a private chat - SlashObserve")
+    )
+    await user.click(await screen.findByText(/^Ran 1 step/))
+    expect(screen.getByText("list_metrics")).toBeVisible()
+    expect(screen.queryByRole("button", { name: "Copy message" })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull()
+    expect(screen.queryByRole("textbox")).toBeNull()
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(
@@ -478,5 +618,57 @@ describe("Conversation", () => {
       screen.queryByRole("menuitem", { name: /^Show to everyone/ })
     ).toBeNull()
     expect(screen.queryByRole("menuitem", { name: /^Withdraw/ })).toBeNull()
+  })
+
+  it("puts Ask again in the answer's own row of actions, before the menu", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(answered({ kind: "build" }))
+    const askAgain = await screen.findByRole("button", { name: "Ask again" })
+    const menu = screen.getByRole("button", { name: "Answer actions" })
+    const row = askAgain.parentElement
+    expect(row).toBe(menu.parentElement)
+    const children = Array.from(row!.children)
+    expect(children.indexOf(askAgain)).toBeLessThan(children.indexOf(menu))
+    expect(row!.parentElement).toContainElement(
+      screen.getByText("p99 rose after the deploy.")
+    )
+  })
+
+  it("suggests two follow-ups in the side panel of a chat that nothing was asked in yet, and asks one there", async () => {
+    const fetch = stubServer(chatAbout({ dashboard_id: dashboardId }))
+    const { user } = renderConversation(answered(), "pane")
+    const group = await screen.findByRole("group", {
+      name: "Suggested follow-ups",
+    })
+    const chips = Array.from(group.querySelectorAll("button"))
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "Which services had the most errors in the last hour?",
+      "Which routes are slowest right now?",
+    ])
+    await user.click(chips[1])
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await posted.clone().json()).toMatchObject({
+      prompt: "Which routes are slowest right now?",
+      kind: "ask",
+      dashboard_id: dashboardId,
+      chat_id: rootId,
+    })
+  })
+
+  it("suggests none on the chat page", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(answered())
+    await screen.findByText("p99 rose after the deploy.")
+    expect(
+      screen.queryByRole("group", { name: "Suggested follow-ups" })
+    ).toBeNull()
   })
 })

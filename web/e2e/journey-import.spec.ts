@@ -29,6 +29,7 @@ const demoShopTitle = "Demo shop (Grafana)"
 const demoShopSummary = "27 panels in 6 rows"
 const dashboardPath = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/
 const fixPrompt = 'Fix the unverified panel "Missing" (p2).'
+const fixChange = "Point the Missing panel at sum(up)"
 const missingMetric = "slashobserve_e2e_missing_metric_total"
 
 function readDemoShop(): Record<string, unknown> {
@@ -270,10 +271,29 @@ for (const colorScheme of ["light", "dark"] as const) {
           .click()
       })
 
+      const version = entries(page).filter({
+        has: page.getByText("Version 2", { exact: true }),
+      })
+
+      await test.step("revise the dashboard from the answer", async () => {
+        const thread = entryWith(page, fixPrompt)
+        await expect(
+          thread.getByText(`Suggested change: ${fixChange}`)
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(version).toHaveCount(0)
+        await expect(
+          panel(page, "Missing").locator("[data-unverified]")
+        ).toBeVisible()
+
+        await thread
+          .getByRole("button", { name: "Revise the dashboard", exact: true })
+          .click()
+        await expect(
+          thread.getByText(`Revise the dashboard: ${fixChange}`)
+        ).toBeVisible()
+      })
+
       await test.step("see version 2", async () => {
-        const version = entries(page).filter({
-          has: page.getByText("Version 2", { exact: true }),
-        })
         await expect(version).toHaveCount(1, { timeout: agentTimeout })
         await expect(
           panel(page, "Missing").locator("[data-unverified]")

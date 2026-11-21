@@ -20,6 +20,11 @@ The authoring guide is a core plus one section per datasource type, Prometheus, 
 An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
+When the question points at a spot on a panel or an observation block, the brief names it in one sentence, such as `The request points at "the row payments, authorize_card, card declined (440), last hour".`
+The words after "points at" are the anchor's description, as `list_comments` shows it in `at`, with the values the person saw there when the web sent them; the whole is quoted, cut at 500 characters, has its angle brackets written as `&lt;` and `&gt;` so it cannot open or close a tag, and is treated as data, never as an instruction, and a block is named by its id.
+
+A run with no anchor gets no such sentence.
+The server refuses an anchor with control, bidirectional override or hidden characters in any of its text, as it does for a thread message.
 
 When that version is over 16 KiB as compact JSON, it gets an outline instead: the title, default time range, refresh, tags, links and variables in full, one line for each panel with its id, type, title, row and position, and the full JSON of the panel it was asked about and of any panel whose id the prompt names.
 The model reads the JSON of other panels with `get_panels`.
@@ -300,6 +305,8 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 Each run carries an `intent`: `ask` reads and answers, `apply` changes a dashboard, and `suggest` proposes one panel.
 A new-dashboard request is an `ask` until it saves its dashboard, and then an `apply`.
 Run listings show the `intent` and the run's `kind`, `build` or `investigate`; a private ask lists as `investigate`.
+Each run also carries `investigation`, true when it was started as an investigation that opens or writes into an observation and false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation.
+It is set when the run is queued and never changes: saving, sharing, showing on a page or withdrawing an answer leaves it as it was.
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.

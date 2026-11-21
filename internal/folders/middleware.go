@@ -61,6 +61,10 @@ func (a *Access) RequireDashboard(n Need) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, forbidden.NeedsAccess(n.Level(), access.Folder.Title))
 			return
 		}
+		if access.Refuses(n) {
+			httpapi.AbortError(c, http.StatusConflict, CodeProvisioned, ErrProvisioned.Error())
+			return
+		}
 		SetDashboard(c, access)
 		c.Next()
 	}

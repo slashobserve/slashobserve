@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 const (
@@ -135,6 +136,9 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err := q.LockAgentRequestsForDashboard(ctx, p.DashboardID); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("lock agent requests: %w", err)
 	}
+	if err := placement.AppliedAnswer(ctx, q, p.AppliesFindingID, p.DashboardID); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	active, err := q.CountActiveAgentRequests(ctx, p.DashboardID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("count active agent requests: %w", err)
@@ -178,7 +182,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -330,7 +334,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, turn.clientID, "enqueue observe request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -436,11 +440,12 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ClientID:         p.clientID,
 
 		SubjectObservationID: p.subject(),
+		Investigation:        p.opensObservation(),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -589,15 +594,26 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
-	switch {
-	case sameActor(requesterOf(row), by):
+	if sameActor(requesterOf(row), by) {
 		return row, nil
-	case PrivateAsk(row):
+	}
+	hidden, err := s.hidesRun(ctx, row, by)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	switch {
+	case PrivateAsk(row), hidden:
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	case AskedPrivately(row):
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
 	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:
-		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+		err := s.checkObservationVisible(ctx, row.ObservationID, by)
+		if errors.Is(err, ErrRequestNotFound) && row.SubjectObservationID.Valid {
+			err = s.checkObservationVisible(ctx, row.SubjectObservationID, by)
+		}
+		return row, err
 	case row.SubjectObservationID.Valid:
 		return row, s.checkObservationVisible(ctx, row.SubjectObservationID, by)
 	}
@@ -636,7 +652,21 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	return row, true, nil
 }
 
-func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revision, error) {
+func (s *Service) hidesRun(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) (bool, error) {
+	if sameActor(requesterOf(row), by) || by.Role.AtLeast(auth.RoleAdmin) {
+		return false, nil
+	}
+	if row.ReadRestricted {
+		return true, nil
+	}
+	kept, err := s.db.Queries().RunAnswerKeptWithAdmins(ctx, row.ID)
+	if err != nil {
+		return false, fmt.Errorf("read whether the run's answer is kept with Admins: %w", err)
+	}
+	return kept, nil
+}
+
+func (s *Service) Get(ctx context.Context, by auth.Principal, dashboardID, id pgtype.UUID) (Revision, error) {
 	row, err := s.db.Queries().GetAgentRequest(ctx, dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dashboardID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Revision{}, ErrNotFound
@@ -644,16 +674,26 @@ func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revisio
 	if err != nil {
 		return Revision{}, fmt.Errorf("get agent request: %w", err)
 	}
+	if hidden, err := s.hidesRun(ctx, row, by); err != nil || hidden {
+		if err == nil {
+			err = ErrNotFound
+		}
+		return Revision{}, err
+	}
 	s.recordRunView(ctx, row)
 	return revisionFromRow(row), nil
 }
 
-func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, cursor string) ([]Revision, string, error) {
+func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, limit int, cursor string) ([]Revision, string, error) {
 	after, ok := httpapi.DecodeTimeCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
-	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1)}
+	reader, err := readerOf(by)
+	if err != nil {
+		return nil, "", err
+	}
+	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1), ReaderAdmin: reader.admin, ReaderKind: reader.kind, ReaderID: reader.id}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -683,12 +723,21 @@ const (
 )
 
 type ListFilter struct {
-	Scope       ListScope
-	DashboardID pgtype.UUID
-	ChatID      pgtype.UUID
-	Pinned      *bool
-	Query       string
-	States      []State
+	Scope         ListScope
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	ChatID        pgtype.UUID
+	Pinned        *bool
+	Query         string
+	States        []State
+	Anchored      bool
+}
+
+func (f ListFilter) check() error {
+	if f.Anchored && f.Scope != ScopeMine {
+		return ErrAnchoredNeedsMine
+	}
+	return nil
 }
 
 func (f ListFilter) stateNames() []string {
@@ -725,6 +774,9 @@ type RequestCount struct {
 }
 
 func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter ListFilter) (RequestCount, error) {
+	if err := filter.check(); err != nil {
+		return RequestCount{}, err
+	}
 	if filter.Scope == ScopeAll && !by.Role.AtLeast(auth.RoleAdmin) {
 		return RequestCount{}, ErrForbidden
 	}
@@ -742,12 +794,13 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	match := filter.match()
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
-			Folders:     levels.Visible(),
-			DashboardID: filter.DashboardID,
-			ChatID:      filter.ChatID,
-			Pinned:      match.pinned,
-			Pattern:     match.pattern,
-			States:      match.states,
+			Folders:       levels.Visible(),
+			DashboardID:   filter.DashboardID,
+			ObservationID: filter.ObservationID,
+			ChatID:        filter.ChatID,
+			Pinned:        match.pinned,
+			Pattern:       match.pattern,
+			States:        match.states,
 		})
 		if err != nil {
 			return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -759,10 +812,12 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByID:   requesterID,
 		Folders:         levels.Visible(),
 		DashboardID:     filter.DashboardID,
+		ObservationID:   filter.ObservationID,
 		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
 		Pattern:         match.pattern,
 		States:          match.states,
+		Anchored:        filter.Anchored,
 	})
 	if err != nil {
 		return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -771,6 +826,9 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 }
 
 func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+	if err := filter.check(); err != nil {
+		return nil, "", err
+	}
 	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
@@ -800,6 +858,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
@@ -822,10 +881,12 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
 			States:          match.states,
+			Anchored:        filter.Anchored,
 			CursorCreatedAt: cursorAt,
 			CursorID:        cursorID,
 			CursorPinned:    afterPinned,
@@ -1131,22 +1192,24 @@ func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsq
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Intent:       Intent(row.Intent),
-		Source:       SourceOf(row),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempts:     int(row.Attempts),
-		Error:        row.Error.String,
-		RequestedBy:  requesterOf(row),
-		CreatedAt:    row.CreatedAt.Time.UTC(),
-		Origin:       row.Origin.String,
-		OriginClient: row.OriginClient.String,
-		AssignedKind: AssigneeKind(row.AssignedKind),
-		AssignedID:   row.AssignedID.String(),
+		ID:            row.ID.String(),
+		DashboardID:   row.DashboardID.String(),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Source:        SourceOf(row),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempts:      int(row.Attempts),
+		Error:         row.Error.String,
+		RequestedBy:   requesterOf(row),
+		CreatedAt:     row.CreatedAt.Time.UTC(),
+		Origin:        row.Origin.String,
+		OriginClient:  row.OriginClient.String,
+		AssignedKind:  AssigneeKind(row.AssignedKind),
+		AssignedID:    row.AssignedID.String(),
+		audience:      audienceOf(row),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

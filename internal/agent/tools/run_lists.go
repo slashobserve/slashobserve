@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -23,7 +24,7 @@ const (
 	defaultListRuns = 20
 	maxListRuns     = 50
 
-	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, kind, intent (ask, apply or suggest), state, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
+	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, dashboard_id, observation_id (asked about or written into), pinned or anchored true (only your questions that point at a spot, scope mine only), or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, kind, intent (ask, apply or suggest), investigation (true for an investigation that writes into an observation, false for an ask), state, result_kind, dashboard, observation, anchor and block_id (the spot your own question points at, null for anything else), pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
 	descRenameRun  = "Give one of your runs a title, 1 to 120 characters on one line, as the Rename action of a chat does; null takes the title back to the start of the prompt. Only the person or key that started the run can rename it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Renaming the first run of a chat with no dashboard also renames the one observation made from that chat; observation_rename in the result is renamed, or kept when you may not edit that observation. Safe to repeat."
 	descPinRun     = "Pin one of your runs to the top of list_runs. Only the person or key that started the run can pin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
 	descUnpinRun   = "Unpin one of your runs so list_runs puts it back by date. Only the person or key that started the run can unpin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
@@ -35,6 +36,8 @@ const (
 		`"q":{"type":"string","minLength":1,"maxLength":200,"description":"Only runs whose title, prompt or readable answer contains this text, ignoring case."},` +
 		`"pinned":{"type":"boolean","description":"true keeps only pinned runs, false only unpinned ones."},` +
 		`"dashboard_id":{"type":"string","format":"uuid","description":"Only runs about this dashboard, from list_dashboards."},` +
+		`"observation_id":{"type":"string","format":"uuid","description":"Only runs asked about this observation or written into it."},` +
+		`"anchored":{"type":"boolean","description":"true keeps only your own runs that point at a spot; it needs scope mine."},` +
 		`"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Runs per page. Default 20."},` +
 		`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaRenameRun = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from list_runs."},"title":{"type":["string","null"],"minLength":1,"maxLength":120,"description":"The new title, 1 to 120 characters on one line; null clears it back to the start of the prompt."}},"required":["id","title"],"additionalProperties":false}`
@@ -55,13 +58,15 @@ func (r *Registry) runListEntries() []entry {
 }
 
 type listRunsInput struct {
-	Scope       string   `json:"scope"`
-	State       []string `json:"state"`
-	Q           *string  `json:"q"`
-	Pinned      *bool    `json:"pinned"`
-	DashboardID string   `json:"dashboard_id"`
-	Limit       *int     `json:"limit"`
-	Cursor      string   `json:"cursor"`
+	Scope         string   `json:"scope"`
+	State         []string `json:"state"`
+	Q             *string  `json:"q"`
+	Pinned        *bool    `json:"pinned"`
+	DashboardID   string   `json:"dashboard_id"`
+	ObservationID string   `json:"observation_id"`
+	Anchored      bool     `json:"anchored"`
+	Limit         *int     `json:"limit"`
+	Cursor        string   `json:"cursor"`
 }
 
 func (in listRunsInput) parse() (revisions.ListFilter, int, Result, bool) {
@@ -93,6 +98,14 @@ func (in listRunsInput) parse() (revisions.ListFilter, int, Result, bool) {
 		}
 		filter.DashboardID = id
 	}
+	if in.ObservationID != "" {
+		id, err := db.ParseUUID(in.ObservationID)
+		if err != nil {
+			return filter, 0, invalid("observation_id must be a UUID"), false
+		}
+		filter.ObservationID = id
+	}
+	filter.Anchored = in.Anchored
 	limit, res, ok := boundedInt(in.Limit, defaultListRuns, 1, maxListRuns, "limit")
 	if !ok {
 		return filter, 0, res, false
@@ -111,6 +124,7 @@ type runListItemOut struct {
 	Title            string           `json:"title"`
 	Kind             string           `json:"kind"`
 	Intent           string           `json:"intent"`
+	Investigation    bool             `json:"investigation"`
 	State            string           `json:"state"`
 	ResultKind       string           `json:"result_kind"`
 	DashboardID      *string          `json:"dashboard_id"`
@@ -118,6 +132,8 @@ type runListItemOut struct {
 	ObservationID    *string          `json:"observation_id"`
 	ObservationTitle *string          `json:"observation_title"`
 	ChatID           *string          `json:"chat_id"`
+	Anchor           *anchor.Anchor   `json:"anchor"`
+	BlockID          *string          `json:"block_id"`
 	PinnedAt         *string          `json:"pinned_at"`
 	CreatedAt        string           `json:"created_at"`
 	RequestedBy      runListAuthorOut `json:"requested_by"`

@@ -11,8 +11,12 @@ const ellipsis = "..."
 
 var mentionToken = regexp.MustCompile(`@\[([^\]\n]*)\]\((?:user|grant|service_account):[0-9a-fA-F-]{36}\)`)
 
+func plainMentions(text string) string {
+	return mentionToken.ReplaceAllString(text, "@$1")
+}
+
 func Excerpt(text string, limit int) string {
-	plain := strings.Join(strings.Fields(mentionToken.ReplaceAllString(text, "@$1")), " ")
+	plain := strings.Join(strings.Fields(plainMentions(text)), " ")
 	if utf8.RuneCountInString(plain) <= limit {
 		return plain
 	}

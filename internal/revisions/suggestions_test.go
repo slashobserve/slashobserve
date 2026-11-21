@@ -96,7 +96,7 @@ func sameJSON(t *testing.T, got []byte, want string) bool {
 }
 
 func principalN(i int) auth.Principal {
-	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i)}
+	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i), Role: auth.RoleEditor}
 }
 
 func proposing(panel string) reviserFunc {
@@ -158,7 +158,7 @@ func TestSuggestionsDoNotCountTowardTheDashboardRevisionCap(t *testing.T) {
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth revision: %v", err)
 	}
-	items, _, err := svc.List(reading(context.Background()), dash, 100, "")
+	items, _, err := svc.List(reading(context.Background()), user, dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("revisions list holds %d items, err %v; suggestions must stay out of it", len(items), err)
 	}

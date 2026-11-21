@@ -221,7 +221,7 @@ func TestInboxItemSchemaCarriesEveryActivityEventProperty(t *testing.T) {
 			t.Errorf("InboxItem lacks the activity event property %q", name)
 		}
 	}
-	if got := len(item.Properties) - len(event); got != 4 {
-		t.Errorf("InboxItem adds %d properties to the event, want reason, unread, target_title and excerpt", got)
+	if got := len(item.Properties) - len(event); got != 5 {
+		t.Errorf("InboxItem adds %d properties to the event, want reason, unread, target_title, excerpt and question", got)
 	}
 }

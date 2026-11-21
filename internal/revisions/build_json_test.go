@@ -133,6 +133,13 @@ func TestBuildErrorsMapToStatusesAndCodes(t *testing.T) {
 	}
 }
 
+func TestAStartRefusedForARestrictedAnswerSaysWhy(t *testing.T) {
+	reply := StartReplyFor(fmt.Errorf("enqueue: %w", folders.ErrRestrictedAnswer))
+	if reply.Status != http.StatusConflict || reply.Code != folders.CodeRestrictedAnswer || !strings.Contains(reply.Message, "only Admins") {
+		t.Fatalf("reply = %+v", reply)
+	}
+}
+
 func TestNoAccessAnswersLikeAnUnknownDashboard(t *testing.T) {
 	access, _ := ReplyFor(folders.ErrNoAccess)
 	gone, _ := ReplyFor(ErrDashboardNotFound)

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -121,7 +122,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 		}
 		state := states[row.ID]
 		state.build = state.progressFor(requester, caller)
-		body.Requests[i] = r.summary(row, state, allowed)
+		body.Requests[i] = r.summary(row, caller, state, allowed)
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -200,6 +201,11 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+	view := r.service.viewOf(ctx, row, caller)
+	if view == viewNone {
+		return agentRequestJSON{}, ErrRequestNotFound
+	}
+	readOnly = readOnly || view == viewRedacted
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -217,15 +223,15 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		allowed = allowedActions(facts)
 	}
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
+	if view == viewRedacted {
+		out.redact()
+	}
 	out.ReadOnly = readOnly
-	if out.ObservationID != nil && r.opts.ObservationVisible != nil {
-		visible, err := r.opts.ObservationVisible(ctx, caller, row.ObservationID)
-		if err != nil {
-			return agentRequestJSON{}, fmt.Errorf("check the observation a run made: %w", err)
-		}
-		if !visible {
-			out.ObservationID = nil
-		}
+	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, row.ObservationID); err != nil {
+		return agentRequestJSON{}, err
+	}
+	if out.SubjectID, err = r.shownObservation(ctx, caller, out.SubjectID, row.SubjectObservationID); err != nil {
+		return agentRequestJSON{}, err
 	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
@@ -285,22 +291,37 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 	return nil
 }
 
+func (r *RunDesk) shownObservation(ctx context.Context, caller auth.Principal, shown *string, id pgtype.UUID) (*string, error) {
+	if shown == nil || r.opts.ObservationVisible == nil {
+		return shown, nil
+	}
+	visible, err := r.opts.ObservationVisible(ctx, caller, id)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("check the observation a run names: %w", err)
+	case !visible:
+		return nil, nil
+	}
+	return shown, nil
+}
+
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
 	out := agentRequestJSON{
-		ID:          row.ID.String(),
-		Kind:        Kind(SourceOf(row)),
-		Intent:      Intent(row.Intent),
-		Trigger:     row.Trigger,
-		Title:       titleShownTo(row, caller),
-		Prompt:      row.Prompt,
-		Status:      Status(row.Status),
-		State:       State(row.State),
-		ResultKind:  ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempt:     int(row.Attempts),
-		Attempts:    int(row.Attempts),
-		Error:       httpapi.OptionalString(row.Error.String),
-		FailureCode: httpapi.OptionalString(row.FailureCode.String),
-		Steps:       []Step{},
+		ID:            row.ID.String(),
+		Kind:          Kind(SourceOf(row)),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Trigger:       row.Trigger,
+		Title:         titleShownTo(row, caller),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempt:       int(row.Attempts),
+		Attempts:      int(row.Attempts),
+		Error:         httpapi.OptionalString(row.Error.String),
+		FailureCode:   httpapi.OptionalString(row.FailureCode.String),
+		Steps:         []Step{},
 		RequestedBy: authorJSON{
 			Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String,
 		},
@@ -327,8 +348,10 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
+		SubjectID:     optionalUUID(row.SubjectObservationID),
 		ChatID:        chatShownTo(row, caller),
 	}
+	out.Anchor, out.BlockID = pointShownTo(row.RequestedByKind, row.RequestedByID, row.Anchor, row.BlockID, caller)
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
 	}
@@ -366,8 +389,75 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	return out
 }
 
+func pointShownTo(requesterKind string, requesterID pgtype.UUID, raw []byte, block pgtype.UUID, caller auth.Principal) (*anchor.Anchor, *string) {
+	if !sameActor(auth.Principal{Kind: auth.PrincipalKind(requesterKind), ID: requesterID.String()}, caller) {
+		return nil, nil
+	}
+	return anchorOf(raw), optionalUUID(block)
+}
+
+func (out *agentRequestJSON) redact() {
+	out.Redacted = true
+	out.Title, out.Prompt, out.LiveText, out.ContinueNote, out.SubjectID, out.Error = "", "", nil, nil, nil, nil
+	for i := range out.Steps {
+		out.Steps[i].Message = ""
+	}
+}
+
+type runView int
+
+const (
+	viewNone runView = iota
+	viewRedacted
+	viewFull
+)
+
+type runAudience struct {
+	requester     auth.Principal
+	chat          bool
+	privateAsk    bool
+	thread        pgtype.UUID
+	investigation bool
+}
+
+func audienceOf(row dbsqlc.AgentRequest) runAudience {
+	return runAudience{
+		requester:     requesterOf(row),
+		chat:          row.ChatID.Valid,
+		privateAsk:    PrivateAsk(row),
+		thread:        row.ThreadMessageID,
+		investigation: row.Investigation,
+	}
+}
+
+func (s *Service) viewOf(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal) runView {
+	return s.viewFor(ctx, audienceOf(row), caller)
+}
+
+func (s *Service) viewFor(ctx context.Context, a runAudience, caller auth.Principal) runView {
+	return a.viewFor(caller, func() bool {
+		return s.threadReads != nil && s.threadReads(ctx, caller, a.thread) == nil
+	})
+}
+
+func (a runAudience) readsTheChat(caller auth.Principal) bool {
+	return sameActor(a.requester, caller) || caller.Role.AtLeast(auth.RoleAdmin)
+}
+
+func (a runAudience) viewFor(caller auth.Principal, readsThread func() bool) runView {
+	switch {
+	case a.readsTheChat(caller), !a.chat, a.investigation:
+		return viewFull
+	case a.thread.Valid && readsThread():
+		return viewFull
+	case a.privateAsk:
+		return viewNone
+	}
+	return viewRedacted
+}
+
 func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
-	return sameActor(requesterOf(row), caller) || caller.Role.AtLeast(auth.RoleAdmin)
+	return audienceOf(row).readsTheChat(caller)
 }
 
 func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
@@ -396,28 +486,29 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 	return &text
 }
 
-func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
+func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Principal, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
-		ID:           row.ID.String(),
-		Kind:         Kind(listedSource(row)),
-		Intent:       Intent(row.Intent),
-		Trigger:      row.Trigger,
-		Title:        requestTitle(row.Title, row.Prompt),
-		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		PanelID:      optionalText(row.PanelID),
-		BaseVersion:  optionalInt(row.BaseVersion),
-		CommentID:    optionalUUID(row.CommentID),
-		Error:        httpapi.OptionalString(row.Error.String),
-		Origin:       httpapi.OptionalString(row.Origin.String),
-		OriginClient: httpapi.OptionalString(row.OriginClient.String),
-		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
-		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
+		ID:            row.ID.String(),
+		Kind:          Kind(listedSource(row)),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Trigger:       row.Trigger,
+		Title:         requestTitle(row.Title, row.Prompt),
+		PinnedAt:      formatOptionalTime(optionalTime(row.PinnedAt)),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		PanelID:       optionalText(row.PanelID),
+		BaseVersion:   optionalInt(row.BaseVersion),
+		CommentID:     optionalUUID(row.CommentID),
+		Error:         httpapi.OptionalString(row.Error.String),
+		Origin:        httpapi.OptionalString(row.Origin.String),
+		OriginClient:  httpapi.OptionalString(row.OriginClient.String),
+		CreatedAt:     httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:     formatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:    formatOptionalTime(optionalTime(row.FinishedAt)),
+		RequestedBy:   authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
 
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
@@ -432,6 +523,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 		ChatID:           optionalUUID(row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
+	out.Anchor, out.BlockID = pointShownTo(row.RequestedByKind, row.RequestedByID, row.Anchor, row.BlockID, caller)
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id

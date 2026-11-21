@@ -216,7 +216,7 @@ func (s *Service) existingOf(ctx context.Context, by auth.Principal, dashboardID
 	if err != nil {
 		return nil, err
 	}
-	return &Existing{DashboardID: dash.ID, Title: dash.Title, Version: ver.Number, CanUpdate: access.Abilities.Has(folders.NeedEdit)}, nil
+	return &Existing{DashboardID: dash.ID, Title: dash.Title, Version: ver.Number, CanUpdate: access.Abilities.Has(folders.NeedEdit) && !access.Refuses(folders.NeedContent)}, nil
 }
 
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
@@ -392,6 +392,8 @@ func (s *Service) update(ctx context.Context, by auth.Principal, dashboardID pgt
 		return Imported{}, err
 	case !access.Abilities.Has(folders.NeedEdit):
 		return Imported{}, folders.ErrForbidden
+	case access.Refuses(folders.NeedContent):
+		return Imported{}, folders.ErrProvisioned
 	}
 	held, err := s.ForDashboard(ctx, dashboardID)
 	if err != nil {

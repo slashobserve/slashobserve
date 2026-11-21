@@ -24,8 +24,8 @@ func (r *rig) savedAsObservation(t *testing.T, run, about pgtype.UUID) pgtype.UU
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.ObservationID.String() != saved.ObservationID || stored.SubjectObservationID.Valid {
-		t.Fatalf("run is in observation %v about %v, want only in %s", stored.ObservationID, stored.SubjectObservationID, saved.ObservationID)
+	if stored.ObservationID.String() != saved.ObservationID || stored.SubjectObservationID != about {
+		t.Fatalf("run is in observation %v about %v, want in %s about %v", stored.ObservationID, stored.SubjectObservationID, saved.ObservationID, about)
 	}
 	return mustParse(t, saved.ObservationID)
 }

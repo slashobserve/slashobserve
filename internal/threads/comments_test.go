@@ -216,7 +216,7 @@ func TestReplyCannotRequestARevision(t *testing.T) {
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want InvalidInputError", err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 	if listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 1 {
@@ -233,7 +233,7 @@ func TestWholeDashboardCommentQueuesAWholeDashboardRevision(t *testing.T) {
 	if comment.PanelID != "" || !comment.PanelPresent || comment.Revision == nil || comment.Revision.Status != "queued" {
 		t.Fatalf("comment = %+v", comment)
 	}
-	items, _, err := r.revisions.List(reading(t.Context()), dash, 10, "")
+	items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, "")
 	if err != nil || len(items) != 1 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
@@ -453,7 +453,7 @@ func TestRequestingARevisionNeedsCommentAccess(t *testing.T) {
 	if listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 0 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 
@@ -466,6 +466,33 @@ func TestRequestingARevisionNeedsCommentAccess(t *testing.T) {
 	_, err = r.comments.Create(reading(t.Context()), testUser, missing, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
 	if !errors.Is(err, dashboards.ErrNotFound) {
 		t.Fatalf("a missing dashboard gave %v, want dashboards.ErrNotFound", err)
+	}
+}
+
+func TestACommentRequestingARevisionOfAStarterIsRefusedAndQueuesNothing(t *testing.T) {
+	r := newAgentRig(t, true)
+	dash := r.createDashboard(t)
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, dash.String())
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	r.comments.Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), testUser))
+	})))
+
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/dashboards/"+dash.String()+"/comments", strings.NewReader(`{"version":1,"body":"fix it","request_revision":true}`)))
+	var body struct{ Code string }
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusConflict || body.Code != folders.CodeProvisioned {
+		t.Fatalf("a revision request on a starter answered %d %s, want 409 provisioned", rec.Code, rec.Body.String())
+	}
+	if n := r.count(t, `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, dash); n != 0 {
+		t.Fatalf("%d runs were queued on the starter", n)
+	}
+	if listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 0 {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	if _, err := r.comments.Create(reading(t.Context()), testUser, dash, NewComment{Version: 1, Body: "looks good"}); err != nil {
+		t.Fatalf("a plain comment on a starter: %v", err)
 	}
 }
 
@@ -540,7 +567,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	if comment.Revision == nil || comment.Revision.Status != "queued" {
 		t.Fatalf("revision = %+v", comment.Revision)
 	}
-	items, _, err := r.revisions.List(reading(t.Context()), dash, 10, "")
+	items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, "")
 	if err != nil || len(items) != 1 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
@@ -569,7 +596,7 @@ func TestCommentCanOptOutOfARevision(t *testing.T) {
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 }
@@ -581,7 +608,7 @@ func TestCommentWithoutAnAgentQueuesNothing(t *testing.T) {
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 }

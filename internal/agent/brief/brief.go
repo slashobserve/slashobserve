@@ -12,6 +12,8 @@ import (
 
 const threadLead = "The request was asked in this thread (earlier messages, oldest first):"
 
+const withheldAdvice = "When the request needs them, say so in your answer and do not guess their contents."
+
 type Task struct {
 	Mode          tools.Mode
 	Source        revisions.Source
@@ -23,6 +25,8 @@ type Task struct {
 	Continues     bool
 	Attempt       int
 	TimeZone      string
+	Withheld      bool
+	Pointer       Pointer
 }
 
 type View struct {
@@ -53,8 +57,14 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 		}
 		m.System, m.Context = systemFor(statuses), body
 	}
+	if note := anchorNote(t.Pointer); note != "" {
+		m.Context += "\n\n" + note
+	}
 	if t.ThreadContext != "" {
 		m.Context += "\n\n" + threadLead + "\n" + t.ThreadContext
+	}
+	if t.Withheld {
+		m.Context += "\n\n" + datasource.WithheldNote + " " + withheldAdvice
 	}
 	if note := zoneNote(t.TimeZone, time.Now()); note != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + note

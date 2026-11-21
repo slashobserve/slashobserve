@@ -211,6 +211,7 @@ type LayerProps = {
   tool: DraftTool
   body: { width: number; height: number }
   shownRange: { from: string; to: string }
+  wholePanel?: boolean
 }
 
 function useSurface(store: AnchorLayoutStore): CanvasSurface {
@@ -243,12 +244,13 @@ export function CanvasLayer({
   tool,
   body,
   shownRange,
+  wholePanel = false,
 }: LayerProps) {
   const surface = useSurface(store)
   const [hover, setHover] = useState<Hover>(null)
-  const current = useRef({ surface, body, shownRange })
+  const current = useRef({ surface, body, shownRange, wholePanel })
   useLayoutEffect(() => {
-    current.current = { surface, body, shownRange }
+    current.current = { surface, body, shownRange, wholePanel }
   })
 
   useEffect(() => {
@@ -265,8 +267,9 @@ export function CanvasLayer({
     function targetOf(event: PointerEvent): Anchor | null {
       const element = surfaceRef.current
       if (element === null) return null
-      const { surface, body, shownRange } = current.current
+      const { surface, body, shownRange, wholePanel } = current.current
       const point = pointIn(element, event)
+      if (wholePanel && inBody(event)) return null
       const anchor = inBody(event)
         ? pointerAnchor(surface, point, body)
         : titleAnchor(point, body)
@@ -274,7 +277,7 @@ export function CanvasLayer({
     }
     let press: { at: Point; anchor: Anchor | null } | null = null
     function dragged(event: PointerEvent, element: HTMLElement) {
-      if (press === null) return null
+      if (press === null || current.current.wholePanel) return null
       const anchor = dragAnchor(
         current.current.surface,
         press.at,

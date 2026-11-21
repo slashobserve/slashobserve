@@ -48,6 +48,7 @@ type revisionJSON struct {
 	ID             string     `json:"id"`
 	DashboardID    string     `json:"dashboard_id"`
 	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	CommentID      *string    `json:"comment_id"`
 	PanelID        *string    `json:"panel_id"`
 	Prompt         string     `json:"prompt"`
@@ -73,6 +74,7 @@ type revisionJSON struct {
 	ContinuedBy  *string            `json:"continued_by"`
 	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
+	Redacted     bool               `json:"redacted"`
 }
 
 type envelopeJSON struct {
@@ -185,7 +187,7 @@ func (s *Service) listRevisions(c *gin.Context) {
 		s.fail(c, "read latest dashboard version", err, dashboardAttr(dashboardID))
 		return
 	}
-	items, next, err := s.List(ctx, dashboardID, limit, c.Query("cursor"))
+	items, next, err := s.List(ctx, httpapi.Caller(c), dashboardID, limit, c.Query("cursor"))
 	if err != nil {
 		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
@@ -211,7 +213,7 @@ func (s *Service) getRevision(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rev, err := s.Get(c.Request.Context(), dashboardID, id)
+	rev, err := s.Get(c.Request.Context(), httpapi.Caller(c), dashboardID, id)
 	if err != nil {
 		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
@@ -249,8 +251,12 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
-		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart, mayEdit)
+		view := s.viewFor(ctx, rev.audience, caller)
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
+		if view != viewFull {
+			views[i].redact()
+		}
 	}
 	return views, nil
 }
@@ -278,6 +284,8 @@ func failureReplyFor(err error) (Reply, bool) {
 	switch {
 	case slices.ContainsFunc(missingForFail, func(target error) bool { return errors.Is(err, target) }):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
+	case errors.Is(err, folders.ErrProvisioned):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeProvisioned, Message: err.Error()}, true
 	case errors.Is(err, ErrChatReadOnly):
 		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: err.Error()}, true
 	case errors.Is(err, ErrForbidden):
@@ -290,13 +298,15 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
 	case errors.Is(err, ErrFindingApplied):
 		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: err.Error()}, true
+	case errors.Is(err, folders.ErrRestrictedAnswer):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeRestrictedAnswer, Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRequests):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
 	case errors.Is(err, ErrAgentBusy):
 		return Reply{Status: http.StatusTooManyRequests, Code: "agent_busy", Message: err.Error()}, true
 	case errors.Is(err, ErrUnavailable):
 		return Reply{Status: http.StatusServiceUnavailable, Code: "agent_unavailable", Message: err.Error()}, true
-	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard), errors.Is(err, ErrAnchoredNeedsMine):
 		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: err.Error()}, true
 	}
 	return Reply{}, false
@@ -327,6 +337,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ID:             r.ID,
 		DashboardID:    r.DashboardID,
 		Intent:         r.Intent,
+		Investigation:  r.Investigation,
 		CommentID:      httpapi.OptionalString(r.CommentID),
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,
@@ -354,6 +365,11 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
 	}
 	return out
+}
+
+func (out *revisionJSON) redact() {
+	out.Redacted = true
+	out.Prompt, out.ContinueNote, out.Error = "", nil, nil
 }
 
 func formatOptionalTime(t *time.Time) *string {

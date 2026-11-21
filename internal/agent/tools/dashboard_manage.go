@@ -25,7 +25,7 @@ const (
 
 	schemaDuplicateDashboard = `{"type":"object","properties":{` + propVersionDashboardID + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":200,"description":"The title of the copy."},` +
-		`"folder_id":{"type":"string","format":"uuid","description":"The folder for the copy, from list_folders. Default your My Dashboards, else General."}},"required":["dashboard_id","title"],"additionalProperties":false}`
+		`"folder_id":{"type":"string","format":"uuid","description":"The folder for the copy, from list_folders. Default the source dashboard's folder when you can create there, else your My Dashboards, else General."}},"required":["dashboard_id","title"],"additionalProperties":false}`
 )
 
 func init() { registerEntries((*Registry).dashboardManageEntries) }

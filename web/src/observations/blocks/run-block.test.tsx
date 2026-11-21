@@ -85,6 +85,7 @@ describe("RunBlock", () => {
     stubRequest(succeeded)
     const { onCite, user } = renderRun(runBlock(["text-1", "panel-1"]))
     expect(await screen.findByText("Observe Agent finished")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Run details" }))
 
     await user.click(screen.getByRole("button", { name: "Conclusion" }))
     await user.click(screen.getByRole("button", { name: "Panel 1" }))
@@ -107,14 +108,57 @@ describe("RunBlock", () => {
       },
       { id: "panel-2", kind: "panel", body: { panel: { type: "stat" } } },
     ] as unknown as Block[]
-    renderRun(runBlock(["text-1", "panel-1", "panel-2"]), vi.fn(), cited)
+    const { user } = renderRun(
+      runBlock(["text-1", "panel-1", "panel-2"]),
+      vi.fn(),
+      cited
+    )
     expect(await screen.findByText("Observe Agent finished")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Run details" }))
 
     expect(
       screen.getByRole("button", { name: "Checkout latency doubled" })
     ).toBeTruthy()
     expect(screen.getByRole("button", { name: "p99 latency" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Panel 2" })).toBeTruthy()
+  })
+
+  it("folds a finished run to its outcome and a link to the run, and unfolds it", async () => {
+    stubRequest(succeeded)
+    const { user } = renderRun(runBlock(["text-1"]))
+    expect(await screen.findByText("Observe Agent finished")).toBeTruthy()
+    expect(
+      screen.getByRole("link", { name: "View the run" }).getAttribute("href")
+    ).toBe(`/c/${runId}`)
+    expect(screen.queryByText("Show steps")).toBeNull()
+    expect(screen.queryByText("Cites")).toBeNull()
+
+    const control = screen.getByRole("button", { name: "Run details" })
+    expect(control.getAttribute("aria-expanded")).toBe("false")
+    await user.click(control)
+    expect(control.getAttribute("aria-expanded")).toBe("true")
+    expect(screen.getByText("Show steps")).toBeTruthy()
+    expect(screen.getByText("Cites")).toBeTruthy()
+
+    await user.click(control)
+    expect(screen.queryByText("Show steps")).toBeNull()
+  })
+
+  it("keeps a run that was stopped open, with its link and no fold control", async () => {
+    stubRequest({ ...succeeded, status: "failed", state: "canceled" })
+    renderRun(runBlock([]))
+    expect(await screen.findByText("Observe Agent stopped")).toBeTruthy()
+    expect(screen.getByText("Show steps")).toBeTruthy()
+    expect(screen.getByRole("link", { name: "View the run" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Run details" })).toBeNull()
+  })
+
+  it("keeps a run that is still working open, with no fold control", async () => {
+    stubRequest(running)
+    renderRun(runBlock([]))
+    await screen.findByText("Observe Agent is working")
+    expect(screen.queryByRole("button", { name: "Run details" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "View the run" })).toBeNull()
   })
 
   it("shows no cites while the run has not saved its finding", async () => {
@@ -153,6 +197,7 @@ describe("RunBlock", () => {
     expect(
       await screen.findByText("Observe Agent could not finish")
     ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Run details" })).toBeNull()
     expect(screen.getByRole("alert").textContent).toContain(
       "The model provider is limiting requests"
     )

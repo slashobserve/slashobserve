@@ -28,12 +28,10 @@ func targetOf(row dbsqlc.AgentRequest) RunTarget {
 }
 
 func (r RunShape) target() RunTarget {
-	t := RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID}
-	if !t.ObservationID.Valid {
-		t.ObservationID = r.SubjectID
+	if r.Investigation {
+		return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID, Files: true}
 	}
-	t.Files = r.Intent == IntentAsk && r.ObservationID.Valid && !r.ThreadMessageID.Valid
-	return t
+	return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.SubjectID}
 }
 
 func retryTarget(source Source, ran RunTarget) RunTarget {
@@ -99,12 +97,14 @@ func (s *Service) CheckRun(ctx context.Context, target RunTarget, by auth.Princi
 
 func (s *Service) checkRun(ctx context.Context, target RunTarget, by auth.Principal) error {
 	rule := runRule{target: target, role: by.Role}
-	title := ""
+	title, starter := "", false
 	if target.DashboardID.Valid {
-		var err error
-		if rule.dashboard, title, err = s.dashboardAccess(ctx, target.DashboardID, by); err != nil {
+		access, err := s.dashboardAccess(ctx, target.DashboardID, by)
+		if err != nil {
 			return err
 		}
+		rule.dashboard, title = access.Abilities, access.Folder.Title
+		starter = access.Provisioned && target.Intent != IntentAsk
 	}
 	if target.Intent == IntentAsk && target.ObservationID.Valid && !target.Files {
 		folder, abilities, err := s.observationAccess(ctx, target.ObservationID, by)
@@ -123,25 +123,28 @@ func (s *Service) checkRun(ctx context.Context, target RunTarget, by auth.Princi
 		}
 		rule.canCreate = levels.CanCreate()
 	}
-	if !runAllowed(rule) {
+	switch {
+	case !runAllowed(rule):
 		return refusal(rule, title)
+	case starter:
+		return folders.ErrProvisioned
 	}
 	return nil
 }
 
-func (s *Service) dashboardAccess(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) (folders.Abilities, string, error) {
+func (s *Service) dashboardAccess(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) (folders.DashboardAccess, error) {
 	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
-		return folders.Abilities{}, "", ErrDashboardNotFound
+		return folders.DashboardAccess{}, ErrDashboardNotFound
 	case errors.Is(err, folders.ErrForbidden):
-		return folders.Abilities{}, "", ErrForbidden
+		return folders.DashboardAccess{}, ErrForbidden
 	case err != nil:
-		return folders.Abilities{}, "", err
+		return folders.DashboardAccess{}, err
 	case !access.Abilities.View:
-		return folders.Abilities{}, "", ErrForbidden
+		return folders.DashboardAccess{}, ErrForbidden
 	}
-	return access.Abilities, access.Folder.Title, nil
+	return access, nil
 }
 
 func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (string, folders.Abilities, error) {
@@ -164,6 +167,17 @@ func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UU
 		return "", folders.Abilities{}, ErrObservationNotFound
 	}
 	return folder.Title, abilities, nil
+}
+
+func (s *Service) mayComment(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (bool, error) {
+	_, abilities, err := s.observationAccess(ctx, observationID, by)
+	switch {
+	case errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrForbidden):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return abilities.Comment, nil
 }
 
 func (s *Service) checkVisible(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) error {

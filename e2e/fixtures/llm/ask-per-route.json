@@ -1,0 +1,18 @@
+{
+  "prompt": "Can this panel show each route?",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "Requests per second by route",
+            "markdown": "The panel sums requests per second over every route, so one route cannot be told apart from another.\n\nGrouping the query by route would draw one series per route.",
+            "suggested_change": "Show this per route"
+          }
+        }
+      ],
+      "fault": { "kind": "delay", "delay_ms": 3000 }
+    }
+  ]
+}

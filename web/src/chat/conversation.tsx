@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
@@ -17,6 +18,7 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { requestOrigin } from "@/observe/request-origin"
+import { privateChatText, runWords } from "@/observe/run-words"
 import { revisionsQuery } from "@/revisions/queries"
 
 import { Composer } from "@/conversation/composer"
@@ -24,11 +26,14 @@ import { ungated } from "@/conversation/delivery"
 import type { Opens, Subject } from "@/conversation/send-plan"
 import { useComposer } from "@/conversation/use-composer"
 
-import { AskAgainButton } from "./ask-again"
+import { ExampleChips } from "@/home/task-card"
+
+import { AskAgainButton, useAskInChat } from "./ask-again"
 import { useChat } from "./chats-queries"
 import { useOpenSent } from "./open-sent"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
+import { offersFollowUps } from "./turn-model"
 import { RetryButton } from "./turn-failure"
 
 const stickThreshold = 80
@@ -281,7 +286,9 @@ function ConversationView({
   const pinToEnd = useChatScroll(list, initialTarget)
 
   const first = turns.at(0)
-  const heading = dashboardTitle ?? first?.summary.prompt ?? ""
+  const heading =
+    dashboardTitle ??
+    (first === undefined ? "" : (runWords(first.summary) ?? privateChatText))
   const active = turns.some((turn) => isActiveStatus(turn.summary.status))
   const clipped =
     [...heading].length > titlePromptLength
@@ -307,6 +314,13 @@ function ConversationView({
     list.current?.focus({ preventScroll: true })
   }
 
+  const followUp = useAskInChat({
+    subject,
+    chatId: chatId ?? undefined,
+    onSent: openSent,
+    afterSent: focusList,
+  })
+
   const agentOff = agent.data?.available === false
   const hasDashboard = subject?.kind === "dashboard"
   const latestTurn = turns.at(-1)
@@ -315,6 +329,16 @@ function ConversationView({
     latestTurn !== undefined &&
     isActiveStatus(latestTurn.summary.status)
   const loadFrom = Math.max(0, turns.length - stepsLoadedTurns)
+  const suggestsFollowUps =
+    pane &&
+    !readOnly &&
+    !agentOff &&
+    offersFollowUps({
+      turnCount: turns.length,
+      latest: latestTurn?.summary,
+      viewerId: principal.id,
+      aboutDashboard: hasDashboard,
+    })
 
   const transcript = (
     <>
@@ -396,9 +420,9 @@ function ConversationView({
       )}
     >
       {pane ? (
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+        <ScrollPane className="flex w-full flex-1 flex-col">
           {transcript}
-        </div>
+        </ScrollPane>
       ) : (
         transcript
       )}
@@ -410,6 +434,16 @@ function ConversationView({
             pane ? "flex-none" : "sticky -bottom-7 max-w-[760px]"
           )}
         >
+          {suggestsFollowUps ? (
+            <div className="pb-2">
+              <ExampleChips
+                questionsOnly
+                label="Suggested follow-ups"
+                disabled={followUp.pending}
+                onChoose={(example) => void followUp.ask(example.prompt)}
+              />
+            </div>
+          ) : null}
           <ConversationComposer
             chatId={chatId}
             subject={subject}
@@ -469,7 +503,8 @@ export function Conversation({
       : { dashboard_id: root.data?.dashboard_id ?? null, observation_id: null }
   )
   const dashboardId = subject?.kind === "dashboard" ? subject.id : null
-  const readOnly = root.data?.read_only === true || !asks
+  const readOnly =
+    root.data?.read_only === true || root.data?.redacted === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useState } from "react"
+import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { ChevronDownIcon, ChevronUpIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -16,6 +16,8 @@ import {
 import { plainTitle } from "@/comments/plain-title"
 import { ApiError } from "@/api/errors"
 import { useThreads } from "@/comments/thread-queries"
+import { DuplicateAction } from "@/dashboards/duplicate-action"
+import { starterNote, useLatestChange } from "@/dashboards/permissions"
 import { EvidencePanel } from "@/findings/evidence-panel"
 import { MakeDashboardAction, PinAction } from "@/findings/finding-actions"
 import { evidencePanels, type Finding } from "@/findings/queries"
@@ -40,9 +42,24 @@ const FindingMarkdown = lazy(() =>
 const evidenceHeight = 220
 const threadLabelLength = 60
 
-type AnswerMenu = { shareTarget: string | null; sharedThreadId: string | null }
+type AnswerMenu = {
+  shareTarget: string | null
+  sharedThreadId: string | null
+  subjectObservationId: string | null
+}
 
 export type RevisionAsked = boolean
+
+export const starterCardNote = `${starterNote} Duplicate it to get a copy you can change.`
+
+export function reviseFailureText(error: unknown): string {
+  if (error instanceof ApiError && error.code === "provisioned") {
+    return starterNote
+  }
+  return error instanceof Error && error.message !== ""
+    ? sentence(error.message)
+    : "The change could not be asked for. Try again."
+}
 
 type Props = {
   finding: Finding
@@ -52,9 +69,11 @@ type Props = {
     onRevise: () => Promise<RevisionAsked>
     pending: boolean
     blocked: string | null
+    dashboardId: string
   }
   menu?: AnswerMenu
   chatId?: string
+  actions?: ReactNode
 }
 
 export function evidenceChipText(count: number): string {
@@ -237,7 +256,10 @@ function AnswerMenuButton({
   const sharedThreadId =
     sharedHere === undefined ? menu.sharedThreadId : sharedHere
   const busy = share.isPending || withdraw.isPending
-  const shareable = finding.observation_id === null
+  const shareable =
+    finding.observation_id === null ||
+    (menu.subjectObservationId !== null &&
+      finding.observation_id !== menu.subjectObservationId)
   const onPage =
     shareTarget !== null && subjectOf(shareTarget)?.kind === "observation"
 
@@ -341,6 +363,7 @@ export function AnswerCard({
   revise,
   menu,
   chatId,
+  actions,
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
@@ -350,7 +373,11 @@ export function AnswerCard({
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const blockedId = useId()
-  const blocked = revise?.blocked ?? null
+  const latest = useLatestChange(revise?.dashboardId ?? null)
+  const refused = latest?.content === "none"
+  const offered = refused ? undefined : revise
+  const starter = refused && latest.provisioned ? revise : undefined
+  const blocked = offered?.blocked ?? null
   const change = finding.suggested_change
   const observationId = finding.observation_id
   const promoted =
@@ -387,16 +414,16 @@ export function AnswerCard({
             )}
           </Button>
         )}
-        {change === null || revise === undefined ? null : (
+        {change === null || offered === undefined ? null : (
           <Button
             type="button"
             size="sm"
-            disabled={revise.pending || revisionAsked || blocked !== null}
+            disabled={offered.pending || revisionAsked || blocked !== null}
             focusableWhenDisabled
-            aria-busy={revise.pending}
+            aria-busy={offered.pending}
             aria-describedby={blocked === null ? undefined : blockedId}
             onClick={() =>
-              void revise.onRevise().then((asked) => {
+              void offered.onRevise().then((asked) => {
                 if (asked) markAsked(finding.id)
               })
             }
@@ -417,6 +444,7 @@ export function AnswerCard({
             )}
           </>
         )}
+        {actions}
         {menu === undefined ? null : (
           <AnswerMenuButton
             finding={finding}
@@ -425,16 +453,22 @@ export function AnswerCard({
           />
         )}
       </div>
-      {revise === undefined || change === null ? null : (
+      {offered === undefined || change === null ? null : (
         <span role="status" className="sr-only">
           {revisionAsked ? "The revision was asked for." : ""}
         </span>
       )}
-      {blocked === null || revise === undefined || change === null ? null : (
+      {blocked === null || offered === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}
         </p>
       )}
+      {starter !== undefined && change !== null ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-muted-foreground">{starterCardNote}</p>
+          <DuplicateAction dashboardId={starter.dashboardId} />
+        </div>
+      ) : null}
       {unfolded ? (
         <div id={evidenceId} className="flex flex-col gap-2.5">
           <div className="@container">
