@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 )
@@ -85,6 +86,8 @@ type CreateInput struct {
 	To          *time.Time
 	Text        string
 	Tags        []string
+	AnswerOf    pgtype.UUID
+	CopyOf      placement.Copied
 }
 
 type CreateRequest struct {

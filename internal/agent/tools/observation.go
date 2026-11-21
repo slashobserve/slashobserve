@@ -79,7 +79,7 @@ const (
 
 	schemaCreateObservation  = `{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200,"description":"A short title."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file it in, from list_folders. Default your My Dashboards, else General."},` + propObservationFrom + `,` + propObservationTo + `,` + propObservationBlock + `},"required":["title"],"additionalProperties":false}`
 	schemaGetObservation     = `{"type":"object","properties":{"observation_id":{"type":"string","format":"uuid","description":"The observation, from list_observations."}},"required":["observation_id"],"additionalProperties":false}`
-	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}{observations_restricted_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `,` + propBlockHeight + `},"required":["observation_id","kind"],"additionalProperties":false}`
 	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propUpdateHeight + `,` + propBlockPosition + `,` + propBlockFollowPage + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaArrangeBlocks      = `{"type":"object","properties":{` + propObservationID + `,` + propArrangedBlocks + `},"required":["observation_id","blocks"],"additionalProperties":false}`
@@ -228,6 +228,8 @@ type blockViewOut struct {
 type observationListOut struct {
 	Observations []observations.ObservationJSON `json:"observations"`
 	NextCursor   *string                        `json:"next_cursor"`
+	LeftOut      int                            `json:"left_out,omitempty"`
+	LeftOutWhy   string                         `json:"left_out_note,omitempty"`
 }
 
 func (r *Registry) observationFailure(step string, err error) (Result, error) {
@@ -798,6 +800,7 @@ func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (R
 	if err != nil {
 		return r.observationFailure("Read an observation", err)
 	}
+	readContentIn(ctx, o.ID, o.Folder)
 	blocks := o.Blocks
 	o.Blocks = nil
 	out := observationViewOut{ObservationJSON: observations.ObservationOf(o, r.deps.Observations.URL(o.ID)), Blocks: make([]blockViewOut, len(blocks))}
@@ -889,37 +892,52 @@ func checkListState(state observations.State) (Result, bool) {
 	return Result{}, true
 }
 
+type observationListIn struct {
+	FolderID          string `json:"folder_id"`
+	State             string `json:"state"`
+	Title             string `json:"title"`
+	Limit             *int   `json:"limit"`
+	Cursor            string `json:"cursor"`
+	IncludeRestricted bool   `json:"include_restricted"`
+}
+
+func (in observationListIn) checked() (observations.ListFilter, int, Result, bool) {
+	if res, ok := checkLength("title", in.Title, maxNameBytes); !ok {
+		return observations.ListFilter{}, 0, res, false
+	}
+	folderID, res, ok := parseFolderID(in.FolderID)
+	if !ok {
+		return observations.ListFilter{}, 0, res, false
+	}
+	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State), Query: in.Title}
+	if res, ok := checkListState(filter.State); !ok {
+		return observations.ListFilter{}, 0, res, false
+	}
+	limit, res, ok := boundedInt(in.Limit, defaultListObservations, 1, maxListObservations, "limit")
+	if !ok {
+		return observations.ListFilter{}, 0, res, false
+	}
+	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
+		return observations.ListFilter{}, 0, res, false
+	}
+	return filter, limit, Result{}, true
+}
+
 func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) (Result, error) {
 	if r.deps.Observations == nil {
 		return Result{}, errObservationsNotConfigured
 	}
-	var in struct {
-		FolderID string `json:"folder_id"`
-		State    string `json:"state"`
-		Title    string `json:"title"`
-		Limit    *int   `json:"limit"`
-		Cursor   string `json:"cursor"`
-	}
+	var in observationListIn
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkLength("title", in.Title, maxNameBytes); !ok {
-		return res, nil
-	}
-	folderID, res, ok := parseFolderID(in.FolderID)
+	filter, limit, res, ok := in.checked()
 	if !ok {
 		return res, nil
 	}
-	filter := observations.ListFilter{FolderID: folderID, State: observations.State(in.State), Query: in.Title}
-	if res, ok := checkListState(filter.State); !ok {
-		return res, nil
-	}
-	limit, res, ok := boundedInt(in.Limit, defaultListObservations, 1, maxListObservations, "limit")
-	if !ok {
-		return res, nil
-	}
-	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
-		return res, nil
+	titles, res, ok, err := r.restrictedTitles(ctx, in.IncludeRestricted)
+	if err != nil || !ok {
+		return res, err
 	}
 	principal, _ := auth.FromContext(ctx)
 	for {
@@ -927,15 +945,18 @@ func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) 
 		if err != nil {
 			return r.observationFailure("Listed observations", err)
 		}
-		out := observationListOut{Observations: make([]observations.ObservationJSON, len(list))}
+		titles.restart()
+		list = slices.DeleteFunc(list, func(o observations.Observation) bool { return !titles.keep(o.Folder.ID, o.ID) })
+		out := observationListOut{Observations: make([]observations.ObservationJSON, len(list)), LeftOut: titles.leftOut, LeftOutWhy: titles.note("observation", "observations")}
 		for i, o := range list {
 			out.Observations[i] = observations.ObservationOf(o, r.deps.Observations.URL(o.ID))
 		}
 		if next != "" {
 			out.NextCursor = &next
 		}
-		kept, cut := fit(out.Observations, listBudget-jsonSize(observationListOut{Observations: []observations.ObservationJSON{}, NextCursor: out.NextCursor}))
+		kept, cut := fit(out.Observations, listBudget-jsonSize(observationListOut{Observations: []observations.ObservationJSON{}, NextCursor: out.NextCursor, LeftOutWhy: out.LeftOutWhy}))
 		if !cut || len(list) <= 1 {
+			titles.done(ctx)
 			return success("Listed "+plural(len(out.Observations), "observation", "observations"), out), nil
 		}
 		limit = max(len(kept), 1)

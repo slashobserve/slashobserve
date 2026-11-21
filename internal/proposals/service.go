@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -144,6 +145,9 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 
 func (s *Service) write(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, saveBase *spec.Dashboard, next revisionContent, who actor.Actor, cols actor.Columns) (dashboards.ProposalRef, error) {
 	if err := s.dashboards.Placement().SaveProposal(ctx, q, in.DashboardID, queryproxy.DatasourceRefs(in.Spec)); err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	if err := placement.AnswerOnDashboard(ctx, q, cols.RunID, in.DashboardID); err != nil {
 		return dashboards.ProposalRef{}, err
 	}
 	if err := lockSlot(ctx, q, in.DashboardID, cols); err != nil {

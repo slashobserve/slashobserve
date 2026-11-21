@@ -107,8 +107,11 @@ func SharedCensus(ctx context.Context, q *dbsqlc.Queries, uid string) (Census, e
 func (g *Guard) OpeningGuard() folders.OpeningGuard {
 	return func(ctx context.Context, q *dbsqlc.Queries, folder dbsqlc.Folder) error {
 		c, err := g.FolderCensus(ctx, q, folder.ID)
-		if err != nil || !c.Held() {
+		if err != nil {
 			return err
+		}
+		if !c.Held() {
+			return restrictedAnswerOpening(ctx, q, folder.ID)
 		}
 		items := make([]folders.ContentItem, len(c.Listed))
 		for i, h := range c.Listed {
