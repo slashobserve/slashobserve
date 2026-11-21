@@ -66,6 +66,7 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 			declared: declared,
 			status:   capture.Status(),
 			code:     capture.code(),
+			needs:    capture.needs(),
 			took:     time.Since(start),
 			params:   c.Params,
 			panicked: recovered != nil,
@@ -90,6 +91,7 @@ type outcomeOf struct {
 	declared Declaration
 	status   int
 	code     string
+	needs    map[string]any
 	took     time.Duration
 	params   gin.Params
 	panicked bool
@@ -111,6 +113,9 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	}
 	if o.panicked {
 		outcome, reason = OutcomeFailed, "panic"
+	}
+	if outcome == OutcomeDenied {
+		data = withNeeds(data, o.needs)
 	}
 	if len(inTx) > 0 {
 		recorded, err := r.anyCommitted(ctx, inTx)
