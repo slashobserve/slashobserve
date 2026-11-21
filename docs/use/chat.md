@@ -46,6 +46,7 @@ A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines
 An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
 Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send asks about it: the agent answers without changing the dashboard, and when a change fits, the answer offers it with **Revise the dashboard**.
 The chip appears for a dashboard you can comment on, because asking about one needs Comment, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
+For a dashboard you cannot comment on, the box says "You cannot ask about `<title>`, because you cannot comment on it; this message asks without it."
 Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.

@@ -140,12 +140,17 @@ describe("ChatHome", () => {
     })
   })
 
-  it("shows no chip for a dashboard the person cannot comment on", async () => {
+  it("says why there is no chip for a dashboard the person cannot comment on", async () => {
     render({ initialPrompt: "Add a row", dashboardId: readOnly })
     await screen.findByRole("textbox", { name: "Message the agent" })
     expect(
       screen.queryByRole("list", { name: "Context" })
     ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "You cannot ask about Board, because you cannot comment on it; this message asks without it."
+      )
+    ).toBeVisible()
   })
 
   it("shows a dashboard the person can comment on but not edit as a chip too", async () => {

@@ -89,6 +89,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
           canComment: lookup.data.dashboard.permissions.comment,
         })
   const about = found?.canComment === true ? found : undefined
+  const unaskable = found?.canComment === false ? found : undefined
   const resolving =
     dashboardId !== undefined &&
     found === undefined &&
@@ -110,6 +111,12 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
             void navigate({ ...askLink(initialPrompt ?? ""), replace: true })
           }
         />
+        {unaskable === undefined ? null : (
+          <p className="mt-1.5 text-center text-xs text-muted-foreground">
+            You cannot ask about {unaskable.title}, because you cannot comment
+            on it; this message asks without it.
+          </p>
+        )}
       </div>
       {!agentReady || examples.length === 0 ? null : (
         <div
