@@ -17,6 +17,7 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { requestOrigin } from "@/observe/request-origin"
+import { privateChatText, runWords } from "@/observe/run-words"
 import { revisionsQuery } from "@/revisions/queries"
 
 import { Composer } from "@/conversation/composer"
@@ -281,7 +282,9 @@ function ConversationView({
   const pinToEnd = useChatScroll(list, initialTarget)
 
   const first = turns.at(0)
-  const heading = dashboardTitle ?? first?.summary.prompt ?? ""
+  const heading =
+    dashboardTitle ??
+    (first === undefined ? "" : (runWords(first.summary) ?? privateChatText))
   const active = turns.some((turn) => isActiveStatus(turn.summary.status))
   const clipped =
     [...heading].length > titlePromptLength
@@ -469,7 +472,8 @@ export function Conversation({
       : { dashboard_id: root.data?.dashboard_id ?? null, observation_id: null }
   )
   const dashboardId = subject?.kind === "dashboard" ? subject.id : null
-  const readOnly = root.data?.read_only === true || !asks
+  const readOnly =
+    root.data?.read_only === true || root.data?.redacted === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),

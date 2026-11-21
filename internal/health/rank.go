@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	lowestRank        = 3
+	lowestRank        = 4
 	maxCursorMicros   = 253402300799999999
 	maxCursorTitleLen = 1000
 )

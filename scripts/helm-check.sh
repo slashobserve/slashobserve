@@ -49,6 +49,7 @@ llm:
   apiKey:
     existingSecret: slashobserve-llm
 outboundDomains: [hooks.example.com]
+trustedProxies: [10.0.0.0/8, 2001:db8::/32]
 env:
   - name: SLASHOBSERVE_CLICKHOUSE_PASSWORD
     valueFrom:
@@ -115,6 +116,9 @@ done
 
 grep -q 'SLASHOBSERVE_DATABASE_DIRECT_URL' "$work/everything.out" || die "the everything render has no SLASHOBSERVE_DATABASE_DIRECT_URL"
 ! grep -q 'SLASHOBSERVE_DATABASE_DIRECT_URL' "$work/required.out" || die "the required render sets SLASHOBSERVE_DATABASE_DIRECT_URL"
+
+grep -q 'value: "10.0.0.0/8,2001:db8::/32"' "$work/everything.out" || die "the everything render does not set SLASHOBSERVE_TRUSTED_PROXIES"
+! grep -q 'SLASHOBSERVE_TRUSTED_PROXIES' "$work/required.out" || die "the required render sets SLASHOBSERVE_TRUSTED_PROXIES"
 
 grep -q 'name: t-slashobserve-no-metrics' "$work/everything.out" || die "the everything render does not hold /metrics back from the Ingress"
 run helm template t "$CHART" -f "$work/required.yaml" -f "$work/everything.yaml" --set ingress.exposeMetrics=true >"$work/exposed.out"

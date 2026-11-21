@@ -158,3 +158,9 @@ func weightOf(row dbsqlc.InsertAuditEventParams) int {
 	}
 	return data.Count
 }
+
+func (f *folds) openCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.open)
+}

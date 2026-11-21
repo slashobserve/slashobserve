@@ -93,6 +93,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     dashboard_id: "d1",
     allowed_actions: [],
     intent: "apply",
+    investigation: false,
     comment_id: null,
     panel_id: null,
     prompt: "do it",
@@ -116,6 +117,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     continued_by: null,
     retried_by: null,
     continue_note: null,
+    redacted: false,
     ...overrides,
   }
 }

@@ -67,6 +67,13 @@ func TestTheAskerWithdrawsASharedAnswerBackToOnlyThem(t *testing.T) {
 	if len(events) != 1 || events[0].TargetKind != "run" || events[0].TargetID != run.String() || events[0].ActorID != testUserID {
 		t.Fatalf("run.withdraw events = %+v, want one for the run by its requester", events)
 	}
+	answer, err := r.findingOfRun(t, testUser, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if links := r.auditLinksOf(t, "run.withdraw"); len(links) != 1 || links[0] != (auditLinks{thread: shared.Thread.ID, run: run.String(), finding: answer.ID}) {
+		t.Fatalf("run.withdraw links = %+v, want the thread, the run and the finding %s", links, answer.ID)
+	}
 	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("a second withdraw: %v", err)
 	}

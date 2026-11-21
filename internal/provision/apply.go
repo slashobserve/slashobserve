@@ -225,6 +225,9 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	if !access.Abilities.Edit {
 		return failure(res, folders.ErrForbidden)
 	}
+	if access.Provisioned {
+		return refused(res, CodeProvisioned, folders.ErrProvisioned.Error()), nil
+	}
 	provisioned, err := a.db.Queries().IsProvisionedDashboard(ctx, id)
 	if err != nil {
 		return Result{}, fmt.Errorf("check provisioned dashboard: %w", err)
@@ -239,7 +242,7 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	res.DashboardID = id.String()
 	unchanged := sameFile
 	if !unchanged {
-		unchanged, err = a.sameAsVersion(ctx, id, latest, raw)
+		unchanged, err = a.dashboards.HasContent(ctx, id, latest, raw)
 		if err != nil {
 			return failure(res, err)
 		}
@@ -260,26 +263,6 @@ func (a *Applier) update(ctx context.Context, by auth.Principal, res Result, id 
 	}
 	res.Outcome, res.Version = OutcomeUpdated, ver.Number
 	return res, nil
-}
-
-func (a *Applier) sameAsVersion(ctx context.Context, id pgtype.UUID, version int, raw []byte) (bool, error) {
-	parsed, err := spec.Parse(raw)
-	if err != nil {
-		return false, nil
-	}
-	stored, err := a.dashboards.VersionSpec(ctx, id, version)
-	if err != nil {
-		return false, err
-	}
-	next, err := json.Marshal(parsed)
-	if err != nil {
-		return false, err
-	}
-	prev, err := json.Marshal(stored)
-	if err != nil {
-		return false, err
-	}
-	return bytes.Equal(next, prev), nil
 }
 
 func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id pgtype.UUID, sum, reason string) error {

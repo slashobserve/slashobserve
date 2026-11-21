@@ -231,13 +231,13 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
-	if res, ok, err := r.viewableDashboard(ctx, id, "dashboard or version not found"); err != nil || !ok {
+	access, res, ok, err := r.dashboardAccess(ctx, id, "dashboard or version not found")
+	if err != nil || !ok {
 		return res, err
 	}
 	var (
 		dash dashboards.Dashboard
 		ver  dashboards.Version
-		err  error
 	)
 	if in.Version == nil {
 		dash, ver, err = r.deps.Dashboards.Get(ctx, id)
@@ -253,7 +253,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}

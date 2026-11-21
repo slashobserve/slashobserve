@@ -28,6 +28,7 @@ describe("MoreMenu", () => {
       <MoreMenu
         dashboardId="d1"
         mayEdit={false}
+        mayDelete={false}
         detailsBlockedBy={null}
         onAddPanel={null}
         onEditJson={() => {}}
