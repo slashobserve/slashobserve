@@ -1,6 +1,8 @@
 import {
   clip,
+  fit,
   inRect,
+  labelsOf,
   msToIso,
   positionOf,
   type Anchor,
@@ -22,15 +24,14 @@ export function hitTest(layout: LogAnchorLayout, point: Point): Anchor | null {
   const line = layout.lines.find(({ rect }) => inRect(rect, point))
   if (line === undefined) return null
   const { entry } = line
-  const labels = Object.entries(entry.labels).map(
-    ([key, value]) => [key, clip(value)] as const
-  )
-  return {
+  const labels = labelsOf(Object.entries(entry.labels))
+  const from = entry.time === null ? null : msToIso(entry.time)
+  return fit({
     kind: "log_line",
     pos: positionOf(point, layout.body),
     id: clip(entry.key),
-    ...(entry.time === null ? {} : { from: msToIso(entry.time) }),
+    ...(from === null ? {} : { from }),
     ...(entry.message ? { quote: clip(entry.message) } : {}),
-    ...(labels.length > 0 ? { series: Object.fromEntries(labels) } : {}),
-  }
+    ...(Object.keys(labels).length > 0 ? { series: labels } : {}),
+  })
 }

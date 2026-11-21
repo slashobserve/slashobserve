@@ -10,12 +10,14 @@ const layout: TimeseriesAnchorLayout = {
   xs: [1000, 1100, 1200, 1300],
   series: [
     {
+      name: "checkout",
       labels: { service: "checkout" },
       ys: [100, 50, 50, null],
       values: [1, 4, 4, null],
       format: (value) => `${value} req/s`,
     },
     {
+      name: "payments",
       labels: { service: "payments" },
       ys: [140, 140, 20, 20],
       values: [0, 0, 9, 9],

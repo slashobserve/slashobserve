@@ -1,6 +1,8 @@
 import {
   clip,
+  fit,
   inRect,
+  labelsOf,
   positionOf,
   type Anchor,
   type Point,
@@ -28,8 +30,6 @@ export type TableAnchorLayout = {
   rows: readonly AnchorRow[]
 }
 
-const maxRowLabels = 16
-
 function columnAt(
   layout: TableAnchorLayout,
   x: number
@@ -53,11 +53,7 @@ function rowLabels(
       : layout.columns.map(
           (column, index) => [column, row.cells[index] ?? ""] as const
         )
-  return Object.fromEntries(
-    chosen
-      .slice(0, maxRowLabels)
-      .map(([column, text]) => [clip(column.name), clip(text)])
-  )
+  return labelsOf(chosen.map(([column, text]) => [column.name, text]))
 }
 
 export function hitTest(
@@ -72,7 +68,7 @@ export function hitTest(
   ) {
     return found === null
       ? null
-      : { kind: "column", pos, column: clip(found.column.name) }
+      : fit({ kind: "column", pos, column: clip(found.column.name) })
   }
   const row = layout.rows.find(
     ({ top, height }) => point.y >= top && point.y <= top + height
@@ -82,10 +78,10 @@ export function hitTest(
   if (Object.keys(labels).length === 0) return null
   const under =
     found !== null && !found.column.dimension ? row.cells[found.index] : ""
-  return {
+  return fit({
     kind: "row",
     pos,
     row: labels,
     ...(under ? { shown: clip(under) } : {}),
-  }
+  })
 }

@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   positionOf,
   type Anchor,
   type Point,
@@ -27,17 +28,23 @@ export function hitTest(
   if (x < 0 || y < 0 || x > layout.plot.width || y > layout.plot.height) {
     return null
   }
+  if (
+    !(layout.count > 0) ||
+    !(layout.plot.width > 0 && layout.plot.height > 0)
+  ) {
+    return null
+  }
   const { category, bar } = barAt(layout, model, x, y)
   const pos = positionOf(point, body)
   const label = clip(model.categories[category].label)
-  if (bar === null) return { kind: "bar", pos, category: label }
+  if (bar === null) return fit({ kind: "bar", pos, category: label })
   const series = model.series[bar]
   const shown = clip(model.bars[category][bar].shown.text)
-  return {
+  return fit({
     kind: series.stack === "none" ? "bar" : "segment",
     pos,
     category: label,
     series: { name: clip(series.name) },
     shown,
-  }
+  })
 }

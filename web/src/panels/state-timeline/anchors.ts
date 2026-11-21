@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   inRect,
   msToIso,
   positionOf,
@@ -26,6 +27,7 @@ export function hitTest(
   if (!inRect(layout.plot, point)) return null
   const { range, plot } = layout
   if (!(range.from < range.to) || !(layout.rowHeight > 0)) return null
+  if (!(plot.width > 0)) return null
   const row = layout.rows[Math.floor((point.y - plot.y) / layout.rowHeight)]
   if (row === undefined) return null
   const at =
@@ -33,12 +35,14 @@ export function hitTest(
   const series = seriesLabels(undefined, row.name)
   const pos = positionOf(point, layout.body)
   const segment = segmentAt(row.segments, at)
-  if (segment === null) return { kind: "series", pos, series }
-  return {
+  if (segment === null) return fit({ kind: "series", pos, series })
+  const from = msToIso(at)
+  if (from === null) return null
+  return fit({
     kind: "point",
     pos,
     series,
-    from: msToIso(at),
+    from,
     ...(segment.text ? { shown: clip(segment.text) } : {}),
-  }
+  })
 }

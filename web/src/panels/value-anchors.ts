@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   inRect,
   positionOf,
   seriesLabels,
@@ -27,10 +28,10 @@ export function hitTest(
 ): Anchor | null {
   const target = layout.targets.find(({ rect }) => inRect(rect, point))
   if (target === undefined) return null
-  return {
+  return fit({
     kind: "value",
     pos: positionOf(point, layout.body),
     series: seriesLabels(target.labels, target.name),
     shown: clip(target.text),
-  }
+  })
 }

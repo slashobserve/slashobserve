@@ -1,4 +1,10 @@
 import type { components } from "@/api/schema.gen"
+import {
+  encodedBytes,
+  maxEncoded,
+  maxLabels,
+  maxText,
+} from "@/conversation/anchor"
 
 export type Anchor = components["schemas"]["Anchor"]
 
@@ -9,8 +15,6 @@ export type Rect = { x: number; y: number; width: number; height: number }
 export type AnchorsModule = {
   hitTest: (layout: never, point: Point) => Anchor | null
 }
-
-const maxLabelText = 200
 
 function clampedShare(value: number, length: number): number {
   if (!(length > 0)) return 0
@@ -34,18 +38,50 @@ export function inRect(rect: Rect, point: Point): boolean {
 }
 
 export function clip(text: string): string {
-  return Array.from(text).slice(0, maxLabelText).join("")
+  return Array.from(text).slice(0, maxText).join("")
+}
+
+export function labelsOf(
+  entries: Iterable<readonly [string, string]>
+): Record<string, string> {
+  const labels: Record<string, string> = {}
+  for (const [key, value] of entries) {
+    if (key === "") continue
+    labels[clip(key)] = clip(value)
+    if (Object.keys(labels).length === maxLabels) break
+  }
+  return labels
 }
 
 export function seriesLabels(
   labels: Record<string, string> | undefined,
   name: string
 ): Record<string, string> {
-  const present = Object.entries(labels ?? {})
-  if (present.length === 0) return { name: clip(name) }
-  return Object.fromEntries(present.map(([key, value]) => [key, clip(value)]))
+  const present = labelsOf(Object.entries(labels ?? {}))
+  return Object.keys(present).length === 0 ? { name: clip(name) } : present
 }
 
-export function msToIso(ms: number): string {
-  return new Date(ms).toISOString()
+export function msToIso(ms: number): string | null {
+  const date = new Date(ms)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function withoutLastLabel(anchor: Anchor): Anchor | null {
+  for (const field of ["series", "row"] as const) {
+    const labels = anchor[field]
+    const keys = Object.keys(labels ?? {})
+    if (labels === undefined || keys.length < 2) continue
+    const kept = { ...labels }
+    delete kept[keys[keys.length - 1]]
+    return { ...anchor, [field]: kept }
+  }
+  return null
+}
+
+export function fit(anchor: Anchor): Anchor | null {
+  let current: Anchor | null = anchor
+  while (current !== null && encodedBytes(current) > maxEncoded) {
+    current = withoutLastLabel(current)
+  }
+  return current
 }

@@ -1,6 +1,7 @@
 import {
-  clip,
+  fit,
   inRect,
+  labelsOf,
   positionOf,
   type Anchor,
   type Point,
@@ -14,8 +15,6 @@ export type AlertAnchorLayout = {
   rows: readonly { rect: Rect; alert: Pick<Alert, "name" | "labels"> }[]
 }
 
-const maxRowLabels = 16
-
 export function hitTest(
   layout: AlertAnchorLayout,
   point: Point
@@ -23,14 +22,14 @@ export function hitTest(
   const found = layout.rows.find(({ rect }) => inRect(rect, point))
   if (found === undefined) return null
   const { alert } = found
-  const labels = [["alertname", alert.name], ...alert.labels]
-    .filter(([, value]) => value !== "")
-    .slice(0, maxRowLabels)
-  return {
+  const labels = labelsOf(
+    [["alertname", alert.name] as const, ...alert.labels].filter(
+      ([, value]) => value !== ""
+    )
+  )
+  return fit({
     kind: "row",
     pos: positionOf(point, layout.body),
-    row: Object.fromEntries(
-      labels.map(([key, value]) => [clip(key), clip(value)])
-    ),
-  }
+    row: labels,
+  })
 }

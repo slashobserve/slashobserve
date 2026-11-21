@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   inRect,
   positionOf,
   type Anchor,
@@ -19,9 +20,9 @@ export function hitTest(
 ): Anchor | null {
   const element = layout.elements.findLast(({ rect }) => inRect(rect, point))
   if (element === undefined) return null
-  return {
+  return fit({
     kind: "element",
     pos: positionOf(point, layout.body),
     id: clip(element.id),
-  }
+  })
 }

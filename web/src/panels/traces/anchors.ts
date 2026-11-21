@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   inRect,
   positionOf,
   type Anchor,
@@ -21,10 +22,10 @@ export function hitTest(layout: SpanAnchorLayout, point: Point): Anchor | null {
   const found = layout.spans.find(({ rect }) => inRect(rect, point))
   if (found === undefined) return null
   const { span } = found
-  return {
+  return fit({
     kind: "span",
     pos: positionOf(point, layout.body),
     id: clip(span.id),
     quote: clip([span.service, span.operation].filter(Boolean).join(" ")),
-  }
+  })
 }

@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   positionOf,
   type Anchor,
   type Point,
@@ -22,11 +23,11 @@ export function hitTest(
   const y = point.y - origin.y
   const buckets = edges.length - 1
   if (x < 0 || y < 0 || x > plot.width || y > plot.height) return null
-  if (buckets < 1) return null
+  if (buckets < 1 || !(plot.width > 0 && plot.height > 0)) return null
   const bucket = Math.min(buckets - 1, Math.floor((x / plot.width) * buckets))
-  return {
+  return fit({
     kind: "bar",
     pos: positionOf(point, body),
     category: clip(`${format(edges[bucket])} to ${format(edges[bucket + 1])}`),
-  }
+  })
 }

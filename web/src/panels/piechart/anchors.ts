@@ -1,5 +1,6 @@
 import {
   clip,
+  fit,
   positionOf,
   type Anchor,
   type Point,
@@ -27,10 +28,10 @@ export function hitTest(layout: PieAnchorLayout, point: Point): Anchor | null {
     ({ startAngle, endAngle }) => angle >= startAngle && angle < endAngle
   )
   if (slice === undefined) return null
-  return {
+  return fit({
     kind: "slice",
     pos: positionOf(point, layout.body),
     category: clip(slice.name),
     shown: clip(slice.text),
-  }
+  })
 }

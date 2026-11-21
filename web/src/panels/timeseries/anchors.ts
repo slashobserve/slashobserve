@@ -1,8 +1,10 @@
 import {
   clip,
+  fit,
   inRect,
   msToIso,
   positionOf,
+  seriesLabels,
   type Anchor,
   type Point,
   type Rect,
@@ -10,6 +12,7 @@ import {
 } from "../anchors"
 
 export type AnchorSeries = {
+  name: string
   labels: Record<string, string>
   ys: readonly (number | null)[]
   values: readonly (number | null)[]
@@ -51,7 +54,11 @@ function nearestIndex(layout: TimeseriesAnchorLayout, x: number): number {
 }
 
 function inPlot(layout: TimeseriesAnchorLayout, point: Point): Point | null {
-  if (!inRect(layout.plot, point)) return null
+  const { plot, xMin, xMax } = layout
+  if (!(plot.width > 0) || !Number.isFinite(xMin) || !Number.isFinite(xMax)) {
+    return null
+  }
+  if (!inRect(plot, point)) return null
   return { x: point.x - layout.plot.x, y: point.y - layout.plot.y }
 }
 
@@ -101,26 +108,33 @@ export function hitTest(
   if (at === null) return null
   const pos = positionOf(point, layout.body)
   const index = nearestIndex(layout, at.x)
-  if (index < 0)
-    return { kind: "time", pos, from: msToIso(secondsAt(layout, at.x) * 1000) }
-  const time = msToIso(layout.xs[index] * 1000)
+  const time = msToIso(
+    (index < 0 ? secondsAt(layout, at.x) : layout.xs[index]) * 1000
+  )
+  if (time === null) return null
+  if (index < 0) return { kind: "time", pos, from: time }
   const near = seriesAt(layout, at, index)
   if (near !== null && near.away <= pointRadius) {
     const entry = layout.series[near.series]
     const value = entry.values[index]
-    return {
+    return fit({
       kind: "point",
       pos,
       from: time,
-      series: entry.labels,
+      series: seriesLabels(entry.labels, entry.name),
       ...(value === null || value === undefined
         ? {}
         : { shown: clip(entry.format(value)) }),
-    }
+    })
   }
   const line = lineAt(layout, at)
   if (line !== null) {
-    return { kind: "series", pos, series: layout.series[line].labels }
+    const entry = layout.series[line]
+    return fit({
+      kind: "series",
+      pos,
+      series: seriesLabels(entry.labels, entry.name),
+    })
   }
   return { kind: "time", pos, from: time }
 }
@@ -134,13 +148,16 @@ export function rangeTest(
   const last = inPlot(layout, end)
   if (first === null || last === null) return null
   const [low, high] = first.x <= last.x ? [first, last] : [last, first]
+  const from = msToIso(secondsAt(layout, low.x) * 1000)
+  const to = msToIso(secondsAt(layout, high.x) * 1000)
+  if (from === null || to === null) return null
   return {
     kind: "range",
     pos: positionOf(
       { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
       layout.body
     ),
-    from: msToIso(secondsAt(layout, low.x) * 1000),
-    to: msToIso(secondsAt(layout, high.x) * 1000),
+    from,
+    to,
   }
 }
