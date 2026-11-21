@@ -59,6 +59,9 @@ func newObservationRig(t *testing.T) *observationRig {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := datasources.AddAdminsOnly(datasource.Instance{UID: "audit", Name: "Audit", Datasource: ds}); err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range []auth.Principal{adminCaller, editorCaller, commenterCaller, viewerCaller} {
 		database.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $2 || '@example.com', $3)`, p.ID, p.Name, p.Name)
 	}
@@ -307,19 +310,43 @@ func TestObservationUpdatesNeedTheVersionTheCallerRead(t *testing.T) {
 	}
 }
 
-func TestCreateObservationReportsTheBlockThatStoppedIt(t *testing.T) {
+func TestCreateObservationCreatesNothingWhenABlockIsRefused(t *testing.T) {
 	r := newObservationRig(t)
 	res := r.call(t, editorCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Checkout 5xx","folder_id":%q,"blocks":[{"kind":"text","markdown":"fine"},{"kind":"panel","panel":%s},{"kind":"text","markdown":"never added"}]}`, r.folder, evidencePanel("Nothing", "empty")))
 	refused, ok := res.Content.(blockRefusedOut)
-	if !res.IsError || !ok || refused.Code != codeBlockRefused || refused.BlockIndex != 1 || refused.ObservationID == "" {
+	if !res.IsError || !ok || refused.Code != codeBlockRefused || refused.BlockIndex != 1 {
 		t.Fatalf("a bad second block: %#v", res.Content)
 	}
 	if inner, ok := refused.Refused.(patchRejectedOut); !ok || len(inner.Issues) == 0 {
 		t.Errorf("refused = %#v", refused.Refused)
 	}
-	page := r.view(t, editorCaller, refused.ObservationID)
-	if len(page.Blocks) != 1 || page.Blocks[0].Markdown != "fine" {
-		t.Errorf("the created observation = %#v", page)
+	if got := r.observationCount(t); got != 0 {
+		t.Errorf("a refused block left %d observations", got)
+	}
+}
+
+func (r *observationRig) observationCount(t *testing.T) int {
+	t.Helper()
+	var n int
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observations`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestCreateObservationReadingAnAdminsOnlyDatasourceLeavesNothingBehind(t *testing.T) {
+	r := newObservationRig(t)
+	audit := strings.Replace(evidencePanel("Salaries", "sum(salaries)"), `"datasource":"`+fakeUID+`"`, `"datasource":"audit"`, 1)
+	res := r.call(t, adminCaller, nameCreateObservation, fmt.Sprintf(`{"title":"Payroll","folder_id":%q,"blocks":[{"kind":"text","markdown":"fine"},{"kind":"panel","panel":%s}]}`, r.folder, audit))
+	refused, ok := res.Content.(blockRefusedOut)
+	if !res.IsError || !ok || refused.BlockIndex != 1 {
+		t.Fatalf("create_observation = %#v", res.Content)
+	}
+	if inner, ok := refused.Refused.(errorBody); !ok || inner.Code != codeRestrictedContent {
+		t.Errorf("refused = %#v", refused.Refused)
+	}
+	if got := r.observationCount(t); got != 0 {
+		t.Errorf("the refused create left %d observations", got)
 	}
 }
 

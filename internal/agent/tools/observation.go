@@ -35,7 +35,7 @@ const (
 
 	codeInvalidTransition = "invalid_transition"
 	codeBlockRefused      = "block_refused"
-	blockRefusedMessage   = "the block was refused and the observation was not changed; the reason is in refused, so fix it and send the call again"
+	blockRefusedMessage   = "a block was refused and no observation was created; the reason is in refused, so fix it and send the call again"
 
 	defaultListObservations = 20
 	maxListObservations     = 50
@@ -45,7 +45,7 @@ const (
 	panelCheckTitle         = "Panel block"
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
-	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order; the first refused block stops the rest and the result names its index and the observation. Returns the id and url."
+	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are added in order, and the observation and its blocks are created together: when a block is refused nothing is created and the result names the block index and the reason. Returns the id and url."
 	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
@@ -182,12 +182,10 @@ type observationWrittenOut struct {
 }
 
 type blockRefusedOut struct {
-	Code          string `json:"code"`
-	Message       string `json:"message"`
-	ObservationID string `json:"observation_id"`
-	URL           string `json:"url"`
-	BlockIndex    int    `json:"block_index"`
-	Refused       any    `json:"refused"`
+	Code       string `json:"code"`
+	Message    string `json:"message"`
+	BlockIndex int    `json:"block_index"`
+	Refused    any    `json:"refused"`
 }
 
 type observationViewOut struct {
@@ -454,26 +452,35 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 		return Result{}, err
 	}
 	principal, _ := auth.FromContext(ctx)
-	o, err := r.deps.Observations.Create(ctx, principal, observations.CreateInput{FolderID: folderID, Title: in.Title, From: rng.from, To: rng.to, RunID: runID})
-	if err != nil {
-		return r.observationFailure("Created an observation", err)
-	}
-	id, err := db.ParseUUID(o.ID)
-	if err != nil {
-		return Result{}, fmt.Errorf("created observation id: %w", err)
-	}
-	url := r.deps.Observations.URL(o.ID)
+	blocks := make([]observations.BlockInput, len(in.Blocks))
 	for i, b := range in.Blocks {
-		_, res, ok, err := r.addBlockTo(ctx, principal, id, b, rng, runID)
+		block, res, ok, err := r.blockInput(ctx, principal, b, rng, runID)
 		if err != nil {
 			return Result{}, err
 		}
 		if !ok {
-			step := fmt.Sprintf("Created observation %s, but block %d was refused", o.ID, i)
-			return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, ObservationID: o.ID, URL: url, BlockIndex: i, Refused: res.Content}), nil
+			return blockRefused(i, res), nil
 		}
+		blocks[i] = block
 	}
-	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: url}), nil
+	o, err := r.deps.Observations.Create(ctx, principal, observations.CreateInput{FolderID: folderID, Title: in.Title, From: rng.from, To: rng.to, Blocks: blocks, RunID: runID})
+	var refused *observations.BlockError
+	if errors.As(err, &refused) {
+		res, err := r.observationFailure("Created an observation", refused.Err)
+		if err != nil {
+			return Result{}, err
+		}
+		return blockRefused(refused.Index, res), nil
+	}
+	if err != nil {
+		return r.observationFailure("Created an observation", err)
+	}
+	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
+}
+
+func blockRefused(index int, res Result) Result {
+	step := fmt.Sprintf("Nothing was created: block %d was refused", index)
+	return failure(step, blockRefusedOut{Code: codeBlockRefused, Message: blockRefusedMessage, BlockIndex: index, Refused: res.Content})
 }
 
 func (r *Registry) addBlock(ctx context.Context, input json.RawMessage) (Result, error) {
