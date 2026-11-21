@@ -102,7 +102,7 @@ type newVersion struct {
 	unverified     Unverified
 	folder         folders.Folder
 	mergedProposal pgtype.UUID
-	before         func(ctx context.Context, q *dbsqlc.Queries) error
+	before         func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
 }
 
 type store struct {
@@ -288,8 +288,10 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		stayedPut := false
 		if in.before != nil {
-			if err := in.before(ctx, q); err != nil {
+			var err error
+			if stayedPut, err = in.before(ctx, q); err != nil {
 				return err
 			}
 		}
@@ -305,8 +307,10 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 		if err != nil {
 			return fmt.Errorf("bump dashboard version: %w", err)
 		}
-		if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
-			return err
+		if !stayedPut {
+			if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+				return err
+			}
 		}
 		meta, err := insertVersion(ctx, q, in, int(row.LatestVersion))
 		if err != nil {

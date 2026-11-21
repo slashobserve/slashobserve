@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -40,7 +41,7 @@ func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in R
 	})
 }
 
-func (s *Service) beforeRelease(ctx context.Context, by auth.Principal, in ReleaseUpdate) (func(context.Context, *dbsqlc.Queries) error, error) {
+func (s *Service) beforeRelease(ctx context.Context, by auth.Principal, in ReleaseUpdate) (func(context.Context, *dbsqlc.Queries) (bool, error), error) {
 	_, source, err := s.store.latest(ctx, in.DashboardID)
 	if err != nil {
 		return nil, err
@@ -54,20 +55,26 @@ func (s *Service) beforeRelease(ctx context.Context, by auth.Principal, in Relea
 		kept = &newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: source.Unverified}
 	}
 	moved := actor.Of(by, origin.From(ctx), "")
-	return func(ctx context.Context, q *dbsqlc.Queries) error {
+	return func(ctx context.Context, q *dbsqlc.Queries) (bool, error) {
 		current, err := q.DashboardFolder(ctx, in.DashboardID)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if kept != nil {
 			if err := s.keepEditedCopy(ctx, q, *kept, current, in.Home); err != nil {
-				return err
+				return false, err
 			}
 		}
 		if current == in.Home {
-			return nil
+			return false, nil
 		}
-		return s.store.moveIn(ctx, q, in.DashboardID, current, in.Home, moved)
+		err = s.store.moveIn(ctx, q, in.DashboardID, current, in.Home, moved)
+		if folders.LinkedRefusal(err) {
+			s.logger.WarnContext(ctx, "starter dashboard shared by public link stays in its folder",
+				slog.String("dashboard_id", in.DashboardID.String()), slog.String("folder_id", current.String()))
+			return true, nil
+		}
+		return false, err
 	}, nil
 }
 

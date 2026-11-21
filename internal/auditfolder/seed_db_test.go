@@ -560,6 +560,34 @@ func TestAnEditedStarterMovedToAnotherFolderWithAdminOnlyContentKeepsItsCopyInAu
 	}
 }
 
+func TestAnEditedStarterSharedByPublicLinkStaysInItsFolderWhileTheReleaseUpdateAndTheCopyAreStillWritten(t *testing.T) {
+	r := newSeedRig(t)
+	r.seed(t)
+	folderID, _ := r.auditFolder(t)
+	overview := r.starterID(t, "Audit overview")
+	ops := r.moveToOpsAsEdited(t, overview)
+	r.exec(t, `UPDATE dashboard_versions SET spec = $2::jsonb WHERE dashboard_id = $1 AND version = 1`, overview,
+		`{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[{"id":"events","type":"stat","title":"Events","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"slashobserve-audit","queries":[{"query":"*"}]}]}`)
+	r.exec(t, `INSERT INTO public_links (dashboard_id, token_hash, display_prefix, variables, created_by_kind, created_by_id) VALUES ($1, decode(repeat('ab', 32), 'hex'), 'ab', 'frozen', 'user', $2)`, overview, admin.ID)
+
+	r.seed(t)
+	r.seed(t)
+	r.seed(t)
+
+	if n := r.latestVersion(t, overview); n != 2 {
+		t.Fatalf("the starter is at version %d, want 2", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE title = 'Audit overview (your copy)' AND folder_id = $1`, folderID); n != 1 {
+		t.Fatalf("%d copies in the Audit folder, want 1", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE id = $1 AND folder_id = $2`, overview, ops); n != 1 {
+		t.Fatal("the starter left the folder the Admin had moved it to")
+	}
+	if n := r.count(t, `SELECT count(*) FROM public_links WHERE dashboard_id = $1`, overview); n != 1 {
+		t.Fatal("the public link was removed")
+	}
+}
+
 func TestAnAdminsOwnDashboardWithAStarterTitleIsNotTakenOver(t *testing.T) {
 	r := newSeedRig(t)
 	var folderID string

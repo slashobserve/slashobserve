@@ -33,7 +33,7 @@ type SaveInput struct {
 	Choices         []spec.Choice
 	MergedProposal  pgtype.UUID
 	InTx            func(q *dbsqlc.Queries, version int) error
-	before          func(ctx context.Context, q *dbsqlc.Queries) error
+	before          func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
 	keepLayout      bool
 }
 
