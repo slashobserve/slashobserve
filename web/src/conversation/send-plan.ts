@@ -1,4 +1,4 @@
-import type { ObserveInput } from "@/observe/queries"
+import type { ObserveInput, ObserveTurn } from "@/observe/queries"
 import type { SlashCommand } from "@/chat/slash-commands"
 
 import type { Anchor } from "./anchor"
@@ -70,7 +70,7 @@ export function subjectOf(target: string): Subject | null {
   return kind === undefined || id === "" ? null : { kind, id }
 }
 
-function subjectFields(subject: Subject | null): Partial<ObserveInput> {
+function subjectFields(subject: Subject | null): Partial<ObserveTurn> {
   switch (subject?.kind) {
     case "dashboard":
       return { dashboardId: subject.id }
@@ -84,9 +84,9 @@ function subjectFields(subject: Subject | null): Partial<ObserveInput> {
 function spotFields(
   subject: Subject | null,
   target: SpotTarget | undefined
-): Partial<ObserveInput> {
+): Partial<ObserveTurn> {
   if (subject === null || target === undefined) return {}
-  const fields: Partial<ObserveInput> = {}
+  const fields: Partial<ObserveTurn> = {}
   if (subject.kind === "dashboard" && target.panelId !== undefined) {
     fields.panelId = target.panelId
   }
@@ -99,12 +99,7 @@ function spotFields(
   return fields
 }
 
-function chatTurn(
-  place: Place,
-  subject: Subject | null,
-  draft: Draft,
-  revises = false
-): Send {
+function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
   const chatId = place.kind === "chat" ? place.chatId : null
   const chat = chatId === null ? {} : { chatId }
   const opens: Opens = chatId === null && subject === null ? "chat" : "same"
@@ -130,13 +125,6 @@ function chatTurn(
       return { via: "chat.turn", input, opens }
     }
     case null: {
-      if (revises && subject?.kind === "dashboard") {
-        return {
-          via: "chat.turn",
-          input: { ...base, ...chat, kind: "revise", dashboardId: subject.id },
-          opens,
-        }
-      }
       const input: ObserveInput = {
         ...base,
         ...chat,
@@ -212,14 +200,10 @@ export function planSend(
   }
 }
 
-const reviseLead = "Revise the dashboard: "
-
-export type SuggestedChange = { change: string; findingId: string }
-
 export function planRevise(
   place: Place,
   subject: Subject | null,
-  answer: SuggestedChange,
+  findingId: string,
   clientId: string
 ): Planned {
   if (subject?.kind !== "dashboard") {
@@ -229,11 +213,19 @@ export function planRevise(
     return {
       via: "thread.apply",
       threadId: place.threadId,
-      findingId: answer.findingId,
+      findingId,
     }
   }
-  const chat: Place =
-    place.kind === "chat" ? place : { kind: "chat", chatId: null }
-  const body = `${reviseLead}${answer.change}`
-  return chatTurn(chat, subject, { body, clientId }, true)
+  const chatId = place.kind === "chat" ? place.chatId : null
+  return {
+    via: "chat.turn",
+    input: {
+      kind: "revise",
+      appliesFindingId: findingId,
+      dashboardId: subject.id,
+      clientId,
+      ...(chatId === null ? {} : { chatId }),
+    },
+    opens: "same",
+  }
 }

@@ -257,8 +257,7 @@ type ObserveKind = NonNullable<
   paths["/observe"]["post"]["requestBody"]["content"]["application/json"]["kind"]
 >
 
-export type ObserveInput = {
-  prompt: string
+export type ObserveTurn = {
   kind: ObserveKind
   chatId?: string
   clientId?: string
@@ -271,6 +270,14 @@ export type ObserveInput = {
   to?: string
   timeZone?: string
 }
+
+type AppliedChange = {
+  kind: "revise"
+  appliesFindingId: string
+  dashboardId: string
+}
+
+export type ObserveInput = ObserveTurn & ({ prompt: string } | AppliedChange)
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
   queryClient.setQueryData(observeKeys.request(request.id), request)
@@ -288,7 +295,6 @@ export function useCreateObserveRequest() {
     mutationKey: observeKeys.create(),
     networkMode: "always",
     mutationFn: ({
-      prompt,
       kind,
       chatId,
       clientId,
@@ -300,11 +306,14 @@ export function useCreateObserveRequest() {
       from,
       to,
       timeZone,
+      ...asked
     }: ObserveInput) =>
       resendOnceOffline(clientId, () =>
         api.POST("/observe", {
           body: {
-            prompt,
+            ...("prompt" in asked
+              ? { prompt: asked.prompt }
+              : { applies_finding_id: asked.appliesFindingId }),
             kind,
             ...(dashboardId === undefined ? {} : { dashboard_id: dashboardId }),
             ...(chatId === undefined ? {} : { chat_id: chatId }),

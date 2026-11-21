@@ -105,11 +105,11 @@ function RunAnswer({
     subject?.kind === "dashboard" &&
     entry.thread.allowed_actions.includes("reply")
 
-  async function revise(change: string): Promise<RevisionAsked> {
+  async function revise(): Promise<RevisionAsked> {
     const plan = planRevise(
       threadPlace(entry.thread.id, entry.thread),
       subject,
-      { change, findingId },
+      findingId,
       crypto.randomUUID()
     )
     if ("error" in plan) {

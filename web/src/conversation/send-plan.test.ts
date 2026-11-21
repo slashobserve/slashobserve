@@ -228,21 +228,19 @@ describe("planSend into a thread", () => {
 })
 
 describe("planRevise", () => {
-  const answer = { change: "Add a p99 panel", findingId: "f1" }
-
   it("applies the answer's change in the thread the answer is in", () => {
-    expect(planRevise(openThread, dashboard, answer, "k2")).toEqual({
+    expect(planRevise(openThread, dashboard, "f1", "k2")).toEqual({
       via: "thread.apply",
       threadId: "t1",
       findingId: "f1",
     })
   })
 
-  it("starts a revision as the next turn of the chat", () => {
-    expect(planRevise(openChat, dashboard, answer, "k2")).toEqual({
+  it("asks for the answer's change by its finding as the next turn of the chat", () => {
+    expect(planRevise(openChat, dashboard, "f1", "k2")).toEqual({
       via: "chat.turn",
       input: {
-        prompt: "Revise the dashboard: Add a p99 panel",
+        appliesFindingId: "f1",
         clientId: "k2",
         kind: "revise",
         dashboardId: "d1",
@@ -253,7 +251,7 @@ describe("planRevise", () => {
   })
 
   it("revises only a dashboard", () => {
-    expect(planRevise(openChat, observation, answer, "k2")).toEqual({
+    expect(planRevise(openChat, observation, "f1", "k2")).toEqual({
       error: "Only a dashboard can be revised.",
     })
   })

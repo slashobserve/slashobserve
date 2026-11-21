@@ -113,11 +113,11 @@ function ChatAnswer({
   const { deliver, pending } = useDeliver(subject)
   const mayRevise = own && !request.read_only && subject?.kind === "dashboard"
 
-  async function revise(change: string): Promise<RevisionAsked> {
+  async function revise(): Promise<RevisionAsked> {
     const plan = planRevise(
       { kind: "chat", chatId: request.chat_id },
       subject,
-      { change, findingId: finding.id },
+      finding.id,
       crypto.randomUUID()
     )
     if ("error" in plan) {

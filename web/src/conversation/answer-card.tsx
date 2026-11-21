@@ -48,7 +48,7 @@ type Props = {
   requestId: string
   canSave: boolean
   revise?: {
-    onRevise: (change: string) => Promise<RevisionAsked>
+    onRevise: () => Promise<RevisionAsked>
     pending: boolean
   }
   menu?: AnswerMenu
@@ -385,9 +385,7 @@ export function AnswerCard({
             disabled={revise.pending || revisionAsked}
             aria-busy={revise.pending}
             onClick={() =>
-              void revise
-                .onRevise(change)
-                .then((asked) => setRevisionAsked(asked))
+              void revise.onRevise().then((asked) => setRevisionAsked(asked))
             }
           >
             {revisionAsked ? "Revision asked for" : "Revise the dashboard"}

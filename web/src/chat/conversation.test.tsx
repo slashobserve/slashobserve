@@ -281,6 +281,31 @@ describe("Conversation", () => {
     expect(screen.getByRole("menuitem", { name: /^Withdraw/ })).toBeVisible()
   })
 
+  it("asks for the answer's suggested change by its finding, with no prompt", async () => {
+    const fetch = stubServer()
+    const { user } = renderConversation(answered())
+    await user.click(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    )
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    const body = (await posted.clone().json()) as Record<string, unknown>
+    expect(body).toMatchObject({
+      kind: "revise",
+      applies_finding_id: "f1",
+      dashboard_id: dashboardId,
+      chat_id: rootId,
+    })
+    expect(body).not.toHaveProperty("prompt")
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(
