@@ -27,9 +27,14 @@ import {
   type Message,
   type ThreadWithMessages,
 } from "@/comments/thread-queries"
+import type { Finding } from "@/findings/queries"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
-import { observeRequestQuery, sentence } from "@/observe/queries"
+import {
+  observeRequestQuery,
+  sentence,
+  type ObserveRequest,
+} from "@/observe/queries"
 
 import { AnswerCard, type RevisionAsked } from "./answer-card"
 import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
@@ -85,7 +90,7 @@ function RunLine({ message, run }: { message: Message; run: Run }) {
   )
 }
 
-function RunAnswer({
+function RunReply({
   runId,
   target,
   entry,
@@ -96,12 +101,46 @@ function RunAnswer({
   entry: ThreadWithMessages
   gate: AgentGate
 }) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const request = useQuery({ ...observeRequestQuery(runId), retry: false })
+  const closedToReader =
+    request.error instanceof ApiError && request.error.status === 404
+  const finding = request.data?.finding ?? null
+  return (
+    <>
+      {closedToReader ? null : (
+        <p className="text-xs text-muted-foreground">
+          <RunLink runId={runId} />
+        </p>
+      )}
+      {finding === null || request.data === undefined ? null : (
+        <RunAnswer
+          request={request.data}
+          finding={finding}
+          target={target}
+          entry={entry}
+          gate={gate}
+        />
+      )}
+    </>
+  )
+}
+
+function RunAnswer({
+  request,
+  finding,
+  target,
+  entry,
+  gate,
+}: {
+  request: ObserveRequest
+  finding: Finding
+  target: string
+  entry: ThreadWithMessages
+  gate: AgentGate
+}) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const subject = subjectOf(target)
   const { deliver, pending } = useDeliver(subject)
-  const finding = request.data?.finding ?? null
-  if (finding === null || request.data === undefined) return null
   const findingId = finding.id
   const mayRevise =
     subject?.kind === "dashboard" &&
@@ -137,8 +176,8 @@ function RunAnswer({
   return (
     <AnswerCard
       finding={finding}
-      requestId={runId}
-      canSave={request.data.requested_by.id === principal.id}
+      requestId={request.id}
+      canSave={request.requested_by.id === principal.id}
       revise={
         mayRevise
           ? {
@@ -188,12 +227,7 @@ function MessageRow({
         queryKey={threadKeys.list(target)}
       />
       {runId === null ? null : (
-        <>
-          <p className="text-xs text-muted-foreground">
-            <RunLink runId={runId} />
-          </p>
-          <RunAnswer runId={runId} target={target} entry={entry} gate={gate} />
-        </>
+        <RunReply runId={runId} target={target} entry={entry} gate={gate} />
       )}
       {pending === null ? null : <RunLine message={message} run={pending} />}
     </EntryFrame>

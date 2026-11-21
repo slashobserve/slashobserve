@@ -264,7 +264,7 @@ describe("ThreadView", () => {
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 
-  it("shows the reply without an answer card when the run's answer cannot be read", async () => {
+  it("shows only the reply text when the reader cannot open the run", async () => {
     const fetch = stubFetch({})
     show({ thread: thread(), messages: [question, reply] })
     await waitFor(() =>
@@ -277,11 +277,33 @@ describe("ThreadView", () => {
     expect(
       await screen.findByText("Errors doubled after the deploy.")
     ).toBeVisible()
-    expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "View the run" })).toBeNull()
+    )
     expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
+  })
+
+  it("keeps the link to the run when its answer fails to load for another reason", async () => {
+    const fetch = stubFetch({
+      [`GET /api/v1/observe/${runId}`]: {
+        status: 500,
+        body: { error: "unavailable", code: "internal" },
+      },
+    })
+    show({ thread: thread(), messages: [question, reply] })
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([input]) =>
+          new URL(input.url).pathname.endsWith(`/observe/${runId}`)
+        )
+      ).toBe(true)
+    )
+    expect(
+      await screen.findByRole("link", { name: "View the run" })
+    ).toBeVisible()
   })
 
   it.each([
