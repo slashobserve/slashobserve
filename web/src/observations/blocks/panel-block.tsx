@@ -165,6 +165,7 @@ function ReadablePanelBlock({
   const canPin = block.allowed_actions.includes("update")
 
   function write(change: { body?: Block["body"]; follow_page?: boolean }) {
+    if (update.isPending) return
     update.mutate(
       { blockId: block.id, version: block.version, ...change },
       { onError: (error) => toast.error(blockWriteProblem(error).text) }
