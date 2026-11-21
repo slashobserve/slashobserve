@@ -26,6 +26,7 @@ type Task struct {
 	Attempt       int
 	TimeZone      string
 	Withheld      bool
+	Pointer       Pointer
 }
 
 type View struct {
@@ -55,6 +56,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 			return Message{}, err
 		}
 		m.System, m.Context = systemFor(statuses), body
+	}
+	if note := anchorNote(t.Pointer); note != "" {
+		m.Context += "\n\n" + note
 	}
 	if t.ThreadContext != "" {
 		m.Context += "\n\n" + threadLead + "\n" + t.ThreadContext

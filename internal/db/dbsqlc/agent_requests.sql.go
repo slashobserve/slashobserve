@@ -458,24 +458,26 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND ($1::uuid IS NULL OR r.dashboard_id = $1::uuid)
   AND ($2::uuid IS NULL OR r.chat_id = $2::uuid OR r.id = $2::uuid)
-  AND ($3::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $3::boolean)
-  AND ($4::text IS NULL OR r.title ILIKE $4::text OR r.prompt ILIKE $4::text OR EXISTS (
+  AND ($3::uuid IS NULL OR r.subject_observation_id = $3::uuid OR r.observation_id = $3::uuid)
+  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
+  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $4::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $5::text
       AND CASE WHEN sf.observation_id IS NULL
-        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($5::uuid[]))
-        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($5::uuid[]))
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($6::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($6::uuid[]))
       END))
-  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
+  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
 `
 
 type CountAgentRequestsAllParams struct {
-	DashboardID pgtype.UUID
-	ChatID      pgtype.UUID
-	Pinned      pgtype.Bool
-	Pattern     pgtype.Text
-	Folders     []pgtype.UUID
-	States      []string
+	DashboardID   pgtype.UUID
+	ChatID        pgtype.UUID
+	ObservationID pgtype.UUID
+	Pinned        pgtype.Bool
+	Pattern       pgtype.Text
+	Folders       []pgtype.UUID
+	States        []string
 }
 
 type CountAgentRequestsAllRow struct {
@@ -487,6 +489,7 @@ func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentReque
 	row := q.db.QueryRow(ctx, countAgentRequestsAll,
 		arg.DashboardID,
 		arg.ChatID,
+		arg.ObservationID,
 		arg.Pinned,
 		arg.Pattern,
 		arg.Folders,
@@ -504,15 +507,17 @@ WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.intent <> 'sugge
   AND r.archived_at IS NULL
   AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
   AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
-  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
-  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR EXISTS (
+  AND ($5::uuid IS NULL OR r.subject_observation_id = $5::uuid OR r.observation_id = $5::uuid)
+  AND (NOT $6::boolean OR r.anchor IS NOT NULL)
+  AND ($7::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $7::boolean)
+  AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $6::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $8::text
       AND CASE WHEN sf.observation_id IS NULL
-        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($7::uuid[]))
-        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($7::uuid[]))
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($9::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($9::uuid[]))
       END))
-  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
+  AND ($10::text[] IS NULL OR r.state = ANY($10::text[]))
 `
 
 type CountAgentRequestsByParams struct {
@@ -520,6 +525,8 @@ type CountAgentRequestsByParams struct {
 	RequestedByID   pgtype.UUID
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
+	ObservationID   pgtype.UUID
+	Anchored        bool
 	Pinned          pgtype.Bool
 	Pattern         pgtype.Text
 	Folders         []pgtype.UUID
@@ -532,6 +539,8 @@ func (q *Queries) CountAgentRequestsBy(ctx context.Context, arg CountAgentReques
 		arg.RequestedByID,
 		arg.DashboardID,
 		arg.ChatID,
+		arg.ObservationID,
+		arg.Anchored,
 		arg.Pinned,
 		arg.Pattern,
 		arg.Folders,
@@ -1951,7 +1960,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
-  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -1965,25 +1974,27 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
   AND ($3::uuid IS NULL OR r.chat_id = $3::uuid OR r.id = $3::uuid)
-  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
-  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text OR EXISTS (
+  AND ($4::uuid IS NULL OR r.subject_observation_id = $4::uuid OR r.observation_id = $4::uuid)
+  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
+  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $5::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $6::text
       AND CASE WHEN sf.observation_id IS NULL
         THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($1::uuid[]))
         ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($1::uuid[]))
       END))
-  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
-  AND ($7::timestamptz IS NULL
-    OR (r.created_at, r.id) < ($7::timestamptz, $8::uuid))
+  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
+  AND ($8::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($8::timestamptz, $9::uuid))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $9
+LIMIT $10
 `
 
 type ListAgentRequestsAllParams struct {
 	Folders         []pgtype.UUID
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
+	ObservationID   pgtype.UUID
 	Pinned          pgtype.Bool
 	Pattern         pgtype.Text
 	States          []string
@@ -2027,6 +2038,8 @@ type ListAgentRequestsAllRow struct {
 	RequestedByKind      string
 	RequestedByID        pgtype.UUID
 	RequestedByName      string
+	Anchor               []byte
+	BlockID              pgtype.UUID
 	ChatObservationID    pgtype.UUID
 	DashboardTitle       pgtype.Text
 	ObservationTitle     pgtype.Text
@@ -2038,6 +2051,7 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 		arg.Folders,
 		arg.DashboardID,
 		arg.ChatID,
+		arg.ObservationID,
 		arg.Pinned,
 		arg.Pattern,
 		arg.States,
@@ -2087,6 +2101,8 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,
+			&i.Anchor,
+			&i.BlockID,
 			&i.ChatObservationID,
 			&i.DashboardTitle,
 			&i.ObservationTitle,
@@ -2108,7 +2124,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
-  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -2122,21 +2138,23 @@ WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.intent <> 'sugge
   AND r.archived_at IS NULL
   AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
   AND ($5::uuid IS NULL OR r.chat_id = $5::uuid OR r.id = $5::uuid)
-  AND ($6::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $6::boolean)
-  AND ($7::text IS NULL OR r.title ILIKE $7::text OR r.prompt ILIKE $7::text OR EXISTS (
+  AND ($6::uuid IS NULL OR r.subject_observation_id = $6::uuid OR r.observation_id = $6::uuid)
+  AND (NOT $7::boolean OR r.anchor IS NOT NULL)
+  AND ($8::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $8::boolean)
+  AND ($9::text IS NULL OR r.title ILIKE $9::text OR r.prompt ILIKE $9::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $7::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $9::text
       AND CASE WHEN sf.observation_id IS NULL
         THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($1::uuid[]))
         ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($1::uuid[]))
       END))
-  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
-  AND ($9::timestamptz IS NULL
-    OR ((r.pinned_at IS NOT NULL) = $10::boolean
-      AND (r.created_at, r.id) < ($9::timestamptz, $11::uuid))
-    OR ($10::boolean AND r.pinned_at IS NULL))
+  AND ($10::text[] IS NULL OR r.state = ANY($10::text[]))
+  AND ($11::timestamptz IS NULL
+    OR ((r.pinned_at IS NOT NULL) = $12::boolean
+      AND (r.created_at, r.id) < ($11::timestamptz, $13::uuid))
+    OR ($12::boolean AND r.pinned_at IS NULL))
 ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
-LIMIT $12
+LIMIT $14
 `
 
 type ListAgentRequestsByParams struct {
@@ -2145,6 +2163,8 @@ type ListAgentRequestsByParams struct {
 	RequestedByID   pgtype.UUID
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
+	ObservationID   pgtype.UUID
+	Anchored        bool
 	Pinned          pgtype.Bool
 	Pattern         pgtype.Text
 	States          []string
@@ -2189,6 +2209,8 @@ type ListAgentRequestsByRow struct {
 	RequestedByKind      string
 	RequestedByID        pgtype.UUID
 	RequestedByName      string
+	Anchor               []byte
+	BlockID              pgtype.UUID
 	ChatObservationID    pgtype.UUID
 	DashboardTitle       pgtype.Text
 	ObservationTitle     pgtype.Text
@@ -2202,6 +2224,8 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 		arg.RequestedByID,
 		arg.DashboardID,
 		arg.ChatID,
+		arg.ObservationID,
+		arg.Anchored,
 		arg.Pinned,
 		arg.Pattern,
 		arg.States,
@@ -2252,6 +2276,8 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,
+			&i.Anchor,
+			&i.BlockID,
 			&i.ChatObservationID,
 			&i.DashboardTitle,
 			&i.ObservationTitle,

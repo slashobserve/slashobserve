@@ -291,7 +291,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
-  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -305,6 +305,8 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
+  AND (NOT sqlc.arg('anchored')::boolean OR r.anchor IS NOT NULL)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -327,7 +329,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
-  r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
@@ -341,6 +343,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -362,6 +365,8 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
+  AND (NOT sqlc.arg('anchored')::boolean OR r.anchor IS NOT NULL)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -379,6 +384,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
