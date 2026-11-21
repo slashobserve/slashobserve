@@ -187,7 +187,7 @@ func (s *Service) listRevisions(c *gin.Context) {
 		s.fail(c, "read latest dashboard version", err, dashboardAttr(dashboardID))
 		return
 	}
-	items, next, err := s.List(ctx, dashboardID, limit, c.Query("cursor"))
+	items, next, err := s.List(ctx, httpapi.Caller(c), dashboardID, limit, c.Query("cursor"))
 	if err != nil {
 		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
@@ -213,7 +213,7 @@ func (s *Service) getRevision(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rev, err := s.Get(c.Request.Context(), dashboardID, id)
+	rev, err := s.Get(c.Request.Context(), httpapi.Caller(c), dashboardID, id)
 	if err != nil {
 		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
@@ -298,13 +298,15 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
 	case errors.Is(err, ErrFindingApplied):
 		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: err.Error()}, true
+	case errors.Is(err, folders.ErrRestrictedAnswer):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeRestrictedAnswer, Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRequests):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
 	case errors.Is(err, ErrAgentBusy):
 		return Reply{Status: http.StatusTooManyRequests, Code: "agent_busy", Message: err.Error()}, true
 	case errors.Is(err, ErrUnavailable):
 		return Reply{Status: http.StatusServiceUnavailable, Code: "agent_unavailable", Message: err.Error()}, true
-	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard), errors.Is(err, ErrAnchoredNeedsMine):
 		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: err.Error()}, true
 	}
 	return Reply{}, false

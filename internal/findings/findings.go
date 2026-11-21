@@ -17,7 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
-	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -73,6 +73,7 @@ type Finding struct {
 	Title, Markdown                               string
 	SuggestedChange                               string
 	ObserveWorthy                                 bool
+	Restricted                                    bool
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
@@ -89,14 +90,14 @@ func (f Finding) Saved() bool {
 }
 
 func Title(text string) string {
-	if title := revisions.ShortTitle(text); title != "" {
+	if title := usertext.ShortTitle(text); title != "" {
 		return title
 	}
 	return defaultTitle
 }
 
 func TitleFrom(given string, investigation bool) string {
-	switch title := revisions.ShortTitle(given); {
+	switch title := usertext.ShortTitle(given); {
 	case title != "":
 		return title
 	case investigation:

@@ -21,7 +21,7 @@ import (
 const (
 	nameGetRun = "get_run"
 
-	descGetRun = "Read one run of the built-in agent by id: its state, result_kind, investigation (true for an investigation that writes into an observation, false for an ask, fixed for the run's life), allowed_actions, attempt, the last 20 steps, its usage and, while it is running, live_text, what the agent is writing now (never stored), and for your own private question shared_thread_id, the thread its answer is shared in, the same object the REST API returns for one observe request. Run ids come from list_activity events of type run.*."
+	descGetRun = "Read one run of the built-in agent by id: its state, result_kind, investigation (true for an investigation that writes into an observation, false for an ask, fixed for the run's life), allowed_actions, attempt, the last 20 steps, its usage and, while it is running, live_text, what the agent is writing now (never stored), and for your own private question shared_thread_id, the thread its answer is shared in, and for your own question anchor and block_id, the spot it points at (null for anyone else), the same object the REST API returns for one observe request. Run ids come from list_activity events of type run.*."
 
 	schemaGetRun = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, the target id of a run.* event from list_activity."}},"required":["id"],"additionalProperties":false}`
 
@@ -218,6 +218,8 @@ func runFailure(err error) (Result, error) {
 			State:          refusal.State,
 			AllowedActions: allowed,
 		}), nil
+	case errors.Is(err, revisions.ErrAnchoredNeedsMine):
+		return invalid("%s", err.Error()), nil
 	case errors.Is(err, revisions.ErrUnavailable):
 		return toolError("agent_unavailable", "no model is configured on this server, so the built-in agent cannot run"), nil
 	case errors.Is(err, revisions.ErrTooManyRevisions):
@@ -232,6 +234,9 @@ func runFailure(err error) (Result, error) {
 		return toolError(codeVersionNotFound, err.Error()), nil
 	case errors.Is(err, folders.ErrProvisioned):
 		return toolError(codeProvisioned, err.Error()+provisionedHint), nil
+	}
+	if res, ok := restrictedRefusal(err); ok {
+		return res, nil
 	}
 	if reply, ok := revisions.ReplyFor(err); ok {
 		if reply.Code == forbidden.Code {

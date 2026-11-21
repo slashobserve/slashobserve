@@ -11,15 +11,19 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/anchor"
 )
 
 const maxChatPage = 50
 
 type chatTurnRow struct {
-	ID           string  `json:"id"`
-	State        string  `json:"state"`
-	Prompt       string  `json:"prompt"`
-	SharedThread *string `json:"shared_thread_id"`
+	ID           string         `json:"id"`
+	State        string         `json:"state"`
+	Prompt       string         `json:"prompt"`
+	SharedThread *string        `json:"shared_thread_id"`
+	Anchor       *anchor.Anchor `json:"anchor"`
+	BlockID      *string        `json:"block_id"`
 }
 
 type chatRow struct {
@@ -222,6 +226,9 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			out.line("")
 			out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
 			for _, turn := range detail.Turns {
+				if turn.Anchor != nil {
+					out.line("Request %s points at %s", text(turn.ID), anchorText(turn.Anchor))
+				}
 				if turn.SharedThread != nil {
 					out.line("Request %s is shared in thread %s", text(turn.ID), text(*turn.SharedThread))
 				}

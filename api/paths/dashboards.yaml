@@ -292,6 +292,7 @@ dashboards-id:
         description: >-
           The request conflicts with existing state.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`).
           Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy.
           Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`).
         content:
@@ -798,6 +799,7 @@ dashboards-id-duplicate:
       Its datasource references are checked but its queries are not run, as for a restore,
       so duplicating does not fail because an upstream is briefly down.
       Versions, comments, agent requests and the import record stay with the original.
+      A copy of a dashboard that holds an answer that read Admin-only data goes only into a folder only Admins can read, and then holds that answer itself.
     requestBody:
       required: true
       content:
@@ -840,10 +842,13 @@ dashboards-id-duplicate:
       "409":
         description: >-
           The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

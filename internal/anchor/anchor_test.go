@@ -215,3 +215,38 @@ func TestAnAnchorTooLargeToStoreIsRefused(t *testing.T) {
 		t.Errorf("a two-label anchor: %v", err)
 	}
 }
+
+func TestValidateRefusesControlAndBidiCharactersLikeThreadText(t *testing.T) {
+	at := anchor.Pos{X: 0.5, Y: 0.5}
+	for name, a := range map[string]anchor.Anchor{
+		"quote bidi":         {Kind: anchor.Text, Pos: at, Quote: "pay\u202eed"},
+		"quote control":      {Kind: anchor.Text, Pos: at, Quote: "a\x07b"},
+		"shown bidi":         {Kind: anchor.Title, Pos: at, Shown: "4\u2066 errors"},
+		"series value bidi":  {Kind: anchor.Series, Pos: at, Series: map[string]string{"service": "a\u202eb"}},
+		"series name bidi":   {Kind: anchor.Series, Pos: at, Series: map[string]string{"a\u202eb": "x"}},
+		"row value control":  {Kind: anchor.Row, Pos: at, Row: map[string]string{"status": "a\x1bb"}},
+		"id control":         {Kind: anchor.Span, Pos: at, ID: "a\x00b"},
+		"column bidi":        {Kind: anchor.Column, Pos: at, Column: "a\u2069b"},
+		"window bidi":        {Kind: anchor.Title, Pos: at, Window: &anchor.Window{From: "now-1h", To: "now\u202e"}},
+		"quote tag letters":  {Kind: anchor.Text, Pos: at, Quote: "a\U000E0041"},
+		"quote C1 control":   {Kind: anchor.Text, Pos: at, Quote: "a\u009bb"},
+		"shown invalid utf8": {Kind: anchor.Title, Pos: at, Shown: "a\xffb"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := a.Validate(); err == nil {
+				t.Fatal("Validate accepted it")
+			}
+		})
+	}
+	for name, a := range map[string]anchor.Anchor{
+		"quote with a line break": {Kind: anchor.Text, Pos: at, Quote: "line one\nline two\ttabbed"},
+		"quote with an emoji ZWJ": {Kind: anchor.Text, Pos: at, Quote: "\U0001F469\u200d\U0001F4BB"},
+		"hebrew label":            {Kind: anchor.Series, Pos: at, Series: map[string]string{"service": "שלום"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := a.Validate(); err != nil {
+				t.Fatalf("Validate refused it: %v", err)
+			}
+		})
+	}
+}

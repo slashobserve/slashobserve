@@ -61,7 +61,7 @@ func (a *app) saveAnswerCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "save-answer <request-id>",
 		Short: "Save the answer of an agent request as an observation",
-		Long:  "save-answer files the answer a request gave to a plain question as an observation and prints its address.\nA question asked in chat or in a comment is answered on the request alone until you do this; only the person who made the request can.\nRunning it again prints the same observation.",
+		Long:  "save-answer files the answer a request gave to a plain question as an observation and prints its address.\nA question asked in chat or in a comment is answered on the request alone until you do this; only the person who made the request can.\nRunning it again prints the same observation.\nAn answer whose run read data only Admins can query, such as the audit trail, is saved in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder; when neither is one only Admins can read, the server refuses it with restricted_answer.",
 		Args:  exactArgs(1, "one request id"),
 		RunE:  a.runSaveAnswer,
 	}

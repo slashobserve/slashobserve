@@ -69,7 +69,7 @@ func TestARetryOutsideTheThreadTakesNoAnchorFromIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, mustParse(t, saved.ObservationID), foldertest.Open(t, r.db, "Public"))
-	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, about, foldertest.AdminsOnly(t, r.db, "Admins"))
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, about, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
 
 	next := r.runRow(t, retriedOverHTTP(t, r.observeEngine(commenter), run))
 

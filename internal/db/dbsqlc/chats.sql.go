@@ -60,6 +60,31 @@ func (q *Queries) ArchiveChat(ctx context.Context, arg ArchiveChatParams) (Archi
 	return i, err
 }
 
+const attachRunChatToDashboard = `-- name: AttachRunChatToDashboard :exec
+UPDATE chats SET dashboard_id = $1
+FROM agent_requests r
+WHERE r.id = $2 AND chats.id = r.chat_id
+  AND chats.owner_kind = $3 AND chats.owner_id = $4
+  AND chats.dashboard_id IS NULL AND chats.observation_id IS NULL
+`
+
+type AttachRunChatToDashboardParams struct {
+	DashboardID pgtype.UUID
+	RunID       pgtype.UUID
+	OwnerKind   string
+	OwnerID     pgtype.UUID
+}
+
+func (q *Queries) AttachRunChatToDashboard(ctx context.Context, arg AttachRunChatToDashboardParams) error {
+	_, err := q.db.Exec(ctx, attachRunChatToDashboard,
+		arg.DashboardID,
+		arg.RunID,
+		arg.OwnerKind,
+		arg.OwnerID,
+	)
+	return err
+}
+
 const createChat = `-- name: CreateChat :one
 INSERT INTO chats (id, owner_kind, owner_id, title, dashboard_id, observation_id)
 VALUES ($1, $2, $3, $4::text, $5::uuid, $6::uuid)
@@ -173,7 +198,7 @@ func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (GetChatRow, e
 }
 
 const listChatRequests = `-- name: ListChatRequests :many
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
 `
 
 func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]AgentRequest, error) {
@@ -245,6 +270,7 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 			&i.AppliesFindingID,
 			&i.SubjectObservationID,
 			&i.Investigation,
+			&i.ReadRestricted,
 		); err != nil {
 			return nil, err
 		}
@@ -259,7 +285,9 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 const listChats = `-- name: ListChats :many
 SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
-  coalesce(last.investigation, false)::boolean AS last_turn_investigation, last.subject_observation_id AS last_turn_subject_observation_id, d.title AS dashboard_title
+  coalesce(last.investigation, false)::boolean AS last_turn_investigation, last.subject_observation_id AS last_turn_subject_observation_id,
+  last.anchor AS last_turn_anchor, last.block_id AS last_turn_block_id,
+  d.title AS dashboard_title
 FROM chats c
 LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY($1::uuid[])
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
@@ -267,7 +295,7 @@ LEFT JOIN LATERAL (
   SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) first ON true
 LEFT JOIN LATERAL (
-  SELECT t.id, t.state, t.prompt, t.investigation, t.subject_observation_id FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+  SELECT t.id, t.state, t.prompt, t.investigation, t.subject_observation_id, t.anchor, t.block_id FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
 WHERE ($2::uuid IS NULL OR (c.owner_kind = $3::text AND c.owner_id = $2::uuid))
   AND c.archived_at IS NULL
@@ -318,6 +346,8 @@ type ListChatsRow struct {
 	LastTurnPrompt               string
 	LastTurnInvestigation        bool
 	LastTurnSubjectObservationID pgtype.UUID
+	LastTurnAnchor               []byte
+	LastTurnBlockID              pgtype.UUID
 	DashboardTitle               pgtype.Text
 }
 
@@ -362,6 +392,8 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 			&i.LastTurnPrompt,
 			&i.LastTurnInvestigation,
 			&i.LastTurnSubjectObservationID,
+			&i.LastTurnAnchor,
+			&i.LastTurnBlockID,
 			&i.DashboardTitle,
 		); err != nil {
 			return nil, err

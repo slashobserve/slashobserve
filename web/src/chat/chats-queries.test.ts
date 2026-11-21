@@ -24,6 +24,8 @@ function chat(over: Partial<Chat> = {}): Chat {
       prompt: "x",
       investigation: false,
       subject_observation_id: null,
+      anchor: null,
+      block_id: null,
     },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
@@ -49,6 +51,8 @@ describe("refreshChat", () => {
         prompt: "x",
         investigation: false,
         subject_observation_id: null,
+        anchor: null,
+        block_id: null,
       },
     })
     vi.stubGlobal(
