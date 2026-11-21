@@ -27,6 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
@@ -79,7 +80,8 @@ type InUseError struct {
 }
 
 func (e *InUseError) Error() string {
-	return fmt.Sprintf("datasource %q is used by %d dashboards and saved searches", e.UID, len(e.Users)+e.Hidden)
+	n := len(e.Users) + e.Hidden
+	return fmt.Sprintf("datasource %q is used by %d %s", e.UID, n, folders.Agree(n, "dashboard or saved search", "dashboards and saved searches"))
 }
 
 type Record struct {

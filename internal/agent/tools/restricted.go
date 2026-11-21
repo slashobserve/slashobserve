@@ -6,7 +6,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
-const codeRestrictedContent = folders.CodeRestrictedContent
+const (
+	codeRestrictedContent = folders.CodeRestrictedContent
+	restrictedContentHint = "; use a folder whose admins_only is true (see " + nameListFolders + "), or ask an Admin to set a folder to Only Admins with `observe folders permissions admins-only`"
+)
 
 func restrictedRefusal(err error) (Result, bool) {
 	if folders.LinkedRefusal(err) {
@@ -16,5 +19,5 @@ func restrictedRefusal(err error) (Result, bool) {
 	if !errors.As(err, &restricted) {
 		return Result{}, false
 	}
-	return failure("Save rejected: "+codeRestrictedContent, errorBody{Code: codeRestrictedContent, Message: restricted.Error()}), true
+	return failure("Save rejected: "+codeRestrictedContent, errorBody{Code: codeRestrictedContent, Message: restricted.Error() + restrictedContentHint}), true
 }

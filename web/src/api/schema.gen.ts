@@ -4219,6 +4219,8 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
+            datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
             reason?: string;
             /**
@@ -4997,7 +4999,7 @@ export interface components {
                 folder_id: string;
                 folder_title: string;
             }[];
-            /** @description How many more items that block a datasource change are in folders other people can read and are not in `items`; 0 when the list is complete, absent when `items` is. */
+            /** @description How many more items that block the change are not in `items`; 0 when the list is complete, absent when `items` is. */
             unlisted?: number;
             /** @description How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none. */
             hidden?: number;
@@ -10368,7 +10370,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10630,7 +10632,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12517,7 +12519,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16291,7 +16293,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links. */
+            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links; the `datasource` field names an Admins-only datasource it reads, which keeps it in that folder. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -18104,7 +18106,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard is in My Dashboards (`personal_folder`) or in a folder only Admins can read (`admins_only_folder`); move it to a shared folder first. */
+            /** @description The dashboard is in My Dashboards (`personal_folder`; move it to a shared folder first) or in a folder only Admins can read (`admins_only_folder`; move it to a folder that is not Only Admins, unless it reads an Admins-only datasource, which the `datasource` field names and which keeps it where it is). */
             409: {
                 headers: {
                     [name: string]: unknown;

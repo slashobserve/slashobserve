@@ -405,6 +405,10 @@ components:
           type: string
         code:
           type: string
+        datasource:
+          type: string
+          description: >-
+            Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource.
         reason:
           type: string
           description: >-
@@ -1887,7 +1891,7 @@ components:
         unlisted:
           type: integer
           minimum: 0
-          description: How many more items that block a datasource change are in folders other people can read and are not in `items`; 0 when the list is complete, absent when `items` is.
+          description: How many more items that block the change are not in `items`; 0 when the list is complete, absent when `items` is.
         hidden:
           type: integer
           minimum: 1
