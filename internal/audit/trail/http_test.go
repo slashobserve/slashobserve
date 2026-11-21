@@ -238,7 +238,7 @@ func (r *httpRig) reads(t *testing.T) []recordedRead {
 	return out
 }
 
-func TestEveryReadOfTheTrailIsRecordedWithItsQuery(t *testing.T) {
+func TestOnlyASearchAndAnExportAreRecordedWithTheirQuery(t *testing.T) {
 	r := newHTTPRig(t)
 	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5), Actor: "secretname"}, trailtest.Event{At: r.at(-6)})
 	engine := r.engine(t, &admin)
@@ -263,13 +263,9 @@ func TestEveryReadOfTheTrailIsRecordedWithItsQuery(t *testing.T) {
 	since, until := r.base.Add(-time.Hour).Format(time.RFC3339Nano), r.base.Format(time.RFC3339Nano)
 	want := []recordedRead{
 		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "events", "row_count": 1.0}},
-		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "facets", "field": "origin", "row_count": 1.0}},
-		{"audit.search", "success", "", map[string]any{"form": "lucene", "since": since, "until": until, "query": "lucene: " + text, "view": "histogram", "row_count": 6.0}},
-		{"audit.search", "success", "audit_event", map[string]any{"view": "event", "row_count": 1.0}},
 		{"audit.export", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "format": "ndjson", "row_count": 1.0, "truncated": false}},
 		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
 		{"audit.export", "failed", "", map[string]any{"query": text}},
-		{"audit.search", "failed", "", map[string]any{"form": "dsl", "since": since, "until": until, "query": aggs, "view": "aggregate"}},
 	}
 	if len(reads) != len(want) {
 		t.Fatalf("recorded %d reads: %+v", len(reads), reads)
@@ -281,6 +277,54 @@ func TestEveryReadOfTheTrailIsRecordedWithItsQuery(t *testing.T) {
 		if got.action != w.action || got.outcome != w.outcome || got.targetKind != w.targetKind || string(gotData) != string(wantData) {
 			t.Errorf("read %d = %+v, want %+v", i, got, w)
 		}
+	}
+}
+
+func TestARepeatedSearchIsRecordedOncePerActorAndQueryInTenMinutes(t *testing.T) {
+	r := newHTTPRig(t)
+	clock := r.base
+	r.reader.now = func() time.Time { return clock }
+	ada := r.engine(t, &admin)
+	other := admin
+	other.ID = "8e2d3b63-9d6f-4b64-8b4f-2e3e5d1b0c22"
+	grace := r.engine(t, &other)
+	events := func(engine *gin.Engine, text string) {
+		t.Helper()
+		if rec := r.get(t, engine, "/audit/events", r.hourWindow(url.Values{"q": {text}})); rec.Code != http.StatusOK {
+			t.Fatalf("search %q = %d %s", text, rec.Code, rec.Body)
+		}
+	}
+	events(ada, "origin:web")
+	events(ada, "origin:web")
+	events(ada, "origin:mcp")
+	events(grace, "origin:web")
+	clock = clock.Add(9 * time.Minute)
+	events(ada, "origin:web")
+	clock = clock.Add(2 * time.Minute)
+	events(ada, "origin:web")
+	var queries []string
+	for _, read := range r.reads(t) {
+		if read.action != "audit.search" {
+			t.Fatalf("recorded %+v, want only searches", read)
+		}
+		queries = append(queries, read.data["query"].(string))
+	}
+	if want := []string{"origin:web", "origin:mcp", "origin:web", "origin:web"}; !slices.Equal(queries, want) {
+		t.Fatalf("recorded searches = %q, want %q", queries, want)
+	}
+}
+
+func TestFacetsHistogramAggregateFieldsAndEventReadsRecordNothing(t *testing.T) {
+	r := newHTTPRig(t)
+	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5)})
+	engine := r.engine(t, &admin)
+	for _, path := range []string{"/audit/facets?field=origin", "/audit/histogram", "/audit/fields", "/audit/events/" + ids[0],
+		"/audit/aggregate?q=" + url.QueryEscape(`{"aggs":{"o":{"terms":{"field":"origin"}}}}`),
+		"/audit/facets?field=nofield", "/audit/histogram?q=outcome:ok", "/audit/events/" + ids[0] + "?q=x"} {
+		r.get(t, engine, path, r.hourWindow(nil))
+	}
+	if reads := r.reads(t); len(reads) != 0 {
+		t.Fatalf("recorded %+v, want nothing", reads)
 	}
 }
 

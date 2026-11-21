@@ -68,7 +68,7 @@ var (
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
 	readKeys     = []string{"form", "since", "until", "query", "row_count"}
-	searchKeys   = []string{"view", "field"}
+	searchKeys   = []string{"view"}
 	exportKeys   = []string{"format", "truncated"}
 	jobKeys      = []string{"trigger", "duration_ms"}
 	importKeys   = []string{"connection_id"}

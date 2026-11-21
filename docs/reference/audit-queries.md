@@ -5,8 +5,10 @@ description: The fields of an audit event, the three query forms the audit trail
 
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
-Every read of the trail is itself recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
-A query that is refused is recorded too, as a `failed` event with its reason.
+A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
+A search is recorded once per caller and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
+The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
+A query that is refused is recorded every time, as a `failed` event with its reason.
 
 ## Fields
 

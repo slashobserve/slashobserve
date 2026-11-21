@@ -259,7 +259,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 }
 
-func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
+func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) {
 	r := newAuditToolRig(t)
 	recorder := audit.New(audit.Config{DB: r.db.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
 	audit.Install(recorder)
@@ -313,10 +313,7 @@ func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	want := make([]string, 0, len(calls))
-	for _, c := range calls {
-		want = append(want, c.name+" mcp claude-code "+adminCaller.Name)
-	}
+	want := []string{nameSearchAuditEvents + " mcp claude-code " + adminCaller.Name}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("recorded %q, want %q", got, want)
 	}
