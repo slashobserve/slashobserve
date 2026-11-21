@@ -8,6 +8,7 @@ const open = {
   pinned: false,
   layoutEditing: false,
   activeRequests: 0,
+  provisioned: false,
 }
 
 describe("sendToAgentState", () => {
@@ -58,6 +59,18 @@ describe("sendToAgentState", () => {
     })
   })
 
+  it("blocks changes on a starter dashboard and says investigations still run", () => {
+    const gate = sendToAgentState({ ...open, provisioned: true })
+    expect(gate).toMatchObject({ kind: "blocked", provisioned: true })
+    expect(gate.kind === "blocked" && gate.reason).toContain("Investigate")
+  })
+
+  it("shows the older version reason before the starter reason", () => {
+    expect(
+      sendToAgentState({ ...open, pinned: true, provisioned: true })
+    ).not.toHaveProperty("provisioned")
+  })
+
   it("hides the option without comment permission before every other reason", () => {
     expect(
       sendToAgentState({
@@ -66,6 +79,7 @@ describe("sendToAgentState", () => {
         pinned: true,
         layoutEditing: true,
         activeRequests: 5,
+        provisioned: false,
       })
     ).toEqual({ kind: "hidden" })
     expect(sendToAgentState({ ...open, canComment: false })).toEqual({

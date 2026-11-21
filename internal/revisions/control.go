@@ -96,7 +96,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart && viewOf(row, by) == viewFull, mayEdit)
 }
 
 type startChecks struct {
@@ -120,8 +120,9 @@ func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgty
 	access, err := c.service.access.Dashboard(ctx, c.by, dashboardID)
 	switch {
 	case err == nil:
-		c.edits[dashboardID] = access.Abilities.Edit
-		return access.Abilities.Edit, nil
+		may := access.Shown().Edit
+		c.edits[dashboardID] = may
+		return may, nil
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.edits[dashboardID] = false
 		return false, nil
@@ -141,7 +142,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, ran R
 	may := err == nil
 	switch {
 	case err == nil,
-		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound),
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, folders.ErrProvisioned),
 		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.seen[key] = may
 		return may, nil
@@ -376,12 +377,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:
-		private := PrivateAsk(row)
-		about := row.ObservationID
-		if !about.Valid {
-			about = row.SubjectObservationID
-		}
-		return s.SubmitInvestigate(ctx, InvestigateParams{
+		p := InvestigateParams{
 			Prompt:      row.Prompt,
 			By:          by,
 			DashboardID: row.DashboardID,
@@ -389,18 +385,27 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
 
-			ObservationID:    about,
+			ObservationID:    investigatedObservation(row),
 			ReuseObservation: true,
 			RetriesID:        retries,
 
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+			Point:           pointAgain(row, by),
 			Ask:             threadMessage.Valid,
-			Private:         private,
+			Private:         AskedPrivately(row),
 
 			chat: againChat(row, by),
-		})
+		}
+		if threadMessage.Valid && row.SubjectObservationID.Valid {
+			inThread, err := s.mayComment(ctx, row.SubjectObservationID, by)
+			if err != nil {
+				return dbsqlc.AgentRequest{}, err
+			}
+			p = p.again(row, inThread)
+		}
+		return s.SubmitInvestigate(ctx, p)
 	default:
 		return s.submitFollowUp(ctx, EnqueueParams{
 			DashboardID:     row.DashboardID,
@@ -410,12 +415,37 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			RetriesID:       retries,
+			Point:           pointAgain(row, by),
 
 			AppliesFindingID: row.AppliesFindingID,
 
 			chat: againChat(row, by),
 		}, nil)
 	}
+}
+
+func (p InvestigateParams) again(row dbsqlc.AgentRequest, inThread bool) InvestigateParams {
+	if inThread {
+		p.ObservationID = row.SubjectObservationID
+		return p
+	}
+	p.ThreadMessageID, p.ThreadContext, p.Ask, p.Point = pgtype.UUID{}, "", false, Point{}
+	p.Private, p.chat = true, chatChoice{mode: newChat}
+	return p
+}
+
+func pointAgain(row dbsqlc.AgentRequest, by auth.Principal) Point {
+	if AskedPrivately(row) && !sameActor(requesterOf(row), by) {
+		return Point{}
+	}
+	return Point{Anchor: row.Anchor, BlockID: row.BlockID}
+}
+
+func investigatedObservation(row dbsqlc.AgentRequest) pgtype.UUID {
+	if AskedPrivately(row) || !row.ObservationID.Valid {
+		return row.SubjectObservationID
+	}
+	return row.ObservationID
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {

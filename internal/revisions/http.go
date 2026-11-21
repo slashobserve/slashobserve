@@ -48,6 +48,7 @@ type revisionJSON struct {
 	ID             string     `json:"id"`
 	DashboardID    string     `json:"dashboard_id"`
 	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	CommentID      *string    `json:"comment_id"`
 	PanelID        *string    `json:"panel_id"`
 	Prompt         string     `json:"prompt"`
@@ -73,6 +74,7 @@ type revisionJSON struct {
 	ContinuedBy  *string            `json:"continued_by"`
 	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
+	Redacted     bool               `json:"redacted"`
 }
 
 type envelopeJSON struct {
@@ -249,6 +251,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
+		mayStart = mayStart && rev.audience.viewFor(caller) == viewFull
 		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart, mayEdit)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 	}
@@ -278,6 +281,8 @@ func failureReplyFor(err error) (Reply, bool) {
 	switch {
 	case slices.ContainsFunc(missingForFail, func(target error) bool { return errors.Is(err, target) }):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
+	case errors.Is(err, folders.ErrProvisioned):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeProvisioned, Message: err.Error()}, true
 	case errors.Is(err, ErrChatReadOnly):
 		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: err.Error()}, true
 	case errors.Is(err, ErrForbidden):
@@ -329,6 +334,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ID:             r.ID,
 		DashboardID:    r.DashboardID,
 		Intent:         r.Intent,
+		Investigation:  r.Investigation,
 		CommentID:      httpapi.OptionalString(r.CommentID),
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,
@@ -354,6 +360,10 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
+	}
+	if r.audience.viewFor(caller) != viewFull {
+		out.Redacted = true
+		out.Prompt, out.ContinueNote = "", nil
 	}
 	return out
 }

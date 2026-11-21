@@ -106,6 +106,7 @@ type AgentRequest struct {
 	Kind                 string
 	AppliesFindingID     pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	Investigation        bool
 	ReadRestricted       bool
 }
 
@@ -285,22 +286,24 @@ type DashboardHealth struct {
 }
 
 type DashboardHealthStatus struct {
-	ID             pgtype.UUID
-	Title          string
-	CreatedAt      pgtype.Timestamptz
-	FolderID       pgtype.UUID
-	FolderTitle    string
-	FolderGeneral  bool
-	FolderPersonal bool
-	CheckedVersion pgtype.Int4
-	CheckedAt      pgtype.Timestamptz
-	Skipped        string
-	Issues         []byte
-	QueryFailed    bool
-	NoData         bool
-	VariableFailed bool
-	LastViewedAt   pgtype.Timestamptz
-	DuplicateTitle bool
+	ID               pgtype.UUID
+	Title            string
+	CreatedAt        pgtype.Timestamptz
+	FolderID         pgtype.UUID
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderPersonal   bool
+	CheckedVersion   pgtype.Int4
+	CheckedAt        pgtype.Timestamptz
+	Skipped          string
+	Issues           []byte
+	QueryFailed      bool
+	NoData           bool
+	VariableFailed   bool
+	LastViewedAt     pgtype.Timestamptz
+	DuplicateTitle   bool
+	Outdated         interface{}
+	OldCheckProblems bool
 }
 
 type DashboardStar struct {

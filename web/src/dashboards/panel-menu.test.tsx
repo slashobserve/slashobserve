@@ -60,7 +60,8 @@ const dashboardRange = { from: "now-24h", to: "now" }
 function renderMenu(
   canComment = true,
   downloadsReady?: boolean,
-  shown: LayoutPanel = panel
+  shown: LayoutPanel = panel,
+  canPropose = false
 ) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
@@ -75,6 +76,7 @@ function renderMenu(
         viewing={false}
         canComment={canComment}
         canEdit={false}
+        canPropose={canPropose}
         canInvestigate={false}
         composerRef={composer}
         onDownloadCsv={() => {}}
@@ -124,6 +126,25 @@ afterEach(() => {
 })
 
 describe("PanelMenu", () => {
+  it.each([
+    [true, true],
+    [false, false],
+  ])(
+    "with canPropose %s, Suggest an edit is shown: %s",
+    async (canPropose, shown) => {
+      const { user } = renderMenu(true, undefined, panel, canPropose)
+      await user.click(
+        await screen.findByRole("button", {
+          name: "Panel menu: Checkout latency",
+        })
+      )
+      await screen.findByRole("menuitem", { name: "Comment" })
+      expect(
+        screen.queryByRole("menuitem", { name: "Suggest an edit" }) !== null
+      ).toBe(shown)
+    }
+  )
+
   it("puts the cursor in the comment box once the menu has closed after Comment", async () => {
     const { user } = renderMenu()
     await chooseComment(user)

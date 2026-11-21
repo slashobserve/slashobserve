@@ -18,6 +18,8 @@ var (
 	ErrNoAccess  = errors.New("no access")
 	ErrForbidden = errors.New("forbidden")
 
+	ErrProvisioned = errors.New("this dashboard is a starter the server keeps current with each release, so it cannot be changed; duplicate it to change a copy")
+
 	ErrMoveIntoPersonal = errors.New("a dashboard cannot move into My Dashboards; duplicate it there instead")
 )
 
@@ -92,6 +94,19 @@ type DashboardAccess struct {
 	DashboardID pgtype.UUID
 	Folder      Folder
 	Abilities   Abilities
+	Provisioned bool
+}
+
+func (a DashboardAccess) Shown() Abilities {
+	shown := a.Abilities
+	if a.Provisioned {
+		shown.Edit = false
+	}
+	return shown
+}
+
+func (a DashboardAccess) Refuses(n Need) bool {
+	return a.Provisioned && n == NeedContent
 }
 
 type Access struct {
@@ -153,7 +168,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 }
 
 func (a *Access) Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (DashboardAccess, error) {
-	folderID, err := a.db.Queries().DashboardFolder(ctx, id)
+	placement, err := a.db.Queries().DashboardPlacement(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return DashboardAccess{}, ErrNotFound
 	}
@@ -164,11 +179,11 @@ func (a *Access) Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID
 	if err != nil {
 		return DashboardAccess{}, err
 	}
-	e, ok := levels.find(folderID)
+	e, ok := levels.find(placement.FolderID)
 	if !ok {
 		return DashboardAccess{}, ErrNoAccess
 	}
-	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities}, nil
+	return DashboardAccess{DashboardID: id, Folder: e.Folder, Abilities: e.Abilities, Provisioned: placement.Provisioned}, nil
 }
 
 func (a *Access) Folder(ctx context.Context, p auth.Principal, id pgtype.UUID) (Folder, Abilities, error) {

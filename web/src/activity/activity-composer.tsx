@@ -228,7 +228,10 @@ export function ActivityComposer({
   )
   const cannotSubmit = trimmed === "" || over || waitingForPanels
   const cannotSend = cannotSubmit || sendBlock !== null
-  const startsInvestigation = investigating && gate.kind === "allowed"
+  const startsInvestigation =
+    investigating &&
+    (gate.kind === "allowed" ||
+      (gate.kind === "blocked" && gate.provisioned === true))
 
   function announce(text: string) {
     setNote((current) => ({ text, count: current.count + 1 }))

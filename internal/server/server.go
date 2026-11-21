@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strings"
 	"syscall"
 	"time"
@@ -60,6 +61,7 @@ type Options struct {
 	Redirects       Redirects
 	Metrics         RequestMetrics
 	Audit           *audit.Recorder
+	TrustedProxies  []netip.Prefix
 
 	ContractCheck bool
 }
@@ -67,7 +69,9 @@ type Options struct {
 func New(opts Options) (http.Handler, error) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
-	engine.ForwardedByClientIP = false
+	if err := trustProxies(engine, opts.TrustedProxies); err != nil {
+		return nil, err
+	}
 	if opts.Metrics != nil {
 		engine.Use(observeRequests(opts.Metrics))
 	}

@@ -133,6 +133,7 @@ func (s *Service) recordWithdraws(ctx context.Context, q *dbsqlc.Queries, by aut
 			Target: target,
 			Thread: uuid.NullUUID{UUID: thread.ID.Bytes, Valid: true},
 			Chat:   uuid.NullUUID{UUID: run.ChatID.Bytes, Valid: run.ChatID.Valid},
+			Data:   map[string]any{"finding_id": run.FindingID.String()},
 			By:     cols.AuditBy(),
 		})
 		if err != nil {

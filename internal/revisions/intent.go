@@ -23,6 +23,7 @@ type RunShape struct {
 	DashboardID     pgtype.UUID
 	ObservationID   pgtype.UUID
 	SubjectID       pgtype.UUID
+	Investigation   bool
 }
 
 func (r RunShape) Source() Source {
@@ -51,6 +52,7 @@ func shapeOfRow(row dbsqlc.AgentRequest) RunShape {
 		DashboardID:     row.DashboardID,
 		ObservationID:   row.ObservationID,
 		SubjectID:       row.SubjectObservationID,
+		Investigation:   row.Investigation,
 	}
 }
 
@@ -72,11 +74,20 @@ func listedShape(row dbsqlc.ListAgentRequestsByRow) RunShape {
 		DashboardID:     row.DashboardID,
 		ObservationID:   row.ObservationID,
 		SubjectID:       row.SubjectObservationID,
+		Investigation:   row.Investigation,
 	}
 }
 
 func PrivateAsk(row dbsqlc.AgentRequest) bool {
-	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid && !row.ObservationID.Valid
+	return chatAsk(row) && !row.ObservationID.Valid
+}
+
+func AskedPrivately(row dbsqlc.AgentRequest) bool {
+	return chatAsk(row) && !row.Investigation
+}
+
+func chatAsk(row dbsqlc.AgentRequest) bool {
+	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid
 }
 
 func InvestigatesWithoutObservation(row dbsqlc.AgentRequest) bool {

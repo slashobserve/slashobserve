@@ -200,6 +200,11 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+	view := viewOf(row, caller)
+	if view == viewNone {
+		return agentRequestJSON{}, ErrRequestNotFound
+	}
+	readOnly = readOnly || view == viewRedacted
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -218,14 +223,11 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	}
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
 	out.ReadOnly = readOnly
-	if out.ObservationID != nil && r.opts.ObservationVisible != nil {
-		visible, err := r.opts.ObservationVisible(ctx, caller, row.ObservationID)
-		if err != nil {
-			return agentRequestJSON{}, fmt.Errorf("check the observation a run made: %w", err)
-		}
-		if !visible {
-			out.ObservationID = nil
-		}
+	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, row.ObservationID); err != nil {
+		return agentRequestJSON{}, err
+	}
+	if out.SubjectID, err = r.shownObservation(ctx, caller, out.SubjectID, row.SubjectObservationID); err != nil {
+		return agentRequestJSON{}, err
 	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
@@ -285,22 +287,37 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 	return nil
 }
 
+func (r *RunDesk) shownObservation(ctx context.Context, caller auth.Principal, shown *string, id pgtype.UUID) (*string, error) {
+	if shown == nil || r.opts.ObservationVisible == nil {
+		return shown, nil
+	}
+	visible, err := r.opts.ObservationVisible(ctx, caller, id)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("check the observation a run names: %w", err)
+	case !visible:
+		return nil, nil
+	}
+	return shown, nil
+}
+
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
 	out := agentRequestJSON{
-		ID:          row.ID.String(),
-		Kind:        Kind(SourceOf(row)),
-		Intent:      Intent(row.Intent),
-		Trigger:     row.Trigger,
-		Title:       titleShownTo(row, caller),
-		Prompt:      row.Prompt,
-		Status:      Status(row.Status),
-		State:       State(row.State),
-		ResultKind:  ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempt:     int(row.Attempts),
-		Attempts:    int(row.Attempts),
-		Error:       httpapi.OptionalString(row.Error.String),
-		FailureCode: httpapi.OptionalString(row.FailureCode.String),
-		Steps:       []Step{},
+		ID:            row.ID.String(),
+		Kind:          Kind(SourceOf(row)),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Trigger:       row.Trigger,
+		Title:         titleShownTo(row, caller),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempt:       int(row.Attempts),
+		Attempts:      int(row.Attempts),
+		Error:         httpapi.OptionalString(row.Error.String),
+		FailureCode:   httpapi.OptionalString(row.FailureCode.String),
+		Steps:         []Step{},
 		RequestedBy: authorJSON{
 			Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String,
 		},
@@ -327,6 +344,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
+		SubjectID:     optionalUUID(row.SubjectObservationID),
 		ChatID:        chatShownTo(row, caller),
 	}
 	if row.CanceledByKind.Valid {
@@ -363,11 +381,66 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	}
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
+	if viewOf(row, caller) == viewRedacted {
+		out.redact()
+	}
 	return out
 }
 
+func (out *agentRequestJSON) redact() {
+	out.Redacted = true
+	out.Title, out.Prompt, out.LiveText, out.ContinueNote, out.SubjectID = "", "", nil, nil, nil
+	for i := range out.Steps {
+		out.Steps[i].Message = ""
+	}
+}
+
+type runView int
+
+const (
+	viewNone runView = iota
+	viewRedacted
+	viewFull
+)
+
+type runAudience struct {
+	requester     auth.Principal
+	chat          bool
+	privateAsk    bool
+	shared        bool
+	investigation bool
+}
+
+func audienceOf(row dbsqlc.AgentRequest) runAudience {
+	return runAudience{
+		requester:     requesterOf(row),
+		chat:          row.ChatID.Valid,
+		privateAsk:    PrivateAsk(row),
+		shared:        row.ThreadMessageID.Valid,
+		investigation: row.Investigation,
+	}
+}
+
+func viewOf(row dbsqlc.AgentRequest, caller auth.Principal) runView {
+	return audienceOf(row).viewFor(caller)
+}
+
+func (a runAudience) readsTheChat(caller auth.Principal) bool {
+	return sameActor(a.requester, caller) || caller.Role.AtLeast(auth.RoleAdmin)
+}
+
+func (a runAudience) viewFor(caller auth.Principal) runView {
+	switch {
+	case a.readsTheChat(caller), !a.chat, a.investigation, a.shared:
+		return viewFull
+	case a.privateAsk:
+		return viewNone
+	}
+	return viewRedacted
+}
+
 func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
-	return sameActor(requesterOf(row), caller) || caller.Role.AtLeast(auth.RoleAdmin)
+	return audienceOf(row).readsTheChat(caller)
 }
 
 func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
@@ -398,26 +471,27 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 
 func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
-		ID:           row.ID.String(),
-		Kind:         Kind(listedSource(row)),
-		Intent:       Intent(row.Intent),
-		Trigger:      row.Trigger,
-		Title:        requestTitle(row.Title, row.Prompt),
-		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		PanelID:      optionalText(row.PanelID),
-		BaseVersion:  optionalInt(row.BaseVersion),
-		CommentID:    optionalUUID(row.CommentID),
-		Error:        httpapi.OptionalString(row.Error.String),
-		Origin:       httpapi.OptionalString(row.Origin.String),
-		OriginClient: httpapi.OptionalString(row.OriginClient.String),
-		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
-		RequestedBy:  authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
+		ID:            row.ID.String(),
+		Kind:          Kind(listedSource(row)),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Trigger:       row.Trigger,
+		Title:         requestTitle(row.Title, row.Prompt),
+		PinnedAt:      formatOptionalTime(optionalTime(row.PinnedAt)),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		PanelID:       optionalText(row.PanelID),
+		BaseVersion:   optionalInt(row.BaseVersion),
+		CommentID:     optionalUUID(row.CommentID),
+		Error:         httpapi.OptionalString(row.Error.String),
+		Origin:        httpapi.OptionalString(row.Origin.String),
+		OriginClient:  httpapi.OptionalString(row.OriginClient.String),
+		CreatedAt:     httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:     formatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:    formatOptionalTime(optionalTime(row.FinishedAt)),
+		RequestedBy:   authorJSON{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName},
 
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,

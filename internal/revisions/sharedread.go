@@ -23,7 +23,7 @@ func (s *Service) sharedWith(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if err != nil {
 		return dbsqlc.AgentRequest{}, false, err
 	}
-	if !PrivateAsk(row) || hidesRun(row, by) || !row.ThreadMessageID.Valid || s.threadReads(ctx, by, row.ThreadMessageID) != nil {
+	if !AskedPrivately(row) || hidesRun(row, by) || !row.ThreadMessageID.Valid || s.threadReads(ctx, by, row.ThreadMessageID) != nil {
 		return dbsqlc.AgentRequest{}, false, nil
 	}
 	return row, true, nil

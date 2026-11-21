@@ -71,8 +71,9 @@ RETURNING *;
 UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL WHERE id = @id AND thread_message_id IS NULL;
 
 -- name: LockSharedRunsInThread :many
-SELECT r.id, r.chat_id, r.thread_message_id FROM agent_requests r
+SELECT r.id, r.chat_id, r.thread_message_id, f.id AS finding_id FROM agent_requests r
 JOIN thread_messages m ON m.id = r.thread_message_id
+LEFT JOIN findings f ON f.agent_request_id = r.id
 WHERE m.thread_id = @thread_id AND r.chat_id IS NOT NULL
   AND r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id
 ORDER BY r.id

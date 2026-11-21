@@ -66,6 +66,7 @@ type Dashboard struct {
 	Creator       Creator
 	Folder        folders.Folder
 	Abilities     folders.Abilities
+	Provisioned   bool
 }
 
 type VersionMeta struct {
@@ -103,6 +104,7 @@ type newVersion struct {
 	unverified     Unverified
 	folder         folders.Folder
 	mergedProposal pgtype.UUID
+	before         func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
 }
 
 type store struct {
@@ -132,46 +134,10 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		authorID, err := db.ParseUUID(in.author.ID)
-		if err != nil {
-			return fmt.Errorf("author id: %w", err)
-		}
-		if err := st.place(ctx, q, in.folder.ID, in); err != nil {
+		var err error
+		if dash, ver, err = st.createIn(ctx, q, in); err != nil {
 			return err
 		}
-		copied, err := placement.Copy(ctx, q, in.copyOf, in.folder.ID)
-		if err != nil {
-			return err
-		}
-		originKind, originClient := in.origin.Columns()
-		via := viaDirect
-		if in.requestID.Valid {
-			via = viaAgent
-		}
-		row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
-			Title:                  in.spec.Title,
-			Tags:                   tagsOf(in.spec),
-			CreatedByKind:          in.author.Kind,
-			CreatedByID:            authorID,
-			CreatedByName:          in.author.Name,
-			CreatedByEmail:         pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
-			CreatedOrigin:          originKind,
-			CreatedOriginClient:    originClient,
-			CreatedVia:             via,
-			CreatedRunID:           in.contentRun(),
-			FolderID:               in.folder.ID,
-			CopiedRestrictedAnswer: copied,
-		})
-		if err != nil {
-			return fmt.Errorf("create dashboard: %w", err)
-		}
-		in.dashboardID = row.ID
-		meta, err := insertVersion(ctx, q, in, 1)
-		if err != nil {
-			return err
-		}
-		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
-		dash.Folder = in.folder
 		if inTx == nil {
 			return nil
 		}
@@ -187,6 +153,50 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 	return dash, ver, err
 }
 
+func (st store) createIn(ctx context.Context, q *dbsqlc.Queries, in newVersion) (Dashboard, Version, error) {
+	authorID, err := db.ParseUUID(in.author.ID)
+	if err != nil {
+		return Dashboard{}, Version{}, fmt.Errorf("author id: %w", err)
+	}
+	if err := st.place(ctx, q, in.folder.ID, in); err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	copied, err := placement.Copy(ctx, q, in.copyOf, in.folder.ID)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	originKind, originClient := in.origin.Columns()
+	via := viaDirect
+	if in.requestID.Valid {
+		via = viaAgent
+	}
+	row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
+		Title:                  in.spec.Title,
+		Tags:                   tagsOf(in.spec),
+		CreatedByKind:          in.author.Kind,
+		CreatedByID:            authorID,
+		CreatedByName:          in.author.Name,
+		CreatedByEmail:         pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		CreatedOrigin:          originKind,
+		CreatedOriginClient:    originClient,
+		CreatedVia:             via,
+		CreatedRunID:           in.contentRun(),
+		FolderID:               in.folder.ID,
+		CopiedRestrictedAnswer: copied,
+	})
+	if err != nil {
+		return Dashboard{}, Version{}, fmt.Errorf("create dashboard: %w", err)
+	}
+	in.dashboardID = row.ID
+	meta, err := insertVersion(ctx, q, in, 1)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	dash, ver := dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
+	dash.Folder = in.folder
+	return dash, ver, nil
+}
+
 func isFolderGone(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == dashboardFolderFK
@@ -194,37 +204,41 @@ func isFolderGone(err error) bool {
 
 func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
 	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := st.guard.MoveDashboard(ctx, q, id, to); err != nil {
-			return err
-		}
-		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			if _, err := q.DashboardFolder(ctx, id); errors.Is(err, pgx.ErrNoRows) {
-				return ErrNotFound
-			} else if err != nil {
-				return fmt.Errorf("read dashboard folder: %w", err)
-			}
-			return errFolderMoved
-		case isFolderGone(err):
-			return ErrFolderNotFound
-		case err != nil:
-			return fmt.Errorf("move dashboard: %w", err)
-		}
-		if err := activity.Move(ctx, q, activity.OnDashboard(id), to); err != nil {
-			return err
-		}
-		entry := activity.Entry{
-			Type:     activity.TypeDashboardMoved,
-			TargetID: id,
-			Owner:    activity.OnDashboard(id),
-			Actor:    by,
-			Data:     movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
-		}
-		ev := movedEvent(id, Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name})
-		_, err = activity.Append(ctx, q, entry, &ev)
-		return err
+		return st.moveIn(ctx, q, id, from, to, by)
 	})
+}
+
+func (st store) moveIn(ctx context.Context, q *dbsqlc.Queries, id, from, to pgtype.UUID, by actor.Actor) error {
+	if err := st.guard.MoveDashboard(ctx, q, id, to); err != nil {
+		return err
+	}
+	moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		if _, err := q.DashboardFolder(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("read dashboard folder: %w", err)
+		}
+		return errFolderMoved
+	case isFolderGone(err):
+		return ErrFolderNotFound
+	case err != nil:
+		return fmt.Errorf("move dashboard: %w", err)
+	}
+	if err := activity.Move(ctx, q, activity.OnDashboard(id), to); err != nil {
+		return err
+	}
+	entry := activity.Entry{
+		Type:     activity.TypeDashboardMoved,
+		TargetID: id,
+		Owner:    activity.OnDashboard(id),
+		Actor:    by,
+		Data:     movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
+	}
+	ev := movedEvent(id, Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name})
+	_, err = activity.Append(ctx, q, entry, &ev)
+	return err
 }
 
 type movedActivityFields struct {
@@ -295,6 +309,13 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		stayedPut := false
+		if in.before != nil {
+			var err error
+			if stayedPut, err = in.before(ctx, q); err != nil {
+				return err
+			}
+		}
 		row, err := q.BumpDashboardVersion(ctx, dbsqlc.BumpDashboardVersionParams{
 			ID:              in.dashboardID,
 			Title:           in.spec.Title,
@@ -307,7 +328,12 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 		if err != nil {
 			return fmt.Errorf("bump dashboard version: %w", err)
 		}
-		if err := st.place(ctx, q, row.FolderID, in); err != nil {
+		if !stayedPut {
+			if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+				return err
+			}
+		}
+		if err := placement.Answer(ctx, q, in.contentRun(), row.FolderID); err != nil {
 			return err
 		}
 		meta, err := insertVersion(ctx, q, in, int(row.LatestVersion))
@@ -653,6 +679,26 @@ func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 		})
 	}
 	return items
+}
+
+func (st store) provisionedAmong(ctx context.Context, ids []string) (map[string]bool, error) {
+	parsed := make([]pgtype.UUID, 0, len(ids))
+	for _, id := range ids {
+		uuid, err := db.ParseUUID(id)
+		if err != nil {
+			return nil, fmt.Errorf("parse dashboard id %q: %w", id, err)
+		}
+		parsed = append(parsed, uuid)
+	}
+	refs, err := st.db.Queries().ProvisionedAmong(ctx, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("find provisioned dashboards: %w", err)
+	}
+	found := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		found[ref.String()] = true
+	}
+	return found, nil
 }
 
 func folderOf(id pgtype.UUID, title string, general, personal bool) folders.Folder {

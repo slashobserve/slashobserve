@@ -39,7 +39,16 @@ For every file, the server hashes its content and compares it with the content i
   An edit someone made in the app since then is replaced by the file's content, and stays in the version history.
 
 Versions are authored by `Provisioning` and their origin is `api`.
-Provisioned dashboards are ordinary dashboards: people can edit, move and comment on them, and the next change to the file adds a version again.
+Dashboards provisioned from files are ordinary dashboards: people can edit, move and comment on them, and the next change to the file adds a version again.
+
+The starter dashboards in the Audit folder are the exception.
+The server provisions them itself, so they are read-only and a change is refused with 409 `provisioned`.
+At every start it adds one version to each starter whose shipped content differs from what is stored, and leaves an unchanged one alone; several servers starting together add it once.
+Each such change is recorded as `provision.apply`, and the threads, pins and view counts of the starter stay.
+A starter that someone edited before this behavior existed is kept as a separate dashboard named `<title> (your copy)`, and the starter takes the shipped content.
+The copy and the new version are saved together, so a failed update leaves no copy and the next start tries again.
+A starter that is deleted comes back at the next start; an Admin who wants a changed one duplicates it, and the copy is ordinary.
+A starter does not list a panel that returned no data as unverified, because the audit starters can be empty on a fresh install; its copy lists it like any dashboard.
 
 A save checks the file the way every save is checked: the Spec must be valid and every panel and variable query must run.
 Unlike a Grafana import, a provisioned file is never saved with failing queries.

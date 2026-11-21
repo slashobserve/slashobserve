@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const runReadRestrictedVersion = 87
+const runReadRestrictedVersion = 88
 
 func TestRunReadRestrictedMigrationMarksRunsThatQueriedADatasourceOnlyAdminsQuery(t *testing.T) {
 	ctx := context.Background()

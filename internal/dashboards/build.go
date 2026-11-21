@@ -249,6 +249,9 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 		if err != nil {
 			return Commit{}, err
 		}
+		if access.Provisioned {
+			return Commit{}, folders.ErrProvisioned
+		}
 		if mustPropose(ctx, access.Abilities) && access.Abilities.Comment && s.proposer != nil {
 			return s.proposeBuild(ctx, by, build, access, deleteBuild)
 		}
@@ -459,7 +462,7 @@ func (s *Service) commitCreate(ctx context.Context, by auth.Principal, folder pg
 }
 
 func (s *Service) commitRevision(ctx context.Context, by auth.Principal, build Build, in newVersion, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
-	access, err := s.need(ctx, by, build.DashboardID, folders.NeedEdit)
+	access, err := s.need(ctx, by, build.DashboardID, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
