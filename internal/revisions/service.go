@@ -77,6 +77,8 @@ type EnqueueParams struct {
 	ThreadContext   string
 	Point           Point
 
+	AppliesFindingID pgtype.UUID
+
 	chat     chatChoice
 	clientID pgtype.UUID
 }
@@ -167,7 +169,11 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
+		AppliesFindingID: p.AppliesFindingID,
 	})
+	if db.ViolatedUnique(err) == appliesFindingIndex {
+		return dbsqlc.AgentRequest{}, ErrFindingApplied
+	}
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
@@ -439,7 +445,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !p.Private {
+	if p.opensObservation() {
 		if row, err = s.openObservation(ctx, q, row, p); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
@@ -511,6 +517,10 @@ func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigatePara
 		return fmt.Errorf("lock the anchored block: %w", err)
 	}
 	return nil
+}
+
+func (p InvestigateParams) opensObservation() bool {
+	return !p.Private && (p.ObservationID.Valid || !p.ThreadMessageID.Valid)
 }
 
 func (p InvestigateParams) subject() pgtype.UUID {

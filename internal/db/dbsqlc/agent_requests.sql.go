@@ -561,7 +561,7 @@ INSERT INTO agent_requests (
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
   assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
-  chat_id, anchor, block_id, client_id
+  chat_id, anchor, block_id, client_id, applies_finding_id
 ) VALUES (
   coalesce($1::uuid, gen_random_uuid()), $2, $3, 'build', $4, $5, $6, $7::integer,
   $8, $9, $10, $11,
@@ -569,7 +569,8 @@ INSERT INTO agent_requests (
   $14::uuid, $15::text, $16::uuid,
   coalesce($17::text, 'builtin'), $18::uuid, coalesce($19::text, 'person'),
   $20::uuid, $21::text, $22::text,
-  $23::uuid, $24::jsonb, $25::uuid, $26::uuid
+  $23::uuid, $24::jsonb, $25::uuid, $26::uuid,
+  $27::uuid
 )
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id
@@ -602,6 +603,7 @@ type EnqueueAgentRequestParams struct {
 	Anchor           []byte
 	BlockID          pgtype.UUID
 	ClientID         pgtype.UUID
+	AppliesFindingID pgtype.UUID
 }
 
 func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentRequestParams) (AgentRequest, error) {
@@ -632,6 +634,7 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		arg.Anchor,
 		arg.BlockID,
 		arg.ClientID,
+		arg.AppliesFindingID,
 	)
 	var i AgentRequest
 	err := row.Scan(
@@ -1622,6 +1625,77 @@ func (q *Queries) GetAssigneeName(ctx context.Context, arg GetAssigneeNameParams
 	var name string
 	err := row.Scan(&name)
 	return name, err
+}
+
+const getRunApplyingFinding = `-- name: GetRunApplyingFinding :one
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id FROM agent_requests
+WHERE applies_finding_id = $1 AND status IN ('queued', 'running', 'succeeded')
+`
+
+func (q *Queries) GetRunApplyingFinding(ctx context.Context, findingID pgtype.UUID) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, getRunApplyingFinding, findingID)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+		&i.FailureCode,
+		&i.BuildSavedAt,
+		&i.CancelRequestedAt,
+		&i.CanceledByKind,
+		&i.CanceledByID,
+		&i.CanceledByName,
+		&i.ContinuesID,
+		&i.ContinueNote,
+		&i.ContextFrom,
+		&i.ContextTo,
+		&i.Title,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.Trigger,
+		&i.State,
+		&i.ResultKind,
+		&i.AssignedKind,
+		&i.AssignedID,
+		&i.ClaimedBy,
+		&i.ObservationID,
+		&i.ThreadMessageID,
+		&i.ThreadContext,
+		&i.ChatID,
+		&i.RetriesID,
+		&i.TimeZone,
+		&i.ThreadRepliedAt,
+		&i.Anchor,
+		&i.BlockID,
+		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+	)
+	return i, err
 }
 
 const getSuggestRequest = `-- name: GetSuggestRequest :one

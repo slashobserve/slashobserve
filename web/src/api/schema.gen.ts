@@ -1500,6 +1500,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/threads/{thread_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the agent to make the change an answer in this thread suggests.
+         * @description An answer to a question about a dashboard may carry `suggested_change`, one sentence on a change that would help; the question's run never changes the dashboard itself. This posts the message "Revise the dashboard: <suggested change>" in the thread as the caller and starts a run that revises the dashboard, with the suggested change as its prompt and the thread's earlier messages as context, so the thread shows who asked for the change. The run is the caller's and goes to the agent that wrote the answer; it saves a new version when the caller can edit the dashboard, and opens a proposal for someone who can edit to merge when the caller can only comment. `finding_id` must be the answer of a run asked in this thread, on a dashboard; any other id answers 404, and an answer with no suggested change answers 422 `no_suggested_change`. A second call for the same answer while its run is queued or running, or after it succeeded, posts nothing and returns the first message and run with `replayed` true; after that run failed or was canceled, a call starts a new one. The run counts against the dashboard's limit of 5 waiting or running revisions (429 `too_many_revisions`), needs the model provider for the built-in agent (503 `agent_unavailable`), and refuses with 409 `assignee_unavailable` when the connected agent that answered is not the caller's live agent or the service account no longer takes runs. It is recorded as `finding.apply` and the message as a `thread.replied` activity event. Needs Comment on the dashboard.
+         */
+        post: operations["applySuggestedChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{message_id}": {
         parameters: {
             query?: never;
@@ -12295,6 +12318,90 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    applySuggestedChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread's id, or the id of any of its messages. */
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The answer whose suggested change to apply, the `id` of the run's finding.
+                     */
+                    finding_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The answer's change is already being applied or was applied; the first message and its run are returned with `replayed` true. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSent"];
+                };
+            };
+            /** @description The thread, the new message and its run in `message.run`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The thread is not on a dashboard (`invalid_thread`), or the answer suggests no change (`no_suggested_change`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard already has its limit of waiting or running revisions (`too_many_revisions`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The built-in agent answered and the server has no model provider (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     deleteMessage: {

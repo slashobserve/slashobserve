@@ -280,6 +280,8 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				ThreadMessageID: threadMessage,
 				ThreadContext:   threadContext,
 
+				AppliesFindingID: row.AppliesFindingID,
+
 				chat: againChat(row, by),
 			})
 		} else {
@@ -408,6 +410,8 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			RetriesID:       retries,
+
+			AppliesFindingID: row.AppliesFindingID,
 
 			chat: againChat(row, by),
 		}, nil)
