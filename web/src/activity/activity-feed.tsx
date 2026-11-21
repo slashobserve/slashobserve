@@ -18,6 +18,7 @@ import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
 import { RequestCommentAccess } from "@/access/request-comment-access"
 import { RoleNote } from "@/components/role-note"
+import { ScrollPane } from "@/components/scroll-pane"
 import {
   Select,
   SelectContent,
@@ -430,7 +431,7 @@ export function ActivityFeed({
           </SelectContent>
         </Select>
       </TimelineFilters>
-      <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
+      <ScrollPane ref={stickRef} className="flex-1">
         <TimelineList
           entries={entries}
           loading={comments.isPending}
@@ -445,7 +446,7 @@ export function ActivityFeed({
           }}
           renderEntry={renderEntry}
         />
-      </div>
+      </ScrollPane>
       {mode === "read-only" ? (
         <div className="flex flex-col gap-2 border-t px-4 py-3">
           <RoleNote>{note}</RoleNote>

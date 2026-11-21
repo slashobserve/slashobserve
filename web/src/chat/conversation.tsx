@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
@@ -342,9 +343,9 @@ function ConversationView({
       )}
     >
       {pane ? (
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+        <ScrollPane className="flex w-full flex-1 flex-col">
           {transcript}
-        </div>
+        </ScrollPane>
       ) : (
         transcript
       )}
