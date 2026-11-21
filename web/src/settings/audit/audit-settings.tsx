@@ -194,7 +194,9 @@ export function AuditSettings({
       ? rejectionOf(rejection.error, rejection.q)
       : problem
 
-  function run(q: string) {
+  function run(raw: string) {
+    const q = raw.trimEnd()
+    setDraft({ applied: applied.q, text: q })
     search({ ...shownView, q, event: null })
   }
 

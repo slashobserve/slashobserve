@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete"
 import { Compartment, EditorState, Prec } from "@codemirror/state"
-import { EditorView } from "@codemirror/view"
+import { EditorView, keymap } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
 
@@ -27,6 +27,7 @@ type Props = {
   autoFocus?: boolean
   onFocus?: () => void
   completionNames?: readonly string[]
+  onSubmit?: () => void
 }
 
 const appearance = Prec.highest(
@@ -60,6 +61,7 @@ export function CodeEditor({
   autoFocus = false,
   onFocus,
   completionNames,
+  onSubmit,
 }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -75,6 +77,7 @@ export function CodeEditor({
     readOnly,
     ariaLabel,
     onFocus,
+    onSubmit,
   })
   useEffect(() => {
     latest.current = {
@@ -84,6 +87,7 @@ export function CodeEditor({
       readOnly,
       ariaLabel,
       onFocus,
+      onSubmit,
     }
   })
 
@@ -103,6 +107,19 @@ export function CodeEditor({
                 ),
                 lintLines(),
               ],
+          Prec.high(
+            keymap.of([
+              {
+                key: "Enter",
+                run: () => {
+                  const submit = latest.current.onSubmit
+                  if (submit === undefined) return false
+                  submit()
+                  return true
+                },
+              },
+            ])
+          ),
           appearance,
           access.current.of(accessMode(current.readOnly)),
           label.current.of(labelAttributes(current.ariaLabel)),

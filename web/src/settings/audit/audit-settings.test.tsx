@@ -237,6 +237,17 @@ describe("AuditSettings", () => {
     expect(listRequests()).toHaveLength(2)
   })
 
+  it("never sends or writes a trailing newline of the query", async () => {
+    serve()
+    const { onView, user } = renderPage({ q: "origin:mcp\n" })
+    await screen.findByText("No audit events match these filters.")
+    await user.click(screen.getByRole("button", { name: /^Search/ }))
+    await waitFor(() =>
+      expect(onView).toHaveBeenCalledWith({ ...defaults, q: "origin:mcp" })
+    )
+    expect(listRequests().at(-1)?.searchParams.get("q")).toBe("origin:mcp")
+  })
+
   it("keeps the last good results and the address when the server rejects a query", async () => {
     serve({
       events: (url) =>
