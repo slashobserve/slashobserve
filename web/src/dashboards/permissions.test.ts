@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   composerMode,
+  contentChange,
+  mayEditBesidesContent,
   mayInvestigate,
   readerNote,
   type DashboardPermissions,
@@ -67,10 +69,44 @@ describe("readerNote", () => {
 describe("mayInvestigate", () => {
   it("needs Edit on the dashboard and the Editor role", () => {
     const edit = permissions({ comment: true, edit: true })
-    expect(mayInvestigate(edit, "editor")).toBe(true)
-    expect(mayInvestigate(edit, "admin")).toBe(true)
-    expect(mayInvestigate(edit, "viewer")).toBe(false)
-    expect(mayInvestigate(edit, "commenter")).toBe(false)
-    expect(mayInvestigate(permissions({ comment: true }), "editor")).toBe(false)
+    expect(mayInvestigate(edit, "editor", false)).toBe(true)
+    expect(mayInvestigate(edit, "admin", false)).toBe(true)
+    expect(mayInvestigate(edit, "viewer", false)).toBe(false)
+    expect(mayInvestigate(edit, "commenter", false)).toBe(false)
+    expect(
+      mayInvestigate(permissions({ comment: true }), "editor", false)
+    ).toBe(false)
+  })
+})
+
+describe("mayInvestigate on a starter dashboard", () => {
+  it("needs only the Editor role, not Edit, which a starter never shows", () => {
+    const starter = permissions({ comment: true })
+    expect(mayInvestigate(starter, "editor", true)).toBe(true)
+    expect(mayInvestigate(starter, "admin", true)).toBe(true)
+    expect(mayInvestigate(starter, "commenter", true)).toBe(false)
+    expect(mayInvestigate(starter, "editor", false)).toBe(false)
+  })
+})
+
+describe("contentChange", () => {
+  it.each([
+    [{ edit: true, comment: true }, false, "edit"],
+    [{ comment: true }, false, "propose"],
+    [{}, false, "none"],
+    [{ edit: true, comment: true }, true, "none"],
+    [{ comment: true }, true, "none"],
+  ] as const)("maps %j, provisioned %s, to %s", (flags, provisioned, want) => {
+    expect(contentChange(permissions(flags), provisioned)).toBe(want)
+  })
+})
+
+describe("mayEditBesidesContent", () => {
+  it("stays true on a starter, where deleting, annotating and asking still work", () => {
+    expect(mayEditBesidesContent(permissions({ edit: true }), false)).toBe(true)
+    expect(mayEditBesidesContent(permissions({}), true)).toBe(true)
+    expect(mayEditBesidesContent(permissions({ comment: true }), false)).toBe(
+      false
+    )
   })
 })

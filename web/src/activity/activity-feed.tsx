@@ -290,6 +290,7 @@ export function ActivityFeed({
     layoutEditing,
     activeRequests: requests.filter((request) => isActive(request.status))
       .length,
+    provisioned,
   })
   const clientName = clientNameFrom(madeBy)
   const runningRequestId =
@@ -460,7 +461,11 @@ export function ActivityFeed({
           draft={draft}
           onDraftChange={onDraftChange}
           gate={gate}
-          canInvestigate={mayInvestigate(permissions, principal.role)}
+          canInvestigate={mayInvestigate(
+            permissions,
+            principal.role,
+            provisioned
+          )}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"

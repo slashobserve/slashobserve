@@ -36,10 +36,11 @@ const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
 export function useCanvasToolsShown(
-  permissions: Pick<DashboardPermissions, "comment" | "edit">
+  permissions: Pick<DashboardPermissions, "comment">,
+  canInvestigate: boolean
 ): boolean {
   const agentAvailable = useAgentInfo().data?.available === true
-  return permissions.comment || (permissions.edit && agentAvailable)
+  return permissions.comment || (canInvestigate && agentAvailable)
 }
 
 export function CanvasTools({
@@ -52,7 +53,7 @@ export function CanvasTools({
   const setTool = useCanvasTool((state) => state.setTool)
   const setSearch = useSetDashboardSearch()
   const agentAvailable = useAgentInfo().data?.available === true
-  const mayAsk = permissions.edit && agentAvailable
+  const mayAsk = (permissions.edit || canInvestigate) && agentAvailable
   const commenting = permissions.comment && idle && tool === "comment"
 
   useEffect(() => () => setTool("select"), [setTool])

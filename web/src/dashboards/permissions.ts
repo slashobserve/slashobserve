@@ -8,7 +8,7 @@ import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 export type DashboardPermissions = components["schemas"]["Permissions"]
 export type DashboardAccess = Pick<
   components["schemas"]["DashboardSummary"],
-  "folder" | "permissions"
+  "folder" | "permissions" | "provisioned"
 >
 const noPermissions: DashboardPermissions = {
   comment: false,
@@ -16,8 +16,31 @@ const noPermissions: DashboardPermissions = {
   manage: false,
   create: false,
 }
-export function mayInvestigate(p: DashboardPermissions, role: Role): boolean {
-  return p.edit && roleAtLeast(role, "editor")
+export function mayInvestigate(
+  p: DashboardPermissions,
+  role: Role,
+  provisioned: boolean
+): boolean {
+  return mayEditBesidesContent(p, provisioned) && roleAtLeast(role, "editor")
+}
+
+export type ContentChange = "edit" | "propose" | "none"
+
+export function contentChange(
+  p: Pick<DashboardPermissions, "comment" | "edit">,
+  provisioned: boolean
+): ContentChange {
+  if (provisioned) return "none"
+  if (p.edit) return "edit"
+  if (p.comment) return "propose"
+  return "none"
+}
+
+export function mayEditBesidesContent(
+  p: Pick<DashboardPermissions, "edit">,
+  provisioned: boolean
+): boolean {
+  return p.edit || provisioned
 }
 
 export type ComposerMode = "full" | "comment-only" | "provisioned" | "read-only"
