@@ -25,6 +25,7 @@ Only you see the two share choices; anyone else who reads the chat gets **Copy a
 Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which deletes the thread and makes the answer private again.
 Withdraw works only while every message in the thread is yours or the agent's reply to you; once someone else wrote in it, the answer stays shared.
 After a withdraw you can share the answer again, which opens a new thread.
+Sharing an answer that is already shared, from another tab for example, adds nothing and says "This answer is already shared in its thread".
 In a chat about an observation the same menu shares into that observation's threads, and **Show to everyone** also writes the answer onto the page; **Shared in the thread** opens the observation, and a withdraw leaves the blocks the share already wrote on the page, which the observation's editors remove like any other block.
 
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).

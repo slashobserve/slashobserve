@@ -408,6 +408,29 @@ describe("AnswerCard", () => {
     })
   })
 
+  it("says the answer is already shared in its thread when the share replays", async () => {
+    stubFetch({ thread_id: "t5", message_id: "m5", replayed: true })
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Share to thread/ })
+    )
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Why did checkout errors rise?",
+      })
+    )
+    await waitFor(() =>
+      expect(toasts.success).toHaveBeenCalledWith(
+        "This answer is already shared in its thread"
+      )
+    )
+  })
+
   async function shareToEveryone(user: ReturnType<typeof renderCard>["user"]) {
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })

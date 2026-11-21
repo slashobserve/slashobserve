@@ -246,9 +246,11 @@ function AnswerMenuButton({
       onSuccess: (result) => {
         setSharedHere(result.thread_id)
         toast.success(
-          threadId === undefined
-            ? "Everyone here can see this answer now"
-            : "Shared to the thread"
+          result.replayed
+            ? "This answer is already shared in its thread"
+            : threadId === undefined
+              ? "Everyone here can see this answer now"
+              : "Shared to the thread"
         )
       },
       onError: toastError,
