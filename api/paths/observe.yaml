@@ -30,7 +30,9 @@ observe:
     description: >-
       With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own.
       `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403.
-      `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included.
+      `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, `observation_id` keeps the questions asked about one observation, and `chat_id` keeps the turns of one chat, the first request included.
+      `anchored=true` keeps only the requests that point at a spot, as the `anchor` of each shows, and only works with `scope=mine`: with `scope=all` it answers 400 `invalid_request`, so no one lists other people's anchored questions.
+      `anchor` and `block_id` are filled only for the person who asked the question and are null for everyone else, an Admin included.
       `state` keeps the requests in any of the given states and may repeat.
       Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only.
       `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin.
@@ -68,6 +70,15 @@ observe:
         schema:
           type: string
           format: uuid
+      - name: observation_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: anchored
+        in: query
+        schema:
+          type: boolean
       - name: chat_id
         in: query
         schema:

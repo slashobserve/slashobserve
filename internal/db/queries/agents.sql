@@ -58,7 +58,7 @@ SELECT r.id, r.intent, r.title, r.prompt, r.state, r.result_kind, r.failure_code
        o.id AS visible_observation_id, o.title AS observation_title
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(@folders::uuid[])
-LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(@folders::uuid[])
+LEFT JOIN observations o ON o.id = coalesce(r.observation_id, CASE WHEN r.chat_id IS NULL THEN r.subject_observation_id END) AND o.folder_id = ANY(@folders::uuid[])
 WHERE r.assigned_kind = @assigned_kind
   AND (sqlc.narg('assigned_id')::uuid IS NULL OR r.assigned_id = sqlc.narg('assigned_id')::uuid)
   AND r.intent <> 'suggest'
@@ -77,7 +77,7 @@ SELECT r.id, r.intent, r.title, r.prompt, r.state, r.created_at, r.started_at,
        o.id AS visible_observation_id, o.title AS observation_title
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(@folders::uuid[])
-LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(@folders::uuid[])
+LEFT JOIN observations o ON o.id = coalesce(r.observation_id, CASE WHEN r.chat_id IS NULL THEN r.subject_observation_id END) AND o.folder_id = ANY(@folders::uuid[])
 WHERE r.state IN ('queued', 'running', 'canceling')
   AND r.intent <> 'suggest' AND r.archived_at IS NULL
   AND (

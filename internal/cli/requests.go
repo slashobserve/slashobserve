@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/anchor"
 )
 
 var (
@@ -28,6 +30,9 @@ type requestRow struct {
 	DashboardTitle *string  `json:"dashboard_title"`
 	CreatedAt      string   `json:"created_at"`
 	AllowedActions []string `json:"allowed_actions"`
+
+	Anchor  *anchor.Anchor `json:"anchor"`
+	BlockID *string        `json:"block_id"`
 }
 
 type requestListBody struct {
@@ -39,11 +44,13 @@ type requestListBody struct {
 }
 
 type requestListOptions struct {
-	scope     string
-	states    []string
-	query     string
-	pinned    bool
-	dashboard string
+	scope       string
+	states      []string
+	query       string
+	pinned      bool
+	dashboard   string
+	observation string
+	anchored    bool
 }
 
 func (a *app) requestsCommand() *cobra.Command {
@@ -64,7 +71,7 @@ func (a *app) requestsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List agent requests, newest first",
-		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, intent and dashboard.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.",
+		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, intent, dashboard and, in AT, the spot a question points at.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.\n--anchored keeps only your own requests that point at a spot, and --observation only the questions asked about one observation; --anchored with --scope all is refused.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := page.check(); err != nil {
@@ -93,9 +100,9 @@ func (a *app) requestsListCommand() *cobra.Command {
 			}
 			rows := make([][]string, 0, len(list.Requests))
 			for _, r := range list.Requests {
-				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Intent), orDash(r.DashboardTitle), text(r.Title)})
+				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Intent), orDash(r.DashboardTitle), anchorText(r.Anchor), text(r.Title)})
 			}
-			out.table([]string{"ID", "STATE", "INTENT", "DASHBOARD", "TITLE"}, rows)
+			out.table([]string{"ID", "STATE", "INTENT", "DASHBOARD", "AT", "TITLE"}, rows)
 			var total *int
 			if list.Summary != nil {
 				total = &list.Summary.Total
@@ -111,6 +118,8 @@ func (a *app) requestsListCommand() *cobra.Command {
 	flags.StringVar(&opts.query, "q", "", "keep requests whose title or prompt contains this text")
 	flags.BoolVar(&opts.pinned, "pinned", false, "keep only pinned requests, or only unpinned ones with --pinned=false")
 	flags.StringVar(&opts.dashboard, "dashboard", "", "keep only the requests about this dashboard id")
+	flags.StringVar(&opts.observation, "observation", "", "keep only the questions asked about this observation id")
+	flags.BoolVar(&opts.anchored, "anchored", false, "keep only your own requests that point at a spot; needs --scope mine, which is the default")
 	return cmd
 }
 
@@ -154,7 +163,24 @@ func (o requestListOptions) apply(cmd *cobra.Command, query url.Values) error {
 		}
 		query.Set("dashboard_id", id)
 	}
+	if o.observation != "" {
+		id, err := parseID(o.observation)
+		if err != nil {
+			return err
+		}
+		query.Set("observation_id", id)
+	}
+	if o.anchored {
+		query.Set("anchored", "true")
+	}
 	return nil
+}
+
+func anchorText(a *anchor.Anchor) string {
+	if a == nil {
+		return "-"
+	}
+	return text(a.Describe())
 }
 
 func (a *app) requestsArchiveCommand() *cobra.Command {

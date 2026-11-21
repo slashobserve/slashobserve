@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -124,6 +125,8 @@ type agentRequestJSON struct {
 	ObservationID *string         `json:"observation_id"`
 	ChatID        *string         `json:"chat_id"`
 	SharedThread  *string         `json:"shared_thread_id"`
+	Anchor        *anchor.Anchor  `json:"anchor"`
+	BlockID       *string         `json:"block_id"`
 	Finding       json.RawMessage `json:"finding"`
 
 	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
@@ -174,6 +177,9 @@ type requestSummaryJSON struct {
 	ObservationTitle *string  `json:"observation_title"`
 	ChatID           *string  `json:"chat_id"`
 	AllowedActions   []string `json:"allowed_actions"`
+
+	Anchor  *anchor.Anchor `json:"anchor"`
+	BlockID *string        `json:"block_id"`
 }
 
 type requestCountJSON struct {
@@ -342,6 +348,23 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 			return filter, false
 		}
 		filter.DashboardID = id
+	}
+	if raw, present := c.GetQuery("observation_id"); present {
+		id, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "observation_id must be a UUID")
+			return filter, false
+		}
+		filter.ObservationID = id
+	}
+	if raw, present := c.GetQuery("anchored"); present {
+		switch raw {
+		case "true", "false":
+			filter.Anchored = raw == "true"
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "anchored must be true or false")
+			return filter, false
+		}
 	}
 	if raw, present := c.GetQuery("chat_id"); present {
 		id, err := db.ParseUUID(raw)

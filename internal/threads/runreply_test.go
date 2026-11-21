@@ -193,11 +193,11 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultObservation)
 			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
-		{"finding in an observation thread", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"answer in an observation thread carries its title and text", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Wrote the answer into this observation: Checkout is slow.\n\nthe 5xx rate rose"
+			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
 	}
 	for _, tt := range tests {

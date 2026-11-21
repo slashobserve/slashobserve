@@ -102,6 +102,8 @@ An Admin can show anyone's request with `observe status`, read only.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
+
+When the request points at a spot, `observe status` prints `Points at`, and `On block` for an observation block.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
@@ -110,9 +112,13 @@ While a request is running, `observe status` also prints a `Live text` section w
 
 ### Your requests
 
-`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard and title.
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard, the spot it points at and title.
 The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
-`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it.
+
+`--anchored` keeps the requests you asked about a spot, and the server refuses it with `--scope all`, even for an Admin.
+The `AT` column shows that spot in words, a dash when the request points at nothing, and `--json` carries it as `anchor` and `block_id`.
+Only the person who asked a request sees its spot, so anyone else reads `null`.
 `--scope all` lists every principal's requests and needs the Admin role.
 It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
 Archived requests are left out.
@@ -133,7 +139,7 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, whether it is pinned, the state of the last turn, the number of turns, when it was last asked, its dashboard and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
-`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
+`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt, and a `points at` line under a turn that pointed at a spot; `observe status <request-id>` prints one turn in full.
 An Admin may show anyone's chat, read only.
 
 Every show is recorded in the audit trail as `chat.view` with the owner's id and every list as `chat.list` with its scope, each once per reader in 10 minutes.
@@ -459,7 +465,7 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   Deleting the first comment of a thread deletes the whole thread, which its author may do only while nobody else has written in it; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
 - `bin/observe comments withdraw <comment-id>` withdraws an answer you shared with `share-answer` back to only you: it deletes the thread when the share opened it and otherwise only the shared question and its answer, takes the id of the thread or of any of its comments, and works only for the person who asked while every comment in the thread is theirs or their run's reply.
-  On an observation the answer already written onto the page stays, the answer can be shared again later, and `-q` hides its confirmation.
+  On an observation the answer's text that was written onto the page stays there, while the run and its answer leave the observation's lists, the answer can be shared again later, and `-q` hides its confirmation.
 - `bin/observe comments apply <comment-id> <finding-id>` makes the change an answer in a dashboard thread suggests: the finding id is the answer's, from `bin/observe status <request-id> --json`, and the answer must have been given in that thread.
   It posts "Revise the dashboard: <suggested change>" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
   Applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints `Already applied by run <id>`; an answer without a suggested change is refused with `no_suggested_change`.
@@ -481,11 +487,10 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 `--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
-A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs Comment on the observation; an annotation or a proposal thread starts none.
+A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts a read-only ask, which needs Comment on the observation and answers in the thread without writing on the page; an annotation or a proposal thread starts none.
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.
-Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only people who can see the target, your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider, or a thread agent that was disconnected), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.

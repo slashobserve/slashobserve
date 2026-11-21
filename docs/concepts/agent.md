@@ -20,6 +20,9 @@ The authoring guide is a core plus one section per datasource type, Prometheus, 
 An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
+When the question points at a spot on a panel or an observation block, the brief names it in one sentence, such as `The request points at "the row payments, authorize_card, card declined (440), last hour".`
+The words after "points at" are the anchor's description, as `list_comments` shows it in `at`, with the values the person saw there when the web sent them; the whole is quoted, cut at 500 characters and treated as data, never as an instruction, and a block is named by its id.
+A run with no anchor gets no such sentence.
 
 When that version is over 16 KiB as compact JSON, it gets an outline instead: the title, default time range, refresh, tags, links and variables in full, one line for each panel with its id, type, title, row and position, and the full JSON of the panel it was asked about and of any panel whose id the prompt names.
 The model reads the JSON of other panels with `get_panels`.
@@ -312,7 +315,7 @@ A run never changes its own mode, and only a run on Home takes `ask_on_dashboard
 
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
-An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it, so a Commenter's question there is answered in the thread and files nothing.
+An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it and is answered in the thread, writing nothing on the observation's page, whoever asks it.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
@@ -334,7 +337,8 @@ The run then names that thread as `shared_thread_id`, which only you see.
 A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
 
 While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
-On an observation the answer already written onto the page stays, and no MCP tool withdraws, because none deletes.
+On an observation the run and its answer leave the observation's lists, but the answer's text that was written onto the page stays there as page content until an editor removes it.
+No MCP tool withdraws, because none deletes.
 
 ### When the requester cannot edit
 

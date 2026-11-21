@@ -47,16 +47,6 @@ type RunRefusal struct {
 	Message string
 }
 
-type RunOption func(*runPolicy)
-
-type runPolicy struct {
-	noInvestigations bool
-}
-
-func WithoutInvestigations() RunOption {
-	return func(p *runPolicy) { p.noInvestigations = true }
-}
-
 func ParseTo(s string) (To, error) {
 	switch to := To(s); to {
 	case ToAuto, ToAgent, ToEveryone:
@@ -84,19 +74,19 @@ func NewAsks(service *Service, queue *revisions.Service, builtinAgent bool) *Ask
 	return &Asks{service: service, queue: queue, builtinAgent: builtinAgent}
 }
 
-func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To, opts ...RunOption) (Sent, error) {
+func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To) (Sent, error) {
 	sc, err := a.service.scopeOf(ctx, by, in.Target)
 	if err != nil {
 		return Sent{}, err
 	}
-	req := a.newAsk(ctx, by, sc, to, opts)
+	req := a.newAsk(ctx, by, sc, to)
 	if err := req.precheck(threadAgent{}, in.Body); err != nil {
 		return Sent{}, err
 	}
 	w, err := a.service.open(ctx, by, sc, in, req.options())
 	var exists *ObservationThreadExistsError
 	if errors.As(err, &exists) && in.Anchor == nil {
-		return a.Reply(ctx, by, exists.ThreadID, ReplyInput{Body: in.Body, BlockID: in.BlockID, ClientID: in.ClientID}, to, opts...)
+		return a.Reply(ctx, by, exists.ThreadID, ReplyInput{Body: in.Body, BlockID: in.BlockID, ClientID: in.ClientID}, to)
 	}
 	if err != nil {
 		return Sent{}, err
@@ -104,12 +94,12 @@ func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To,
 	return req.sent(w), nil
 }
 
-func (a *Asks) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, to To, opts ...RunOption) (Sent, error) {
+func (a *Asks) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, to To) (Sent, error) {
 	row, sc, err := a.service.writableThread(ctx, by, threadID)
 	if err != nil {
 		return Sent{}, err
 	}
-	req := a.newAsk(ctx, by, sc, to, opts)
+	req := a.newAsk(ctx, by, sc, to)
 	if err := req.precheck(threadOf(row, nil, rights{}).recipientState(), in.Body); err != nil {
 		return Sent{}, err
 	}
@@ -126,7 +116,6 @@ type ask struct {
 	by        auth.Principal
 	sc        scope
 	to        To
-	policy    runPolicy
 	checked   bool
 	checkErr  error
 	denied    *RunRefusal
@@ -135,12 +124,8 @@ type ask struct {
 	asked     bool
 }
 
-func (a *Asks) newAsk(ctx context.Context, by auth.Principal, sc scope, to To, opts []RunOption) *ask {
-	req := &ask{asks: a, ctx: ctx, by: by, sc: sc, to: to}
-	for _, opt := range opts {
-		opt(&req.policy)
-	}
-	return req
+func (a *Asks) newAsk(ctx context.Context, by auth.Principal, sc scope, to To) *ask {
+	return &ask{asks: a, ctx: ctx, by: by, sc: sc, to: to}
 }
 
 func (r *ask) precheck(state threadAgent, body string) error {
@@ -177,10 +162,6 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 	case KindDashboard:
 		target = revisions.RunTarget{Intent: revisions.IntentAsk, DashboardID: r.sc.target.ID}
 	case KindObservation:
-		if r.policy.noInvestigations {
-			r.denied = &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}
-			return r.denied, nil
-		}
 		target = revisions.RunTarget{Intent: revisions.IntentAsk, ObservationID: r.sc.target.ID}
 	default:
 		r.denied = &RunRefusal{Code: RefusalUnsupportedTarget, Message: "agents can be asked from dashboard and observation threads"}
