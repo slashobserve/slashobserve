@@ -238,6 +238,28 @@ describe("itemText", () => {
       },
     },
     {
+      name: "a connected service account's reply keeps its own name with the question",
+      over: {
+        type: "thread.replied",
+        target: { kind: "thread", id },
+        actor: {
+          kind: "service_account",
+          id: other,
+          name: "ci-agent",
+          origin: "mcp",
+          client: null,
+          run_id: null,
+          label: "ci-agent (via MCP)",
+        },
+        question: "why did checkout slow down?",
+      },
+      text: {
+        actor: "ci-agent (via MCP)",
+        verb: "answered",
+        object: "why did checkout slow down?",
+      },
+    },
+    {
       name: "the built-in agent's reply with no question names where it answered",
       over: {
         type: "thread.replied",

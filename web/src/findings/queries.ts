@@ -7,7 +7,12 @@ import {
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { annotationKeys, dashboardKeys, findingKeys } from "@/api/keys"
+import {
+  annotationKeys,
+  chatKeys,
+  dashboardKeys,
+  findingKeys,
+} from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import { asDashboardSpec } from "@/dashboards/queries"
@@ -132,6 +137,8 @@ export function useMakeDashboard(id: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.details() })
     },
   })
 }
