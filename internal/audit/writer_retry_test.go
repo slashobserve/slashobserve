@@ -153,3 +153,24 @@ func TestABatchTheDatabaseRefusesIsDroppedAndCounted(t *testing.T) {
 		t.Fatalf("dropped %s = %d, want 1", DroppedWriteFailed, got)
 	}
 }
+
+func TestAChangeEventWrittenDuringAStallIsKeptAndWrittenAfterwards(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: 20 * time.Millisecond, timeout: 100 * time.Millisecond}, 0)
+	release := s.stallWrites(t)
+	stop := s.run(t)
+	defer stop()
+	if err := s.recorder.RecordNow(t.Context(), Event{Action: "migration.apply", Target: Target{Kind: "migration", ID: "80"}}); err != nil {
+		t.Fatalf("RecordNow during a stall = %v, want the event kept", err)
+	}
+	release()
+	deadline := time.Now().Add(5 * time.Second)
+	for s.count(t, "action = 'migration.apply'") < 1 {
+		if time.Now().After(deadline) {
+			t.Fatal("the migration event was never written")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := s.metrics.droppedFor(DroppedWriteFailed) + s.metrics.droppedFor(DroppedRecordFailed); got != 0 {
+		t.Fatalf("dropped = %d, want 0", got)
+	}
+}

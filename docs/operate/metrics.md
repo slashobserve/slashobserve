@@ -57,6 +57,7 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_audit_export_dropped_total` | counter | `reason` | Audit events the [audit export](audit-export.md) gave up on: `refused` counts events the receiver refused on their own with `400`, `413` or `422`; `retention` counts gaps where events were deleted before they were exported. |
 
 A batch that times out, loses its connection or waits for a lock is kept and written again every second, so a slow database moment loses nothing while the buffer has room, and a batch that an earlier attempt already stored is not written twice or counted as dropped.
+A change's own event, written straight to the database rather than in a batch, is handed to the same retry when that write times out or loses its connection.
 While it is kept, new events queue up behind it, and once the buffer is full they are dropped as `buffer_full`, with one `audit.gap` event recording how many once writing resumes.
 These series describe only the audit recorder's own health.
 Counts of audit events by action, person or outcome are not exported here, because `/metrics` is open to anyone and those counts are for Admins only.

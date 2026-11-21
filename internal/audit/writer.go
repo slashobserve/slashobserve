@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -84,6 +85,9 @@ type Writer struct {
 	folds    *folds
 	lost     atomic.Int64
 	held     *heldBatch
+
+	mu     sync.Mutex
+	unsure []dbsqlc.InsertAuditEventParams
 }
 
 func newWriter(r *Recorder, limits writerLimits) *Writer {
@@ -109,6 +113,26 @@ func (w *Writer) enqueue(row dbsqlc.InsertAuditEventParams) {
 		w.lost.Add(1)
 		w.recorder.metrics.EventsDropped(DroppedBufferFull, 1)
 	}
+}
+
+func (w *Writer) enqueueUnsure(row dbsqlc.InsertAuditEventParams) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.unsure) >= w.limits.buffer {
+		w.lost.Add(1)
+		w.recorder.metrics.EventsDropped(DroppedBufferFull, 1)
+		return false
+	}
+	w.unsure = append(w.unsure, row)
+	return true
+}
+
+func (w *Writer) takeUnsure() []dbsqlc.InsertAuditEventParams {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	rows := w.unsure
+	w.unsure = nil
+	return rows
 }
 
 func (r *Recorder) Run(ctx context.Context) {
@@ -189,6 +213,12 @@ func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 	if !w.retryHeld(ctx) {
 		return batch
 	}
+	if rows := w.takeUnsure(); len(rows) > 0 {
+		w.held = &heldBatch{rows: rows}
+		if !w.retryHeld(ctx) {
+			return batch
+		}
+	}
 	lost := w.lost.Swap(0)
 	rows := batch
 	if lost > 0 {
@@ -234,6 +264,10 @@ func (w *Writer) retryHeld(ctx context.Context) bool {
 }
 
 func (w *Writer) abandonHeld() {
+	unsure := &heldBatch{rows: w.takeUnsure()}
+	if events := unsure.events(); events > 0 {
+		w.recorder.metrics.EventsDropped(DroppedWriteFailed, events)
+	}
 	if w.held == nil {
 		return
 	}
