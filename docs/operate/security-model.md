@@ -48,6 +48,7 @@ The browser gets panel data from the server's query proxy, which runs only the q
 There are three exceptions.
 
 - The draft preview lets a signed-in user who can comment on the dashboard run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
+  The observation panel editor's draft preview (`POST /api/v1/observations/{id}/blocks/preview`) does the same for a signed-in user who can edit or comment on the observation, and a datasource only Admins may query answers there only in an Admins-only folder.
 - The build data routes (`/api/v1/observe/{id}/build/panels/{panel_id}/data` and `/api/v1/observe/{id}/build/variables/{name}/values`) run the queries of the dashboard an agent request is still assembling, which is not a saved version yet.
   Only the signed-in user who made the request, and a signed-in Admin, can call them, and for a revision only while the caller can still view the dashboard; anyone else gets 404 and a service-account key gets `403 user_session_required`.
   They load the stored build on the server, run under the same limits as the agent's tools, and never cache or share results.

@@ -291,3 +291,76 @@ func TestASnapshotCannotFreezeAnotherCommentersSuggestedPanel(t *testing.T) {
 		t.Errorf("an editor freezes the suggestion: %v", err)
 	}
 }
+
+func TestADraftPanelKeepsTheBlocksVariablesAndTheObservationsRange(t *testing.T) {
+	r := newRig(t)
+	from, to := windowTo.Add(-3*time.Hour), windowTo
+	o, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{FolderID: r.shared, Title: "Checkout 5xx", From: &from, To: &to})
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: json.RawMessage(`{"panel":` + variablePanel + `,"variable_values":{"service":["checkout"]}}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := json.RawMessage(`{"type":"timeseries","title":"Errors","datasource":"prom","queries":[{"ref":"A","query":"sum(errors{service=~\"$service\"})"}]}`)
+	for _, by := range []auth.Principal{editor, commenter} {
+		d, folder, err := r.service.DraftPanelData(reading(t.Context()), by, mustUUID(t, o.ID), mustUUID(t, block.ID), edited)
+		if err != nil {
+			t.Fatalf("%s: %v", by.Name, err)
+		}
+		if len(d.Panels) != 1 || d.Panels[0].ID != observations.BlockPanelID || d.Panels[0].Queries[0].Query != `sum(errors{service=~"$service"})` {
+			t.Errorf("%s: panels %+v", by.Name, d.Panels)
+		}
+		if len(d.Variables) != 1 || d.Variables[0].Name != "service" || d.Time.From != from.Format(time.RFC3339Nano) {
+			t.Errorf("%s: variables %+v, time %+v", by.Name, d.Variables, d.Time)
+		}
+		if folder.ID != r.shared {
+			t.Errorf("%s: folder %v", by.Name, folder.ID)
+		}
+	}
+	if _, _, err := r.service.DraftPanelData(reading(t.Context()), editor, mustUUID(t, o.ID), pgtype.UUID{}, json.RawMessage(variablePanel)); err == nil || !strings.Contains(err.Error(), `"service"`) {
+		t.Errorf("a new query borrows no block's variables: %v", err)
+	}
+}
+
+func TestADraftPanelNeedsCommentAndAVisiblePanelBlockOfTheObservation(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	other := r.create(t, editor, r.shared)
+	panel := r.addPanel(t, editor, o)
+	text := r.addText(t, editor, o, "words")
+	asked, err := r.service.AddBlock(reading(t.Context()), commenter, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := json.RawMessage(`{"type":"timeseries","title":"Rate","datasource":"prom","queries":[{"ref":"A","query":"up"}]}`)
+	if _, _, err := r.service.DraftPanelData(reading(t.Context()), editor, mustUUID(t, o.ID), pgtype.UUID{}, draft); err != nil {
+		t.Errorf("a new query: %v", err)
+	}
+	cases := []struct {
+		name        string
+		by          auth.Principal
+		observation string
+		block       pgtype.UUID
+		panel       json.RawMessage
+		want        error
+	}{
+		{"a viewer", viewer, o.ID, mustUUID(t, panel.ID), draft, folders.ErrForbidden},
+		{"a block of another observation", editor, other.ID, mustUUID(t, panel.ID), draft, observations.ErrNotFound},
+		{"a text block", editor, o.ID, mustUUID(t, text.ID), draft, observations.ErrNotFound},
+		{"another commenter's requested block", otherCommen, o.ID, mustUUID(t, asked.ID), draft, observations.ErrNotFound},
+		{"a missing block", editor, o.ID, pgtype.UUID{Bytes: [16]byte{15: 1}, Valid: true}, draft, observations.ErrNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if _, _, err := r.service.DraftPanelData(reading(t.Context()), c.by, mustUUID(t, c.observation), c.block, c.panel); !errors.Is(err, c.want) {
+				t.Errorf("err %v, want %v", err, c.want)
+			}
+		})
+	}
+	var invalid *observations.InvalidInputError
+	if _, _, err := r.service.DraftPanelData(reading(t.Context()), editor, mustUUID(t, o.ID), mustUUID(t, panel.ID), json.RawMessage(`{"type":"text","title":"Words"}`)); !errors.As(err, &invalid) {
+		t.Errorf("a text panel draft: %v", err)
+	}
+}

@@ -182,6 +182,10 @@ func wrapBlock(parent dbsqlc.Observation, block dbsqlc.ObservationBlock) (*spec.
 	if err := json.Unmarshal(block.Body, &body); err != nil {
 		return nil, time.Time{}, time.Time{}, fmt.Errorf("decode panel block: %w", err)
 	}
+	return wrapBody(parent, body)
+}
+
+func wrapBody(parent dbsqlc.Observation, body PanelBody) (*spec.Dashboard, time.Time, time.Time, error) {
 	from, to := blockRange(body, timePtr(parent.TimeFrom), timePtr(parent.TimeTo), time.Now().UTC())
 	from, to = from.Truncate(storedPrecision), to.Truncate(storedPrecision)
 	d, err := findings.EvidenceSpecWith(parent.Title, from, to, []json.RawMessage{body.Panel}, body.Variables)
@@ -217,6 +221,48 @@ func (s *Service) PanelData(ctx context.Context, by auth.Principal, blockID pgty
 	}
 	d, _, _, err := wrapBlock(parent, block)
 	return d, folder, err
+}
+
+func (s *Service) DraftPanelData(ctx context.Context, by auth.Principal, observationID, blockID pgtype.UUID, panel json.RawMessage) (*spec.Dashboard, folders.Folder, error) {
+	parent, folder, abilities, err := s.open(ctx, by, observationID)
+	if err != nil {
+		return nil, folders.Folder{}, err
+	}
+	if _, ok := addedState(abilities); !ok {
+		return nil, folders.Folder{}, folders.ErrForbidden
+	}
+	var draft PanelBody
+	if blockID.Valid {
+		if draft, err = s.draftBase(ctx, by, abilities, observationID, blockID); err != nil {
+			return nil, folders.Folder{}, err
+		}
+	}
+	draft.Panel = panel
+	raw, err := json.Marshal(draft)
+	if err != nil {
+		return nil, folders.Folder{}, fmt.Errorf("encode draft panel body: %w", err)
+	}
+	body, err := panelBody(raw)
+	if err != nil {
+		return nil, folders.Folder{}, err
+	}
+	d, _, _, err := wrapBody(parent, body)
+	return d, folder, err
+}
+
+func (s *Service) draftBase(ctx context.Context, by auth.Principal, abilities folders.Abilities, observationID, blockID pgtype.UUID) (PanelBody, error) {
+	block, err := s.store.block(ctx, blockID)
+	if err != nil {
+		return PanelBody{}, err
+	}
+	if block.ObservationID != observationID || Kind(block.Kind) != KindPanel || !visibleTo(block, abilities, actor.Of(by, origin.Origin{}, "")) {
+		return PanelBody{}, ErrNotFound
+	}
+	var base PanelBody
+	if err := json.Unmarshal(block.Body, &base); err != nil {
+		return PanelBody{}, fmt.Errorf("decode panel block: %w", err)
+	}
+	return base, nil
 }
 
 func (s *Service) panelBlock(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (dbsqlc.Observation, folders.Folder, dbsqlc.ObservationBlock, error) {
