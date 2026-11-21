@@ -430,6 +430,7 @@ The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `resul
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
 A run from someone else's private chat, other than an investigation or an answer shared into a thread, has `redacted: true` and its `title`, `prompt`, step messages and `live_text` empty.
+`subject_observation_id` names the observation an ask is about, such as one asked from an observation's chat, and stays set after its answer is saved into another observation; it is null when `redacted`.
 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.

@@ -170,3 +170,83 @@ func TestAReaderOfTheObservationAPrivateAnswerWasSavedIntoReadsTheRunWithoutItsQ
 		t.Fatalf("after the share, a reader sees redacted %v and prompt %q, want the question it was asked in the thread", redacted, prompt)
 	}
 }
+
+type subjectSeen struct {
+	run, turn, listedTurn *string
+}
+
+func (r *rig) subjectSeenBy(t *testing.T, who auth.Principal, run pgtype.UUID) subjectSeen {
+	t.Helper()
+	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	raw, err := desk.Run(reading(t.Context()), run, who, 0)
+	if err != nil {
+		t.Fatalf("%s reads run %v: %v", who.Name, run, err)
+	}
+	type turn struct {
+		ID      string  `json:"id"`
+		Subject *string `json:"subject_observation_id"`
+	}
+	var shown struct {
+		Subject *string `json:"subject_observation_id"`
+		ChatID  *string `json:"chat_id"`
+	}
+	if err := json.Unmarshal(raw, &shown); err != nil {
+		t.Fatal(err)
+	}
+	seen := subjectSeen{run: shown.Subject}
+	if shown.ChatID == nil {
+		return seen
+	}
+	raw, err = desk.Chat(reading(t.Context()), who, mustParse(t, *shown.ChatID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var detail struct {
+		Chat struct {
+			LastTurn turn `json:"last_turn"`
+		} `json:"chat"`
+	}
+	if err := json.Unmarshal(raw, &detail); err != nil {
+		t.Fatal(err)
+	}
+	seen.turn = detail.Chat.LastTurn.Subject
+	raw, err = desk.Chats(reading(t.Context()), who, revisions.ChatFilter{}, 50, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var chats struct {
+		Chats []struct {
+			ID       string `json:"id"`
+			LastTurn turn   `json:"last_turn"`
+		} `json:"chats"`
+	}
+	if err := json.Unmarshal(raw, &chats); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range chats.Chats {
+		if c.ID == *shown.ChatID && c.LastTurn.ID == run.String() {
+			seen.listedTurn = c.LastTurn.Subject
+		}
+	}
+	return seen
+}
+
+func TestTheRequesterReadsTheObservationAPrivateAskIsAboutAfterItsAnswerIsSaved(t *testing.T) {
+	r := newShareRig(t)
+	about := r.filedObservationIn(t, testUser, foldertest.Open(t, r.db, "Shared"))
+	id := about.String()
+	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
+	same := func(got *string) bool { return got != nil && *got == id }
+
+	for _, when := range []string{"answered", "saved"} {
+		if when == "saved" {
+			r.savedAsObservation(t, run, about)
+		}
+		if seen := r.subjectSeenBy(t, testUser, run); !same(seen.run) || !same(seen.turn) || !same(seen.listedTurn) {
+			t.Fatalf("%s: the requester reads the subject as run %v, chat turn %v, listed turn %v, want %s", when, seen.run, seen.turn, seen.listedTurn, id)
+		}
+	}
+	if seen := r.subjectSeenBy(t, otherEditor, run); seen.run != nil {
+		t.Fatalf("a reader who gets the run redacted reads its subject %s", *seen.run)
+	}
+}

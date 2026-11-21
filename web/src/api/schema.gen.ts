@@ -6706,6 +6706,11 @@ export interface components {
             observation_id: string | null;
             /**
              * Format: uuid
+             * @description The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, and when `redacted`.
+             */
+            subject_observation_id: string | null;
+            /**
+             * Format: uuid
              * @description The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
              */
             shared_thread_id: string | null;
@@ -6727,6 +6732,11 @@ export interface components {
             prompt: string;
             /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
             investigation: boolean;
+            /**
+             * Format: uuid
+             * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise.
+             */
+            subject_observation_id: string | null;
         };
         Chat: {
             /**
