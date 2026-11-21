@@ -9,7 +9,8 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
-COMPOSE := docker compose -f deploy/compose/compose.yaml
+DEMO_OUTBOUND_DOMAINS := github.com
+COMPOSE := SLASHOBSERVE_DEMO_OUTBOUND_DOMAINS=$(DEMO_OUTBOUND_DOMAINS) docker compose -f deploy/compose/compose.yaml
 COMPOSE_BUILD := $(COMPOSE) -f deploy/compose/compose.build.yaml
 SHOP_DIR := demo
 SHOP_LINT := go tool -modfile=../tools/golangci-lint/go.mod golangci-lint
