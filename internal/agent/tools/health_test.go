@@ -78,7 +78,7 @@ func TestHealthItemOfLeavesOutEmptyFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"dashboard_id":"d1","title":"Shop","url":"https://observe.example.com/d/d1","folder_id":"` + folder.String() + `","folder_title":"General","state":"healthy","problems":[{"kind":"unopened"}]}`
+	want := `{"dashboard_id":"d1","title":"Shop","url":"https://observe.example.com/d/d1","folder_id":"` + folder.String() + `","folder_title":"General","can_edit":false,"state":"healthy","problems":[{"kind":"unopened"}]}`
 	if string(raw) != want {
 		t.Errorf("bare item = %s\nwant %s", raw, want)
 	}
@@ -220,5 +220,30 @@ func TestHealthPageKeepsTheSummaryWhenItTrims(t *testing.T) {
 	later, _, _ := healthPage(health.Page{Items: []health.Item{bigHealthItem("b", 1)}})
 	if raw, _ := json.Marshal(later); strings.Contains(string(raw), "summary") {
 		t.Errorf("later page carries a summary: %.200s", raw)
+	}
+}
+
+func TestHealthItemOfCarriesCanEditAndNotesAnOutdatedRow(t *testing.T) {
+	folder := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
+	checked := 2
+	problem := []health.Problem{{Kind: health.KindQueryFailed, PanelID: "p1"}}
+	editable := healthItemOf(health.Item{ID: "d1", Folder: folders.Folder{ID: folder}, CanEdit: true, State: health.StateFailing, CheckedVersion: &checked, Problems: problem})
+	starter := healthItemOf(health.Item{ID: "d2", Folder: folders.Folder{ID: folder}, CanEdit: false, State: health.StateFailing, CheckedVersion: &checked, Problems: problem})
+	outdated := healthItemOf(health.Item{ID: "d3", Folder: folders.Folder{ID: folder}, CanEdit: true, State: health.StateOutdated, CheckedVersion: &checked, Problems: problem})
+	if !editable.CanEdit || starter.CanEdit {
+		t.Errorf("can_edit = %v for an editable dashboard and %v for a starter, want true and false", editable.CanEdit, starter.CanEdit)
+	}
+	if editable.Note != "" || starter.Note != "" {
+		t.Errorf("a dashboard checked at its latest version carries notes %q and %q", editable.Note, starter.Note)
+	}
+	if !strings.Contains(outdated.Note, "checked_version") || !strings.Contains(outdated.Note, "recheck is pending") {
+		t.Errorf("outdated note = %q, want it to name checked_version and the pending recheck", outdated.Note)
+	}
+	raw, err := json.Marshal(outdated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"can_edit":true`) || !strings.Contains(string(raw), `"note":`) {
+		t.Errorf("outdated item = %s, want can_edit and note fields", raw)
 	}
 }
