@@ -208,6 +208,7 @@ export const PanelContainer = memo(function PanelContainer({
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const selectTool = useCanvasTool((state) => state.tool === "select")
   const body = panelBodySize(Math.floor(width), Math.floor(height))
   const dataPanel = useMemo(
     () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
@@ -476,7 +477,8 @@ export const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
-        grabbable={arrangeable && !commentTool}
+        arrangeable={arrangeable}
+        grabbable={arrangeable && selectTool}
         highlighted={highlighted}
         selected={selected}
         onSelect={viewing ? undefined : selectPanel}

@@ -149,6 +149,50 @@ describe("PanelChrome", () => {
     }
   })
 
+  it("hints that an arrangeable panel's header drags it, but not on its buttons", () => {
+    const described = { ...panel, description: "Requests that took over 2s" }
+    renderWithProviders(
+      <PanelChrome
+        panel={described}
+        state="ready"
+        onSelect={vi.fn()}
+        arrangeable
+        grabbable
+        menu={<button type="button">Panel menu</button>}
+      />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).toHaveClass("panel-drag-handle")
+    expect(header).toHaveAttribute("title", "Drag to move")
+    expect(
+      header?.querySelector("[data-panel-move-hint][aria-hidden='true']")
+    ).toHaveClass("group-hover/header:opacity-60")
+    expect(
+      screen.queryByRole("button", { name: /^Move or resize/ })
+    ).not.toBeInTheDocument()
+    for (const name of ["About Checkout latency", "Panel menu"]) {
+      expect(
+        screen.getByRole("button", { name }).closest("[title]")
+      ).toHaveAttribute("title", "")
+    }
+  })
+
+  it("keeps the grip's place but drops the hint while another canvas tool is on", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" onSelect={vi.fn()} arrangeable />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).not.toHaveClass("panel-drag-handle")
+    expect(header).not.toHaveAttribute("title")
+    const hint = header?.querySelector("[data-panel-move-hint]")
+    expect(hint).toBeInTheDocument()
+    expect(hint).not.toHaveClass("group-hover/header:opacity-60")
+  })
+
   it("offers no move affordance to a panel that cannot be arranged", () => {
     renderWithProviders(
       <PanelChrome panel={panel} state="ready" onSelect={vi.fn()} />

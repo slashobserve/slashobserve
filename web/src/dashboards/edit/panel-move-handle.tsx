@@ -3,6 +3,7 @@ import { GripVerticalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { liveRegionText } from "@/lib/live-region"
+import { cn } from "@/lib/utils"
 import { panelTitle, type LayoutPanel } from "@/spec"
 
 import {
@@ -92,6 +93,22 @@ export function PanelMoveHandle({
         Arrow keys move. Shift and arrow keys resize.
       </span>
     </>
+  )
+}
+
+export function PanelMoveHint({ shown }: { shown: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-panel-move-hint=""
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center text-muted-foreground opacity-0",
+        shown &&
+          "group-hover/header:opacity-60 motion-safe:transition-opacity motion-safe:duration-100 motion-safe:ease-out"
+      )}
+    >
+      <GripVerticalIcon className="size-3" />
+    </span>
   )
 }
 

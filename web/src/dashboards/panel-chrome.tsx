@@ -27,7 +27,7 @@ import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps, NewTabMark } from "./dashboard-links"
-import { PanelMoveHandle } from "./edit/panel-move-handle"
+import { PanelMoveHandle, PanelMoveHint } from "./edit/panel-move-handle"
 import { panelProblem } from "./panel-problem"
 import type { SeriesCap } from "./series-cap"
 import { timeOverrideLabel } from "./time-override"
@@ -88,6 +88,7 @@ type Props = {
   selected?: boolean
   onSelect?: () => void
   dragHandle?: boolean
+  arrangeable?: boolean
   grabbable?: boolean
   repeatOf?: string
   children?: ReactNode
@@ -110,6 +111,7 @@ export function PanelChrome({
   selected = false,
   onSelect,
   dragHandle = false,
+  arrangeable = false,
   grabbable = false,
   repeatOf,
   children,
@@ -143,12 +145,19 @@ export function PanelChrome({
       <header
         className={cn(
           "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1",
-          dragHandle ? "touch-none pl-1" : "pl-3",
-          grabbable && "panel-drag-handle cursor-grab active:cursor-grabbing"
+          dragHandle || arrangeable ? "pl-1" : "pl-3",
+          dragHandle && "touch-none",
+          grabbable &&
+            "group/header panel-drag-handle cursor-grab active:cursor-grabbing"
         )}
+        title={grabbable ? "Drag to move" : undefined}
         style={{ height: panelHeaderHeight }}
       >
-        {dragHandle ? <PanelMoveHandle panel={panel} /> : null}
+        {dragHandle ? (
+          <PanelMoveHandle panel={panel} />
+        ) : arrangeable ? (
+          <PanelMoveHint shown={grabbable} />
+        ) : null}
         <h2
           id={titleId}
           title={title}
@@ -185,6 +194,7 @@ export function PanelChrome({
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`About ${title}`}
+                  title={grabbable ? "" : undefined}
                 />
               }
             >
@@ -218,7 +228,10 @@ export function PanelChrome({
         {editing ? (
           <span className="text-xs font-medium text-foreground">Editing</span>
         ) : null}
-        <div className="ml-auto flex items-center gap-0.5">
+        <div
+          className="ml-auto flex items-center gap-0.5"
+          title={grabbable ? "" : undefined}
+        >
           {refreshing ? (
             <span className="flex items-center text-muted-foreground">
               <LoaderCircleIcon className="size-3 motion-safe:animate-spin" />
