@@ -37,8 +37,9 @@ func (r holdersRig) reply(t *testing.T, thread, run string) {
 }
 
 type answerHolder struct {
-	add  func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string
-	move func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error
+	add    func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string
+	move   func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error
+	copied bool
 }
 
 var answerHolders = map[string]answerHolder{
@@ -61,6 +62,7 @@ var answerHolders = map[string]answerHolder{
 		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
 			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
 		},
+		copied: true,
 	},
 	"an annotation copied from content holding a run's answer": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
@@ -71,6 +73,7 @@ var answerHolders = map[string]answerHolder{
 		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
 			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
 		},
+		copied: true,
 	},
 	"a dashboard version a run saved": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
