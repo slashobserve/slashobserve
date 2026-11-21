@@ -1,0 +1,18 @@
+{
+  "prompt": "Can we see p99 latency on this dashboard?",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "No p99 latency panel yet",
+            "markdown": "The dashboard has no latency panel, so p99 latency is not shown anywhere.\n\nThe request duration histogram is there to compute it from.",
+            "suggested_change": "Add a p99 latency panel"
+          }
+        }
+      ],
+      "fault": { "kind": "delay", "delay_ms": 3000 }
+    }
+  ]
+}
