@@ -1,7 +1,7 @@
 import { useCallback, useId, useRef, type Ref, type RefObject } from "react"
 
 import type { Selections } from "@/api/keys"
-import { DashboardChat } from "@/chat/dashboard-chat"
+import { DashboardChat, type OpenChat } from "@/chat/dashboard-chat"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useDockFocus } from "@/components/dock/dock-focus"
@@ -138,9 +138,9 @@ export function ActivityCard({
     [setOpen, setSearch]
   )
 
-  const onOpenChat = useCallback(
-    (chat: string | undefined) =>
-      setSearch((state) => ({ ...state, tab: "chat", chat })),
+  const onOpenChat = useCallback<OpenChat>(
+    (chat, options) =>
+      setSearch((state) => ({ ...state, tab: "chat", chat }), options),
     [setSearch]
   )
 

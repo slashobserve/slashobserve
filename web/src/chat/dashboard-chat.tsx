@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
@@ -26,12 +25,15 @@ import { Conversation } from "./conversation"
 const listedChats = 50
 const allChatsValue = "all-chats"
 const chatsHeading = "Your chats on this dashboard"
+const newChatId = "new"
+
+export type OpenChat = (chatId: string, options?: { replace?: boolean }) => void
 
 type Props = {
   dashboardId: string
   dashboardTitle: string
   chatId: string | undefined
-  onOpenChat: (chatId: string | undefined) => void
+  onOpenChat: OpenChat
 }
 
 function withOpenChat(chats: readonly Chat[], open: Chat | undefined): Chat[] {
@@ -49,7 +51,7 @@ export function DashboardChat({
 }: Props) {
   const navigate = useNavigate()
   const now = useNow()
-  const [fresh, setFresh] = useState(false)
+  const fresh = chatId === newChatId
   const { chats, query } = useChats({ dashboardId }, listedChats)
   const openId = fresh ? undefined : (chatId ?? chats.at(0)?.id)
   const open = useChat(openId)
@@ -67,23 +69,16 @@ export function DashboardChat({
       void navigate({ to: "/chats", search: { dashboard: dashboardId } })
       return
     }
-    setFresh(false)
     onOpenChat(next)
   }
 
-  function startNew() {
-    setFresh(true)
-    onOpenChat(undefined)
-  }
-
   function follow(request: ObserveRequest) {
-    setFresh(false)
     if (request.chat_id !== null && request.chat_id !== openId) {
-      onOpenChat(request.chat_id)
+      onOpenChat(request.chat_id, { replace: true })
     }
   }
 
-  const waiting = query.data === undefined && chatId === undefined && !fresh
+  const waiting = query.data === undefined && chatId === undefined
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -122,7 +117,7 @@ export function DashboardChat({
           variant="outline"
           size="sm"
           disabled={openId === undefined}
-          onClick={startNew}
+          onClick={() => onOpenChat(newChatId)}
         >
           <PlusIcon aria-hidden="true" />
           New chat
@@ -135,10 +130,9 @@ export function DashboardChat({
           <NewChat
             dashboardId={dashboardId}
             dashboardTitle={dashboardTitle}
-            onSent={(request) => {
-              setFresh(false)
-              onOpenChat(request.chat_id ?? request.id)
-            }}
+            onSent={(request) =>
+              onOpenChat(request.chat_id ?? request.id, { replace: true })
+            }
           />
         ) : (
           <>

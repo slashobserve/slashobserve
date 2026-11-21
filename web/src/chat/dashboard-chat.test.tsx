@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -77,6 +78,40 @@ function render(chatId: string | undefined, onOpenChat = vi.fn()) {
   return { ...view, onOpenChat }
 }
 
+function Address({ initial }: { initial: string | undefined }) {
+  const [entries, setEntries] = useState<(string | undefined)[]>([initial])
+  const chatId = entries.at(-1)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setEntries((all) => all.slice(0, -1))}
+      >
+        Back
+      </button>
+      <output aria-label="Address">{chatId ?? "none"}</output>
+      <DashboardChat
+        dashboardId={dashboardId}
+        dashboardTitle="Checkout health"
+        chatId={chatId}
+        onOpenChat={(next, options) =>
+          setEntries((all) =>
+            options?.replace === true
+              ? [...all.slice(0, -1), next]
+              : [...all, next]
+          )
+        }
+      />
+    </>
+  )
+}
+
+function renderAddress(initial: string | undefined) {
+  return renderWithProviders(<Address initial={initial} />, {
+    route: { path: "/", url: "/" },
+  })
+}
+
 afterEach(() => vi.unstubAllGlobals())
 
 describe("DashboardChat", () => {
@@ -110,13 +145,26 @@ describe("DashboardChat", () => {
 
   it("starts a new chat with a composer for this dashboard", async () => {
     stub([chat("c1", "Why did checkout errors rise")])
-    const { user, onOpenChat } = render("c1")
+    const { user } = renderAddress("c1")
     await screen.findByTestId("conversation")
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    expect(onOpenChat).toHaveBeenCalledWith(undefined)
     expect(screen.getByTestId("composer").dataset.dashboard).toBe(dashboardId)
     expect(screen.queryByTestId("conversation")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled()
+  })
+
+  it("goes back to the chat it left when the address goes back", async () => {
+    stub([chat("c1", "Why did checkout errors rise")])
+    const { user } = renderAddress("c1")
+    await screen.findByTestId("conversation")
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    expect(screen.getByTestId("composer")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(screen.getByLabelText("Address")).toHaveTextContent("c1")
+    expect((await screen.findByTestId("conversation")).dataset.request).toBe(
+      "c1"
+    )
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument()
   })
 
   it("shows a composer when this dashboard has no chats", async () => {
