@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 )
 
 const validatePath = "/logs-*/_validate/query"
@@ -31,6 +32,19 @@ const (
 	valid   = `{"valid":true}`
 	invalid = `{"valid":false,"explanations":[{"index":"logs-shop-2026.11","valid":false,"error":"org.opensearch.common.ParsingException: Cannot parse 'level:[': Encountered \"<EOF>\"\n\tat org.apache.lucene.queryparser.classic.QueryParserBase.parse(QueryParserBase.java:114)"}]}`
 )
+
+func TestLintKQLAsksTheKnownFieldOptionWhichFieldsExist(t *testing.T) {
+	ds := serve(t, healthyServer(t), func(o *elasticsearch.Options) {
+		o.KnownField = func(field string) bool { return field == "service" }
+	})
+	diags, err := ds.Lint(context.Background(), "service:checkout and service.name:checkout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 1 || diags[0].Message != `unknown field "service.name"` {
+		t.Fatalf("diagnostics = %+v, want only the field the option does not know", diags)
+	}
+}
 
 func TestLintKQL(t *testing.T) {
 	_, lint := lintServer(t, valid)

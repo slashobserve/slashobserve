@@ -8,6 +8,8 @@ export function sparklineHasArea(
 export const sparklineWidth = 600
 export const sparklineHeight = 40
 const inset = 2
+const baseline = sparklineHeight - inset
+const flatHeight = sparklineHeight / 2
 
 type Point = readonly [number, number]
 
@@ -47,6 +49,7 @@ export function sparklinePoints(
     if (value < v0) v0 = value
     if (value > v1) v1 = value
   }
+  const flatY = v0 === 0 ? baseline : flatHeight
   const limit = Math.max(2, Math.ceil(columns))
   const kept =
     points.length > limit * 2 ? bucketExtremes(points, limit) : points
@@ -54,10 +57,8 @@ export function sparklinePoints(
     const x = t1 === t0 ? 0 : ((time - t0) / (t1 - t0)) * sparklineWidth
     const y =
       v1 === v0
-        ? sparklineHeight / 2
-        : sparklineHeight -
-          inset -
-          ((value - v0) / (v1 - v0)) * (sparklineHeight - 2 * inset)
+        ? flatY
+        : baseline - ((value - v0) / (v1 - v0)) * (sparklineHeight - 2 * inset)
     return `${x.toFixed(1)},${y.toFixed(1)}`
   })
 }

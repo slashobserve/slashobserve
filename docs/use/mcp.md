@@ -340,6 +340,7 @@ An observation is a page of blocks about one question: Markdown text, panels tha
 A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width`, `height` (a number, or `null` for the automatic height) or `position`.
+`follow_page: true` drops a panel block's own `from` and `to`, so it shows the observation's range again; it goes without `panel`, `markdown`, `from` or `to`.
 
 `arrange_blocks` takes `observation_id` and `blocks`, a list of `block_id` in the order the page should show them, each with an optional `width` and `height`; a block left out keeps its place after the block it followed, and an id that is not a block of the observation refuses the call and names the id.
 It needs no `version`, and a layout change never makes a text or panel edit stale, because a block's `version` counts content only.
@@ -437,7 +438,8 @@ Without `client_id` every call queues another run, so read `get_run` or `list_ac
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
 
-`list_chats` lists your chats, the one most recently asked in first, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats and needs an Admin.
+`list_chats` lists your chats, pinned ones first and then the one most recently asked in, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats by their last turn only and needs an Admin.
+Each chat carries `dashboard_title`, null when you cannot see its dashboard.
 `get_chat` reads one chat with its turns oldest first, each the run as `get_run` returns it without steps; when they do not all fit it answers `truncated: true` and a `next_offset` to pass as `offset`.
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 

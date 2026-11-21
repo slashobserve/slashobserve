@@ -168,5 +168,14 @@ The rules below are how the code applies it.
   A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
 - Use `FilterToolbar` for the filter row under a page header.
 - Every workspace table is a `TableCard` with `stackOnNarrow`, so its rows become lists on a phone and nothing scrolls sideways.
-- Only the right panel, the sidebar width and the chat build transition move, with `ease-panel` under `motion-safe:` and `animation-duration-(--duration-panel)` on the enter animation; never a bare `duration-*` without a transition property, because it transitions every property, including a resize.
-  Anything else that moves needs a spec change.
+- Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
+  Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.
+  Hover may change opacity only, in 120ms or less.
+  Only `transform` and `opacity` animate, and height for a fold.
+  Always name the property: never `transition-all` and never a bare `duration-*`, because it transitions every property, including a resize.
+  Two curves and two speeds: `ease-out` with `--duration-fast` (150ms) for things that appear, and `ease-panel` with `--duration-panel` (220ms) for panels and page handoffs.
+  An exit is faster than its entrance, and nothing runs longer than 300ms.
+  A popup grows from its trigger, starting at `scale(0.96)`, never from zero.
+  Only what changed moves; content present at first render appears without motion.
+  All of it sits under `motion-safe:`; with reduced motion the fade stays and the movement goes.
+  Charts and data never animate, and there are no shadows and no bounce.

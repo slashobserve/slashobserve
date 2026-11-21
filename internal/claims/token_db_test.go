@@ -14,13 +14,17 @@ import (
 func TestAuthenticateCarriesTheModeOfTheGrantTheRunIsAssignedTo(t *testing.T) {
 	f := newFixture(t)
 	f.d.Exec(t, "INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1, 'issuer', 'subject', 'ada@example.com', 'Ada')", mustUUID(t, userID))
-	f.d.Exec(t, "INSERT INTO oauth_clients (id, redirect_uris) VALUES ('client', ARRAY['http://localhost/cb'])")
+	f.d.Exec(t, "INSERT INTO oauth_clients (id, name, redirect_uris) VALUES ('client', 'Claude Code', ARRAY['http://localhost/cb'])")
 	f.d.Exec(t, "INSERT INTO oauth_grants (id, client_id, user_id, resource, expires_at) VALUES ($1, 'client', $2, 'r', now() + interval '1 day')", mustUUID(t, grantID), mustUUID(t, userID))
 	f.queue(t, revisions.AssignGrant, grantID)
 	offer := f.claim(t, grantClaimer)
 
-	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Direct {
+	access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token)
+	if !ok || access.Mode != grantmode.Direct {
 		t.Fatalf("a run of a direct grant = %q accepted %v, want direct", access.Mode, ok)
+	}
+	if access.Agent.Name != "Claude Code" || access.Agent.ID.UUID.String() != grantID {
+		t.Fatalf("agent = %+v, want the grant %s named by its client", access.Agent, grantID)
 	}
 	f.d.Exec(t, "UPDATE oauth_grants SET mode = 'propose' WHERE id = $1", mustUUID(t, grantID))
 	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Propose {
@@ -39,8 +43,12 @@ func TestAuthenticateGivesARunOfAServiceAccountTheDirectMode(t *testing.T) {
 	f.queue(t, revisions.AssignServiceAccount, claimer.ID)
 	offer := f.claim(t, claimer)
 
-	if access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token); !ok || access.Mode != grantmode.Direct {
+	access, ok := f.authenticateRun(t, "Bearer "+offer.Session.Token)
+	if !ok || access.Mode != grantmode.Direct {
 		t.Fatalf("a service account run = %q accepted %v, want direct", access.Mode, ok)
+	}
+	if access.Agent.Name != "ci-agent" || access.Agent.ID.UUID.String() != claimer.ID {
+		t.Fatalf("agent = %+v, want the service account ci-agent", access.Agent)
 	}
 }
 

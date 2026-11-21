@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 const (
@@ -33,6 +34,12 @@ const (
 	maxRequestBody = 1 << 20
 )
 
+var outcomeLevels = map[string]logvolume.Kind{
+	string(audit.OutcomeFailed):  logvolume.Error,
+	string(audit.OutcomeDenied):  logvolume.Warning,
+	string(audit.OutcomeSuccess): logvolume.Info,
+}
+
 type Store interface {
 	Rows(ctx context.Context, q filter.Query, w filter.Window, page filter.Page) ([]trail.Event, error)
 	Count(ctx context.Context, q filter.Query, w filter.Window, upTo int) (int64, error)
@@ -41,14 +48,17 @@ type Store interface {
 
 func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 	ds, err := elasticsearch.New(elasticsearch.Options{
-		Flavor:        elasticsearch.OpenSearch,
-		URL:           unreachableURL,
-		Index:         Index,
-		TimeField:     TimeField,
-		QueryLanguage: elasticsearch.QueryLanguageKQL,
-		Fields:        elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
-		Limits:        datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
-		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
+		Flavor:          elasticsearch.OpenSearch,
+		URL:             unreachableURL,
+		Index:           Index,
+		TimeField:       TimeField,
+		QueryLanguage:   elasticsearch.QueryLanguageKQL,
+		Fields:          elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
+		Limits:          datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
+		MaxAggregations: maxAggregations,
+		KnownField:      filter.Known,
+		LevelKinds:      outcomeLevels,
+		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
 	})
 	if err != nil {
 		return datasource.Instance{}, err

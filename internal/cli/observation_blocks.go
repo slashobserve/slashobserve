@@ -10,15 +10,16 @@ import (
 )
 
 type blockEditOptions struct {
-	source    textSource
-	panelFile string
-	from, to  string
-	version   int
-	half      bool
-	full      bool
-	width     string
-	height    int
-	position  int
+	source     textSource
+	panelFile  string
+	from, to   string
+	version    int
+	half       bool
+	full       bool
+	width      string
+	height     int
+	position   int
+	followPage bool
 }
 
 func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
@@ -35,6 +36,9 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 	body := map[string]any{"version": o.version}
 	if content != nil {
 		body["body"] = content
+	}
+	if o.followPage {
+		body["follow_page"] = true
 	}
 	switch {
 	case o.width != "":
@@ -54,7 +58,7 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 		body["position"] = o.position
 	}
 	if len(body) == 1 {
-		return nil, usagef("give something to change: --text, --text-file, --panel-file, --width, --height or --position")
+		return nil, usagef("give something to change: --text, --text-file, --panel-file, --width, --height, --position or --follow-page")
 	}
 	return body, nil
 }
@@ -66,6 +70,9 @@ func (o blockEditOptions) content() (any, error) {
 	}
 	if hasText && o.panelFile != "" {
 		return nil, usagef("give --text or --text-file, or --panel-file, not both")
+	}
+	if o.followPage && (hasText || o.panelFile != "") {
+		return nil, usagef("--follow-page goes without --text, --text-file or --panel-file")
 	}
 	if (o.from != "" || o.to != "") && o.panelFile == "" {
 		return nil, usagef("--from and --to go with --panel-file")
@@ -82,9 +89,9 @@ func (o blockEditOptions) content() (any, error) {
 func (a *app) observationEditBlockCommand() *cobra.Command {
 	var opts blockEditOptions
 	cmd := &cobra.Command{
-		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path>) [--width third|half|two_thirds|full] [--height <pixels>] [--position <n>]",
+		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path> | --follow-page) [--width third|half|two_thirds|full] [--height <pixels>] [--position <n>]",
 		Short: "Change a live block's text, panel, width, height or position",
-		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, its height in pixels, or its position, which moves the blocks in between.\n--height takes 120 to 960, and 0 returns the block to its automatic height.\nTo place several blocks at once, use observe o arrange.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
+		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, its height in pixels, or its position, which moves the blocks in between.\n--follow-page drops a panel block's own range, so it shows the observation's range again.\n--height takes 120 to 960, and 0 returns the block to its automatic height.\nTo place several blocks at once, use observe o arrange.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
 		Args:  exactArgs(1, "one block id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -117,6 +124,7 @@ func (a *app) observationEditBlockCommand() *cobra.Command {
 	flags.StringVar(&opts.width, "width", "", "the block's width: third, half, two_thirds or full")
 	flags.IntVar(&opts.height, "height", 0, "the block's height in pixels, 120 to 960; 0 for the automatic height")
 	flags.IntVar(&opts.position, "position", 0, "move the block to this position")
+	flags.BoolVar(&opts.followPage, "follow-page", false, "drop a panel block's own range so it follows the observation's")
 	return cmd
 }
 

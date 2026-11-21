@@ -505,12 +505,13 @@ blocks-id:
     x-surfaces:
       mcp: [update_block]
       cli: [observe o edit-block]
-    summary: Change a block's body, width, height or position.
+    summary: Change a block's body, width, height or position, or let a panel follow the page's range.
     description: >-
       Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
       Every change here raises the version, a width, height or position change included, so a person editing the block's text meets `version_conflict` when someone resizes it; arrange a page with `PUT /observations/{id}/layout` instead, which leaves versions alone.
       A `height` of `null` returns the block to its default height.
       Only the body of a text or panel block can change (`body_not_editable`).
+      `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`).
       A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`.
       A `position` moves the block and shifts the blocks between, which keep their versions.
     requestBody:

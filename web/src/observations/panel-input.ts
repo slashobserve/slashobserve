@@ -1,5 +1,11 @@
 import type { Selections } from "@/api/keys"
 import { ALL } from "@/dashboards/search"
+import type { VariableState } from "@/dashboards/use-variables"
+import {
+  resolveSelections,
+  variableDisplay,
+  type VariableOptions,
+} from "@/dashboards/variables"
 import { resolveTime } from "@/lib/time"
 import type { DataPanel, Variable } from "@/spec"
 
@@ -75,6 +81,61 @@ export function bakedSelections(
     else if (variable.type === "constant") out[variable.name] = [variable.value]
   }
   return out
+}
+
+function bakedValues(variable: Variable): string[] {
+  return bakedSelections([variable])[variable.name] ?? []
+}
+
+function ignoreRetry() {}
+
+function takesFreeEntry(variable: Variable): boolean {
+  return (
+    variable.type === "textbox" ||
+    variable.type === "adhoc" ||
+    variable.type === "groupby"
+  )
+}
+
+export function blockVariableStates(
+  variables: readonly Variable[],
+  chosen: Selections
+): { states: VariableState[]; fixed: VariableState[]; selections: Selections } {
+  const picked = Object.fromEntries(
+    Object.entries(chosen).filter(([name]) =>
+      variables.some(
+        (variable) => variable.name === name && !takesFreeEntry(variable)
+      )
+    )
+  )
+  const displays = variables.map((variable) =>
+    variableDisplay(variable, {
+      data: { values: bakedValues(variable), truncated: false },
+      last: undefined,
+      parentKey: "",
+      isError: false,
+      isFetching: false,
+    })
+  )
+  const options: VariableOptions = {}
+  variables.forEach((variable, index) => {
+    options[variable.name] = displays[index].selectable
+  })
+  const { selections } = resolveSelections([...variables], picked, options)
+  const all = variables.map((variable, index) => ({
+    variable,
+    options: displays[index].shown?.values,
+    texts: displays[index].shown?.texts,
+    truncated: false,
+    status: displays[index].status,
+    selected: selections[variable.name] ?? [],
+    retry: ignoreRetry,
+  }))
+  return {
+    states: all.filter((state) => !takesFreeEntry(state.variable)),
+    fixed: all.filter((state) => takesFreeEntry(state.variable)),
+    selections,
+  }
 }
 
 export function variableCaption(selections: Selections): string {

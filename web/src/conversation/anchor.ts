@@ -80,10 +80,10 @@ const kindRules: Record<
   position: { required: [] },
 }
 
-const maxLabels = 16
-const maxText = 200
+export const maxLabels = 16
+export const maxText = 200
 const maxQuote = 280
-const maxEncoded = 1536
+export const maxEncoded = 1536
 
 const wireFields = new Set([
   "kind",
@@ -189,8 +189,23 @@ function problemOf(anchor: Anchor): string | null {
   return sizeProblem(anchor) ?? encodedProblem(anchor)
 }
 
+const goEscapedExtra: Record<string, number> = {
+  "<": 5,
+  ">": 5,
+  "&": 5,
+  "\u2028": 3,
+  "\u2029": 3,
+}
+
+export function encodedBytes(anchor: object): number {
+  const json = JSON.stringify(anchor)
+  let extra = 0
+  for (const char of json) extra += goEscapedExtra[char] ?? 0
+  return new TextEncoder().encode(json).length + extra
+}
+
 function encodedProblem(anchor: Anchor): string | null {
-  const bytes = new TextEncoder().encode(JSON.stringify(anchor)).length
+  const bytes = encodedBytes(anchor)
   return bytes > maxEncoded
     ? `${bytes} bytes once encoded, over the limit of ${maxEncoded} bytes; send fewer or shorter labels`
     : null

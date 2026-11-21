@@ -2,10 +2,13 @@
 INSERT INTO run_tokens (token_hash, agent_request_id, attempt, expires_at) VALUES (@token_hash, @agent_request_id, @attempt, @expires_at);
 
 -- name: GetRunTokenRun :one
-SELECT sqlc.embed(r), t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode
+SELECT sqlc.embed(r), t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode,
+  coalesce(c.name, s.name, '')::text AS assignee_name
 FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
 LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
+LEFT JOIN oauth_clients c ON c.id = g.client_id
+LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r.assigned_id
 WHERE t.token_hash = @token_hash
   AND g.revoked_at IS NULL
   AND t.attempt = r.attempts

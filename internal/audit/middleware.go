@@ -189,6 +189,10 @@ func (d Declaration) target(params gin.Params) Target {
 	return t
 }
 
+func OutcomeForStatus(status int) Outcome {
+	return outcomeFor(status, Declaration{})
+}
+
 func outcomeFor(status int, declared Declaration) Outcome {
 	_, namesTarget := declared.Target.PathParam()
 	switch {

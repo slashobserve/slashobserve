@@ -20,7 +20,20 @@ describe("sparklinePoints", () => {
     ).toEqual(["0.0,38.0", "300.0,2.0", "600.0,20.0"])
   })
 
-  it("centres a flat series", () => {
+  it("keeps a series that is all zero on the baseline", () => {
+    expect(
+      sparklinePoints(
+        [
+          [0, 0],
+          [1, 0],
+          [2, 0],
+        ],
+        300
+      )
+    ).toEqual(["0.0,38.0", "300.0,38.0", "600.0,38.0"])
+  })
+
+  it("centres a flat series that is not zero", () => {
     expect(
       sparklinePoints(
         [

@@ -246,6 +246,15 @@ func TestObservationPanelBlocksAreCheckedLikeFindingEvidence(t *testing.T) {
 	if page := r.view(t, editorCaller, id); changed.Version != 2 || page.Blocks[0].Title != "Latency" || page.Blocks[0].From != "2026-11-01T08:00:00Z" {
 		t.Errorf("blocks after a good update = %#v", page.Blocks)
 	}
+
+	mixed := r.call(t, editorCaller, nameUpdateBlock, fmt.Sprintf(`{"block_id":%q,"version":2,"follow_page":true,"from":"2026-11-01T08:00:00Z","to":"2026-11-01T09:00:00Z"}`, good.BlockID))
+	if !mixed.IsError {
+		t.Errorf("follow_page with a range was accepted: %#v", mixed.Content)
+	}
+	followed := r.written(t, editorCaller, nameUpdateBlock, fmt.Sprintf(`{"block_id":%q,"version":2,"follow_page":true}`, good.BlockID))
+	if page := r.view(t, editorCaller, id); followed.Version != 3 || page.Blocks[0].From != "" || page.Blocks[0].Title != "Latency" {
+		t.Errorf("blocks after follow_page = %#v", page.Blocks)
+	}
 }
 
 func TestObservationBlocksFromSomeoneWhoCanOnlyCommentAreRequested(t *testing.T) {

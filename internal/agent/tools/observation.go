@@ -50,7 +50,7 @@ const (
 	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
-	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width, height or position. A stale version answers version_conflict, and a width, height or position change raises the version too, so to lay out a page use arrange_blocks."
+	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width, height or position. follow_page: true drops a panel's own range so it shows the observation's. A stale version answers version_conflict, and a width, height or position change raises the version too, so to lay out a page use arrange_blocks."
 	descArrangeBlocks      = "Set the order of an observation's page and the width and height of its blocks in one call: list block_ids in the order the page should show them, each with an optional width (third, half, two_thirds or full) and height in pixels (120 to 960, null for the default). A block you leave out keeps its place after the block it followed. It needs no versions and never makes a person's edit of a block stale; the last arrangement wins."
 	descResolveObservation = "Close an observation with a one-line summary of what was found."
 	descKeepBlock          = "Keep a requested block so it goes live for everyone who sees the observation. Send the block's version."
@@ -73,6 +73,7 @@ const (
 	propUpdateHeight     = `"height":{"type":["integer","null"],"minimum":120,"maximum":960,"description":"Pixels; null for the default by kind."}`
 	propArrangedBlocks   = `"blocks":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"object","properties":{` + propBlockID + `,` + propBlockWidth + `,` + propUpdateHeight + `},"required":["block_id"],"additionalProperties":false},"description":"The blocks in the order the page should show them, each at most once. A width or height you leave out is kept."}`
 	propBlockPosition    = `"position":{"type":"integer","minimum":0,"description":"Index to place the block at. Default the end."}`
+	propBlockFollowPage  = `"follow_page":{"type":"boolean","description":"True drops a panel block's own from and to, so it shows the observation's range. Send without panel, markdown, from or to."}`
 	blockProps           = propBlockKind + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockSnapshotOf + `,` + propBlockWidth + `,` + propBlockPosition
 	propObservationBlock = `"blocks":{"type":"array","maxItems":10,"items":{"type":"object","properties":{` + blockProps + `},"required":["kind"],"additionalProperties":false},"description":"Blocks to add in order, shaped as in add_block but without height."}`
 
@@ -80,7 +81,7 @@ const (
 	schemaGetObservation     = `{"type":"object","properties":{"observation_id":{"type":"string","format":"uuid","description":"The observation, from list_observations."}},"required":["observation_id"],"additionalProperties":false}`
 	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `,` + propBlockHeight + `},"required":["observation_id","kind"],"additionalProperties":false}`
-	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propUpdateHeight + `,` + propBlockPosition + `},"required":["block_id","version"],"additionalProperties":false}`
+	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propUpdateHeight + `,` + propBlockPosition + `,` + propBlockFollowPage + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaArrangeBlocks      = `{"type":"object","properties":{` + propObservationID + `,` + propArrangedBlocks + `},"required":["observation_id","blocks"],"additionalProperties":false}`
 	schemaResolveObservation = `{"type":"object","properties":{` + propObservationID + `,"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line on what was found."}},"required":["observation_id","summary"],"additionalProperties":false}`
 	schemaKeepBlock          = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `},"required":["block_id","version"],"additionalProperties":false}`
@@ -543,7 +544,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 		return Result{}, err
 	}
 	principal, _ := auth.FromContext(ctx)
-	change := observations.BlockChange{Version: *in.Version, Height: in.Height, Position: in.Position, RunID: runID}
+	change := observations.BlockChange{Version: *in.Version, Height: in.Height, Position: in.Position, FollowPage: in.FollowPage, RunID: runID}
 	if in.Width != "" {
 		width := observations.Width(in.Width)
 		change.Width = &width
@@ -563,19 +564,27 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 }
 
 type blockUpdateInput struct {
-	BlockID   string                    `json:"block_id"`
-	Version   *int                      `json:"version"`
-	Markdown  *string                   `json:"markdown"`
-	Panel     json.RawMessage           `json:"panel"`
-	Variables map[string][]string       `json:"variables"`
-	From      string                    `json:"from"`
-	To        string                    `json:"to"`
-	Width     string                    `json:"width"`
-	Height    observations.HeightChange `json:"height"`
-	Position  *int                      `json:"position"`
+	BlockID    string                    `json:"block_id"`
+	Version    *int                      `json:"version"`
+	Markdown   *string                   `json:"markdown"`
+	Panel      json.RawMessage           `json:"panel"`
+	Variables  map[string][]string       `json:"variables"`
+	From       string                    `json:"from"`
+	To         string                    `json:"to"`
+	Width      string                    `json:"width"`
+	Height     observations.HeightChange `json:"height"`
+	Position   *int                      `json:"position"`
+	FollowPage bool                      `json:"follow_page"`
+}
+
+func (in blockUpdateInput) carriesBody() bool {
+	return in.Markdown != nil || len(in.Panel) > 0 || in.From != "" || in.To != ""
 }
 
 func (r *Registry) blockBody(ctx context.Context, principal auth.Principal, id pgtype.UUID, in blockUpdateInput, change *observations.BlockChange) (Result, bool, error) {
+	if in.FollowPage && in.carriesBody() {
+		return invalid("follow_page goes without panel, markdown, from or to"), false, nil
+	}
 	switch {
 	case in.Markdown != nil && len(in.Panel) > 0:
 		return invalid("send markdown for a text block or panel for a panel block, not both"), false, nil

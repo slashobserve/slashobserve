@@ -75,7 +75,7 @@ func (d *Datasource) lintKQL(ctx context.Context, body string, offset int) ([]fi
 	if err != nil {
 		return nil, err
 	}
-	compiled, _ := kql.Compile(body, kqlFields(m))
+	compiled, _ := kql.CompileKnowing(body, kqlFields(m), m.KnownField)
 	findings := make([]finding, len(compiled.Diagnostics))
 	for i, diag := range compiled.Diagnostics {
 		findings[i] = finding{severity: datasource.Severity(diag.Severity), message: diag.Message, start: offset + diag.Start, end: offset + diag.End}

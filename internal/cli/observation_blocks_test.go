@@ -23,6 +23,7 @@ func TestEditBlockSendsTheChangesWithTheVersion(t *testing.T) {
 		{"position only", []string{"--position", "0", "--full"}, `{"position":0,"version":3,"width":"full"}`},
 		{"width and height", []string{"--width", "two_thirds", "--height", "360"}, `{"height":360,"version":3,"width":"two_thirds"}`},
 		{"automatic height", []string{"--height", "0"}, `{"height":null,"version":3}`},
+		{"follow the page", []string{"--follow-page"}, `{"follow_page":true,"version":3}`},
 		{"panel", []string{"--panel-file", panelFile, "--from", "2026-01-01T00:00:00Z", "--to", "2026-01-02T00:00:00Z"}, `{"body":{"from":"2026-01-01T00:00:00Z","panel":{"type":"timeseries"},"to":"2026-01-02T00:00:00Z"},"version":3}`},
 	}
 	for _, tc := range cases {
@@ -46,6 +47,7 @@ func TestEditBlockRefusesAnEmptyOrUnversionedChange(t *testing.T) {
 		{"o", "edit-block", testBlock, "--version", "2", "--half", "--full"},
 		{"o", "edit-block", testBlock, "--version", "2", "--half", "--width", "third"},
 		{"o", "edit-block", testBlock, "--version", "2", "--from", "2026-01-01T00:00:00Z", "--text", "x"},
+		{"o", "edit-block", testBlock, "--version", "2", "--follow-page", "--text", "x"},
 	} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, args...)
 		if code != 2 || stderr == "" {

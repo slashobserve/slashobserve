@@ -689,11 +689,12 @@ func (h *Handler) addBlock(c *gin.Context) {
 }
 
 type updateBlockRequest struct {
-	Version  *int            `json:"version"`
-	Body     json.RawMessage `json:"body"`
-	Width    *string         `json:"width"`
-	Height   HeightChange    `json:"height"`
-	Position *int            `json:"position"`
+	Version    *int            `json:"version"`
+	Body       json.RawMessage `json:"body"`
+	Width      *string         `json:"width"`
+	Height     HeightChange    `json:"height"`
+	Position   *int            `json:"position"`
+	FollowPage bool            `json:"follow_page"`
 }
 
 func (h *Handler) updateBlock(c *gin.Context) {
@@ -715,7 +716,7 @@ func (h *Handler) updateBlock(c *gin.Context) {
 	}) {
 		return
 	}
-	change := BlockChange{Version: *req.Version, Body: req.Body, Height: req.Height, Position: req.Position}
+	change := BlockChange{Version: *req.Version, Body: req.Body, Height: req.Height, Position: req.Position, FollowPage: req.FollowPage}
 	if req.Width != nil {
 		width := Width(*req.Width)
 		change.Width = &width

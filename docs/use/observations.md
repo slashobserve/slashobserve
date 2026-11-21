@@ -94,7 +94,11 @@ A commenter's block is `requested`: it shows with a dashed border and the captio
 Both show to an editor, and only **Discard** shows to the person who asked for the block.
 Resolving does not close the page: a resolved observation still takes blocks from editors and suggestions from commenters, and the row says "This observation is resolved" so nobody is surprised; an editor who does not want more reopens it or discards the suggestion.
 
-A panel block's caption names its datasource and says "live", and a snapshot's caption says "Frozen" with the time range of its data.
+A panel block's caption names its datasource and its window: "Last hour, live", the page's range, or "Pinned to" the block's own; a snapshot's caption says "Frozen" with the time range of its data.
+A panel block is drawn as a dashboard panel, and its panel menu has **View as table**, **Inspect**, **Download CSV** and **Save as PNG**, plus **Open in Logs** or **Open in Traces** on a logs or traces panel.
+**Inspect** opens the panel's data and query in the right pane in place of the discussion, and closing it brings the discussion back.
+A block that carries variables shows a picker above the panel for each one with stored options, starting at the values it was added with; a choice changes only what you see and is not saved.
+A textbox, ad hoc filter or group by variable shows its stored value and cannot be changed on the block.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.
 A person who can only comment suggests that snapshot, as with any other block.
 
@@ -121,6 +125,22 @@ If someone changed the block first, the editor says so and **Use their version**
 Text that is empty is refused; delete the block instead.
 Editing, moving, resizing and deleting need edit access to the folder.
 An agent changes one block with `update_block` and its `position`, `width` or `height`, and arranges the whole page with `arrange_blocks`, which needs no version.
+
+### Time range
+
+The page's time range sits in the top row, and every panel block follows it unless the block is pinned.
+With no range stored it reads **Last hour, live**.
+A person who can edit chooses another one; a quick range such as **Last 6 hours** is stored as the absolute window it means at that moment, so everyone reads the same data, and **Last hour, live** clears it.
+Anyone else sees the range without the picker.
+
+A panel block's panel menu offers **Pin to this window**, which keeps the window the block shows now, and **Pin to a window**, which opens a time range picker for that block.
+Dragging across a time series chart pins the block to the dragged range.
+A pinned block keeps its window when the page's range changes, and **Follow the page** releases it.
+A block added from a dashboard arrives pinned to the window it was taken from.
+Pinning needs edit access to the folder.
+
+Over [MCP](mcp.md) `update_observation` sets the page's range, and `update_block` sets a block's own `from` and `to` or releases them with `follow_page: true`.
+On the [CLI](cli.md#observations) `observe o edit --from <time> --to <time>` or `--clear-range` sets the page's range, and `observe o edit-block --follow-page` releases a block.
 
 ### Rename, resolve, reopen and move
 

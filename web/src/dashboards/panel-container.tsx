@@ -45,7 +45,7 @@ import { commentOnPanel } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
-import { PanelMenu } from "./panel-menu"
+import { PanelMenu, type BlockMenuHost } from "./panel-menu"
 import { PanelToolbar } from "./panel-toolbar"
 import {
   panelDataKey,
@@ -144,6 +144,8 @@ type PanelContainerProps = {
   viewing?: boolean
   inspected?: boolean
   onInspectTarget?: (target: InspectTarget | null) => void
+  blockMenu?: BlockMenuHost
+  onPinRange?: (fromMs: number, toMs: number) => void
 }
 
 export const PanelContainer = memo(function PanelContainer({
@@ -188,6 +190,8 @@ export const PanelContainer = memo(function PanelContainer({
   viewing = false,
   inspected = false,
   onInspectTarget,
+  blockMenu,
+  onPinRange,
 }: PanelContainerProps) {
   const panel = useMemo(
     () =>
@@ -345,14 +349,15 @@ export const PanelContainer = memo(function PanelContainer({
   const sourceKind = source.kind
   const onTimeRangeSelect = useCallback(
     (fromMs: number, toMs: number) => {
-      if (sourceKind === "build") return
+      if (sourceKind === "block") onPinRange?.(fromMs, toMs)
+      if (sourceKind === "build" || sourceKind === "block") return
       setSearch((state) => ({
         ...state,
         from: String(Math.round(fromMs)),
         to: String(Math.round(toMs)),
       }))
     },
-    [setSearch, sourceKind]
+    [setSearch, sourceKind, onPinRange]
   )
 
   let state: PanelState = "loading"
@@ -394,7 +399,7 @@ export const PanelContainer = memo(function PanelContainer({
     if (event.button !== 0 || viewing) return
     const target = event.target as Element
     if (target.closest(interactiveTarget)) return
-    if (commentTool) {
+    if (commentTool && sourceKind !== "block") {
       if (layoutSession) return
       event.preventDefault()
       event.stopPropagation()
@@ -447,6 +452,7 @@ export const PanelContainer = memo(function PanelContainer({
       composerRef={composerRef}
       inToolbar={inToolbar}
       observationVariables={observationVariables}
+      block={blockMenu}
     />
   )
 
