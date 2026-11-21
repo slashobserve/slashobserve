@@ -7365,6 +7365,9 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+        follow_page:
+          type: boolean
+          description: True clears a panel block's own range, so it follows the observation's range; never sent with `body`.
     PinObservationRequest:
       type: object
       additionalProperties: false

@@ -2724,8 +2724,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a block's body, width or position.
-         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
+         * Change a block's body, width or position, or let a panel follow the page's range.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
         trace?: never;
@@ -7900,6 +7900,8 @@ export interface components {
             width?: components["schemas"]["ObservationBlockWidth"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
+            /** @description True clears a panel block's own range, so it follows the observation's range; never sent with `body`. */
+            follow_page?: boolean;
         };
         PinObservationRequest: {
             /**

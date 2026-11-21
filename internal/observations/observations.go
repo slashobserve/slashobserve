@@ -121,9 +121,10 @@ type BlockInput struct {
 }
 
 type BlockChange struct {
-	Version  int
-	Body     json.RawMessage
-	Width    *Width
-	Position *int
-	RunID    pgtype.UUID
+	Version    int
+	Body       json.RawMessage
+	Width      *Width
+	Position   *int
+	FollowPage bool
+	RunID      pgtype.UUID
 }
