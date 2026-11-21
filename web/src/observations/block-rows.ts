@@ -31,14 +31,16 @@ const shareOf: Record<BlockWidth, number> = {
 
 const rowColumns = 6
 
+export const singleColumnBelow = 640
+
 export const spanClass: Record<BlockWidth, string> = {
-  third: "@min-[720px]:col-span-2",
-  half: "@min-[720px]:col-span-3",
-  two_thirds: "@min-[720px]:col-span-4",
-  full: "@min-[720px]:col-span-6",
+  third: "@min-[640px]:col-span-2",
+  half: "@min-[640px]:col-span-3",
+  two_thirds: "@min-[640px]:col-span-4",
+  full: "@min-[640px]:col-span-6",
 }
 
-export const rowGridClass = "grid grid-cols-1 gap-4 @min-[720px]:grid-cols-6"
+export const rowGridClass = "grid grid-cols-1 gap-4 @min-[640px]:grid-cols-6"
 
 const minBlockHeight = 120
 const maxBlockHeight = 960

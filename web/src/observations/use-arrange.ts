@@ -26,6 +26,7 @@ import {
   hasHeight,
   orderOf,
   placeBeside,
+  singleColumnBelow,
   snapHeight,
   snapWidth,
   stepBlock,
@@ -38,8 +39,6 @@ import {
   type DropTarget,
 } from "./block-rows"
 import { useArrangeBlocks, type ArrangeBody, type Block } from "./queries"
-
-const singleColumnPixels = 720
 
 const widthWords: Record<BlockWidth, string> = {
   third: "one third",
@@ -263,7 +262,7 @@ export function useArrange({
   ): Draft {
     const block = blocks.find((entry) => entry.id === current.id)
     const change: BlockChange = {}
-    if (current.rowPixels >= singleColumnPixels) {
+    if (current.rowPixels >= singleColumnBelow) {
       change.width = snapWidth(
         current.startWidth + event.clientX - current.startX,
         current.rowPixels

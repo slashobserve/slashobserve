@@ -113,7 +113,7 @@ Blocks sit side by side in rows of three thirds when the page is wide enough: th
 A person with edit access arranges the page without a menu.
 Drag a block by the grip at its top left corner to drop it before or after another block, and drag the corner at its bottom right to snap its width to a third, a half, two thirds or the full page and, on a panel or snapshot block, to set its height in steps of 20 pixels.
 Focus the grip and press the arrow keys to move the block, **Shift** with the left or right arrow to change its width, and **Shift** with the up or down arrow to change a panel's height by 40 pixels; each change is announced.
-Below 720 pixels the page shows one column, so the width does not apply.
+Below 640 pixels of block list width the page shows one column, so the width does not apply; the right dock, when open, can bring the list below that.
 
 Arranging never conflicts with a text edit that is open on the same block, because a block's version counts its content and not its place or size.
 When two people arrange at once the last arrangement wins.
@@ -271,7 +271,7 @@ A revision freezes:
 
 A revision published before heights were kept has none, so its panels show at the default height for their width.
 
-A published page lays its blocks out in rows of thirds like the observation page does, so a block that sits alone at half width takes half the row.
+A published page lays its blocks out in rows of thirds like the observation page does, from 640 pixels of width up and in one column below that, so a block that sits alone at half width takes half the row.
 Revisions published before this packing existed show such a block at half width too, where they used to give it the whole row.
 
 A revision leaves out requested blocks, run blocks, and the query text of every panel: a published copy shows what the data was and never how to query your datasources.

@@ -17,6 +17,9 @@ import {
   nextBlockId,
   orderOf,
   packRows,
+  rowGridClass,
+  singleColumnBelow,
+  spanClass,
   placeBeside,
   snapHeight,
   snapWidth,
@@ -443,5 +446,22 @@ describe("a draft layout", () => {
     ).toEqual({
       blocks: [{ id: "b", width: "third", height: null }, { id: "a" }],
     })
+  })
+})
+
+describe("the width below which the page shows one column", () => {
+  const publishedColumnPixels = 720 - 2 * 16
+  const phonePixels = 430
+
+  it("is narrower than the published page's content and wider than a phone", () => {
+    expect(singleColumnBelow).toBeLessThan(publishedColumnPixels)
+    expect(singleColumnBelow).toBeGreaterThan(phonePixels)
+  })
+
+  it("is the width every row class switches at", () => {
+    const classes = [rowGridClass, ...Object.values(spanClass)]
+    for (const name of classes) {
+      expect(name).toContain(`@min-[${singleColumnBelow}px]:`)
+    }
   })
 })
