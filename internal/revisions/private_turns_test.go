@@ -58,7 +58,7 @@ func (w *privateWalk) http(who auth.Principal, path string, want int) string {
 	if rec.Code != want {
 		w.t.Fatalf("%s: GET %s answered %d, want %d: %s", who.Name, path, rec.Code, want, rec.Body)
 	}
-	w.seen[who.Name] = append(w.seen[who.Name], "GET "+path+" "+rec.Body.String())
+	w.seen[who.Name] = append(w.seen[who.Name], rec.Body.String())
 	return rec.Body.String()
 }
 
@@ -75,7 +75,7 @@ func (w *privateWalk) mcp(who auth.Principal, tool, input string, wantError bool
 	if res.IsError != wantError {
 		w.t.Fatalf("%s: %s %s answered error %v, want %v: %s", who.Name, tool, input, res.IsError, wantError, body)
 	}
-	w.seen[who.Name] = append(w.seen[who.Name], tool+" "+string(body))
+	w.seen[who.Name] = append(w.seen[who.Name], string(body))
 	return string(body)
 }
 

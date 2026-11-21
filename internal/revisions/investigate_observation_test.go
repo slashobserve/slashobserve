@@ -207,7 +207,8 @@ func TestRetryByAnotherPersonFallsBackToANewObservation(t *testing.T) {
 	dash := seedDashboard(t, r.d, 1)
 	hidden := foldertest.Restricted(t, r.d, "Payroll", "payroll-team")
 	secret := r.observation(t, root, hidden)
-	first := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash, ObservationID: mustUUID(t, secret.ID), By: root})
+	asked := openThread(t, r.d, dash).ID
+	first := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash, ObservationID: mustUUID(t, secret.ID), By: root, ThreadMessageID: asked})
 	if first.ObservationID != mustUUID(t, secret.ID) {
 		t.Fatalf("first run names %v", first.ObservationID)
 	}
