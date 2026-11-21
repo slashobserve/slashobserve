@@ -68,11 +68,14 @@ WHERE d.folder_id = ANY($1::uuid[])
   AND ($9::text[] IS NULL OR d.tags @> $9::text[])
   AND ($10::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches($10::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $11::timestamptz)))
-  AND ($12::text IS NULL
-    OR strpos(lower(d.title), lower($12::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($12::text)) > 0)
+    WHERE s.id = d.id AND (health_problem_matches($10::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $11::timestamptz)
+      OR ($10::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND starts_with(a.prompt, $12::text)))))))
+  AND ($13::text IS NULL
+    OR strpos(lower(d.title), lower($13::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($13::text)) > 0)
 `
 
 type CountDashboardsParams struct {
@@ -87,6 +90,7 @@ type CountDashboardsParams struct {
 	Tags           []string
 	Problem        pgtype.Text
 	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
 	Q              pgtype.Text
 }
 
@@ -103,6 +107,7 @@ func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams
 		arg.Tags,
 		arg.Problem,
 		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Q,
 	)
 	var count int64
@@ -638,13 +643,16 @@ WHERE ($2::timestamptz IS NULL
   AND ($12::text[] IS NULL OR d.tags @> $12::text[])
   AND ($13::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches($13::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $14::timestamptz)))
-  AND ($15::text IS NULL
-    OR strpos(lower(d.title), lower($15::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
+    WHERE s.id = d.id AND (health_problem_matches($13::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $14::timestamptz)
+      OR ($13::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND starts_with(a.prompt, $15::text)))))))
+  AND ($16::text IS NULL
+    OR strpos(lower(d.title), lower($16::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($16::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $17 OFFSET $16
+LIMIT $18 OFFSET $17
 `
 
 type ListDashboardsParams struct {
@@ -662,6 +670,7 @@ type ListDashboardsParams struct {
 	Tags            []string
 	Problem         pgtype.Text
 	UnopenedBefore  pgtype.Timestamptz
+	RepairPrefix    string
 	Q               pgtype.Text
 	RowOffset       int32
 	RowLimit        int32
@@ -700,6 +709,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 		arg.Tags,
 		arg.Problem,
 		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,
@@ -781,13 +791,16 @@ WHERE ($2::uuid IS NULL
   AND ($16::text[] IS NULL OR d.tags @> $16::text[])
   AND ($17::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches($17::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $18::timestamptz)))
-  AND ($19::text IS NULL
-    OR strpos(lower(d.title), lower($19::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($19::text)) > 0)
+    WHERE s.id = d.id AND (health_problem_matches($17::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $18::timestamptz)
+      OR ($17::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND starts_with(a.prompt, $19::text)))))))
+  AND ($20::text IS NULL
+    OR strpos(lower(d.title), lower($20::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($20::text)) > 0)
 ORDER BY NOT f.personal, f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
-LIMIT $21 OFFSET $20
+LIMIT $22 OFFSET $21
 `
 
 type ListDashboardsByFolderParams struct {
@@ -809,6 +822,7 @@ type ListDashboardsByFolderParams struct {
 	Tags           []string
 	Problem        pgtype.Text
 	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
 	Q              pgtype.Text
 	RowOffset      int32
 	RowLimit       int32
@@ -851,6 +865,7 @@ func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboards
 		arg.Tags,
 		arg.Problem,
 		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,
@@ -930,13 +945,16 @@ WHERE ($2::text IS NULL
   AND ($12::text[] IS NULL OR d.tags @> $12::text[])
   AND ($13::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches($13::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $14::timestamptz)))
-  AND ($15::text IS NULL
-    OR strpos(lower(d.title), lower($15::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
+    WHERE s.id = d.id AND (health_problem_matches($13::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $14::timestamptz)
+      OR ($13::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND starts_with(a.prompt, $15::text)))))))
+  AND ($16::text IS NULL
+    OR strpos(lower(d.title), lower($16::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($16::text)) > 0)
 ORDER BY lower(d.title), d.id
-LIMIT $17 OFFSET $16
+LIMIT $18 OFFSET $17
 `
 
 type ListDashboardsByNameParams struct {
@@ -954,6 +972,7 @@ type ListDashboardsByNameParams struct {
 	Tags           []string
 	Problem        pgtype.Text
 	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
 	Q              pgtype.Text
 	RowOffset      int32
 	RowLimit       int32
@@ -992,6 +1011,7 @@ func (q *Queries) ListDashboardsByName(ctx context.Context, arg ListDashboardsBy
 		arg.Tags,
 		arg.Problem,
 		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,
@@ -1074,13 +1094,16 @@ WHERE ($2::integer IS NULL
   AND ($13::text[] IS NULL OR d.tags @> $13::text[])
   AND ($14::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches($14::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $15::timestamptz)))
-  AND ($16::text IS NULL
-    OR strpos(lower(d.title), lower($16::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($16::text)) > 0)
+    WHERE s.id = d.id AND (health_problem_matches($14::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, $15::timestamptz)
+      OR ($14::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND starts_with(a.prompt, $16::text)))))))
+  AND ($17::text IS NULL
+    OR strpos(lower(d.title), lower($17::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($17::text)) > 0)
 ORDER BY vc.n DESC, d.updated_at DESC, d.id DESC
-LIMIT $18 OFFSET $17
+LIMIT $19 OFFSET $18
 `
 
 type ListDashboardsByViewsParams struct {
@@ -1099,6 +1122,7 @@ type ListDashboardsByViewsParams struct {
 	Tags            []string
 	Problem         pgtype.Text
 	UnopenedBefore  pgtype.Timestamptz
+	RepairPrefix    string
 	Q               pgtype.Text
 	RowOffset       int32
 	RowLimit        int32
@@ -1138,6 +1162,7 @@ func (q *Queries) ListDashboardsByViews(ctx context.Context, arg ListDashboardsB
 		arg.Tags,
 		arg.Problem,
 		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Q,
 		arg.RowOffset,
 		arg.RowLimit,
