@@ -13,8 +13,11 @@ SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 -- name: ShareFolderPlacement :one
 SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
--- name: RunReadRestricted :one
-SELECT read_restricted FROM agent_requests WHERE id = @id;
+-- name: RunAnswerKeptWithAdmins :one
+SELECT (r.read_restricted
+  OR EXISTS (SELECT 1 FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = r.dashboard_id AND f.admins_only)
+  OR EXISTS (SELECT 1 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id IN (r.observation_id, r.subject_observation_id) AND f.admins_only))::boolean
+FROM agent_requests r WHERE r.id = @id;
 
 -- name: FindingRun :one
 SELECT agent_request_id FROM findings WHERE id = @id;

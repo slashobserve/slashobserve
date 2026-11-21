@@ -156,7 +156,11 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 		return Finding{}, false, ErrRequesterOnly
 	}
 	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
-	if f.Restricted {
+	kept, err := placement.AnswerKeptWithAdmins(ctx, s.store.db.Queries(), requestID)
+	if err != nil {
+		return Finding{}, false, err
+	}
+	if kept {
 		if conclusion.FolderID, err = s.restrictedAnswerFolder(ctx, requestID); err != nil {
 			return Finding{}, false, err
 		}

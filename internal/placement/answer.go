@@ -13,7 +13,7 @@ import (
 )
 
 func Answer(ctx context.Context, q *dbsqlc.Queries, runID, folderID pgtype.UUID) error {
-	restricted, err := readRestricted(ctx, q, runID)
+	restricted, err := AnswerKeptWithAdmins(ctx, q, runID)
 	if err != nil || !restricted {
 		return err
 	}
@@ -28,7 +28,7 @@ func Answer(ctx context.Context, q *dbsqlc.Queries, runID, folderID pgtype.UUID)
 }
 
 func AnswerOnDashboard(ctx context.Context, q *dbsqlc.Queries, runID, dashboardID pgtype.UUID) error {
-	restricted, err := readRestricted(ctx, q, runID)
+	restricted, err := AnswerKeptWithAdmins(ctx, q, runID)
 	if err != nil || !restricted {
 		return err
 	}
@@ -53,18 +53,18 @@ func AppliedAnswer(ctx context.Context, q *dbsqlc.Queries, findingID, dashboardI
 	return AnswerOnDashboard(ctx, q, runID, dashboardID)
 }
 
-func readRestricted(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (bool, error) {
+func AnswerKeptWithAdmins(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (bool, error) {
 	if !runID.Valid {
 		return false, nil
 	}
-	restricted, err := q.RunReadRestricted(ctx, runID)
+	kept, err := q.RunAnswerKeptWithAdmins(ctx, runID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("read whether the run read Admin-only data: %w", err)
+		return false, fmt.Errorf("read whether the run's answer stays where only Admins read: %w", err)
 	}
-	return restricted, nil
+	return kept, nil
 }
 
 type keptWithAdmins struct{ Restricted, InFlight bool }

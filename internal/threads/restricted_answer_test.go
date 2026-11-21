@@ -270,18 +270,20 @@ func TestAnAnswerSavedAfterItsSubjectGainedARestrictedAnswerIsMarkedLikeIt(t *te
 func TestARunThatReadAdminOnlyDataRepliesWithoutItsAnswerWhereNonAdminsRead(t *testing.T) {
 	cases := []struct {
 		name       string
+		restricted bool
 		adminsOnly bool
 		want       string
 	}{
-		{"a thread others read", false, replyRestricted},
-		{"a thread only Admins read", true, "Saved version 3 of this dashboard."},
+		{"a thread others read", true, false, replyRestricted},
+		{"a thread only Admins read", true, true, "Saved version 3 of this dashboard."},
+		{"a run about a dashboard only Admins read, in its thread", false, true, "Saved version 3 of this dashboard."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newAgentRig(t, true)
 			dash := r.createDashboard(t, "rps", "errors")
 			thread, run := r.mentionRun(t, target(KindDashboard, dash))
-			r.db.Exec(t, `UPDATE agent_requests SET read_restricted = true WHERE id = $1`, run.ID)
+			r.db.Exec(t, `UPDATE agent_requests SET read_restricted = $2 WHERE id = $1`, run.ID, tc.restricted)
 			if tc.adminsOnly {
 				r.moveInto(t, "dashboards", dash, r.adminsOnlyFolder(t))
 			}
