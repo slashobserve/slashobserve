@@ -34,7 +34,7 @@ func TestADuplicateOfADashboardHoldingARestrictedAnswerGoesOnlyWhereOnlyAdminsRe
 	r.db.Exec(t, `UPDATE dashboard_versions SET agent_request_id = $2 WHERE dashboard_id = $1::uuid`, source.ID, request)
 	id := mustUUID(t, source.ID)
 
-	for name, folder := range map[string]pgtype.UUID{"the General folder": r.generalFolder(t), "My Dashboards": {}} {
+	for name, folder := range map[string]pgtype.UUID{"the General folder": r.generalFolder(t), "a shared folder": r.folder(t, "Shared", false)} {
 		if _, _, err := r.service.Duplicate(reading(t.Context()), ada.principal, id, folder, "Copy"); !errors.Is(err, folders.ErrRestrictedAnswer) {
 			t.Fatalf("duplicate into %s: err = %v, want the restricted answer refusal", name, err)
 		}

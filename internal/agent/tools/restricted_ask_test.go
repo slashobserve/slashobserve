@@ -61,7 +61,7 @@ func TestAnMCPAskInAnObservationThreadThatHoldsARestrictedAnswerIsMarkedAndItsAn
 			}
 			continue
 		}
-		if err != nil || saved.Restricted || !after.ObservationID.Valid || after.SubjectObservationID.Valid {
+		if err != nil || saved.Restricted || !after.ObservationID.Valid || after.SubjectObservationID != mustUUID(t, observation) {
 			t.Fatalf("saving an unrestricted answer: %+v, %v, run %+v", saved, err, after)
 		}
 	}
