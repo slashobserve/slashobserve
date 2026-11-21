@@ -66,7 +66,7 @@ func TestAnAnswerAboutADashboardOnlyAdminsReadIsPlacedOnlyOnItOrWhereOnlyAdminsR
 	if _, _, err := r.findings.SaveAsDashboard(reading(t.Context()), admin, mustParse(t, f.ID)); !errors.Is(err, folders.ErrRestrictedAnswer) {
 		t.Fatalf("save as a dashboard in the default folder: err = %v, want the restricted answer refusal", err)
 	}
-	if err := r.applyOnto(t, dash, f); errors.Is(err, folders.ErrRestrictedAnswer) {
+	if err := r.applyOnto(t, dash, f); err != nil {
 		t.Fatalf("apply onto the dashboard it is about: %v", err)
 	}
 	saved, _ := r.answerAbout(t, about)
@@ -127,7 +127,7 @@ func TestAnAnswerAboutAnObservationOnlyAdminsReadGoesOnItsPageButNotOutUntilItMo
 	}
 	applied, f = r.answerAbout(t, onShared)
 	r.db.Exec(t, `UPDATE agent_requests SET observation_id = $2 WHERE id = $1`, applied, observation)
-	if err := r.applyOnto(t, shared, f); errors.Is(err, folders.ErrRestrictedAnswer) {
+	if err := r.applyOnto(t, shared, f); err != nil {
 		t.Fatalf("apply onto a dashboard in General after the observation moved out: %v", err)
 	}
 }
