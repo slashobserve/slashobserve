@@ -151,7 +151,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 	}
 	page := Page{Items: make([]Item, 0, min(len(rows), p.Limit)), Job: job}
 	if cursor == nil && len(p.DashboardIDs) == 0 {
-		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID})
+		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID, RepairPrefix: repairprompt.Prefix})
 		if err != nil {
 			return Page{}, fmt.Errorf("summarize health: %w", err)
 		}

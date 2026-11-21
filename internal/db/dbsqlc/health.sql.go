@@ -128,7 +128,10 @@ func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUI
 const healthSummary = `-- name: HealthSummary :one
 SELECT
   count(*) FILTER (WHERE health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed, s.duplicate_title,
-    s.last_viewed_at, s.created_at, $1::timestamptz)) AS dashboards,
+    s.last_viewed_at, s.created_at, $1::timestamptz)
+    OR (s.outdated AND (s.old_check_problems OR EXISTS (
+      SELECT 1 FROM agent_requests a
+      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text))))) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
@@ -136,12 +139,13 @@ SELECT
   count(*) FILTER (WHERE s.duplicate_title) AS duplicate_titles,
   count(*) FILTER (WHERE coalesce(s.last_viewed_at, s.created_at) < $1::timestamptz) AS unopened
 FROM dashboard_health_status s
-WHERE s.folder_id = ANY($2::uuid[])
-  AND ($3::uuid IS NULL OR s.folder_id = $3::uuid)
+WHERE s.folder_id = ANY($3::uuid[])
+  AND ($4::uuid IS NULL OR s.folder_id = $4::uuid)
 `
 
 type HealthSummaryParams struct {
 	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
 	Folders        []pgtype.UUID
 	Folder         pgtype.UUID
 }
@@ -157,7 +161,12 @@ type HealthSummaryRow struct {
 }
 
 func (q *Queries) HealthSummary(ctx context.Context, arg HealthSummaryParams) (HealthSummaryRow, error) {
-	row := q.db.QueryRow(ctx, healthSummary, arg.UnopenedBefore, arg.Folders, arg.Folder)
+	row := q.db.QueryRow(ctx, healthSummary,
+		arg.UnopenedBefore,
+		arg.RepairPrefix,
+		arg.Folders,
+		arg.Folder,
+	)
 	var i HealthSummaryRow
 	err := row.Scan(
 		&i.Dashboards,
@@ -181,23 +190,33 @@ SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_genera
   rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
   rep.updated_at AS repair_updated_at
 FROM (
-  SELECT s.id, s.title, s.created_at, s.folder_id, s.folder_title, s.folder_general, s.folder_personal, s.checked_version, s.checked_at, s.skipped, s.issues, s.query_failed, s.no_data, s.variable_failed, s.last_viewed_at, s.duplicate_title,
+  SELECT s.id, s.title, s.created_at, s.folder_id, s.folder_title, s.folder_general, s.folder_personal, s.checked_version, s.checked_at, s.skipped, s.issues, s.query_failed, s.no_data, s.variable_failed, s.last_viewed_at, s.duplicate_title, s.outdated, s.old_check_problems,
     CASE WHEN s.query_failed OR s.variable_failed THEN 0 WHEN s.no_data THEN 1
-      WHEN s.duplicate_title THEN 2 ELSE 3 END AS rank,
+      WHEN s.duplicate_title THEN 2
+      WHEN w.awaits_recheck AND NOT health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed,
+        s.duplicate_title, s.last_viewed_at, s.created_at, $1::timestamptz) THEN 4
+      ELSE 3 END AS rank,
     coalesce(s.last_viewed_at, 'epoch'::timestamptz) AS seen_at
   FROM dashboard_health_status s
-  WHERE s.folder_id = ANY($1::uuid[])
-    AND ($2::uuid IS NULL OR s.folder_id = $2::uuid)
-    AND (coalesce(cardinality($3::uuid[]), 0) = 0 OR s.id = ANY($3::uuid[]))
-    AND ($4::boolean OR health_problem_matches($5::text, s.query_failed, s.no_data, s.variable_failed,
-      s.duplicate_title, s.last_viewed_at, s.created_at, $6::timestamptz))
+  CROSS JOIN LATERAL (
+    SELECT s.outdated AND (s.old_check_problems OR EXISTS (
+      SELECT 1 FROM agent_requests a
+      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text)
+    )) AS awaits_recheck
+  ) w
+  WHERE s.folder_id = ANY($3::uuid[])
+    AND ($4::uuid IS NULL OR s.folder_id = $4::uuid)
+    AND (coalesce(cardinality($5::uuid[]), 0) = 0 OR s.id = ANY($5::uuid[]))
+    AND ($6::boolean OR health_problem_matches($7::text, s.query_failed, s.no_data, s.variable_failed,
+      s.duplicate_title, s.last_viewed_at, s.created_at, $1::timestamptz)
+      OR ($7::text = 'any' AND w.awaits_recheck))
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.state, a.result_version, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
-  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $7::text)
+  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) rep ON true
@@ -212,13 +231,13 @@ LIMIT $12
 `
 
 type ListHealthParams struct {
+	UnopenedBefore pgtype.Timestamptz
+	RepairPrefix   string
 	Folders        []pgtype.UUID
 	Folder         pgtype.UUID
 	DashboardIds   []pgtype.UUID
 	EveryRequested bool
 	Kind           string
-	UnopenedBefore pgtype.Timestamptz
-	RepairPrefix   string
 	CursorRank     pgtype.Int4
 	CursorSeen     pgtype.Timestamptz
 	CursorTitle    pgtype.Text
@@ -254,13 +273,13 @@ type ListHealthRow struct {
 
 func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListHealthRow, error) {
 	rows, err := q.db.Query(ctx, listHealth,
+		arg.UnopenedBefore,
+		arg.RepairPrefix,
 		arg.Folders,
 		arg.Folder,
 		arg.DashboardIds,
 		arg.EveryRequested,
 		arg.Kind,
-		arg.UnopenedBefore,
-		arg.RepairPrefix,
 		arg.CursorRank,
 		arg.CursorSeen,
 		arg.CursorTitle,

@@ -11,13 +11,18 @@ SELECT d.id, d.title, d.created_at, d.folder_id,
   EXISTS (
     SELECT 1 FROM dashboards o
     WHERE o.folder_id = d.folder_id AND o.id <> d.id AND lower(o.title) = lower(d.title)
-  ) AS duplicate_title
+  ) AS duplicate_title,
+  coalesce(h.version < d.latest_version, false) AS outdated,
+  (coalesce(h.issues, '[]'::jsonb) @> '[{"kind":"query_failed"}]'::jsonb
+    OR coalesce(h.issues, '[]'::jsonb) @> '[{"kind":"no_data"}]'::jsonb
+    OR coalesce(h.issues, '[]'::jsonb) @> '[{"kind":"variable_failed"}]'::jsonb)::boolean AS old_check_problems
 FROM dashboards d
 JOIN folders f ON f.id = d.folder_id
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id;
 
 -- +goose Down
-CREATE OR REPLACE VIEW dashboard_health_status AS
+DROP VIEW dashboard_health_status;
+CREATE VIEW dashboard_health_status AS
 SELECT d.id, d.title, d.created_at, d.folder_id,
   f.title AS folder_title, f.general AS folder_general, f.personal AS folder_personal,
   h.version AS checked_version, h.checked_at, coalesce(h.skipped, '')::text AS skipped,

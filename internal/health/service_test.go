@@ -378,33 +378,42 @@ func TestListSummaryCountsDashboardsPerKindOnTheFirstPage(t *testing.T) {
 	}
 }
 
-func TestAnOutdatedDashboardCountsAsNeitherFailingNorWithoutDataUntilItIsChecked(t *testing.T) {
+func TestAnOutdatedDashboardThatHadProblemsIsListedAfterTheCurrentOnesButCountsAsNeitherFailingNorWithoutData(t *testing.T) {
 	r := newRig(t)
 	failing := r.create(t, boardSpec("Failing", "fail_series"))
 	r.create(t, boardSpec("Empty", "empty_series"))
+	healthy := r.create(t, boardSpec("Healthy", "up"))
 	r.broken.Store(true)
 	if err := r.svc.Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	_, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{
-		DashboardID: failing, Parent: 1, Spec: boardSpec("Failing", "up"), Summary: "edit",
-	})
-	if err != nil {
-		t.Fatal(err)
+	for id, title := range map[pgtype.UUID]string{failing: "Failing", healthy: "Healthy"} {
+		_, err := r.dashboards.Save(reading(t.Context()), r.editor, dashboards.SaveInput{
+			DashboardID: id, Parent: 1, Spec: boardSpec(title, "up", "up"), Summary: "edit",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	page, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (health.Summary{Dashboards: 1, NoData: 1}); page.Summary == nil || *page.Summary != want {
+	if want := (health.Summary{Dashboards: 2, NoData: 1}); page.Summary == nil || *page.Summary != want {
 		t.Errorf("summary = %+v, want %+v", page.Summary, want)
 	}
+	var order []string
 	for _, it := range page.Items {
-		if it.ID == failing.String() {
-			t.Errorf("an outdated dashboard with only old problems is listed as %+v", it)
-		}
+		order = append(order, it.Title)
 	}
+	if want := []string{"Empty", "Failing"}; !slices.Equal(order, want) {
+		t.Errorf("listed %q, want %q: a dashboard waiting for a recheck comes after the ones with current problems, and a healthy one is not listed", order, want)
+	}
+	if got := page.Items[1].State; got != health.StateOutdated {
+		t.Errorf("state = %q, want outdated", got)
+	}
+
 	byKind, err := r.svc.List(reading(t.Context()), r.editor, health.ListParams{Kind: health.KindQueryFailed, Limit: 10})
 	if err != nil {
 		t.Fatal(err)

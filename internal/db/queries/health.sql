@@ -36,14 +36,24 @@ SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_genera
 FROM (
   SELECT s.*,
     CASE WHEN s.query_failed OR s.variable_failed THEN 0 WHEN s.no_data THEN 1
-      WHEN s.duplicate_title THEN 2 ELSE 3 END AS rank,
+      WHEN s.duplicate_title THEN 2
+      WHEN w.awaits_recheck AND NOT health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed,
+        s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz) THEN 4
+      ELSE 3 END AS rank,
     coalesce(s.last_viewed_at, 'epoch'::timestamptz) AS seen_at
   FROM dashboard_health_status s
+  CROSS JOIN LATERAL (
+    SELECT s.outdated AND (s.old_check_problems OR EXISTS (
+      SELECT 1 FROM agent_requests a
+      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text)
+    )) AS awaits_recheck
+  ) w
   WHERE s.folder_id = ANY(@folders::uuid[])
     AND (sqlc.narg('folder')::uuid IS NULL OR s.folder_id = sqlc.narg('folder')::uuid)
     AND (coalesce(cardinality(@dashboard_ids::uuid[]), 0) = 0 OR s.id = ANY(@dashboard_ids::uuid[]))
     AND (@every_requested::boolean OR health_problem_matches(@kind::text, s.query_failed, s.no_data, s.variable_failed,
-      s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz))
+      s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (@kind::text = 'any' AND w.awaits_recheck))
 ) r
 JOIN dashboards dd ON dd.id = r.id
 LEFT JOIN LATERAL (
@@ -66,7 +76,10 @@ LIMIT @row_limit;
 -- name: HealthSummary :one
 SELECT
   count(*) FILTER (WHERE health_problem_matches('any', s.query_failed, s.no_data, s.variable_failed, s.duplicate_title,
-    s.last_viewed_at, s.created_at, @unopened_before::timestamptz)) AS dashboards,
+    s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+    OR (s.outdated AND (s.old_check_problems OR EXISTS (
+      SELECT 1 FROM agent_requests a
+      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text))))) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
