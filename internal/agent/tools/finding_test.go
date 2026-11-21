@@ -464,6 +464,31 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	}
 }
 
+func TestSuggestedChangeIsOneSentenceOnADashboardAskOnly(t *testing.T) {
+	onDashboard := Run{Mode: ModeInvestigate, DashboardID: "00000000-0000-4000-8000-000000000001"}
+	cases := []struct {
+		name string
+		raw  string
+		run  Run
+		want string
+		ok   bool
+	}{
+		{"none anywhere", "", Run{Mode: ModeCreate}, "", true},
+		{"a sentence on a dashboard ask", "  Split the error panel by pod. ", onDashboard, "Split the error panel by pod.", true},
+		{"on Home", "Add a panel.", Run{Mode: ModeCreate}, "", false},
+		{"on an observation ask", "Add a panel.", Run{Mode: ModeInvestigate}, "", false},
+		{"in a revision", "Add a panel.", Run{Mode: ModeRevise, DashboardID: onDashboard.DashboardID}, "", false},
+		{"two lines", "Add a panel.\nThen another.", onDashboard, "", false},
+		{"too long", strings.Repeat("a", maxSuggestedChangeRunes+1), onDashboard, "", false},
+	}
+	for _, c := range cases {
+		got, res, ok := suggestedChange(c.raw, c.run)
+		if ok != c.ok || got != c.want || ok == res.IsError {
+			t.Errorf("%s: got %q ok %v res %#v", c.name, got, ok, res.Content)
+		}
+	}
+}
+
 func TestAFindingSavedAfterRefusedReadsSaysReadingStoppedEarly(t *testing.T) {
 	if got, _, ok := findingMarkdown("checkout is slow", 0, nil); !ok || got != "checkout is slow" {
 		t.Fatalf("no refused read changed the text: %q", got)

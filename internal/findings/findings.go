@@ -65,6 +65,8 @@ type Finding struct {
 	ObservationID, FolderID                       string
 	AskOnID, AskOnTitle                           string
 	Title, Markdown                               string
+	SuggestedChange                               string
+	ObserveWorthy                                 bool
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time

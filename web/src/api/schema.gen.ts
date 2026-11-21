@@ -6800,6 +6800,10 @@ export interface components {
             markdown: string;
             /** @description Up to 4 panel Specs whose queries were checked when the finding was saved, with ids `evidence-1` to `evidence-4`. */
             evidence: Record<string, never>[];
+            /** @description One plain-text sentence describing a change to the dashboard that would help, which only an ask about a dashboard may carry; null when the agent suggested none. Nothing applies it until a person starts a revision with it. */
+            suggested_change: string | null;
+            /** @description True when the agent judged the answer worth keeping as an observation, because it describes a jump, a drop or an error spike; it only promotes saving the answer and saves nothing. */
+            observe_worthy: boolean;
             /**
              * Format: date-time
              * @description The start of the window the evidence shows.

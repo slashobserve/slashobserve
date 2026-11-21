@@ -49,13 +49,17 @@ type FindingJSON struct {
 	Title          string            `json:"title"`
 	Markdown       string            `json:"markdown"`
 	Evidence       []spec.Panel      `json:"evidence"`
-	From           string            `json:"from"`
-	To             string            `json:"to"`
-	AnnotationID   *string           `json:"annotation_id"`
-	CreatedBy      FindingAuthorJSON `json:"created_by"`
-	Actor          actor.JSON        `json:"actor"`
-	CreatedAt      string            `json:"created_at"`
-	URL            *string           `json:"url"`
+
+	SuggestedChange *string `json:"suggested_change"`
+	ObserveWorthy   bool    `json:"observe_worthy"`
+
+	From         string            `json:"from"`
+	To           string            `json:"to"`
+	AnnotationID *string           `json:"annotation_id"`
+	CreatedBy    FindingAuthorJSON `json:"created_by"`
+	Actor        actor.JSON        `json:"actor"`
+	CreatedAt    string            `json:"created_at"`
+	URL          *string           `json:"url"`
 }
 
 type findingFolderJSON struct {
@@ -103,13 +107,16 @@ func JSONOf(f Finding, url string) FindingJSON {
 		Title:          f.Title,
 		Markdown:       f.Markdown,
 		Evidence:       evidence,
-		From:           httpapi.FormatTime(f.From),
-		To:             httpapi.FormatTime(f.To),
-		AnnotationID:   httpapi.OptionalString(f.AnnotationID),
-		CreatedBy:      FindingAuthorJSON{Kind: f.CreatedBy.Kind, ID: f.CreatedBy.ID, Name: f.CreatedBy.Name},
-		Actor:          f.Actor.JSON(),
-		CreatedAt:      httpapi.FormatTime(f.CreatedAt),
-		URL:            httpapi.OptionalString(url),
+
+		SuggestedChange: httpapi.OptionalString(f.SuggestedChange),
+		ObserveWorthy:   f.ObserveWorthy,
+		From:            httpapi.FormatTime(f.From),
+		To:              httpapi.FormatTime(f.To),
+		AnnotationID:    httpapi.OptionalString(f.AnnotationID),
+		CreatedBy:       FindingAuthorJSON{Kind: f.CreatedBy.Kind, ID: f.CreatedBy.ID, Name: f.CreatedBy.Name},
+		Actor:           f.Actor.JSON(),
+		CreatedAt:       httpapi.FormatTime(f.CreatedAt),
+		URL:             httpapi.OptionalString(url),
 	}
 }
 

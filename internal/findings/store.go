@@ -59,6 +59,9 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 			CreatedByName:  cols.Name,
 			Origin:         cols.Origin,
 			OriginClient:   cols.Client,
+
+			SuggestedChange: pgtype.Text{String: in.SuggestedChange, Valid: in.SuggestedChange != ""},
+			ObserveWorthy:   in.ObserveWorthy,
 		})
 		if err != nil {
 			return err
@@ -301,6 +304,9 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 		CreatedAt:   r.CreatedAt.Time.UTC(),
 		CreatedBy:   Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
 		RequestedBy: requestedBy,
+
+		SuggestedChange: r.SuggestedChange.String,
+		ObserveWorthy:   r.ObserveWorthy,
 		Actor: actor.FromColumns(actor.Columns{
 			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
 			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,

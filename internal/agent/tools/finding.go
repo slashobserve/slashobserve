@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -40,7 +41,12 @@ const (
 
 	propFindingAskOn = `"ask_on_dashboard_id":{"type":"string","description":"On Home: the id of the one existing dashboard the request asks to change."}`
 
-	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `},"required":["markdown"],"additionalProperties":false}`
+	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: one plain sentence on a change to it that would help; you never change it."}`
+	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
+
+	maxSuggestedChangeRunes = 500
+
+	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `,` + propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
@@ -60,6 +66,9 @@ type findingInput struct {
 	From     string            `json:"from"`
 	To       string            `json:"to"`
 	AskOn    string            `json:"ask_on_dashboard_id"`
+
+	SuggestedChange string `json:"suggested_change"`
+	ObserveWorthy   bool   `json:"observe_worthy"`
 }
 
 type findingSavedOut struct {
@@ -96,6 +105,10 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
+	suggested, res, ok := suggestedChange(in.SuggestedChange, run)
+	if !ok {
+		return res, nil
+	}
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Prompt))
 	if err != nil || !ok {
 		return res, err
@@ -104,6 +117,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		return res, nil
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
+	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil
@@ -136,6 +150,21 @@ func askOnTarget(raw string, run Run) (pgtype.UUID, Result, bool) {
 		return pgtype.UUID{}, invalid("ask_on_dashboard_id must be the id of a dashboard from list_dashboards"), false
 	}
 	return id, Result{}, true
+}
+
+func suggestedChange(raw string, run Run) (string, Result, bool) {
+	text := strings.TrimSpace(raw)
+	switch {
+	case text == "":
+		return "", Result{}, true
+	case run.Mode != ModeInvestigate || run.DashboardID == "":
+		return "", invalid("suggested_change applies only to a question about a dashboard; leave it out here"), false
+	case utf8.RuneCountInString(text) > maxSuggestedChangeRunes:
+		return "", invalid("suggested_change takes at most %d characters; describe the change in one sentence", maxSuggestedChangeRunes), false
+	case strings.ContainsFunc(text, unicode.IsControl):
+		return "", invalid("suggested_change is one plain sentence with no line breaks"), false
+	}
+	return text, Result{}, true
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {

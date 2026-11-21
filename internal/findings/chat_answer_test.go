@@ -29,6 +29,24 @@ func TestAnAnswerToAQuestionStaysOnTheRunAndMakesNoObservation(t *testing.T) {
 	}
 }
 
+func TestAnAnswerKeepsItsSuggestedChangeAndObserveWorthyFlag(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, r.open)
+	saved := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, SuggestedChange: "Split the error panel by pod.", ObserveWorthy: true})
+	got, found, err := r.service.ForRequest(reading(t.Context()), editor, request)
+	if err != nil || !found || got.ID != saved.ID {
+		t.Fatalf("read back: %+v found %v, %v", got, found, err)
+	}
+	body := findings.JSONOf(got, "")
+	if body.SuggestedChange == nil || *body.SuggestedChange != "Split the error panel by pod." || !body.ObserveWorthy {
+		t.Fatalf("answer suggested_change %v observe_worthy %v", body.SuggestedChange, body.ObserveWorthy)
+	}
+	plain := findings.JSONOf(r.save(t, editor, findings.SaveInput{AgentRequestID: r.request(t, editor, r.open), DashboardID: r.open}), "")
+	if plain.SuggestedChange != nil || plain.ObserveWorthy {
+		t.Fatalf("an answer with neither: suggested_change %v observe_worthy %v", plain.SuggestedChange, plain.ObserveWorthy)
+	}
+}
+
 func TestAnUnsavedAnswerReachesOnlyTheRequesterAndAdmins(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, r.open)

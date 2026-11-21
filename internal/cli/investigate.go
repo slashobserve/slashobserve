@@ -31,6 +31,9 @@ type findingSummary struct {
 	Markdown string        `json:"markdown"`
 	URL      string        `json:"url"`
 	AskOn    *findingAskOn `json:"ask_on"`
+
+	SuggestedChange string `json:"suggested_change"`
+	DashboardID     string `json:"dashboard_id"`
 }
 
 type findingAskOn struct {
@@ -164,6 +167,11 @@ func printFinding(out *output, f findingSummary, requestID string) {
 		out.line("%s", text(line))
 	}
 	out.line("")
+	if f.SuggestedChange != "" {
+		out.line("Suggested change: %s", text(f.SuggestedChange))
+		out.line("  observe --dashboard %s %s", text(f.DashboardID), shellWord(text(f.SuggestedChange)))
+		out.line("")
+	}
 	if f.saved() {
 		out.line("%s", text(f.URL))
 		return

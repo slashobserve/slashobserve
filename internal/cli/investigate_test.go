@@ -108,6 +108,15 @@ func TestPrintFindingOffersToSaveAnAnswerThatIsNotAnObservation(t *testing.T) {
 	}
 }
 
+func TestPrintFindingShowsTheSuggestedChangeAsARevision(t *testing.T) {
+	var stdout bytes.Buffer
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{Title: "Errors", Markdown: "One pod.", URL: "https://o.example/o/1", SuggestedChange: "Split errors by pod.", DashboardID: repairID}, investigationID)
+	want := "Errors\n\nOne pod.\n\nSuggested change: Split errors by pod.\n  observe --dashboard " + repairID + " 'Split errors by pod.'\n\nhttps://o.example/o/1\n"
+	if stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+}
+
 const findingJSON = `{"id":"f1","title":"Checkout errors rose after the deploy","markdown":"Errors rose at 10:02.\nThe deploy at 10:00 added a retry.","url":"https://observe.example.com/findings/f1"}`
 
 func investigationServer(t *testing.T, finding string) (*httptest.Server, *[]recordedRequest) {

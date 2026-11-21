@@ -52,6 +52,8 @@ type SaveInput struct {
 	Title, Markdown string
 	Evidence        []spec.Panel
 	From, To        time.Time
+	SuggestedChange string
+	ObserveWorthy   bool
 }
 
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {

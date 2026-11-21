@@ -115,30 +115,32 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 
 const insertFinding = `-- name: InsertFinding :one
 INSERT INTO findings (id, agent_request_id, dashboard_id, ask_dashboard_id, observation_id, title, markdown, evidence, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name, origin, origin_client)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client, suggested_change, observe_worthy)
 VALUES (coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::uuid, $4::uuid, $5,
   $6, $7, $8::jsonb, $9, $10, $11, $12, $13,
-  $14::text, $15::text)
+  $14::text, $15::text, $16::text, $17)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id, observation_id, ask_dashboard_id, suggested_change, observe_worthy
 `
 
 type InsertFindingParams struct {
-	ID             pgtype.UUID
-	AgentRequestID pgtype.UUID
-	DashboardID    pgtype.UUID
-	AskDashboardID pgtype.UUID
-	ObservationID  pgtype.UUID
-	Title          string
-	Markdown       string
-	Evidence       []byte
-	TimeFrom       pgtype.Timestamptz
-	TimeTo         pgtype.Timestamptz
-	CreatedByKind  string
-	CreatedByID    pgtype.UUID
-	CreatedByName  string
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
+	ID              pgtype.UUID
+	AgentRequestID  pgtype.UUID
+	DashboardID     pgtype.UUID
+	AskDashboardID  pgtype.UUID
+	ObservationID   pgtype.UUID
+	Title           string
+	Markdown        string
+	Evidence        []byte
+	TimeFrom        pgtype.Timestamptz
+	TimeTo          pgtype.Timestamptz
+	CreatedByKind   string
+	CreatedByID     pgtype.UUID
+	CreatedByName   string
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	SuggestedChange pgtype.Text
+	ObserveWorthy   bool
 }
 
 func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (Finding, error) {
@@ -158,6 +160,8 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		arg.CreatedByName,
 		arg.Origin,
 		arg.OriginClient,
+		arg.SuggestedChange,
+		arg.ObserveWorthy,
 	)
 	var i Finding
 	err := row.Scan(
