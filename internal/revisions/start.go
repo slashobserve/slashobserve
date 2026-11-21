@@ -28,6 +28,7 @@ type StartRequest struct {
 	ObservationID *string        `json:"observation_id"`
 	FollowsID     *string        `json:"follows_id"`
 	ChatID        *string        `json:"chat_id"`
+	NewChat       *bool          `json:"new_chat"`
 	ClientID      *string        `json:"client_id"`
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
@@ -74,6 +75,9 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 	if turn.point, err = pointOf(req); err != nil {
 		return Started{}, err
 	}
+	if msg := newChatConflict(req); msg != "" {
+		return Started{}, refused("%s", msg)
+	}
 	if turn.clientID.Valid {
 		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
 			return replay, err
@@ -88,6 +92,18 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 		return replay, err
 	}
 	return Started{AgentRequest: row}, err
+}
+
+func (r StartRequest) newChat() bool { return r.NewChat != nil && *r.NewChat }
+
+func newChatConflict(req StartRequest) string {
+	switch {
+	case req.newChat() && req.ChatID != nil:
+		return "new_chat and chat_id exclude each other"
+	case req.newChat() && req.FollowsID != nil:
+		return "new_chat and follows_id exclude each other"
+	}
+	return ""
 }
 
 func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
@@ -223,7 +239,7 @@ func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartReq
 			return chatChoice{}, ErrFollowsDashboard
 		}
 		return chatNamed(chatRoot(parent.ID, parent.ChatID)), nil
-	case !chatID.Valid && req.DashboardID != nil:
+	case !chatID.Valid && req.DashboardID != nil && !req.newChat():
 		return chatChoice{mode: dashboardChat}, nil
 	}
 	return chatNamed(chatID), nil

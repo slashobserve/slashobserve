@@ -88,6 +88,7 @@ A prompt of one bare word, or of words whose first word is one letter or two awa
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
 `--dashboard <dashboard-id>` asks about that dashboard privately, as `observe investigate --private` does, and with `--revise` it sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md); `--revise` without `--dashboard` exits 2.
 `--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
+`--new-chat` starts a new chat even when `--revise` would join your latest chat on that dashboard, and exits 2 with `--chat` or `--follows`.
 `--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
 `--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`.
 

@@ -148,6 +148,25 @@ func TestADashboardTurnWithoutAChatIDJoinsTheLatestLiveChatOnThatDashboard(t *te
 	}
 }
 
+func TestANewChatOnADashboardNeverJoinsTheLatestOne(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	turn := func(newChat *bool) string {
+		return chatOfTurn(t, d, startTurn(t, svc, user, revisions.StartRequest{Prompt: text("p"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String()), NewChat: newChat}))
+	}
+	first := turn(nil)
+	fresh := turn(ptr(true))
+	if fresh == first {
+		t.Fatalf("new_chat joined the latest chat %s", first)
+	}
+	if latest := turn(nil); latest != fresh {
+		t.Fatalf("the next turn chat = %s, want the new chat %s", latest, fresh)
+	}
+	if again := turn(ptr(false)); again != fresh {
+		t.Fatalf("new_chat false chat = %s, want the latest chat %s", again, fresh)
+	}
+}
+
 func TestTurnsOfOneChatAreClaimedOneAtATimeInOrder(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("one")})

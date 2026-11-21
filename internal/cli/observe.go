@@ -74,6 +74,7 @@ type requestEnvelope struct {
 type promptOptions struct {
 	dashboard string
 	revise    bool
+	newChat   bool
 	chat      string
 	follows   string
 	at        string
@@ -91,6 +92,7 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "ask about this dashboard; with --revise, change it")
 	flags.BoolVar(&a.prompt.revise, "revise", false, "change --dashboard with this prompt instead of only answering about it")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
+	flags.BoolVar(&a.prompt.newChat, "new-chat", false, "start a new chat instead of joining your latest one on --dashboard")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
 	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
@@ -125,19 +127,30 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 	return a.submit(cmd.Context(), c, payload, a.prompt.noWait, a.prompt.timeout)
 }
 
+func (o promptOptions) conflict() error {
+	switch {
+	case o.dashboard != "" && o.follows != "":
+		return usagef("--dashboard and --follows exclude each other")
+	case o.chat != "" && o.follows != "":
+		return usagef("--chat and --follows exclude each other")
+	case o.revise && o.dashboard == "":
+		return usagef("--revise needs --dashboard")
+	case o.newChat && (o.chat != "" || o.follows != ""):
+		return usagef("--new-chat excludes --chat and --follows")
+	}
+	return nil
+}
+
 func (o promptOptions) payload(prompt string) (map[string]any, error) {
-	if o.dashboard != "" && o.follows != "" {
-		return nil, usagef("--dashboard and --follows exclude each other")
-	}
-	if o.chat != "" && o.follows != "" {
-		return nil, usagef("--chat and --follows exclude each other")
-	}
-	if o.revise && o.dashboard == "" {
-		return nil, usagef("--revise needs --dashboard")
+	if err := o.conflict(); err != nil {
+		return nil, err
 	}
 	payload := map[string]any{"prompt": prompt}
 	if o.revise {
 		payload["kind"] = kindRevise
+	}
+	if o.newChat {
+		payload["new_chat"] = true
 	}
 	for field, raw := range map[string]string{"dashboard_id": o.dashboard, "chat_id": o.chat, "follows_id": o.follows} {
 		if raw == "" {
