@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
-import { dashboardKeys, observeKeys, threadKeys } from "@/api/keys"
+import { dashboardKeys, folderKeys, observeKeys, threadKeys } from "@/api/keys"
 import { ApiError } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
@@ -12,6 +12,7 @@ import {
   AnswerCard,
   evidenceChipText,
   reviseFailureText,
+  starterCardNote,
   threadLabel,
 } from "./answer-card"
 
@@ -147,7 +148,24 @@ function renderCard(
   }
 ) {
   const queryClient = testQueryClient()
-  queryClient.setQueryData(dashboardKeys.latest("d1"), { dashboard: latest })
+  queryClient.setQueryData(dashboardKeys.latest("d1"), {
+    dashboard: {
+      id: "d1",
+      title: "Audit overview",
+      latest_version: 4,
+      folder: { id: "audit", title: "Audit" },
+      ...latest,
+    },
+  })
+  queryClient.setQueryData(folderKeys.list(), [
+    {
+      id: "mine",
+      title: "My Dashboards",
+      general: false,
+      personal: true,
+      permissions: { create: true },
+    },
+  ])
   queryClient.setQueryData(threadKeys.list("dashboard:d1"), {
     pages: [
       {
@@ -300,7 +318,7 @@ describe("AnswerCard", () => {
     expect(
       await screen.findByRole("button", { name: "Revise the dashboard" })
     ).toBeVisible()
-    expect(screen.queryByText(starterNote)).toBeNull()
+    expect(screen.queryByText(starterCardNote)).toBeNull()
   })
 
   it.each([
@@ -332,9 +350,35 @@ describe("AnswerCard", () => {
       expect(
         screen.queryByRole("button", { name: "Revise the dashboard" })
       ).toBeNull()
-      expect(screen.queryByText(starterNote) !== null).toBe(noted)
+      expect(screen.queryByText(starterCardNote) !== null).toBe(noted)
+      expect(screen.queryByRole("button", { name: "Duplicate" }) !== null).toBe(
+        noted
+      )
     }
   )
+
+  it("duplicates a starter from its answer's suggested change", async () => {
+    const { user } = renderCard(
+      {
+        finding: finding({ suggested_change: "Add a p99 latency panel" }),
+        revise: {
+          onRevise: vi.fn(async () => false),
+          pending: false,
+          blocked: null,
+          dashboardId: "d1",
+        },
+      },
+      { permissions: { comment: true, edit: false }, provisioned: true }
+    )
+    await user.click(await screen.findByRole("button", { name: "Duplicate" }))
+    const dialog = await screen.findByRole("dialog", {
+      name: "Duplicate dashboard",
+    })
+    expect(dialog).toHaveTextContent('Saves version 4 of "Audit overview"')
+    expect(within(dialog).getByRole("combobox")).toHaveTextContent(
+      "My Dashboards"
+    )
+  })
 
   it("shows a suggested change to a reader who cannot revise, without the button", async () => {
     const view = renderCard({

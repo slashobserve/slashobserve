@@ -16,6 +16,7 @@ import {
 import { plainTitle } from "@/comments/plain-title"
 import { ApiError } from "@/api/errors"
 import { useThreads } from "@/comments/thread-queries"
+import { DuplicateAction } from "@/dashboards/duplicate-action"
 import { starterNote, useLatestChange } from "@/dashboards/permissions"
 import { EvidencePanel } from "@/findings/evidence-panel"
 import { MakeDashboardAction, PinAction } from "@/findings/finding-actions"
@@ -48,6 +49,8 @@ type AnswerMenu = {
 }
 
 export type RevisionAsked = boolean
+
+export const starterCardNote = `${starterNote} Duplicate it to get a copy you can change.`
 
 export function reviseFailureText(error: unknown): string {
   if (error instanceof ApiError && error.code === "provisioned") {
@@ -371,7 +374,7 @@ export function AnswerCard({
   const latest = useLatestChange(revise?.dashboardId ?? null)
   const refused = latest?.content === "none"
   const offered = refused ? undefined : revise
-  const starter = revise !== undefined && refused && latest.provisioned
+  const starter = refused && latest.provisioned ? revise : undefined
   const blocked = offered?.blocked ?? null
   const change = finding.suggested_change
   const observationId = finding.observation_id
@@ -457,8 +460,11 @@ export function AnswerCard({
           {blocked}
         </p>
       )}
-      {starter && change !== null ? (
-        <p className="text-xs text-muted-foreground">{starterNote}</p>
+      {starter !== undefined && change !== null ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-muted-foreground">{starterCardNote}</p>
+          <DuplicateAction dashboardId={starter.dashboardId} />
+        </div>
       ) : null}
       {unfolded ? (
         <div id={evidenceId} className="flex flex-col gap-2.5">

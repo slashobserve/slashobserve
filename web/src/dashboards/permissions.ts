@@ -35,7 +35,7 @@ export function mayEditBesidesContent(
 }
 
 export const starterNote =
-  "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it from the dashboard menu to get a copy you can change."
+  "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 
 export type ComposerMode = "full" | "comment-only" | "provisioned" | "read-only"
 
@@ -59,7 +59,7 @@ export function readerNote(
     case "comment-only":
       return `You can view and comment in ${folderTitle}. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges.`
     case "provisioned":
-      return starterNote
+      return `${starterNote} Duplicate it from the dashboard menu to get a copy you can change.`
     case "read-only":
       return `You can view dashboards in ${folderTitle}. To comment, ask the people who manage this folder for Comment access.`
   }
