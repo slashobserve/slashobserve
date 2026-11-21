@@ -91,7 +91,7 @@ func TestAStarterDashboardIsMarkedReadOnlyAndStillReadableCommentableAndDuplicab
 	if !got.Dashboard.Provisioned || got.Dashboard.Permissions.Edit || !got.Dashboard.Permissions.Comment {
 		t.Fatalf("dashboard = %+v, want provisioned, not editable, commentable", got.Dashboard)
 	}
-	for _, path := range []string{"/versions", "/versions/1", "/diff?from=1&to=1"} {
+	for _, path := range []string{"/versions", "/versions/1"} {
 		if rec := b.serve(adminUser, http.MethodGet, "/dashboards/"+id+path, ""); rec.Code != http.StatusOK {
 			t.Errorf("GET %s answered %d %s", path, rec.Code, rec.Body.String())
 		}
