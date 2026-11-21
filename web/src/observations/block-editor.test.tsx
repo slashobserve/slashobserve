@@ -1,8 +1,17 @@
 import { act, screen, waitFor } from "@testing-library/react"
 import { useEffect, useState } from "react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
 
 import { DatasourceListProvider } from "@/datasources/queries"
+import { loadSpecValidator } from "@/spec"
 import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders } from "@/test/render"
 
@@ -65,6 +74,10 @@ const saveWait = { timeout: 5000 }
 
 type Sent = { method: string; path: string; body: unknown }
 let sent: Sent[] = []
+
+beforeAll(async () => {
+  await loadSpecValidator()
+}, 60_000)
 
 beforeEach(() => {
   sent = []
