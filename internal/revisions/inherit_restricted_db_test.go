@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 type answeredRun struct {
@@ -75,8 +76,13 @@ func TestARunThatStartsFromAnAnswerThatReadAdminOnlyDataIsMarkedLikeIt(t *testin
 				}
 				startFrom(answeredObservation(t, d, first.ID), t, d, next.ID)
 
-				if claimed, found := claimOne(t, svc); !found || claimed.ID != next.ID || claimed.ReadRestricted != restricted {
-					t.Fatalf("answer restricted %v: claimed %v (found %v) marked %v", restricted, claimed.ID, found, claimed.ReadRestricted)
+				queued, err := d.Queries().GetAgentRequestByID(ctx, next.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				marked, err := revisions.InheritReadRestricted(ctx, d.Queries(), queued)
+				if err != nil || marked.ReadRestricted != restricted {
+					t.Fatalf("answer restricted %v: the run is marked %v, %v", restricted, marked.ReadRestricted, err)
 				}
 				stored, err := svc.GetByID(ctx, next.ID)
 				if err != nil {

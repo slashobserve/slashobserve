@@ -2,13 +2,11 @@ package tools
 
 import (
 	"errors"
-	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
-	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 func (r *accessRig) runner(t *testing.T) string {
@@ -30,7 +28,7 @@ func (r *accessRig) runWroteInto(t *testing.T, observation string, restricted bo
 	r.db.Exec(t, `INSERT INTO observation_blocks (observation_id, kind, position, body, created_by_kind, created_by_id, created_by_name, run_id) VALUES ($1::uuid, 'text', 99, '{"markdown":"Root changed it"}', 'user', $2::uuid, 'Root', $3::uuid)`, observation, adminCaller.ID, run)
 }
 
-func TestAnMCPAskInAnObservationThreadThatHoldsARestrictedAnswerIsMarkedAndItsSavedAnswerStaysWithAdmins(t *testing.T) {
+func TestAnMCPAskInAnObservationThreadThatHoldsARestrictedAnswerIsMarkedAndItsAnswerStaysWithAdmins(t *testing.T) {
 	for _, restricted := range []bool{false, true} {
 		r := newAccessRig(t)
 		account := r.runner(t)
@@ -43,13 +41,9 @@ func TestAnMCPAskInAnObservationThreadThatHoldsARestrictedAnswerIsMarkedAndItsSa
 			t.Fatalf("create = %s", textOf(t, created))
 		}
 		run := mustUUID(t, out.Run.ID)
-		queue := revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithAccess(folders.NewAccess(r.db.DB)))
-		if _, _, err := queue.Claim(reading(t.Context()), revisions.Claimant{Kind: revisions.AssignServiceAccount, ID: account}); err != nil {
-			t.Fatal(err)
-		}
-		claimed, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), run)
-		if err != nil || claimed.ReadRestricted != restricted || !claimed.StartedAt.Valid {
-			t.Fatalf("the observation holds a restricted answer %v: the ask is claimed %v and marked %v, %v", restricted, claimed.StartedAt.Valid, claimed.ReadRestricted, err)
+		queued, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), run)
+		if err != nil || queued.ReadRestricted != restricted || !queued.SubjectObservationID.Valid {
+			t.Fatalf("the observation holds a restricted answer %v: the ask about %v is marked %v, %v", restricted, queued.SubjectObservationID, queued.ReadRestricted, err)
 		}
 
 		r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = now() WHERE id = $1`, run)

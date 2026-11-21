@@ -9,6 +9,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
+func recordEnqueued(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (dbsqlc.AgentRequest, error) {
+	row, err := inheritReadRestricted(ctx, q, row)
+	if err != nil {
+		return row, err
+	}
+	return row, recordRun(ctx, q, row, ActionEnqueue)
+}
+
 func inheritReadRestricted(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (dbsqlc.AgentRequest, error) {
 	if row.ReadRestricted {
 		return row, nil

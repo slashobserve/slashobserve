@@ -182,7 +182,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -334,7 +334,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, turn.clientID, "enqueue observe request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -444,7 +444,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -934,9 +934,6 @@ func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, err
 		request := row.AgentRequest
 		if row.FirstClaim {
 			if request, err = withChatTranscript(ctx, q, request); err != nil {
-				return err
-			}
-			if request, err = inheritReadRestricted(ctx, q, request); err != nil {
 				return err
 			}
 		}
