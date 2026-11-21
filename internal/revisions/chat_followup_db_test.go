@@ -86,8 +86,8 @@ func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
-		t.Fatalf("err = %v, want not found", err)
+	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrChatNotFound) {
+		t.Fatalf("err = %v, want chat not found", err)
 	}
 }
 
