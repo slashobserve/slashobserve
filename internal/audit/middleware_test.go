@@ -210,3 +210,33 @@ func TestANotFoundIsDeniedOnlyOnARouteWithATarget(t *testing.T) {
 		t.Errorf("404 on a route declared none: %+v, want nothing", got)
 	}
 }
+
+func TestTheEventCarriesTheAddressThePlatformResolved(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	mw, err := s.recorder.Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := gin.New()
+	if err := engine.SetTrustedProxies([]string{"192.0.2.0/24"}); err != nil {
+		t.Fatal(err)
+	}
+	engine.Group("/api/v1", mw).POST("/dashboards/:id/versions", func(c *gin.Context) { c.Status(http.StatusForbidden) })
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions", nil)
+	req.RemoteAddr = "192.0.2.7:4100"
+	req.Header.Set("X-Forwarded-For", "198.51.100.1, 203.0.113.9")
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+	request, err := uuid.Parse(rec.Header().Get(RequestIDHeader))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.run(t)()
+	var got string
+	if err := s.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT host(client_ip) FROM audit_events WHERE request_id = $1`, request).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != "203.0.113.9" {
+		t.Fatalf("client_ip = %s, want 203.0.113.9", got)
+	}
+}

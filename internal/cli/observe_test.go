@@ -463,6 +463,26 @@ func TestPrintRequestSaysTheWordsOfARedactedRunAreHidden(t *testing.T) {
 	}
 }
 
+func TestPrintRequestNamesTheObservationAnAskIsAbout(t *testing.T) {
+	about := "0b1d2c3e-4f50-4617-8899-aabbccddeeff"
+	for _, tc := range []struct {
+		subject *string
+		want    bool
+	}{{&about, true}, {nil, false}} {
+		var stdout bytes.Buffer
+		printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Intent: "ask", SubjectID: tc.subject})
+		shown := false
+		for _, line := range strings.Split(stdout.String(), "\n") {
+			if fields := strings.Fields(line); len(fields) == 3 && fields[0] == "About" && fields[1] == "observation" && fields[2] == about {
+				shown = true
+			}
+		}
+		if shown != tc.want {
+			t.Fatalf("subject %v: About observation shown %v, want %v:\n%s", tc.subject, shown, tc.want, stdout.String())
+		}
+	}
+}
+
 func TestPrintRequestShowsTheLiveTextOfARunningRun(t *testing.T) {
 	live := "Checking the p99 of checkout.\n\nNow reading the error rate.\x1b[31m"
 	var stdout bytes.Buffer

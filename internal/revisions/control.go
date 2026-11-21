@@ -96,7 +96,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart && viewOf(row, by) == viewFull, mayEdit)
 }
 
 type startChecks struct {

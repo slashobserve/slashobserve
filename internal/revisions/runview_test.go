@@ -1,6 +1,7 @@
 package revisions
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -42,6 +43,35 @@ func TestViewOfHidesTheWordsOfAPrivateChatFromEveryoneButItsRequesterAndAdmins(t
 			if got := viewOf(tc.row, caller); got != tc.want[i] {
 				t.Errorf("%s, caller %d: view %d, want %d", tc.name, i, got, tc.want[i])
 			}
+		}
+	}
+}
+
+func TestARedactedReaderIsNotOfferedARetryOfTheWordsTheyCannotRead(t *testing.T) {
+	asker := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Role: auth.RoleEditor}
+	editor := auth.Principal{Kind: auth.KindUser, ID: "22222222-2222-4222-8222-222222222222", Role: auth.RoleEditor}
+	var requester pgtype.UUID
+	if err := requester.Scan(asker.ID); err != nil {
+		t.Fatal(err)
+	}
+	dashboard := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
+	row := dbsqlc.AgentRequest{
+		Intent: string(IntentApply), State: string(StateFailed), BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, DashboardID: dashboard,
+		RequestedByKind: string(auth.KindUser), RequestedByID: requester,
+	}
+	for _, tc := range []struct {
+		name string
+		chat pgtype.UUID
+		by   auth.Principal
+		want bool
+	}{
+		{"the requester of a chat run", dashboard, asker, true},
+		{"another editor of a chat run", dashboard, editor, false},
+		{"another editor of a run outside any chat", pgtype.UUID{}, editor, true},
+	} {
+		row.ChatID = tc.chat
+		if got := slices.Contains(allowedActions(factsOf(row, buildState{}, tc.by, true, true)), ActionRetry); got != tc.want {
+			t.Errorf("%s: retry offered %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }
