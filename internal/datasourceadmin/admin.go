@@ -158,14 +158,14 @@ func recordOf(row dbsqlc.Datasource) (Record, error) {
 	if err := json.Unmarshal(row.Config, &def); err != nil {
 		return Record{}, fmt.Errorf("stored datasource %q: %w", row.Uid, err)
 	}
-	def.UID, def.Type, def.Name = row.Uid, row.Type, row.Name
+	def.UID, def.Type, def.Name, def.Audience = row.Uid, row.Type, row.Name, datasource.Audience(row.Audience)
 	return Record{Definition: def, SecretsSet: slices.Clone(row.SecretNames), CreatedAt: row.CreatedAt.Time.UTC(), UpdatedAt: row.UpdatedAt.Time.UTC()}, nil
 }
 
 func (s *Service) row(ctx context.Context, uid string) (dbsqlc.Datasource, error) {
 	row, err := s.db.Queries().GetDatasource(ctx, uid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if in, ok := s.registry.Get(uid); ok && in.Source == datasource.SourceFile {
+		if in, err := s.registry.For(ctx, uid); err == nil && in.Source == datasource.SourceFile {
 			return dbsqlc.Datasource{}, ErrReadOnly
 		}
 		return dbsqlc.Datasource{}, ErrNotFound
@@ -201,7 +201,17 @@ func normalizeDefinition(def Definition) Definition {
 	if def.Name == "" {
 		def.Name = def.UID
 	}
+	if def.Audience == "" {
+		def.Audience = datasource.AudienceEveryone
+	}
 	return def
+}
+
+func checkAudience(audience datasource.Audience) error {
+	if audience != datasource.AudienceEveryone && audience != datasource.AudienceAdmins {
+		return invalid("audience", "must be everyone or admins")
+	}
+	return nil
 }
 
 func checkName(name string) error {
@@ -218,16 +228,19 @@ type candidate struct {
 	host    endpoint
 }
 
-func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
+func (s *Service) prepare(ctx context.Context, def Definition, secrets Secrets) (candidate, error) {
 	def = normalizeDefinition(def)
 	if err := checkName(def.Name); err != nil {
+		return candidate{}, err
+	}
+	if err := checkAudience(def.Audience); err != nil {
 		return candidate{}, err
 	}
 	if err := checkSecrets(secrets); err != nil {
 		return candidate{}, err
 	}
 	cfg, problems := def.Config(secrets)
-	problems = append(problems, s.aliasConflicts(def)...)
+	problems = append(problems, s.aliasConflicts(ctx, def)...)
 	host, addressProblem := endpointOf(def)
 	if addressProblem != nil && !slices.ContainsFunc(problems, func(p config.FieldError) bool { return p.Field == "address" }) {
 		problems = append(problems, *addressProblem)
@@ -247,9 +260,9 @@ func (s *Service) prepare(def Definition, secrets Secrets) (candidate, error) {
 	return candidate{def: def, cfg: cfg, secrets: secrets, host: host}, nil
 }
 
-func (s *Service) aliasConflicts(def Definition) []config.FieldError {
+func (s *Service) aliasConflicts(ctx context.Context, def Definition) []config.FieldError {
 	var problems []config.FieldError
-	for _, other := range s.registry.List() {
+	for _, other := range s.registry.Visible(ctx) {
 		if other.UID == def.UID {
 			continue
 		}
@@ -338,11 +351,11 @@ func (s *Service) seal(id pgtype.UUID, secrets Secrets) ([]byte, []string, error
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition, secrets Secrets) (Record, error) {
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return Record{}, err
 	}
-	if _, taken := s.registry.Get(cand.def.UID); taken {
+	if _, err := s.registry.For(ctx, cand.def.UID); err == nil {
 		return Record{}, ErrUIDTaken
 	}
 	count, err := s.db.Queries().CountDatasources(ctx)
@@ -361,7 +374,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	if err != nil {
 		return Record{}, err
 	}
-	params := dbsqlc.InsertDatasourceParams{ID: id, Uid: cand.def.UID, Type: cand.def.Type, Name: cand.def.Name, Config: config, Secrets: ciphertext, SecretNames: names}
+	params := dbsqlc.InsertDatasourceParams{ID: id, Uid: cand.def.UID, Type: cand.def.Type, Name: cand.def.Name, Audience: string(cand.def.Audience), Config: config, Secrets: ciphertext, SecretNames: names}
 	if creator, err := db.ParseUUID(by.ID); err == nil && by.Kind == auth.KindUser {
 		params.CreatedBy = creator
 	}
@@ -420,7 +433,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return Record{}, err
 	}
@@ -428,7 +441,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	if err != nil {
 		return Record{}, err
 	}
-	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Secrets: row.Secrets, SecretNames: row.SecretNames}
+	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Audience: string(cand.def.Audience), Secrets: row.Secrets, SecretNames: row.SecretNames}
 	if !change.empty() {
 		if params.Secrets, params.SecretNames, err = s.seal(row.ID, secrets); err != nil {
 			return Record{}, err
@@ -560,7 +573,7 @@ func (s *Service) Test(ctx context.Context, baseUID string, def Definition, chan
 	if err != nil {
 		return TestResult{}, err
 	}
-	cand, err := s.prepare(def, secrets)
+	cand, err := s.prepare(ctx, def, secrets)
 	if err != nil {
 		return TestResult{}, err
 	}

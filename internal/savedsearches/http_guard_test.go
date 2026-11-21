@@ -39,7 +39,7 @@ func TestCreateRunsTheSaveGuardForKeysOnly(t *testing.T) {
 		guard := &scriptedGuard{}
 		d := newDocumented(t, savedsearches.WithSaveGuard(guard))
 		d.send(t, editor, http.MethodPost, "/api/v1/saved-searches", body, http.StatusCreated)
-		saved, _, err := d.service.List(t.Context(), editor, savedsearches.ListFilter{}, 10, "")
+		saved, _, err := d.service.List(reading(t.Context()), editor, savedsearches.ListFilter{}, 10, "")
 		if err != nil || len(saved) != 1 {
 			t.Fatalf("saved %v, %v", saved, err)
 		}
@@ -48,7 +48,7 @@ func TestCreateRunsTheSaveGuardForKeysOnly(t *testing.T) {
 		if !strings.Contains(rec.Body.String(), `"replayed":true`) || !strings.Contains(rec.Body.String(), saved[0].ID) {
 			t.Fatalf("replay %s", rec.Body)
 		}
-		if again, _, err := d.service.List(t.Context(), editor, savedsearches.ListFilter{}, 10, ""); err != nil || len(again) != 1 {
+		if again, _, err := d.service.List(reading(t.Context()), editor, savedsearches.ListFilter{}, 10, ""); err != nil || len(again) != 1 {
 			t.Fatalf("rows after the replay %v, %v", again, err)
 		}
 	})

@@ -81,9 +81,8 @@ func (h *Handler) volume(c *gin.Context) {
 		return
 	}
 	uid := c.Param("uid")
-	inst, found := h.registry.Get(uid)
+	inst, found := h.datasourceFor(c)
 	if !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return
 	}
 	if capability, ok := inst.Datasource.(datasource.LogVolumeSource); ok {

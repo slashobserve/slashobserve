@@ -19,13 +19,13 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 	if dash.Valid {
 		id = r.queueRevision(t, dash)
 	} else {
-		row, err := r.revisions.SubmitObserve(t.Context(), testUser, "build it")
+		row, err := r.revisions.SubmitObserve(reading(t.Context()), testUser, "build it")
 		if err != nil {
 			t.Fatal(err)
 		}
 		id = row.ID
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(reading(t.Context()), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != id || claimed.Attempts != buildAttempt {
 		t.Fatalf("claimed %v attempt %d, want %v attempt %d, err %v", claimed.ID, claimed.Attempts, id, buildAttempt, err)
@@ -35,11 +35,11 @@ func (r *rig) runningRequest(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 
 func (r *rig) runningRequestFor(t *testing.T, p person) pgtype.UUID {
 	t.Helper()
-	row, err := r.revisions.SubmitObserve(t.Context(), p.principal, "build it")
+	row, err := r.revisions.SubmitObserve(reading(t.Context()), p.principal, "build it")
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(reading(t.Context()), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	if err != nil || claimedRow.AgentRequest.ID != row.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimedRow.AgentRequest.ID, row.ID, err)
 	}
@@ -48,14 +48,14 @@ func (r *rig) runningRequestFor(t *testing.T, p person) pgtype.UUID {
 
 func (r *rig) saveBuildAs(t *testing.T, p person, id pgtype.UUID, panelIDs ...string) {
 	t.Helper()
-	if _, err := r.service.SaveBuild(t.Context(), p.principal, BuildSave{RequestID: id, Attempt: buildAttempt, Spec: panelsSpec("t", panelIDs...)}); err != nil {
+	if _, err := r.service.SaveBuild(reading(t.Context()), p.principal, BuildSave{RequestID: id, Attempt: buildAttempt, Spec: panelsSpec("t", panelIDs...)}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (r *rig) failRequest(t *testing.T, id pgtype.UUID) {
 	t.Helper()
-	_, err := r.db.Queries().FailAgentRequest(t.Context(), dbsqlc.FailAgentRequestParams{
+	_, err := r.db.Queries().FailAgentRequest(reading(t.Context()), dbsqlc.FailAgentRequestParams{
 		Error: "stopped", FailureCode: pgtype.Text{String: "no_progress", Valid: true}, ID: id, Attempts: buildAttempt, FromStates: revisions.RunMachine.From(revisions.ActionFail),
 	})
 	if err != nil {
@@ -65,7 +65,7 @@ func (r *rig) failRequest(t *testing.T, id pgtype.UUID) {
 
 func (r *rig) saveBuild(t *testing.T, id, dash pgtype.UUID, baseVersion int, panelIDs ...string) Build {
 	t.Helper()
-	build, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	build, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt, DashboardID: dash, BaseVersion: baseVersion, Spec: panelsSpec("t", panelIDs...),
 	})
 	if err != nil {
@@ -76,7 +76,7 @@ func (r *rig) saveBuild(t *testing.T, id, dash pgtype.UUID, baseVersion int, pan
 
 func (r *rig) requestRow(t *testing.T, id pgtype.UUID) dbsqlc.AgentRequest {
 	t.Helper()
-	row, err := r.db.Queries().GetAgentRequestByID(t.Context(), id)
+	row, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,11 +93,11 @@ func TestTwoBuildSavesAndACommitMakeOneVersionWithBothPanels(t *testing.T) {
 	if build := r.saveBuild(t, id, pgtype.UUID{}, 0, "a", "b"); build.Saves != 2 {
 		t.Fatalf("saves after the second = %d", build.Saves)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || !found {
 		t.Fatalf("build found = %v, err %v", found, err)
 	}
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	dash, ver, replayed := commit.Dashboard, commit.Version, commit.Replayed
 	if err != nil || replayed || ver.Number != 1 || len(ver.Spec.Panels) != 2 {
 		t.Fatalf("commit: version %d, panels %d, replayed %v, err %v", ver.Number, len(ver.Spec.Panels), replayed, err)
@@ -105,7 +105,7 @@ func TestTwoBuildSavesAndACommitMakeOneVersionWithBothPanels(t *testing.T) {
 	if dash.LatestVersion != 1 {
 		t.Fatalf("latest version = %d", dash.LatestVersion)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || found {
 		t.Fatalf("the build survived its commit: found = %v, err %v", found, err)
 	}
 }
@@ -114,13 +114,13 @@ func TestACommitOfAnAlreadyCommittedRequestReplaysItsVersion(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
-	firstCommit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	firstCommit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	first := firstCommit.Version
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	againCommit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	againCommit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	again, replayed := againCommit.Version, againCommit.Replayed
 	if err != nil || !replayed || again.Number != first.Number {
 		t.Fatalf("second commit: version %d, replayed %v, err %v", again.Number, replayed, err)
@@ -131,7 +131,7 @@ func TestACommitWithoutABuildIsNotFound(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
 
-	if _, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt); !errors.Is(err, ErrBuildNotFound) {
+	if _, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt); !errors.Is(err, ErrBuildNotFound) {
 		t.Fatalf("err = %v, want ErrBuildNotFound", err)
 	}
 }
@@ -142,7 +142,7 @@ func TestAStoppedBuildIsSavedAsOneVersionAndTheRequestStaysFailed(t *testing.T) 
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a", "b")
 	r.failRequest(t, id)
 
-	dash, ver, replayed, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	dash, ver, replayed, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	if err != nil || replayed || ver.Number != 1 || len(ver.Spec.Panels) != 2 {
 		t.Fatalf("save: version %d, panels %d, replayed %v, err %v", ver.Number, len(ver.Spec.Panels), replayed, err)
 	}
@@ -150,7 +150,7 @@ func TestAStoppedBuildIsSavedAsOneVersionAndTheRequestStaysFailed(t *testing.T) 
 	if row.Status != "failed" || !row.BuildSavedAt.Valid || row.ResultVersion.Int32 != 1 || !row.DashboardID.Valid || dash.ID == "" {
 		t.Fatalf("request = status %q, saved %v, result version %d, dashboard %v", row.Status, row.BuildSavedAt.Valid, row.ResultVersion.Int32, row.DashboardID)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || found {
 		t.Fatalf("the build survived the save: found = %v, err %v", found, err)
 	}
 }
@@ -159,16 +159,16 @@ func TestAViewersStoppedBuildIsSavedIntoTheirMyDashboards(t *testing.T) {
 	r, _ := newProbeRig(t)
 	viewer := r.addPerson(t, "vic")
 	viewer.principal.Role = auth.RoleViewer
-	row, err := r.revisions.SubmitObserve(t.Context(), viewer.principal, "build it")
+	row, err := r.revisions.SubmitObserve(reading(t.Context()), viewer.principal, "build it")
 	if err != nil {
 		t.Fatal(err)
 	}
-	claimedRow, err := r.db.Queries().ClaimAgentRequest(t.Context(), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
+	claimedRow, err := r.db.Queries().ClaimAgentRequest(reading(t.Context()), dbsqlc.ClaimAgentRequestParams{LeaseSeconds: 60, MaxAttempts: 2, AssignedKind: "builtin", ClaimedBy: "builtin", FromStates: revisions.RunMachine.From(revisions.ActionClaim)})
 	claimed := claimedRow.AgentRequest
 	if err != nil || claimed.ID != row.ID {
 		t.Fatalf("claimed %v, want %v, err %v", claimed.ID, row.ID, err)
 	}
-	_, err = r.service.SaveBuild(t.Context(), viewer.principal, BuildSave{
+	_, err = r.service.SaveBuild(reading(t.Context()), viewer.principal, BuildSave{
 		RequestID: row.ID, Attempt: buildAttempt, BaseVersion: 0, Spec: panelsSpec("t", "a"),
 	})
 	if err != nil {
@@ -176,7 +176,7 @@ func TestAViewersStoppedBuildIsSavedIntoTheirMyDashboards(t *testing.T) {
 	}
 	r.failRequest(t, row.ID)
 
-	dash, _, _, err := r.service.SaveStoppedBuild(t.Context(), viewer.principal, row.ID)
+	dash, _, _, err := r.service.SaveStoppedBuild(reading(t.Context()), viewer.principal, row.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,12 +190,12 @@ func TestSavingAStoppedBuildAgainReplaysTheVersion(t *testing.T) {
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 	r.failRequest(t, id)
-	_, first, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	_, first, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, again, replayed, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	_, again, replayed, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	if err != nil || !replayed || again.Number != first.Number {
 		t.Fatalf("second save: version %d, replayed %v, err %v", again.Number, replayed, err)
 	}
@@ -206,10 +206,10 @@ func TestAStoppedBuildOfARequestThatIsStillRunningIsNotSavable(t *testing.T) {
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 
-	if _, _, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id); !errors.Is(err, ErrBuildNotSavable) {
+	if _, _, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id); !errors.Is(err, ErrBuildNotSavable) {
 		t.Fatalf("err = %v, want ErrBuildNotSavable", err)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || !found {
 		t.Fatalf("the refused save removed the build: found = %v, err %v", found, err)
 	}
 	if row := r.requestRow(t, id); row.BuildSavedAt.Valid || row.DashboardID.Valid {
@@ -220,7 +220,7 @@ func TestAStoppedBuildOfARequestThatIsStillRunningIsNotSavable(t *testing.T) {
 func TestAStoppedBuildWithoutPanelsIsEmpty(t *testing.T) {
 	r, _ := newProbeRig(t)
 	id := r.runningRequest(t, pgtype.UUID{})
-	_, err := r.service.SaveBuild(t.Context(), testUser, BuildSave{
+	_, err := r.service.SaveBuild(reading(t.Context()), testUser, BuildSave{
 		RequestID: id, Attempt: buildAttempt,
 		Spec: []byte(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"panels":[{"id":"row0","type":"row","title":"Row","gridPos":{"x":0,"y":0,"w":24,"h":1},"panels":[]}]}`),
 	})
@@ -229,7 +229,7 @@ func TestAStoppedBuildWithoutPanelsIsEmpty(t *testing.T) {
 	}
 	r.failRequest(t, id)
 
-	if _, _, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id); !errors.Is(err, ErrBuildEmpty) {
+	if _, _, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id); !errors.Is(err, ErrBuildEmpty) {
 		t.Fatalf("err = %v, want ErrBuildEmpty", err)
 	}
 }
@@ -240,19 +240,19 @@ func TestAStoppedBuildOfAMovedOnDashboardIsAVersionConflictAndKeepsTheBuild(t *t
 	id := r.runningRequest(t, dash)
 	r.saveBuild(t, id, dash, 1, "rps", "p99")
 	r.failRequest(t, id)
-	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "other"), "someone else"); err != nil {
+	if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, dash, 1, panelsSpec("t", "rps", "other"), "someone else"); err != nil {
 		t.Fatal(err)
 	}
 
-	_, _, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	_, _, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || conflict.Latest != 2 {
 		t.Fatalf("err = %v, want a ConflictError at version 2", err)
 	}
-	if _, found, err := r.service.Build(t.Context(), id); err != nil || !found {
+	if _, found, err := r.service.Build(reading(t.Context()), id); err != nil || !found {
 		t.Fatalf("the conflict removed the build: found = %v, err %v", found, err)
 	}
-	if latest, err := r.service.LatestVersion(t.Context(), dash); err != nil || latest != 2 {
+	if latest, err := r.service.LatestVersion(reading(t.Context()), dash); err != nil || latest != 2 {
 		t.Fatalf("latest = %d, err %v", latest, err)
 	}
 }
@@ -264,7 +264,7 @@ func TestAStoppedRevisionBuildOnTheBaseVersionIsTheNextVersion(t *testing.T) {
 	r.saveBuild(t, id, dash, 1, "rps", "p99")
 	r.failRequest(t, id)
 
-	_, ver, replayed, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	_, ver, replayed, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	if err != nil || replayed || ver.Number != 2 || len(ver.Spec.Panels) != 2 {
 		t.Fatalf("save: version %d, panels %d, replayed %v, err %v", ver.Number, len(ver.Spec.Panels), replayed, err)
 	}
@@ -275,7 +275,7 @@ func TestACommittedCreateBuildClosesItsLines(t *testing.T) {
 	id := r.runningRequest(t, pgtype.UUID{})
 	r.saveBuild(t, id, pgtype.UUID{}, 0, "a")
 
-	commit, err := r.service.CommitBuild(t.Context(), testUser, id, buildAttempt)
+	commit, err := r.service.CommitBuild(reading(t.Context()), testUser, id, buildAttempt)
 	ver := commit.Version
 	if err != nil || len(ver.Spec.Panels) != 1 || ver.Spec.Panels[0].GridPos.W != 24 {
 		t.Fatalf("commit: panels %+v, err %v, want one panel 24 wide", ver.Spec.Panels, err)
@@ -289,7 +289,7 @@ func TestACommittedRevisionBuildKeepsItsLines(t *testing.T) {
 	r.saveBuild(t, id, dash, 1, "rps", "p99")
 	r.failRequest(t, id)
 
-	_, ver, _, err := r.service.SaveStoppedBuild(t.Context(), testUser, id)
+	_, ver, _, err := r.service.SaveStoppedBuild(reading(t.Context()), testUser, id)
 	if err != nil || len(ver.Spec.Panels) != 2 {
 		t.Fatalf("save: panels %d, err %v", len(ver.Spec.Panels), err)
 	}

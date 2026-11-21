@@ -34,7 +34,7 @@ func TestCreatingNeedsCreateInTheFolder(t *testing.T) {
 		{"another person's My Dashboards", otherEditor, r.personalFolder(t, editor), observations.ErrFolderNotFound},
 	}
 	for _, c := range cases {
-		_, err := r.service.Create(t.Context(), c.by, observations.CreateInput{FolderID: c.folder, Title: "t"})
+		_, err := r.service.Create(reading(t.Context()), c.by, observations.CreateInput{FolderID: c.folder, Title: "t"})
 		if !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)
 		}
@@ -61,7 +61,7 @@ func TestCreatingWithoutAFolderFilesInTheCallersMyDashboards(t *testing.T) {
 	if !k.Folder.General {
 		t.Errorf("a key files in General, got %+v", k.Folder)
 	}
-	if _, err := r.service.Create(t.Context(), viewer, observations.CreateInput{Title: "t"}); err != nil {
+	if _, err := r.service.Create(reading(t.Context()), viewer, observations.CreateInput{Title: "t"}); err != nil {
 		t.Errorf("a viewer has My Dashboards: %v", err)
 	}
 }
@@ -76,11 +76,11 @@ func TestCreatingValidatesTheTitleAndTheRange(t *testing.T) {
 	}
 	for name, in := range cases {
 		var invalid *observations.InvalidInputError
-		if _, err := r.service.Create(t.Context(), editor, in); !errors.As(err, &invalid) {
+		if _, err := r.service.Create(reading(t.Context()), editor, in); !errors.As(err, &invalid) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	o, err := r.service.Create(t.Context(), editor, observations.CreateInput{FolderID: r.shared, Title: "  padded  ", From: &from, To: &to})
+	o, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{FolderID: r.shared, Title: "  padded  ", From: &from, To: &to})
 	if err != nil || o.Title != "padded" || o.From == nil || !o.From.Equal(from) || !o.To.Equal(to) {
 		t.Fatalf("created %+v, %v", o, err)
 	}
@@ -88,7 +88,7 @@ func TestCreatingValidatesTheTitleAndTheRange(t *testing.T) {
 
 func TestCreatingWithAFirstBlockWritesBothInOneTransaction(t *testing.T) {
 	r := newRig(t)
-	o, err := r.service.Create(t.Context(), editor, observations.CreateInput{
+	o, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{
 		FolderID: r.shared, Title: "t", FirstBlock: &observations.BlockInput{Kind: observations.KindText, Body: textBody("Start here")},
 	})
 	if err != nil || len(o.Blocks) != 1 || o.Blocks[0].State != observations.BlockLive || o.Blocks[0].Position != 0 {
@@ -98,14 +98,14 @@ func TestCreatingWithAFirstBlockWritesBothInOneTransaction(t *testing.T) {
 	if got := r.activityTypes(t, o); !slices.Equal(got, want) {
 		t.Errorf("activity %v, want %v", got, want)
 	}
-	_, err = r.service.Create(t.Context(), editor, observations.CreateInput{
+	_, err = r.service.Create(reading(t.Context()), editor, observations.CreateInput{
 		FolderID: r.shared, Title: "bad", FirstBlock: &observations.BlockInput{Kind: observations.KindText, Body: textBody("")},
 	})
 	var invalid *observations.InvalidInputError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("bad first block: %v", err)
 	}
-	list, _, err := r.service.List(t.Context(), editor, observations.ListFilter{FolderID: r.shared}, 10, "")
+	list, _, err := r.service.List(reading(t.Context()), editor, observations.ListFilter{FolderID: r.shared}, 10, "")
 	if err != nil || len(list) != 1 {
 		t.Errorf("the failed create left %d observations, %v", len(list), err)
 	}
@@ -117,7 +117,7 @@ func TestBlockAddedEventsCarryTheBlockIdAndState(t *testing.T) {
 	live := r.addText(t, editor, o, "From the editor")
 	requested := r.addText(t, commenter, o, "From the commenter")
 
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data->>'block_id', data->>'state' FROM activity WHERE observation_id = $1::uuid AND type = 'observation.block_added' ORDER BY seq`, o.ID)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT data->>'block_id', data->>'state' FROM activity WHERE observation_id = $1::uuid AND type = 'observation.block_added' ORDER BY seq`, o.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,11 +148,11 @@ func TestACommenterAddsRequestedBlocksAnEditorAddsLiveOnesAndAViewerNone(t *test
 	if live.Version != 1 || live.Position != 0 || requested.Position != 1 || live.Width != observations.WidthFull {
 		t.Errorf("live %+v requested %+v", live, requested)
 	}
-	_, err := r.service.AddBlock(t.Context(), viewer, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("x")})
+	_, err := r.service.AddBlock(reading(t.Context()), viewer, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("x")})
 	if !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("viewer: %v", err)
 	}
-	_, err = r.service.AddBlock(t.Context(), otherEditor, mustUUID(t, r.create(t, admin, r.hiddenFolder(t)).ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("x")})
+	_, err = r.service.AddBlock(reading(t.Context()), otherEditor, mustUUID(t, r.create(t, admin, r.hiddenFolder(t)).ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("x")})
 	if !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a non-viewer: %v", err)
 	}
@@ -164,22 +164,22 @@ func TestAKeptRequestBecomesLiveAndABlockCannotBeKeptByItsAuthorWhoOnlyComments(
 	asked := r.addText(t, commenter, o, "Please add the 5xx rate")
 	askedID := mustUUID(t, asked.ID)
 
-	_, err := r.service.KeepBlock(t.Context(), commenter, askedID, asked.Version, pgtype.UUID{})
+	_, err := r.service.KeepBlock(reading(t.Context()), commenter, askedID, asked.Version, pgtype.UUID{})
 	var refusal *lifecycle.Refusal
 	if !errors.As(err, &refusal) || refusal.State != "requested" || !slices.Equal(refusal.Allowed, []string{"discard"}) {
 		t.Fatalf("author keeping: %v", err)
 	}
-	if _, err := r.service.KeepBlock(t.Context(), otherCommen, askedID, asked.Version, pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.KeepBlock(reading(t.Context()), otherCommen, askedID, asked.Version, pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("another commenter keeping: %v", err)
 	}
-	kept, err := r.service.KeepBlock(t.Context(), editor, askedID, asked.Version, pgtype.UUID{})
+	kept, err := r.service.KeepBlock(reading(t.Context()), editor, askedID, asked.Version, pgtype.UUID{})
 	if err != nil || kept.State != observations.BlockLive || kept.Version != asked.Version+1 {
 		t.Fatalf("editor keeping: %+v, %v", kept, err)
 	}
 	if kept.Actor.ID != commenter.ID {
 		t.Errorf("the block stays the commenter's: %+v", kept.Actor)
 	}
-	if _, err := r.service.KeepBlock(t.Context(), editor, askedID, kept.Version, pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "live" {
+	if _, err := r.service.KeepBlock(reading(t.Context()), editor, askedID, kept.Version, pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "live" {
 		t.Errorf("keeping a live block: %v", err)
 	}
 }
@@ -189,13 +189,13 @@ func TestTheAuthorOfARequestDiscardsItAndAnEditorDiscardsAnyoneElses(t *testing.
 	o := r.create(t, editor, r.shared)
 	mine := r.addText(t, commenter, o, "mine")
 	theirs := r.addText(t, commenter, o, "theirs")
-	if err := r.service.DiscardBlock(t.Context(), otherCommen, mustUUID(t, mine.ID), pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.DiscardBlock(reading(t.Context()), otherCommen, mustUUID(t, mine.ID), pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("another commenter: %v", err)
 	}
-	if err := r.service.DiscardBlock(t.Context(), commenter, mustUUID(t, mine.ID), pgtype.UUID{}); err != nil {
+	if err := r.service.DiscardBlock(reading(t.Context()), commenter, mustUUID(t, mine.ID), pgtype.UUID{}); err != nil {
 		t.Fatalf("the author: %v", err)
 	}
-	if err := r.service.DiscardBlock(t.Context(), editor, mustUUID(t, theirs.ID), pgtype.UUID{}); err != nil {
+	if err := r.service.DiscardBlock(reading(t.Context()), editor, mustUUID(t, theirs.ID), pgtype.UUID{}); err != nil {
 		t.Fatalf("an editor: %v", err)
 	}
 	if got := r.positions(t, editor, o); len(got) != 0 {
@@ -203,10 +203,10 @@ func TestTheAuthorOfARequestDiscardsItAndAnEditorDiscardsAnyoneElses(t *testing.
 	}
 	live := r.addText(t, editor, o, "live")
 	var refusal *lifecycle.Refusal
-	if err := r.service.DiscardBlock(t.Context(), editor, mustUUID(t, live.ID), pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "live" {
+	if err := r.service.DiscardBlock(reading(t.Context()), editor, mustUUID(t, live.ID), pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "live" {
 		t.Errorf("discarding a live block: %v", err)
 	}
-	if err := r.service.DiscardBlock(t.Context(), editor, mustUUID(t, mine.ID), pgtype.UUID{}); !errors.Is(err, observations.ErrNotFound) {
+	if err := r.service.DiscardBlock(reading(t.Context()), editor, mustUUID(t, mine.ID), pgtype.UUID{}); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("discarding twice: %v", err)
 	}
 }
@@ -216,16 +216,16 @@ func TestAStaleVersionIsRefusedWithTheCurrentBlock(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	b := r.addText(t, editor, o, "v1")
 	id := mustUUID(t, b.ID)
-	updated, err := r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: 1, Body: textBody("v2")})
+	updated, err := r.service.UpdateBlock(reading(t.Context()), editor, id, observations.BlockChange{Version: 1, Body: textBody("v2")})
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("update: %+v, %v", updated, err)
 	}
 	cases := map[string]func() error{
 		"update": func() error {
-			_, err := r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: 1, Body: textBody("v3")})
+			_, err := r.service.UpdateBlock(reading(t.Context()), editor, id, observations.BlockChange{Version: 1, Body: textBody("v3")})
 			return err
 		},
-		"remove": func() error { return r.service.RemoveBlock(t.Context(), editor, id, 1, pgtype.UUID{}) },
+		"remove": func() error { return r.service.RemoveBlock(reading(t.Context()), editor, id, 1, pgtype.UUID{}) },
 	}
 	for name, call := range cases {
 		var conflict *observations.ConflictError
@@ -236,7 +236,7 @@ func TestAStaleVersionIsRefusedWithTheCurrentBlock(t *testing.T) {
 	if got := r.positions(t, editor, o); !slices.Equal(got, []string{"v2"}) {
 		t.Errorf("blocks %v", got)
 	}
-	if err := r.service.RemoveBlock(t.Context(), editor, id, 2, pgtype.UUID{}); err != nil {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, id, 2, pgtype.UUID{}); err != nil {
 		t.Errorf("remove at the current version: %v", err)
 	}
 }
@@ -248,17 +248,17 @@ func TestInsertingAtAPositionShiftsTheRestAndLeavesTheirVersions(t *testing.T) {
 	r.addText(t, editor, o, "a")
 	r.addText(t, editor, o, "b")
 	first := 0
-	if _, err := r.service.AddBlock(t.Context(), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("front"), Position: &first}); err != nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("front"), Position: &first}); err != nil {
 		t.Fatal(err)
 	}
 	beyond := 99
-	if _, err := r.service.AddBlock(t.Context(), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("end"), Position: &beyond}); err != nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("end"), Position: &beyond}); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.positions(t, editor, o); !slices.Equal(got, []string{"front", "a", "b", "end"}) {
 		t.Fatalf("order %v", got)
 	}
-	got, err := r.service.Get(t.Context(), editor, id)
+	got, err := r.service.Get(reading(t.Context()), editor, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestMovingABlockReordersTheOthersAndBumpsOnlyItsVersion(t *testing.T) {
 		version[b.ID] = b.Version
 	}
 	for _, s := range steps {
-		moved, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, blocks[s.block].ID), observations.BlockChange{Version: version[blocks[s.block].ID], Position: to(s.to)})
+		moved, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, blocks[s.block].ID), observations.BlockChange{Version: version[blocks[s.block].ID], Position: to(s.to)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -301,7 +301,7 @@ func TestMovingABlockReordersTheOthersAndBumpsOnlyItsVersion(t *testing.T) {
 			t.Fatalf("after moving %d to %d: %v, want %v", s.block, s.to, got, s.want)
 		}
 	}
-	current, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	current, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,18 +319,18 @@ func TestRemovingABlockClosesTheGap(t *testing.T) {
 	for _, m := range []string{"a", "b", "c"} {
 		ids = append(ids, r.addText(t, editor, o, m))
 	}
-	if err := r.service.RemoveBlock(t.Context(), editor, mustUUID(t, ids[1].ID), 1, pgtype.UUID{}); err != nil {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, ids[1].ID), 1, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.positions(t, editor, o); !slices.Equal(got, []string{"a", "c"}) {
 		t.Errorf("order %v", got)
 	}
-	if err := r.service.RemoveBlock(t.Context(), viewer, mustUUID(t, ids[0].ID), 1, pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.RemoveBlock(reading(t.Context()), viewer, mustUUID(t, ids[0].ID), 1, pgtype.UUID{}); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer removing: %v", err)
 	}
 	asked := r.addText(t, commenter, o, "asked")
 	var refusal *lifecycle.Refusal
-	if err := r.service.RemoveBlock(t.Context(), editor, mustUUID(t, asked.ID), 1, pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "requested" {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, asked.ID), 1, pgtype.UUID{}); !errors.As(err, &refusal) || refusal.State != "requested" {
 		t.Errorf("removing a requested block: %v", err)
 	}
 }
@@ -339,11 +339,11 @@ func TestTheHundredAndFirstBlockAndTheTwentyFifthPanelAreRefused(t *testing.T) {
 	r := newRig(t)
 	panels := r.create(t, editor, r.shared)
 	for i := range observations.MaxPanelBlocks {
-		if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, panels.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()}); err != nil {
+		if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, panels.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()}); err != nil {
 			t.Fatalf("panel %d: %v", i+1, err)
 		}
 	}
-	_, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, panels.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	_, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, panels.ID), observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
 	if !errors.Is(err, observations.ErrTooManyPanels) {
 		t.Errorf("25th panel: %v", err)
 	}
@@ -351,11 +351,11 @@ func TestTheHundredAndFirstBlockAndTheTwentyFifthPanelAreRefused(t *testing.T) {
 
 	texts := r.create(t, editor, r.shared)
 	for i := range observations.MaxBlocks {
-		if _, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, texts.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("t")}); err != nil {
+		if _, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, texts.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("t")}); err != nil {
 			t.Fatalf("block %d: %v", i+1, err)
 		}
 	}
-	_, err = r.service.AddBlock(t.Context(), editor, mustUUID(t, texts.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("one too many")})
+	_, err = r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, texts.ID), observations.BlockInput{Kind: observations.KindText, Body: textBody("one too many")})
 	if !errors.Is(err, observations.ErrTooManyBlocks) {
 		t.Errorf("101st block: %v", err)
 	}
@@ -366,25 +366,25 @@ func TestResolvingNeedsASummaryOnceAndReopeningKeepsIt(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	var invalid *observations.InvalidInputError
-	if _, err := r.service.Resolve(t.Context(), editor, id, "  "); !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidSummary {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, id, "  "); !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidSummary {
 		t.Errorf("no summary: %v", err)
 	}
-	if _, err := r.service.Resolve(t.Context(), viewer, id, "rolled back"); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.Resolve(reading(t.Context()), viewer, id, "rolled back"); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("viewer resolving: %v", err)
 	}
-	resolved, err := r.service.Resolve(t.Context(), editor, id, " rolled back v42 ")
+	resolved, err := r.service.Resolve(reading(t.Context()), editor, id, " rolled back v42 ")
 	if err != nil || resolved.State != observations.StateResolved || resolved.Summary != "rolled back v42" || resolved.ResolvedAt == nil {
 		t.Fatalf("resolved %+v, %v", resolved, err)
 	}
 	var refusal *lifecycle.Refusal
-	if _, err := r.service.Resolve(t.Context(), editor, id, "again"); !errors.As(err, &refusal) || refusal.State != "resolved" || !slices.Contains(refusal.Allowed, "reopen") {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, id, "again"); !errors.As(err, &refusal) || refusal.State != "resolved" || !slices.Contains(refusal.Allowed, "reopen") {
 		t.Errorf("resolving twice: %v", err)
 	}
-	reopened, err := r.service.Reopen(t.Context(), editor, id)
+	reopened, err := r.service.Reopen(reading(t.Context()), editor, id)
 	if err != nil || reopened.State != observations.StateOpen || reopened.Summary != "rolled back v42" || reopened.ResolvedAt != nil {
 		t.Fatalf("reopened %+v, %v", reopened, err)
 	}
-	if _, err := r.service.Reopen(t.Context(), editor, id); !errors.As(err, &refusal) || refusal.State != "open" {
+	if _, err := r.service.Reopen(reading(t.Context()), editor, id); !errors.As(err, &refusal) || refusal.State != "open" {
 		t.Errorf("reopening an open one: %v", err)
 	}
 }
@@ -396,20 +396,20 @@ func TestMovingNeedsEditOnBothFoldersAndRefusesMyDashboards(t *testing.T) {
 	target := r.folder(t, "Archive")
 	hidden := r.hiddenFolder(t)
 
-	if _, err := r.service.Move(t.Context(), editor, id, r.personalFolder(t, editor)); !errors.Is(err, folders.ErrMoveIntoPersonal) {
+	if _, err := r.service.Move(reading(t.Context()), editor, id, r.personalFolder(t, editor)); !errors.Is(err, folders.ErrMoveIntoPersonal) {
 		t.Errorf("into My Dashboards: %v", err)
 	}
-	if _, err := r.service.Move(t.Context(), editor, id, hidden); !errors.Is(err, observations.ErrFolderNotFound) {
+	if _, err := r.service.Move(reading(t.Context()), editor, id, hidden); !errors.Is(err, observations.ErrFolderNotFound) {
 		t.Errorf("into a folder the caller cannot see: %v", err)
 	}
-	if _, err := r.service.Move(t.Context(), viewer, id, target); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.Move(reading(t.Context()), viewer, id, target); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer moving: %v", err)
 	}
-	moved, err := r.service.Move(t.Context(), editor, id, target)
+	moved, err := r.service.Move(reading(t.Context()), editor, id, target)
 	if err != nil || moved.FolderID != target.String() || moved.Folder.Title != "Archive" {
 		t.Fatalf("moved %+v, %v", moved, err)
 	}
-	same, err := r.service.Move(t.Context(), editor, id, target)
+	same, err := r.service.Move(reading(t.Context()), editor, id, target)
 	if err != nil || same.FolderID != target.String() {
 		t.Fatalf("moving to the same folder: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestMovingNeedsEditOnBothFoldersAndRefusesMyDashboards(t *testing.T) {
 		t.Errorf("activity %v, want %v (a move to the same folder is no event)", got, want)
 	}
 	var folder string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id::text FROM activity WHERE observation_id = $1::uuid AND type = 'observation.created'`, o.ID).Scan(&folder); err != nil || folder != target.String() {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT folder_id::text FROM activity WHERE observation_id = $1::uuid AND type = 'observation.created'`, o.ID).Scan(&folder); err != nil || folder != target.String() {
 		t.Errorf("past activity follows the observation: %q, %v", folder, err)
 	}
 }
@@ -429,24 +429,24 @@ func TestUpdatingChangesTheTitleAndTheRangeAndClearsItOnRequest(t *testing.T) {
 	id := mustUUID(t, o.ID)
 	from, to := windowTo.Add(-2*time.Hour), windowTo
 	title := "Renamed"
-	got, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{Title: &title, From: &from, To: &to})
+	got, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{Title: &title, From: &from, To: &to})
 	if err != nil || got.Title != "Renamed" || got.From == nil || !got.To.Equal(to) {
 		t.Fatalf("updated %+v, %v", got, err)
 	}
-	got, err = r.service.Update(t.Context(), editor, id, observations.UpdateInput{ClearRange: true})
+	got, err = r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{ClearRange: true})
 	if err != nil || got.From != nil || got.To != nil || got.Title != "Renamed" {
 		t.Fatalf("cleared %+v, %v", got, err)
 	}
-	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{}); !errors.Is(err, observations.ErrNothingToUpdate) {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{}); !errors.Is(err, observations.ErrNothingToUpdate) {
 		t.Errorf("nothing: %v", err)
 	}
-	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{ClearRange: true, From: &from, To: &to}); err == nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{ClearRange: true, From: &from, To: &to}); err == nil {
 		t.Error("clearing and setting the range together was accepted")
 	}
-	if _, err := r.service.Update(t.Context(), commenter, id, observations.UpdateInput{Title: &title}); !errors.Is(err, folders.ErrForbidden) {
+	if _, err := r.service.Update(reading(t.Context()), commenter, id, observations.UpdateInput{Title: &title}); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a commenter: %v", err)
 	}
-	if _, err := r.service.Update(t.Context(), otherEditor, mustUUID(t, r.create(t, admin, r.hiddenFolder(t)).ID), observations.UpdateInput{Title: &title}); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Update(reading(t.Context()), otherEditor, mustUUID(t, r.create(t, admin, r.hiddenFolder(t)).ID), observations.UpdateInput{Title: &title}); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("a non-viewer: %v", err)
 	}
 }
@@ -456,13 +456,13 @@ func TestRenamingRecordsTheTitleBeforeAndAChangeOfRangeDoesNot(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	title := "Renamed"
-	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{Title: &title}); err != nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{Title: &title}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{ClearRange: true}); err != nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{ClearRange: true}); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data FROM activity WHERE observation_id = $1::uuid AND type = 'observation.updated' ORDER BY seq`, o.ID)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT data FROM activity WHERE observation_id = $1::uuid AND type = 'observation.updated' ORDER BY seq`, o.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,30 +493,30 @@ func TestEveryWriteAppendsExactlyOneActivityRowOfTheObservationTarget(t *testing
 	id := mustUUID(t, o.ID)
 	text := r.addText(t, editor, o, "a")
 	asked := r.addText(t, commenter, o, "b")
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Body: textBody("a2")}); err != nil {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Body: textBody("a2")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.KeepBlock(t.Context(), editor, mustUUID(t, asked.ID), 1, pgtype.UUID{}); err != nil {
+	if _, err := r.service.KeepBlock(reading(t.Context()), editor, mustUUID(t, asked.ID), 1, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	discard := r.addText(t, commenter, o, "c")
-	if err := r.service.DiscardBlock(t.Context(), commenter, mustUUID(t, discard.ID), pgtype.UUID{}); err != nil {
+	if err := r.service.DiscardBlock(reading(t.Context()), commenter, mustUUID(t, discard.ID), pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.RemoveBlock(t.Context(), editor, mustUUID(t, text.ID), 2, pgtype.UUID{}); err != nil {
+	if err := r.service.RemoveBlock(reading(t.Context()), editor, mustUUID(t, text.ID), 2, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	title := "t2"
-	if _, err := r.service.Update(t.Context(), editor, id, observations.UpdateInput{Title: &title}); err != nil {
+	if _, err := r.service.Update(reading(t.Context()), editor, id, observations.UpdateInput{Title: &title}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Move(t.Context(), editor, id, r.folder(t, "Elsewhere")); err != nil {
+	if _, err := r.service.Move(reading(t.Context()), editor, id, r.folder(t, "Elsewhere")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Resolve(t.Context(), editor, id, "done"); err != nil {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, id, "done"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Reopen(t.Context(), editor, id); err != nil {
+	if _, err := r.service.Reopen(reading(t.Context()), editor, id); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{
@@ -538,10 +538,10 @@ func TestActivityDataCarriesNoBlockTextOrSummary(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	r.addText(t, editor, o, "secret markdown words")
 	r.addPanel(t, editor, o)
-	if _, err := r.service.Resolve(t.Context(), editor, mustUUID(t, o.ID), "secret summary words"); err != nil {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, mustUUID(t, o.ID), "secret summary words"); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT data::text FROM activity WHERE observation_id = $1::uuid`, o.ID)
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT data::text FROM activity WHERE observation_id = $1::uuid`, o.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,7 +576,7 @@ func TestConcurrentAddsLeaveDensePositions(t *testing.T) {
 				zero := 0
 				position = &zero
 			}
-			_, err := r.service.AddBlock(t.Context(), by, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("w"), Position: position})
+			_, err := r.service.AddBlock(reading(t.Context()), by, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("w"), Position: position})
 			errs <- err
 		})
 	}
@@ -599,32 +599,32 @@ func TestListingShowsOnlyVisibleFoldersFiltersAndPages(t *testing.T) {
 	b := r.create(t, editor, r.shared)
 	c := r.create(t, editor, r.shared)
 	r.create(t, admin, hidden)
-	if _, err := r.service.Resolve(t.Context(), editor, mustUUID(t, b.ID), "done"); err != nil {
+	if _, err := r.service.Resolve(reading(t.Context()), editor, mustUUID(t, b.ID), "done"); err != nil {
 		t.Fatal(err)
 	}
 
-	first, next, err := r.service.List(t.Context(), viewer, observations.ListFilter{}, 2, "")
+	first, next, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{}, 2, "")
 	if err != nil || len(first) != 2 || next == "" || first[0].ID != b.ID || first[1].ID != c.ID {
 		t.Fatalf("first page %v, next %q, %v", ids(first), next, err)
 	}
-	second, next, err := r.service.List(t.Context(), viewer, observations.ListFilter{}, 2, next)
+	second, next, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{}, 2, next)
 	if err != nil || len(second) != 1 || next != "" || second[0].ID != a.ID {
 		t.Fatalf("second page %v, next %q, %v", ids(second), next, err)
 	}
-	resolved, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{State: observations.StateResolved}, 10, "")
+	resolved, _, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{State: observations.StateResolved}, 10, "")
 	if err != nil || len(resolved) != 1 || resolved[0].ID != b.ID {
 		t.Errorf("resolved %v, %v", ids(resolved), err)
 	}
-	if all, _, err := r.service.List(t.Context(), admin, observations.ListFilter{}, 10, ""); err != nil || len(all) != 4 {
+	if all, _, err := r.service.List(reading(t.Context()), admin, observations.ListFilter{}, 10, ""); err != nil || len(all) != 4 {
 		t.Errorf("an admin sees %d, %v", len(all), err)
 	}
-	if _, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{FolderID: hidden}, 10, ""); !errors.Is(err, observations.ErrFolderNotFound) {
+	if _, _, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{FolderID: hidden}, 10, ""); !errors.Is(err, observations.ErrFolderNotFound) {
 		t.Errorf("a folder the caller cannot see: %v", err)
 	}
-	if _, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{}, 10, "not-a-cursor"); !errors.Is(err, observations.ErrInvalidCursor) {
+	if _, _, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{}, 10, "not-a-cursor"); !errors.Is(err, observations.ErrInvalidCursor) {
 		t.Errorf("a bad cursor: %v", err)
 	}
-	if got, _, _ := r.service.List(t.Context(), viewer, observations.ListFilter{}, 10, ""); got[0].Blocks != nil {
+	if got, _, _ := r.service.List(reading(t.Context()), viewer, observations.ListFilter{}, 10, ""); got[0].Blocks != nil {
 		t.Error("a list item carries blocks")
 	}
 }
@@ -632,7 +632,7 @@ func TestListingShowsOnlyVisibleFoldersFiltersAndPages(t *testing.T) {
 func TestListingSearchesTheTitleFiltersByAuthorAndSorts(t *testing.T) {
 	r := newRig(t)
 	create := func(by auth.Principal, title string) observations.Observation {
-		o, err := r.service.Create(t.Context(), by, observations.CreateInput{FolderID: r.shared, Title: title})
+		o, err := r.service.Create(reading(t.Context()), by, observations.CreateInput{FolderID: r.shared, Title: title})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -643,7 +643,7 @@ func TestListingSearchesTheTitleFiltersByAuthorAndSorts(t *testing.T) {
 	gamma := create(editor, "Gamma_queue")
 	list := func(filter observations.ListFilter) []string {
 		t.Helper()
-		got, err := r.service.Page(t.Context(), viewer, filter, 10, 0)
+		got, err := r.service.Page(reading(t.Context()), viewer, filter, 10, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -661,7 +661,7 @@ func TestListingSearchesTheTitleFiltersByAuthorAndSorts(t *testing.T) {
 	if got, want := list(observations.ListFilter{Query: "_queue"}), []string{gamma.ID}; !slices.Equal(got, want) {
 		t.Errorf("an underscore matches itself: %v, want %v", got, want)
 	}
-	mine, err := r.service.Page(t.Context(), editor, observations.ListFilter{CreatedByMe: true}, 10, 0)
+	mine, err := r.service.Page(reading(t.Context()), editor, observations.ListFilter{CreatedByMe: true}, 10, 0)
 	if err != nil || mine.Total != 2 || !slices.Equal(ids(mine.Observations), []string{gamma.ID, beta.ID}) {
 		t.Errorf("opened by me %v of %d, %v", ids(mine.Observations), mine.Total, err)
 	}
@@ -683,15 +683,15 @@ func TestPagesCarryTheTotalAndTheRequestedSlice(t *testing.T) {
 		created = append(created, r.create(t, editor, r.shared).ID)
 	}
 	slices.Reverse(created)
-	second, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 2)
+	second, err := r.service.Page(reading(t.Context()), viewer, observations.ListFilter{}, 2, 2)
 	if err != nil || second.Total != 5 || !slices.Equal(ids(second.Observations), created[2:4]) {
 		t.Errorf("second page %v of %d, %v", ids(second.Observations), second.Total, err)
 	}
-	past, err := r.service.Page(t.Context(), viewer, observations.ListFilter{}, 2, 10)
+	past, err := r.service.Page(reading(t.Context()), viewer, observations.ListFilter{}, 2, 10)
 	if err != nil || past.Total != 5 || len(past.Observations) != 0 {
 		t.Errorf("a page past the end %v of %d, %v", ids(past.Observations), past.Total, err)
 	}
-	if _, _, err := r.service.List(t.Context(), viewer, observations.ListFilter{Sort: observations.SortTitle}, 2, "AAAA"); err == nil {
+	if _, _, err := r.service.List(reading(t.Context()), viewer, observations.ListFilter{Sort: observations.SortTitle}, 2, "AAAA"); err == nil {
 		t.Error("a cursor with another order was accepted")
 	}
 }
@@ -701,21 +701,21 @@ func TestDeletingRemovesTheObservationWithItsPartsAndKeepsTheActivity(t *testing
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	r.addText(t, editor, o, "a")
-	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+	if err := r.service.Delete(reading(t.Context()), editor, id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.service.Get(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Get(reading(t.Context()), editor, id); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("get after delete: %v", err)
 	}
 	var blocks int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1::uuid`, o.ID).Scan(&blocks); err != nil || blocks != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1::uuid`, o.ID).Scan(&blocks); err != nil || blocks != 0 {
 		t.Errorf("%d blocks left, %v", blocks, err)
 	}
 	got := r.activityTypes(t, o)
 	if len(got) == 0 || got[len(got)-1] != activity.TypeObservationDeleted {
 		t.Errorf("activity %v does not end with the delete", got)
 	}
-	if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+	if err := r.service.Delete(reading(t.Context()), editor, id); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("deleting twice: %v", err)
 	}
 }
@@ -723,21 +723,21 @@ func TestDeletingRemovesTheObservationWithItsPartsAndKeepsTheActivity(t *testing
 func TestOnlyTheAuthorWhoEditsOrAManagerDeletes(t *testing.T) {
 	r := newRig(t)
 	own := r.create(t, editor, r.shared)
-	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.Delete(reading(t.Context()), otherEditor, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("another editor deleting: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), viewer, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
+	if err := r.service.Delete(reading(t.Context()), viewer, mustUUID(t, own.ID)); !errors.Is(err, folders.ErrForbidden) {
 		t.Errorf("a viewer deleting: %v", err)
 	}
-	if err := r.service.Delete(t.Context(), editor, mustUUID(t, own.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), editor, mustUUID(t, own.ID)); err != nil {
 		t.Errorf("the author who edits: %v", err)
 	}
 	other := r.create(t, otherEditor, r.shared)
-	if err := r.service.Delete(t.Context(), admin, mustUUID(t, other.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), admin, mustUUID(t, other.ID)); err != nil {
 		t.Errorf("a manager of the folder: %v", err)
 	}
 	mine := r.create(t, otherEditor, r.personalFolder(t, otherEditor))
-	if err := r.service.Delete(t.Context(), otherEditor, mustUUID(t, mine.ID)); err != nil {
+	if err := r.service.Delete(reading(t.Context()), otherEditor, mustUUID(t, mine.ID)); err != nil {
 		t.Errorf("the owner of My Dashboards: %v", err)
 	}
 }
@@ -756,19 +756,19 @@ func TestAnObservationInAHiddenFolderIsNotFoundForEveryRead(t *testing.T) {
 	o := r.create(t, admin, hidden)
 	id := mustUUID(t, o.ID)
 	block := r.addText(t, admin, o, "x")
-	if _, err := r.service.Get(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Get(reading(t.Context()), editor, id); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("get: %v", err)
 	}
-	if _, err := r.service.Access(t.Context(), editor, id); !errors.Is(err, observations.ErrNotFound) {
+	if _, err := r.service.Access(reading(t.Context()), editor, id); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("access: %v", err)
 	}
-	if _, _, _, err := r.service.PanelDashboard(t.Context(), editor, mustUUID(t, block.ID)); !errors.Is(err, observations.ErrNotFound) {
+	if _, _, _, err := r.service.PanelDashboard(reading(t.Context()), editor, mustUUID(t, block.ID)); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("panel dashboard: %v", err)
 	}
-	if err := r.service.DiscardBlock(t.Context(), editor, mustUUID(t, block.ID), pgtype.UUID{}); !errors.Is(err, observations.ErrNotFound) {
+	if err := r.service.DiscardBlock(reading(t.Context()), editor, mustUUID(t, block.ID), pgtype.UUID{}); !errors.Is(err, observations.ErrNotFound) {
 		t.Errorf("discard: %v", err)
 	}
-	if _, err := r.service.Get(t.Context(), admin, id); err != nil {
+	if _, err := r.service.Get(reading(t.Context()), admin, id); err != nil {
 		t.Errorf("an admin: %v", err)
 	}
 }
@@ -778,14 +778,14 @@ func TestGetCarriesBlocksInOrderWithTheirAllowedActions(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	r.addText(t, editor, o, "live")
 	r.addText(t, commenter, o, "asked")
-	got, err := r.service.Get(t.Context(), commenter, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), commenter, mustUUID(t, o.ID))
 	if err != nil || len(got.Blocks) != 2 {
 		t.Fatalf("got %+v, %v", got.Blocks, err)
 	}
 	if len(got.AllowedActions) != 0 || len(got.Blocks[0].AllowedActions) != 0 || !slices.Equal(got.Blocks[1].AllowedActions, []observations.BlockAction{observations.BlockDiscard}) {
 		t.Errorf("commenter: observation %v, live %v, requested %v", got.AllowedActions, got.Blocks[0].AllowedActions, got.Blocks[1].AllowedActions)
 	}
-	editorView, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	editorView, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil || !slices.Equal(editorView.Blocks[1].AllowedActions, []observations.BlockAction{observations.BlockUpdate, observations.BlockKeep, observations.BlockDiscard}) {
 		t.Errorf("editor view: %v, %v", editorView.Blocks[1].AllowedActions, err)
 	}
@@ -795,11 +795,11 @@ func TestTheDiscussionThreadIsReportedOnTheObservation(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
 	r.db.Exec(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid)`, o.ID)
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, o.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil || got.ThreadID == "" {
 		t.Fatalf("thread id %q, %v", got.ThreadID, err)
 	}
-	list, _, err := r.service.List(t.Context(), editor, observations.ListFilter{}, 10, "")
+	list, _, err := r.service.List(reading(t.Context()), editor, observations.ListFilter{}, 10, "")
 	if err != nil || len(list) != 1 || list[0].ThreadID != got.ThreadID {
 		t.Errorf("list thread id %v, %v", list, err)
 	}
@@ -817,11 +817,11 @@ func TestAnObservationReportsHowManyMessagesItsDiscussionHolds(t *testing.T) {
 SELECT id, $2, 'user', gen_random_uuid(), 'Sam' FROM threads WHERE observation_id = $1::uuid`, talked.ID, body)
 	}
 
-	got, err := r.service.Get(t.Context(), editor, mustUUID(t, talked.ID))
+	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, talked.ID))
 	if err != nil || got.MessageCount != 3 {
 		t.Fatalf("get: count %d, %v", got.MessageCount, err)
 	}
-	list, _, err := r.service.List(t.Context(), editor, observations.ListFilter{}, 10, "")
+	list, _, err := r.service.List(reading(t.Context()), editor, observations.ListFilter{}, 10, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -838,12 +838,12 @@ SELECT id, $2, 'user', gen_random_uuid(), 'Sam' FROM threads WHERE observation_i
 func TestAccessNamesTheFolderAbilitiesAndTheActivityOwner(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
-	placement, err := r.service.Access(t.Context(), commenter, mustUUID(t, o.ID))
+	placement, err := r.service.Access(reading(t.Context()), commenter, mustUUID(t, o.ID))
 	if err != nil || placement.Folder != r.shared || placement.Personal || !placement.Abilities.Comment || placement.Abilities.Edit {
 		t.Fatalf("placement %+v, %v", placement, err)
 	}
 	mine := r.create(t, editor, pgtype.UUID{})
-	placement, err = r.service.Access(t.Context(), editor, mustUUID(t, mine.ID))
+	placement, err = r.service.Access(reading(t.Context()), editor, mustUUID(t, mine.ID))
 	if err != nil || !placement.Personal {
 		t.Errorf("personal placement %+v, %v", placement, err)
 	}
@@ -854,27 +854,27 @@ func TestEditingABlockValidatesItsBodyByKind(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	text := r.addText(t, editor, o, "a")
 	panel := r.addPanel(t, editor, o)
-	snapshot, err := r.service.AddBlock(t.Context(), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, panel.ID)})
+	snapshot, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, panel.ID)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var invalid *observations.InvalidInputError
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, snapshot.ID), observations.BlockChange{Version: 1, Body: textBody("x")}); !errors.As(err, &invalid) || invalid.Code != observations.CodeBodyNotEditable {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, snapshot.ID), observations.BlockChange{Version: 1, Body: textBody("x")}); !errors.As(err, &invalid) || invalid.Code != observations.CodeBodyNotEditable {
 		t.Errorf("snapshot body: %v", err)
 	}
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Body: panelBody()}); !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Body: panelBody()}); !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
 		t.Errorf("a panel body on a text block: %v", err)
 	}
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1}); !errors.Is(err, observations.ErrNothingToUpdate) {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1}); !errors.Is(err, observations.ErrNothingToUpdate) {
 		t.Errorf("nothing: %v", err)
 	}
 	half := observations.WidthHalf
-	got, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, snapshot.ID), observations.BlockChange{Version: 1, Width: &half})
+	got, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, snapshot.ID), observations.BlockChange{Version: 1, Width: &half})
 	if err != nil || got.Width != observations.WidthHalf || got.Version != 2 {
 		t.Errorf("width of a snapshot: %+v, %v", got, err)
 	}
 	bad := observations.Width("wide")
-	if _, err := r.service.UpdateBlock(t.Context(), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Width: &bad}); !errors.As(err, &invalid) {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, text.ID), observations.BlockChange{Version: 1, Width: &bad}); !errors.As(err, &invalid) {
 		t.Errorf("bad width: %v", err)
 	}
 }
@@ -896,19 +896,19 @@ func TestAddingBlocksOfTheKindsAPersonMayNotAdd(t *testing.T) {
 	}
 	for name, c := range cases {
 		var invalid *observations.InvalidInputError
-		if _, err := r.service.AddBlock(t.Context(), editor, id, c.in); !errors.As(err, &invalid) || invalid.Code != c.code {
+		if _, err := r.service.AddBlock(reading(t.Context()), editor, id, c.in); !errors.As(err, &invalid) || invalid.Code != c.code {
 			t.Errorf("%s: %v, want %s", name, err, c.code)
 		}
 	}
 	text := r.addText(t, editor, o, "a")
 	var invalid *observations.InvalidInputError
-	_, err := r.service.AddBlock(t.Context(), editor, id, observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, text.ID)})
+	_, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, text.ID)})
 	if !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
 		t.Errorf("snapshot of a text block: %v", err)
 	}
 	other := r.create(t, editor, r.shared)
 	foreign := r.addPanel(t, editor, other)
-	_, err = r.service.AddBlock(t.Context(), editor, id, observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, foreign.ID)})
+	_, err = r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, foreign.ID)})
 	if !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
 		t.Errorf("snapshot of another observation's block: %v", err)
 	}
@@ -926,12 +926,12 @@ func TestATextBlockStoredBeforeTheTextRuleCanStillBeResentUnchanged(t *testing.T
 	r.db.Exec(t, `UPDATE observation_blocks SET body = jsonb_build_object('markdown', $2::text) WHERE id = $1`, id, legacy)
 
 	full := observations.WidthHalf
-	same, err := r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: 1, Body: textBody(legacy), Width: &full})
+	same, err := r.service.UpdateBlock(reading(t.Context()), editor, id, observations.BlockChange{Version: 1, Body: textBody(legacy), Width: &full})
 	if err != nil {
 		t.Fatalf("resending the stored body: %v", err)
 	}
 	var invalid *observations.InvalidInputError
-	_, err = r.service.UpdateBlock(t.Context(), editor, id, observations.BlockChange{Version: same.Version, Body: textBody(legacy + "\x07")})
+	_, err = r.service.UpdateBlock(reading(t.Context()), editor, id, observations.BlockChange{Version: same.Version, Body: textBody(legacy + "\x07")})
 	if !errors.As(err, &invalid) || invalid.Code != observations.CodeInvalidBlock {
 		t.Fatalf("a changed body with a bell: %v", err)
 	}
@@ -942,12 +942,12 @@ func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testin
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	r.addText(t, editor, o, "live")
-	asked, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("asked")})
+	asked, err := r.service.AddBlock(reading(t.Context()), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("asked")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.addText(t, editor, o, "after")
-	askedPanel, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
+	askedPanel, err := r.service.AddBlock(reading(t.Context()), commenter, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -971,17 +971,17 @@ func TestASuggestedBlockIsHiddenFromViewersAndOtherCommentersUntilKept(t *testin
 		}
 	}
 	for _, by := range []auth.Principal{viewer, otherCommen} {
-		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); !errors.Is(err, observations.ErrNotFound) {
+		if _, _, _, err := r.service.PanelDashboard(reading(t.Context()), by, mustUUID(t, askedPanel.ID)); !errors.Is(err, observations.ErrNotFound) {
 			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
 		}
 	}
 	for _, by := range []auth.Principal{commenter, editor} {
-		if _, _, _, err := r.service.PanelDashboard(t.Context(), by, mustUUID(t, askedPanel.ID)); err != nil {
+		if _, _, _, err := r.service.PanelDashboard(reading(t.Context()), by, mustUUID(t, askedPanel.ID)); err != nil {
 			t.Errorf("panel data of a suggested block for %s: %v", by.Name, err)
 		}
 	}
 
-	if _, err := r.service.KeepBlock(t.Context(), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
+	if _, err := r.service.KeepBlock(reading(t.Context()), editor, mustUUID(t, asked.ID), asked.Version, pgtype.UUID{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.positions(t, viewer, o); !slices.Equal(got, []string{"live", "asked", "after"}) {
@@ -995,21 +995,21 @@ func TestDeletingWaitsForTheRunsOfTheObservationToEnd(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	var run string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
 VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
 		t.Fatal(err)
 	}
 	for _, state := range []string{"queued", "running"} {
 		r.db.Exec(t, `UPDATE agent_requests SET state = $2, status = $2 WHERE id = $1::uuid`, run, state)
-		if err := r.service.Delete(t.Context(), editor, id); !errors.Is(err, observations.ErrRunInProgress) {
+		if err := r.service.Delete(reading(t.Context()), editor, id); !errors.Is(err, observations.ErrRunInProgress) {
 			t.Fatalf("delete while %s: %v", state, err)
 		}
 	}
-	if _, err := r.service.Get(t.Context(), editor, id); err != nil {
+	if _, err := r.service.Get(reading(t.Context()), editor, id); err != nil {
 		t.Fatalf("the observation went with the refused delete: %v", err)
 	}
 	r.db.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'stopped' WHERE id = $1::uuid`, run)
-	if err := r.service.Delete(t.Context(), editor, id); err != nil {
+	if err := r.service.Delete(reading(t.Context()), editor, id); err != nil {
 		t.Fatalf("delete after the run ended: %v", err)
 	}
 }
@@ -1019,13 +1019,13 @@ func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	a := r.addText(t, editor, o, "a")
-	hidden, err := r.service.AddBlock(t.Context(), otherCommen, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("someone else's suggestion")})
+	hidden, err := r.service.AddBlock(reading(t.Context()), otherCommen, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("someone else's suggestion")})
 	if err != nil || hidden.State != observations.BlockRequested {
 		t.Fatalf("suggest: %+v %v", hidden, err)
 	}
 	b := r.addText(t, editor, o, "b")
 	order := func(by auth.Principal) []string {
-		got, err := r.service.Get(t.Context(), by, id)
+		got, err := r.service.Get(reading(t.Context()), by, id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1043,7 +1043,7 @@ func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
 	}
 
 	at := 2
-	mine, err := r.service.AddBlock(t.Context(), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("mine"), Position: &at})
+	mine, err := r.service.AddBlock(reading(t.Context()), commenter, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("mine"), Position: &at})
 	if err != nil || mine.Position != 2 {
 		t.Fatalf("add at the end the commenter sees: position %d: %v", mine.Position, err)
 	}
@@ -1055,7 +1055,7 @@ func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
 	}
 
 	first := 0
-	if _, err := r.service.UpdateBlock(t.Context(), commenter, mustUUID(t, mine.ID), observations.BlockChange{Version: mine.Version, Position: &first}); err == nil {
+	if _, err := r.service.UpdateBlock(reading(t.Context()), commenter, mustUUID(t, mine.ID), observations.BlockChange{Version: mine.Version, Position: &first}); err == nil {
 		t.Error("a commenter moved a suggestion, so UpdateBlock needs the reader's positions too")
 	}
 }

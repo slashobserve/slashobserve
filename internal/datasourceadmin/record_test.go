@@ -16,7 +16,7 @@ type recordedEvent struct {
 
 func (r *rig) recorded(t *testing.T) []recordedEvent {
 	t.Helper()
-	rows, err := r.database.SQLDB(t).QueryContext(t.Context(), `SELECT type, data::text FROM activity WHERE type LIKE 'datasource.%' ORDER BY seq`)
+	rows, err := r.database.SQLDB(t).QueryContext(reading(t.Context()), `SELECT type, data::text FROM activity WHERE type LIKE 'datasource.%' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,15 +42,15 @@ func TestCreateUpdateAndDeleteAreRecordedWithoutCredentials(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	secrets := Secrets{BearerToken: "token-abc-123", Headers: map[string]string{"X-Org": "org-secret-7"}}
 
-	if _, err := svc.Create(t.Context(), r.admin, prometheus("metrics", "https://prom.example.com:9090/prefix"), secrets); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, prometheus("metrics", "https://prom.example.com:9090/prefix"), secrets); err != nil {
 		t.Fatal(err)
 	}
 	moved := prometheus("metrics", "https://prom2.example.com")
 	moved.Name = "Renamed"
-	if _, err := svc.Update(t.Context(), r.admin, "metrics", moved, SecretsChange{Set: Secrets{BearerToken: "token-new-456"}}); err != nil {
+	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", moved, SecretsChange{Set: Secrets{BearerToken: "token-new-456"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Delete(t.Context(), r.admin, "metrics"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "metrics"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,10 +87,10 @@ func TestCreateUpdateAndDeleteAreRecordedWithoutCredentials(t *testing.T) {
 func TestAnUpdateThatChangesNothingRecordsNothing(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	def := prometheus("metrics", "https://prom.example.com")
-	if _, err := svc.Create(t.Context(), r.admin, def, Secrets{}); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, def, Secrets{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Update(t.Context(), r.admin, "metrics", def, SecretsChange{}); err != nil {
+	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", def, SecretsChange{}); err != nil {
 		t.Fatal(err)
 	}
 	if events := r.recorded(t); len(events) != 1 {
@@ -103,7 +103,7 @@ func TestARefusedCreateRecordsNothing(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	r.insert(t, testKey, prometheus("taken", server.URL), Secrets{})
 
-	if _, err := svc.Create(t.Context(), r.admin, prometheus("taken", "https://prom.example.com"), Secrets{}); err == nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, prometheus("taken", "https://prom.example.com"), Secrets{}); err == nil {
 		t.Fatal("a taken uid was created")
 	}
 	if events := r.recorded(t); len(events) != 0 {
@@ -113,7 +113,7 @@ func TestARefusedCreateRecordsNothing(t *testing.T) {
 
 func allowed(t *testing.T, r *rig) []string {
 	t.Helper()
-	list, err := r.domains.Allowed(t.Context())
+	list, err := r.domains.Allowed(reading(t.Context()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,21 +126,21 @@ func allowed(t *testing.T, r *rig) []string {
 
 func TestMovingOrDeletingADatasourceReleasesTheDomainItAdded(t *testing.T) {
 	r, svc := newRig(t, testKey)
-	if _, err := svc.Create(t.Context(), r.admin, prometheus("metrics", "https://prom.example.com"), Secrets{}); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, prometheus("metrics", "https://prom.example.com"), Secrets{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 1 || got[0] != "prom.example.com" {
 		t.Fatalf("allowlist after create = %v", got)
 	}
 
-	if _, err := svc.Update(t.Context(), r.admin, "metrics", prometheus("metrics", "https://other.example.com"), SecretsChange{}); err != nil {
+	if _, err := svc.Update(reading(t.Context()), r.admin, "metrics", prometheus("metrics", "https://other.example.com"), SecretsChange{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 1 || got[0] != "other.example.com" {
 		t.Fatalf("allowlist after the move = %v", got)
 	}
 
-	if err := svc.Delete(t.Context(), r.admin, "metrics"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "metrics"); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 0 {
@@ -151,17 +151,17 @@ func TestMovingOrDeletingADatasourceReleasesTheDomainItAdded(t *testing.T) {
 func TestADomainAnotherDatasourceStillUsesStaysAllowed(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	for _, uid := range []string{"first", "second"} {
-		if _, err := svc.Create(t.Context(), r.admin, prometheus(uid, "https://prom.example.com"), Secrets{}); err != nil {
+		if _, err := svc.Create(reading(t.Context()), r.admin, prometheus(uid, "https://prom.example.com"), Secrets{}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := svc.Delete(t.Context(), r.admin, "first"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "first"); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 1 {
 		t.Fatalf("allowlist = %v, want the domain the second datasource uses", got)
 	}
-	if err := svc.Delete(t.Context(), r.admin, "second"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "second"); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 0 {
@@ -172,13 +172,13 @@ func TestADomainAnotherDatasourceStillUsesStaysAllowed(t *testing.T) {
 func TestADomainAnAdminAllowedByHandSurvivesItsDatasource(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	pattern, _ := domains.ParsePattern("prom.example.com")
-	if _, err := r.domains.Add(t.Context(), r.admin, pattern); err != nil {
+	if _, err := r.domains.Add(reading(t.Context()), r.admin, pattern); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(t.Context(), r.admin, prometheus("metrics", "https://prom.example.com"), Secrets{}); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, prometheus("metrics", "https://prom.example.com"), Secrets{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Delete(t.Context(), r.admin, "metrics"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "metrics"); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 1 {
@@ -189,13 +189,13 @@ func TestADomainAnAdminAllowedByHandSurvivesItsDatasource(t *testing.T) {
 func TestAClickHouseDatasourceKeepsItsHostAllowedWhileItExists(t *testing.T) {
 	r, svc := newRig(t, testKey)
 	def := Definition{UID: "warehouse", Type: TypeClickHouse, Name: "Warehouse", Address: "ch.example.com:9000", Username: "reader"}
-	if _, err := svc.Create(t.Context(), r.admin, def, Secrets{Password: "pw-1"}); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, def, Secrets{Password: "pw-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(t.Context(), r.admin, prometheus("metrics", "https://ch.example.com"), Secrets{}); err != nil {
+	if _, err := svc.Create(reading(t.Context()), r.admin, prometheus("metrics", "https://ch.example.com"), Secrets{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Delete(t.Context(), r.admin, "metrics"); err != nil {
+	if err := svc.Delete(reading(t.Context()), r.admin, "metrics"); err != nil {
 		t.Fatal(err)
 	}
 	if got := allowed(t, r); len(got) != 1 {

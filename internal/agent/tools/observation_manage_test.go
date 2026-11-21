@@ -103,7 +103,7 @@ func TestMoveObservationChangesItsFolder(t *testing.T) {
 	r := newObservationRig(t)
 	id := r.start(t, editorCaller)
 	var other string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title) VALUES ('Archive') RETURNING id::text`).Scan(&other); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ('Archive') RETURNING id::text`).Scan(&other); err != nil {
 		t.Fatal(err)
 	}
 

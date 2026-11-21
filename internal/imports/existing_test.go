@@ -38,7 +38,7 @@ func TestThePreviewNamesTheDashboardThatAlreadyHoldsTheGrafanaUID(t *testing.T) 
 	if got := previewExisting(t, r, ada, "Shop"); got.Existing != nil {
 		t.Fatalf("existing = %+v before any import, want null", got.Existing)
 	}
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestThePreviewNamesTheDashboardThatAlreadyHoldsTheGrafanaUID(t *testing.T) 
 
 func TestThePreviewHidesADashboardTheCallerCannotSee(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestThePreviewHidesADashboardTheCallerCannotSee(t *testing.T) {
 
 func TestAnImportCanUpdateTheDashboardItAlreadyMade(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,14 +82,14 @@ func TestAnImportCanUpdateTheDashboardItAlreadyMade(t *testing.T) {
 	if saved.Dashboard.ID != first.Dashboard.ID || saved.Version.Version != 2 || saved.Import.ID != first.Record.ID {
 		t.Fatalf("saved %+v, want version 2 of the first dashboard and its import record", saved)
 	}
-	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 2 {
+	if latest, err := r.dashboard.LatestVersion(reading(t.Context()), uuid(t, first.Dashboard.ID)); err != nil || latest != 2 {
 		t.Fatalf("latest = %d, err %v", latest, err)
 	}
 }
 
 func TestAnUpdateNeedsAnImportTheCallerMayEdit(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,14 +102,14 @@ func TestAnUpdateNeedsAnImportTheCallerMayEdit(t *testing.T) {
 	if rec := r.serve(t, ada, http.MethodPost, "/imports", body); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status %d for a bad id, want 400: %s", rec.Code, rec.Body.String())
 	}
-	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
+	if latest, err := r.dashboard.LatestVersion(reading(t.Context()), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
 		t.Fatalf("latest = %d, err %v, want the refused updates to save nothing", latest, err)
 	}
 }
 
 func TestRefuseExistingAnswersWithTheDashboardInsteadOfMakingACopy(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestRefuseExistingStillImportsANewFileAndAllowsAnUpdate(t *testing.T) {
 	if rec := r.serve(t, ada, http.MethodPost, "/imports", map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "refuse_existing": true}); rec.Code != http.StatusCreated {
 		t.Fatalf("first import status %d: %s", rec.Code, rec.Body.String())
 	}
-	first, ok, err := r.imports.DashboardByGrafanaUID(t.Context(), "abc")
+	first, ok, err := r.imports.DashboardByGrafanaUID(reading(t.Context()), "abc")
 	if err != nil || !ok {
 		t.Fatalf("holder = %+v ok %v err %v", first, ok, err)
 	}
@@ -158,7 +158,7 @@ func TestRefuseExistingStillImportsANewFileAndAllowsAnUpdate(t *testing.T) {
 
 func TestRefuseExistingDoesNotRevealADashboardTheCallerCannotSee(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestRefuseExistingDoesNotRevealADashboardTheCallerCannotSee(t *testing.T) {
 
 func TestAnUpdateNeedsTheFileTheDashboardWasImportedFrom(t *testing.T) {
 	r := newRig(t)
-	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+	first, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,17 +180,17 @@ func TestAnUpdateNeedsTheFileTheDashboardWasImportedFrom(t *testing.T) {
 	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"grafana_uid_mismatch"`) || !strings.Contains(rec.Body.String(), `abc`) || !strings.Contains(rec.Body.String(), `zzz`) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if latest, err := r.dashboard.LatestVersion(t.Context(), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
+	if latest, err := r.dashboard.LatestVersion(reading(t.Context()), uuid(t, first.Dashboard.ID)); err != nil || latest != 1 {
 		t.Fatalf("latest = %d, err %v, want the dashboard untouched", latest, err)
 	}
 }
 
 func TestAnUpdateOfACopyMadeAsNewChecksTheFilesUIDToo(t *testing.T) {
 	r := newRig(t)
-	if _, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); err != nil {
+	if _, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); err != nil {
 		t.Fatal(err)
 	}
-	copied, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop copy", "prom", 1)})
+	copied, err := r.imports.Import(reading(t.Context()), ada, imports.Request{JSON: grafanaJSON("Shop copy", "prom", 1)})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -114,8 +114,8 @@ func TestDraftCheckSample(t *testing.T) {
 				return c.instant(ctx, q, rng)
 			}}
 			r := draftRegistry(t, nil, map[string]*fakeDS{"ch": ds})
-			inst, _ := r.deps.Datasources.Get("ch")
-			empty, failure, err := r.sample(context.Background(), inst, "SELECT 1", draftRange)
+			inst, _ := registered(t, r.deps.Datasources, "ch")
+			empty, failure, err := r.sample(reading(context.Background()), inst, "SELECT 1", draftRange)
 			if err != nil {
 				t.Fatal(err)
 			}

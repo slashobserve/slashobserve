@@ -37,7 +37,7 @@ func TestAThreadIsUnreadUntilTheReaderOpensItOrAnswersInIt(t *testing.T) {
 	if !unreadOf(r.list(t, commenter, tg), thread.ID) {
 		t.Error("someone else's new thread is not unread")
 	}
-	if err := r.service.MarkRead(t.Context(), commenter, mustParse(t, thread.ID)); err != nil {
+	if err := r.service.MarkRead(reading(t.Context()), commenter, mustParse(t, thread.ID)); err != nil {
 		t.Fatal(err)
 	}
 	if unreadOf(r.list(t, commenter, tg), thread.ID) {
@@ -82,7 +82,7 @@ func TestAnAgentReplyIsUnreadForTheRequesterWhoAskedForIt(t *testing.T) {
 	dash := r.createDashboard(t, "rps", "errors")
 	r.seedReaders(t, testUser)
 	thread, run := r.mentionRun(t, target(KindDashboard, dash))
-	if err := r.service.MarkRead(t.Context(), testUser, mustParse(t, thread)); err != nil {
+	if err := r.service.MarkRead(reading(t.Context()), testUser, mustParse(t, thread)); err != nil {
 		t.Fatal(err)
 	}
 	if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {

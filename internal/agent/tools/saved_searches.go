@@ -247,8 +247,8 @@ func (r *Registry) searchQueryPasses(ctx context.Context, uid string, query *str
 	if query == nil || *query == "" || r.deps.Datasources == nil {
 		return nil
 	}
-	inst, found := r.deps.Datasources.Get(uid)
-	if !found {
+	inst, err := r.deps.Datasources.For(ctx, uid)
+	if err != nil {
 		return nil
 	}
 	diagnostics, _, ran, err := r.lint(ctx, inst, *query)

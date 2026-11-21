@@ -149,7 +149,7 @@ func TestCallRejectsLooseInputWithStep(t *testing.T) {
 
 func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	principal := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin})
+	principal := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin})
 	createRun := WithRun(principal, Run{Mode: ModeCreate, Build: true, RequestID: dashA})
 	message := func(t *testing.T, ctx context.Context, tool, input string) string {
 		t.Helper()
@@ -366,7 +366,7 @@ func TestAHandlerToolErrorReachesTheModelWithSafeText(t *testing.T) {
 			var logs bytes.Buffer
 			r := newTestRegistry(t, &fakeDS{}, slog.New(slog.NewJSONHandler(&logs, nil)))
 			r.entries[nameLintQuery] = entry{handle: func(context.Context, json.RawMessage) (Result, error) { return Result{}, tt.err }}
-			ctx := WithRun(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin}), Run{Mode: ModeCreate, RequestID: dashA})
+			ctx := WithRun(auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin}), Run{Mode: ModeCreate, RequestID: dashA})
 			res, err := r.Call(ctx, nameLintQuery, []byte(`{"query":"super-secret-query"}`))
 			if err != nil {
 				t.Fatalf("err = %v, want a model-visible result", err)
@@ -394,18 +394,18 @@ func TestAHandlerToolErrorReachesTheModelWithSafeText(t *testing.T) {
 }
 
 func TestRunEndingHandlerErrorsAreInvariants(t *testing.T) {
-	canceled, cancel := context.WithCancel(context.Background())
+	canceled, cancel := context.WithCancel(reading(context.Background()))
 	cancel()
 	tests := []struct {
 		name string
 		ctx  context.Context
 		err  error
 	}{
-		{"wrapped cancellation", context.Background(), fmt.Errorf("query: %w", context.Canceled)},
-		{"wrapped deadline", context.Background(), fmt.Errorf("query: %w", context.DeadlineExceeded)},
-		{"build lost", context.Background(), fmt.Errorf("save: %w", dashboards.ErrBuildLost)},
-		{"invalid run scope", context.Background(), fmt.Errorf("%w: no request id", errInvalidRun)},
-		{"missing dependency", context.Background(), errCommentsNotConfigured},
+		{"wrapped cancellation", reading(context.Background()), fmt.Errorf("query: %w", context.Canceled)},
+		{"wrapped deadline", reading(context.Background()), fmt.Errorf("query: %w", context.DeadlineExceeded)},
+		{"build lost", reading(context.Background()), fmt.Errorf("save: %w", dashboards.ErrBuildLost)},
+		{"invalid run scope", reading(context.Background()), fmt.Errorf("%w: no request id", errInvalidRun)},
+		{"missing dependency", reading(context.Background()), errCommentsNotConfigured},
 		{"any error once the run is canceled", canceled, errors.New("boom")},
 	}
 	for _, tt := range tests {
@@ -422,7 +422,7 @@ func TestRunEndingHandlerErrorsAreInvariants(t *testing.T) {
 
 func TestARunWithoutAPrincipalIsAnInvariant(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	res, err := r.Call(WithRun(context.Background(), Run{Mode: ModeCreate}), nameListDatasources, []byte(`{}`))
+	res, err := r.Call(WithRun(reading(context.Background()), Run{Mode: ModeCreate}), nameListDatasources, []byte(`{}`))
 	if !errors.Is(err, ErrInvariant) || res.Content != nil {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}

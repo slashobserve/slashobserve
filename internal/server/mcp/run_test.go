@@ -514,7 +514,7 @@ func TestRunToolWithoutARunScopeIsRefused(t *testing.T) {
 		called = true
 		return tools.Result{}, nil
 	}
-	ctx := auth.WithPrincipal(context.Background(), requester)
+	ctx := auth.WithPrincipal(reading(context.Background()), requester)
 	res, _ := f.handler.callRunTool("lint_query")(ctx, mcplib.CallToolRequest{})
 	if called || res == nil || !res.IsError {
 		t.Fatalf("a run tool ran without a run scope: called %v, result %+v", called, res)

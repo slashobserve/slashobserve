@@ -39,7 +39,7 @@ func (hn *harness) findingRouter(f FindingSpecs) *gin.Engine {
 	router := gin.New()
 	api := router.Group("/api/v1", func(c *gin.Context) {
 		principal := auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: "alice", Email: "alice@example.com", Name: "alice", Role: auth.RoleViewer}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), principal))
+		signIn(c, principal)
 	})
 	NewFindingData(hn.h, f).Register(auth.NewRoutes(api))
 	return router

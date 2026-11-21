@@ -18,7 +18,7 @@ import (
 func (r rig) generalFolder(t *testing.T) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE general`).Scan(&raw); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT id::text FROM folders WHERE general`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	return mustUUID(t, raw)
@@ -28,9 +28,9 @@ func (r rig) conclude(t *testing.T, by auth.Principal, c findings.Conclusion) (p
 	t.Helper()
 	var id pgtype.UUID
 	var created bool
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
 		var err error
-		id, created, err = r.service.WriteConclusion(t.Context(), q, by, c)
+		id, created, err = r.service.WriteConclusion(reading(t.Context()), q, by, c)
 		return err
 	})
 	return id, created, err
@@ -46,7 +46,7 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	if err != nil || !created {
 		t.Fatalf("conclusion: created %v, %v", created, err)
 	}
-	got, err := r.service.Get(t.Context(), editor, id)
+	got, err := r.service.Get(reading(t.Context()), editor, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,14 +60,14 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 		t.Errorf("blocks %+v", got.Blocks)
 	}
 	var linked string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT observation_id::text FROM agent_requests WHERE id = $1::uuid`, run.ID.String()).Scan(&linked); err != nil || linked != id.String() {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT observation_id::text FROM agent_requests WHERE id = $1::uuid`, run.ID.String()).Scan(&linked); err != nil || linked != id.String() {
 		t.Errorf("run links %q, %v, want %s", linked, err, id)
 	}
 	again, createdAgain, err := r.conclude(t, editor, c)
 	if err != nil || createdAgain || again != id {
 		t.Errorf("a second conclusion: %v, created %v, %v", again, createdAgain, err)
 	}
-	if after, err := r.service.Get(t.Context(), editor, id); err != nil || len(after.Blocks) != 2 {
+	if after, err := r.service.Get(reading(t.Context()), editor, id); err != nil || len(after.Blocks) != 2 {
 		t.Errorf("blocks after the second conclusion %d, %v", len(after.Blocks), err)
 	}
 }
@@ -97,7 +97,7 @@ func TestAConclusionWithoutARunLandsWhereTheCallerAsksOrWhereTheyCreate(t *testi
 			t.Errorf("%s: created %v, %v", c.name, created, err)
 			continue
 		}
-		got, err := r.service.Get(t.Context(), c.by, id)
+		got, err := r.service.Get(reading(t.Context()), c.by, id)
 		if err != nil || got.FolderID != c.want.String() || got.Title != "Slow pod" || len(got.Blocks) != 1 || got.Blocks[0].State != observations.BlockLive {
 			t.Errorf("%s: folder %q, blocks %+v, %v, want folder %s", c.name, got.FolderID, got.Blocks, err, c.want)
 		}
@@ -133,8 +133,8 @@ func TestAConclusionForAnUnknownRunFails(t *testing.T) {
 func TestAFailingConclusionLeavesNoObservationBehind(t *testing.T) {
 	r := newRig(t)
 	boom := errors.New("boom")
-	err := r.db.InTx(t.Context(), func(q *dbsqlc.Queries) error {
-		if _, _, err := r.service.WriteConclusion(t.Context(), q, editor, findings.Conclusion{Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo}); err != nil {
+	err := r.db.InTx(reading(t.Context()), func(q *dbsqlc.Queries) error {
+		if _, _, err := r.service.WriteConclusion(reading(t.Context()), q, editor, findings.Conclusion{Title: "t", Markdown: "m", From: windowTo.Add(-time.Hour), To: windowTo}); err != nil {
 			return err
 		}
 		return boom
@@ -143,7 +143,7 @@ func TestAFailingConclusionLeavesNoObservationBehind(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM observations`).Scan(&n); err != nil || n != 0 {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observations`).Scan(&n); err != nil || n != 0 {
 		t.Errorf("observations = %d, %v", n, err)
 	}
 }
@@ -151,15 +151,15 @@ func TestAFailingConclusionLeavesNoObservationBehind(t *testing.T) {
 func TestPlacementNamesTheObservationsFolderAndHidesWhatTheCallerCannotSee(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
-	folder, abilities, err := r.service.Placement(t.Context(), viewer, mustUUID(t, o.ID))
+	folder, abilities, err := r.service.Placement(reading(t.Context()), viewer, mustUUID(t, o.ID))
 	if err != nil || folder.ID != r.shared || !abilities.View || abilities.Edit {
 		t.Errorf("a viewer: %+v, %+v, %v", folder, abilities, err)
 	}
 	hidden := r.create(t, admin, r.hiddenFolder(t))
-	if _, _, err := r.service.Placement(t.Context(), viewer, mustUUID(t, hidden.ID)); !errors.Is(err, findings.ErrNotFound) {
+	if _, _, err := r.service.Placement(reading(t.Context()), viewer, mustUUID(t, hidden.ID)); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a hidden observation: %v", err)
 	}
-	if _, _, err := r.service.Placement(t.Context(), viewer, mustUUID(t, "99999999-9999-4999-8999-999999999999")); !errors.Is(err, findings.ErrNotFound) {
+	if _, _, err := r.service.Placement(reading(t.Context()), viewer, mustUUID(t, "99999999-9999-4999-8999-999999999999")); !errors.Is(err, findings.ErrNotFound) {
 		t.Errorf("a missing observation: %v", err)
 	}
 }

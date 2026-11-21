@@ -71,7 +71,7 @@ func (r *searchRig) call(t *testing.T, run *Run, by auth.Principal, tool, input 
 
 func (r *searchRig) newFolder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	folder, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	folder, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: title})
 	if err != nil {
 		t.Fatal(err)
 	}

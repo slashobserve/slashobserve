@@ -99,7 +99,7 @@ func TestListDatasourcesAndQueriesAnswerWhatTheirOutputSchemaPromises(t *testing
 		},
 	}
 	r := newTestRegistry(t, ds, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleViewer})
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleViewer})
 	for _, tt := range []struct{ tool, input string }{
 		{nameListDatasources, `{}`},
 		{nameQueryRange, `{"datasource":"fake","query":"up","from":"now-1h","to":"now"}`},

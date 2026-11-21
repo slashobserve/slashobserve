@@ -294,7 +294,7 @@ func newRigWith(t *testing.T, opts rigOptions) *rig {
 	fake.hold = opts.hold
 	egressClient := egresstest.NewClient(t, domains, fake, grafanaHost)
 	known := &principals{byID: map[string]auth.Principal{}}
-	life, cancel := context.WithCancel(context.Background())
+	life, cancel := context.WithCancel(reading(context.Background()))
 	svc := grafanaconn.New(life, grafanaconn.Deps{
 		DB:         database.DB,
 		Egress:     egressClient,
@@ -324,7 +324,7 @@ func newRigWith(t *testing.T, opts rigOptions) *rig {
 
 func (r *rig) peer(t *testing.T) *grafanaconn.Service {
 	t.Helper()
-	life, cancel := context.WithCancel(context.Background())
+	life, cancel := context.WithCancel(reading(context.Background()))
 	svc := grafanaconn.New(life, grafanaconn.Deps{
 		DB:         r.db.DB,
 		Egress:     r.egress,
@@ -346,7 +346,7 @@ func (r *rig) peer(t *testing.T) *grafanaconn.Service {
 func (r *rig) insertRunning(t *testing.T, connectionID, starterID string, leaseLosses int) string {
 	t.Helper()
 	var id string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `
 		INSERT INTO grafana_syncs (connection_id, state, request, started_by_kind, started_by_id, lease_id, leased_by, lease_until, lease_losses)
 		VALUES ($1, 'running', '{"all":true,"folders":[],"mapping":{}}', 'user', $2, gen_random_uuid(), 'gone', now() - interval '1 second', $3)
 		RETURNING id`, connectionID, starterID, leaseLosses).Scan(&id)
@@ -358,7 +358,7 @@ func (r *rig) insertRunning(t *testing.T, connectionID, starterID string, leaseL
 
 func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) auth.Principal {
 	t.Helper()
-	row, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
+	row, err := database.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) 
 
 func (r *rig) connect(t *testing.T) grafanaconn.Connection {
 	t.Helper()
-	conn, err := r.svc.Create(t.Context(), r.admin, grafanaconn.Input{Name: "Production", URL: grafanaURL, Token: grafanaToken})
+	conn, err := r.svc.Create(reading(t.Context()), r.admin, grafanaconn.Input{Name: "Production", URL: grafanaURL, Token: grafanaToken})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func uuidOf(t *testing.T, s string) pgtype.UUID {
 func (r *rig) folderOf(t *testing.T, grafanaUID string) string {
 	t.Helper()
 	var title string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `
 		SELECT f.title FROM imports i
 		JOIN dashboards d ON d.id = i.dashboard_id
 		JOIN folders f ON f.id = d.folder_id
@@ -400,7 +400,7 @@ func (r *rig) folderOf(t *testing.T, grafanaUID string) string {
 func (r *rig) count(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var n int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), query, args...).Scan(&n); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), query, args...).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	return n
@@ -408,12 +408,12 @@ func (r *rig) count(t *testing.T, query string, args ...any) int {
 
 func (r *rig) finish(t *testing.T, conn grafanaconn.Connection, req grafanaconn.SyncRequest) grafanaconn.Sync {
 	t.Helper()
-	started, err := r.svc.StartSync(t.Context(), r.admin, uuidOf(t, conn.ID), req)
+	started, err := r.svc.StartSync(reading(t.Context()), r.admin, uuidOf(t, conn.ID), req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r.svc.Wait()
-	done, err := r.svc.SyncStatus(t.Context(), uuidOf(t, conn.ID), started.ID)
+	done, err := r.svc.SyncStatus(reading(t.Context()), uuidOf(t, conn.ID), started.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

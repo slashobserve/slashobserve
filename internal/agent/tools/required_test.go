@@ -81,7 +81,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Audit:          trail.NewReader(database.DB, logger),
 		Logger:         logger,
 	})
-	ctx := auth.WithPrincipal(context.Background(), placeholderUser)
+	ctx := auth.WithPrincipal(reading(context.Background()), placeholderUser)
 
 	validSpec := specOf(statPanel("p1", 0))
 	dash, _, err := service.Create(ctx, placeholderUser, pgtype.UUID{}, []byte(validSpec), "seed")

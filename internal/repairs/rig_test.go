@@ -89,7 +89,7 @@ func newRig(t *testing.T) *rig {
 	deps := func(r *revisions.Service) repairs.Deps {
 		return repairs.Deps{DB: database.DB, Access: access, Revisions: r, PublicURL: base, Logger: logger}
 	}
-	shared, err := database.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: "Imported"})
+	shared, err := database.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: "Imported"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func newRig(t *testing.T) *rig {
 
 func user(t *testing.T, database *dbtest.Database, name string, role auth.Role) auth.Principal {
 	t.Helper()
-	row, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
+	row, err := database.Queries().UpsertUser(reading(t.Context()), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: name, Email: name + "@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func boardSpec(title string) []byte {
 
 func (r *rig) dashboard(t *testing.T, folder pgtype.UUID, title string) pgtype.UUID {
 	t.Helper()
-	dash, _, err := r.dashboards.Create(t.Context(), r.editor, folder, boardSpec(title), "create")
+	dash, _, err := r.dashboards.Create(reading(t.Context()), r.editor, folder, boardSpec(title), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func (r *rig) restrict(t *testing.T, folder pgtype.UUID) {
 
 func (r *rig) folder(t *testing.T, title string) pgtype.UUID {
 	t.Helper()
-	f, err := r.db.Queries().CreateFolder(t.Context(), dbsqlc.CreateFolderParams{Title: title})
+	f, err := r.db.Queries().CreateFolder(reading(t.Context()), dbsqlc.CreateFolderParams{Title: title})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func (r *rig) list(t *testing.T, by auth.Principal, p repairs.ListParams) repair
 	if p.Limit == 0 {
 		p.Limit = 50
 	}
-	page, err := r.svc.List(t.Context(), by, p)
+	page, err := r.svc.List(reading(t.Context()), by, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func (r *rig) list(t *testing.T, by auth.Principal, p repairs.ListParams) repair
 
 func (r *rig) request(t *testing.T, target repairs.Target) repairs.Outcome {
 	t.Helper()
-	out, err := r.svc.Request(t.Context(), r.editor, target)
+	out, err := r.svc.Request(reading(t.Context()), r.editor, target)
 	if err != nil {
 		t.Fatal(err)
 	}

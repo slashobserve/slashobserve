@@ -95,7 +95,7 @@ func New(opts Options) (http.Handler, error) {
 		r.RegisterPublic(public)
 	}
 	authenticated := opts.Auth.Mount(apiGroup)
-	authenticated.Use(origin.Middleware)
+	authenticated.Use(origin.Middleware, principalAccess)
 	registerDatasourceRoutes(authenticated, opts.Datasources, opts.DatasourceUsage, opts.Logger)
 	for _, r := range opts.API {
 		r.Register(authenticated)
@@ -110,6 +110,12 @@ func New(opts Options) (http.Handler, error) {
 		}
 	}
 	return compressReads(engine)
+}
+
+func principalAccess(c *gin.Context) {
+	principal, _ := auth.FromContext(c.Request.Context())
+	c.Request = c.Request.WithContext(datasource.WithAccess(c.Request.Context(), datasource.Access{By: principal}))
+	c.Next()
 }
 
 func auditMiddleware(r *audit.Recorder) ([]gin.HandlerFunc, error) {

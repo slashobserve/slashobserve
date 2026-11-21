@@ -222,11 +222,19 @@ func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Ser
 		return withheld("role_reconcile_failed", err)
 	}
 	if err := database.WithSessionLock(ctx, "service_accounts", func(ctx context.Context) error {
-		return authService.EnsureProvisioned(ctx, cfg.ServiceAccounts)
+		return authService.EnsureProvisioned(ctx, fileAccounts(cfg.ServiceAccounts))
 	}); err != nil {
 		return serviceAccountsExit(err)
 	}
 	return nil
+}
+
+func fileAccounts(accounts []config.ServiceAccount) []auth.FileAccount {
+	out := make([]auth.FileAccount, len(accounts))
+	for i, a := range accounts {
+		out[i] = auth.FileAccount{Name: a.Name, Role: a.Role, Description: a.Description, TakesRuns: a.TakesRuns, Key: a.Key}
+	}
+	return out
 }
 
 func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Queries, logger *slog.Logger) (*auth.Service, error) {

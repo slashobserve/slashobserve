@@ -47,7 +47,7 @@ func (h *handler) observePromptHandler() mcpserver.PromptHandlerFunc {
 		case "":
 			text = skill.Prompt(req.Params.Arguments["ask"])
 		case revisions.KindBuild:
-			text = prompts.Build(h.types())
+			text = prompts.Build(h.types(ctx))
 			attrs = append(attrs, slog.String("kind", kind))
 		case revisions.KindInvestigate:
 			text = prompts.Investigate()

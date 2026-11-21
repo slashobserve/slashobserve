@@ -35,7 +35,7 @@ func (q *Queries) DeleteDatasource(ctx context.Context, uid string) (int64, erro
 }
 
 const getDatasource = `-- name: GetDatasource :one
-SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at FROM datasources WHERE uid = $1
+SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at, audience FROM datasources WHERE uid = $1
 `
 
 func (q *Queries) GetDatasource(ctx context.Context, uid string) (Datasource, error) {
@@ -52,14 +52,15 @@ func (q *Queries) GetDatasource(ctx context.Context, uid string) (Datasource, er
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Audience,
 	)
 	return i, err
 }
 
 const insertDatasource = `-- name: InsertDatasource :one
-INSERT INTO datasources (id, uid, type, name, config, secrets, secret_names, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at
+INSERT INTO datasources (id, uid, type, name, audience, config, secrets, secret_names, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at, audience
 `
 
 type InsertDatasourceParams struct {
@@ -67,6 +68,7 @@ type InsertDatasourceParams struct {
 	Uid         string
 	Type        string
 	Name        string
+	Audience    string
 	Config      []byte
 	Secrets     []byte
 	SecretNames []string
@@ -79,6 +81,7 @@ func (q *Queries) InsertDatasource(ctx context.Context, arg InsertDatasourcePara
 		arg.Uid,
 		arg.Type,
 		arg.Name,
+		arg.Audience,
 		arg.Config,
 		arg.Secrets,
 		arg.SecretNames,
@@ -96,6 +99,7 @@ func (q *Queries) InsertDatasource(ctx context.Context, arg InsertDatasourcePara
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Audience,
 	)
 	return i, err
 }
@@ -186,7 +190,7 @@ func (q *Queries) ListDatasourceSavedSearches(ctx context.Context, arg ListDatas
 }
 
 const listDatasources = `-- name: ListDatasources :many
-SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at FROM datasources ORDER BY uid
+SELECT id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at, audience FROM datasources ORDER BY uid
 `
 
 func (q *Queries) ListDatasources(ctx context.Context) ([]Datasource, error) {
@@ -209,6 +213,7 @@ func (q *Queries) ListDatasources(ctx context.Context) ([]Datasource, error) {
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Audience,
 		); err != nil {
 			return nil, err
 		}
@@ -222,13 +227,14 @@ func (q *Queries) ListDatasources(ctx context.Context) ([]Datasource, error) {
 
 const updateDatasource = `-- name: UpdateDatasource :one
 UPDATE datasources
-SET name = $1, config = $2, secrets = $3, secret_names = $4, updated_at = clock_timestamp()
-WHERE uid = $5
-RETURNING id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at
+SET name = $1, audience = $2, config = $3, secrets = $4, secret_names = $5, updated_at = clock_timestamp()
+WHERE uid = $6
+RETURNING id, uid, type, name, config, secrets, secret_names, created_by, created_at, updated_at, audience
 `
 
 type UpdateDatasourceParams struct {
 	Name        string
+	Audience    string
 	Config      []byte
 	Secrets     []byte
 	SecretNames []string
@@ -238,6 +244,7 @@ type UpdateDatasourceParams struct {
 func (q *Queries) UpdateDatasource(ctx context.Context, arg UpdateDatasourceParams) (Datasource, error) {
 	row := q.db.QueryRow(ctx, updateDatasource,
 		arg.Name,
+		arg.Audience,
 		arg.Config,
 		arg.Secrets,
 		arg.SecretNames,
@@ -255,6 +262,7 @@ func (q *Queries) UpdateDatasource(ctx context.Context, arg UpdateDatasourcePara
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Audience,
 	)
 	return i, err
 }

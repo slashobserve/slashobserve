@@ -240,7 +240,7 @@ func TestGetTraceRefusesBadInputAndOtherDatasources(t *testing.T) {
 func TestGetTraceAnswersTooManyRequestsWhenUpstreamIsBusy(t *testing.T) {
 	r, _ := newTraceRig(t)
 	for range 32 {
-		release, err := r.deps.Runner.AcquireUpstream(context.Background(), "tempo")
+		release, err := r.deps.Runner.AcquireUpstream(reading(context.Background()), "tempo")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -311,6 +311,7 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"grafana_connection.deleted", `{"name":"Prod","host":"grafana.example.com"}`, `removed the Grafana connection "Prod"`},
 		{"datasource.created", `{"uid":"metrics","type":"prometheus","name":"Metrics","host":"prom.example.com:9090"}`, `added the datasource "Metrics" at prom.example.com:9090`},
 		{"datasource.updated", `{"uid":"metrics","name":"Prod","host":"prom2.example.com","credentials_changed":true,"address_changed":true,"settings_changed":true,"changes":{"host":{"from":"prom.example.com","to":"prom2.example.com"}}}`, `changed the datasource "Prod": host prom.example.com to prom2.example.com (credentials replaced, address changed, settings changed)`},
+		{"datasource.audience_changed", `{"uid":"metrics","type":"prometheus","name":"Prod","host":"prom.example.com","from":"everyone","to":"admins"}`, `changed the audience of the datasource "Prod" from everyone to admins`},
 		{"datasource.deleted", `{"uid":"metrics","name":"Metrics","host":"prom.example.com"}`, `deleted the datasource "Metrics"`},
 		{"public_link.created", `{"object":{"kind":"dashboard","id":"d"},"title":"Checkout","prefix":"pub_abcdefgh"}`, `created a public link to the dashboard "Checkout"`},
 		{"public_link.revoked", `{"object":{"kind":"observation","id":"o"},"title":"Slow checkout","prefix":"pub_abcdefgh"}`, `revoked a public link to the RCA "Slow checkout"`},

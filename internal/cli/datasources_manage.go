@@ -19,7 +19,8 @@ const maxDatasourceSecretBytes = 4096
 var errDatasourceTestFailed = errors.New("the datasource did not pass the check")
 
 type datasourceFlags struct {
-	kind, name, address, username, database, tenantID, scrapeInterval string
+	kind, name, audience, address, username, database, tenantID       string
+	scrapeInterval                                                    string
 	index, timeField, queryLanguage                                   string
 	fieldMessage, fieldLevel, fieldService, fieldTraceID, fieldSpanID string
 	timeout                                                           string
@@ -36,6 +37,7 @@ type datasourceConfig struct {
 	UID        string   `json:"uid"`
 	Type       string   `json:"type"`
 	Name       string   `json:"name"`
+	Audience   string   `json:"audience"`
 	Address    string   `json:"address"`
 	Username   string   `json:"username"`
 	Database   string   `json:"database"`
@@ -71,6 +73,7 @@ func (f *datasourceFlags) register(cmd *cobra.Command, withType bool) {
 		flags.StringVar(&f.kind, "type", "", "prometheus, loki, tempo, clickhouse, elasticsearch or opensearch")
 	}
 	flags.StringVar(&f.name, "name", "", "the display name; the uid when empty")
+	flags.StringVar(&f.audience, "audience", "", "who can query it: everyone, the default, or admins")
 	flags.StringVar(&f.address, "address", "", "an http or https URL, or host:port for ClickHouse")
 	flags.StringVar(&f.username, "username", "", "the basic-auth user, or the ClickHouse user")
 	flags.StringVar(&f.database, "database", "", "the ClickHouse database")
@@ -158,6 +161,7 @@ func (f *datasourceFlags) body(cmd *cobra.Command, a *app) (map[string]any, erro
 	}
 	set("type", "type", f.kind)
 	set("name", "name", f.name)
+	set("audience", "audience", f.audience)
 	set("address", "address", f.address)
 	set("username", "username", f.username)
 	set("database", "database", f.database)
@@ -414,7 +418,7 @@ func (a *app) runDatasourcesGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	pairs := [][2]string{{"UID", text(cfg.UID)}, {"Type", text(cfg.Type)}, {"Name", text(cfg.Name)}, {"Address", text(cfg.Address)}}
+	pairs := [][2]string{{"UID", text(cfg.UID)}, {"Type", text(cfg.Type)}, {"Name", text(cfg.Name)}, {"Audience", text(cfg.Audience)}, {"Address", text(cfg.Address)}}
 	for _, optional := range [][2]string{{"Username", cfg.Username}, {"Database", cfg.Database}, {"Tenant", cfg.TenantID}, {"Scrape interval", cfg.Scrape}, {"Index", cfg.Index}, {"Time field", cfg.TimeField}, {"Query language", cfg.Language}} {
 		if optional[1] != "" {
 			pairs = append(pairs, [2]string{optional[0], text(optional[1])})
