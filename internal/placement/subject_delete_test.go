@@ -2,6 +2,7 @@ package placement
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -79,9 +80,11 @@ func TestWhatWasPlacedFromAKeptAnswerStaysHeldWhenItsRunOrSubjectIsDeleted(t *te
 			held: false,
 		},
 	}
+	n := 0
 	for name, c := range cases {
+		n++
 		t.Run(name, func(t *testing.T) {
-			home, elsewhere := foldertest.AdminsOnly(t, r.d, name), foldertest.AdminsOnly(t, r.d, name+" elsewhere")
+			home, elsewhere := foldertest.AdminsOnly(t, r.d, fmt.Sprintf("home %d", n)), foldertest.AdminsOnly(t, r.d, fmt.Sprintf("elsewhere %d", n))
 			subject := r.dashboard(t, home, readsProm)
 			run := r.run(t, false)
 			r.ended(t, run, `dashboard_id = $2::uuid`, subject)
