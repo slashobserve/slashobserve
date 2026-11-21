@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
@@ -454,6 +455,53 @@ func TestListFiltersByHealthProblemInBothOrders(t *testing.T) {
 					t.Errorf("items %v with total %d, want %v with total %d", got, page.Total, want, len(want))
 				}
 			})
+		}
+	}
+}
+
+func TestListFiltersByProblemKeepsADashboardWaitingForARecheckOfAProblemOrARepair(t *testing.T) {
+	r := newRig(t, false)
+	create := func(title string) string {
+		dash, _, err := r.service.Create(reading(t.Context()), testUser, pgtype.UUID{}, specWithDatasources(title, "", "prom"), "create")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return dash.ID
+	}
+	edit := func(id, title string) {
+		if _, _, _, err := r.service.AddVersion(reading(t.Context()), testUser, mustParse(t, id), 1, specWithDatasources(title, "edited", "prom"), "edit"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hadProblem, repaired, cleanOutdated, current := create("Had a problem"), create("Repaired"), create("Clean outdated"), create("Current")
+	r.recordCheck(t, hadProblem, "query_failed")
+	r.recordCheck(t, current, "no_data")
+	for _, id := range []string{repaired, cleanOutdated} {
+		r.db.Exec(t, `INSERT INTO dashboard_health (dashboard_id, version, checked_at, issues) VALUES ($1, 1, now(), '[]'::jsonb)`, id)
+	}
+	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
+		VALUES ($1, 'prompt', $2, 1, 'user', $3, 'Ada')`, repaired, repairprompt.Prefix, testUserID)
+	edit(hadProblem, "Had a problem")
+	edit(repaired, "Repaired")
+	edit(cleanOutdated, "Clean outdated")
+
+	for _, order := range []ListParams{{}, {ByFolder: true}, {ByViews: true}, {ByName: true}} {
+		for problem, want := range map[string][]string{
+			"any":          {"Current", "Had a problem", "Repaired"},
+			"query_failed": {},
+			"no_data":      {"Current"},
+		} {
+			params := order
+			params.Limit, params.Problem = 50, problem
+			page, err := r.service.List(reading(t.Context()), testUser, params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := titlesOf(page.Items)
+			slices.Sort(got)
+			if !slices.Equal(got, want) || page.Total != len(want) {
+				t.Errorf("problem %q in order %+v: items %v with total %d, want %v with total %d", problem, order, got, page.Total, want, len(want))
+			}
 		}
 	}
 }
