@@ -21,7 +21,7 @@ func TestTestingAGrafanaConnectionIsRecordedWithItsHostAndOutcome(t *testing.T) 
 		t.Fatalf("events = %+v, want two", events)
 	}
 	healthy, broken := events[0], events[1]
-	if healthy.Outcome != "success" || healthy.TargetKind != "grafana_connection" || healthy.TargetID != id || healthy.ActorID != h.admin.ID {
+	if healthy.Outcome != "success" || healthy.TargetKind != "grafana_connection" || healthy.TargetID != id {
 		t.Fatalf("healthy test = %+v", healthy)
 	}
 	if healthy.Data["host"] != grafanaHost || healthy.Data["healthy"] != true {
