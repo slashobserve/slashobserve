@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useRouteContext } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -27,10 +27,9 @@ import {
   type Message,
   type ThreadWithMessages,
 } from "@/comments/thread-queries"
-import type { Finding } from "@/findings/queries"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
-import { observeRequestQuery, type ObserveRequest } from "@/observe/queries"
+import { observeRequestQuery } from "@/observe/queries"
 
 import {
   AnswerCard,
@@ -90,58 +89,24 @@ function RunLine({ message, run }: { message: Message; run: Run }) {
   )
 }
 
-function RunReply({
+type MessageAnswer = NonNullable<Message["answer"]>
+
+function RunAnswer({
+  answer,
   runId,
   target,
   entry,
   gate,
 }: {
+  answer: MessageAnswer
   runId: string
   target: string
   entry: ThreadWithMessages
   gate: AgentGate
 }) {
-  const request = useQuery({ ...observeRequestQuery(runId), retry: false })
-  const closedToReader =
-    request.error instanceof ApiError && request.error.status === 404
-  const finding = request.data?.finding ?? null
-  return (
-    <>
-      {closedToReader ? null : (
-        <p className="text-xs text-muted-foreground">
-          <RunLink runId={runId} />
-        </p>
-      )}
-      {finding === null || request.data === undefined ? null : (
-        <RunAnswer
-          request={request.data}
-          finding={finding}
-          target={target}
-          entry={entry}
-          gate={gate}
-        />
-      )}
-    </>
-  )
-}
-
-function RunAnswer({
-  request,
-  finding,
-  target,
-  entry,
-  gate,
-}: {
-  request: ObserveRequest
-  finding: Finding
-  target: string
-  entry: ThreadWithMessages
-  gate: AgentGate
-}) {
-  const { principal } = useRouteContext({ from: "/_authed" })
   const subject = subjectOf(target)
   const { deliver, pending } = useDeliver(subject)
-  const findingId = finding.id
+  const findingId = answer.finding.id
   const mayRevise =
     subject?.kind === "dashboard" &&
     entry.thread.allowed_actions.includes("reply")
@@ -171,9 +136,9 @@ function RunAnswer({
 
   return (
     <AnswerCard
-      finding={finding}
-      requestId={request.id}
-      canSave={request.requested_by.id === principal.id}
+      finding={answer.finding}
+      requestId={runId}
+      canSave={answer.can_save}
       revise={
         mayRevise
           ? {
@@ -206,7 +171,9 @@ function MessageRow({
   arriving: boolean
   gate: AgentGate
 }) {
-  const runId = message.actor.run_id
+  const answer = message.answer ?? null
+  const runId = answer?.finding.agent_request_id ?? null
+  const builtinRunId = message.actor.run_id ?? null
   const pending = unansweredRun(message, entry.messages)
   return (
     <EntryFrame
@@ -223,8 +190,19 @@ function MessageRow({
         target={target}
         queryKey={threadKeys.list(target)}
       />
-      {runId === null ? null : (
-        <RunReply runId={runId} target={target} entry={entry} gate={gate} />
+      {builtinRunId === null ? null : (
+        <p className="text-xs text-muted-foreground">
+          <RunLink runId={builtinRunId} />
+        </p>
+      )}
+      {answer === null || runId === null ? null : (
+        <RunAnswer
+          answer={answer}
+          runId={runId}
+          target={target}
+          entry={entry}
+          gate={gate}
+        />
       )}
       {pending === null ? null : <RunLine message={message} run={pending} />}
     </EntryFrame>
