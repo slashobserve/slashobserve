@@ -9,6 +9,7 @@ import { rendererManifests } from "@/panels"
 import type { Dashboard } from "@/spec"
 
 import { membershipOf, rowCompactor } from "./edit/layout"
+import { panelDragCancel } from "./edit/panel-move-handle"
 import {
   columnsFor,
   fitLayout,
@@ -216,6 +217,7 @@ export function DashboardGrid({
           dragConfig={{
             enabled: editable && !stacked,
             handle: ".panel-drag-handle",
+            cancel: panelDragCancel,
             threshold: 3,
           }}
           resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}

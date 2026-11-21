@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
+import { panelDragCancel } from "./edit/panel-move-handle"
 import { PanelChrome } from "./panel-chrome"
 
 const panel: LayoutPanel = {
@@ -109,5 +110,41 @@ describe("PanelChrome", () => {
     })
     expect(unselected).not.toHaveAttribute("data-selected")
     expect(unselected).not.toHaveAttribute("aria-current")
+  })
+
+  it("starts a drag from the header, title and grip but never from the header's other buttons", () => {
+    const described = { ...panel, description: "Requests that took over 2s" }
+    renderWithProviders(
+      <PanelChrome
+        panel={described}
+        state="ready"
+        onSelect={vi.fn()}
+        dragHandle
+        links={[
+          { title: "Runbook", href: "https://example.com/rb", newTab: false },
+        ]}
+        menu={<button type="button">Panel menu</button>}
+      />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).toHaveClass("panel-drag-handle")
+    const startsDrag = (element: Element) =>
+      element.closest(".panel-drag-handle") !== null &&
+      element.closest(panelDragCancel) === null
+    for (const name of [
+      "Move or resize Checkout latency",
+      "Select panel: Checkout latency",
+    ]) {
+      expect(startsDrag(screen.getByRole("button", { name }))).toBe(true)
+    }
+    for (const name of [
+      "About Checkout latency",
+      "Panel links: Checkout latency",
+      "Panel menu",
+    ]) {
+      expect(startsDrag(screen.getByRole("button", { name }))).toBe(false)
+    }
   })
 })

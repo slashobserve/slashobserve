@@ -196,6 +196,7 @@ With **Comment** pressed, a click on a panel starts a comment on it and goes bac
 
 There is no edit mode.
 When you can edit the dashboard, are on its latest version and the dashboard area is at least 768 pixels wide, the selected panel shows a grip in its title bar and a handle in its corner: drag the title bar to move the panel and the corner to resize it.
+The panel's buttons, such as its menu and the information icon, never start a move.
 With the grip focused, the arrow keys move the panel and `Shift` with an arrow resizes it.
 While a panel is selected for arranging, the grid shows the saved layout, so a repeated panel shows once and a row cannot be collapsed until you clear the selection.
 

@@ -13,6 +13,9 @@ import {
 } from "./layout"
 import { useLayoutStore } from "./layout-store"
 
+export const panelDragCancel =
+  "button:not(.panel-drag-handle):not([data-panel-title]), a, input, textarea, [role='menu'], [role='menuitem']"
+
 const arrows: Record<string, { dx: number; dy: number }> = {
   ArrowLeft: { dx: -1, dy: 0 },
   ArrowRight: { dx: 1, dy: 0 },
