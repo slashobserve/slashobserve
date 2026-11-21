@@ -380,7 +380,7 @@ On the Chats page, each of your chats has a menu with Rename, Pin and Delete, sh
 The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
-From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Save as observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
+From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Create observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
 
 In History, the search box finds chats whose title, prompt or answer contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
@@ -402,7 +402,7 @@ If the observation cannot be deleted, the chat is kept and the dialog says why.
 
 ### One title for a chat and its observation
 
-A chat with no dashboard and exactly one observation made from it, by **Save as observation** or by an investigation that opened it, shares its title with that observation.
+A chat with no dashboard and exactly one observation made from it, by **Create observation** or by an investigation that opened it, shares its title with that observation.
 Renaming the chat renames the observation, and renaming the observation renames the chat, in the web app, the API, the CLI and MCP alike, and both lists show the new title at once.
 When you may not edit the observation, the chat is still renamed and a note says "The observation made from this chat keeps its title, because you cannot edit it."; an observation you cannot open is left alone and never named.
 When someone other than the person who started the chat renames the observation, the chat keeps its title and the note says so.
