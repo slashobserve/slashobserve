@@ -168,6 +168,7 @@ func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 		"block id that is not an id":    `{"prompt":"here?","kind":"investigate",` + observation + `,` + spot + `,"block_id":"nope"}`,
 		"anchor kind no one knows":      `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"nowhere","pos":{"x":0.5,"y":0.5}}}`,
 		"block without anything at all": `{"prompt":"here?","block_id":"` + block + `"}`,
+		"variable anchor on a block":    `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"variable","pos":{"x":0.5,"y":0.5},"id":"service"},"block_id":"` + block + `"}`,
 	} {
 		if rec := call(router, http.MethodPost, "/api/v1/observe", body); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)

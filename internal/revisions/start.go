@@ -164,6 +164,9 @@ func (s *Service) pointOf(ctx context.Context, req StartRequest) (Point, error) 
 	if req.ObservationID == nil {
 		return Point{}, refused("block_id needs observation_id")
 	}
+	if err := req.Anchor.CheckOnBlock(); err != nil {
+		return Point{}, refused("%s", err.Error())
+	}
 	if point.BlockID, err = uuidField("block_id", req.BlockID); err != nil {
 		return Point{}, err
 	}

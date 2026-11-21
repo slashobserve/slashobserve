@@ -79,6 +79,8 @@ threads:
       It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise.
       Deleting the block keeps the message, now about the whole observation.
       `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`).
+      `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about.
+      `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields.
       An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first.
       The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`).
@@ -127,7 +129,7 @@ threads:
                 type: string
                 format: uuid
                 nullable: true
-                description: The block of the observation the message is about; absent or null means the whole observation. Observations only.
+                description: "Observations only. With `anchor` it sets the thread's block, the block the anchor sits on; without `anchor` it keeps its message meaning, the block this first message is about. Absent or null means the whole observation. With an `anchor` of kind `variable`, which cannot sit on a block, it answers 422 `invalid_anchor`."
               anchor:
                 nullable: true
                 allOf:

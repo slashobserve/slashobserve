@@ -184,3 +184,18 @@ func nan() float64 {
 	zero := 0.0
 	return zero / zero
 }
+
+func TestOnlyAKindABlockHasMaySitOnOne(t *testing.T) {
+	for _, kind := range allKinds {
+		err := anchor.Anchor{Kind: kind}.CheckOnBlock()
+		if kind == anchor.Variable {
+			if err == nil || !strings.Contains(err.Error(), "block_id") || !strings.Contains(err.Error(), "anchor") {
+				t.Errorf("a variable anchor on a block: error = %v, want one naming block_id and anchor", err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("a %s anchor on a block was refused: %v", kind, err)
+		}
+	}
+}

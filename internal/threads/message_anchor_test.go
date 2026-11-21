@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/observations"
 )
 
@@ -58,6 +59,33 @@ func TestAMessageAnchorsToABlockOfItsObservationAndKeepsTheMessageWhenTheBlockIs
 	}
 	if len(byID) != 3 || byID["still on the first"] != "" || byID["on the second"] != second {
 		t.Errorf("after deleting the first block the messages anchor to %v", byID)
+	}
+}
+
+func TestBlockIDWithAnAnchorIsTheThreadsBlockAndWithoutOneTheMessagesBlock(t *testing.T) {
+	r := newRig(t)
+	observation := r.createObservation(t, testUser, pgtype.UUID{})
+	tg := target(KindObservation, observation)
+	block := r.addBlock(t, observation)
+	spot := &anchor.Anchor{Kind: anchor.Position, Pos: anchor.Pos{X: 0.4, Y: 0.3}}
+
+	pinned, pinnedFirst := r.open(t, testUser, OpenInput{Target: tg, Body: "this spot", BlockID: &block, Anchor: spot})
+	if pinned.BlockID != block || pinnedFirst.BlockID != block {
+		t.Errorf("with an anchor: thread block %q, message block %q, want both %q", pinned.BlockID, pinnedFirst.BlockID, block)
+	}
+	page, pageFirst := r.open(t, testUser, OpenInput{Target: tg, Body: "this block", BlockID: &block})
+	if page.BlockID != "" || pageFirst.BlockID != block {
+		t.Errorf("without an anchor: thread block %q, message block %q, want none and %q", page.BlockID, pageFirst.BlockID, block)
+	}
+	if page.ID == pinned.ID {
+		t.Errorf("the message without an anchor joined the anchored thread instead of the page discussion")
+	}
+
+	variable := &anchor.Anchor{Kind: anchor.Variable, Pos: anchor.Pos{X: 0.1, Y: 0.1}, ID: "service"}
+	_, _, err := r.service.Open(reading(t.Context()), testUser, OpenInput{Target: tg, Body: "this variable", BlockID: &block, Anchor: variable}, nil)
+	wantInvalid(t, err, CodeInvalidAnchor)
+	if !strings.Contains(err.Error(), "block_id") || !strings.Contains(err.Error(), "anchor") {
+		t.Errorf("the refusal %q does not name both block_id and anchor", err)
 	}
 }
 

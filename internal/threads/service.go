@@ -279,6 +279,11 @@ func pointOf(in OpenInput, refs messageRefs) (threadPoint, error) {
 	if err := in.Anchor.Validate(); err != nil {
 		return threadPoint{}, &InvalidInputError{Code: CodeInvalidAnchor, Message: "anchor: " + err.Error()}
 	}
+	if refs.block.Valid {
+		if err := in.Anchor.CheckOnBlock(); err != nil {
+			return threadPoint{}, &InvalidInputError{Code: CodeInvalidAnchor, Message: err.Error()}
+		}
+	}
 	raw, err := json.Marshal(in.Anchor)
 	if err != nil {
 		return threadPoint{}, fmt.Errorf("encode anchor: %w", err)

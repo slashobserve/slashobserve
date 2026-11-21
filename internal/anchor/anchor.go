@@ -153,6 +153,15 @@ func (a Anchor) Validate() error {
 	return a.validateSizes()
 }
 
+var notOnABlock = []Kind{Variable}
+
+func (a Anchor) CheckOnBlock() error {
+	if slices.Contains(notOnABlock, a.Kind) {
+		return fmt.Errorf("block_id with an anchor of kind %q: a block has no %s; send the anchor without block_id, or block_id without an anchor", a.Kind, a.Kind)
+	}
+	return nil
+}
+
 func inUnit(v float64) bool {
 	return !math.IsNaN(v) && v >= 0 && v <= 1
 }
