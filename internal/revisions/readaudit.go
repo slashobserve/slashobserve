@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -44,6 +46,20 @@ func (s *Service) recordChatView(ctx context.Context, chat Chat) {
 		Target: audit.Target{Kind: "chat", ID: chat.ID.String(), DashboardID: nullUUID(chat.DashboardID), ObservationID: nullUUID(chat.ObservationID)},
 		Chat:   nullUUID(chat.ID),
 		Data:   map[string]any{"owner_id": chat.Owner.ID.String()},
+	})
+}
+
+func (s *Service) recordRefusedBuildRead(ctx context.Context, run pgtype.UUID, err error) {
+	if !errors.Is(err, ErrBuildNotFound) || errors.Is(err, ErrNoBuild) {
+		return
+	}
+	reply, _ := ReplyFor(err)
+	s.recordRead(ctx, audit.Event{
+		Action:  actionRunView,
+		Outcome: audit.OutcomeDenied,
+		Reason:  reply.Code,
+		Status:  reply.Status,
+		Target:  audit.Target{Kind: "run", ID: run.String()},
 	})
 }
 

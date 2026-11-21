@@ -5,5 +5,6 @@ export const manifest: RendererManifest = {
   supported: true,
   minWidth: 300,
   minHeight: 320,
+  anchors: () => import("./anchors"),
   load: () => import("./logs-panel"),
 }

@@ -17,7 +17,7 @@ The tab holds the chat composer, with the example prompts under the card; sendin
 The prompts follow your datasources, at most four in all: up to two ask a question about the system, such as "Which services had the most errors in the last hour?", and Editors and Admins also get prompts that ask for a dashboard.
 A question is answered in the chat, and you can save the answer as an observation; see [Chat and follow-ups](chat.md).
 The prompt that adds a row to a dashboard names a dashboard you can edit, so it never offers one you may only read.
-Under the card, **Recent chats** lists your five newest chats, one row for each conversation, each with its state, Running, Stopped or Done, and what it left behind.
+Under the card, **Recent chats** lists the five chats you asked in most recently, one row for each chat, with how many turns it has and the dashboard it is about.
 **All chats** opens the Chats page at `/chats`.
 
 ## New observation

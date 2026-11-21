@@ -223,6 +223,47 @@ func TestLogFacetsDefaultsAskForAtMostTwentyFields(t *testing.T) {
 	}
 }
 
+func TestLogFacetsSplitTheFieldsAcrossSearchesWithinTheAggregationCap(t *testing.T) {
+	types := map[string]string{"@timestamp": "date_nanos"}
+	for i := range 5 {
+		types[fmt.Sprintf("field%02d", i)] = "keyword"
+	}
+	f := healthyServer(t)
+	f.fixed(http.MethodPost, "/logs-*/_field_caps", http.StatusOK, fieldCapsOf(t, types))
+	f.set(http.MethodPost, searchPath, func(r request) reply {
+		var body struct {
+			Aggs map[string]any `json:"aggs"`
+		}
+		if err := json.Unmarshal([]byte(r.body), &body); err != nil {
+			t.Fatal(err)
+		}
+		aggs := map[string]any{}
+		for name := range body.Aggs {
+			if field, ok := strings.CutSuffix(name, "__card"); ok {
+				aggs[name] = map[string]any{"value": 1}
+			} else {
+				aggs[name] = map[string]any{"doc_count_error_upper_bound": 0, "sum_other_doc_count": 0, "buckets": []any{map[string]any{"key": field + "-value", "doc_count": 1}}}
+			}
+		}
+		raw, _ := json.Marshal(map[string]any{"timed_out": false, "_shards": map[string]any{"failed": 0}, "aggregations": aggs})
+		return reply{body: string(raw)}
+	})
+	ds := serve(t, f, func(o *elasticsearch.Options) { o.MaxAggregations = 4 })
+	facets, err := ds.LogFacets(context.Background(), facetRequest("", 5))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := f.count(searchPath); n != 3 {
+		t.Fatalf("%d searches, want 3 of at most two fields each", n)
+	}
+	for i := range 5 {
+		name := fmt.Sprintf("field%02d", i)
+		if field := facetByName(t, facets, name); len(field.Values) != 1 || field.Values[0].Value != name+"-value" || !field.Exact {
+			t.Errorf("%s = %+v", name, field)
+		}
+	}
+}
+
 func TestLogFacetsRefusesDSLAggregationsAndMarksPartialAnswersInexact(t *testing.T) {
 	f, ds := facetsServer(t, "", facetsFixture(t))
 	_, err := ds.LogFacets(context.Background(), facetRequest(`{"aggs":{"by":{"terms":{"field":"log.level"}}}}`, 5))

@@ -76,7 +76,7 @@ func (a *app) investigateCommand() *cobra.Command {
 	flags.StringVar(&a.investigating.dashboard, "dashboard", "", "the dashboard the question is about")
 	flags.StringVar(&a.investigating.panel, "panel", "", "one panel of --dashboard the question is about")
 	flags.StringVar(&a.investigating.observation, "observation", "", "the observation to write into, by id; without it a new observation is made")
-	flags.StringVar(&a.investigating.at, "at", "", "the spot the question is about, as the anchor JSON object; needs --dashboard or --observation")
+	flags.StringVar(&a.investigating.at, "at", "", "the spot the question is about, as the anchor JSON object or a short form such as pos:0.4,0.3; needs --dashboard or --observation")
 	flags.StringVar(&a.investigating.block, "block", "", "the block of --observation that --at points into, from observe o show")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")

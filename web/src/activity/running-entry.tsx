@@ -60,6 +60,7 @@ export function RunningEntry({ entry }: Props) {
     dashboardId: request.dashboard_id,
   })
   const watchable = data?.build != null && data.requested_by.id === principal.id
+  const chatId = data?.chat_id ?? request.id
   const stepText =
     data?.build != null || status === "queued" || canceling
       ? buildStatusText({
@@ -96,7 +97,7 @@ export function RunningEntry({ entry }: Props) {
           <Link
             from="/d/$dashboardId/{-$slug}"
             to="."
-            search={(prev) => ({ ...prev, chat: request.id })}
+            search={(prev) => ({ ...prev, tab: "chat", chat: chatId })}
             onClick={announcePaneOpening}
             className="flex-none rounded-control text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >

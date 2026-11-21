@@ -1,25 +1,23 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useId } from "react"
-import { LayoutDashboardIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { ChatStatus } from "./chat-status"
-import { useRecentChats } from "./use-recent-chats"
+import { ChatRowMeta } from "./chat-row-meta"
+import { useChats } from "./chats-queries"
 
 const recentLimit = 5
 
 export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
-  const { chats, query } = useRecentChats(recentLimit)
-  const requests = chats ?? []
+  const { chats, query } = useChats({}, recentLimit)
 
   const failed = query.data === undefined && !query.isPending
 
-  if (query.data !== undefined && requests.length === 0) return null
+  if (query.data !== undefined && chats.length === 0) return null
 
   return (
     <section aria-labelledby={headingId} className="mt-7 w-full max-w-[720px]">
@@ -55,38 +53,27 @@ export function RecentChats() {
                   <Skeleton className="h-[39px] rounded-none" />
                 </li>
               ))
-            : requests.map((request) => {
+            : chats.map((chat) => {
                 return (
-                  <li key={request.id} className="border-b last:border-b-0">
+                  <li key={chat.id} className="border-b last:border-b-0">
                     <button
                       type="button"
                       className="flex w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                       onClick={() =>
                         void navigate({
                           to: "/c/$requestId",
-                          params: { requestId: request.id },
+                          params: { requestId: chat.id },
                         })
                       }
                     >
                       <span className="min-w-0 flex-1 truncate text-[13px] narrow:basis-full">
-                        {request.title}
+                        {chat.title}
                       </span>
-                      <span className="flex flex-none items-center gap-x-3 text-xs text-muted-foreground">
-                        <ChatStatus request={request} truncate />
+                      <span className="flex max-w-[260px] min-w-0 flex-none items-center gap-x-2 text-xs text-muted-foreground">
+                        <ChatRowMeta chat={chat} />
                       </span>
-                      {request.dashboard_title !== null ? (
-                        <span className="flex max-w-[200px] min-w-0 flex-none items-center gap-1 text-xs text-muted-foreground">
-                          <LayoutDashboardIcon
-                            aria-hidden="true"
-                            className="size-3.5 flex-none"
-                          />
-                          <span className="truncate">
-                            {request.dashboard_title}
-                          </span>
-                        </span>
-                      ) : null}
                       <span className="w-20 flex-none text-right text-xs text-muted-foreground narrow:ml-auto narrow:w-auto">
-                        <RelativeTime iso={request.created_at} />
+                        <RelativeTime iso={chat.last_turn_at} />
                       </span>
                     </button>
                   </li>

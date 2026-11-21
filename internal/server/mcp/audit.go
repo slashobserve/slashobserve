@@ -36,6 +36,7 @@ func attribute(ctx context.Context, cred Credential) {
 		audit.Update(ctx, func(s *audit.Scope) { s.Origin.Client = cred.Client })
 	case cred.Run != nil:
 		auth.Authenticated(ctx, cred.Principal, audit.AuthAPIKey, "")
+		audit.Update(ctx, func(s *audit.Scope) { s.Agent = cred.Agent })
 		if id, err := uuid.Parse(cred.Run.ID); err == nil {
 			audit.Update(ctx, func(s *audit.Scope) { s.RunID = uuid.NullUUID{UUID: id, Valid: true} })
 		}

@@ -1,5 +1,6 @@
 import {
   dashboardKeys,
+  observationKeys,
   observeKeys,
   publicKeys,
   type PanelDataParams,
@@ -11,6 +12,9 @@ export type PanelSource =
   | { kind: "version"; dashboardId: string; version: number }
   | { kind: "build"; requestId: string; saves: number }
   | { kind: "public"; token: string; version: number }
+  | { kind: "block"; observationId: string; blockId: string; version: number }
+
+export type VariableSource = Exclude<PanelSource, { kind: "block" }>
 
 export function panelFingerprint(panel: unknown): string {
   return stableJson(panel)
@@ -24,6 +28,8 @@ export function sourceScope(source: PanelSource): string {
       return `build:${source.requestId}`
     case "public":
       return `public:${source.token}:${source.version}`
+    case "block":
+      return `block:${source.blockId}:${source.version}`
   }
 }
 
@@ -44,6 +50,8 @@ export function stateScope(source: PanelSource): string {
       return `build:${source.requestId}`
     case "public":
       return `public:${source.token}`
+    case "block":
+      return `block:${source.blockId}`
   }
 }
 
@@ -70,11 +78,13 @@ export function panelDataKey(
       )
     case "public":
       return publicKeys.panelData(source.token, source.version, panelId, params)
+    case "block":
+      return observationKeys.blockData(source.blockId, source.version, params)
   }
 }
 
 export function variableValuesKey(
-  source: PanelSource,
+  source: VariableSource,
   name: string,
   fingerprint: string,
   params: VariableValuesParams
@@ -122,6 +132,10 @@ export function keepsPreviousData(
     case "public":
       return (
         previousKey[1] === source.token && previousKey[3] === source.version
+      )
+    case "block":
+      return (
+        previousKey[2] === source.blockId && previousKey[3] === source.version
       )
   }
 }

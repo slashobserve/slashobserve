@@ -409,13 +409,8 @@ func blockEvent(parent dbsqlc.Observation, block dbsqlc.ObservationBlock) blockE
 }
 
 func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pgtype.UUID, in BlockChange) (Block, error) {
-	if len(in.Body) == 0 && in.Width == nil && in.Position == nil {
-		return Block{}, ErrNothingToUpdate
-	}
-	if in.Width != nil {
-		if err := validateWidth(*in.Width); err != nil {
-			return Block{}, err
-		}
+	if err := checkChange(in); err != nil {
+		return Block{}, err
 	}
 	var updated dbsqlc.ObservationBlock
 	var held folders.Abilities
@@ -450,6 +445,19 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 	return blockOf(updated, held, who), nil
 }
 
+func checkChange(in BlockChange) error {
+	if len(in.Body) == 0 && in.Width == nil && in.Position == nil && !in.FollowPage {
+		return ErrNothingToUpdate
+	}
+	if in.FollowPage && len(in.Body) > 0 {
+		return invalid(CodeInvalidBlock, "follow_page clears the panel's own range; send it without a body")
+	}
+	if in.Width != nil {
+		return validateWidth(*in.Width)
+	}
+	return nil
+}
+
 func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.ObservationBlock, in BlockChange) (dbsqlc.UpdateBlockParams, error) {
 	params := dbsqlc.UpdateBlockParams{
 		ID: current.ID, Version: current.Version, FromStates: BlockMachine.From(BlockUpdate),
@@ -457,6 +465,13 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 	}
 	if len(in.Body) > 0 && !resendsStoredText(current, in.Body) {
 		body, err := normalBody(Kind(current.Kind), in.Body)
+		if err != nil {
+			return params, err
+		}
+		params.Body = body
+	}
+	if in.FollowPage {
+		body, err := followingPage(current)
 		if err != nil {
 			return params, err
 		}
@@ -473,6 +488,18 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 		params.Position = position
 	}
 	return params, nil
+}
+
+func followingPage(current dbsqlc.ObservationBlock) (json.RawMessage, error) {
+	if Kind(current.Kind) != KindPanel {
+		return nil, invalid(CodeInvalidBlock, "follow_page applies only to a panel block")
+	}
+	var body PanelBody
+	if err := json.Unmarshal(current.Body, &body); err != nil {
+		return nil, fmt.Errorf("decode stored panel body: %w", err)
+	}
+	body.From, body.To = nil, nil
+	return json.Marshal(body)
 }
 
 func resendsStoredText(current dbsqlc.ObservationBlock, raw json.RawMessage) bool {

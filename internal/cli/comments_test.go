@@ -549,6 +549,21 @@ func TestCommentsCommands(t *testing.T) {
 			wantBody:   `{"anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}},"body":"here","target":"` + on + `","to":"everyone"}`,
 		},
 		{
+			name:       "add with --at sends the short anchor form",
+			args:       []string{"comments", "add", "--at", "series:service=checkout", "--on", on, "here"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"anchor":{"kind":"series","pos":{"x":0.5,"y":0.5},"series":{"service":"checkout"}},"body":"here","target":"` + on + `","to":"everyone"}`,
+		},
+		{
+			name:     "add refuses a short --at that is not an anchor",
+			args:     []string{"comments", "add", "--at", "pos:0.4", "--on", on, "here"},
+			wantCode: 2,
+			wantErr:  "--at: anchor: pos: want <x>,<y>",
+		},
+		{
 			name:     "add refuses an --at that is not an anchor",
 			args:     []string{"comments", "add", "--at", `{"kind":"range","pos":{"x":0.4,"y":0.3}}`, "--on", on, "here"},
 			wantCode: 2,

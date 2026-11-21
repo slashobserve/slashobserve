@@ -15,15 +15,10 @@ import { toast } from "sonner"
 import { ActivityCard } from "@/activity/activity-card"
 import { announcePaneOpening } from "@/components/dock/dock-focus"
 import type { EditGuard } from "@/activity/edit-pane"
-import {
-  useActivityLayout,
-  useActivityStore,
-  useChatPaneLayout,
-} from "@/activity/activity-store"
+import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { AnnotationActionsProvider } from "@/annotations/actions"
 import { AnnotationControls } from "@/annotations/annotation-controls"
 import { dashboardKeys } from "@/api/keys"
-import { ChatPane } from "@/chat/chat-pane"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Button } from "@/components/ui/button"
@@ -119,7 +114,7 @@ import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
 import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
-import type { PanelSource } from "./panel-source"
+import type { VariableSource } from "./panel-source"
 import { mayInvestigate, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
@@ -159,11 +154,8 @@ import { ExportView } from "./print/export-view"
 import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
-import { activityCardId, paneOpener } from "./pane-openers"
-
-function activityOpener() {
-  return paneOpener("activity")
-}
+import { activityCardId } from "./pane-openers"
+import { dockOf, isSidePanelCard } from "./dock"
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -308,7 +300,7 @@ function DashboardView({
     [spec, viewZone]
   )
 
-  const source = useMemo<PanelSource>(
+  const source = useMemo<VariableSource>(
     () => ({ kind: "version", dashboardId, version }),
     [dashboardId, version]
   )
@@ -411,7 +403,6 @@ function DashboardView({
   const kiosk = search.kiosk === true
   const viewed = layoutPanelOf(spec, search.viewPanel)
   const inspectPanel = inspectablePanelOf(spec, search.inspect)
-  const inspecting = inspectPanel !== undefined && !editing
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
   const mayOpenEditor = permissions.edit || permissions.comment
   const editingPanel = mayOpenEditor && panelInUrl
@@ -450,26 +441,17 @@ function DashboardView({
   const commentTool = useCanvasTool((state) => state.tool === "comment")
   const toolsShown = useCanvasToolsShown(permissions)
   const [specOpen, setSpecOpen] = useState(false)
-  const specShown = specOpen && !panelInUrl && !inspecting && !kiosk
-  const chatRequestId =
-    panelInUrl ||
-    search.share === true ||
-    editing ||
-    inspecting ||
-    kiosk ||
-    specShown
-      ? undefined
-      : search.chat
-  const threadInUrl = search.thread !== undefined
-  const cardVisible =
-    (open || panelInUrl || search.share === true || threadInUrl) &&
-    !editing &&
-    !inspecting &&
-    !specShown &&
-    !kiosk &&
-    chatRequestId === undefined
+  const dock = dockOf(search, {
+    open,
+    layoutEditing: editing,
+    inspectable: inspectPanel !== undefined,
+    specOpen,
+  })
+  const inspecting = dock === "inspect"
+  const specShown = dock === "spec"
+  const cardView = isSidePanelCard(dock) ? dock : null
+  const cardVisible = cardView !== null
   const cardLayout = useActivityLayout(editingPanel)
-  const chatLayout = useChatPaneLayout()
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
@@ -621,7 +603,7 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
-    comment: () => focusComment(composerRef),
+    comment: () => focusComment(setSearch, composerRef),
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -671,6 +653,7 @@ function DashboardView({
       search.panel === undefined &&
       search.edit === undefined &&
       search.share !== true &&
+      search.tab === undefined &&
       search.chat === undefined &&
       search.thread === undefined
     ) {
@@ -681,6 +664,7 @@ function DashboardView({
       panel: undefined,
       edit: undefined,
       share: false,
+      tab: undefined,
       chat: undefined,
       thread: undefined,
     }))
@@ -690,6 +674,7 @@ function DashboardView({
     search.panel,
     search.edit,
     search.share,
+    search.tab,
     search.chat,
     search.thread,
   ])
@@ -701,18 +686,8 @@ function DashboardView({
     }
     announcePaneOpening()
     setOpen(true)
-    if (search.chat !== undefined) {
-      setSearch((state) => ({ ...state, chat: undefined }))
-    }
     if (cardLayout.stacked) scrollPaneIntoView(activityCardId)
-  }, [
-    cardVisible,
-    closeCard,
-    setOpen,
-    setSearch,
-    search.chat,
-    cardLayout.stacked,
-  ])
+  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
 
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
@@ -944,7 +919,6 @@ function DashboardView({
               className={cn(
                 pageClass(
                   (cardVisible && cardLayout.stacked) ||
-                    (chatRequestId !== undefined && chatLayout.stacked) ||
                     (inspecting && inspectLayout.stacked) ||
                     (specShown && inspectLayout.stacked)
                 ),
@@ -1062,8 +1036,9 @@ function DashboardView({
                   />
                 )}
               </div>
-              {cardVisible ? (
+              {cardView !== null ? (
                 <ActivityCard
+                  view={cardView}
                   dashboardId={dashboardId}
                   apiId={envelope.dashboard.id}
                   spec={spec}
@@ -1083,14 +1058,7 @@ function DashboardView({
                   onClose={closeCard}
                 />
               ) : null}
-              {chatRequestId !== undefined ? (
-                <ChatPane
-                  requestId={chatRequestId}
-                  onClose={closeCard}
-                  opener={activityOpener}
-                />
-              ) : null}
-              {inspecting ? (
+              {inspecting && inspectPanel !== undefined ? (
                 <InspectPane
                   title={panelTitle(inspectPanel)}
                   tab={search.inspectTab ?? "data"}

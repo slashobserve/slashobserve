@@ -80,3 +80,18 @@ func TestAnAdminDoesNotReadTheBuildOfADashboardInSomeonesPersonalFolder(t *testi
 		t.Errorf("an Admin: %v, want %v", err, ErrBuildNotFound)
 	}
 }
+
+func TestARunWithNoBuildIsToldApartFromARefusedRead(t *testing.T) {
+	r, _ := newProbeRig(t)
+	buildless := r.runningRequest(t, pgtype.UUID{})
+	built := r.runningRequest(t, pgtype.UUID{})
+	r.saveBuild(t, built, pgtype.UUID{}, 0, "a")
+	editor := r.addPerson(t, "eve").principal
+
+	if _, err := r.service.ViewBuild(reading(t.Context()), testUser, buildless); !errors.Is(err, ErrNoBuild) || !errors.Is(err, ErrBuildNotFound) {
+		t.Errorf("a run that never built: %v, want ErrNoBuild, which is also ErrBuildNotFound", err)
+	}
+	if _, err := r.service.ViewBuild(reading(t.Context()), editor, built); !errors.Is(err, ErrBuildNotFound) || errors.Is(err, ErrNoBuild) {
+		t.Errorf("another Editor on a built run: %v, want ErrBuildNotFound and not ErrNoBuild", err)
+	}
+}

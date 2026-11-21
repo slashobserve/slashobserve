@@ -15,22 +15,24 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type Chat struct {
-	ID            pgtype.UUID
-	Title         string
-	DashboardID   pgtype.UUID
-	ObservationID pgtype.UUID
-	PinnedAt      *time.Time
-	CreatedAt     time.Time
-	LastTurnAt    time.Time
-	Turns         int
-	LastTurn      *ChatTurn
-	Owner         ChatOwner
-	ReadOnly      bool
+	ID             pgtype.UUID
+	Title          string
+	DashboardID    pgtype.UUID
+	DashboardTitle *string
+	ObservationID  pgtype.UUID
+	PinnedAt       *time.Time
+	CreatedAt      time.Time
+	LastTurnAt     time.Time
+	Turns          int
+	LastTurn       *ChatTurn
+	Owner          ChatOwner
+	ReadOnly       bool
 }
 
 type ChatOwner struct {
@@ -57,6 +59,17 @@ type chatReader struct {
 	kind  string
 	id    pgtype.UUID
 	admin bool
+}
+
+func (s *Service) visibleFolders(ctx context.Context, by auth.Principal) ([]pgtype.UUID, error) {
+	levels, err := s.access.Levels(ctx, by)
+	switch {
+	case errors.Is(err, folders.ErrForbidden):
+		return nil, ErrForbidden
+	case err != nil:
+		return nil, fmt.Errorf("chat folders: %w", err)
+	}
+	return levels.Visible(), nil
 }
 
 func readerOf(by auth.Principal) (chatReader, error) {
@@ -93,17 +106,25 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 	if f.Everyone && !reader.admin {
 		return nil, "", ErrForbidden
 	}
-	after, ok := httpapi.DecodeTimeCursor(cursor)
+	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
+	visible, err := s.visibleFolders(ctx, by)
+	if err != nil {
+		return nil, "", err
+	}
+	pinnedFirst := !f.Everyone
 	ownerKind, ownerID := reader.only(!f.Everyone)
 	params := dbsqlc.ListChatsParams{
+		Folders:       visible,
 		OwnerKind:     ownerKind,
 		OwnerID:       ownerID,
 		DashboardID:   f.DashboardID,
 		ObservationID: f.ObservationID,
 		Pattern:       pgtype.Text{String: "%" + escapeLike(f.Query) + "%", Valid: f.Query != ""},
+		PinnedFirst:   pinnedFirst,
+		CursorPinned:  pinnedFirst && afterPinned,
 		RowLimit:      httpapi.Int32(limit + 1),
 	}
 	if f.Pinned != nil {
@@ -120,21 +141,23 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
-		next = httpapi.EncodeTimeCursor(rows[limit-1].LastTurnAt.Time, rows[limit-1].ID.String())
+		last := rows[limit-1]
+		next = encodeListCursor(pinnedFirst && last.PinnedAt.Valid, last.LastTurnAt.Time, last.ID.String())
 	}
 	chats := make([]Chat, len(rows))
 	for i, row := range rows {
 		chats[i] = Chat{
-			ID:            row.ID,
-			Title:         chatTitle(row.Title, row.FirstPrompt),
-			DashboardID:   row.DashboardID,
-			ObservationID: row.ObservationID,
-			PinnedAt:      optionalTime(row.PinnedAt),
-			CreatedAt:     row.CreatedAt.Time.UTC(),
-			LastTurnAt:    row.LastTurnAt.Time.UTC(),
-			Turns:         int(row.Turns),
-			Owner:         ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
-			ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
+			ID:             row.ID,
+			Title:          chatTitle(row.Title, row.FirstPrompt),
+			DashboardID:    row.DashboardID,
+			DashboardTitle: optionalText(row.DashboardTitle),
+			ObservationID:  row.ObservationID,
+			PinnedAt:       optionalTime(row.PinnedAt),
+			CreatedAt:      row.CreatedAt.Time.UTC(),
+			LastTurnAt:     row.LastTurnAt.Time.UTC(),
+			Turns:          int(row.Turns),
+			Owner:          ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
+			ReadOnly:       !reader.owns(row.OwnerKind, row.OwnerID),
 		}
 		if row.LastTurnID.Valid {
 			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt}
@@ -151,9 +174,13 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 	if err != nil {
 		return Chat{}, nil, err
 	}
+	visible, err := s.visibleFolders(ctx, by)
+	if err != nil {
+		return Chat{}, nil, err
+	}
 	q := s.db.Queries()
 	ownerKind, ownerID := reader.only(!reader.admin)
-	row, err := q.GetChat(ctx, dbsqlc.GetChatParams{ID: id, OwnerKind: ownerKind, OwnerID: ownerID})
+	row, err := q.GetChat(ctx, dbsqlc.GetChatParams{ID: id, OwnerKind: ownerKind, OwnerID: ownerID, Folders: visible})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Chat{}, nil, ErrChatNotFound
@@ -167,15 +194,16 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 		return Chat{}, nil, fmt.Errorf("list chat turns: %w", err)
 	}
 	chat := Chat{
-		ID:            row.ID,
-		DashboardID:   row.DashboardID,
-		ObservationID: row.ObservationID,
-		PinnedAt:      optionalTime(row.PinnedAt),
-		CreatedAt:     row.CreatedAt.Time.UTC(),
-		LastTurnAt:    row.LastTurnAt.Time.UTC(),
-		Turns:         len(turns),
-		Owner:         ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
-		ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
+		ID:             row.ID,
+		DashboardID:    row.DashboardID,
+		DashboardTitle: optionalText(row.DashboardTitle),
+		ObservationID:  row.ObservationID,
+		PinnedAt:       optionalTime(row.PinnedAt),
+		CreatedAt:      row.CreatedAt.Time.UTC(),
+		LastTurnAt:     row.LastTurnAt.Time.UTC(),
+		Turns:          len(turns),
+		Owner:          ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
+		ReadOnly:       !reader.owns(row.OwnerKind, row.OwnerID),
 	}
 	first := ""
 	if len(turns) > 0 {

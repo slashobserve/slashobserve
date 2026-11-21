@@ -9,11 +9,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 type folderEvent struct {
@@ -105,5 +108,22 @@ func TestAFolderChangedInsideARunIsAttributedToThePersonTheAgentActsFor(t *testi
 	got := f.folderEvents(t)
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("events = %+v, want %+v", got, want)
+	}
+}
+
+func TestEveryEventOfARunTokenSessionNamesTheAgentThatTookTheRun(t *testing.T) {
+	agent := audit.Agent{ID: uuid.NullUUID{UUID: uuid.MustParse("33333333-3333-4333-8333-333333333333"), Valid: true}, Name: "Claude Code"}
+	ada := auth.Principal{Kind: auth.KindUser, ID: "00000000-0000-4000-8000-0000000000ad", Name: "Ada", Role: auth.RoleEditor}
+	ctx := audit.Open(context.Background(), audit.Scope{Initiator: audit.InitiatorPerson})
+	attribute(ctx, Credential{Principal: ada, Run: &revisions.Request{ID: "44444444-4444-4444-8444-444444444444", Assignee: revisions.AssignGrant}, Agent: agent})
+	scope, _ := audit.ScopeOf(ctx)
+	if scope.Agent != agent || !scope.RunID.Valid {
+		t.Fatalf("scope agent = %+v, run = %v, want %+v in the run", scope.Agent, scope.RunID, agent)
+	}
+
+	outside := audit.Open(context.Background(), audit.Scope{Initiator: audit.InitiatorPerson})
+	attribute(outside, Credential{Principal: ada, OAuth: true, Client: "Claude Code", Claimer: &claims.Claimer{Kind: revisions.AssignGrant}, Agent: agent})
+	if scope, _ := audit.ScopeOf(outside); scope.Agent != (audit.Agent{}) {
+		t.Fatalf("scope agent outside a run = %+v, want none", scope.Agent)
 	}
 }

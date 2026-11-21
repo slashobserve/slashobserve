@@ -2225,8 +2225,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List your chats, the one most recently asked in first, or everyone's for an Admin.
-         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+         * List your chats, pinned ones first and then the one most recently asked in, or everyone's for an Admin.
+         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. Your own chats come pinned first, each group ordered by its last turn, newest first, and `next_cursor` keeps that order across pages; everyone's chats are ordered by their last turn only. A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
          */
         get: operations["listChats"];
         put?: never;
@@ -2769,8 +2769,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a block's body, width or position.
-         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
+         * Change a block's body, width or position, or let a panel follow the page's range.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
         trace?: never;
@@ -6669,6 +6669,8 @@ export interface components {
              * @description The dashboard the chat is about; a chat about nothing gains the dashboard its first saved build made.
              */
             dashboard_id: string | null;
+            /** @description The title of `dashboard_id`, null when the chat is about no dashboard or the caller cannot see it, as an Admin cannot see one in someone's personal folder. */
+            dashboard_title: string | null;
             /**
              * Format: uuid
              * @description The observation the chat is about.
@@ -7979,6 +7981,8 @@ export interface components {
             width?: components["schemas"]["ObservationBlockWidth"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
+            /** @description True clears a panel block's own range, so it follows the observation's range; never sent with `body`. */
+            follow_page?: boolean;
         };
         PinObservationRequest: {
             /**
