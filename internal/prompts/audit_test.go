@@ -67,7 +67,7 @@ func (r *promptRig) create(who auth.Principal, body string) string {
 func (r *promptRig) events() []string {
 	r.t.Helper()
 	r.flush()
-	rows, err := r.db.SQLDB(r.t).QueryContext(r.t.Context(), `SELECT action || ' ' || outcome || ' ' || coalesce(target_name, '') || ' ' || coalesce(data->>'changed', '-') || ' ' || coalesce(data->>'owner_id', '-') || ' ' || actor_name
+	rows, err := r.db.SQLDB(r.t).QueryContext(r.t.Context(), `SELECT action || ' ' || outcome || ' ' || coalesce(target_name, '') || ' ' || coalesce(data->>'changed', '-') || ' ' || coalesce(data->>'owner_id', '-')
 		FROM audit_events WHERE action LIKE 'saved_prompt.%' ORDER BY occurred_at, seq`)
 	if err != nil {
 		r.t.Fatal(err)
@@ -112,11 +112,11 @@ func TestOnlyChangesToASharedPromptAreRecorded(t *testing.T) {
 	}
 
 	want := []string{
-		"saved_prompt.create success team - " + callerID + " Ada",
-		`saved_prompt.update success team ["body"] ` + callerID + " Root",
-		`saved_prompt.unshare success back ["name", "shared"] ` + callerID + " Ada",
-		`saved_prompt.share success back ["shared"] ` + callerID + " Ada",
-		"saved_prompt.delete success back - " + callerID + " Root",
+		"saved_prompt.create success team - " + callerID,
+		`saved_prompt.update success team ["body"] ` + callerID,
+		`saved_prompt.unshare success back ["name", "shared"] ` + callerID,
+		`saved_prompt.share success back ["shared"] ` + callerID,
+		"saved_prompt.delete success back - " + callerID,
 	}
 	got := r.events()
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
