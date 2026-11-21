@@ -41,11 +41,16 @@ const threadLabelLength = 60
 
 type AnswerMenu = { shareTarget: string | null; sharedThreadId: string | null }
 
+export type RevisionAsked = boolean
+
 type Props = {
   finding: Finding
   requestId: string
   canSave: boolean
-  revise?: { onRevise: (change: string) => void; pending: boolean }
+  revise?: {
+    onRevise: (change: string) => Promise<RevisionAsked>
+    pending: boolean
+  }
   menu?: AnswerMenu
   chatId?: string
 }
@@ -335,6 +340,7 @@ export function AnswerCard({
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
+  const [revisionAsked, setRevisionAsked] = useState(false)
   const evidenceId = useId()
   const change = finding.suggested_change
   const observationId = finding.observation_id
@@ -376,11 +382,15 @@ export function AnswerCard({
           <Button
             type="button"
             size="sm"
-            disabled={revise.pending}
+            disabled={revise.pending || revisionAsked}
             aria-busy={revise.pending}
-            onClick={() => revise.onRevise(change)}
+            onClick={() =>
+              void revise
+                .onRevise(change)
+                .then((asked) => setRevisionAsked(asked))
+            }
           >
-            Revise the dashboard
+            {revisionAsked ? "Revision asked for" : "Revise the dashboard"}
           </Button>
         )}
         {promoted ? (

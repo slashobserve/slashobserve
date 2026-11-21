@@ -17,6 +17,7 @@ import {
   MetaState,
   ResolvedState,
 } from "@/activity/entry-frame"
+import { ApiError } from "@/api/errors"
 import { threadKeys } from "@/api/keys"
 import { MessageText } from "@/comments/message-text"
 import { threadParticipants, type MentionPerson } from "@/comments/mentions"
@@ -30,7 +31,7 @@ import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 import { observeRequestQuery, sentence } from "@/observe/queries"
 
-import { AnswerCard } from "./answer-card"
+import { AnswerCard, type RevisionAsked } from "./answer-card"
 import { threadPlace, type AgentGate } from "./delivery"
 import { planRevise, subjectOf } from "./send-plan"
 import {
@@ -104,7 +105,7 @@ function RunAnswer({
     subject?.kind === "dashboard" &&
     entry.thread.allowed_actions.includes("reply")
 
-  async function revise(change: string) {
+  async function revise(change: string): Promise<RevisionAsked> {
     const plan = planRevise(
       threadPlace(entry.thread.id, entry.thread),
       subject,
@@ -113,16 +114,21 @@ function RunAnswer({
     )
     if ("error" in plan) {
       toast.error(plan.error)
-      return
+      return false
     }
     try {
       await deliver(plan)
+      return true
     } catch (error) {
+      if (error instanceof ApiError && error.code === "already_applied") {
+        return true
+      }
       toast.error(
         error instanceof Error && error.message !== ""
           ? sentence(error.message)
           : "The change could not be asked for. Try again."
       )
+      return false
     }
   }
 
@@ -131,11 +137,7 @@ function RunAnswer({
       finding={finding}
       requestId={runId}
       canSave={request.data.requested_by.id === principal.id}
-      revise={
-        mayRevise
-          ? { onRevise: (change) => void revise(change), pending }
-          : undefined
-      }
+      revise={mayRevise ? { onRevise: revise, pending } : undefined}
     />
   )
 }

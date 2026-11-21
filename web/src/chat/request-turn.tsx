@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { AgentMark } from "@/components/agent-mark"
-import { AnswerCard } from "@/conversation/answer-card"
+import { AnswerCard, type RevisionAsked } from "@/conversation/answer-card"
 import {
   planRevise,
   threadTargetOf,
@@ -113,7 +113,7 @@ function ChatAnswer({
   const { deliver, pending } = useDeliver(subject)
   const mayRevise = own && !request.read_only && subject?.kind === "dashboard"
 
-  async function revise(change: string) {
+  async function revise(change: string): Promise<RevisionAsked> {
     const plan = planRevise(
       { kind: "chat", chatId: request.chat_id },
       subject,
@@ -122,7 +122,7 @@ function ChatAnswer({
     )
     if ("error" in plan) {
       toast.error(plan.error)
-      return
+      return false
     }
     try {
       const sent = await deliver(plan)
@@ -134,6 +134,7 @@ function ChatAnswer({
           : "The change could not be asked for. Try again."
       )
     }
+    return false
   }
 
   return (
@@ -141,11 +142,7 @@ function ChatAnswer({
       finding={finding}
       requestId={request.id}
       canSave={own}
-      revise={
-        mayRevise
-          ? { onRevise: (change) => void revise(change), pending }
-          : undefined
-      }
+      revise={mayRevise ? { onRevise: revise, pending } : undefined}
       chatId={request.chat_id ?? undefined}
       menu={{
         shareTarget: own && subject !== null ? threadTargetOf(subject) : null,

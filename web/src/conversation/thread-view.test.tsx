@@ -309,6 +309,74 @@ describe("ThreadView", () => {
     expect(await posts[0][0].clone().json()).toEqual({ finding_id: "f1" })
   })
 
+  it.each([
+    [
+      "a new revision",
+      {
+        status: 201,
+        body: { thread: thread(), message: message("m3"), replayed: false },
+      },
+    ],
+    [
+      "a replay of the first one",
+      {
+        status: 200,
+        body: { thread: thread(), message: message("m3"), replayed: true },
+      },
+    ],
+    [
+      "a change already applied",
+      {
+        status: 409,
+        body: { error: "already applied", code: "already_applied" },
+      },
+    ],
+  ])("says the revision was asked for after %s", async (_name, answer) => {
+    stubFetch({ "POST /api/v1/threads/t1/apply": answer })
+    const { user } = show(
+      { thread: thread(), messages: [question, reply] },
+      (client) =>
+        client.setQueryData(
+          observeKeys.request(runId),
+          request({ finding: finding() })
+        )
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    )
+    expect(
+      await screen.findByRole("button", { name: "Revision asked for" })
+    ).toBeDisabled()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+  })
+
+  it("keeps Revise the dashboard after a refusal", async () => {
+    stubFetch({
+      "POST /api/v1/threads/t1/apply": {
+        status: 429,
+        body: { error: "too many revisions", code: "too_many_revisions" },
+      },
+    })
+    const { user } = show(
+      { thread: thread(), messages: [question, reply] },
+      (client) =>
+        client.setQueryData(
+          observeKeys.request(runId),
+          request({ finding: finding() })
+        )
+    )
+    const button = await screen.findByRole("button", {
+      name: "Revise the dashboard",
+    })
+    await user.click(button)
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(
+      screen.queryByRole("button", { name: "Revision asked for" })
+    ).toBeNull()
+  })
+
   it("slides in a message that arrives after the thread was drawn, not the ones already there", async () => {
     stubFetch({})
     const first = { thread: thread(), messages: [message("t1"), message("m2")] }
