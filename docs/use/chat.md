@@ -16,7 +16,7 @@ The dashboard changes only when you choose **Revise the dashboard** on an answer
 The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation, and in a chat about an observation it writes into that observation.
 When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 
-On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
+On an answer about a dashboard in a chat, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for**, in the chat and in any thread the answer is in, and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, starts nothing more.
 While no model is connected to the server, the button is off with "No model is connected to this server, so the agent cannot make this change."
 

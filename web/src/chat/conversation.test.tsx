@@ -423,6 +423,17 @@ describe("Conversation", () => {
     ).toBe(false)
   })
 
+  it("offers no Revise on an answer whose turn has no dashboard, in a chat about one", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(answered({ dashboard_id: null }))
+    expect(
+      await screen.findByText("Suggested change: Add a p99 panel")
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(

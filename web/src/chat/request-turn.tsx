@@ -117,11 +117,12 @@ function ChatAnswer({
   onRevised: (next: ObserveRequest) => Promise<void>
 }) {
   const dashboardId = request.dashboard_id
-  const subject: Subject | null =
-    dashboardId === null ? about : { kind: "dashboard", id: dashboardId }
+  const revised: Subject | null =
+    dashboardId === null ? null : { kind: "dashboard", id: dashboardId }
+  const subject = revised ?? about
   const { deliver, pending } = useDeliver(subject)
   const agent = useAgentInfo()
-  const mayRevise = own && !request.read_only && subject?.kind === "dashboard"
+  const mayRevise = own && !request.read_only && revised !== null
   const place: Place = { kind: "chat", chatId: request.chat_id }
   const gate = deliveryGate(
     { ...ungated, agentAvailable: agent.data?.available },
@@ -129,7 +130,7 @@ function ChatAnswer({
   )
 
   async function revise(): Promise<RevisionAsked> {
-    const plan = planRevise(place, subject, finding.id, crypto.randomUUID())
+    const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
     if ("error" in plan) {
       toast.error(plan.error)
       return false
