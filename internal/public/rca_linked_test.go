@@ -68,7 +68,8 @@ func TestNoPublicLinkOpensContentInAFolderThatBecameAdminsOnly(t *testing.T) {
 		t.Fatalf("dashboard link before = %v", err)
 	}
 
-	r.db.Exec(t, `UPDATE folders SET admins_only = true WHERE NOT personal`)
+	foldertest.Move(t, r.db, r.shared, r.folder)
+	r.db.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, r.folder)
 
 	if _, err := r.service.ResolveRCA(t.Context(), rca.Token); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("RCA link after = %v, want %v", err, ErrNotFound)
