@@ -155,7 +155,7 @@ func (r *Recorder) insertNow(ctx context.Context, row dbsqlc.InsertAuditEventPar
 	if err == nil {
 		return nil
 	}
-	if retryable(err) && r.writer.enqueueUnsure(row) {
+	if retryable(err) && r.writer.handOff(row) {
 		r.logger.WarnContext(ctx, "audit event queued to be written again", logattrs.Failure("audit_write_failed", err)...)
 		return nil
 	}

@@ -107,11 +107,11 @@ func TestABatchStoredByAnEarlierAttemptIsNotDroppedOnItsRetry(t *testing.T) {
 	if err := s.recorder.writer.write(t.Context(), rows); err != nil {
 		t.Fatal(err)
 	}
-	s.recorder.writer.held = &heldBatch{rows: rows}
+	s.recorder.writer.held = [][]dbsqlc.InsertAuditEventParams{rows}
 	stop := s.run(t)
 	s.waitForBatch(t)
 	stop()
-	if s.recorder.writer.held != nil {
+	if len(s.recorder.writer.held) != 0 {
 		t.Fatal("the batch is still held after its retry")
 	}
 	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 0 {
