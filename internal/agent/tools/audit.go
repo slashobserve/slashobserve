@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -75,8 +74,8 @@ type auditWindowInput struct {
 	Until string `json:"until"`
 }
 
-func (r *Registry) prepareAudit(ctx context.Context, action audit.Action, in auditWindowInput, cursor string) (trail.Prepared, Result, bool) {
-	p, err := r.deps.Audit.Prepare(ctx, action, trail.Request{Text: in.Query, Since: in.Since, Until: in.Until, Cursor: cursor})
+func (r *Registry) prepareAudit(ctx context.Context, in auditWindowInput, cursor string) (trail.Prepared, Result, bool) {
+	p, err := r.deps.Audit.Prepare(ctx, trail.ActionSearch, trail.Request{Text: in.Query, Since: in.Since, Until: in.Until, Cursor: cursor})
 	if err != nil {
 		res, rerr := auditFailure(err)
 		if rerr != nil {
@@ -115,7 +114,7 @@ func (r *Registry) searchAuditEvents(ctx context.Context, input json.RawMessage)
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(ctx, trail.ActionSearch, in.auditWindowInput, in.Cursor)
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, in.Cursor)
 	if !ok {
 		return res, nil
 	}
@@ -187,7 +186,7 @@ func (r *Registry) listAuditFacets(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(ctx, "", in.auditWindowInput, "")
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, "")
 	if !ok {
 		return res, nil
 	}
@@ -214,7 +213,7 @@ func (r *Registry) getAuditHistogram(ctx context.Context, input json.RawMessage)
 	if !ok {
 		return res, nil
 	}
-	p, res, ok := r.prepareAudit(ctx, "", in.auditWindowInput, "")
+	p, res, ok := r.prepareAudit(ctx, in.auditWindowInput, "")
 	if !ok {
 		return res, nil
 	}
@@ -236,7 +235,7 @@ func (r *Registry) aggregateAuditEvents(ctx context.Context, input json.RawMessa
 	if in.Query == "" {
 		return invalid("query is required: a Query DSL body with aggs, such as {\"aggs\":{\"by\":{\"terms\":{\"field\":\"origin\"}}}}"), nil
 	}
-	p, res, ok := r.prepareAudit(ctx, "", in, "")
+	p, res, ok := r.prepareAudit(ctx, in, "")
 	if !ok {
 		return res, nil
 	}

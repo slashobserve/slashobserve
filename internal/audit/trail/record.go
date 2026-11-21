@@ -3,6 +3,8 @@ package trail
 import (
 	"context"
 	"maps"
+	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -13,9 +15,13 @@ import (
 const (
 	ActionSearch audit.Action = "audit.search"
 	ActionExport audit.Action = "audit.export"
-	noAction     audit.Action = ""
 
-	viewEvents            = "events"
+	viewEvents    = "events"
+	viewFacets    = "facets"
+	viewHistogram = "histogram"
+	viewAggregate = "aggregate"
+	viewEvent     = "event"
+
 	MaxRecordedQueryBytes = 4096
 	truncatedMark         = " [truncated]"
 )
@@ -43,7 +49,7 @@ func windowData(p Prepared) map[string]any {
 func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) (Prepared, error) {
 	p, err := Prepare(req, r.now())
 	if err != nil {
-		if problem, ok := ProblemOf(err); ok && action != noAction {
+		if problem, ok := ProblemOf(err); ok {
 			r.write(ctx, audit.Event{
 				Action: action, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
 				Data: map[string]any{"query": recordedQuery(req.Text)},
@@ -54,14 +60,49 @@ func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) 
 	return p, nil
 }
 
-func (r *Reader) searchFailed(ctx context.Context, p Prepared, err error) error {
+type read struct {
+	view  string
+	field string
+}
+
+func (v read) data() map[string]any {
+	data := map[string]any{"view": v.view}
+	if v.field != "" {
+		data["field"] = v.field
+	}
+	return data
+}
+
+func (v read) subject(text string) string {
+	return strings.Join([]string{v.view, v.field, text}, "\x00")
+}
+
+func (r *Reader) recordRead(ctx context.Context, p Prepared, v read, rows int) {
+	if r.searches.SeenRecently(ctx, v.subject(p.Text), r.now()) {
+		audit.Skip(ctx)
+		return
+	}
+	data := v.data()
+	data["row_count"] = rows
+	r.record(ctx, p, audit.Event{Action: ActionSearch, Status: http.StatusOK, Data: data})
+}
+
+func (r *Reader) readFailed(ctx context.Context, p Prepared, v read, err error) error {
 	if problem, ok := ProblemOf(err); ok {
 		r.record(ctx, p, audit.Event{
 			Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
-			Data: map[string]any{"view": viewEvents},
+			Data: v.data(),
 		})
 	}
 	return err
+}
+
+func (r *Reader) writeFailed(ctx context.Context, v read, text string, err error) {
+	if problem, ok := ProblemOf(err); ok {
+		data := v.data()
+		data["query"] = recordedQuery(text)
+		r.write(ctx, audit.Event{Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status, Data: data})
+	}
 }
 
 func (r *Reader) record(ctx context.Context, p Prepared, e audit.Event) {

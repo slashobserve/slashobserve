@@ -43,7 +43,7 @@ var outcomeLevels = map[string]logvolume.Kind{
 type Store interface {
 	Rows(ctx context.Context, q filter.Query, w filter.Window, page filter.Page) ([]trail.Event, error)
 	Count(ctx context.Context, q filter.Query, w filter.Window, upTo int) (int64, error)
-	Aggregate(ctx context.Context, p trail.Prepared) (trail.Aggregation, error)
+	ReadAggregation(ctx context.Context, p trail.Prepared) (trail.Aggregation, error)
 }
 
 func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {

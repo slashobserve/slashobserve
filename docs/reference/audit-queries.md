@@ -6,8 +6,10 @@ description: The fields of an audit event, the three query forms the audit trail
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
 A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
-A search is recorded once per caller and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
-The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
+The counts of a field, the histogram, an aggregation and opening one event are recorded the same way, as `audit.search` with `data.view` set to `facets`, `histogram`, `aggregate` or `event`; a count of a field also holds `data.field`, and opening one event records the query `id:<event id>`.
+Every such read is recorded once per caller, view, field and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
+The same holds over the API, MCP and the CLI, because all three read through the same server code.
+The field list reads no event and records nothing; an export and each opening of the stream are recorded every time.
 A query that is refused is recorded every time, as a `failed` event with its reason.
 
 A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded once per reader and subject in 10 minutes, the owner's own views included.

@@ -88,7 +88,7 @@ audit-events-id:
         format: uuid
   get:
     operationId: getAuditEvent
-    x-audit: { none: "the page opens one row of a search it already recorded" }
+    x-audit: { action: audit.search }
     x-surfaces:
       mcp: [get_audit_event]
       cli: [observe audit show]
@@ -96,7 +96,7 @@ audit-events-id:
     description: >-
       Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
       `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself.
-      Not recorded.
+      This read is itself recorded as `audit.search` with `view` `event` and the query `id:<id>`, once per caller and event in 10 minutes; an id that names no event is recorded as a failed `audit.search` every time.
     responses:
       "200":
         description: The event.
@@ -129,7 +129,7 @@ audit-events-id:
 audit-facets:
   get:
     operationId: listAuditFacets
-    x-audit: { none: "the page counts and draws what its recorded search already named" }
+    x-audit: { action: audit.search }
     x-surfaces:
       mcp: [list_audit_facets]
       cli: [observe audit facets]
@@ -137,7 +137,7 @@ audit-facets:
     description: >-
       Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
       Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted.
-      Not recorded.
+      This read is itself recorded as `audit.search` with `view` `facets`, the `field`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
     parameters:
       - name: q
         in: query
@@ -210,7 +210,7 @@ audit-facets:
 audit-histogram:
   get:
     operationId: getAuditHistogram
-    x-audit: { none: "the page counts and draws what its recorded search already named" }
+    x-audit: { action: audit.search }
     x-surfaces:
       mcp: [get_audit_histogram]
       cli: [observe audit histogram]
@@ -218,7 +218,7 @@ audit-histogram:
     description: >-
       Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
       Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first.
-      Not recorded.
+      This read is itself recorded as `audit.search` with `view` `histogram`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
     parameters:
       - name: q
         in: query
@@ -284,7 +284,7 @@ audit-histogram:
 audit-aggregate:
   get:
     operationId: aggregateAuditEvents
-    x-audit: { none: "the page counts and draws what its recorded search already named" }
+    x-audit: { action: audit.search }
     x-surfaces:
       mcp: [aggregate_audit_events]
       cli: [observe audit aggregate]
@@ -294,7 +294,7 @@ audit-aggregate:
       `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level.
       Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`.
       An aggregation that would produce more than 100,000 rows is refused with its reason.
-      Not recorded.
+      This read is itself recorded as `audit.search` with `view` `aggregate`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
     parameters:
       - name: q
         in: query

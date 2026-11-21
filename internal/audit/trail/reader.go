@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,13 +110,9 @@ func refused(err error) error {
 func (r *Reader) Search(ctx context.Context, p Prepared, limit int) (Page, error) {
 	page, err := r.events(ctx, p, limit)
 	if err != nil {
-		return Page{}, r.searchFailed(ctx, p, err)
+		return Page{}, r.readFailed(ctx, p, read{view: viewEvents}, err)
 	}
-	if r.searches.SeenRecently(ctx, p.Text, r.now()) {
-		audit.Skip(ctx)
-		return page, nil
-	}
-	r.record(ctx, p, audit.Event{Action: ActionSearch, Status: http.StatusOK, Data: map[string]any{"view": viewEvents, "row_count": len(page.Events)}})
+	r.recordRead(ctx, p, read{view: viewEvents}, len(page.Events))
 	return page, nil
 }
 
@@ -206,9 +201,10 @@ func collectEvents(ctx context.Context, tx db.Rows, c filter.Compiled) ([]Event,
 }
 
 func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int) ([]Facet, error) {
+	this := read{view: viewFacets, field: field}
 	c, err := p.Query.Facets(p.Window, field, limit)
 	if err != nil {
-		return nil, refused(err)
+		return nil, r.readFailed(ctx, p, this, refused(err))
 	}
 	facets := []Facet{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -227,8 +223,9 @@ func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, err
+		return nil, r.readFailed(ctx, p, this, err)
 	}
+	r.recordRead(ctx, p, this, len(facets))
 	return facets, nil
 }
 
@@ -255,10 +252,11 @@ func binStart(t time.Time, step time.Duration) time.Time {
 }
 
 func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histogram, error) {
+	this := read{view: viewHistogram}
 	step := StepFor(p.Window, buckets)
 	agg, err := p.Query.Histogram(p.Window, step)
 	if err != nil {
-		return Histogram{}, refused(err)
+		return Histogram{}, r.readFailed(ctx, p, this, refused(err))
 	}
 	counts := map[int64]int64{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -278,7 +276,7 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 		return rows.Err()
 	})
 	if err != nil {
-		return Histogram{}, err
+		return Histogram{}, r.readFailed(ctx, p, this, err)
 	}
 	h := Histogram{StepMs: step.Milliseconds(), Buckets: []Bucket{}}
 	for at := binStart(p.Window.From, step); at.Before(p.Window.To); at = at.Add(step) {
@@ -286,10 +284,21 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 		h.Total += n
 		h.Buckets = append(h.Buckets, Bucket{Time: at.UTC().Format(time.RFC3339), Count: n})
 	}
+	r.recordRead(ctx, p, this, len(h.Buckets))
 	return h, nil
 }
 
 func (r *Reader) Aggregate(ctx context.Context, p Prepared) (Aggregation, error) {
+	this := read{view: viewAggregate}
+	out, err := r.ReadAggregation(ctx, p)
+	if err != nil {
+		return Aggregation{}, r.readFailed(ctx, p, this, err)
+	}
+	r.recordRead(ctx, p, this, len(out.Rows))
+	return out, nil
+}
+
+func (r *Reader) ReadAggregation(ctx context.Context, p Prepared) (Aggregation, error) {
 	agg, err := p.Query.Aggregate(p.Window)
 	if err != nil {
 		return Aggregation{}, refused(err)
@@ -351,42 +360,50 @@ func aggKey(v any) any {
 }
 
 func (r *Reader) Event(ctx context.Context, id string) (Detail, error) {
+	this := read{view: viewEvent}
 	parsed, err := uuid.Parse(id)
 	if err != nil || parsed.Version() != 7 {
+		r.writeFailed(ctx, this, "id:"+id, ErrNotFound)
 		return Detail{}, ErrNotFound
 	}
 	sec, nsec := parsed.Time().UnixTime()
-	minted := time.Unix(sec, nsec).UTC()
-	one, err := r.related(ctx, "id:"+parsed.String(), minted, idClockSkew, 1)
+	own, err := r.around(ctx, "id:"+parsed.String(), time.Unix(sec, nsec).UTC(), idClockSkew, 1)
 	if err != nil {
-		return Detail{}, err
+		return Detail{}, r.readFailed(ctx, own.p, this, err)
 	}
-	if len(one.Events) == 0 {
-		return Detail{}, ErrNotFound
+	if len(own.page.Events) == 0 {
+		return Detail{}, r.readFailed(ctx, own.p, this, ErrNotFound)
 	}
-	d := Detail{Event: one.Events[0], SameRequest: []Event{}, SameRun: []Event{}}
+	d := Detail{Event: own.page.Events[0], SameRequest: []Event{}, SameRun: []Event{}}
 	if d.Event.RequestID != nil {
-		page, err := r.related(ctx, "request_id:"+*d.Event.RequestID, d.Event.at, sameRequestSpan, MaxRelated)
+		page, err := r.around(ctx, "request_id:"+*d.Event.RequestID, d.Event.at, sameRequestSpan, MaxRelated)
 		if err != nil {
-			return Detail{}, err
+			return Detail{}, r.readFailed(ctx, own.p, this, err)
 		}
-		d.SameRequest = page.Events
+		d.SameRequest = page.page.Events
 	}
 	if d.Event.RunID != nil {
-		page, err := r.related(ctx, "run_id:"+*d.Event.RunID, d.Event.at, sameRunSpan, MaxRelated)
+		page, err := r.around(ctx, "run_id:"+*d.Event.RunID, d.Event.at, sameRunSpan, MaxRelated)
 		if err != nil {
-			return Detail{}, err
+			return Detail{}, r.readFailed(ctx, own.p, this, err)
 		}
-		d.SameRun = page.Events
+		d.SameRun = page.page.Events
 	}
+	r.recordRead(ctx, own.p, this, 1)
 	return d, nil
 }
 
-func (r *Reader) related(ctx context.Context, text string, around time.Time, span time.Duration, limit int) (Page, error) {
+type nearby struct {
+	p    Prepared
+	page Page
+}
+
+func (r *Reader) around(ctx context.Context, text string, at time.Time, span time.Duration, limit int) (nearby, error) {
 	q, err := filter.Parse(text)
 	if err != nil {
-		return Page{}, err
+		return nearby{}, err
 	}
-	p := Prepared{Text: text, Query: q, Window: filter.Window{From: around.Add(-span), To: around.Add(span)}}
-	return r.events(ctx, p, limit)
+	p := Prepared{Text: text, Query: q, Window: filter.Window{From: at.Add(-span), To: at.Add(span)}}
+	page, err := r.events(ctx, p, limit)
+	return nearby{p: p, page: page}, err
 }

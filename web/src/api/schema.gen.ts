@@ -587,7 +587,7 @@ export interface paths {
         };
         /**
          * Read one audit event with the other events of its request and its agent run.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself. Not recorded.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself. This read is itself recorded as `audit.search` with `view` `event` and the query `id:<id>`, once per caller and event in 10 minutes; an id that names no event is recorded as a failed `audit.search` every time.
          */
         get: operations["getAuditEvent"];
         put?: never;
@@ -607,7 +607,7 @@ export interface paths {
         };
         /**
          * Count the top values of one field among the matching audit events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted. Not recorded.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted. This read is itself recorded as `audit.search` with `view` `facets`, the `field`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
          */
         get: operations["listAuditFacets"];
         put?: never;
@@ -627,7 +627,7 @@ export interface paths {
         };
         /**
          * Count the matching audit events over time.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first. Not recorded.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first. This read is itself recorded as `audit.search` with `view` `histogram`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
          */
         get: operations["getAuditHistogram"];
         put?: never;
@@ -647,7 +647,7 @@ export interface paths {
         };
         /**
          * Run the aggs of a Query DSL body over the matching audit events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level. Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`. An aggregation that would produce more than 100,000 rows is refused with its reason. Not recorded.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level. Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`. An aggregation that would produce more than 100,000 rows is refused with its reason. This read is itself recorded as `audit.search` with `view` `aggregate`, the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes; a refused query is recorded every time.
          */
         get: operations["aggregateAuditEvents"];
         put?: never;
