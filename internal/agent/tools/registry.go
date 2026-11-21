@@ -213,6 +213,7 @@ type Run struct {
 	From, To      time.Time
 	TimeZone      string
 	Access        datasource.Access
+	Investigation bool
 }
 
 type runKey struct{}

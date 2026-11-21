@@ -31,7 +31,7 @@ In a chat about an observation the same menu shares into that observation's thre
 
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; an answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
 A chat is titled the same way, from your message.
 
 ## Start a chat
@@ -315,7 +315,7 @@ Say what you want in the message itself all the same, for example "only 5xx" or 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
-Unless it is an investigation or an answer you shared into a thread, they also read it without your words: its `title`, `prompt`, step messages, `live_text` and `continue_note` are empty and `redacted` is true, while its state, times, your name, its kind and the version it saved stay, and the dashboard's revision list shows its `prompt` empty the same way.
+Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
 In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.
 Its page is read only: it offers nothing to copy, retry or ask again, and has no message box.
 An Admin reads another person's chat read only.

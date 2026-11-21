@@ -26,6 +26,7 @@ type runRead struct {
 	asker    string
 	actions  []string
 	readOnly bool
+	failure  *string
 }
 
 var chatRunOptions = revisions.ObserveOptions{LiveText: func(string, int) (string, bool) { return "still reading " + privateWord, true }}
@@ -53,9 +54,10 @@ func readsOfAChatRun(t *testing.T, svc *revisions.Service, dash, run string, who
 		RequestedBy    struct{ Name string } `json:"requested_by"`
 		AllowedActions []string              `json:"allowed_actions"`
 		ReadOnly       bool                  `json:"read_only"`
+		FailureCode    *string               `json:"failure_code"`
 	}
 	add := func(path, body string, view shown) {
-		reads = append(reads, runRead{path: path, body: body, redacted: view.Redacted, version: view.ResultVersion, status: view.Status, asker: view.RequestedBy.Name, actions: view.AllowedActions, readOnly: view.ReadOnly})
+		reads = append(reads, runRead{path: path, body: body, redacted: view.Redacted, version: view.ResultVersion, status: view.Status, asker: view.RequestedBy.Name, actions: view.AllowedActions, readOnly: view.ReadOnly, failure: view.FailureCode})
 	}
 	get := func(path string) string {
 		rec := call(engine, http.MethodGet, path, "")
@@ -121,8 +123,10 @@ func TestAnotherEditorReadsARunOfSomeonesPrivateChatWithoutItsWords(t *testing.T
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
 	dash := seedDashboard(t, d, 2)
 	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a panel for " + privateWord), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}).String()
-	d.Exec(t, `UPDATE agent_requests SET title = $2, continue_note = $2, state = 'running', status = 'running', attempts = 1, started_at = now(),
-		steps = jsonb_build_array(jsonb_build_object('at', now(), 'attempt', 1, 'phase', 'discover', 'tool', 'query_range', 'status', 'ok', 'message', $2::text, 'duration_ms', 5))
+	d.Exec(t, `UPDATE agent_requests SET title = $2, continue_note = $2, error = $2, failure_code = 'agent_failed', state = 'running', status = 'running', attempts = 1, started_at = now(),
+		steps = jsonb_build_array(
+			jsonb_build_object('at', now(), 'attempt', 1, 'phase', 'discover', 'tool', 'query_range', 'status', 'ok', 'message', $2::text, 'duration_ms', 5),
+			jsonb_build_object('at', now(), 'attempt', 1, 'phase', 'discover', 'tool', 'report_run', 'status', 'ok', 'message', $2::text, 'duration_ms', 0))
 		WHERE id = $1::uuid`, run, "the "+privateWord+" note")
 
 	check := func(when string, wantVersion bool) {
@@ -135,6 +139,9 @@ func TestAnotherEditorReadsARunOfSomeonesPrivateChatWithoutItsWords(t *testing.T
 				}
 				if read.asker != user.Name || read.status == "" || (read.version != nil) != wantVersion {
 					t.Errorf("%s, %s: %s shows asker %q, status %q and version %v", when, who.Name, read.path, read.asker, read.status, read.version)
+				}
+				if read.failure == nil || *read.failure != "agent_failed" {
+					t.Errorf("%s, %s: %s shows failure code %v, want agent_failed", when, who.Name, read.path, read.failure)
 				}
 			}
 		}

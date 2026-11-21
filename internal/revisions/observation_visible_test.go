@@ -78,3 +78,26 @@ func TestARunNamesNoSubjectTheCallerCannotOpen(t *testing.T) {
 		t.Fatalf("after the move: %d %s", rec.Code, body)
 	}
 }
+
+func TestAChatNamesNoObservationTheCallerCannotOpen(t *testing.T) {
+	r := newObservationRig(t)
+	dash := seedDashboard(t, r.d, 1)
+	about := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why are checkout errors up"}).ObservationID
+	ask := startTurn(t, r.svc, user, revisions.StartRequest{Prompt: text("what changed since"), ObservationID: text(about.String())})
+	chat := chatOfTurn(t, r.d, ask)
+	router := r.routerAs(user)
+	paths := []string{"/api/v1/chats", "/api/v1/chats/" + chat}
+
+	for _, path := range paths {
+		if rec := call(router, http.MethodGet, path, ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"subject_observation_id":"`+about.String()+`"`) || !strings.Contains(rec.Body.String(), `"observation_id":"`+about.String()+`"`) {
+			t.Fatalf("GET %s before the move: %d %s", path, rec.Code, rec.Body)
+		}
+	}
+	hidden := foldertest.Restricted(t, r.d, "On call", "oncall")
+	r.d.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, about, hidden)
+	for _, path := range paths {
+		if rec := call(router, http.MethodGet, path, ""); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), about.String()) {
+			t.Errorf("GET %s after the move: %d %s", path, rec.Code, rec.Body)
+		}
+	}
+}

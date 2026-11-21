@@ -96,7 +96,7 @@ func sameJSON(t *testing.T, got []byte, want string) bool {
 }
 
 func principalN(i int) auth.Principal {
-	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i)}
+	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i), Role: auth.RoleEditor}
 }
 
 func proposing(panel string) reviserFunc {
