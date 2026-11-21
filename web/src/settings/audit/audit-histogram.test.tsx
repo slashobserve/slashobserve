@@ -31,7 +31,7 @@ function render() {
   )
   const onRange = vi.fn()
   const view = renderWithProviders(
-    <AuditHistogram window={window} onRange={onRange} />
+    <AuditHistogram window={window} liveCount={0} onRange={onRange} />
   )
   return { ...view, onRange }
 }

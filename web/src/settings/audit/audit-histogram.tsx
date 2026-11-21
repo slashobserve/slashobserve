@@ -31,9 +31,11 @@ type Bucket = { time: string; count: number }
 
 export function AuditHistogram({
   window,
+  liveCount,
   onRange,
 }: {
   window: AuditWindowKey
+  liveCount: number
   onRange: (range: BucketRange) => void
 }) {
   const histogram = useQuery(auditHistogramQuery(window))
@@ -45,7 +47,7 @@ export function AuditHistogram({
     <Bars
       window={window}
       buckets={histogram.data.buckets}
-      total={histogram.data.total}
+      total={histogram.data.total + liveCount}
       stepMs={histogram.data.step_ms}
       onRange={onRange}
     />

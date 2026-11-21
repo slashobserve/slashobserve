@@ -158,10 +158,11 @@ export function AuditSettings({
     () => new Set(loaded.map((event) => event.id)),
     [loaded]
   )
-  const shown = useMemo(
-    () => [...liveRows.filter((event) => !loadedIds.has(event.id)), ...loaded],
-    [liveRows, loadedIds, loaded]
+  const freshLive = useMemo(
+    () => liveRows.filter((event) => !loadedIds.has(event.id)),
+    [liveRows, loadedIds]
   )
+  const shown = useMemo(() => [...freshLive, ...loaded], [freshLive, loaded])
 
   const neighbors = useMemo(
     () =>
@@ -291,11 +292,12 @@ export function AuditSettings({
           <>
             <AuditHistogram
               window={window}
+              liveCount={freshLive.length}
               onRange={(range) =>
                 search({ ...shownView, ...range, event: null })
               }
             />
-            <AuditFacets window={window} onQuery={run} />
+            <AuditFacets window={window} live={freshLive} onQuery={run} />
           </>
         ) : null}
         {window === null || problem !== null ? null : events.isError &&

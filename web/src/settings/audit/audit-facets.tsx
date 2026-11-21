@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
+import { liveFacetValues } from "./live-counts"
 import { auditFacetsQuery, auditFieldsQuery } from "./queries"
 import {
   canEditTerms,
@@ -13,6 +14,7 @@ import {
   toggleTerm,
   type FacetField,
 } from "./query-text"
+import type { AuditEvent } from "./stream"
 
 const facetFields = [
   { name: "actor_name", label: "Actor" },
@@ -24,9 +26,11 @@ const facetFields = [
 
 export function AuditFacets({
   window,
+  live,
   onQuery,
 }: {
   window: AuditWindowKey
+  live: readonly AuditEvent[]
   onQuery: (q: string) => void
 }) {
   const fields = useQuery(auditFieldsQuery())
@@ -52,6 +56,7 @@ export function AuditFacets({
                   ?.alias ?? null,
             }}
             editable={editable}
+            live={live}
             onQuery={onQuery}
           />
         ))}
@@ -65,16 +70,19 @@ function FacetGroup({
   label,
   field,
   editable,
+  live,
   onQuery,
 }: {
   window: AuditWindowKey
   label: string
   field: FacetField
   editable: boolean
+  live: readonly AuditEvent[]
   onQuery: (q: string) => void
 }) {
   const facets = useQuery(auditFacetsQuery(window, field.name))
   if (facets.isError) return null
+  const values = liveFacetValues(facets.data?.values ?? [], live, field.name)
 
   function toggle(value: string, exclude: boolean) {
     const next = toggleTerm(window.q, field, value, exclude)
@@ -90,11 +98,11 @@ function FacetGroup({
       <span className="text-xs text-muted-foreground">{label}</span>
       {facets.data === undefined ? (
         <Skeleton className="h-6 w-32" />
-      ) : facets.data.values.length === 0 ? (
+      ) : values.length === 0 ? (
         <span className="text-xs text-muted-foreground">None</span>
       ) : (
         <ul className="flex flex-wrap gap-1.5">
-          {facets.data.values.map(({ value, count }) => {
+          {values.map(({ value, count }) => {
             const state = termState(window.q, field, value)
             return (
               <li

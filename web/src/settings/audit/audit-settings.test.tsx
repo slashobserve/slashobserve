@@ -340,6 +340,13 @@ describe("AuditSettings", () => {
       )
     })
     await within(table).findByText("auth.login")
+    expect(await screen.findByText(/43 events/)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("group", { name: "Outcome values" })).getByRole(
+        "button",
+        { name: "success 42" }
+      )
+    ).toBeInTheDocument()
     const rows = within(table).getAllByRole("row").slice(1)
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("auth.login"),
