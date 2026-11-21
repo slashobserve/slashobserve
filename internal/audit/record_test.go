@@ -160,6 +160,29 @@ func TestAttribution(t *testing.T) {
 	}
 }
 
+func TestAttributionNamesTheAgentOfTheRunAndKeepsTheRequestsAgentOtherwise(t *testing.T) {
+	taken := Agent{ID: uuid.NullUUID{UUID: uuid.MustParse("44444444-4444-4444-8444-444444444444"), Valid: true}, Name: "Claude Code"}
+	inRun := Scope{Actor: ada, Initiator: InitiatorAgent, Agent: Agent{Name: "Observe Agent"}, RunID: runID}
+	tests := []struct {
+		name  string
+		scope Scope
+		by    *By
+		want  Agent
+	}{
+		{name: "an event of a run names the agent that took it", scope: Scope{Actor: ada}, by: &By{Actor: someone, RunID: runID, Agent: taken}, want: taken},
+		{name: "the agent of the run replaces the one of the request", scope: inRun, by: &By{Actor: someone, RunID: runID, Agent: taken}, want: taken},
+		{name: "an event with no agent keeps the one of the request", scope: inRun, by: &By{Actor: someone, RunID: runID}, want: Agent{Name: "Observe Agent"}},
+		{name: "a person's event has no agent", scope: Scope{Actor: ada}, by: &By{Actor: someone}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := attribution(tt.scope, true, tt.by).Agent; got != tt.want {
+				t.Fatalf("agent = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestScopeUpdatesAreSeenByLaterReads(t *testing.T) {
 	ctx := Open(t.Context(), Scope{Actor: Actor{Kind: ActorAnonymous}})
 	Update(ctx, func(s *Scope) { s.Actor = ada })
