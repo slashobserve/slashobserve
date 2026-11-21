@@ -235,6 +235,15 @@ func (r *Registry) retire(ds Datasource) {
 }
 
 func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
+	in, err := r.Describe(ctx, uid)
+	if err != nil {
+		return Instance{}, err
+	}
+	NoteRead(ctx, in.Audience)
+	return in, nil
+}
+
+func (r *Registry) Describe(ctx context.Context, uid string) (Instance, error) {
 	access, ok := AccessFrom(ctx)
 	if !ok {
 		return Instance{}, ErrNoAccess
@@ -248,7 +257,6 @@ func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	if !access.Reads(in.Audience) {
 		return Instance{}, access.refusal(in.Audience)
 	}
-	noteRestrictedRead(ctx, access, in.Audience)
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
 }

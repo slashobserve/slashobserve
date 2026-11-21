@@ -339,7 +339,7 @@ func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Resu
 	if in.Scope != "" {
 		return r.listInventory(ctx, in, offset)
 	}
-	if inst, err := r.deps.Datasources.For(ctx, in.Datasource); err == nil && !holdsMetrics(typeOf(inst)) {
+	if inst, err := r.deps.Datasources.Describe(ctx, in.Datasource); err == nil && !holdsMetrics(typeOf(inst)) {
 		return invalid("list_metrics works on Prometheus and ClickHouse datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
 	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
@@ -393,7 +393,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	if !ok || err != nil {
 		return res, err
 	}
-	if inst, err := r.deps.Datasources.For(ctx, names.Datasource); err != nil || !isLogStore(typeOf(inst)) {
+	if inst, err := r.deps.Datasources.Describe(ctx, names.Datasource); err != nil || !isLogStore(typeOf(inst)) {
 		inventories.put(ctx, names.Families)
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)

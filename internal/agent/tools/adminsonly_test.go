@@ -228,3 +228,24 @@ func TestTheSpecGuideTeachesTheAuditTrailOnlyToAnAdmin(t *testing.T) {
 		}
 	}
 }
+
+func TestLookingUpAnAdminsOnlyDatasourcesTypeDoesNotMarkTheRun(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	reg, err := datasource.NewRegistry(logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: &fakeDS{typ: "loki"}}); err != nil {
+		t.Fatal(err)
+	}
+	r := New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger})
+	admin := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
+	ctx, read := datasource.NotingRestrictedReads(auth.WithPrincipal(t.Context(), admin))
+	res, err := r.Call(WithRun(ctx, Run{Mode: ModeInvestigate, Access: RunAccess(revisions.Request{RequestedBy: admin}, RunWrites{})}), nameListMetrics, []byte(`{"datasource":"audit"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError || read() {
+		t.Fatalf("list_metrics on a logs datasource only Admins read = %s, marked %v", content(t, res), read())
+	}
+}
