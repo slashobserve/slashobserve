@@ -228,10 +228,44 @@ describe("AuditSettings", () => {
     await user.click(
       await within(outcomes).findByRole("button", { name: "denied 2" })
     )
-    expect(onView).toHaveBeenCalledWith({
-      ...defaults,
-      q: 'origin:mcp and outcome:"denied"',
+    await waitFor(() =>
+      expect(onView).toHaveBeenCalledWith({
+        ...defaults,
+        q: 'origin:mcp and outcome:"denied"',
+      })
+    )
+    expect(listRequests()).toHaveLength(2)
+  })
+
+  it("keeps the last good results and the address when the server rejects a query", async () => {
+    serve({
+      events: (url) =>
+        (url.searchParams.get("q") ?? "").includes("denied")
+          ? json(
+              { error: "cannot read this query", code: "query_invalid" },
+              422
+            )
+          : json({
+              events: [auditEvent("e1", { action: "dashboard.delete" })],
+              next_cursor: null,
+              form: "kql",
+            }),
     })
+    const { onView, user } = renderPage({ q: "origin:mcp" })
+    const outcomes = await screen.findByRole("group", {
+      name: "Outcome values",
+    })
+    await user.click(
+      await within(outcomes).findByRole("button", { name: "denied 2" })
+    )
+    expect(
+      await screen.findByText("cannot read this query")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("region", { name: "Audit events" })
+    ).toHaveTextContent("dashboard.delete")
+    expect(screen.getByText(/42 events/)).toBeInTheDocument()
+    expect(onView).not.toHaveBeenCalled()
   })
 
   it("offers to clear filters when nothing matches", async () => {
