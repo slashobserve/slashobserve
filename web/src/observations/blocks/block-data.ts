@@ -5,7 +5,7 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
 import { formatDate, zoneLabel } from "@/lib/date-format"
-import { describeRange } from "@/lib/time"
+import { describeRange, liveNowRefresh, refreshToMs } from "@/lib/time"
 import type { Block } from "@/observations/queries"
 import type { DataPanel, Panel, Variable } from "@/spec"
 
@@ -54,6 +54,7 @@ export type BlockWindow = {
   to: string
   pinned: boolean
   caption: string
+  refreshMs: number | null
 }
 
 export const liveHour = { from: "now-1h", to: "now" }
@@ -75,6 +76,7 @@ export function resolveBlockRange(
       to: block.to,
       pinned: true,
       caption: `Pinned to ${describeRange(block.from, block.to)}`,
+      refreshMs: null,
     }
   }
   if (page.from !== null && page.to !== null) {
@@ -83,9 +85,15 @@ export function resolveBlockRange(
       to: page.to,
       pinned: false,
       caption: describeRange(page.from, page.to),
+      refreshMs: null,
     }
   }
-  return { ...liveHour, pinned: false, caption: liveHourLabel }
+  return {
+    ...liveHour,
+    pinned: false,
+    caption: liveHourLabel,
+    refreshMs: refreshToMs(liveNowRefresh),
+  }
 }
 
 export function pageRangeFor(

@@ -54,7 +54,7 @@ function RangeCaption({
   range: BlockWindow
   variables: string
 }) {
-  const live = !range.pinned && range.to === "now"
+  const live = range.refreshMs !== null
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
       <span
@@ -246,7 +246,7 @@ function ReadablePanelBlock({
             selectionsReady
             blockedBy={undefined}
             onRetryBlocked={ignore}
-            refreshMs={null}
+            refreshMs={range.refreshMs}
             mixedDatasources={false}
             editable={false}
             layoutSession={false}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { describeRange } from "@/lib/time"
+import { describeRange, liveNowRefresh, refreshToMs } from "@/lib/time"
 import type { Block } from "@/observations/queries"
 import type { DataPanel } from "@/spec"
 
@@ -149,12 +149,13 @@ describe("resolveBlockRange", () => {
   const pinFrom = "2026-11-20T10:00:00Z"
   const pinTo = "2026-11-20T11:00:00Z"
 
-  it("shows the last hour live when neither the page nor the block has a range", () => {
+  it("shows the last hour live, refreshing as a live dashboard does, when neither the page nor the block has a range", () => {
     expect(resolveBlockRange({ from: null, to: null }, {})).toEqual({
       from: "now-1h",
       to: "now",
       pinned: false,
       caption: "Last hour, live",
+      refreshMs: refreshToMs(liveNowRefresh),
     })
   })
 
@@ -164,6 +165,7 @@ describe("resolveBlockRange", () => {
       to: pageTo,
       pinned: false,
       caption: describeRange(pageFrom, pageTo),
+      refreshMs: null,
     })
   })
 
@@ -178,6 +180,7 @@ describe("resolveBlockRange", () => {
       to: pinTo,
       pinned: true,
       caption: `Pinned to ${describeRange(pinFrom, pinTo)}`,
+      refreshMs: null,
     })
     expect(
       resolveBlockRange({ from: null, to: null }, { from: pinFrom, to: pinTo })
