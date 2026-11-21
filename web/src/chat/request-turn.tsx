@@ -5,7 +5,11 @@ import { toast } from "sonner"
 
 import { AgentMark } from "@/components/agent-mark"
 import { AnswerCard } from "@/conversation/answer-card"
-import { planRevise, type Subject } from "@/conversation/send-plan"
+import {
+  planRevise,
+  threadTargetOf,
+  type Subject,
+} from "@/conversation/send-plan"
 import { useDeliver } from "@/conversation/use-composer"
 import { StatusIcon } from "@/components/status-label"
 import {
@@ -87,24 +91,27 @@ type Props = {
   opensRunsIn?: RunOpens
   latest?: boolean
   answerActions?: ReactNode
+  about?: Subject | null
 }
 
 function ChatAnswer({
   request,
   finding,
   own,
+  about,
   onRevised,
 }: {
   request: ObserveRequest
   finding: Finding
   own: boolean
+  about: Subject | null
   onRevised: (next: ObserveRequest) => Promise<void>
 }) {
   const dashboardId = request.dashboard_id
   const subject: Subject | null =
-    dashboardId === null ? null : { kind: "dashboard", id: dashboardId }
+    dashboardId === null ? about : { kind: "dashboard", id: dashboardId }
   const { deliver, pending } = useDeliver(subject)
-  const mayRevise = own && !request.read_only && subject !== null
+  const mayRevise = own && !request.read_only && subject?.kind === "dashboard"
 
   async function revise(change: string) {
     const plan = planRevise(
@@ -140,8 +147,7 @@ function ChatAnswer({
           : undefined
       }
       menu={{
-        shareTarget:
-          own && dashboardId !== null ? `dashboard:${dashboardId}` : null,
+        shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
         sharedThreadId: request.shared_thread_id,
       }}
     />
@@ -222,6 +228,7 @@ export function RequestTurn({
   opensRunsIn = "chat",
   latest = true,
   answerActions,
+  about = null,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -401,6 +408,7 @@ export function RequestTurn({
                       request={detail}
                       finding={detail.finding}
                       own={request.requested_by.id === principal.id}
+                      about={about}
                       onRevised={openNewRun}
                     />
                     {answerActions}

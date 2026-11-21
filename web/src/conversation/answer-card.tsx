@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { plainTitle } from "@/comments/plain-title"
 import { ApiError } from "@/api/errors"
-import { dashboardIdOf, useThreads } from "@/comments/thread-queries"
+import { useThreads } from "@/comments/thread-queries"
 import { EvidencePanel } from "@/findings/evidence-panel"
 import { evidencePanels, type Finding } from "@/findings/queries"
 import { dashboardLink, observationLink } from "@/lib/links"
@@ -26,6 +26,8 @@ import {
   useShareAnswer,
   useWithdrawShare,
 } from "@/observe/queries"
+
+import { subjectOf } from "./send-plan"
 
 const FindingMarkdown = lazy(() =>
   import("@/findings/finding-markdown").then((module) => ({
@@ -136,34 +138,48 @@ function SharedThreadItem({
   target: string
   threadId: string
 }) {
-  const dashboardId = dashboardIdOf(target)
-  const here = useParams({ strict: false }).dashboardId === dashboardId
-  if (dashboardId === null) return null
+  const subject = subjectOf(target)
+  const here = useParams({ strict: false }).dashboardId === subject?.id
+  const link =
+    subject?.kind === "dashboard" ? (
+      here ? (
+        <Link
+          from="/d/$dashboardId/{-$slug}"
+          to="."
+          search={(prev) => ({
+            ...prev,
+            tab: undefined,
+            chat: undefined,
+            thread: threadId,
+          })}
+        />
+      ) : (
+        <Link {...dashboardLink(subject.id)} search={{ thread: threadId }} />
+      )
+    ) : subject?.kind === "observation" ? (
+      <Link {...observationLink(subject.id)} />
+    ) : null
+  if (link === null) return null
   return (
-    <DropdownMenuItem
-      render={
-        here ? (
-          <Link
-            from="/d/$dashboardId/{-$slug}"
-            to="."
-            search={(prev) => ({
-              ...prev,
-              tab: undefined,
-              chat: undefined,
-              thread: threadId,
-            })}
-          />
-        ) : (
-          <Link {...dashboardLink(dashboardId)} search={{ thread: threadId }} />
-        )
-      }
-    >
+    <DropdownMenuItem render={link}>
       <Choice
         title="Shared in the thread"
         detail="Opens the thread with your question and this answer."
       />
     </DropdownMenuItem>
   )
+}
+
+function showDetail(onPage: boolean): string {
+  return onPage
+    ? "Opens a thread with your question and this answer, and writes the answer onto the page."
+    : "Opens a thread with your question and this answer for everyone who can see it."
+}
+
+function withdrawDetail(onPage: boolean): string {
+  const base =
+    "Deletes the thread and makes this answer private again, while no one else has written in it."
+  return onPage ? `${base} Blocks it already wrote on the page stay.` : base
 }
 
 function withdrawProblem(error: Error): string {
@@ -192,6 +208,8 @@ function AnswerMenuButton({
   const sharedThreadId =
     sharedHere === undefined ? menu.sharedThreadId : sharedHere
   const busy = share.isPending || withdraw.isPending
+  const onPage =
+    shareTarget !== null && subjectOf(shareTarget)?.kind === "observation"
 
   function shareIn(threadId?: string) {
     share.mutate(threadId, {
@@ -255,19 +273,13 @@ function AnswerMenuButton({
               disabled={busy}
               onClick={() => withdrawFrom(sharedThreadId)}
             >
-              <Choice
-                title="Withdraw"
-                detail="Deletes the thread and makes this answer private again, while no one else has written in it."
-              />
+              <Choice title="Withdraw" detail={withdrawDetail(onPage)} />
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
-              <Choice
-                title="Show to everyone"
-                detail="Opens a thread with your question and this answer for everyone who can see it."
-              />
+              <Choice title="Show to everyone" detail={showDetail(onPage)} />
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={busy}>

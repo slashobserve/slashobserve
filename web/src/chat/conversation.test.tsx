@@ -216,6 +216,32 @@ describe("Conversation", () => {
     expect(body).not.toHaveProperty("dashboard_id")
   })
 
+  it("offers the asker the share choices on an answer about an observation", async () => {
+    stubServer(chatAbout({ observation_id: observationId }))
+    const { user } = renderConversation(answered({ dashboard_id: null }))
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    ).toHaveTextContent("writes the answer onto the page")
+    expect(
+      screen.getByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeVisible()
+  })
+
+  it("names the observation thread a shared answer is in and what Withdraw leaves", async () => {
+    stubServer(chatAbout({ observation_id: observationId }))
+    const { user } = renderConversation(
+      answered({ dashboard_id: null, shared_thread_id: "t5" })
+    )
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toHaveAttribute("href", `/o/${observationId}`)
+    expect(
+      screen.getByRole("menuitem", { name: /^Withdraw/ })
+    ).toHaveTextContent("Blocks it already wrote on the page stay.")
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(

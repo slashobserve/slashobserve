@@ -364,6 +364,7 @@ function ConversationView({
                 buildOnScreen={pane && turn.id === requestId}
                 opensRunsIn={pane ? "build" : "chat"}
                 latest={index === turns.length - 1}
+                about={subject}
                 answerActions={
                   !readOnly &&
                   index === turns.length - 1 &&
