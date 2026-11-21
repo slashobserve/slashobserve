@@ -3,19 +3,37 @@ package threads
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func (r *rig) answerAbout(t *testing.T, req revisions.StartRequest) (pgtype.UUID, findings.Finding) {
 	t.Helper()
-	run, f := r.restrictedAnswer(t, admin, req)
-	r.db.Exec(t, `UPDATE agent_requests SET read_restricted = false WHERE id = $1`, run)
-	return run, f
+	prompt, kind := "who changed "+sharedWord, "ask"
+	req.Prompt, req.Kind = &prompt, &kind
+	started, err := r.revisions.Start(reading(t.Context()), admin, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = now() WHERE id = $1`, started.ID)
+	content := "it changed " + sharedWord
+	notes := spec.Panel{ID: "evidence-1", Type: "text", Title: "Notes", GridPos: spec.GridPos{W: 12, H: 8}, Content: &content}
+	f, _, err := r.findings.Save(reading(t.Context()), admin, findings.SaveInput{
+		AgentRequestID: started.ID, AskDashboardID: started.DashboardID,
+		Title: "It changed", Markdown: "the dashboard shows " + sharedWord, Evidence: []spec.Panel{notes},
+		SuggestedChange: "Add a panel for the changes",
+		From:            time.Now().Add(-time.Hour), To: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return started.ID, f
 }
 
 func (r *rig) generalFolder(t *testing.T) pgtype.UUID {
