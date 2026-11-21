@@ -390,6 +390,10 @@ The six audit tools read the [audit trail](../reference/audit-queries.md) and ne
 They take `q` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 366 days.
 Each call is recorded in the trail as `audit.search`, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
+The six audit tools read the [audit trail](../reference/audit-queries.md) and need an Admin: `search_audit_events` (20 events a call by default, at most 100, paged with `next_cursor`), `get_audit_event` (one event with the events of its request and agent run), `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
+They take `q` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 366 days.
+Each call is recorded in the trail as `audit.search`, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
+
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
 Pass `view` (`for_you`, `proposals`, `mentions` or `everything`, `for_you` by default), `filter` (`open` by default, `unread` for the open items that are unread, `done` for the items marked done), `limit` (50 by default, at most 100) and `cursor` from `next_cursor`.
 It answers what `GET /api/v1/inbox` answers, it does not mark anything read, a service-account key gets `user_session_required`, and it is over MCP only, so the built-in agent does not have it.
