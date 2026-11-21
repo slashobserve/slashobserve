@@ -4,9 +4,9 @@ CREATE FUNCTION delete_dashboard_findings() RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  DELETE FROM findings
-  WHERE dashboard_id = OLD.id
-    OR (observation_id IS NULL AND agent_request_id IN (SELECT id FROM agent_requests WHERE dashboard_id = OLD.id));
+  DELETE FROM findings WHERE dashboard_id = OLD.id;
+  DELETE FROM findings f USING agent_requests r
+  WHERE r.dashboard_id = OLD.id AND f.agent_request_id = r.id AND f.observation_id IS NULL;
   RETURN OLD;
 END
 $$;

@@ -118,3 +118,35 @@ func TestDeletingAUserDeletesTheAnswerOfARunOnTheirPersonalDashboard(t *testing.
 		t.Fatalf("%d runs left for a deleted personal dashboard", n)
 	}
 }
+
+func TestDeletingADashboardKeepsAnAnswerSavedAsAnObservation(t *testing.T) {
+	r := newRig(t, true)
+	id := r.createDashboard(t)
+	sqlDB := r.db.SQLDB(t)
+	var run, observation, finding string
+	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id)
+		VALUES ('ask', 'investigate', 'which panel is busiest', 'user', $1, 'Ada', $2) RETURNING id`, testUser.ID, id.String()).Scan(&run); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name, run_id)
+		VALUES (general_folder_id(), 'Busiest panel', 'user', $1, 'Ada', $2) RETURNING id`, testUser.ID, run).Scan(&observation); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO findings (agent_request_id, observation_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+		VALUES ($1, $2, 'Answer', 'It is the first one', now() - interval '1 hour', now(), 'user', $3, 'Ada') RETURNING id`, run, observation, testUser.ID).Scan(&finding); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.Delete(reading(t.Context()), testUser, id); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	var runID sql.NullString
+	if err := sqlDB.QueryRowContext(t.Context(), `SELECT agent_request_id::text FROM findings WHERE id = $1 AND observation_id = $2`, finding, observation).Scan(&runID); err != nil {
+		t.Fatalf("the saved answer did not survive: %v", err)
+	}
+	if runID.Valid {
+		t.Fatalf("agent_request_id = %s, want it cleared with the deleted run", runID.String)
+	}
+	if n := r.rowCount(t, `SELECT count(*) FROM observations WHERE id = $1`, observation); n != 1 {
+		t.Fatalf("%d observations left, want the one the answer was saved as", n)
+	}
+}
