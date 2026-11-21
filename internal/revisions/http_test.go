@@ -415,6 +415,7 @@ func TestEveryRouteThatStartsAChangeOfAStarterAnswersProvisioned(t *testing.T) {
 	for name, tc := range map[string]struct{ path, body string }{
 		"a change through observe": {"/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`},
 		"a revision":               {revisionsPath(dash), `{"prompt":"go","base_version":1}`},
+		"a suggestion":             {"/api/v1/dashboards/" + dash.String() + "/suggestions", `{"version":1,"panel_id":"p1","prompt":"go"}`},
 		"a retry":                  {"/api/v1/observe/" + failed.ID + "/retry", ""},
 	} {
 		rec := call(r, http.MethodPost, tc.path, tc.body)
