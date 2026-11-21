@@ -67,7 +67,8 @@ func newObservationRig(t *testing.T) *observationRig {
 	}
 	access := folders.NewAccess(database.DB)
 	runner := queryproxy.NewRunner(datasources, logger)
-	service := observations.New(database.DB, access, snapshotFreezer{}, nil, logger, observations.WithOutputs(dashboards.New(database.DB, runner, access, logger), annotations.New(database.DB, access)))
+	dashboardService := dashboards.New(database.DB, runner, access, logger)
+	service := observations.New(database.DB, access, snapshotFreezer{}, nil, logger, observations.WithOutputs(dashboardService, annotations.New(database.DB, access)), observations.WithPlacement(dashboardService.Placement()))
 	registry := New(Deps{Datasources: datasources, Runner: runner, Folders: access, Observations: service, Logger: logger})
 	r := &observationRig{registry: registry, service: service, db: database}
 	if err := database.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title) VALUES ('Incidents') RETURNING id::text`).Scan(&r.folder); err != nil {
