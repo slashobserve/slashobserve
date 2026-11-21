@@ -28,6 +28,10 @@ func newShareRig(t *testing.T) *rig {
 		_, err := r.service.ReadMessage(ctx, by, messageID)
 		return err
 	})
+	r.revisions.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
+		_, err := r.service.ReadMessage(ctx, by, messageID)
+		return err
+	})
 	return r
 }
 

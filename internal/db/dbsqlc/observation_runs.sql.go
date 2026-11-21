@@ -76,7 +76,7 @@ func (q *Queries) ObservationHasActiveRun(ctx context.Context, observationID pgt
 }
 
 const runBlockOfRun = `-- name: RunBlockOfRun :one
-SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at FROM observation_blocks
+SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height FROM observation_blocks
 WHERE observation_id = $1 AND run_id = $2 AND kind = 'run'
 ORDER BY position
 LIMIT 1
@@ -108,6 +108,7 @@ func (q *Queries) RunBlockOfRun(ctx context.Context, arg RunBlockOfRunParams) (O
 		&i.OriginClient,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Height,
 	)
 	return i, err
 }

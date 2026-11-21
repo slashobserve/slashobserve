@@ -163,6 +163,142 @@ func TestACanceledQueuedRequestRecordsRunCanceled(t *testing.T) {
 	}
 }
 
+func auditedAgents(t *testing.T, d *dbtest.Database, runID string) map[string]string {
+	t.Helper()
+	rows, err := d.SQLDB(t).QueryContext(reading(t.Context()), `SELECT action, coalesce(agent_name, '') FROM audit_events WHERE target_id = $1`, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var action, agent string
+		if err := rows.Scan(&action, &agent); err != nil {
+			t.Fatal(err)
+		}
+		out[action] = agent
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestAQueuedRunCanceledBeforeAnyAgentTookItNamesNoAgent(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "go")
+	assignTo(t, d, rev.ID, "grant", grantA)
+
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := auditedAgents(t, d, rev.ID); got["run.finish"] != "" || got["run.queue"] != "" {
+		t.Fatalf("agents of the audit events = %v, want none", got)
+	}
+}
+
+func TestARunExpiredAsUnclaimedNamesNoAgent(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "nobody came")
+	assignTo(t, d, rev.ID, "grant", grantA)
+	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '11 minutes' WHERE id = $1", mustUUID(t, rev.ID))
+
+	if err := svc.Sweep(reading(context.Background())); err != nil {
+		t.Fatal(err)
+	}
+
+	got := auditedAgents(t, d, rev.ID)
+	if _, finished := got["run.finish"]; !finished || got["run.finish"] != "" {
+		t.Fatalf("agents of the audit events = %v, want run.finish with no agent", got)
+	}
+}
+
+func TestARunTheBuiltInAgentTookNamesItOnStartAndFinish(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitFor(t, "the request to succeed", func() bool {
+		got, err := svc.GetByID(reading(context.Background()), mustUUID(t, rev.ID))
+		return err == nil && got.Status == string(revisions.StatusSucceeded)
+	})
+
+	got := auditedAgents(t, d, rev.ID)
+	if got["run.start"] != "Observe Agent" || got["run.finish"] != "Observe Agent" || got["run.queue"] != "" {
+		t.Fatalf("agents of the audit events = %v, want Observe Agent on start and finish only", got)
+	}
+}
+
+func finishAudit(t *testing.T, d *dbtest.Database, runID string) (outcome, result string) {
+	t.Helper()
+	err := d.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT outcome, coalesce(data->>'result', '') FROM audit_events WHERE target_id = $1 AND action = 'run.finish'`, runID).Scan(&outcome, &result)
+	if err != nil {
+		t.Fatalf("run.finish of %s: %v", runID, err)
+	}
+	return outcome, result
+}
+
+func runsToTheEnd(t *testing.T, svc *revisions.Service, d *dbtest.Database, id string) {
+	t.Helper()
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitFor(t, "the run to end", func() bool { return revisions.State(storedRun(t, svc, id).State).Terminal() })
+}
+
+func canceledWhileRunning(t *testing.T, svc *revisions.Service, _ *dbtest.Database, id string) {
+	t.Helper()
+	claimed, found := claimOne(t, svc)
+	if !found || claimed.ID != mustUUID(t, id) {
+		t.Fatalf("claim = %v found %v, want run %s", claimed.ID, found, id)
+	}
+	if _, err := svc.Cancel(reading(context.Background()), claimed.ID, user); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ReleaseRow(reading(context.Background()), claimed, false); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func canceledWhileQueued(t *testing.T, svc *revisions.Service, _ *dbtest.Database, id string) {
+	t.Helper()
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, id), user); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTheRunFinishEventAgreesWithTheFinalStateOfTheRun(t *testing.T) {
+	failingWith := func(code revisions.FailureCode) reviserFunc {
+		return func(context.Context, revisions.Request) (revisions.Result, error) {
+			return revisions.Result{FailureCode: code}, errors.New("stopped")
+		}
+	}
+	tests := []struct {
+		name        string
+		reviser     reviserFunc
+		end         func(t *testing.T, svc *revisions.Service, d *dbtest.Database, id string)
+		wantOutcome string
+		wantResult  string
+		wantCode    revisions.FailureCode
+	}{
+		{"a run that saved its result", succeedWith(2), runsToTheEnd, "success", "succeeded", ""},
+		{"a run that failed", failingWith(revisions.FailureNoProgress), runsToTheEnd, "failed", "failed", revisions.FailureNoProgress},
+		{"a run that timed out", failingWith(revisions.FailureCallTimeout), runsToTheEnd, "failed", "failed", revisions.FailureCallTimeout},
+		{"a run canceled while it was running", succeedWith(2), canceledWhileRunning, "failed", "canceled", revisions.FailureCanceled},
+		{"a run canceled while it was queued", succeedWith(2), canceledWhileQueued, "failed", "canceled", revisions.FailureCanceled},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, d := newService(t, tt.reviser)
+			rev := submit(t, svc, seedDashboard(t, d, 1), "go")
+			tt.end(t, svc, d, rev.ID)
+			stored := storedRun(t, svc, rev.ID)
+			outcome, result := finishAudit(t, d, rev.ID)
+			if outcome != tt.wantOutcome || result != tt.wantResult || stored.FailureCode.String != string(tt.wantCode) {
+				t.Fatalf("run.finish outcome %q result %q for a run with status %s and failure code %q, want outcome %q result %q and code %q", outcome, result, stored.Status, stored.FailureCode.String, tt.wantOutcome, tt.wantResult, tt.wantCode)
+			}
+		})
+	}
+}
+
 func TestASuggestionRecordsNoActivity(t *testing.T) {
 	svc, d := newSuggestService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)

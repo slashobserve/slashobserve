@@ -7,6 +7,12 @@ import { renderWithProviders } from "@/test/render"
 
 import { PanelMenu } from "./panel-menu"
 
+vi.mock("@/observations/add-to-observation-panel", () => ({
+  AddToObservationPanel: ({ from, to }: { from?: string; to?: string }) => (
+    <div data-testid="add-to-observation">{`${from ?? ""}|${to ?? ""}`}</div>
+  ),
+}))
+
 const panel: LayoutPanel = {
   id: "p1",
   type: "timeseries",
@@ -33,12 +39,36 @@ function holdMenuExit() {
   })
 }
 
-function renderMenu(canComment = true, downloadsReady?: boolean) {
+const logsPanel: LayoutPanel = {
+  id: "p2",
+  type: "logs",
+  title: "Checkout logs",
+  gridPos: { x: 0, y: 0, w: 12, h: 6 },
+  datasource: "loki",
+  queries: [{ query: '{app="checkout"}' }],
+}
+
+const variableLogsPanel: LayoutPanel = {
+  ...logsPanel,
+  id: "p3",
+  title: "Variable logs",
+  datasource: "${logs}",
+}
+
+const dashboardRange = { from: "now-24h", to: "now" }
+
+function renderMenu(
+  canComment = true,
+  downloadsReady?: boolean,
+  shown: LayoutPanel = panel
+) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
     <>
       <PanelMenu
-        panel={panel}
+        panel={shown}
+        range={dashboardRange}
+        selections={{ logs: ["loki"] }}
         tableView={false}
         onToggleTableView={() => {}}
         idle
@@ -77,6 +107,15 @@ beforeEach(() => {
   )
   holdMenuExit()
 })
+
+async function openMenu(
+  user: ReturnType<typeof renderMenu>["user"],
+  title: string
+) {
+  await user.click(
+    await screen.findByRole("button", { name: `Panel menu: ${title}` })
+  )
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -165,5 +204,39 @@ describe("PanelMenu", () => {
         name: "Comment (needs Comment access on this folder)",
       })
     ).toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("opens Logs over the dashboard's own range when the address carries none", async () => {
+    const { user, router } = renderMenu(true, undefined, logsPanel)
+    await openMenu(user, "Checkout logs")
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Open in Logs" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.pathname).toBe("/logs/loki")
+    )
+    expect(router?.state.location.search).toMatchObject(dashboardRange)
+  })
+
+  it("hands Add to observation the dashboard's own range when the address carries none", async () => {
+    const { user } = renderMenu()
+    await openMenu(user, "Checkout latency")
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Add to observation" })
+    )
+    expect(await screen.findByTestId("add-to-observation")).toHaveTextContent(
+      "now-24h|now"
+    )
+  })
+
+  it("resolves a datasource variable from the dashboard's selections when the address carries none", async () => {
+    const { user, router } = renderMenu(true, undefined, variableLogsPanel)
+    await openMenu(user, "Variable logs")
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Open in Logs" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.pathname).toBe("/logs/loki")
+    )
   })
 })

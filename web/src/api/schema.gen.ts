@@ -2117,7 +2117,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List the agent requests of a dashboard, newest first, including the new-dashboard request that created it. */
+        /**
+         * List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
+         * @description A list is recorded in the audit trail as one `run.list` with the dashboard as its target and `scope` `dashboard`, once per caller and dashboard in 10 minutes.
+         */
         get: operations["listDashboardRevisions"];
         put?: never;
         /**
@@ -2141,7 +2144,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Read one revision request. */
+        /**
+         * Read one revision request.
+         * @description A read is recorded in the audit trail as `run.view` with the requester's id as `owner_id`, once per reader and request in 10 minutes.
+         */
         get: operations["getDashboardRevision"];
         put?: never;
         post?: never;
@@ -2185,7 +2191,7 @@ export interface paths {
         };
         /**
          * Read one panel suggestion.
-         * @description Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404. `panel` is set only when the status is `succeeded` and `error` only when it is `failed`. Poll every second until the status is `succeeded` or `failed`; suggestions send no events.
+         * @description Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404. `panel` is set only when the status is `succeeded` and `error` only when it is `failed`. Poll every second until the status is `succeeded` or `failed`; suggestions send no events. A read is recorded in the audit trail as `run.view`, once per reader and suggestion in 10 minutes.
          */
         get: operations["getPanelSuggestion"];
         put?: never;
@@ -2225,13 +2231,13 @@ export interface paths {
         };
         /**
          * List agent requests, newest first: the caller's own, or everyone's for an Admin.
-         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. A `scope=all` list is recorded as `run.list` once per caller in 10 minutes.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. Every list is recorded in the audit trail as one `run.list` with `scope` (`mine` or `all`) in its data, never one event per request, once per caller and scope in 10 minutes.
          */
         get: operations["listObserveRequests"];
         put?: never;
         /**
          * Ask the agent a question, have it build a new dashboard, revise an existing one, or investigate.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. `kind` says what the request may do: `ask`, the default, reads and answers; `revise` changes the dashboard named by `dashboard_id`; `investigate` reads data into an observation. An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`. While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. An investigation with no observation to write into, because no folder could take a new one or the named one is full, says so in its first step, and its answer stays on the request. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). An `ask` with `dashboard_id` or `observation_id`, one of them, is a private ask about it: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins. `kind` must be `ask`, `revise` or `investigate`, `revise` needs `dashboard_id` and takes no `panel_id`, `from`, `to` or `observation_id`, `base_version` needs `revise`, `from` and `to` on an `ask` need `dashboard_id` or `observation_id`, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. `kind` says what the request may do: `ask`, the default, reads and answers; `revise` changes the dashboard named by `dashboard_id`; `investigate` reads data into an observation. An `ask` without `dashboard_id` and `observation_id` builds a new dashboard (`intent` is `ask` until it saves one, then `apply`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `kind` `revise` and `dashboard_id` the agent revises that dashboard (`intent` is `apply`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. With `kind` `revise`, `applies_finding_id` in place of `prompt` applies an answer's suggested change: the finding must be the answer of a request you can read about `dashboard_id` (404 `not_found` otherwise, 400 `invalid_request` when it is about another dashboard or suggests no change), and its `suggested_change` becomes the prompt, so sending both answers 400 `invalid_request`. While a request applying that finding is queued or running, or after it succeeded, another one answers 200 with `replayed` true and that request when it is yours, and 409 `already_applied` when it is someone else's. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. An investigation with no observation to write into, because no folder could take a new one or the named one is full, says so in its first step, and its answer stays on the request. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). An `ask` with `dashboard_id` or `observation_id`, one of them, is a private ask about it: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins, until you share the answer into a comment thread, whose readers then read both, read only. `kind` must be `ask`, `revise` or `investigate`, `revise` needs `dashboard_id` and takes no `panel_id`, `from`, `to` or `observation_id`, `base_version` needs `revise`, `from` and `to` on an `ask` need `dashboard_id` or `observation_id`, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2249,7 +2255,7 @@ export interface paths {
         };
         /**
          * List your chats, pinned ones first and then the one most recently asked in, or everyone's for an Admin.
-         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. Your own chats come pinned first, each group ordered by its last turn, newest first, and `next_cursor` keeps that order across pages; everyone's chats are ordered by their last turn only. A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. Your own chats come pinned first, each group ordered by its last turn, newest first, and `next_cursor` keeps that order across pages; everyone's chats are ordered by their last turn only. Every list is recorded in the audit trail as one `chat.list` with `scope` (`mine` or `all`) in its data, never one event per chat, once per caller and scope in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
          */
         get: operations["listChats"];
         put?: never;
@@ -2271,7 +2277,7 @@ export interface paths {
         };
         /**
          * Read one of your chats, or as an Admin anyone's, with every turn, oldest first.
-         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. A read of someone else's chat is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`, once per reader and chat in 10 minutes; a refused read is recorded every time, and the owner's own reads are not recorded.
+         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. Every read of a chat, its owner's included, is recorded in the audit trail as one `chat.view` with the chat as its target and the owner's id as `owner_id`, never one event per turn, once per reader and chat in 10 minutes; a refused read is recorded every time.
          */
         get: operations["getChat"];
         put?: never;
@@ -2297,7 +2303,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. A read of someone else's request is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build and `get_run`; a refused read is recorded every time, and the requester's own reads are not recorded. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
+         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. A private ask is readable only by its requester and Admins, and while its answer is shared into a comment thread also by everyone who can read that thread. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin or as a reader of the thread its answer is shared in: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. Every read of a request, its requester's included, is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build, `get_run`, a dashboard revision, a suggestion and an unsaved answer under `GET /findings/{id}`; a refused read is recorded every time. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -2549,7 +2555,7 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFinding"];
         put?: never;
@@ -2772,6 +2778,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observations/{id}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Arrange the blocks of an observation.
+         * @description Sets the order of the page and, for each block that names one, its `width` and `height`; a field a block leaves out keeps its value, and a `height` of `null` returns it to the default. A number for a `height` on a text block is refused with 422 `invalid_block`, because only panel and snapshot blocks take a height. Needs Edit on the folder; a caller who can only comment answers 403. It never reads or changes a block's `version` or `updated_at`, so an arrangement cannot make someone's edit of a block's text stale, and the last arrangement to arrive wins. An id that names no block of this observation, or one the caller cannot see, refuses the whole request with 422 `invalid_block` and the id, and nothing changes; a block the list leaves out stays right after the block it followed, so a block someone added meanwhile keeps its place. The answer is the page as stored, and an arrangement that changes nothing records nothing.
+         */
+        put: operations["arrangeObservationBlocks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/blocks/{id}": {
         parameters: {
             query?: never;
@@ -2792,8 +2820,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change a block's body, width or position, or let a panel follow the page's range.
-         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Only the body of a text or panel block can change (`body_not_editable`). `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
+         * Change a block's body, width, height or position, or let a panel follow the page's range.
+         * @description Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block. Every change here raises the version, a width, height or position change included, so a person editing the block's text meets `version_conflict` when someone resizes it; arrange a page with `PUT /observations/{id}/layout` instead, which leaves versions alone. A `height` of `null` returns the block to its default height, and a number for a text block is refused with `invalid_block`, because only panel and snapshot blocks take a height. Only the body of a text or panel block can change (`body_not_editable`). `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`). A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`. A `position` moves the block and shifts the blocks between, which keep their versions.
          */
         patch: operations["updateObservationBlock"];
         trace?: never;
@@ -7832,8 +7860,13 @@ export interface components {
          * @enum {string}
          */
         ObservationBlockAction: "update" | "keep" | "discard" | "remove";
-        /** @enum {string} */
-        ObservationBlockWidth: "full" | "half";
+        /**
+         * @description A block takes one, two or three thirds of the page's width, or all of it; a phone shows one column whatever the width.
+         * @enum {string}
+         */
+        ObservationBlockWidth: "third" | "half" | "two_thirds" | "full";
+        /** @description The height in pixels of a panel or snapshot block's content area, or null for the height its width has by default; a text or run block takes no height, and a height for one is refused with `invalid_block`. */
+        ObservationBlockHeight: number | null;
         Observation: {
             /** Format: uuid */
             id: string;
@@ -7902,7 +7935,8 @@ export interface components {
             /** @description Zero-based and dense, so the blocks of an observation hold 0 to n-1. */
             position: number;
             width: components["schemas"]["ObservationBlockWidth"];
-            /** @description Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read. */
+            height: components["schemas"]["ObservationBlockHeight"];
+            /** @description Starts at 1 and grows with each change to this block's content, width, height or position through `PATCH /blocks/{id}`; reordering other blocks and `PUT /observations/{id}/layout` do not change it. A write to the block's content names the version it read. */
             version: number;
             /** @description A `text` block has `{markdown}`; a `panel` block has `{panel, variables?, from?, to?}` where `panel` is a Spec panel without `id` and `gridPos` and `variables` are the Spec variable definitions the panel's queries use, each with a `default` that holds the value the person saw when the block was added; a `snapshot` block has `{snapshot_id}`; a `run` block has `{run_id, cites}`. */
             body: {
@@ -7992,6 +8026,7 @@ export interface components {
                 [key: string]: unknown;
             };
             width?: components["schemas"]["ObservationBlockWidth"];
+            height?: components["schemas"]["ObservationBlockHeight"];
             /** @description Where to insert it; clamped to the end, and the blocks after it shift. Absent means the end. */
             position?: number;
             /**
@@ -8007,10 +8042,24 @@ export interface components {
                 [key: string]: unknown;
             };
             width?: components["schemas"]["ObservationBlockWidth"];
+            height?: components["schemas"]["ObservationBlockHeight"];
             /** @description Moves the block; clamped to the last position, and the blocks in between shift. */
             position?: number;
             /** @description True clears a panel block's own range, so it follows the observation's range; never sent with `body`. */
             follow_page?: boolean;
+        };
+        ObservationLayoutRequest: {
+            /** @description The blocks in the order the page should show them, each at most once. */
+            blocks: {
+                /** Format: uuid */
+                id: string;
+                width?: components["schemas"]["ObservationBlockWidth"];
+                height?: components["schemas"]["ObservationBlockHeight"];
+            }[];
+        };
+        ObservationLayout: {
+            /** @description Every block the caller sees, in the stored order, with its position, width and height. */
+            blocks: components["schemas"]["ObservationBlock"][];
         };
         PinObservationRequest: {
             /**
@@ -8073,6 +8122,8 @@ export interface components {
                 [key: string]: unknown;
             };
             width: components["schemas"]["ObservationBlockWidth"];
+            /** @description Pixels the block was set to when published; absent when the height was automatic, and on revisions published before heights existed. */
+            height?: number;
         };
         ObservationRCA: {
             /** Format: uuid */
@@ -8370,7 +8421,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
+        /** @description The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`): `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, a `from_block_id` that is not a panel block of the observation, a width that is not `third`, `half`, `two_thirds` or `full`, a height outside 120 to 960, or a layout that names a block twice), `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body), `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB). */
         ObservationInvalid: {
             headers: {
                 [name: string]: unknown;
@@ -16008,6 +16059,39 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
+        };
+    };
+    arrangeObservationBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObservationLayoutRequest"];
+            };
+        };
+        responses: {
+            /** @description The blocks the caller sees, in order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationLayout"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["ObservationInvalid"];
+            500: components["responses"]["Internal"];
         };
     };
     removeObservationBlock: {

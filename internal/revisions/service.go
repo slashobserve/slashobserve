@@ -39,6 +39,7 @@ type Service struct {
 	specs        SpecReader
 	builds       Builds
 	threads      Threads
+	threadReads  ThreadReader
 
 	observations RunObservations
 	principals   Principals
@@ -607,10 +608,19 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err == nil {
-		s.recordRunView(ctx, row, by)
+		s.recordRunView(ctx, row)
 		return row, false, nil
 	}
-	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
+	if !errors.Is(err, ErrRequestNotFound) {
+		return dbsqlc.AgentRequest{}, false, err
+	}
+	if shared, ok, sharedErr := s.sharedWith(ctx, id, by); sharedErr != nil || ok {
+		if ok {
+			s.recordRunView(ctx, shared)
+		}
+		return shared, ok, sharedErr
+	}
+	if !by.Role.AtLeast(auth.RoleAdmin) {
 		return dbsqlc.AgentRequest{}, false, err
 	}
 	row, err = s.GetByID(ctx, id)
@@ -620,7 +630,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
-	s.recordRunView(ctx, row, by)
+	s.recordRunView(ctx, row)
 	return row, true, nil
 }
 
@@ -632,6 +642,7 @@ func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revisio
 	if err != nil {
 		return Revision{}, fmt.Errorf("get agent request: %w", err)
 	}
+	s.recordRunView(ctx, row)
 	return revisionFromRow(row), nil
 }
 
@@ -658,6 +669,7 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	for i, r := range rows {
 		items[i] = revisionFromRow(r)
 	}
+	s.recordDashboardRunList(ctx, dashboardID)
 	return items, next, nil
 }
 
@@ -801,7 +813,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		for i, row := range all {
 			rows[i] = dbsqlc.ListAgentRequestsByRow(row)
 		}
-		s.recordEveryonesList(ctx, actionRunList)
+		s.recordList(ctx, actionRunList, ScopeAll)
 	} else {
 		rows, err = s.db.Queries().ListAgentRequestsBy(ctx, dbsqlc.ListAgentRequestsByParams{
 			RequestedByKind: string(by.Kind),
@@ -820,6 +832,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		if err != nil {
 			return nil, "", fmt.Errorf("list agent requests: %w", err)
 		}
+		s.recordList(ctx, actionRunList, ScopeMine)
 	}
 	next := ""
 	if len(rows) > limit {

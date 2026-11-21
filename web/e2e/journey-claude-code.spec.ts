@@ -57,11 +57,6 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           page.getByRole("navigation", { name: "Breadcrumb" })
         ).toContainText("made by Claude Code")
-        await expect(
-          card(page).getByText(
-            "Comments and versions. Claude Code made this dashboard."
-          )
-        ).toBeVisible()
       })
 
       const command = () => `observe comments list ${id}`

@@ -431,6 +431,8 @@ export const PanelContainer = memo(function PanelContainer({
   const panelMenu = (inToolbar: boolean) => (
     <PanelMenu
       panel={panel}
+      range={{ from: rangeFrom, to: rangeTo }}
+      selections={selections}
       tableView={tableView}
       onToggleTableView={() => setTableView((current) => !current)}
       idle={!layoutSession}
@@ -538,8 +540,8 @@ export const PanelContainer = memo(function PanelContainer({
           panel={panel}
           permissions={permissions}
           composerRef={composerRef}
-          from={from}
-          to={to}
+          from={rangeFrom}
+          to={rangeTo}
           idle={!layoutSession}
           menu={panelMenu(true)}
           observationVariables={observationVariables}

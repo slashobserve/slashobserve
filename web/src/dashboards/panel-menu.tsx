@@ -1,11 +1,5 @@
-import {
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import { useRef, useState, type ReactNode, type RefObject } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
   AtSignIcon,
@@ -56,10 +50,12 @@ import {
   RemovePanelDialog,
   type PanelLayoutActions,
 } from "./panel-layout-actions"
-import { useSetDashboardSearch, validateDashboardSearch } from "./search"
+import { useSetDashboardSearch } from "./search"
 
 type Props = {
   panel: LayoutPanel
+  range: { from: string; to: string }
+  selections: Selections
   tableView: boolean
   onToggleTableView: () => void
   idle: boolean
@@ -106,13 +102,13 @@ export type MenuItem = {
 
 export type BlockMenuHost = {
   onInspect?: () => void
-  range: { from: string | undefined; to: string | undefined }
-  vars: Selections
   actions: MenuItem[]
 }
 
 export function PanelMenu({
   panel,
+  range,
+  selections,
   tableView,
   onToggleTableView,
   idle,
@@ -131,11 +127,6 @@ export function PanelMenu({
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
-  const rawSearch = useSearch({ strict: false })
-  const dashboardSearch = useMemo(
-    () => validateDashboardSearch(rawSearch),
-    [rawSearch]
-  )
   const datasources = useDatasources().data
   const agentAvailable = useAgentInfo().data?.available === true
   const menuButton = useRef<HTMLButtonElement>(null)
@@ -262,14 +253,9 @@ export function PanelMenu({
   }
   if (data && (panel.type === "logs" || panel.type === "traces")) {
     const explorer = panel.type === "logs" ? "Open in Logs" : "Open in Traces"
-    const vars = block?.vars ?? dashboardSearch.vars
-    const range = block?.range ?? {
-      from: dashboardSearch.from,
-      to: dashboardSearch.to,
-    }
     const explore = exploreTarget(
       panel,
-      (ref) => resolveDatasourceRef(ref, vars),
+      (ref) => resolveDatasourceRef(ref, selections),
       (uid) => datasourceTypeOf(datasources, uid),
       range
     )
@@ -409,8 +395,8 @@ export function PanelMenu({
         <AddToObservationPanel
           panel={panel}
           variables={observationVariables}
-          from={dashboardSearch.from}
-          to={dashboardSearch.to}
+          from={range.from}
+          to={range.to}
           trigger={menuButton}
           onClose={() => setAddingToObservation(false)}
         />

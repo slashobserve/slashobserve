@@ -14,8 +14,9 @@ import (
 )
 
 type auditMapping struct {
-	action audit.Action
-	result string
+	action  audit.Action
+	result  string
+	outcome audit.Outcome
 }
 
 var auditActions = map[string]auditMapping{
@@ -68,8 +69,8 @@ var auditActions = map[string]auditMapping{
 	TypeRunQueued:    {action: "run.queue"},
 	TypeRunStarted:   {action: "run.start"},
 	TypeRunSucceeded: {action: "run.finish", result: "succeeded"},
-	TypeRunFailed:    {action: "run.finish", result: "failed"},
-	TypeRunCanceled:  {action: "run.finish", result: "canceled"},
+	TypeRunFailed:    {action: "run.finish", result: "failed", outcome: audit.OutcomeFailed},
+	TypeRunCanceled:  {action: "run.finish", result: "canceled", outcome: audit.OutcomeFailed},
 	TypeRunCanceling: {action: "run.cancel"},
 	TypeRunReleased:  {action: "run.release"},
 	TypeRunKept:      {action: "run.keep"},
@@ -134,7 +135,9 @@ func recordAudit(ctx context.Context, q *dbsqlc.Queries, seq int64, e Entry, col
 	case ownerObservation:
 		target.ObservationID = nullUUID(e.Owner.id)
 	}
-	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Target: target, Data: data, By: columns.AuditBy(), Activity: seq})
+	by := columns.AuditBy()
+	by.Agent = e.Agent
+	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Outcome: mapping.outcome, Target: target, Data: data, By: by, Activity: seq})
 }
 
 func displayName(data map[string]any) string {

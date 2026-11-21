@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
@@ -29,6 +30,18 @@ func TestEveryActivityTypeRecordsACatalogChangeAction(t *testing.T) {
 	for typ := range auditActions {
 		if !Known(typ) {
 			t.Errorf("the audit mapping names %s, which is not an activity type", typ)
+		}
+	}
+}
+
+func TestARunFinishIsASuccessOnlyWhenTheRunSucceeded(t *testing.T) {
+	for typ, want := range map[string]audit.Outcome{
+		TypeRunSucceeded: "",
+		TypeRunFailed:    audit.OutcomeFailed,
+		TypeRunCanceled:  audit.OutcomeFailed,
+	} {
+		if got := auditActions[typ].outcome; got != want {
+			t.Errorf("%s outcome = %q, want %q", typ, got, want)
 		}
 	}
 }
@@ -79,6 +92,19 @@ func TestATerminalRunRecordsRunFinishWithItsResult(t *testing.T) {
 	}
 	if action != "run.finish" || result != "canceled" {
 		t.Fatalf("event = %s with result %q, want run.finish with canceled", action, result)
+	}
+}
+
+func TestARunEventRecordsTheAgentThatTookTheRun(t *testing.T) {
+	r := newRig(t)
+	grant := newTarget()
+	r.append(t, Entry{Type: TypeRunStarted, TargetID: newTarget(), Actor: editorActor, Agent: audit.Agent{ID: uuid.NullUUID{UUID: grant.Bytes, Valid: true}, Name: "Claude Code"}})
+	var agentID, agentName string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT agent_id::text, agent_name FROM audit_events`).Scan(&agentID, &agentName); err != nil {
+		t.Fatal(err)
+	}
+	if agentID != grant.String() || agentName != "Claude Code" {
+		t.Fatalf("agent = %s %q, want the grant named Claude Code", agentID, agentName)
 	}
 }
 

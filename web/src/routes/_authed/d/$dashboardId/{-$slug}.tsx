@@ -13,6 +13,7 @@ import {
 } from "@/dashboards/queries"
 import {
   searchFromState,
+  searchWithoutLegacyTab,
   useDashboardSearch,
   validateDashboardSearch,
   type DashboardSearchParams,
@@ -27,11 +28,12 @@ export const Route = createFileRoute("/_authed/d/$dashboardId/{-$slug}")({
   validateSearch: (raw: Record<string, unknown>): DashboardSearchParams =>
     searchFromState(validateDashboardSearch(raw)),
   beforeLoad: ({ location, params }) => {
-    if (!("tab" in location.search)) return
+    const search = searchWithoutLegacyTab(location.search)
+    if (search === undefined) return
     throw redirect({
       to: "/d/$dashboardId/{-$slug}",
       params,
-      search: searchFromState(validateDashboardSearch(location.search)),
+      search,
       replace: true,
     })
   },

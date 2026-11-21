@@ -196,6 +196,7 @@ func blockOf(row dbsqlc.ObservationBlock, abilities folders.Abilities, viewer ac
 		State:          BlockState(row.State),
 		Position:       int(row.Position),
 		Width:          Width(row.Width),
+		Height:         heightOf(row.Height),
 		Version:        int(row.Version),
 		Body:           row.Body,
 		SnapshotID:     row.SnapshotID.String(),

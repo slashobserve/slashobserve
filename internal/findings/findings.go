@@ -61,6 +61,8 @@ type Observations interface {
 
 type ThreadReader func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error
 
+type AnswerReadRecorder func(ctx context.Context, runID pgtype.UUID)
+
 type Author struct{ Kind, ID, Name string }
 
 type Finding struct {

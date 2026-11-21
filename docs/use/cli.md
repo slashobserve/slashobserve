@@ -130,11 +130,16 @@ A request that saved no observation is refused and left as it was.
 ### Your chats
 
 Every prompt you send is a turn of a chat, which you and Admins can read and nobody else sees.
-`bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
+`bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, whether it is pinned, the state of the last turn, the number of turns, when it was last asked, its dashboard and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
-An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`, each once per reader in 10 minutes.
+An Admin may show anyone's chat, read only.
+
+Every show is recorded in the audit trail as `chat.view` with the owner's id and every list as `chat.list` with its scope, each once per reader in 10 minutes.
+
+`chats pin <chat-id>` and `chats unpin <chat-id>` pin a chat of yours to the top of the list and take it back, as Pin and Unpin do on the Chats page; pinning a pinned chat changes nothing, and only the chat's owner can do it.
+The id must be a chat id from `chats list`; the id of a later turn or of any other request is refused with `is not one of your chats`.
 `chats archive <chat-id> --yes` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 It needs `--yes` because nothing brings an archived chat back to the lists, and only the chat's owner can do it: an Admin who can read it gets `chat_read_only`.
 
@@ -347,12 +352,13 @@ The group is named `o`, with `observations` as an alias, so a prompt that starts
 It files the observation in `--folder <id>`, by default your My Dashboards, and `--from` and `--to`, RFC 3339 times that go together, set the range its panels show.
 `--text <markdown>` or `--text-file <path>`, never both, also adds a first text block.
 
-`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width and, for a text block, its first line, or for a panel block its title.
+`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width, height (`auto` or pixels), range and, for a text block, its first line, or for a panel block its title.
+The range of a panel block is its own window as `from..to` (RFC 3339, to the minute), or `page` when it follows the observation's range; the other blocks show `-`.
 A block that someone who can only comment added shows the state `requested`.
 
 `bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.
 Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
-`--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
+`--from` and `--to` give a panel its own range, `--width third|half|two_thirds|full` (or `--half`) sets the width, `--height <pixels>` from 120 to 960 sets the height of a panel or snapshot block and `--position <n>` places it instead of appending it.
 A panel whose queries use variables needs `--var name=value` for each, repeated for more values of the same name, and without one the block is refused with `variable_missing` and the name of the variable.
 The server runs the check the MCP `add_block` tool runs: a panel whose query is invalid, or returns nothing in its range, is refused with the failing paths below the error, exits 1 and adds no block; `o edit-block --panel-file` is checked the same way.
 
@@ -394,7 +400,9 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width), `--position <n>` (which moves the blocks in between) and `--follow-page` (which drops a panel block's own range, so it shows the observation's range again); it needs something to change.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--width third|half|two_thirds|full`, `--half` or `--full` (its width), `--height <pixels>` (a panel or snapshot block only, 120 to 960, or 0 for the automatic height), `--position <n>` (which moves the blocks in between) and `--follow-page` (which drops a panel block's own range, so it shows the observation's range again); it needs something to change.
+`bin/observe o arrange <observation-id> <block-id>[:<width>[:<height>]]...` sets the order of the blocks you name, with an optional width and, for a panel or snapshot block, a height in pixels or `auto` after each id; a block you leave out keeps its place after the block it followed, and an id that is not a block of the observation is refused by name.
+It takes no `--version`, because a layout change never conflicts with a content edit.
 `bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
 Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
 A snapshot block's body cannot change, and a requested block is kept or discarded instead.
@@ -473,7 +481,7 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 `--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
-A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
+A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs Comment on the observation; an annotation or a proposal thread starts none.
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.

@@ -188,7 +188,7 @@ func (h *Handler) get(c *gin.Context) {
 	if !ok {
 		return
 	}
-	f, err := h.service.Get(c.Request.Context(), httpapi.Caller(c), id)
+	f, err := h.service.Read(c.Request.Context(), httpapi.Caller(c), id)
 	if err != nil {
 		h.fail(c, "get finding", err)
 		return

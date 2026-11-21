@@ -5,12 +5,27 @@ import type { DataPanel } from "@/spec"
 
 import {
   addProblemText,
+  applyDraft,
+  arrangeBody,
+  blockHeight,
   blockRows,
   blockTitle,
   newPanelBody,
+  dropTarget,
   holdsAgentOutput,
-  moveTarget,
+  moveBlock,
   nextBlockId,
+  orderOf,
+  packRows,
+  rowGridClass,
+  singleColumnBelow,
+  spanClass,
+  placeBeside,
+  snapHeight,
+  snapWidth,
+  stepBlock,
+  stepHeight,
+  stepWidth,
 } from "./block-rows"
 import type { Block } from "./queries"
 
@@ -37,6 +52,7 @@ function block(
     state: "live",
     position,
     width,
+    height: null,
     version: 1,
     body: { markdown: id },
     snapshot_id: null,
@@ -77,6 +93,45 @@ describe("blockRows", () => {
         block("a", 0, "half"),
         block("b", 1, "half"),
         block("c", 2, "half"),
+      ])
+    ).toEqual([["a", "b"], ["c"]])
+  })
+
+  it("packs thirds, halves and two thirds over a row of three thirds", () => {
+    expect(
+      shape([
+        block("a", 0, "third"),
+        block("b", 1, "third"),
+        block("c", 2, "third"),
+        block("d", 3, "two_thirds"),
+        block("e", 4, "third"),
+        block("f", 5, "half"),
+        block("g", 6, "half"),
+      ])
+    ).toEqual([
+      ["a", "b", "c"],
+      ["d", "e"],
+      ["f", "g"],
+    ])
+  })
+
+  it("starts a new row when the next block does not fit", () => {
+    expect(
+      shape([
+        block("a", 0, "half"),
+        block("b", 1, "two_thirds"),
+        block("c", 2, "third"),
+        block("d", 3, "two_thirds"),
+      ])
+    ).toEqual([["a"], ["b", "c"], ["d"]])
+  })
+
+  it("fits a third beside a half and leaves the rest of the row empty", () => {
+    expect(
+      shape([
+        block("a", 0, "third"),
+        block("b", 1, "half"),
+        block("c", 2, "third"),
       ])
     ).toEqual([["a", "b"], ["c"]])
   })
@@ -152,21 +207,6 @@ describe("holdsAgentOutput", () => {
   })
 })
 
-describe("moveTarget", () => {
-  const blocks = [block("b", 1), block("a", 0), block("c", 2)]
-
-  it("names the position of the neighbour in that direction", () => {
-    expect(moveTarget(blocks, "b", "up")).toBe(0)
-    expect(moveTarget(blocks, "b", "down")).toBe(2)
-  })
-
-  it("names nothing past either end or for an unknown block", () => {
-    expect(moveTarget(blocks, "a", "up")).toBeNull()
-    expect(moveTarget(blocks, "c", "down")).toBeNull()
-    expect(moveTarget(blocks, "zzz", "up")).toBeNull()
-  })
-})
-
 describe("newPanelBody", () => {
   const panel = {
     id: "latency",
@@ -224,5 +264,204 @@ describe("addProblemText", () => {
     [new Error("boom"), "The change could not be saved. Try again."],
   ])("explains %o in plain words", (error, expected) => {
     expect(addProblemText(error)).toBe(expected)
+  })
+})
+
+describe("packRows", () => {
+  it("packs any items that carry a width", () => {
+    expect(
+      packRows([{ width: "third" }, { width: "third" }, { width: "full" }]).map(
+        (row) => row.length
+      )
+    ).toEqual([2, 1])
+  })
+})
+
+describe("block heights", () => {
+  it("uses the stored height, else the default of the width", () => {
+    expect(blockHeight(block("a", 0, "half"))).toBe(220)
+    expect(blockHeight(block("a", 0, "third"))).toBe(220)
+    expect(blockHeight(block("a", 0, "two_thirds"))).toBe(280)
+    expect(blockHeight(block("a", 0, "full"))).toBe(280)
+    expect(blockHeight(block("a", 0, "full", { height: 400 }))).toBe(400)
+  })
+
+  it("snaps to 20 pixels and clamps to 120 to 960", () => {
+    expect(snapHeight(251)).toBe(260)
+    expect(snapHeight(10)).toBe(120)
+    expect(snapHeight(5000)).toBe(960)
+  })
+
+  it("steps by 40 pixels and stops at the limits", () => {
+    expect(stepHeight(280, 1)).toBe(320)
+    expect(stepHeight(280, -1)).toBe(240)
+    expect(stepHeight(130, -1)).toBe(120)
+    expect(stepHeight(950, 1)).toBe(960)
+  })
+})
+
+describe("snapWidth", () => {
+  it("snaps a dragged width to the nearest of the four widths", () => {
+    expect(snapWidth(300, 900)).toBe("third")
+    expect(snapWidth(420, 900)).toBe("half")
+    expect(snapWidth(560, 900)).toBe("two_thirds")
+    expect(snapWidth(800, 900)).toBe("full")
+    expect(snapWidth(2000, 900)).toBe("full")
+    expect(snapWidth(1, 900)).toBe("third")
+  })
+
+  it("keeps full when the row has no width yet", () => {
+    expect(snapWidth(300, 0)).toBe("full")
+  })
+})
+
+describe("stepWidth", () => {
+  it("moves one width at a time and stops at the ends", () => {
+    expect(stepWidth("half", 1)).toBe("two_thirds")
+    expect(stepWidth("half", -1)).toBe("third")
+    expect(stepWidth("third", -1)).toBe("third")
+    expect(stepWidth("full", 1)).toBe("full")
+  })
+})
+
+describe("reordering", () => {
+  const order = ["a", "b", "c", "d"]
+
+  it("orders the blocks by position", () => {
+    expect(orderOf([block("b", 1), block("a", 0)])).toEqual(["a", "b"])
+  })
+
+  it("moves a block to an index and clamps it", () => {
+    expect(moveBlock(order, "d", 0)).toEqual(["d", "a", "b", "c"])
+    expect(moveBlock(order, "a", 99)).toEqual(["b", "c", "d", "a"])
+    expect(moveBlock(order, "a", -4)).toEqual(order)
+    expect(moveBlock(order, "zzz", 1)).toEqual(order)
+  })
+
+  it("steps a block one place and stays at the ends", () => {
+    expect(stepBlock(order, "b", -1)).toEqual(["b", "a", "c", "d"])
+    expect(stepBlock(order, "b", 1)).toEqual(["a", "c", "b", "d"])
+    expect(stepBlock(order, "a", -1)).toEqual(order)
+    expect(stepBlock(order, "d", 1)).toEqual(order)
+  })
+
+  it("places a block before or after the one it is dropped on", () => {
+    expect(placeBeside(order, "a", { id: "c", after: false })).toEqual([
+      "b",
+      "a",
+      "c",
+      "d",
+    ])
+    expect(placeBeside(order, "a", { id: "c", after: true })).toEqual([
+      "b",
+      "c",
+      "a",
+      "d",
+    ])
+    expect(placeBeside(order, "d", { id: "a", after: false })).toEqual([
+      "d",
+      "a",
+      "b",
+      "c",
+    ])
+    expect(placeBeside(order, "a", { id: "a", after: true })).toEqual(order)
+    expect(placeBeside(order, "a", { id: "zzz", after: true })).toEqual(order)
+  })
+})
+
+describe("dropTarget", () => {
+  const rects = [
+    { id: "a", left: 0, top: 0, width: 440, height: 200 },
+    { id: "b", left: 460, top: 0, width: 440, height: 200 },
+    { id: "c", left: 0, top: 220, width: 900, height: 200 },
+  ]
+
+  it("splits side by side blocks at their middle", () => {
+    expect(dropTarget(rects, { x: 100, y: 50 }, "c", 900)).toEqual({
+      id: "a",
+      after: false,
+      sideBySide: true,
+    })
+    expect(dropTarget(rects, { x: 800, y: 50 }, "c", 900)).toEqual({
+      id: "b",
+      after: true,
+      sideBySide: true,
+    })
+  })
+
+  it("splits a full width block at its vertical middle", () => {
+    expect(dropTarget(rects, { x: 100, y: 230 }, "a", 900)).toEqual({
+      id: "c",
+      after: false,
+      sideBySide: false,
+    })
+    expect(dropTarget(rects, { x: 100, y: 400 }, "a", 900)).toEqual({
+      id: "c",
+      after: true,
+      sideBySide: false,
+    })
+  })
+
+  it("names nothing over the dragged block, a gap or empty space", () => {
+    expect(dropTarget(rects, { x: 100, y: 50 }, "a", 900)).toBeNull()
+    expect(dropTarget(rects, { x: 450, y: 50 }, "c", 900)).toBeNull()
+    expect(dropTarget(rects, { x: 100, y: 900 }, "c", 900)).toBeNull()
+  })
+})
+
+describe("a draft layout", () => {
+  const blocks = [
+    block("a", 0, "half"),
+    block("b", 1, "half", { height: 300 }),
+    block("c", 2, "full"),
+  ]
+
+  it("applies the order, widths and heights, and renumbers positions", () => {
+    const draft = {
+      order: ["c", "a", "b"],
+      changes: {
+        a: { width: "third" as const, height: 400 },
+        b: { height: null },
+      },
+    }
+    const arranged = applyDraft(blocks, draft)
+    expect(arranged.map((b) => [b.id, b.position, b.width, b.height])).toEqual([
+      ["c", 0, "full", null],
+      ["a", 1, "third", 400],
+      ["b", 2, "half", null],
+    ])
+  })
+
+  it("keeps blocks the draft does not name, and skips unknown ids", () => {
+    const arranged = applyDraft(blocks, { order: ["zzz", "c"], changes: {} })
+    expect(arranged.map((b) => b.id)).toEqual(["c", "a", "b"])
+  })
+
+  it("sends the whole order but only the changes it holds", () => {
+    expect(
+      arrangeBody({
+        order: ["b", "a"],
+        changes: { b: { width: "third", height: null } },
+      })
+    ).toEqual({
+      blocks: [{ id: "b", width: "third", height: null }, { id: "a" }],
+    })
+  })
+})
+
+describe("the width below which the page shows one column", () => {
+  const publishedColumnPixels = 720 - 2 * 16
+  const phonePixels = 430
+
+  it("is narrower than the published page's content and wider than a phone", () => {
+    expect(singleColumnBelow).toBeLessThan(publishedColumnPixels)
+    expect(singleColumnBelow).toBeGreaterThan(phonePixels)
+  })
+
+  it("is the width every row class switches at", () => {
+    const classes = [rowGridClass, ...Object.values(spanClass)]
+    for (const name of classes) {
+      expect(name).toContain(`@min-[${singleColumnBelow}px]:`)
+    }
   })
 })

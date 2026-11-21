@@ -25,6 +25,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `aggregate_audit_events` | Admin |
 | `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
+| `arrange_blocks` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -138,7 +139,7 @@ Every refused tool call returns one shape: `code`, a stable word to branch on, a
 A call below a tool's role, or a change the folder does not allow, returns the tool error `forbidden_role`; a dashboard or folder the caller cannot see returns `not_found`.
 A dashboard the caller can see with a version number that does not exist returns `version_not_found` with a `message` and `latest_version`, so `not_found` always means the dashboard, never the version.
 
-Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `update_observation`, `update_annotation`, `update_saved_search`, `edit_comment`, `rename_folder`, `rename_run`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard`, `set_inbox_item_done` and `cancel_run`.
+Each tool carries MCP annotations that say what it does: `readOnlyHint` is true for a tool that only reads, and `destructiveHint` is true for one that can overwrite or delete what someone saved, which are `update_dashboard`, `update_panels`, `restore_dashboard_version`, `update_block`, `arrange_blocks`, `update_observation`, `update_annotation`, `update_saved_search`, `edit_comment`, `rename_folder`, `rename_run`, `discard_block`, `discard_proposal`, `merge_proposal`, `set_home_dashboard`, `clear_home_dashboard`, `set_inbox_item_done` and `cancel_run`.
 A client that approves only non-destructive tools on its own therefore asks before any of them runs.
 
 `list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
@@ -338,14 +339,20 @@ No tool renames, moves or deletes a saved search: people do that on the web or w
 
 An observation is a page of blocks about one question: Markdown text, panels that run live, and snapshots that freeze a panel's data.
 `create_observation` takes a `title`, and optionally a `folder_id` (by default the key's My Dashboards when it has one, else General), a range with `from` and `to`, and up to 10 `blocks`; the observation and its blocks are created together, so when a block is refused nothing is created and the call answers `block_refused` with the `block_index` and the reason.
-`get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources and its full `panel`, in the shape `update_block` takes, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit, and a block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
+`get_observation` returns the observation with `allowed_actions` and its blocks in order, each with its `kind`, `state`, `position`, `width`, `height`, `version` and a short view: Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources and its full `panel`, in the shape `update_block` takes, a snapshot's `snapshot_id`; `blocks_truncated` says the rest did not fit, and a block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 `list_observations` lists the observations in the folders the key can see, most recently changed first, optionally in one `folder_id`, one `state` (`open` or `resolved`) or a `title` that contains the given text, and pages with `next_cursor`.
 
-`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel`, optionally `variables` (an object of variable name to a list of values, for each variable the panel's queries use) and its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`full` or `half`) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
+`add_block` takes `observation_id` and a `kind`: `text` takes `markdown` of at most 4,000 characters, `panel` takes `panel`, optionally `variables` (an object of variable name to a list of values, for each variable the panel's queries use) and its own `from` and `to` (otherwise the range of the observation, else the last hour), and `snapshot` takes `from_block_id`, the panel block to freeze; `width` (`third`, `half`, `two_thirds` or `full`, by default `full`), `height` (120 to 960 pixels, by default the block's own) and `position` apply to every kind, and a field of another kind is refused with `invalid_request`.
 A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
 `get_observation` shows a panel block's `variables` as the values it runs with.
-`update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
+`update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width`, `height` (a number, or `null` for the automatic height) or `position`.
+A `height` applies to panel and snapshot blocks only, and a number for a text block is refused with `invalid_block`.
 `follow_page: true` drops a panel block's own `from` and `to`, so it shows the observation's range again; it goes without `panel`, `markdown`, `from` or `to`.
+
+`arrange_blocks` takes `observation_id` and `blocks`, a list of `block_id` in the order the page should show them, each with an optional `width` and `height` (panel and snapshot blocks only); a block left out keeps its place after the block it followed, and an id that is not a block of the observation refuses the call and names the id.
+It needs no `version`, and a layout change never makes a text or panel edit stale, because a block's `version` counts content only.
+The last arrangement wins, and it answers with the blocks in their new order.
+
 `resolve_observation` closes an observation with a one-line `summary`.
 Every write answers with the ids, the `state` of what it changed, the block `version` and the `url`.
 
