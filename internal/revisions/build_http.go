@@ -23,6 +23,7 @@ import (
 
 var (
 	ErrBuildNotFound   = errors.New("build not found")
+	ErrNoBuild         = fmt.Errorf("%w", ErrBuildNotFound)
 	ErrBuildEmpty      = errors.New("the build has no panels")
 	ErrBuildNotSavable = errors.New("the request is no longer a failed request with an unsaved build")
 	ErrBuildRunning    = errors.New("the agent may still change the build")

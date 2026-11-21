@@ -244,7 +244,7 @@ func (r *Registry) getRunBuild(ctx context.Context, input json.RawMessage) (Resu
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Build(ctx, id, principal)
 	if err != nil {
-		if !errors.Is(err, revisions.ErrBuildNotFound) {
+		if !errors.Is(err, revisions.ErrNoBuild) {
 			r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
 		}
 		return runFailure(err)

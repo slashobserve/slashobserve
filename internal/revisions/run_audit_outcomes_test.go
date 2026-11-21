@@ -20,14 +20,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
-type noBuilds struct{}
+type buildsFailingWith struct{ err error }
 
-func (noBuilds) ViewBuild(context.Context, auth.Principal, pgtype.UUID) (revisions.BuildView, error) {
-	return revisions.BuildView{}, revisions.ErrBuildNotFound
+func (b buildsFailingWith) ViewBuild(context.Context, auth.Principal, pgtype.UUID) (revisions.BuildView, error) {
+	return revisions.BuildView{}, b.err
 }
 
-func (noBuilds) SaveStoppedBuild(context.Context, auth.Principal, pgtype.UUID) (revisions.SavedBuild, error) {
-	return revisions.SavedBuild{}, revisions.ErrBuildNotFound
+func (b buildsFailingWith) SaveStoppedBuild(context.Context, auth.Principal, pgtype.UUID) (revisions.SavedBuild, error) {
+	return revisions.SavedBuild{}, b.err
 }
 
 type startsFailingWith struct {
@@ -63,7 +63,7 @@ func mcpContext(t *testing.T, who auth.Principal) context.Context {
 
 func TestAReadableRunWithNoBuildIsNotARefusedRead(t *testing.T) {
 	d := dbtest.New(t)
-	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(noBuilds{}))
+	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(buildsFailingWith{revisions.ErrNoBuild}))
 	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
 	_, flush := recordingAudit(t, d)
 	registry := tools.New(tools.Deps{Runs: revisions.NewRunDesk(svc, revisions.ObserveOptions{}), Logger: quietLogger()})
@@ -205,5 +205,28 @@ func TestAStartThatFailsOverMCPLeavesTheRunQueueEventHTTPLeaves(t *testing.T) {
 	slices.SortFunc(want, func(a, b queueEvent) int { return strings.Compare(a.status, b.status) })
 	if !slices.Equal(got, want) {
 		t.Fatalf("run.queue events over MCP = %+v, want %+v", got, want)
+	}
+}
+
+func TestARefusedBuildOfAReadableRunIsStillARefusedRead(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(buildsFailingWith{revisions.ErrBuildNotFound}))
+	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+	_, flush := recordingAudit(t, d)
+	registry := tools.New(tools.Deps{Runs: revisions.NewRunDesk(svc, revisions.ObserveOptions{}), Logger: quietLogger()})
+
+	res, err := registry.Call(mcpContext(t, bea), "get_run_build", []byte(`{"id":"`+run+`"}`))
+	if err != nil || !res.IsError {
+		t.Fatalf("get_run_build = %+v, %v; want a tool error", res, err)
+	}
+	flush()
+
+	want := []string{
+		"run.view " + adminID + " success " + run + " " + run + " " + userID,
+		"run.view " + adminID + " denied " + run + " - -",
+	}
+	slices.Sort(want)
+	if got := recordedReads(t, d); !slices.Equal(got, want) {
+		t.Fatalf("recorded reads = %q, want %q", got, want)
 	}
 }

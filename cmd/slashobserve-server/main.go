@@ -738,6 +738,8 @@ func revisionsBuildError(err error) error {
 	switch {
 	case errors.As(err, &conflict):
 		return &revisions.BuildConflictError{Latest: conflict.Latest}
+	case errors.Is(err, dashboards.ErrNoBuild):
+		return revisions.ErrNoBuild
 	case errors.Is(err, dashboards.ErrBuildNotFound):
 		return revisions.ErrBuildNotFound
 	case errors.Is(err, dashboards.ErrBuildEmpty):
