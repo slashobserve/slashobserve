@@ -149,18 +149,16 @@ func (r *rig) sharedThreadShown(t *testing.T, by auth.Principal, run pgtype.UUID
 		t.Fatalf("%s reads the run: %v", by.Name, err)
 	}
 	var one struct {
-		Request struct {
-			SharedThread *string `json:"shared_thread_id"`
-			ChatID       *string `json:"chat_id"`
-		} `json:"request"`
+		SharedThread *string `json:"shared_thread_id"`
+		ChatID       *string `json:"chat_id"`
 	}
 	if err := json.Unmarshal(raw, &one); err != nil {
 		t.Fatal(err)
 	}
-	if one.Request.ChatID == nil {
-		return one.Request.SharedThread, nil
+	if one.ChatID == nil {
+		t.Fatalf("run %s has no chat: %s", run, raw)
 	}
-	raw, err = desk.Chat(reading(t.Context()), by, mustParse(t, *one.Request.ChatID))
+	raw, err = desk.Chat(reading(t.Context()), by, mustParse(t, *one.ChatID))
 	if err != nil {
 		t.Fatalf("%s reads the chat: %v", by.Name, err)
 	}
@@ -175,7 +173,7 @@ func (r *rig) sharedThreadShown(t *testing.T, by auth.Principal, run pgtype.UUID
 	}
 	for _, turn := range detail.Turns {
 		if turn.ID == run.String() {
-			return one.Request.SharedThread, turn.SharedThread
+			return one.SharedThread, turn.SharedThread
 		}
 	}
 	t.Fatalf("run %s is not a turn of its chat", run)
