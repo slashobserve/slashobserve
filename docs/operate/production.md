@@ -24,9 +24,17 @@ The dashboard events stream sends a ping every 15 seconds, tells the page within
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
 A log tail ends after 30 minutes too, and each person can hold 5 tails and one server process 200.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
-The server does not use `X-Forwarded-For` to find the client address.
 Keep `/metrics` off the public internet, because it needs no sign-in (see [Metrics](metrics.md)).
 A proxy on the same host as the server must send `X-Forwarded-For` or another forwarding header, so the server can tell its traffic from the built-in agent's; see [The agent process](../concepts/agent.md#the-agent-process).
+
+Set `SLASHOBSERVE_TRUSTED_PROXIES` to the addresses or CIDR ranges your proxy connects from, so the audit trail records the person's address and not the proxy's.
+Unset, which is the default, the client address is the address the connection came from, and the server ignores `X-Forwarded-For`.
+Set, the server reads `X-Forwarded-For` only on a connection from a listed address, and takes the rightmost address in it that is not itself listed, so a client cannot choose its own address by sending the header.
+List every proxy that appends to the header, such as a CDN and the load balancer behind it; an address you leave out is taken for the client.
+List the narrowest range your proxy or Ingress controller connects from, never the whole pod network, because a client inside a listed range can send any address it likes.
+The server refuses a range with no network bits, such as `0.0.0.0/0` or `::/0`, at startup.
+A load balancer that writes `ip:port` into `X-Forwarded-For`, as some cloud ones do, always records the proxy's own address, because the server does not accept an entry with a port.
+The check that keeps the built-in agent's token off forwarded requests still uses the connection's own address, and refuses the token on any request that carries a forwarding header.
 
 Serve the proxy over HTTP/2.
 The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).

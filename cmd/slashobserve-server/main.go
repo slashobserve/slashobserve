@@ -582,6 +582,7 @@ func run() error {
 	oauthServer := mcpauth.New(mcpauth.Config{PublicURL: cfg.PublicURL, Logger: logger, Share: membership.Share}, database, authService)
 	handler, err := server.New(server.Options{
 		Logger:          logger,
+		TrustedProxies:  cfg.TrustedProxies,
 		Auth:            authService,
 		Datasources:     registry,
 		DatasourceUsage: dashboardsService,

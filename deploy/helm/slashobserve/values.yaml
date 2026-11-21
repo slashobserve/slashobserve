@@ -41,6 +41,8 @@ llm:
 
 outboundDomains: []
 
+trustedProxies: []
+
 env: []
 
 datasources:
