@@ -18,7 +18,8 @@ export type Place =
       agent: ThreadAgent | null
       agentOff: boolean
     }
-  | { kind: "canvas"; tool: "comment" | "ask" }
+  | { kind: "canvas"; tool: "comment" }
+  | { kind: "canvas"; tool: "ask"; chatId: string | null }
 
 export type Store = "thread" | "chat"
 
@@ -75,7 +76,7 @@ export function flips(place: Place): { to: boolean; visibleTo: boolean } {
       return { to: true, visibleTo: false }
     case "canvas":
       return place.tool === "ask"
-        ? { to: false, visibleTo: true }
+        ? { to: false, visibleTo: false }
         : { to: true, visibleTo: false }
   }
 }

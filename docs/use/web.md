@@ -204,7 +204,23 @@ When the data is no longer on the panel, for example after the time range or a f
 A table row that is on the panel but scrolled out of view points at the bottom edge of the table.
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
 Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
-**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
+
+### Ask mode
+
+**Ask** in the bottom tool bar shows when a model is connected and turns on Ask mode, which stays on until you choose **Select** or press `Esc`; `a` turns it on too when no panel is under the pointer.
+Ask mode is off while you have unsaved layout changes.
+It points like Comment mode: a crosshair, a line above the tool bar that says what a click does, and an outline on the part of the panel under the pointer.
+A click opens a small box at that spot with chips naming the panel, the part you clicked, the value under the pointer and the time window, and sends your question to the agent with all of them.
+
+The question is a turn of the chat open in the dashboard's Chat tab, or of a new chat that the Chat tab then opens when none is.
+The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
+The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard.
+The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.
+When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
+The box closes on its **Close** button, `Esc` or a click outside it, and the focus goes back to where it was.
+
+Each spot you asked about shows a teal pin that only you see, named "Your question on" and the spot; choose it, or Tab to it and press Enter, to open the box on that chat again.
+An Admin reading your chat does not see your pins, and an answer you share into a thread also shows that thread's pin for everyone.
 
 ### Arrange panels
 

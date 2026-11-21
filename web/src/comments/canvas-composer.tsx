@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
   type RefObject,
 } from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
@@ -14,11 +15,8 @@ import { describeAnchor } from "@/conversation/anchor"
 import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { useComposer } from "@/conversation/use-composer"
-import {
-  useCanvasTool,
-  type CanvasDraft,
-  type DraftTool,
-} from "@/dashboards/canvas-tools"
+import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
+import { useIsDirty } from "@/dashboards/edit/layout-store"
 import { validateDashboardSearch } from "@/dashboards/search"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
@@ -35,16 +33,6 @@ import {
 } from "./canvas-target"
 
 const keyDraftInset = 12
-
-const placeholders: Record<DraftTool, string> = {
-  comment: "Write a comment",
-  ask: "Ask about this",
-}
-
-const formLabels: Record<DraftTool, string> = {
-  comment: "Comment on the canvas",
-  ask: "Ask on the canvas",
-}
 
 const clickedPopupClass =
   "transition-[opacity,scale] duration-(--duration-fast) ease-out data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:opacity-0 motion-safe:data-ending-style:scale-96 motion-safe:data-starting-style:scale-96"
@@ -87,7 +75,7 @@ export function useCanvasGate(canComment: boolean): GateInput {
     canComment,
     agentAvailable: useAgentInfo().data?.available,
     pinned,
-    layoutEditing: false,
+    layoutEditing: useIsDirty(),
   }
 }
 
@@ -107,6 +95,70 @@ function spotAnchor(surface: HTMLElement | null, at: Point | null) {
   }
 }
 
+type PopoverProps = {
+  surfaceRef: RefObject<HTMLElement | null>
+  at: Point | null
+  label: string
+  id?: string
+  initialFocus?: PopoverPrimitive.Popup.Props["initialFocus"]
+  onClose: () => void
+  className?: string
+  children: ReactNode
+}
+
+export function CanvasPopover({
+  surfaceRef,
+  at,
+  label,
+  id,
+  initialFocus,
+  onClose,
+  className,
+  children,
+}: PopoverProps) {
+  const anchor = useCallback(
+    () => spotAnchor(surfaceRef.current, at),
+    [surfaceRef, at]
+  )
+  const clicked = at !== null
+  return (
+    <PopoverPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Positioner
+          anchor={anchor}
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          collisionPadding={8}
+          className="isolate z-50"
+        >
+          <PopoverPrimitive.Popup
+            id={id}
+            aria-label={label}
+            initialFocus={initialFocus}
+            data-opened-by={clicked ? "pointer" : "key"}
+            className={cn(
+              "w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
+              clicked && clickedPopupClass,
+              className
+            )}
+          >
+            {children}
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
+  )
+}
+
+const commentLabel = "Comment on the canvas"
+const commentPlaceholder = "Write a comment"
+
 type ComposerProps = {
   dashboardId: string
   panelTitle: string
@@ -125,7 +177,7 @@ export function CanvasComposer({
   const posted = useCanvasTool((state) => state.posted)
   const model = useComposer({
     subject: { kind: "dashboard", id: dashboardId },
-    place: { kind: "canvas", tool: draft.tool },
+    place: { kind: "canvas", tool: "comment" },
     target: {
       panelId: draft.panelId,
       ...(draft.anchor === null ? {} : { anchor: draft.anchor }),
@@ -136,52 +188,27 @@ export function CanvasComposer({
       else useCanvasTool.getState().close()
     },
   })
-  const at = draft.at
-  const anchor = useCallback(
-    () => spotAnchor(surfaceRef.current, at),
-    [surfaceRef, at]
-  )
-  const clicked = draft.at !== null
   return (
-    <PopoverPrimitive.Root
-      open
-      onOpenChange={(open) => {
+    <CanvasPopover
+      surfaceRef={surfaceRef}
+      at={draft.at}
+      label={commentLabel}
+      initialFocus={model.field}
+      className="p-2"
+      onClose={() => {
         const store = useCanvasTool.getState()
-        if (!open && store.draft === draft) store.close()
+        if (store.draft === draft) store.close()
       }}
     >
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Positioner
-          anchor={anchor}
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          className="isolate z-50"
-        >
-          <PopoverPrimitive.Popup
-            aria-label={formLabels[draft.tool]}
-            initialFocus={model.field}
-            data-opened-by={clicked ? "pointer" : "key"}
-            className={cn(
-              "w-80 origin-(--transform-origin) rounded-card border border-border bg-popover p-2 text-popover-foreground outline-hidden",
-              clicked && clickedPopupClass
-            )}
-          >
-            <Composer
-              model={model}
-              layout="docked"
-              label={placeholders[draft.tool]}
-              formLabel={formLabels[draft.tool]}
-              placeholder={placeholders[draft.tool]}
-              chips={
-                <ContextChips chips={targetChips(panelTitle, draft.anchor)} />
-              }
-            />
-          </PopoverPrimitive.Popup>
-        </PopoverPrimitive.Positioner>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+      <Composer
+        model={model}
+        layout="docked"
+        label={commentPlaceholder}
+        formLabel={commentLabel}
+        placeholder={commentPlaceholder}
+        chips={<ContextChips chips={targetChips(panelTitle, draft.anchor)} />}
+      />
+    </CanvasPopover>
   )
 }
 
@@ -197,7 +224,7 @@ type LayerProps = {
   store: AnchorLayoutStore
   surfaceId: string
   panelId: string
-  tool: DraftTool
+  tool: CanvasDraft["tool"]
   body: { width: number; height: number }
   window: { from: string; to: string }
 }

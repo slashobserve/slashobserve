@@ -11,8 +11,9 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
+| `a` | Turn on Ask mode when no panel is under the pointer, so a click on any spot asks the agent about it. |
 | `c` | Open the activity pane and put the cursor in its comment box. |
-| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
+| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment or Ask tool to Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
 | `t` then `→` | Move the time range forward by half its length. |

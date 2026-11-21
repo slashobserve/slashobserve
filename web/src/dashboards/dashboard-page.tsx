@@ -42,6 +42,7 @@ import {
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
+import { useAgentInfo } from "@/observe/queries"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
@@ -437,7 +438,8 @@ function DashboardView({
   useEffect(() => {
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
-  const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const pointing = useCanvasTool((state) => state.tool !== "select")
+  const agentAvailable = useAgentInfo().data?.available === true
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
@@ -603,6 +605,12 @@ function DashboardView({
           }
         : undefined,
     comment: () => focusComment(setSearch, composerRef),
+    ask: () => {
+      if (shortcutPanel() !== undefined) return
+      if (!editing && permissions.comment && agentAvailable) {
+        useCanvasTool.getState().setTool("ask")
+      }
+    },
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -621,7 +629,7 @@ function DashboardView({
         ? closeView
         : kiosk
           ? leaveKiosk
-          : commentTool
+          : pointing
             ? () => useCanvasTool.getState().setTool("select")
             : selectedId !== null
               ? () => useSelectionStore.getState().clear()
@@ -1026,11 +1034,7 @@ function DashboardView({
                   </ActionProvider>
                 </main>
                 {kiosk || editingPanel ? null : (
-                  <CanvasTools
-                    permissions={permissions}
-                    idle={!editing}
-                    composerRef={composerRef}
-                  />
+                  <CanvasTools permissions={permissions} idle={!editing} />
                 )}
               </div>
               {cardView !== null ? (

@@ -103,18 +103,20 @@ type Props = {
   about?: Subject | null
 }
 
-function ChatAnswer({
+export function ChatAnswer({
   request,
   finding,
   own,
   about,
   onRevised,
+  showToEveryone,
 }: {
   request: ObserveRequest
   finding: Finding
   own: boolean
   about: Subject | null
   onRevised: (next: ObserveRequest) => Promise<void>
+  showToEveryone?: boolean
 }) {
   const dashboardId = request.dashboard_id
   const revised: Subject | null =
@@ -166,6 +168,7 @@ function ChatAnswer({
       menu={{
         shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
         sharedThreadId: request.shared_thread_id,
+        showToEveryone,
       }}
     />
   )

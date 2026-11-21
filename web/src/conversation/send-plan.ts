@@ -99,8 +99,14 @@ function spotFields(
   return fields
 }
 
+function chatOf(place: Place): string | null {
+  if (place.kind === "chat") return place.chatId
+  if (place.kind === "canvas" && place.tool === "ask") return place.chatId
+  return null
+}
+
 function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
-  const chatId = place.kind === "chat" ? place.chatId : null
+  const chatId = chatOf(place)
   const chat = chatId === null ? {} : { chatId }
   const opens: Opens = chatId === null && subject === null ? "chat" : "same"
   const base = { prompt: draft.body, clientId: draft.clientId }
@@ -216,7 +222,7 @@ export function planRevise(
       findingId,
     }
   }
-  const chatId = place.kind === "chat" ? place.chatId : null
+  const chatId = chatOf(place)
   return {
     via: "chat.turn",
     input: {

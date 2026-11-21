@@ -56,12 +56,3 @@ export function editPanelQuery(setSearch: SetSearch, panelId: string) {
   useActivityStore.getState().setOpen(true)
   setSearch((state) => ({ ...state, panel: panelId, edit: "query" }))
 }
-
-export function askAboutDashboard(setSearch: SetSearch) {
-  askTheAgent()
-  setSearch((state) => ({
-    ...onActivityTab(state),
-    panel: undefined,
-    edit: undefined,
-  }))
-}
