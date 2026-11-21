@@ -56,7 +56,10 @@ describe("logs locate", () => {
   })
 
   it("points at the bottom edge for a line scrolled out of view", () => {
-    const scrolled = { ...layout, elsewhere: ["row-9"] }
+    const scrolled = {
+      ...layout,
+      resolve: (id: string) => (id === "row-9" ? id : undefined),
+    }
     expect(
       locate(scrolled, { kind: "log_line", pos: { x: 0, y: 0 }, id: "row-9" })
     ).toEqual({ x: 0, y: 100 - edgeHeight, width: 400, height: edgeHeight })
@@ -71,7 +74,10 @@ describe("logs locate", () => {
 })
 
 describe("logs reveal", () => {
-  const scrolled = { ...layout, elsewhere: ["row-9"] }
+  const scrolled = {
+    ...layout,
+    resolve: (id: string) => (id === "row-9" ? id : undefined),
+  }
   const pos = { x: 0, y: 0 }
 
   it("asks the panel to scroll a line that is out of view into view", () => {

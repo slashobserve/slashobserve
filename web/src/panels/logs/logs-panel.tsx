@@ -23,9 +23,9 @@ import {
 import { cn } from "@/lib/utils"
 
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
-import type { Size } from "../anchors"
+import { clip, type Size } from "../anchors"
 import type { FieldResolver } from "../field-config"
-import { visibleBand } from "../list-anchors"
+import { scrollWithin, visibleBand } from "../list-anchors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import type { LogAnchorLayout } from "./anchors"
@@ -654,32 +654,39 @@ function useViewportHeight(element: HTMLDivElement | null) {
   return height
 }
 
+type LogIndex = {
+  byKey: ReadonlyMap<string, LogEntry>
+  resolve: (id: string) => string | undefined
+}
+
+function logIndex(entries: readonly LogEntry[]): LogIndex {
+  const byKey = new Map<string, LogEntry>()
+  const byId = new Map<string, string>()
+  for (const entry of entries) {
+    byKey.set(entry.key, entry)
+    const id = clip(entry.key)
+    if (!byId.has(id)) byId.set(id, entry.key)
+  }
+  return { byKey, resolve: (id) => byId.get(id) }
+}
+
 function logAnchorLayout(
   scroller: HTMLElement,
   list: HTMLElement,
-  entries: readonly LogEntry[],
+  { byKey, resolve }: LogIndex,
   body: Size,
   reveal: (key: string) => void
 ): LogAnchorLayout {
   const root = surfaceOf(scroller)
   const view = rectWithin(scroller, root)
-  const byKey = new Map(entries.map((entry) => [entry.key, entry]))
   const lines: LogAnchorLayout["lines"][number][] = []
-  const shown = new Set<string>()
   for (const element of list.children) {
-    const key = (element as HTMLElement).dataset.key ?? ""
-    const entry = byKey.get(key)
+    const entry = byKey.get((element as HTMLElement).dataset.key ?? "")
     const rect = visibleBand(rectWithin(element, root), view)
     if (entry === undefined || rect === null) continue
     lines.push({ rect, entry })
-    shown.add(key)
   }
-  return {
-    body,
-    lines,
-    elsewhere: entries.flatMap(({ key }) => (shown.has(key) ? [] : [key])),
-    reveal,
-  }
+  return { body, lines, resolve, reveal }
 }
 
 export function LogsView({
@@ -832,17 +839,19 @@ export function LogsView({
   })
 
   const publish = useAnchorPublisher("logs")
+  const anchorIndex = useMemo(() => logIndex(entries), [entries])
   const reveal = useCallback(
     (key: string) => {
       const index = keys.indexOf(key)
       if (index < 0 || scrollElement === null) return
       if (windowed) {
-        scrollElement.scrollTo({ top: offsets[index] })
+        scrollElement.scrollTop = offsets[index]
         return
       }
-      Array.from(listRef.current?.children ?? [])
-        .find((row) => (row as HTMLElement).dataset.key === key)
-        ?.scrollIntoView?.({ block: "nearest" })
+      const row = Array.from(listRef.current?.children ?? []).find(
+        (child) => (child as HTMLElement).dataset.key === key
+      )
+      if (row) scrollWithin(scrollElement, row)
     },
     [keys, windowed, offsets, scrollElement]
   )
@@ -854,7 +863,13 @@ export function LogsView({
     }
     const measure = () =>
       publish(
-        logAnchorLayout(scrollElement, list, entries, { width, height }, reveal)
+        logAnchorLayout(
+          scrollElement,
+          list,
+          anchorIndex,
+          { width, height },
+          reveal
+        )
       )
     measure()
     scrollElement.addEventListener("scroll", measure, { passive: true })
@@ -868,7 +883,7 @@ export function LogsView({
   }, [
     publish,
     scrollElement,
-    entries,
+    anchorIndex,
     range.start,
     range.end,
     reveal,

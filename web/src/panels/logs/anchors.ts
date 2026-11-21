@@ -19,7 +19,7 @@ export type LogAnchorLayout = {
     rect: Rect
     entry: Pick<LogEntry, "key" | "time" | "message" | "labels">
   }[]
-  elsewhere?: readonly string[]
+  resolve?: (id: string) => string | undefined
   reveal?: (key: string) => void
 }
 
@@ -47,7 +47,7 @@ function hiddenKey(
   if (layout.lines.some(({ entry }) => clip(entry.key) === anchor.id)) {
     return undefined
   }
-  return (layout.elsewhere ?? []).find((key) => clip(key) === anchor.id)
+  return layout.resolve?.(anchor.id)
 }
 
 export function locate(layout: LogAnchorLayout, anchor: Anchor): Rect | null {

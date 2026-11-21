@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest"
+import { act } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { panelOf, renderPublishing } from "../anchor-harness"
+import { clip } from "../anchors"
+import { panelOf, renderPublishing, stubRects } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
+import { locate } from "./anchors"
 import type { LogAnchorLayout } from "./anchors"
 import LogsPanel from "./logs-panel"
 
@@ -15,6 +18,70 @@ const frames: PreparedFrame[] = [
   },
 ]
 
+function lines(count: number): PreparedFrame[] {
+  return [
+    {
+      ref: "A",
+      fields: [
+        {
+          name: "Time",
+          type: "time",
+          values: Array.from(
+            { length: count },
+            (_, index) => 1_000 * (index + 1)
+          ),
+        },
+        {
+          name: "Body",
+          type: "string",
+          values: Array.from({ length: count }, (_, index) => `line ${index}`),
+        },
+      ],
+    },
+  ]
+}
+
+function scroller(container: HTMLElement): HTMLElement {
+  const list = container.querySelector("ul[data-logs-count]")
+  return list?.parentElement as HTMLElement
+}
+
+function stubLines(rowHeight: number) {
+  stubRects((element) => {
+    if (element.querySelector(":scope > ul[data-logs-count]") !== null) {
+      return { x: 0, y: 0, width: 400, height: 100 }
+    }
+    if (element.tagName !== "LI" || !element.hasAttribute("data-key")) {
+      return undefined
+    }
+    const list = element.parentElement as HTMLElement
+    const index = Array.from(list.children).indexOf(element)
+    return {
+      x: 0,
+      y: index * rowHeight - (list.parentElement?.scrollTop ?? 0),
+      width: 400,
+      height: rowHeight,
+    }
+  })
+}
+
+function hiddenKeys(
+  layout: LogAnchorLayout,
+  frames: PreparedFrame[]
+): string[] {
+  const shown = new Set(layout.lines.map(({ entry }) => entry.key))
+  const count = frames[0].fields[0].values.length
+  return Array.from(document.querySelectorAll("li[data-key]"))
+    .map((row) => (row as HTMLElement).dataset.key ?? "")
+    .filter((key) => !shown.has(key))
+    .slice(0, count)
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView")
+})
+
 describe("log anchors", () => {
   it("publishes a line for each entry it drew", () => {
     const { store } = renderPublishing(LogsPanel, panelOf("logs"), frames)
@@ -27,7 +94,9 @@ describe("log anchors", () => {
       "second",
       "third",
     ])
-    expect(layout.elsewhere).toEqual([])
+    expect(layout.resolve?.(clip(layout.lines[0].entry.key))).toBe(
+      layout.lines[0].entry.key
+    )
   })
 
   it("withdraws its layout when it unmounts", () => {
@@ -36,16 +105,65 @@ describe("log anchors", () => {
     expect(store.current()).toBeNull()
   })
 
-  it("publishes a reveal that scrolls the line's row into view", () => {
-    const scroll = vi.fn()
-    Element.prototype.scrollIntoView = scroll
-    const { store, view } = renderPublishing(LogsPanel, panelOf("logs"), frames)
+  it("culls lines scrolled out of the panel and points a pin on one at the bottom edge", () => {
+    stubLines(50)
+    const { store } = renderPublishing(LogsPanel, panelOf("logs"), lines(6))
     const layout = store.current()?.layout as LogAnchorLayout
-    const key = layout.lines[1].entry.key
-    layout.reveal?.(key)
-    expect(scroll).toHaveBeenCalledTimes(1)
-    const scrolled = scroll.mock.contexts[0] as HTMLElement
-    expect(scrolled.dataset.key).toBe(key)
-    expect(view.container.contains(scrolled)).toBe(true)
+    expect(layout.lines).toHaveLength(2)
+    expect(layout.lines[1].rect).toEqual({
+      x: 0,
+      y: 50,
+      width: 400,
+      height: 50,
+    })
+    const hidden = hiddenKeys(layout, lines(6))
+    expect(hidden).toHaveLength(4)
+    expect(
+      locate(layout, { kind: "log_line", pos: { x: 0, y: 0 }, id: hidden[0] })
+    ).toEqual({ x: 0, y: 238, width: 400, height: 2 })
+  })
+
+  it("scrolls the panel's own scroller to a hidden line and never the page", () => {
+    stubLines(50)
+    const page = vi.fn()
+    Element.prototype.scrollIntoView = page
+    const { store, view } = renderPublishing(
+      LogsPanel,
+      panelOf("logs"),
+      lines(6)
+    )
+    const layout = store.current()?.layout as LogAnchorLayout
+    const last = view.container.querySelectorAll("li[data-key]")[5]
+    layout.reveal?.((last as HTMLElement).dataset.key ?? "")
+    expect(scroller(view.container).scrollTop).toBe(200)
+    expect(page).not.toHaveBeenCalled()
+  })
+
+  it("does no per-line work when a 5,000 line panel scrolls", () => {
+    stubLines(20)
+    const { store, view } = renderPublishing(
+      LogsPanel,
+      panelOf("logs"),
+      lines(5000)
+    )
+    const first = store.current()?.layout
+    const sets = vi.spyOn(Map.prototype, "set")
+    const lengths: number[] = []
+    const flatMap = Array.prototype.flatMap
+    vi.spyOn(Array.prototype, "flatMap").mockImplementation(function (
+      this: unknown[],
+      ...args: Parameters<typeof flatMap>
+    ) {
+      lengths.push(this.length)
+      return flatMap.apply(this, args)
+    } as typeof Array.prototype.flatMap)
+    const element = scroller(view.container)
+    element.scrollTop = 400
+    act(() => {
+      element.dispatchEvent(new Event("scroll"))
+    })
+    expect(store.current()?.layout).not.toBe(first)
+    expect(sets.mock.calls.length).toBeLessThan(1000)
+    expect(Math.max(0, ...lengths)).toBeLessThan(1000)
   })
 })
