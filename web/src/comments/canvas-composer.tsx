@@ -187,6 +187,7 @@ export function CanvasComposer({
 }
 
 const panelBody = "[data-canvas-surface]"
+const pinMarker = "[data-pin], [data-pin-stack]"
 const headerControls =
   'a, input, select, textarea, [role="menuitem"], [role="toolbar"], button:not([data-panel-title])'
 
@@ -212,6 +213,10 @@ function useSurface(store: AnchorLayoutStore): CanvasSurface {
 function pointIn(element: HTMLElement, event: PointerEvent): Point {
   const box = element.getBoundingClientRect()
   return { x: event.clientX - box.left, y: event.clientY - box.top }
+}
+
+function pressedByKeyboard(event: MouseEvent): boolean {
+  return event.detail === 0
 }
 
 function offsetOf(container: HTMLElement, surface: HTMLElement): Point {
@@ -244,6 +249,10 @@ export function CanvasLayer({
       const target = event.target
       return target instanceof Element && target.closest(panelBody) !== null
     }
+    function onPin(event: Event): boolean {
+      const target = event.target
+      return target instanceof Element && target.closest(pinMarker) !== null
+    }
     function targetOf(event: PointerEvent): Anchor | null {
       const element = surfaceRef.current
       if (element === null) return null
@@ -271,6 +280,7 @@ export function CanvasLayer({
       if (element === null || container === null) return
       const target = event.target
       if (!(target instanceof Node) || !container.contains(target)) return
+      if (press === null && onPin(event)) return setHover(null)
       const anchor =
         dragged(event, element) ?? (inBody(event) ? targetOf(event) : null)
       setHover({
@@ -284,7 +294,7 @@ export function CanvasLayer({
     function claims(event: Event): boolean {
       const target = event.target
       if (!(target instanceof Element) || container === null) return false
-      if (!container.contains(target)) return false
+      if (!container.contains(target) || onPin(event)) return false
       return inBody(event) || target.closest(headerControls) === null
     }
     function onDown(event: PointerEvent) {
@@ -302,6 +312,10 @@ export function CanvasLayer({
       const end = pointIn(element, event)
       const { at, anchor } = press
       press = null
+      const target = event.target
+      if (!(target instanceof Node) || !container?.contains(target)) {
+        setHover(null)
+      }
       useCanvasTool.getState().openDraft({
         panelId,
         tool,
@@ -314,7 +328,7 @@ export function CanvasLayer({
       press = null
     }
     function onClick(event: MouseEvent) {
-      if (!claims(event)) return
+      if (pressedByKeyboard(event) || !claims(event)) return
       event.preventDefault()
       event.stopPropagation()
     }
