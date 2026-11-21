@@ -45,10 +45,10 @@ const (
 )
 
 func deliveryOf(to string) (string, error) {
-	switch {
-	case to == "":
+	switch to {
+	case "":
 		return toEveryone, nil
-	case to == toAgent || to == toEveryone:
+	case toAgent, toEveryone:
 		return to, nil
 	}
 	return "", usagef("--to must be agent or everyone, not %q", to)

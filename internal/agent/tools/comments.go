@@ -441,8 +441,7 @@ func deliveryOf(to string, rawClientID *string) (threads.To, pgtype.UUID, error)
 	if err != nil {
 		return "", pgtype.UUID{}, err
 	}
-	switch {
-	case to == "":
+	if to == "" {
 		return threads.ToEveryone, clientID, nil
 	}
 	parsed, err := threads.ParseTo(to)
