@@ -29,6 +29,7 @@ const current: Block = {
   state: "live",
   position: 0,
   width: "full",
+  height: null,
   version: 4,
   body: { markdown: "latest" },
   snapshot_id: null,

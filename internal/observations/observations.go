@@ -43,6 +43,7 @@ type Block struct {
 	State          BlockState
 	Position       int
 	Width          Width
+	Height         *int
 	Version        int
 	Body           json.RawMessage
 	SnapshotID     string
@@ -115,6 +116,7 @@ type BlockInput struct {
 	Kind        Kind
 	Body        json.RawMessage
 	Width       Width
+	Height      *int
 	Position    *int
 	FromBlockID pgtype.UUID
 	RunID       pgtype.UUID
@@ -124,6 +126,7 @@ type BlockChange struct {
 	Version    int
 	Body       json.RawMessage
 	Width      *Width
+	Height     HeightChange
 	Position   *int
 	FollowPage bool
 	RunID      pgtype.UUID

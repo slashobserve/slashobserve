@@ -215,15 +215,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 			return Observation{}, err
 		}
 	}
-	o.Blocks = make([]Block, 0, len(blocks))
-	for _, b := range blocks {
-		if !visibleTo(b, abilities, viewer) {
-			continue
-		}
-		shown := blockOf(b, abilities, viewer)
-		shown.Position = len(o.Blocks)
-		o.Blocks = append(o.Blocks, shown)
-	}
+	o.Blocks = shownBlocks(blocks, abilities, viewer)
 	return o, nil
 }
 

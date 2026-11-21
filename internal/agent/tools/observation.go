@@ -29,6 +29,7 @@ const (
 	nameListObservations   = "list_observations"
 	nameAddBlock           = "add_block"
 	nameUpdateBlock        = "update_block"
+	nameArrangeBlocks      = "arrange_blocks"
 	nameResolveObservation = "resolve_observation"
 	nameKeepBlock          = "keep_block"
 	nameDiscardBlock       = "discard_block"
@@ -49,7 +50,8 @@ const (
 	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
-	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width or position. follow_page: true drops a panel's own range so it shows the observation's. A stale version answers version_conflict."
+	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width, height or position. follow_page: true drops a panel's own range so it shows the observation's. A stale version answers version_conflict, and a width, height or position change raises the version too, so to lay out a page use arrange_blocks."
+	descArrangeBlocks      = "Set the order of an observation's page and the width and height of its blocks in one call: list block_ids in the order the page should show them, each with an optional width (third, half, two_thirds or full) and height in pixels (120 to 960, null for the default). A block you leave out keeps its place after the block it followed. It needs no versions and never makes a person's edit of a block stale; the last arrangement wins."
 	descResolveObservation = "Close an observation with a one-line summary of what was found."
 	descKeepBlock          = "Keep a requested block so it goes live for everyone who sees the observation. Send the block's version."
 	descDiscardBlock       = "Discard a requested block. An editor, or the one who asked for it, may."
@@ -66,17 +68,21 @@ const (
 	propBlockFrom        = `"from":{"type":"string","format":"date-time","description":"Start of a panel's own range, RFC 3339, with to. Default the observation's range."}`
 	propBlockTo          = `"to":{"type":"string","format":"date-time","description":"End of a panel's own range, RFC 3339."}`
 	propBlockSnapshotOf  = `"from_block_id":{"type":"string","format":"uuid","description":"The panel block to freeze, for a snapshot block."}`
-	propBlockWidth       = `"width":{"type":"string","enum":["full","half"],"description":"Default full."}`
+	propBlockWidth       = `"width":{"type":"string","enum":["third","half","two_thirds","full"],"description":"Default full."}`
+	propBlockHeight      = `"height":{"type":"integer","minimum":120,"maximum":960,"description":"Pixels, for a panel or snapshot block. Default by width."}`
+	propUpdateHeight     = `"height":{"type":["integer","null"],"minimum":120,"maximum":960,"description":"Pixels, for a panel or snapshot block; null for the default."}`
+	propArrangedBlocks   = `"blocks":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"object","properties":{` + propBlockID + `,` + propBlockWidth + `,` + propUpdateHeight + `},"required":["block_id"],"additionalProperties":false},"description":"The blocks in the order the page should show them, each at most once. A width or height you leave out is kept."}`
 	propBlockPosition    = `"position":{"type":"integer","minimum":0,"description":"Index to place the block at. Default the end."}`
 	propBlockFollowPage  = `"follow_page":{"type":"boolean","description":"True drops a panel block's own from and to, so it shows the observation's range. Send without panel, markdown, from or to."}`
 	blockProps           = propBlockKind + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockSnapshotOf + `,` + propBlockWidth + `,` + propBlockPosition
-	propObservationBlock = `"blocks":{"type":"array","maxItems":10,"items":{"type":"object","properties":{` + blockProps + `},"required":["kind"],"additionalProperties":false},"description":"Blocks to add in order, shaped as in add_block."}`
+	propObservationBlock = `"blocks":{"type":"array","maxItems":10,"items":{"type":"object","properties":{` + blockProps + `},"required":["kind"],"additionalProperties":false},"description":"Blocks to add in order, shaped as in add_block but without height."}`
 
 	schemaCreateObservation  = `{"type":"object","properties":{"title":{"type":"string","minLength":1,"maxLength":200,"description":"A short title."},"folder_id":{"type":"string","format":"uuid","description":"The folder to file it in, from list_folders. Default your My Dashboards, else General."},` + propObservationFrom + `,` + propObservationTo + `,` + propObservationBlock + `},"required":["title"],"additionalProperties":false}`
 	schemaGetObservation     = `{"type":"object","properties":{"observation_id":{"type":"string","format":"uuid","description":"The observation, from list_observations."}},"required":["observation_id"],"additionalProperties":false}`
 	schemaListObservations   = `{"type":"object","properties":{{observations_folder_prop}"state":{"type":"string","enum":["open","resolved"],"description":"Only observations in this state."},"title":{"type":"string","maxLength":200,"description":"Only observations whose title contains this text, ignoring case."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Observations per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
-	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `},"required":["observation_id","kind"],"additionalProperties":false}`
-	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propBlockPosition + `,` + propBlockFollowPage + `},"required":["block_id","version"],"additionalProperties":false}`
+	schemaAddBlock           = `{"type":"object","properties":{` + propObservationID + `,` + blockProps + `,` + propBlockHeight + `},"required":["observation_id","kind"],"additionalProperties":false}`
+	schemaUpdateBlock        = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `,` + propBlockMarkdown + `,` + propBlockPanel + `,` + propBlockVariables + `,` + propBlockFrom + `,` + propBlockTo + `,` + propBlockWidth + `,` + propUpdateHeight + `,` + propBlockPosition + `,` + propBlockFollowPage + `},"required":["block_id","version"],"additionalProperties":false}`
+	schemaArrangeBlocks      = `{"type":"object","properties":{` + propObservationID + `,` + propArrangedBlocks + `},"required":["observation_id","blocks"],"additionalProperties":false}`
 	schemaResolveObservation = `{"type":"object","properties":{` + propObservationID + `,"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line on what was found."}},"required":["observation_id","summary"],"additionalProperties":false}`
 	schemaKeepBlock          = `{"type":"object","properties":{` + propBlockID + `,` + propBlockVersion + `},"required":["block_id","version"],"additionalProperties":false}`
 	schemaDiscardBlock       = `{"type":"object","properties":{` + propBlockID + `},"required":["block_id"],"additionalProperties":false}`
@@ -93,6 +99,7 @@ func (r *Registry) observationEntries() []entry {
 		{Tool{Name: nameListObservations, Description: descListObservations, InputSchema: json.RawMessage(schemaListObservations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listObservations},
 		{Tool{Name: nameAddBlock, Description: descAddBlock, InputSchema: json.RawMessage(schemaAddBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.addBlock},
 		{Tool{Name: nameUpdateBlock, Description: descUpdateBlock, InputSchema: json.RawMessage(schemaUpdateBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateBlock},
+		{Tool{Name: nameArrangeBlocks, Description: descArrangeBlocks, InputSchema: json.RawMessage(schemaArrangeBlocks), MCPOnly: true, MinRole: auth.RoleViewer}, r.arrangeBlocks},
 		{Tool{Name: nameResolveObservation, Description: descResolveObservation, InputSchema: json.RawMessage(schemaResolveObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.resolveObservation},
 		{Tool{Name: nameKeepBlock, Description: descKeepBlock, InputSchema: json.RawMessage(schemaKeepBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.keepBlock},
 		{Tool{Name: nameDiscardBlock, Description: descDiscardBlock, InputSchema: json.RawMessage(schemaDiscardBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.discardBlock},
@@ -108,6 +115,7 @@ type blockFields struct {
 	To          string              `json:"to"`
 	FromBlockID string              `json:"from_block_id"`
 	Width       string              `json:"width"`
+	Height      *int                `json:"height"`
 	Position    *int                `json:"position"`
 }
 
@@ -201,6 +209,7 @@ type blockViewOut struct {
 	State             string              `json:"state"`
 	Position          int                 `json:"position"`
 	Width             string              `json:"width"`
+	Height            *int                `json:"height"`
 	Version           int                 `json:"version"`
 	AllowedActions    []string            `json:"allowed_actions"`
 	Markdown          string              `json:"markdown,omitempty"`
@@ -243,7 +252,7 @@ func observationRefusal(err error) (Result, bool) {
 	case errors.Is(err, observations.ErrInvalidCursor):
 		return invalid("cursor is not valid"), true
 	case errors.Is(err, observations.ErrNothingToUpdate):
-		return invalid("no change given: send markdown, a panel, width or position"), true
+		return invalid("no change given: send markdown, a panel, width, height or position"), true
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, forbidden.RoleMessage), true
 	case errors.As(err, &conflict):
@@ -364,7 +373,7 @@ func checkKind(kind observations.Kind) (Result, bool) {
 }
 
 func (r *Registry) blockInput(ctx context.Context, principal auth.Principal, b blockFields, fallback window, runID pgtype.UUID) (observations.BlockInput, Result, bool, error) {
-	in := observations.BlockInput{Kind: observations.Kind(b.Kind), Width: observations.Width(b.Width), Position: b.Position, RunID: runID}
+	in := observations.BlockInput{Kind: observations.Kind(b.Kind), Width: observations.Width(b.Width), Height: b.Height, Position: b.Position, RunID: runID}
 	if res, ok := checkKind(in.Kind); !ok {
 		return in, res, false, nil
 	}
@@ -535,7 +544,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 		return Result{}, err
 	}
 	principal, _ := auth.FromContext(ctx)
-	change := observations.BlockChange{Version: *in.Version, Position: in.Position, FollowPage: in.FollowPage, RunID: runID}
+	change := observations.BlockChange{Version: *in.Version, Height: in.Height, Position: in.Position, FollowPage: in.FollowPage, RunID: runID}
 	if in.Width != "" {
 		width := observations.Width(in.Width)
 		change.Width = &width
@@ -555,16 +564,17 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 }
 
 type blockUpdateInput struct {
-	BlockID    string              `json:"block_id"`
-	Version    *int                `json:"version"`
-	Markdown   *string             `json:"markdown"`
-	Panel      json.RawMessage     `json:"panel"`
-	Variables  map[string][]string `json:"variables"`
-	From       string              `json:"from"`
-	To         string              `json:"to"`
-	Width      string              `json:"width"`
-	Position   *int                `json:"position"`
-	FollowPage bool                `json:"follow_page"`
+	BlockID    string                    `json:"block_id"`
+	Version    *int                      `json:"version"`
+	Markdown   *string                   `json:"markdown"`
+	Panel      json.RawMessage           `json:"panel"`
+	Variables  map[string][]string       `json:"variables"`
+	From       string                    `json:"from"`
+	To         string                    `json:"to"`
+	Width      string                    `json:"width"`
+	Height     observations.HeightChange `json:"height"`
+	Position   *int                      `json:"position"`
+	FollowPage bool                      `json:"follow_page"`
 }
 
 func (in blockUpdateInput) carriesBody() bool {
@@ -624,6 +634,71 @@ func (r *Registry) panelChange(ctx context.Context, principal auth.Principal, bl
 		return nil, Result{}, false, fmt.Errorf("encode block body: %w", err)
 	}
 	return body, Result{}, true, nil
+}
+
+type arrangeBlocksInput struct {
+	ObservationID string `json:"observation_id"`
+	Blocks        []struct {
+		BlockID string                    `json:"block_id"`
+		Width   string                    `json:"width"`
+		Height  observations.HeightChange `json:"height"`
+	} `json:"blocks"`
+}
+
+type arrangedBlockOut struct {
+	BlockID  string `json:"block_id"`
+	Position int    `json:"position"`
+	Width    string `json:"width"`
+	Height   *int   `json:"height"`
+}
+
+type arrangedOut struct {
+	ObservationID string             `json:"observation_id"`
+	Blocks        []arrangedBlockOut `json:"blocks"`
+	URL           string             `json:"url"`
+}
+
+func (r *Registry) arrangeBlocks(ctx context.Context, input json.RawMessage) (Result, error) {
+	if r.deps.Observations == nil {
+		return Result{}, errObservationsNotConfigured
+	}
+	var in arrangeBlocksInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	id, res, ok := parseObservationID(in.ObservationID)
+	if !ok {
+		return res, nil
+	}
+	if len(in.Blocks) == 0 {
+		return invalid("blocks must list at least one block, in the order the page should show them"), nil
+	}
+	items := make([]observations.BlockLayout, len(in.Blocks))
+	for i, b := range in.Blocks {
+		blockID, res, ok := parseBlockID(b.BlockID)
+		if !ok {
+			return res, nil
+		}
+		items[i] = observations.BlockLayout{ID: blockID, Height: b.Height}
+		if b.Width != "" {
+			width := observations.Width(b.Width)
+			items[i].Width = &width
+		}
+	}
+	runID, err := r.observationRun(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	principal, _ := auth.FromContext(ctx)
+	arranged, err := r.deps.Observations.Arrange(ctx, principal, id, items, runID)
+	if err != nil {
+		return r.observationFailure("Arranged an observation", err)
+	}
+	out := arrangedOut{ObservationID: id.String(), Blocks: make([]arrangedBlockOut, len(arranged)), URL: r.deps.Observations.URL(id.String())}
+	for i, b := range arranged {
+		out.Blocks[i] = arrangedBlockOut{BlockID: b.ID, Position: b.Position, Width: string(b.Width), Height: b.Height}
+	}
+	return success("Arranged observation "+out.ObservationID+": "+plural(len(items), "block", "blocks"), out), nil
 }
 
 func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -738,7 +813,7 @@ func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (R
 func blockView(b observations.Block) blockViewOut {
 	base := observations.BlockOf(b)
 	out := blockViewOut{
-		ID: base.ID, Kind: base.Kind, State: base.State, Position: base.Position, Width: base.Width, Version: base.Version,
+		ID: base.ID, Kind: base.Kind, State: base.State, Position: base.Position, Width: base.Width, Height: base.Height, Version: base.Version,
 		AllowedActions: withoutRemove(base.AllowedActions), SnapshotID: b.SnapshotID, RunID: b.RunID,
 	}
 	switch b.Kind {

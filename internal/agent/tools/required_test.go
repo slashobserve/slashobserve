@@ -116,6 +116,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"comment_id":     json.RawMessage(`"` + comment.ID + `"`),
 		"observation_id": json.RawMessage(`"` + dash.ID + `"`),
 		"block_id":       json.RawMessage(`"` + dash.ID + `"`),
+		"blocks":         json.RawMessage(`[{"block_id":"` + dash.ID + `"}]`),
 		"proposal_id":    json.RawMessage(`"` + dash.ID + `"`),
 		"revision":       json.RawMessage(`1`),
 		"version":        json.RawMessage(`1`),
@@ -140,7 +141,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"field":          json.RawMessage(`"actor_name"`),
 	}
 
-	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}}
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "height", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {
