@@ -100,6 +100,9 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, folder folders
 	default:
 		return preparedBlock{}, invalid(CodeInvalidBlock, "kind must be text, panel or snapshot")
 	}
+	if err := refuseHeight(in.Kind, in.Height); err != nil {
+		return preparedBlock{}, err
+	}
 	return prepared, nil
 }
 
@@ -430,6 +433,9 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 			return err
 		}
 		if err := staleVersion(current, in.Version, abilities, by); err != nil {
+			return err
+		}
+		if err := refuseHeight(Kind(current.Kind), in.Height.Pixels); err != nil {
 			return err
 		}
 		params, err := changedBlock(ctx, q, current, in)

@@ -37,7 +37,6 @@ func TestArrangingOrdersWidensAndSizesTheBlocksWithoutBumpingVersions(t *testing
 	items := layoutOf(c, a, b)
 	items[0].Width = &third
 	items[1].Width = &twoThirds
-	items[1].Height = observations.HeightChange{Set: true, Pixels: new(360)}
 	got, err := r.service.Arrange(reading(t.Context()), editor, mustUUID(t, o.ID), items, pgtype.UUID{})
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +47,7 @@ func TestArrangingOrdersWidensAndSizesTheBlocksWithoutBumpingVersions(t *testing
 	if got[0].Width != observations.WidthThird || got[1].Width != observations.WidthTwoThirds || got[2].Width != observations.WidthFull {
 		t.Errorf("widths %s %s %s", got[0].Width, got[1].Width, got[2].Width)
 	}
-	if got[0].Height != nil || got[1].Height == nil || *got[1].Height != 360 {
+	if got[0].Height != nil || got[1].Height != nil {
 		t.Errorf("heights %v %v", got[0].Height, got[1].Height)
 	}
 	for i, block := range got {
@@ -64,7 +63,7 @@ func TestArrangingOrdersWidensAndSizesTheBlocksWithoutBumpingVersions(t *testing
 func TestArrangingKeepsAWidthOrHeightThatIsLeftOutAndClearsAHeightOnNull(t *testing.T) {
 	r := newRig(t)
 	o := r.create(t, editor, r.shared)
-	a := r.addText(t, editor, o, "a")
+	a := r.addPanel(t, editor, o)
 	half := observations.WidthHalf
 	sized := []observations.BlockLayout{{ID: uuidOf(a.ID), Width: &half, Height: observations.HeightChange{Set: true, Pixels: new(240)}}}
 	if _, err := r.service.Arrange(reading(t.Context()), editor, mustUUID(t, o.ID), sized, pgtype.UUID{}); err != nil {
@@ -187,16 +186,38 @@ func TestHeightsAreValidatedWhenABlockIsAddedAndEdited(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	tall := 400
-	b, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("x"), Width: observations.WidthTwoThirds, Height: &tall})
+	b, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody(), Width: observations.WidthTwoThirds, Height: &tall})
 	if err != nil || b.Height == nil || *b.Height != 400 || b.Width != observations.WidthTwoThirds {
 		t.Fatalf("added %+v, %v", b, err)
 	}
 	low := 10
-	if _, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("y"), Height: &low}); err == nil {
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindPanel, Body: panelBody(), Height: &low}); err == nil {
 		t.Error("a height of 10 was accepted on add")
 	}
 	cleared, err := r.service.UpdateBlock(reading(t.Context()), editor, mustUUID(t, b.ID), observations.BlockChange{Version: b.Version, Height: observations.HeightChange{Set: true}})
 	if err != nil || cleared.Height != nil {
 		t.Fatalf("cleared %+v, %v", cleared, err)
+	}
+}
+
+func TestATextBlockTakesNoHeightOnAddUpdateOrArrange(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	id := mustUUID(t, o.ID)
+	text := r.addText(t, editor, o, "a")
+	var refused *observations.InvalidInputError
+	if _, err := r.service.AddBlock(reading(t.Context()), editor, id, observations.BlockInput{Kind: observations.KindText, Body: textBody("b"), Height: new(300)}); !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock || !strings.Contains(refused.Message, "panel and snapshot") {
+		t.Errorf("add: %v", err)
+	}
+	if _, err := r.service.UpdateBlock(reading(t.Context()), editor, uuidOf(text.ID), observations.BlockChange{Version: text.Version, Height: observations.HeightChange{Set: true, Pixels: new(300)}}); !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock {
+		t.Errorf("update: %v", err)
+	}
+	sized := []observations.BlockLayout{{ID: uuidOf(text.ID), Height: observations.HeightChange{Set: true, Pixels: new(300)}}}
+	if _, err := r.service.Arrange(reading(t.Context()), editor, id, sized, pgtype.UUID{}); !errors.As(err, &refused) || !strings.Contains(refused.Message, text.ID) {
+		t.Errorf("arrange: %v", err)
+	}
+	unset := []observations.BlockLayout{{ID: uuidOf(text.ID), Height: observations.HeightChange{Set: true}}}
+	if got, err := r.service.Arrange(reading(t.Context()), editor, id, unset, pgtype.UUID{}); err != nil || got[0].Height != nil {
+		t.Errorf("a null height on a text block: %+v, %v", got, err)
 	}
 }

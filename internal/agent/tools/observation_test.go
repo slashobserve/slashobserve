@@ -671,7 +671,7 @@ func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
 	r := newObservationRig(t)
 	id := r.start(t, editorCaller)
 	first := r.written(t, editorCaller, nameAddBlock, textBlockInput(id, "first"))
-	second := r.written(t, editorCaller, nameAddBlock, textBlockInput(id, "second"))
+	second := r.written(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Errors", "sum(rate(errors[5m]))")))
 	arranged := r.call(t, editorCaller, nameArrangeBlocks, fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"third","height":300},{"block_id":%q,"width":"two_thirds"}]}`, id, second.BlockID, first.BlockID))
 	out, ok := arranged.Content.(arrangedOut)
 	if arranged.IsError || !ok || len(out.Blocks) != 2 {
@@ -697,9 +697,10 @@ func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
 		t.Errorf("a block of another observation was not refused by name: %#v", refused.Content)
 	}
 	for name, input := range map[string]string{
-		"a commenter":           fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q}]}`, id, first.BlockID),
-		"a bad width":           fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"quarter"}]}`, id, first.BlockID),
-		"a height out of range": fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":5}]}`, id, first.BlockID),
+		"a commenter":              fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q}]}`, id, first.BlockID),
+		"a bad width":              fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"width":"quarter"}]}`, id, first.BlockID),
+		"a height out of range":    fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":5}]}`, id, first.BlockID),
+		"a height on a text block": fmt.Sprintf(`{"observation_id":%q,"blocks":[{"block_id":%q,"height":300}]}`, id, first.BlockID),
 	} {
 		by := editorCaller
 		if name == "a commenter" {

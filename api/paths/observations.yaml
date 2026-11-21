@@ -460,6 +460,7 @@ observations-id-layout:
     summary: Arrange the blocks of an observation.
     description: >-
       Sets the order of the page and, for each block that names one, its `width` and `height`; a field a block leaves out keeps its value, and a `height` of `null` returns it to the default.
+      A number for a `height` on a text block is refused with 422 `invalid_block`, because only panel and snapshot blocks take a height.
       Needs Edit on the folder; a caller who can only comment answers 403.
       It never reads or changes a block's `version` or `updated_at`, so an arrangement cannot make someone's edit of a block's text stale, and the last arrangement to arrive wins.
       An id that names no block of this observation, or one the caller cannot see, refuses the whole request with 422 `invalid_block` and the id, and nothing changes; a block the list leaves out stays right after the block it followed, so a block someone added meanwhile keeps its place.
@@ -509,7 +510,7 @@ blocks-id:
     description: >-
       Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
       Every change here raises the version, a width, height or position change included, so a person editing the block's text meets `version_conflict` when someone resizes it; arrange a page with `PUT /observations/{id}/layout` instead, which leaves versions alone.
-      A `height` of `null` returns the block to its default height.
+      A `height` of `null` returns the block to its default height, and a number for a text block is refused with `invalid_block`, because only panel and snapshot blocks take a height.
       Only the body of a text or panel block can change (`body_not_editable`).
       `follow_page: true` clears a panel block's own `from` and `to`, so it shows the observation's range again; it goes without a `body` and only on a panel block (`invalid_block`).
       A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`.

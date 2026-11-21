@@ -19,7 +19,7 @@ A block is one of these kinds:
 | `snapshot` | The data of a panel block frozen at one moment, so the page keeps showing what you saw. |
 | `run` | The agent run that is investigating, added by the server. |
 
-Each block is `third`, `half`, `two_thirds` or `full` width, a panel or snapshot block has an optional `height` of 120 to 960 pixels, and blocks keep the order of their `position`.
+Each block is `third`, `half`, `two_thirds` or `full` width, only a panel or snapshot block has an optional `height` of 120 to 960 pixels, and a height for a text block is refused with `invalid_block`, and blocks keep the order of their `position`.
 A person who can only comment sees positions that count only the blocks they can see, and a suggestion they place at one of those positions lands there once an editor keeps it.
 A page holds at most 100 blocks, of which at most 24 are panel and snapshot blocks together.
 A panel must be a valid data panel, and one that an agent, an MCP client or a service-account key (the [CLI](cli.md) and scripts) adds must also run and return data in its range, the check that the evidence of a [finding](investigate.md) gets.

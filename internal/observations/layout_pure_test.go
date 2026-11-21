@@ -118,3 +118,46 @@ func TestALayoutRefusesABlockThatIsNotOnThePageOrIsNotVisibleToTheCaller(t *test
 		}
 	}
 }
+
+func TestOnlyPanelAndSnapshotBlocksTakeAHeight(t *testing.T) {
+	pixels := 300
+	cases := []struct {
+		kind   Kind
+		pixels *int
+		refuse bool
+	}{
+		{KindPanel, &pixels, false},
+		{KindSnapshot, &pixels, false},
+		{KindText, &pixels, true},
+		{KindRun, &pixels, true},
+		{KindText, nil, false},
+		{KindRun, nil, false},
+	}
+	for _, tc := range cases {
+		err := refuseHeight(tc.kind, tc.pixels)
+		var refused *InvalidInputError
+		switch {
+		case tc.refuse && (!errors.As(err, &refused) || refused.Code != CodeInvalidBlock || !strings.Contains(refused.Message, string(tc.kind))):
+			t.Errorf("%s with %v: got %v, want an invalid_block naming the kind", tc.kind, tc.pixels, err)
+		case !tc.refuse && err != nil:
+			t.Errorf("%s with %v: refused: %v", tc.kind, tc.pixels, err)
+		}
+	}
+}
+
+func TestALayoutRefusesAHeightForABlockThatTakesNone(t *testing.T) {
+	rows := []dbsqlc.ObservationBlock{
+		block(1, KindText, BlockLive, 0, WidthFull, `{}`),
+		block(2, KindPanel, BlockLive, 1, WidthFull, `{}`),
+	}
+	pixels := 300
+	sized := HeightChange{Set: true, Pixels: &pixels}
+	if err := heightsFit(rows, []BlockLayout{{ID: uuidOf(2), Height: sized}, {ID: uuidOf(1), Height: HeightChange{Set: true}}, {ID: uuidOf(1)}}); err != nil {
+		t.Errorf("a panel height, a text block cleared and a text block left alone: %v", err)
+	}
+	err := heightsFit(rows, []BlockLayout{{ID: uuidOf(2)}, {ID: uuidOf(1), Height: sized}})
+	var refused *InvalidInputError
+	if !errors.As(err, &refused) || refused.Code != CodeInvalidBlock || !strings.Contains(refused.Message, uuidOf(1).String()) {
+		t.Errorf("a text block with a height: %v", err)
+	}
+}

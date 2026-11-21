@@ -69,8 +69,8 @@ const (
 	propBlockTo          = `"to":{"type":"string","format":"date-time","description":"End of a panel's own range, RFC 3339."}`
 	propBlockSnapshotOf  = `"from_block_id":{"type":"string","format":"uuid","description":"The panel block to freeze, for a snapshot block."}`
 	propBlockWidth       = `"width":{"type":"string","enum":["third","half","two_thirds","full"],"description":"Default full."}`
-	propBlockHeight      = `"height":{"type":"integer","minimum":120,"maximum":960,"description":"Pixels. Default by kind."}`
-	propUpdateHeight     = `"height":{"type":["integer","null"],"minimum":120,"maximum":960,"description":"Pixels; null for the default by kind."}`
+	propBlockHeight      = `"height":{"type":"integer","minimum":120,"maximum":960,"description":"Pixels, for a panel or snapshot block. Default by width."}`
+	propUpdateHeight     = `"height":{"type":["integer","null"],"minimum":120,"maximum":960,"description":"Pixels, for a panel or snapshot block; null for the default."}`
 	propArrangedBlocks   = `"blocks":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"object","properties":{` + propBlockID + `,` + propBlockWidth + `,` + propUpdateHeight + `},"required":["block_id"],"additionalProperties":false},"description":"The blocks in the order the page should show them, each at most once. A width or height you leave out is kept."}`
 	propBlockPosition    = `"position":{"type":"integer","minimum":0,"description":"Index to place the block at. Default the end."}`
 	propBlockFollowPage  = `"follow_page":{"type":"boolean","description":"True drops a panel block's own from and to, so it shows the observation's range. Send without panel, markdown, from or to."}`

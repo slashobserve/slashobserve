@@ -46,6 +46,26 @@ func validateHeight(pixels *int) error {
 	return nil
 }
 
+func refuseHeight(kind Kind, pixels *int) *InvalidInputError {
+	if pixels != nil && kind != KindPanel && kind != KindSnapshot {
+		return invalid(CodeInvalidBlock, fmt.Sprintf("height applies only to panel and snapshot blocks; a %s block keeps its natural height", kind))
+	}
+	return nil
+}
+
+func heightsFit(rows []dbsqlc.ObservationBlock, items []BlockLayout) *InvalidInputError {
+	kinds := make(map[pgtype.UUID]Kind, len(rows))
+	for _, row := range rows {
+		kinds[row.ID] = Kind(row.Kind)
+	}
+	for _, item := range items {
+		if refused := refuseHeight(kinds[item.ID], item.Height.Pixels); refused != nil {
+			return invalid(CodeInvalidBlock, fmt.Sprintf("block %s: %s", item.ID, refused.Message))
+		}
+	}
+	return nil
+}
+
 func validateLayout(items []BlockLayout) error {
 	if len(items) > MaxBlocks {
 		return invalid(CodeInvalidBlock, fmt.Sprintf("a layout names at most %d blocks", MaxBlocks))
@@ -215,6 +235,9 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 			return fmt.Errorf("list observation blocks: %w", err)
 		}
 		if refused := unknownLayoutBlock(rows, items, abilities, who); refused != nil {
+			return refused
+		}
+		if refused := heightsFit(rows, items); refused != nil {
 			return refused
 		}
 		placed := arrangedBlocks(rows, items)

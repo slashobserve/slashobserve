@@ -91,7 +91,7 @@ func (a *app) observationEditBlockCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path> | --follow-page) [--width third|half|two_thirds|full] [--height <pixels>] [--position <n>]",
 		Short: "Change a live block's text, panel, width, height or position",
-		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, its height in pixels, or its position, which moves the blocks in between.\n--follow-page drops a panel block's own range, so it shows the observation's range again.\n--height takes 120 to 960, and 0 returns the block to its automatic height.\nTo place several blocks at once, use observe o arrange.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
+		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, its height in pixels, or its position, which moves the blocks in between.\n--follow-page drops a panel block's own range, so it shows the observation's range again.\n--height takes 120 to 960 on a panel or snapshot block, and 0 returns the block to its automatic height.\nTo place several blocks at once, use observe o arrange.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
 		Args:  exactArgs(1, "one block id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -215,7 +215,7 @@ func (a *app) observationArrangeCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "arrange <observation-id> <block-id>[:<width>[:<height>]]...",
 		Short: "Set the order, widths and heights of an observation's blocks",
-		Long:  "arrange places the blocks you name in the order you name them, then the blocks you leave out keep their place after the block that precedes them.\nAfter a block id, :<width> sets third, half, two_thirds or full, and :<width>:<height> also sets the height in pixels, 120 to 960, or auto.\nLeave the width empty to keep it, as in <block-id>::auto.\nIt needs edit rights on the observation, and it never conflicts with a text edit made at the same time, so it takes no --version.",
+		Long:  "arrange places the blocks you name in the order you name them, then the blocks you leave out keep their place after the block that precedes them.\nAfter a block id, :<width> sets third, half, two_thirds or full, and :<width>:<height> also sets the height in pixels, 120 to 960, or auto, which only a panel or snapshot block takes.\nLeave the width empty to keep it, as in <block-id>::auto.\nIt needs edit rights on the observation, and it never conflicts with a text edit made at the same time, so it takes no --version.",
 		Args:  minimumArgs(2, "an observation id and the block ids in the order you want them"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])

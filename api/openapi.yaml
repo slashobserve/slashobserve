@@ -7086,7 +7086,7 @@ components:
       nullable: true
       minimum: 120
       maximum: 960
-      description: The height in pixels of the block's content area, or null for the height its kind has by default.
+      description: The height in pixels of a panel or snapshot block's content area, or null for the height its width has by default; a text or run block takes no height, and a height for one is refused with `invalid_block`.
     Observation:
       type: object
       additionalProperties: false

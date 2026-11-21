@@ -340,9 +340,10 @@ An observation is a page of blocks about one question: Markdown text, panels tha
 A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width`, `height` (a number, or `null` for the automatic height) or `position`.
+A `height` applies to panel and snapshot blocks only, and a number for a text block is refused with `invalid_block`.
 `follow_page: true` drops a panel block's own `from` and `to`, so it shows the observation's range again; it goes without `panel`, `markdown`, `from` or `to`.
 
-`arrange_blocks` takes `observation_id` and `blocks`, a list of `block_id` in the order the page should show them, each with an optional `width` and `height`; a block left out keeps its place after the block it followed, and an id that is not a block of the observation refuses the call and names the id.
+`arrange_blocks` takes `observation_id` and `blocks`, a list of `block_id` in the order the page should show them, each with an optional `width` and `height` (panel and snapshot blocks only); a block left out keeps its place after the block it followed, and an id that is not a block of the observation refuses the call and names the id.
 It needs no `version`, and a layout change never makes a text or panel edit stale, because a block's `version` counts content only.
 The last arrangement wins, and it answers with the blocks in their new order.
 
