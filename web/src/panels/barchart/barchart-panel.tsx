@@ -1,7 +1,9 @@
 import {
   memo,
   useCallback,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type MouseEvent,
@@ -11,6 +13,7 @@ import { axisDecimals, formatValue } from "@/lib/units"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText } from "../contrast"
 import { useSeriesLegend } from "../legend/use-series-legend"
@@ -554,11 +557,13 @@ function Plot({
   display,
   options,
   size,
+  body,
 }: {
   model: BarchartModel
   display: Record<string, unknown>
   options: BarOptions
   size: Size
+  body: Size
 }) {
   const { resolved: theme } = useTheme()
   const [pointer, setPointer] = useState<Pointer | null>(null)
@@ -654,17 +659,44 @@ function Plot({
     width: size.width - left - right,
     height: size.height - top - bottom,
   }
-  const layout: Layout = {
-    orientation: model.orientation,
-    plot,
-    min: scale.min,
-    max: scale.max,
-    scale: model.scale,
-    count,
-    slotCount: model.slotCount,
-    groupWidth: shareOf(display, "groupWidth", 0.7),
-    barWidth: shareOf(display, "barWidth", 0.97),
-  }
+  const groupWidth = shareOf(display, "groupWidth", 0.7)
+  const barWidth = shareOf(display, "barWidth", 0.97)
+  const layout: Layout = useMemo(
+    () => ({
+      orientation: model.orientation,
+      plot: { width: plot.width, height: plot.height },
+      min: scale.min,
+      max: scale.max,
+      scale: model.scale,
+      count,
+      slotCount: model.slotCount,
+      groupWidth,
+      barWidth,
+    }),
+    [
+      model.orientation,
+      model.scale,
+      model.slotCount,
+      plot.width,
+      plot.height,
+      scale.min,
+      scale.max,
+      count,
+      groupWidth,
+      barWidth,
+    ]
+  )
+  const plotRef = useRef<HTMLDivElement>(null)
+  const publish = useAnchorPublisher("barchart")
+  useLayoutEffect(() => {
+    const element = plotRef.current
+    if (element === null) {
+      publish(null)
+      return
+    }
+    const { x, y } = rectWithin(element, surfaceOf(element))
+    publish({ body, origin: { x, y }, layout, model })
+  }, [publish, body, layout, model])
   const mode = showValuesOf(display)
   const textColors = useMemo(() => {
     const colors = new Map<string, string | undefined>()
@@ -695,6 +727,7 @@ function Plot({
       : []
   return (
     <div
+      ref={plotRef}
       className="absolute"
       style={{ left, top, width: plot.width, height: plot.height }}
     >
@@ -783,6 +816,7 @@ const BarchartPanel: PanelRenderer = ({
     height: height - (legend.placement === "bottom" ? 28 : 0),
   }
   const size = measured ?? estimate
+  const body = useMemo(() => ({ width, height }), [width, height])
   return (
     <div
       data-orientation={model.orientation}
@@ -806,6 +840,7 @@ const BarchartPanel: PanelRenderer = ({
                 display={display}
                 options={options}
                 size={size}
+                body={body}
               />
             </div>
             {model.note ? (

@@ -189,7 +189,21 @@ The arrow keys move between the toolbar's buttons, and `Home` and `End` go to th
 While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you cannot comment, as a Viewer cannot.
-With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
+**Comment** turns on Comment mode, which stays on until you choose **Select** or press `Esc`.
+In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
+A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
+A click on the title bar comments on the panel's title, and Tab to the title and Enter comments on the whole panel.
+The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
+
+### Comment pins
+
+A thread on a part of a panel shows as a pin with its author's mark at the spot it names.
+A pin follows its data: when the series, bar or row moves, the pin moves with it.
+A resolved thread's pin is grey.
+When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
+A table row that is on the panel but scrolled out of view points at the bottom edge of the table.
+Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
+Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Arrange panels
