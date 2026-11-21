@@ -16,7 +16,7 @@ The answer stays in the chat, and no observation is created, until you choose **
 When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; an answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
 A chat is titled the same way, from your message.
 
 ## Start a chat
@@ -290,7 +290,7 @@ Say what to change in the message itself all the same, for example "only show 5x
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
-Unless it is an investigation or an answer you shared into a thread, they also read it without your words: its `title`, `prompt`, step messages, `live_text` and `continue_note` are empty and `redacted` is true, while its state, times, your name, its kind and the version it saved stay, and the dashboard's revision list shows its `prompt` empty the same way.
+Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
 An Admin reads another person's chat read only.
 
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.

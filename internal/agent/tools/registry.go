@@ -217,6 +217,7 @@ type Run struct {
 	Access        datasource.Access
 	Observations  []string
 	WriteFolders  []pgtype.UUID
+	Investigation bool
 }
 
 func (run Run) about(id string) bool {

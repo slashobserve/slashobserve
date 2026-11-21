@@ -146,7 +146,7 @@ dashboards:
       - name: problem
         in: query
         description: >-
-          Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them.
+          Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them, and also a dashboard waiting for a recheck of an earlier problem, or with a health repair on record.
           The same rules as `GET /health`.
         schema:
           type: string

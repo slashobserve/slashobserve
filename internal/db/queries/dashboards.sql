@@ -84,8 +84,11 @@ WHERE (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
   AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+    WHERE s.id = d.id AND (health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (sqlc.narg('problem')::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)))))))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -123,8 +126,11 @@ WHERE (sqlc.narg('cursor_views')::integer IS NULL
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
   AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+    WHERE s.id = d.id AND (health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (sqlc.narg('problem')::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)))))))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -159,8 +165,11 @@ WHERE (sqlc.narg('cursor_title')::text IS NULL
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
   AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+    WHERE s.id = d.id AND (health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (sqlc.narg('problem')::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)))))))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -197,8 +206,11 @@ WHERE (sqlc.narg('c_folder')::uuid IS NULL
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
   AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+    WHERE s.id = d.id AND (health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (sqlc.narg('problem')::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)))))))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
@@ -220,8 +232,11 @@ WHERE d.folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('tags')::text[] IS NULL OR d.tags @> sqlc.narg('tags')::text[])
   AND (sqlc.narg('problem')::text IS NULL OR EXISTS (
     SELECT 1 FROM dashboard_health_status s
-    WHERE s.id = d.id AND health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
-      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)))
+    WHERE s.id = d.id AND (health_problem_matches(sqlc.narg('problem')::text, s.query_failed, s.no_data,
+      s.variable_failed, s.duplicate_title, s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
+      OR (sqlc.narg('problem')::text = 'any' AND s.outdated AND (s.old_check_problems OR EXISTS (
+        SELECT 1 FROM agent_requests a
+        WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)))))))
   AND (sqlc.narg('q')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0);

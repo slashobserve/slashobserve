@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/health/healthrule"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
@@ -535,6 +536,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit, offs
 		Q:              f.Q,
 		Tags:           f.Tags,
 		Problem:        f.Problem,
+		RepairPrefix:   f.RepairPrefix,
 		UnopenedBefore: f.UnopenedBefore,
 		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
@@ -564,6 +566,7 @@ func (st store) listByFolder(ctx context.Context, after *folderCursor, limit, of
 		Q:              f.Q,
 		Tags:           f.Tags,
 		Problem:        f.Problem,
+		RepairPrefix:   f.RepairPrefix,
 		UnopenedBefore: f.UnopenedBefore,
 		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
@@ -601,6 +604,7 @@ func (st store) listByViews(ctx context.Context, after *viewsCursor, limit, offs
 		Q:              f.Q,
 		Tags:           f.Tags,
 		Problem:        f.Problem,
+		RepairPrefix:   f.RepairPrefix,
 		UnopenedBefore: f.UnopenedBefore,
 		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
@@ -635,6 +639,7 @@ func (st store) listByName(ctx context.Context, after *nameCursor, limit, offset
 		Q:              f.Q,
 		Tags:           f.Tags,
 		Problem:        f.Problem,
+		RepairPrefix:   f.RepairPrefix,
 		UnopenedBefore: f.UnopenedBefore,
 		ViewsSince:     viewsSince(),
 		RowLimit:       httpapi.Int32(limit),
@@ -724,6 +729,7 @@ func filterOf(p ListParams, visible []pgtype.UUID) (dbsqlc.CountDashboardsParams
 		Q:              optionalText(p.Query),
 		Tags:           p.Tags,
 		Problem:        optionalText(p.Problem),
+		RepairPrefix:   repairprompt.Prefix,
 		UnopenedBefore: pgtype.Timestamptz{Time: healthrule.UnopenedBefore(time.Now()), Valid: true},
 	}
 	if p.MadeBy.CreatorKind != "" {

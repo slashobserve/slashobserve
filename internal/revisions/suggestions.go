@@ -28,6 +28,9 @@ func (s *Service) SubmitSuggestion(ctx context.Context, dashboardID pgtype.UUID,
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentSuggest, DashboardID: dashboardID}, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if err := s.checkSuggestion(ctx, dashboardID, version, panelID, draft); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
