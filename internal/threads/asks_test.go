@@ -632,72 +632,7 @@ func TestHTTPAsksByMentionUnlessToIsEveryoneAndAnswersTheRunOrTheRefusal(t *test
 	}
 }
 
-func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t *testing.T) {
-	r := newAgentRig(t, true)
-	id := r.createObservation(t, testUser, pgtype.UUID{})
-
-	thread, _, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts || !strings.Contains(refusal.Message, "web app or the CLI") {
-		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
-	}
-
-	_, _, run, refusal, err = r.askReply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts {
-		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
-	}
-	if n := r.messageCount(t); n != 2 {
-		t.Fatalf("%d messages stored, want 2", n)
-	}
-	if queued := r.queuedRuns(t); len(queued) != 0 {
-		t.Fatalf("%d runs queued over MCP on an observation, want 0", len(queued))
-	}
-}
-
-func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) {
-	r := newAgentRig(t, true)
-	id := r.createObservation(t, testUser, pgtype.UUID{})
-	account := r.serviceAccount(t, "ci-bot", true)
-
-	_, _, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts || len(r.queuedRuns(t)) != 0 {
-		t.Fatalf("run = %+v, refusal = %+v, runs = %+v", run, refusal, r.queuedRuns(t))
-	}
-}
-
-func TestOverMCPADashboardThreadStillStartsAnAsk(t *testing.T) {
-	r := newAgentRig(t, true)
-	dash := r.createDashboard(t)
-
-	thread, first, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run == nil || refusal != nil || run.AssignedKind != "builtin" {
-		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
-	}
-	_, _, run, refusal, err = r.askReply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run == nil || refusal != nil {
-		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
-	}
-	queued := r.queuedRuns(t)
-	if len(queued) != 2 || queued[0].Intent != "ask" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "ask" {
-		t.Fatalf("runs = %+v", queued)
-	}
-}
-
-func TestHTTPStartsAnInvestigationOnAnObservationThread(t *testing.T) {
+func TestHTTPStartsAnAskOnAnObservationThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 

@@ -431,7 +431,7 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 		return commentFailure(err)
 	}
 	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, BlockID: in.BlockID, Anchor: in.Anchor, ClientID: clientID, Body: in.Body}
-	sent, err := r.deps.Asks.Open(ctx, principal, open, to, threads.WithoutInvestigations())
+	sent, err := r.deps.Asks.Open(ctx, principal, open, to)
 	if err != nil {
 		return commentFailure(err)
 	}
@@ -483,7 +483,7 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 		return commentFailure(err)
 	}
 	reply := threads.ReplyInput{Body: in.Body, BlockID: in.BlockID, ReplyToID: in.ReplyToID, ClientID: clientID}
-	sent, err := r.deps.Asks.Reply(ctx, principal, commentID, reply, to, threads.WithoutInvestigations())
+	sent, err := r.deps.Asks.Reply(ctx, principal, commentID, reply, to)
 	if err != nil {
 		return commentFailure(err)
 	}
