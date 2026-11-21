@@ -207,6 +207,38 @@ describe("DashboardChat", () => {
     expect(await screen.findByTestId("conversation")).toBeInTheDocument()
   })
 
+  it("replaces a link to a later turn with the turn's chat", async () => {
+    const root = chat("c1", "Why did checkout errors rise")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: Request | string, init?: RequestInit) => {
+        const req = input instanceof Request ? input : new Request(input, init)
+        const path = new URL(req.url).pathname
+        const [status, body] =
+          path === "/api/v1/chats/c1"
+            ? [200, { chat: root, turns: [] }]
+            : path === "/api/v1/chats/c1-t2"
+              ? [404, { error: "chat not found", code: "not_found" }]
+              : path === "/api/v1/observe/c1-t2"
+                ? [200, { request: { id: "c1-t2", chat_id: "c1" } }]
+                : [200, { chats: [root], next_cursor: null }]
+        return new Response(JSON.stringify(body), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        })
+      })
+    )
+    renderAddress("c1-t2")
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText("Address")).toHaveTextContent(/^c1$/)
+    )
+    expect(screen.getByLabelText("Entries")).toHaveTextContent("1")
+    expect(screen.getByTestId("conversation").dataset.request).toBe("c1")
+    expect(screen.getByRole("combobox", { name: "Chat" })).toHaveTextContent(
+      "Why did checkout errors rise"
+    )
+  })
+
   it("shows a composer when this dashboard has no chats", async () => {
     stub([])
     render(undefined)

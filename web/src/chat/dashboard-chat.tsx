@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
@@ -17,7 +18,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { truncatingTriggerClass } from "@/activity/show-filter"
-import type { ObserveRequest } from "@/observe/queries"
+import { ApiError } from "@/api/errors"
+import { observeRequestQuery, type ObserveRequest } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { ChatComposer } from "./chat-composer"
@@ -64,6 +66,18 @@ export function DashboardChat({
     }
   }, [chatId, latestId, onOpenChat])
   const open = useChat(openId)
+  const turnLink =
+    open.error instanceof ApiError && open.error.code === "not_found"
+  const turn = useQuery({
+    ...observeRequestQuery(openId ?? ""),
+    enabled: turnLink,
+  })
+  const turnChatId = turnLink ? turn.data?.chat_id : undefined
+  useEffect(() => {
+    if (turnChatId != null && turnChatId !== openId) {
+      onOpenChat(turnChatId, { replace: true })
+    }
+  }, [openId, turnChatId, onOpenChat])
   const options = withOpenChat(chats, open.data?.chat)
   const elsewhere =
     open.data !== undefined && open.data.chat.dashboard_id !== dashboardId
