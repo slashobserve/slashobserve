@@ -42,6 +42,7 @@ import {
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
+import { useAgentInfo } from "@/observe/queries"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
@@ -69,7 +70,12 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
-import { focusComment } from "./panel-actions"
+import {
+  askAboutPanelAndFocus,
+  commentOnPanelAndFocus,
+  conversationActionsFor,
+  focusComment,
+} from "./panel-actions"
 import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
@@ -78,7 +84,8 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { CanvasTools, openKeyDraft, useCanvasTool } from "./canvas-tools"
+import { commentKeyAction } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -583,6 +590,7 @@ function DashboardView({
           const next = move(Date.now())
           if (next) setSearch((state) => ({ ...state, ...next }))
         }
+  const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
   useDashboardShortcuts({
@@ -602,7 +610,37 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
-    comment: () => focusComment(setSearch, composerRef),
+    comment: () => {
+      const action = commentKeyAction({
+        commenting: commentTool,
+        panelId: shortcutPanel()?.id,
+        canComment: permissions.comment,
+        editing,
+        onCanvas: !kiosk && viewed === undefined,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("comment")
+        case "panelDraft":
+          return openKeyDraft(action.panelId, "comment")
+        case "panelInPane":
+          return commentOnPanelAndFocus(setSearch, action.panelId, composerRef)
+        case "pane":
+          return focusComment(setSearch, composerRef)
+      }
+    },
+    ask: () => {
+      const panel = shortcutPanel()
+      if (
+        panel !== undefined &&
+        !editing &&
+        conversationActionsFor(panel, permissions.comment, agentAvailable).ask
+      ) {
+        askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+      }
+    },
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return

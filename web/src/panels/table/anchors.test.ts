@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { edgeHeight } from "../list-anchors"
 
-import { hitTest, locate, type TableAnchorLayout } from "./anchors"
+import { hitTest, locate, reveal, type TableAnchorLayout } from "./anchors"
 
 const layout: TableAnchorLayout = {
   body: { width: 400, height: 200 },
@@ -100,7 +100,7 @@ describe("table locate", () => {
   it("points at the bottom edge for a row scrolled out of view", () => {
     const scrolled = {
       ...layout,
-      elsewhere: [["search", "query", "12"]],
+      elsewhere: [{ key: "r9", cells: ["search", "query", "12"] }],
     }
     expect(
       locate(scrolled, { kind: "row", pos, row: { service: "search" } })
@@ -114,5 +114,38 @@ describe("table locate", () => {
     expect(
       locate(layout, { kind: "column", pos, column: "latency" })
     ).toBeNull()
+  })
+})
+
+describe("table reveal", () => {
+  const pos = { x: 0, y: 0 }
+
+  it("asks the table to show a row that is scrolled out of view", () => {
+    const shown: string[] = []
+    const scrolled: TableAnchorLayout = {
+      ...layout,
+      elsewhere: [{ key: "r9", cells: ["search", "query", "12"] }],
+      reveal: (key) => shown.push(key),
+    }
+    expect(
+      reveal(scrolled, { kind: "row", pos, row: { service: "search" } })
+    ).toBe(true)
+    expect(shown).toEqual(["r9"])
+  })
+
+  it("does nothing for a row in view or a row that is gone", () => {
+    const shown: string[] = []
+    const scrolled: TableAnchorLayout = {
+      ...layout,
+      elsewhere: [],
+      reveal: (key) => shown.push(key),
+    }
+    expect(
+      reveal(scrolled, { kind: "row", pos, row: { service: "payments" } })
+    ).toBe(false)
+    expect(
+      reveal(scrolled, { kind: "row", pos, row: { service: "billing" } })
+    ).toBe(false)
+    expect(shown).toEqual([])
   })
 })

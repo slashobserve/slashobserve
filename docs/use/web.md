@@ -189,11 +189,13 @@ The arrow keys move between the toolbar's buttons, and `Home` and `End` go to th
 While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you cannot comment, as a Viewer cannot.
-**Comment** turns on Comment mode, which stays on until you choose **Select** or press `Esc`.
+**Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
 In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
-A click on the title bar comments on the panel's title, and Tab to the title and Enter comments on the whole panel.
+On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
+A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
+**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Comment pins
 
@@ -201,7 +203,10 @@ A thread on a part of a panel shows as a pin with its author's mark at the spot 
 A pin follows its data: when the series, bar or row moves, the pin moves with it.
 A resolved thread's pin is grey.
 When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
+A table row, log line, span or alert that is on the panel but scrolled out of view, or a table row on another page, points at the bottom edge of the panel, and opening its pin scrolls or pages the panel to it.
+
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
+Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.
 Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
 
 ### What a click can name
@@ -223,10 +228,8 @@ Each panel type names the finest part of itself that it draws, and a pin follows
 | Alert list | An alert, in the list view | The alert's name and labels |
 | Canvas | An element | The element, the topmost one where drawings overlap |
 
-A log line, a span, an alert or a table row that is on the panel but scrolled out of view points at the bottom edge of the panel.
 A canvas element panned out of view, and a row on another page of a state timeline, count as gone.
 The panel types not listed, and the alert list's count view, have nothing finer than the whole panel, so a click there comments on the spot you clicked and the whole panel is outlined.
-**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Arrange panels
 
