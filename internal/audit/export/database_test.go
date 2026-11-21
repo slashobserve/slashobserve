@@ -297,3 +297,19 @@ func TestLagIsZeroOnceEveryEventIsExportedEvenWhenTheLastOneHappenedBeforeEarlie
 		t.Fatalf("lag = %v, %v, want 0: everything was exported", lag, err)
 	}
 }
+
+func TestNoGapIsReportedWhenTheExportedEventWasDeletedAndTheNextOneFollowsIt(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	r.insert(t, "a.one", "b.two")
+	r.runUntilIdle(t, rx.server.URL)
+	r.deleteAsRetentionWould(t, "a.one", "b.two")
+	r.insert(t, "c.three")
+	counted := r.runUntilIdle(t, rx.server.URL)
+	if len(counted.dropped) != 0 {
+		t.Fatalf("dropped = %v: nothing after the exported event was lost", counted.dropped)
+	}
+	if got := rx.received(); !slices.Equal(got, []string{"a.one", "b.two", "c.three"}) {
+		t.Fatalf("received %v", got)
+	}
+}

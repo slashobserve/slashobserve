@@ -23,6 +23,7 @@ type fakeSource struct {
 	events []trail.Positioned
 	err    error
 	limits []int
+	skip   int64
 }
 
 func (s *fakeSource) Since(_ context.Context, after filter.Position, limit int) ([]trail.Positioned, error) {
@@ -45,7 +46,7 @@ func (s *fakeSource) add(actions ...string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, a := range actions {
-		n := int64(len(s.events) + 1)
+		n := int64(len(s.events)+1) + s.skip
 		e := fullEvent()
 		e.Action, e.Seq = a, n
 		s.events = append(s.events, trail.Positioned{Event: e, At: filter.Position{Xid: uint64(100 + n), Seq: n}})
@@ -481,7 +482,9 @@ var exportedBefore = time.Date(2026, 11, 20, 8, 0, 0, 0, time.UTC)
 
 func TestAPositionOlderThanTheOldestRetainedEventIsALoggedAndCountedGap(t *testing.T) {
 	r, ctx := newRig(t)
-	r.source.add("a.one", "b.two", "c.three")
+	r.source.add("a.one")
+	r.source.skip = 5
+	r.source.add("b.two", "c.three")
 	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 101, Seq: 1}, exportedBefore
 	r.cursor.oldest = exportedBefore.Add(26 * time.Hour)
 	r.stopAt = func(*rig) bool { return true }
@@ -502,7 +505,9 @@ func TestAPositionOlderThanTheOldestRetainedEventIsALoggedAndCountedGap(t *testi
 
 func TestAGapIsCountedOnceWhileTheSamePositionStaysStuck(t *testing.T) {
 	r, ctx := newRig(t)
-	r.source.add("a.one", "b.two")
+	r.source.add("a.one")
+	r.source.skip = 5
+	r.source.add("b.two")
 	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 101, Seq: 1}, exportedBefore
 	r.cursor.oldest = exportedBefore.Add(time.Hour)
 	r.post = func([]byte) error { return &StatusError{Status: 503} }
@@ -535,16 +540,20 @@ func TestNoGapIsReportedWhenNothingWasLost(t *testing.T) {
 		at     filter.Position
 		stored time.Time
 		oldest time.Time
+		skip   int64
 	}{
-		{"the position is as new as the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore},
-		{"the position is newer than the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore.Add(-time.Hour)},
-		{"nothing was exported yet", filter.Position{}, time.Time{}, exportedBefore.Add(time.Hour)},
-		{"no event is retained", filter.Position{Xid: 101, Seq: 1}, exportedBefore, time.Time{}},
+		{"the position is as new as the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore, 5},
+		{"the position is newer than the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore.Add(-time.Hour), 5},
+		{"nothing was exported yet", filter.Position{}, time.Time{}, exportedBefore.Add(time.Hour), 5},
+		{"no event is retained", filter.Position{Xid: 101, Seq: 1}, exportedBefore, time.Time{}, 5},
+		{"the exported event was deleted but the next one follows it", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore.Add(48 * time.Hour), 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r, ctx := newRig(t)
-			r.source.add("a.one", "b.two")
+			r.source.add("a.one")
+			r.source.skip = tt.skip
+			r.source.add("b.two")
 			r.cursor.at, r.cursor.storedAt, r.cursor.oldest = tt.at, tt.stored, tt.oldest
 			r.stopAt = func(*rig) bool { return true }
 			if err := r.x.Run(ctx); err != nil {
@@ -559,6 +568,7 @@ func TestNoGapIsReportedWhenNothingWasLost(t *testing.T) {
 
 func TestTheRetentionCheckRunsAtTheStartAndAfterAFailureNotOnEveryPoll(t *testing.T) {
 	r, ctx := newRig(t)
+	r.source.skip = 5
 	r.source.add("a.one", "b.two", "c.three")
 	r.x.BatchSize = 1
 	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 100}, exportedBefore
@@ -573,6 +583,7 @@ func TestTheRetentionCheckRunsAtTheStartAndAfterAFailureNotOnEveryPoll(t *testin
 
 func TestAFailedRetentionCheckIsRetriedLikeAFailedRead(t *testing.T) {
 	r, ctx := newRig(t)
+	r.source.skip = 5
 	r.source.add("a.one")
 	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 100}, exportedBefore
 	r.cursor.oldestErr = errors.New("database down")

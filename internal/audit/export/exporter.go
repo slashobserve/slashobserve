@@ -141,17 +141,17 @@ func (x *Exporter) step(ctx context.Context, size int, checkRetention bool) (pro
 	if err != nil {
 		return progress{}, stage{"audit_export_cursor_read_failed", err}
 	}
-	if checkRetention {
-		if err := x.checkRetention(ctx, stored); err != nil {
-			return progress{}, err
-		}
-	}
 	events, err := x.Source.Since(ctx, stored.At, size)
 	if err != nil {
 		return progress{}, stage{"audit_export_read_failed", err}
 	}
 	if len(events) == 0 {
 		return progress{}, nil
+	}
+	if checkRetention {
+		if err := x.checkRetention(ctx, stored, events[0].At); err != nil {
+			return progress{}, err
+		}
 	}
 	batch := make([]trail.Event, len(events))
 	for i, e := range events {
@@ -173,8 +173,8 @@ func (x *Exporter) step(ctx context.Context, size int, checkRetention bool) (pro
 	return progress{moved: true}, nil
 }
 
-func (x *Exporter) checkRetention(ctx context.Context, stored Stored) error {
-	if !stored.Exists || stored.At == x.gapSeen {
+func (x *Exporter) checkRetention(ctx context.Context, stored Stored, next filter.Position) error {
+	if !stored.Exists || stored.At == x.gapSeen || next.Seq == stored.At.Seq+1 {
 		return nil
 	}
 	oldest, err := x.Cursor.Oldest(ctx)

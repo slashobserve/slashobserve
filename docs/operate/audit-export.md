@@ -55,9 +55,11 @@ The request honours `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` like the datasour
 While the receiver accepts events within the audit retention period (`SLASHOBSERVE_AUDIT_RETENTION`), every event is delivered at least once and in order.
 The export does not change retention: the daily `audit_partitions` job still deletes a partition once it is older than the retention period, whether or not its events were exported.
 When the receiver was down, or refused every request, for longer than that, events were deleted before they could be sent.
-The server notices when the stored position is older than the oldest event the table still holds, logs a warning with the size of the gap and adds one to `slashobserve_audit_export_dropped_total{reason="retention"}` for each gap, then continues with the oldest event that is left.
+The server notices when the event at the stored position is older than the oldest event the table still holds and the next event does not directly follow it, logs a warning with the size of the gap and adds one to `slashobserve_audit_export_dropped_total{reason="retention"}` for each gap, then continues with the oldest event that is left.
 The gap is found at the start of a run and after a failed attempt, so it can take a few minutes to show.
+A caught-up export on a quiet system reports nothing when retention deletes its last event, because the next event follows it directly; a sequence number skipped by a rolled-back change can, rarely, make a harmless report.
 Events the export gave up on in other ways are counted too, as `refused` and in `slashobserve_audit_export_rejected_total`.
+
 Alert on all three counters when the copy must be complete, and keep the retention period longer than the longest receiver outage you accept.
 
 ## The record
