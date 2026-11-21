@@ -16,6 +16,12 @@ import { FindingMarkdown } from "@/findings/finding-markdown"
 import { zoneLabel } from "@/lib/date-format"
 import { formatDateTime } from "@/lib/time"
 import { frozenCaption } from "@/observations/blocks/block-data"
+import {
+  blockHeight,
+  packRows,
+  rowGridClass,
+  spanClass,
+} from "@/observations/block-rows"
 import { isRenderable } from "@/panels"
 import { createFieldResolver } from "@/panels/field-config"
 import { PanelBody } from "@/panels/panel-body"
@@ -29,27 +35,10 @@ import type { RcaBlock } from "./queries"
 const noDatasources: readonly DatasourceRef[] = []
 const noVars = {}
 const panelId = "block"
-const halfHeight = 220
-const fullHeight = 280
 
 type Snapshot = Extract<RcaBlock, { kind: "snapshot" }>
 
 function ignoreRangeSelect() {}
-
-export function publicRows(blocks: readonly RcaBlock[]): RcaBlock[][] {
-  const rows: RcaBlock[][] = []
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i]
-    const next = blocks[i + 1]
-    if (block.width === "half" && next !== undefined && next.width === "half") {
-      rows.push([block, next])
-      i++
-    } else {
-      rows.push([block])
-    }
-  }
-  return rows
-}
 
 export type RcaView = {
   title: string
@@ -83,7 +72,7 @@ function FrozenPanel({
   item: Snapshot
   caption: string
 }) {
-  const height = item.width === "half" ? halfHeight : fullHeight
+  const height = blockHeight(item)
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })
@@ -175,7 +164,7 @@ export function RcaDocument({
   newerLink?: ReactNode
 }) {
   const caption = rangeCaption(rca)
-  const rows = publicRows(rca.blocks)
+  const rows = packRows(rca.blocks)
   return (
     <DatasourceListProvider value={noDatasources}>
       <div className="flex flex-col gap-8">
@@ -206,15 +195,12 @@ export function RcaDocument({
         <ol className="flex flex-col gap-6">
           {rows.map((row, index) => (
             <li key={index} className="@container">
-              <div
-                className={
-                  row[0].width === "half"
-                    ? "grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2"
-                    : "grid grid-cols-1 gap-4"
-                }
-              >
+              <div className={rowGridClass}>
                 {row.map((item, column) => (
-                  <div key={column} className="min-w-0">
+                  <div
+                    key={column}
+                    className={`min-w-0 ${spanClass[item.width]}`}
+                  >
                     <RcaItem
                       useSnapshot={useSnapshot}
                       item={item}

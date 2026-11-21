@@ -28,6 +28,7 @@ type preparedBlock struct {
 	kind     Kind
 	body     json.RawMessage
 	width    Width
+	height   *int
 	position *int
 	snapshot *frozenSnapshot
 }
@@ -39,9 +40,11 @@ type frozenSnapshot struct {
 	datasources          []string
 }
 
+var widths = []Width{WidthThird, WidthHalf, WidthTwoThirds, WidthFull}
+
 func validateWidth(w Width) error {
-	if w != WidthFull && w != WidthHalf {
-		return invalid(CodeInvalidBlock, "width must be full or half")
+	if !slices.Contains(widths, w) {
+		return invalid(CodeInvalidBlock, "width must be third, half, two_thirds or full")
 	}
 	return nil
 }
@@ -72,7 +75,10 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, folder folders
 	if err := validateWidth(width); err != nil {
 		return preparedBlock{}, err
 	}
-	prepared := preparedBlock{kind: in.Kind, width: width, position: in.Position}
+	if err := validateHeight(in.Height); err != nil {
+		return preparedBlock{}, err
+	}
+	prepared := preparedBlock{kind: in.Kind, width: width, height: in.Height, position: in.Position}
 	switch in.Kind {
 	case KindText, KindPanel:
 		body, err := normalBody(in.Kind, in.Body)
@@ -93,6 +99,9 @@ func (s *Service) prepare(ctx context.Context, by auth.Principal, folder folders
 		return preparedBlock{}, invalid(CodeKindNotAddable, "run blocks are added by agent runs, not through the API")
 	default:
 		return preparedBlock{}, invalid(CodeInvalidBlock, "kind must be text, panel or snapshot")
+	}
+	if err := refuseHeight(in.Kind, in.Height); err != nil {
+		return preparedBlock{}, err
 	}
 	return prepared, nil
 }
@@ -344,6 +353,7 @@ func (s *Service) insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbs
 		State:         string(state),
 		Position:      httpapi.Int32(position),
 		Width:         string(p.width),
+		Height:        pgInt4(p.height),
 		Body:          body,
 		SnapshotID:    snapshotID,
 		CreatedByKind: cols.Kind,
@@ -412,6 +422,9 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 	if err := checkChange(in); err != nil {
 		return Block{}, err
 	}
+	if err := validateHeight(in.Height.Pixels); err != nil {
+		return Block{}, err
+	}
 	var updated dbsqlc.ObservationBlock
 	var held folders.Abilities
 	var who actor.Actor
@@ -420,6 +433,9 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 			return err
 		}
 		if err := staleVersion(current, in.Version, abilities, by); err != nil {
+			return err
+		}
+		if err := refuseHeight(Kind(current.Kind), in.Height.Pixels); err != nil {
 			return err
 		}
 		params, err := changedBlock(ctx, q, current, in)
@@ -446,7 +462,7 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 }
 
 func checkChange(in BlockChange) error {
-	if len(in.Body) == 0 && in.Width == nil && in.Position == nil && !in.FollowPage {
+	if len(in.Body) == 0 && in.Width == nil && !in.Height.Set && in.Position == nil && !in.FollowPage {
 		return ErrNothingToUpdate
 	}
 	if in.FollowPage && len(in.Body) > 0 {
@@ -461,7 +477,7 @@ func checkChange(in BlockChange) error {
 func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.ObservationBlock, in BlockChange) (dbsqlc.UpdateBlockParams, error) {
 	params := dbsqlc.UpdateBlockParams{
 		ID: current.ID, Version: current.Version, FromStates: BlockMachine.From(BlockUpdate),
-		Body: current.Body, Width: current.Width, Position: current.Position,
+		Body: current.Body, Width: current.Width, Height: current.Height, Position: current.Position,
 	}
 	if len(in.Body) > 0 && !resendsStoredText(current, in.Body) {
 		body, err := normalBody(Kind(current.Kind), in.Body)
@@ -479,6 +495,9 @@ func changedBlock(ctx context.Context, q *dbsqlc.Queries, current dbsqlc.Observa
 	}
 	if in.Width != nil {
 		params.Width = string(*in.Width)
+	}
+	if in.Height.Set {
+		params.Height = pgInt4(in.Height.Pixels)
 	}
 	if in.Position != nil {
 		position, err := moveBlock(ctx, q, current, *in.Position)

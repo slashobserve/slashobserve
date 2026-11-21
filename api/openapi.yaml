@@ -250,6 +250,8 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-reopen"
   /observations/{id}/blocks:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
+  /observations/{id}/layout:
+    $ref: "./paths/observations.yaml#/observations-id-layout"
   /blocks/{id}:
     $ref: "./paths/observations.yaml#/blocks-id"
   /observations/{id}/pin:
@@ -7077,7 +7079,14 @@ components:
       description: An action the caller may take on the block in its state.
     ObservationBlockWidth:
       type: string
-      enum: [full, half]
+      enum: [third, half, two_thirds, full]
+      description: A block takes one, two or three thirds of the page's width, or all of it; a phone shows one column whatever the width.
+    ObservationBlockHeight:
+      type: integer
+      nullable: true
+      minimum: 120
+      maximum: 960
+      description: The height in pixels of a panel or snapshot block's content area, or null for the height its width has by default; a text or run block takes no height, and a height for one is refused with `invalid_block`.
     Observation:
       type: object
       additionalProperties: false
@@ -7166,7 +7175,7 @@ components:
     ObservationBlock:
       type: object
       additionalProperties: false
-      required: [id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by, created_at, updated_at, allowed_actions]
+      required: [id, observation_id, kind, state, position, width, height, version, body, snapshot_id, run_id, created_by, created_at, updated_at, allowed_actions]
       properties:
         id:
           type: string
@@ -7184,10 +7193,12 @@ components:
           description: Zero-based and dense, so the blocks of an observation hold 0 to n-1.
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
+        height:
+          $ref: "#/components/schemas/ObservationBlockHeight"
         version:
           type: integer
           minimum: 1
-          description: Starts at 1 and grows with each change to this block; reordering other blocks does not change it. Every write names the version it read.
+          description: Starts at 1 and grows with each change to this block's content, width, height or position through `PATCH /blocks/{id}`; reordering other blocks and `PUT /observations/{id}/layout` do not change it. A write to the block's content names the version it read.
         body:
           type: object
           additionalProperties: true
@@ -7343,6 +7354,8 @@ components:
             A panel body may carry `variable_values`, an object of name to a list of values, instead of `variables`: each name becomes a custom variable with those values as its options and default, and the stored block shows `variables`.
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
+        height:
+          $ref: "#/components/schemas/ObservationBlockHeight"
         position:
           type: integer
           minimum: 0
@@ -7365,6 +7378,8 @@ components:
           description: Only for `text` and `panel` blocks (`body_not_editable` otherwise).
         width:
           $ref: "#/components/schemas/ObservationBlockWidth"
+        height:
+          $ref: "#/components/schemas/ObservationBlockHeight"
         position:
           type: integer
           minimum: 0
@@ -7372,6 +7387,37 @@ components:
         follow_page:
           type: boolean
           description: True clears a panel block's own range, so it follows the observation's range; never sent with `body`.
+    ObservationLayoutRequest:
+      type: object
+      additionalProperties: false
+      required: [blocks]
+      properties:
+        blocks:
+          type: array
+          maxItems: 100
+          description: The blocks in the order the page should show them, each at most once.
+          items:
+            type: object
+            additionalProperties: false
+            required: [id]
+            properties:
+              id:
+                type: string
+                format: uuid
+              width:
+                $ref: "#/components/schemas/ObservationBlockWidth"
+              height:
+                $ref: "#/components/schemas/ObservationBlockHeight"
+    ObservationLayout:
+      type: object
+      additionalProperties: false
+      required: [blocks]
+      properties:
+        blocks:
+          type: array
+          description: Every block the caller sees, in the stored order, with its position, width and height.
+          items:
+            $ref: "#/components/schemas/ObservationBlock"
     PinObservationRequest:
       type: object
       additionalProperties: false
@@ -7475,6 +7521,11 @@ components:
               description: The stored `panel` of the snapshot, which has no `queries`.
             width:
               $ref: "#/components/schemas/ObservationBlockWidth"
+            height:
+              type: integer
+              minimum: 120
+              maximum: 960
+              description: Pixels the block was set to when published; absent when the height was automatic, and on revisions published before heights existed.
     ObservationRCA:
       type: object
       additionalProperties: false
@@ -8029,7 +8080,7 @@ components:
     ObservationInvalid:
       description: >-
         The request is well formed but refused, with `issues` (empty unless a Spec panel is at fault, with its paths under `/panel`):
-        `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, or a `from_block_id` that is not a panel block of the observation),
+        `invalid_title`, `invalid_summary`, `invalid_range` (both or neither, from before to, at most 400 days), `invalid_block` (a body that is not the block kind's shape, a text body of 0 or over 8000 characters, a `from_block_id` that is not a panel block of the observation, a width that is not `third`, `half`, `two_thirds` or `full`, a height outside 120 to 960, or a layout that names a block twice),
         `invalid_panel` (the panel fails the Spec or is not a data panel; a text panel says to use a text block), `variable_missing` (the panel's queries or datasource use a variable that `variables` or `variable_values` does not define, and the message names it), `kind_not_addable` (a run block), `body_not_editable` (a snapshot or run block's body),
         `too_many_blocks` (100), `too_many_panels` (24 panel and snapshot blocks together) or `snapshot_too_large` (the frozen data is over 2 MiB).
       content:

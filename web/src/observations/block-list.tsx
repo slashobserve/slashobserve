@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -14,27 +14,38 @@ import { dashboardLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 
 import { addBlockRowId, useFreezeBlock } from "./add-block-row"
+import {
+  ArrangeAnnouncer,
+  ArrangeHandle,
+  DropBar,
+  ResizeGrip,
+} from "./arrange-handles"
 import { PanelBlock } from "./blocks/panel-block"
 import { RunBlock } from "./blocks/run-block"
 import { SnapshotBlock } from "./blocks/snapshot-block"
 import {
+  blockHeight,
   blockRows,
   blockTitle,
+  hasHeight,
   holdsAgentOutput,
-  moveTarget,
   nextBlockId,
+  rowGridClass,
+  spanClass,
+  widthSteps,
+  type BlockWidth,
 } from "./block-rows"
 import { blockWriteProblem } from "./errors"
 import {
   useMakeDashboard,
   useRemoveBlock,
-  useUpdateBlock,
   type Block,
   type Observation,
 } from "./queries"
 import { RemoveBlockDialog } from "./remove-block-dialog"
 import { RequestedBlock } from "./requested-block"
 import { TextBlock } from "./text-block"
+import { useArrange, type Arrange } from "./use-arrange"
 
 export type Reveal = { id: string; focus: boolean }
 
@@ -48,8 +59,13 @@ type Props = {
 }
 
 const blocksListId = "observation-blocks"
-const halfHeight = 220
-const fullHeight = 280
+
+const widthLabels: Record<BlockWidth, string> = {
+  third: "Make one third width",
+  half: "Make half width",
+  two_thirds: "Make two thirds width",
+  full: "Make full width",
+}
 
 function sectionId(blockId: string): string {
   return `block-${blockId}`
@@ -80,26 +96,24 @@ function focusAfterRemoval(nextId: string | null) {
 function BlockMenu({
   observation,
   block,
-  blocks,
+  arrange,
   canAdd,
   nextId,
   onAdded,
 }: {
   observation: Observation
   block: Block
-  blocks: readonly Block[]
+  arrange: Arrange | null
   canAdd: boolean
   nextId: string | null
   onAdded: (blockId: string) => void
 }) {
-  const update = useUpdateBlock(observation.id)
   const remove = useRemoveBlock(observation.id)
   const [confirming, setConfirming] = useState(false)
   const freeze = useFreezeBlock(observation.id, {
     onAdded,
     onProblem: (text) => toast.error(text),
   })
-  const canUpdate = block.allowed_actions.includes("update")
   const canRemove = block.allowed_actions.includes("remove")
   const isLivePanel = block.kind === "panel" && block.state === "live"
   const canFreeze = canAdd && isLivePanel
@@ -108,28 +122,16 @@ function BlockMenu({
     blockId: block.id,
   })
   const navigate = useNavigate()
-  if (!canUpdate && !canRemove && !isLivePanel) return null
+  if (arrange === null && !canRemove && !isLivePanel) return null
 
-  const half = block.width === "half"
-  const up = canUpdate ? moveTarget(blocks, block.id, "up") : null
-  const down = canUpdate ? moveTarget(blocks, block.id, "down") : null
+  const position = arrange?.blocks.findIndex((b) => b.id === block.id) ?? -1
+  const count = arrange?.blocks.length ?? 0
 
   function removeBlock() {
     remove.mutate(
       { blockId: block.id, version: block.version },
       {
         onSuccess: () => focusAfterRemoval(nextId),
-        onError: (error) => toast.error(blockWriteProblem(error).text),
-      }
-    )
-  }
-
-  function move(position: number) {
-    update.mutate(
-      { blockId: block.id, version: block.version, position },
-      {
-        onSuccess: () =>
-          requestAnimationFrame(() => focusBlock(block.id, true)),
         onError: (error) => toast.error(blockWriteProblem(error).text),
       }
     )
@@ -151,35 +153,35 @@ function BlockMenu({
           <MoreHorizontalIcon aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-48">
-          {up === null ? null : (
-            <DropdownMenuItem onClick={() => move(up)}>
-              Move up
-            </DropdownMenuItem>
+          {arrange === null ? null : (
+            <>
+              {position > 0 ? (
+                <DropdownMenuItem onClick={() => arrange.moveBy(block, -1)}>
+                  Move up
+                </DropdownMenuItem>
+              ) : null}
+              {position < count - 1 ? (
+                <DropdownMenuItem onClick={() => arrange.moveBy(block, 1)}>
+                  Move down
+                </DropdownMenuItem>
+              ) : null}
+              {widthSteps
+                .filter((width) => width !== block.width)
+                .map((width) => (
+                  <DropdownMenuItem
+                    key={width}
+                    onClick={() => arrange.setWidth(block, width)}
+                  >
+                    {widthLabels[width]}
+                  </DropdownMenuItem>
+                ))}
+              {hasHeight(block) && block.height !== null ? (
+                <DropdownMenuItem onClick={() => arrange.resetHeight(block)}>
+                  Reset height
+                </DropdownMenuItem>
+              ) : null}
+            </>
           )}
-          {down === null ? null : (
-            <DropdownMenuItem onClick={() => move(down)}>
-              Move down
-            </DropdownMenuItem>
-          )}
-          {canUpdate ? (
-            <DropdownMenuItem
-              onClick={() =>
-                update.mutate(
-                  {
-                    blockId: block.id,
-                    version: block.version,
-                    width: half ? "full" : "half",
-                  },
-                  {
-                    onError: (error) =>
-                      toast.error(blockWriteProblem(error).text),
-                  }
-                )
-              }
-            >
-              {half ? "Make full width" : "Make half width"}
-            </DropdownMenuItem>
-          ) : null}
           {canFreeze ? (
             <DropdownMenuItem onClick={() => freeze.freeze(block)}>
               Freeze as snapshot
@@ -229,7 +231,7 @@ function BlockBody({
   block: Block
   blocks: readonly Block[]
 }): ReactNode {
-  const height = block.width === "half" ? halfHeight : fullHeight
+  const height = blockHeight(block)
   switch (block.kind) {
     case "text":
       return <TextBlock block={block} />
@@ -252,28 +254,38 @@ function BlockSection({
   observation,
   block,
   blocks,
+  arrange,
   canAdd,
   onAdded,
 }: {
   observation: Observation
   block: Block
   blocks: readonly Block[]
+  arrange: Arrange | null
   canAdd: boolean
   onAdded: (blockId: string) => void
 }) {
   const nextId = nextBlockId(blocks, block.id)
   const body = <BlockBody block={block} blocks={blocks} />
+  const dragged = arrange?.dragging?.id === block.id
   return (
     <section
       id={sectionId(block.id)}
+      data-block-id={block.id}
       aria-label={blockTitle(block)}
       tabIndex={-1}
-      className="group/block relative min-w-0 rounded-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={`group/block relative min-w-0 rounded-card outline-none focus-visible:ring-2 focus-visible:ring-ring ${spanClass[block.width]} ${dragged ? "opacity-60" : ""}`}
     >
+      {arrange === null ? null : (
+        <ArrangeHandle block={block} arrange={arrange} />
+      )}
+      {arrange?.dragging?.drop?.id === block.id ? (
+        <DropBar drop={arrange.dragging.drop} />
+      ) : null}
       <BlockMenu
         observation={observation}
         block={block}
-        blocks={blocks}
+        arrange={arrange}
         canAdd={canAdd}
         nextId={nextId}
         onAdded={onAdded}
@@ -289,6 +301,7 @@ function BlockSection({
       ) : (
         body
       )}
+      {arrange === null ? null : <ResizeGrip block={block} arrange={arrange} />}
     </section>
   )
 }
@@ -301,6 +314,16 @@ export function BlockList({
   onRevealed,
   onAdded,
 }: Props) {
+  const listRef = useRef<HTMLOListElement>(null)
+  const arranging = useArrange({
+    observationId: observation.id,
+    blocks,
+    listRef,
+  })
+  const canArrange = observation.allowed_actions.includes("update")
+  const arrange = canArrange ? arranging : null
+  const shown = arrange === null ? blocks : arrange.blocks
+
   useEffect(() => {
     if (reveal === null) return
     if (!blocks.some((block) => block.id === reveal.id)) return
@@ -322,34 +345,33 @@ export function BlockList({
   }
 
   return (
-    <ol
-      id={blocksListId}
-      aria-label="Blocks"
-      tabIndex={-1}
-      className="flex flex-col gap-6 outline-none"
-    >
-      {blockRows(blocks).map((row) => (
-        <li key={row.key} className="@container">
-          <div
-            className={
-              row.blocks[0].width === "half"
-                ? "grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2"
-                : "grid grid-cols-1 gap-4"
-            }
-          >
-            {row.blocks.map((block) => (
-              <BlockSection
-                key={block.id}
-                observation={observation}
-                block={block}
-                blocks={blocks}
-                canAdd={canAdd}
-                onAdded={onAdded}
-              />
-            ))}
-          </div>
-        </li>
-      ))}
-    </ol>
+    <>
+      <ol
+        id={blocksListId}
+        ref={listRef}
+        aria-label="Blocks"
+        tabIndex={-1}
+        className="flex flex-col gap-6 outline-none"
+      >
+        {blockRows(shown).map((row) => (
+          <li key={row.key} className="@container">
+            <div className={rowGridClass}>
+              {row.blocks.map((block) => (
+                <BlockSection
+                  key={block.id}
+                  observation={observation}
+                  block={block}
+                  blocks={shown}
+                  arrange={arrange}
+                  canAdd={canAdd}
+                  onAdded={onAdded}
+                />
+              ))}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {arrange === null ? null : <ArrangeAnnouncer arrange={arrange} />}
+    </>
   )
 }
