@@ -8,6 +8,7 @@ import type { TraceSearch } from "@/traces/search"
 import { useSourceMemory } from "./datasource-memory"
 import { useDatasources, type DatasourceStatus } from "./queries"
 import {
+  browsableSources,
   isSourcePage,
   listedSources,
   logsSwitchSearch,
@@ -26,6 +27,15 @@ export function useExploreSources(kind: ExploreKind) {
     [kind, data, recentAtLoad]
   )
   return { sources, isPending, isError, error, refetch }
+}
+
+export function useBrowsableSources(kind: ExploreKind) {
+  const { sources, ...rest } = useExploreSources(kind)
+  const browsable = useMemo(
+    () => browsableSources(kind, sources),
+    [kind, sources]
+  )
+  return { sources: browsable, ...rest }
 }
 
 export function useRouteSource(kind: ExploreKind): {
@@ -58,6 +68,6 @@ export function useSourceSwitchSearch(
 }
 
 export function useListedSources(kind: ExploreKind) {
-  const { sources, isPending } = useExploreSources(kind)
+  const { sources, isPending } = useBrowsableSources(kind)
   return { ...listedSources(sources), pending: isPending }
 }

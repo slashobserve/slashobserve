@@ -4,6 +4,7 @@ import { datasourcesQuery } from "@/datasources/queries"
 import { recentSources } from "@/datasources/datasource-memory"
 import { ExploreList } from "@/datasources/explore-list"
 import {
+  browsableSources,
   carriesSearch,
   defaultSource,
   sourcesOf,
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/_authed/_shell/logs/")({
         ? undefined
         : defaultSource(
             "logs",
-            sourcesOf("logs", listed.datasources),
+            browsableSources("logs", sourcesOf("logs", listed.datasources)),
             recentSources("logs")
           )
     if (target !== undefined) {

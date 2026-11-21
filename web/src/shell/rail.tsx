@@ -20,7 +20,7 @@ import {
 
 import { Mark } from "@/components/brand/mark"
 import { SourceFlyoutItems } from "@/datasources/source-menu"
-import { useExploreSources } from "@/datasources/use-sources"
+import { useBrowsableSources } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
@@ -195,9 +195,9 @@ export function RailContent({ forced }: { forced: boolean }) {
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
   const badges = useRailBadges()
-  const logs = useExploreSources("logs").sources.length > 1
-  const traces = useExploreSources("traces").sources.length > 1
-  const metrics = useExploreSources("metrics").sources.length > 1
+  const logs = useBrowsableSources("logs").sources.length > 1
+  const traces = useBrowsableSources("traces").sources.length > 1
+  const metrics = useBrowsableSources("metrics").sources.length > 1
   const flyouts: Partial<Record<NavPath, ReactNode>> = {
     "/dashboards": <DashboardsFlyoutItems />,
     "/audit": <AuditFlyoutItems />,

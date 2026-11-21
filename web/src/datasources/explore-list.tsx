@@ -26,7 +26,7 @@ import {
   sourceLanguage,
   type ExploreKind,
 } from "./sources"
-import { useExploreSources } from "./use-sources"
+import { useBrowsableSources } from "./use-sources"
 
 const emptyTitles = {
   logs: "No log sources",
@@ -88,7 +88,7 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
   const sourcesId = useId()
   const { principal } = useRouteContext({ from: "/_authed" })
   const { sources, isPending, isError, error, refetch } =
-    useExploreSources(kind)
+    useBrowsableSources(kind)
   const signal = serviceSignal(kind)
   const services = useSourceServices(sources, signal)
   const [filter, setFilter] = useState("")

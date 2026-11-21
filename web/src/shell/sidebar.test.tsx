@@ -338,4 +338,31 @@ describe("SidebarContent", () => {
     expect(navLink("Logs").querySelector(".font-semibold")).toBeNull()
     expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
   })
+
+  it("leaves the audit datasource out of the Log sources list", async () => {
+    datasources = [
+      source("loki", "loki", "Loki"),
+      source("ch", "clickhouse", "ClickHouse"),
+      source("slashobserve-audit", "opensearch", "Audit trail"),
+    ]
+    renderWithProviders(<SidebarContent />, { route })
+
+    const list = await screen.findByRole("list", { name: "Log sources" })
+    expect(
+      within(list)
+        .getAllByRole("link")
+        .map((link) => link.textContent)
+    ).toEqual(["ClickHouseSQL", "LokiLogQL"])
+  })
+
+  it("lists no Log sources when one source remains besides the audit datasource", async () => {
+    datasources = [
+      source("loki", "loki", "Loki"),
+      source("slashobserve-audit", "opensearch", "Audit trail"),
+    ]
+    renderWithProviders(<SidebarContent />, { route })
+
+    await screen.findByRole("list", { name: "Audit" })
+    expect(screen.queryByRole("list", { name: "Log sources" })).toBeNull()
+  })
 })
