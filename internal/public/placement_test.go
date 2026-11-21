@@ -57,3 +57,15 @@ func TestAPublicLinkStopsAnsweringOnceItsDashboardReadsAnAdminsOnlyDatasource(t 
 		t.Fatalf("view after = %v, want %v", err, ErrNotFound)
 	}
 }
+
+func TestAnAdminsOnlyFolderHidesItsPublicLinksFromItsNonAdminCreator(t *testing.T) {
+	r := newAdminsOnlyRig(t)
+	locked := r.dashboard(t, plainSpec)
+	foldertest.Move(t, r.db, locked, foldertest.AdminsOnlyMadeBy(t, r.db, "Payroll", editor))
+	if _, err := r.service.List(reading(t.Context()), editor, locked); !errors.Is(err, folders.ErrNoAccess) {
+		t.Fatalf("list = %v, want %v", err, folders.ErrNoAccess)
+	}
+	if _, err := r.service.Create(reading(t.Context()), editor, locked, CreateInput{Mode: ModeFrozen}); !errors.Is(err, folders.ErrNoAccess) {
+		t.Fatalf("create = %v, want %v", err, folders.ErrNoAccess)
+	}
+}
