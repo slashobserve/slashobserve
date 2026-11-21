@@ -333,9 +333,10 @@ export function SidebarContent({
     },
     "/audit": {
       rows: auditRows,
-      render: (currentId) => (
-        <AuditList currentId={currentId} onNavigate={onNavigate} />
-      ),
+      render: (currentId) =>
+        currentId === null ? null : (
+          <AuditList currentId={currentId} onNavigate={onNavigate} />
+        ),
     },
     "/explore/metrics": {
       rows: sourceRows("metrics", metrics.shown),
@@ -386,7 +387,7 @@ export function SidebarContent({
       <div
         role="group"
         aria-labelledby={workspaceId}
-        className="flex flex-none flex-col gap-0.5 pb-1"
+        className="flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto pb-1"
       >
         <div
           id={workspaceId}

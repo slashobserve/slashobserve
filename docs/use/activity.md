@@ -81,8 +81,8 @@ To see more of the change, read the object through its own endpoint, which check
 ## Audit log
 
 An Admin reads the audit trail in the web app under **Audit** in the sidebar's Workspace group, which other roles do not see.
-**Audit** has three pages, listed under it: **Log**, at `/audit`, **Dashboards** and **Explore**.
-**Dashboards** is [the Audit folder](#audit-folder), and **Explore** opens the [Logs page](logs-and-traces.md) on the audit datasource.
+**Audit** has three pages, listed under it: **Log**, at `/audit`, **Folder** and **Explore**.
+**Folder** is [the Audit folder](#audit-folder), and **Explore** opens the [Logs page](logs-and-traces.md) on the audit datasource.
 An Editor, Commenter or Viewer who opens `/audit` or `/audit/dashboards` sees a note that only Admins can open the page.
 
 **Log** shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
@@ -123,7 +123,7 @@ A starter that someone changed before it became read-only is kept as a separate 
 A starter that was moved out of the Audit folder returns to it, and its copy stays in the folder it had been moved to, or goes to the Audit folder when that folder may not hold its content.
 A dashboard of your own that happens to carry a starter's title is never taken over; the starter is added beside it.
 A starter an Admin deletes comes back at the next start.
-**Audit**, then **Dashboards**, opens the folder as `/f/<id>` does: its dashboards, then its observations and saved searches.
+**Audit**, then **Folder**, opens the folder as `/f/<id>` does: its dashboards, then its observations and saved searches.
 The page finds the folder by the server's record of it, not by its title, so it keeps working after an Admin renames the folder; `GET /api/v1/folders` marks that folder with `audit: true`.
 When a folder named Audit already exists, the server fills it only if it is Admins only and otherwise logs a warning and leaves it alone, and after an Admin deletes the Audit folder it is not created again.
 A dashboard, observation or saved search that reads the audit datasource can live only in a folder that only Admins can read.

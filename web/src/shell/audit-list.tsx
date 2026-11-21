@@ -10,7 +10,7 @@ import { SubNavList, subNavLinkClass } from "./sub-nav"
 
 const pages = [
   { id: "log", label: "Log", path: "/audit" },
-  { id: "dashboards", label: "Dashboards", path: "/audit/dashboards" },
+  { id: "dashboards", label: "Folder", path: "/audit/dashboards" },
   { id: "explore", label: "Explore", path: logsPath(auditDatasourceUid) },
 ] as const
 

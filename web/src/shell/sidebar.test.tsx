@@ -88,7 +88,7 @@ describe("SidebarContent", () => {
   it("keeps the Workspace group outside the scrolling list so it never leaves the screen", async () => {
     renderWithProviders(<SidebarContent />, { route })
     const group = await screen.findByRole("group", { name: "Workspace" })
-    expect(group.closest(".overflow-y-auto")).toBeNull()
+    expect(group.parentElement?.closest(".overflow-y-auto")).toBeNull()
     expect(navLink("Dashboards").closest(".overflow-y-auto")).not.toBeNull()
   })
 
@@ -104,9 +104,6 @@ describe("SidebarContent", () => {
       ["API keys", "/keys"],
       ["People", "/people"],
       ["Audit", "/audit"],
-      ["Log", "/audit"],
-      ["Dashboards", "/audit/dashboards"],
-      ["Explore", "/logs/slashobserve-audit"],
       ["Settings", "/settings"],
     ])
   })
@@ -274,7 +271,7 @@ describe("SidebarContent", () => {
     ).toEqual(["ClickHouseSQL", "ElasticsearchKQL", "LokiLogQL"])
   })
 
-  it("lists Log, Dashboards and Explore under Audit with the log current on /audit", async () => {
+  it("lists Log, Folder and Explore under Audit with the log current on /audit", async () => {
     renderWithProviders(<SidebarContent />, {
       route: { path: "/audit", url: "/audit" },
     })
@@ -287,7 +284,7 @@ describe("SidebarContent", () => {
         .map((link) => [link.textContent, link.getAttribute("href")])
     ).toEqual([
       ["Log", "/audit"],
-      ["Dashboards", "/audit/dashboards"],
+      ["Folder", "/audit/dashboards"],
       ["Explore", "/logs/slashobserve-audit"],
     ])
     expect(within(list).getByRole("link", { name: "Log" })).toHaveAttribute(
@@ -299,15 +296,42 @@ describe("SidebarContent", () => {
     expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
   })
 
+  it("lists the Audit pages only while one of them is open, so the pinned Workspace group stays short", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/dashboards", url: "/dashboards" },
+    })
+
+    expect(await screen.findByRole("link", { name: "Audit" })).toBeVisible()
+    expect(screen.queryByRole("list", { name: "Audit" })).toBeNull()
+  })
+
+  it("gives each Audit page a name no other sidebar link contains, so a name finds one link", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/audit", url: "/audit" },
+    })
+
+    const list = await screen.findByRole("list", { name: "Audit" })
+    const own = new Set(within(list).getAllByRole("link"))
+    const others = screen
+      .getAllByRole("link")
+      .filter((link) => !own.has(link))
+      .map((link) => (link.textContent ?? "").toLowerCase())
+    for (const link of own) {
+      const name = (link.textContent ?? "").toLowerCase()
+      expect(others.filter((other) => name.includes(other))).toEqual([])
+    }
+  })
+
   it("on the audit dashboards highlights only that row, not Log", async () => {
     renderWithProviders(<SidebarContent />, {
       route: { path: "/audit/dashboards", url: "/audit/dashboards" },
     })
 
     const list = await screen.findByRole("list", { name: "Audit" })
-    expect(
-      within(list).getByRole("link", { name: "Dashboards" })
-    ).toHaveAttribute("aria-current", "page")
+    expect(within(list).getByRole("link", { name: "Folder" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
     expect(within(list).getByRole("link", { name: "Log" })).not.toHaveAttribute(
       "aria-current"
     )
@@ -362,7 +386,7 @@ describe("SidebarContent", () => {
     ]
     renderWithProviders(<SidebarContent />, { route })
 
-    await screen.findByRole("list", { name: "Audit" })
+    await screen.findByRole("link", { name: "Audit" })
     expect(screen.queryByRole("list", { name: "Log sources" })).toBeNull()
   })
 })

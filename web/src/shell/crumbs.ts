@@ -5,9 +5,11 @@ import type { NavPath } from "./nav"
 
 export type Crumb = { label: string; to?: NavPath | "/ask" | "/import" }
 
+type CrumbParams = Record<string, string | undefined>
+
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
-    crumbs?: Crumb[]
+    crumbs?: Crumb[] | ((params: CrumbParams) => Crumb[])
     pageTitle?: boolean
   }
 }
@@ -18,8 +20,10 @@ export function useCrumbs(): RouteCrumbs {
   return useMatches({
     select: (matches): RouteCrumbs => {
       const match = matches.findLast((candidate) => candidate.staticData.crumbs)
+      const crumbs = match?.staticData.crumbs
       return {
-        crumbs: match?.staticData.crumbs ?? [],
+        crumbs:
+          typeof crumbs === "function" ? crumbs(match!.params) : (crumbs ?? []),
         pageTitle: match?.staticData.pageTitle ?? false,
       }
     },
