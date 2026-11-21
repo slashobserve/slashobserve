@@ -10,8 +10,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 )
 
-const ScopeAdmin = "admin"
-
 type Filter struct {
 	DashboardID   pgtype.UUID
 	FolderID      pgtype.UUID
@@ -20,7 +18,6 @@ type Filter struct {
 	Types         []string
 	Since         time.Time
 	Until         time.Time
-	AdminOnly     bool
 }
 
 func uuidParam(q url.Values, name string) (pgtype.UUID, error) {
@@ -57,13 +54,6 @@ func ParseFilter(q url.Values) (Filter, error) {
 		if *param.dst, err = uuidParam(q, param.name); err != nil {
 			return Filter{}, err
 		}
-	}
-	switch scope := q.Get("scope"); scope {
-	case "":
-	case ScopeAdmin:
-		f.AdminOnly = true
-	default:
-		return Filter{}, fmt.Errorf("scope must be %q", ScopeAdmin)
 	}
 	types := q["type"]
 	if len(types) > len(knownTypes) {

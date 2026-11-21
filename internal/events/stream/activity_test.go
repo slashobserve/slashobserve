@@ -619,11 +619,3 @@ func TestActivityStreamSendsAdminChangesToAdminsOnly(t *testing.T) {
 		})
 	}
 }
-
-func TestActivityStreamRefusesTheAdminScopeToOtherRoles(t *testing.T) {
-	r := newActivityRig(t, viewer)
-	status, code := r.refused(t, "scope=admin", "")
-	if status != http.StatusForbidden || code != "forbidden_role" {
-		t.Fatalf("status %d code %q, want 403 forbidden_role", status, code)
-	}
-}

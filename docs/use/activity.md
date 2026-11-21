@@ -127,7 +127,7 @@ An event appears once its own transaction and every older one have committed, so
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
 Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, `actor_id` (a person or a service account), a repeated `type`, `since` and `until` (RFC 3339 times); a parameter that does not parse answers 400.
-`scope=admin` lists only [admin changes](#admin-changes), public link events and comment access requests, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
+An Admin sees [admin changes](#admin-changes) in the ordinary list.
 `observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
 It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 
@@ -170,10 +170,10 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 
 ## Read it over MCP
 
-The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `scope`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes, and `scope: "admin"` with another key is refused.
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes.
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
-`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>`, `--until` and `--admin` match `actor_id`, `until` and `scope=admin`.
+`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>` and `--until` match `actor_id` and `until`.
 
 ## Send it to another system
 

@@ -9350,8 +9350,6 @@ export interface operations {
                 until?: string;
                 /** @description Only events made by this person or service account. */
                 actor_id?: string;
-                /** @description `admin` returns only the audit events, the administrative events, the public link events and the comment access requests, and answers 403 `forbidden_role` to a caller who is not an Admin. */
-                scope?: "admin";
                 /** @description The `next_cursor` of the previous page. */
                 cursor?: string;
                 limit?: number;
