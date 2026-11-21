@@ -472,7 +472,8 @@ export function Conversation({
       : { dashboard_id: root.data?.dashboard_id ?? null, observation_id: null }
   )
   const dashboardId = subject?.kind === "dashboard" ? subject.id : null
-  const readOnly = root.data?.read_only === true || !asks
+  const readOnly =
+    root.data?.read_only === true || root.data?.redacted === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),

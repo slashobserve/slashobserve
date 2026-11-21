@@ -315,7 +315,8 @@ Every request you send is a turn of a chat that you and Admins can read, and nob
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
 Unless it is an investigation or an answer you shared into a thread, they also read it without your words: its `title`, `prompt`, step messages, `live_text` and `continue_note` are empty and `redacted` is true, while its state, times, your name, its kind and the version it saved stay, and the dashboard's revision list shows its `prompt` empty the same way.
-In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and it offers nothing to copy, retry or ask again.
+In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.
+Its page is read only: it offers nothing to copy, retry or ask again, and has no message box.
 An Admin reads another person's chat read only.
 
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.

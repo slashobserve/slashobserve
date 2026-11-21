@@ -11,7 +11,7 @@ import {
   type ToolCount,
 } from "@/observe/request-model"
 
-const phaseLabels: Record<Step["phase"], string> = {
+export const phaseLabels: Record<Step["phase"], string> = {
   discover: "Discovering",
   lint: "Checking queries",
   query: "Running queries",
