@@ -46,6 +46,7 @@ type agentRequest struct {
 	RetriedBy     *string         `json:"retried_by"`
 	Finding       *findingSummary `json:"finding"`
 	ObservationID *string         `json:"observation_id"`
+	SharedThread  *string         `json:"shared_thread_id"`
 
 	AllowedActions []string `json:"allowed_actions"`
 }
@@ -286,6 +287,9 @@ func printRequest(out *output, req agentRequest) {
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
+	}
+	if req.SharedThread != nil {
+		fields = append(fields, [2]string{"Shared in thread", text(*req.SharedThread)})
 	}
 	out.fields(fields)
 	switch {

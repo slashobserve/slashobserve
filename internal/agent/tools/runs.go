@@ -21,7 +21,7 @@ import (
 const (
 	nameGetRun = "get_run"
 
-	descGetRun = "Read one run of the built-in agent by id: its state, result_kind, allowed_actions, attempt, the last 20 steps, its usage and, while it is running, live_text, what the agent is writing now (never stored), the same object the REST API returns for one observe request. Run ids come from list_activity events of type run.*."
+	descGetRun = "Read one run of the built-in agent by id: its state, result_kind, allowed_actions, attempt, the last 20 steps, its usage and, while it is running, live_text, what the agent is writing now (never stored), and for your own private question shared_thread_id, the thread its answer is shared in, the same object the REST API returns for one observe request. Run ids come from list_activity events of type run.*."
 
 	schemaGetRun = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, the target id of a run.* event from list_activity."}},"required":["id"],"additionalProperties":false}`
 

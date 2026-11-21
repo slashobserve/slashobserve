@@ -107,6 +107,24 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 	}
 }
 
+func TestSavingAHomeAnswerAsAnObservationKeepsTheRunABuild(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, pgtype.UUID{})
+	r.save(t, editor, findings.SaveInput{AgentRequestID: request, Title: "Which logs exist"})
+
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
+	if err != nil || !saved.Saved() {
+		t.Fatalf("save: %+v, %v", saved, err)
+	}
+	run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Kind != "build" || run.Intent != "ask" || run.ObservationID.String() != saved.ObservationID {
+		t.Fatalf("the saved run is kind %q intent %q observation %v, want a build ask naming %s", run.Kind, run.Intent, run.ObservationID, saved.ObservationID)
+	}
+}
+
 func TestOnlyTheRequesterSavesAnAnswerAsAnObservation(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, pgtype.UUID{})

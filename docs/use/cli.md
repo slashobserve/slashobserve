@@ -327,7 +327,7 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 `--private` asks privately about one of `--dashboard` or `--observation`: it needs only Comment on it, writes nothing into it and opens no observation, and the answer is read only by you and, read only, by Admins (see [Private asks](../concepts/agent.md#private-asks)).
 `bin/observe share-answer <request-id>` then shows that answer to everyone who can read what it was about: it opens a comment thread there with your question and the answer, and on an observation it also writes the answer onto the page; `--thread <thread-id>` adds both to that thread instead.
 Only the person who asked can share, a run is shared once, and sharing again prints the same thread.
-`bin/observe comments withdraw <thread-id>` takes it back to only you while nobody else has written in that thread.
+`bin/observe status <request-id>` and `bin/observe chats show <chat-id>` then name the thread, and `bin/observe comments withdraw <thread-id>` takes it back to only you while nobody else has written in that thread.
 
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
 Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).

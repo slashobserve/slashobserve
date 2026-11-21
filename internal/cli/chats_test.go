@@ -87,6 +87,26 @@ func TestChatsShowPrintsTheChatAndItsTurnsInOrder(t *testing.T) {
 	}
 }
 
+func TestChatsShowAndStatusNameTheThreadAnAnswerIsSharedIn(t *testing.T) {
+	shared := `"shared_thread_id":"` + testThread + `"`
+	reply := `{"chat":{"id":"` + stoppedID + `","title":"Checkout latency","dashboard_id":null,"dashboard_title":null,"observation_id":null,"pinned_at":null,"created_at":"x","last_turn_at":"x","turns":2,"last_turn":null},` +
+		`"turns":[{"id":"00000000-0000-4000-8000-000000000001","state":"succeeded","prompt":"first",` + shared + `},{"id":"00000000-0000-4000-8000-000000000002","state":"succeeded","prompt":"second","shared_thread_id":null}]}`
+	_, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "chats", "show", stoppedID)
+	if code != 0 || !strings.Contains(stdout, "Request 00000000-0000-4000-8000-000000000001 is shared in thread "+testThread) || strings.Contains(stdout, "000000000002 is shared") {
+		t.Fatalf("chats show: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
+	}
+
+	status := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","intent":"ask",` + shared + `}}`
+	_, stdout, stderr, code = runAgainst(t, http.StatusOK, status, "status", stoppedID)
+	if code != 0 || !strings.Contains(stdout, "Shared in thread  "+testThread) {
+		t.Fatalf("status: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
+	}
+	_, stdout, _, _ = runAgainst(t, http.StatusOK, strings.Replace(status, shared, `"shared_thread_id":null`, 1), "status", stoppedID)
+	if strings.Contains(stdout, "Shared in thread") {
+		t.Fatalf("status of an unshared run:\n%s", stdout)
+	}
+}
+
 func TestChatsArchiveDeletesTheChat(t *testing.T) {
 	call, stdout, stderr, code := runAgainst(t, http.StatusNoContent, ``, "chats", "archive", stoppedID, "--yes")
 	if code != 0 {

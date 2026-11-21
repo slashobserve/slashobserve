@@ -1,12 +1,14 @@
 package threads
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -136,5 +138,67 @@ func TestWithdrawingAnObservationAnswerKeepsTheBlocksItWrote(t *testing.T) {
 	events := r.db.AuditEvents(t, "run.withdraw")
 	if len(events) != 1 || events[0].TargetID != run.String() {
 		t.Fatalf("run.withdraw events = %+v", events)
+	}
+}
+
+func (r *rig) sharedThreadShown(t *testing.T, by auth.Principal, run pgtype.UUID) (onRun, onTurn *string) {
+	t.Helper()
+	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	raw, err := desk.Run(reading(t.Context()), run, by, 0)
+	if err != nil {
+		t.Fatalf("%s reads the run: %v", by.Name, err)
+	}
+	var one struct {
+		SharedThread *string `json:"shared_thread_id"`
+		ChatID       *string `json:"chat_id"`
+	}
+	if err := json.Unmarshal(raw, &one); err != nil {
+		t.Fatal(err)
+	}
+	if one.ChatID == nil {
+		t.Fatalf("run %s has no chat: %s", run, raw)
+	}
+	raw, err = desk.Chat(reading(t.Context()), by, mustParse(t, *one.ChatID))
+	if err != nil {
+		t.Fatalf("%s reads the chat: %v", by.Name, err)
+	}
+	var detail struct {
+		Turns []struct {
+			ID           string  `json:"id"`
+			SharedThread *string `json:"shared_thread_id"`
+		} `json:"turns"`
+	}
+	if err := json.Unmarshal(raw, &detail); err != nil {
+		t.Fatal(err)
+	}
+	for _, turn := range detail.Turns {
+		if turn.ID == run.String() {
+			return one.SharedThread, turn.SharedThread
+		}
+	}
+	t.Fatalf("run %s is not a turn of its chat", run)
+	return nil, nil
+}
+
+func TestOnlyTheAskerSeesWhichThreadTheirAnswerIsSharedIn(t *testing.T) {
+	r := newShareRig(t)
+	_, run, shared := r.sharedDashboardAnswer(t)
+
+	onRun, onTurn := r.sharedThreadShown(t, testUser, run)
+	if onRun == nil || *onRun != shared.Thread.ID || onTurn == nil || *onTurn != shared.Thread.ID {
+		t.Fatalf("the asker reads shared_thread_id %v on the run and %v on the turn, want %s", onRun, onTurn, shared.Thread.ID)
+	}
+	if onRun, onTurn := r.sharedThreadShown(t, admin, run); onRun != nil || onTurn != nil {
+		t.Fatalf("an Admin reads shared_thread_id %v on the run and %v on the turn, want none", onRun, onTurn)
+	}
+	if _, err := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{}).Run(reading(t.Context()), run, otherEditor, 0); err == nil {
+		t.Fatal("another viewer of the thread reads the run itself")
+	}
+
+	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if onRun, onTurn := r.sharedThreadShown(t, testUser, run); onRun != nil || onTurn != nil {
+		t.Fatalf("after the withdraw the asker reads shared_thread_id %v on the run and %v on the turn", onRun, onTurn)
 	}
 }

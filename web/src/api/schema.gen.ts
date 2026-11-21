@@ -6640,6 +6640,11 @@ export interface components {
              * @description The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
              */
             observation_id: string | null;
+            /**
+             * Format: uuid
+             * @description The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
+             */
+            shared_thread_id: string | null;
             /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it. */
             finding: components["schemas"]["Finding"] | null;
             /**
