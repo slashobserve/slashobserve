@@ -291,6 +291,7 @@ function ReadablePanelBlock({
             canComment={onCanvas}
             onCanvas={onCanvas}
             canEdit={false}
+            canPropose={false}
             focusOnRender={false}
             onFocused={ignore}
             composerRef={composerRef}

@@ -11,6 +11,7 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import {
   annotationKeys,
+  chatKeys,
   dashboardKeys,
   observationKeys,
   observeKeys,
@@ -351,6 +352,8 @@ export function useMakeDashboard(target: {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.titles() })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: chatKeys.details() })
     },
   })
 }

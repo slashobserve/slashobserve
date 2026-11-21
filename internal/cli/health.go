@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -136,6 +137,9 @@ func (a *app) runHealth(cmd *cobra.Command, _ []string) error {
 		out.line("No dashboard has a health problem.")
 	} else {
 		out.table([]string{"ID", "DASHBOARD", "FOLDER", "STATE", "KIND", "PANEL OR VARIABLE", "CHECKED", "REPAIR"}, healthRows(list.Dashboards))
+		if note := recheckNote(list.Dashboards); note != "" {
+			out.line("%s", note)
+		}
 	}
 	out.line("%s", jobLine(list.Job))
 	pageFooter(out, len(list.Dashboards), nil, list.NextCursor)
@@ -150,11 +154,21 @@ func healthRows(dashboards []healthDashboard) [][]string {
 			checked = when(*d.CheckedAt)
 		}
 		repair := repairState(d.Repair)
+		if len(d.Problems) == 0 {
+			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(d.State), "-", "-", checked, repair})
+		}
 		for _, p := range d.Problems {
 			rows = append(rows, []string{text(d.ID), text(d.Title), text(d.Folder.Title), text(d.State), text(p.Kind), problemTarget(p), checked, repair})
 		}
 	}
 	return rows
+}
+
+func recheckNote(dashboards []healthDashboard) string {
+	if !slices.ContainsFunc(dashboards, func(d healthDashboard) bool { return d.State == "outdated" }) {
+		return ""
+	}
+	return "outdated: the dashboard changed since it was checked and a recheck is pending, so its query, variable and no_data problems belong to an earlier version and may be fixed."
 }
 
 func repairState(r *healthRepair) string {

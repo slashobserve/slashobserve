@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -64,15 +65,20 @@ type BuildSave struct {
 }
 
 func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave) (Build, error) {
-	revision := in.DashboardID.Valid
 	fallback := defaultCreateSummary
-	if revision {
-		if _, err := s.need(ctx, by, in.DashboardID, folders.NeedComment); err != nil {
+	var folder pgtype.UUID
+	if in.DashboardID.Valid {
+		access, err := s.need(ctx, by, in.DashboardID, folders.NeedComment)
+		if err != nil {
 			return Build{}, err
 		}
-		fallback = defaultUpdateSummary
-	} else if _, err := s.creationTarget(ctx, by, in.FolderID); err != nil {
-		return Build{}, err
+		fallback, folder = defaultUpdateSummary, access.Folder.ID
+	} else {
+		target, err := s.creationTarget(ctx, by, in.FolderID)
+		if err != nil {
+			return Build{}, err
+		}
+		folder = target.folder.ID
 	}
 	if in.PlannedPanels != nil {
 		if issues := validatePlannedPanels(*in.PlannedPanels); len(issues) > 0 {
@@ -100,7 +106,7 @@ func (s *Service) SaveBuild(ctx context.Context, by auth.Principal, in BuildSave
 		return Build{}, err
 	}
 	progress := buildProgress(parsed, planned)
-	row, err := s.store.saveBuild(ctx, in, canonical, carried, summary, progress)
+	row, err := s.store.saveBuild(ctx, in, folder, canonical, carried, summary, progress)
 	if err != nil {
 		return Build{}, err
 	}
@@ -242,6 +248,9 @@ func (s *Service) CommitBuild(ctx context.Context, by auth.Principal, requestID 
 		access, err := s.need(ctx, by, build.DashboardID, folders.NeedView)
 		if err != nil {
 			return Commit{}, err
+		}
+		if access.Provisioned {
+			return Commit{}, folders.ErrProvisioned
 		}
 		if mustPropose(ctx, access.Abilities) && access.Abilities.Comment && s.proposer != nil {
 			return s.proposeBuild(ctx, by, build, access, deleteBuild)
@@ -453,7 +462,7 @@ func (s *Service) commitCreate(ctx context.Context, by auth.Principal, folder pg
 }
 
 func (s *Service) commitRevision(ctx context.Context, by auth.Principal, build Build, in newVersion, inTx func(q *dbsqlc.Queries, dashboardID pgtype.UUID, version int) error) (Dashboard, Version, bool, error) {
-	access, err := s.need(ctx, by, build.DashboardID, folders.NeedEdit)
+	access, err := s.need(ctx, by, build.DashboardID, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -516,7 +525,7 @@ func (st store) rebaseBuild(ctx context.Context, b Build, attempt int) error {
 	return nil
 }
 
-func (st store) saveBuild(ctx context.Context, in BuildSave, canonical []byte, unverified Unverified, summary string, progress BuildProgress) (dbsqlc.AgentRequestBuild, error) {
+func (st store) saveBuild(ctx context.Context, in BuildSave, folder pgtype.UUID, canonical []byte, unverified Unverified, summary string, progress BuildProgress) (dbsqlc.AgentRequestBuild, error) {
 	params := dbsqlc.UpsertAgentRequestBuildParams{
 		AgentRequestID: in.RequestID,
 		DashboardID:    in.DashboardID,
@@ -538,6 +547,9 @@ func (st store) saveBuild(ctx context.Context, in BuildSave, canonical []byte, u
 	}
 	var row dbsqlc.AgentRequestBuild
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := placement.Answer(ctx, q, in.RequestID, folder); err != nil {
+			return err
+		}
 		saved, err := q.UpsertAgentRequestBuild(ctx, params)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrBuildLost

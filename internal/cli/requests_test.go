@@ -269,7 +269,7 @@ func TestChatsShowAndStatusNameTheSpotAQuestionPointsAt(t *testing.T) {
 	}
 	status := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","intent":"ask",` + spot + `}}`
 	_, stdout, stderr, code = runAgainst(t, http.StatusOK, status, "status", stoppedID)
-	if code != 0 || !strings.Contains(stdout, "Points at  the row payments (440)") || !strings.Contains(stdout, "On block   "+testThread) {
+	if code != 0 || !strings.Contains(stdout, "Points at      the row payments (440)") || !strings.Contains(stdout, "On block       "+testThread) {
 		t.Fatalf("status: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
 	}
 	whole := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","intent":"ask","anchor":null,"block_id":"` + testThread + `"}}`

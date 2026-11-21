@@ -35,6 +35,8 @@ function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
       id,
       state: "succeeded",
       prompt: title,
+      investigation: false,
+      subject_observation_id: null,
       anchor: null,
       block_id: null,
     },

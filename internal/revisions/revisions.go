@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -35,8 +34,6 @@ const (
 	MaxActiveInvestigatePerPrincipal = 3
 	MaxActiveInvestigate             = 10
 	MaxTitleRunes                    = 120
-	ShortTitleRunes                  = 60
-	minShortTitleRunes               = 3
 	MaxActiveSuggest                 = 10
 	MaxDraftBytes                    = 64 << 10
 	MaxSteps                         = 1000
@@ -223,10 +220,11 @@ func WithMetrics(m Metrics) Option {
 }
 
 type Request struct {
-	ID          string
-	DashboardID string
-	Intent      Intent
-	Source      Source
+	ID            string
+	DashboardID   string
+	Intent        Intent
+	Source        Source
+	Investigation bool
 
 	ObservationID        string
 	SubjectObservationID string
@@ -305,6 +303,7 @@ type Revision struct {
 	ID            string
 	DashboardID   string
 	Intent        Intent
+	Investigation bool
 	Source        Source
 	CommentID     string
 	PanelID       string
@@ -329,6 +328,8 @@ type Revision struct {
 	ContinueNote string
 	AssignedKind AssigneeKind
 	AssignedID   string
+
+	audience runAudience
 }
 
 func CheckPrompt(field, s string) (string, error) {
@@ -347,37 +348,8 @@ func Kind(source Source) string {
 	return KindBuild
 }
 
-var observeMention = regexp.MustCompile(`(?i)(^|\s)@observe\b[:,]?`)
-
-func ShortTitle(text string) string {
-	var line string
-	for l := range strings.Lines(text) {
-		line = strings.Join(strings.Fields(observeMention.ReplaceAllString(l, " ")), " ")
-		if line != "" {
-			break
-		}
-	}
-	runes := []rune(line)
-	switch {
-	case len(runes) < minShortTitleRunes:
-		return ""
-	case len(runes) <= ShortTitleRunes:
-		return line
-	}
-	end := ShortTitleRunes
-	if runes[end] != ' ' {
-		for i := end - 1; i > end/2; i-- {
-			if runes[i] == ' ' {
-				end = i
-				break
-			}
-		}
-	}
-	return strings.TrimRight(string(runes[:end]), " ,;:-") + "..."
-}
-
 func DefaultTitle(prompt string) string {
-	if title := ShortTitle(prompt); title != "" {
+	if title := usertext.ShortTitle(prompt); title != "" {
 		return title
 	}
 	line, _, _ := strings.Cut(strings.TrimSpace(prompt), "\n")

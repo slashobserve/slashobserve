@@ -7,6 +7,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -70,7 +71,8 @@ func applyRefusal(err error) (Result, bool) {
 		return Result{}, false
 	case errors.Is(err, threads.ErrAnswerNotHere):
 		return toolError(codeNotFound, "finding_id must be an answer given in this thread"), true
-	case errors.Is(err, revisions.ErrUnavailable), errors.Is(err, revisions.ErrTooManyRevisions), errors.Is(err, revisions.ErrAssigneeUnavailable), errors.Is(err, revisions.ErrForbidden), errors.Is(err, revisions.ErrFindingApplied):
+	case errors.Is(err, revisions.ErrUnavailable), errors.Is(err, revisions.ErrTooManyRevisions), errors.Is(err, revisions.ErrAssigneeUnavailable), errors.Is(err, revisions.ErrForbidden), errors.Is(err, revisions.ErrFindingApplied),
+		errors.Is(err, folders.ErrRestrictedAnswer), errors.Is(err, folders.ErrProvisioned):
 		res, _ := runFailure(err)
 		return res, true
 	}

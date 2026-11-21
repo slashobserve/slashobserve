@@ -75,26 +75,43 @@ type dashboardItemOut struct {
 type dashboardListOut struct {
 	Dashboards []dashboardItemOut `json:"dashboards"`
 	NextCursor *string            `json:"next_cursor"`
+	LeftOut    int                `json:"left_out,omitempty"`
+	LeftOutWhy string             `json:"left_out_note,omitempty"`
 }
 
-func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (Result, error) {
-	var in struct {
-		Limit  *int   `json:"limit"`
-		Cursor string `json:"cursor"`
-		Order  string `json:"order"`
-	}
-	if res, ok := decodeInput(input, &in); !ok {
-		return res, nil
-	}
+type listDashboardsIn struct {
+	Limit             *int   `json:"limit"`
+	Cursor            string `json:"cursor"`
+	Order             string `json:"order"`
+	IncludeRestricted bool   `json:"include_restricted"`
+}
+
+func (in listDashboardsIn) checked() (int, Result, bool) {
 	if in.Order != "" && in.Order != "updated" && in.Order != "views" && in.Order != "name" {
-		return invalid("order must be updated, views or name"), nil
+		return 0, invalid("order must be updated, views or name"), false
 	}
 	limit, res, ok := boundedInt(in.Limit, defaultListDashboards, 1, maxListDashboards, "limit")
 	if !ok {
-		return res, nil
+		return 0, res, false
 	}
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
+		return 0, res, false
+	}
+	return limit, Result{}, true
+}
+
+func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (Result, error) {
+	var in listDashboardsIn
+	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	limit, res, ok := in.checked()
+	if !ok {
+		return res, nil
+	}
+	titles, res, ok, err := r.restrictedTitles(ctx, in.IncludeRestricted)
+	if err != nil || !ok {
+		return res, err
 	}
 	principal, _ := auth.FromContext(ctx)
 	var (
@@ -109,14 +126,16 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		if err != nil {
 			return Result{}, err
 		}
-		items, next = r.dashboardItems(page.Items), page.NextCursor
+		titles.restart()
+		items, next = r.dashboardItems(slices.DeleteFunc(page.Items, func(d dashboards.ListItem) bool { return !titles.keep(d.Folder.ID, d.ID) })), page.NextCursor
 		kept, cut := fit(items, listBudget)
 		if !cut || limit <= 1 {
 			break
 		}
 		limit = max(len(kept), 1)
 	}
-	out := dashboardListOut{Dashboards: items}
+	titles.done(ctx)
+	out := dashboardListOut{Dashboards: items, LeftOut: titles.leftOut, LeftOutWhy: titles.note("dashboard", "dashboards")}
 	if next != "" {
 		out.NextCursor = &next
 	}
@@ -231,13 +250,14 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
-	if res, ok, err := r.viewableDashboard(ctx, id, "dashboard or version not found"); err != nil || !ok {
+	access, res, ok, err := r.dashboardAccess(ctx, id, "dashboard or version not found")
+	if err != nil || !ok {
 		return res, err
 	}
+	readContentIn(ctx, id.String(), access.Folder)
 	var (
 		dash dashboards.Dashboard
 		ver  dashboards.Version
-		err  error
 	)
 	if in.Version == nil {
 		dash, ver, err = r.deps.Dashboards.Get(ctx, id)
@@ -253,7 +273,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: links.Dashboard(r.deps.PublicURL, dash.ID, ver.Spec.Title), Folder: dash.Folder.Title, SavedBy: ver.Author.Name, Origin: ver.Origin, SavedAt: ver.CreatedAt.UTC().Format(time.RFC3339), Summary: ver.Summary, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified.Shown(access.Provisioned))}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}

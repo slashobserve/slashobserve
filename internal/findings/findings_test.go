@@ -35,19 +35,21 @@ func TestTitleIsAShortCleanFirstLine(t *testing.T) {
 	}
 }
 
-func TestTitleFromPrefersTheTitleTheAgentGave(t *testing.T) {
+func TestTitleFromPrefersTheTitleTheAgentGaveAndNeverUsesThePrompt(t *testing.T) {
 	long := "which pod is responsible for the elevated server errors in checkout today"
 	cases := []struct {
-		name, given, prompt, want string
+		name, given   string
+		investigation bool
+		want          string
 	}{
-		{"given", "Checkout 5xx by pod", long, "Checkout 5xx by pod"},
-		{"given is cleaned too", "@observe " + long, "x", "which pod is responsible for the elevated server errors in..."},
-		{"blank given falls back to the prompt", "  ", "@observe why is checkout slow", "why is checkout slow"},
-		{"nothing to name it by", "", "x", "Finding"},
+		{"given", "Checkout 5xx by pod", false, "Checkout 5xx by pod"},
+		{"given is cleaned too", "@observe " + long, true, "which pod is responsible for the elevated server errors in..."},
+		{"an ask without a title", "  ", false, "Answer"},
+		{"an investigation without a title", "", true, "Finding"},
 	}
 	for _, c := range cases {
-		if got := findings.TitleFrom(c.given, c.prompt); got != c.want {
-			t.Errorf("%s: TitleFrom(%q, %q) = %q, want %q", c.name, c.given, c.prompt, got, c.want)
+		if got := findings.TitleFrom(c.given, c.investigation); got != c.want {
+			t.Errorf("%s: TitleFrom(%q, %v) = %q, want %q", c.name, c.given, c.investigation, got, c.want)
 		}
 	}
 }

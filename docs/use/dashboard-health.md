@@ -97,7 +97,7 @@ Each count in it is of dashboards, not problems, over every dashboard in the fol
 
 | Count | Dashboards |
 | --- | --- |
-| `dashboards` | with any problem |
+| `dashboards` | with any problem, or waiting for a recheck of one |
 | `failing` | with a `query_failed` or `variable_failed` problem |
 | `query_failed`, `variable_failed`, `no_data` | with that problem |
 | `duplicate_titles` | with a `duplicate_title` problem |
@@ -105,8 +105,11 @@ Each count in it is of dashboards, not problems, over every dashboard in the fol
 
 Each dashboard carries a `state`: `unchecked`, `outdated`, `skipped`, `failing` or `healthy`, computed on the server from its last check.
 `no_data`, `duplicate_title` and `unopened` stay problems in the list but do not make a dashboard `failing`; see [States](../reference/states.md).
+An `outdated` dashboard still lists the problems of the older check, but they belong to `checked_version`, so the counts above (except `dashboards`) and the `kind` filter leave out its `query_failed`, `variable_failed` and `no_data` problems until the next check, and the web shows it as **Recheck pending** instead of listing them.
+Without a `kind`, such a dashboard, and one with a health repair on record, stays in the list after the dashboards with current problems, so a repaired dashboard does not vanish before its next check.
+Its `duplicate_title` and `unopened` problems are current and stay.
 
-Each dashboard carries `repair`, its latest health repair whatever its age, or null when it never had one.
+Each dashboard carries `repair`, its latest health repair whatever its age, or null when it never had one, and always for a starter dashboard, which no repair can change.
 Its `state` is the status of the repair's run: `queued`, `running`, `succeeded` or `failed`.
 Its `outcome` is what the repair came to: `queued`, `running`, `repaired`, `still_failing` or `failed`, where `still_failing` means the repaired version was checked and still fails.
 `version` is the version a succeeded repair saved, `error` is the sentence a failed repair ended with, and both are null in the other states.
@@ -166,7 +169,8 @@ Its `outcome` is what the repair came to: `queued`, `running`, `repaired`, `stil
 }
 ```
 
-`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role` and `queue_full`.
+`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` and `queue_full`.
+A starter dashboard is skipped as `provisioned`, because the server keeps it current with each release; duplicate it to repair a copy.
 It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `POST /api/v1/health/run` needs the Admin role and answers 202 while the run starts in the background.
@@ -175,10 +179,12 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `observe health` lists the same problems in a terminal, in the same ranked order, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
 Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows the outcome of the latest health repair: `repair queued`, `repair running`, `repaired in version N`, `repair saved version N, still failing`, `repair failed: <error>`, `repair failed` when the failure has no sentence, or `-` when it never had one.
+A listed dashboard with no problem, such as an `outdated` one kept in the list for its repair, shows one row with `-` as its kind and target, and a line after the table says that outdated dashboards wait for a recheck and that their problems belong to an earlier version.
 
 ## From MCP clients
 
 MCP clients call `list_dashboard_health` with a Viewer key or higher: it takes `folder_id`, `dashboard_id` (one dashboard, answered even when it has no problem, with empty `problems`), `kind`, `limit` (up to 50) and `cursor`, and answers the same dashboards and problems in the same ranked order, with the state of the job.
+Each dashboard carries `can_edit`, which is false on a starter, and an outdated one carries a `note` saying that its problems belong to `checked_version` and a recheck is pending.
 The first page also carries the same `summary` counts, and each dashboard carries its `state`; one with a health repair carries the repair's `state` and `outcome`, with `version` when it succeeded and `error` when it failed.
 An Admin's client can start a run with `run_dashboard_health`, which does what **Run now** does.
 A client fixes a failing panel with its own model, reading the panel with `get_panels` and saving the fix with `update_panels`, so the repair needs no LLM provider on the server.

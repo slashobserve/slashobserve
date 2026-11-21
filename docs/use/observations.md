@@ -164,6 +164,7 @@ Once it is pinned the item reads **Pinned to dashboard**, and pinning again over
 The dashboard keeps the variables each block carries and uses the observation's range, or the first panel's when it has none, and every query is run again first.
 Making it again from the same observation or block opens the one you made first, unless you can no longer see that dashboard, and then a new one is made.
 Over the API `new: true` makes another.
+When the observation came from your own chat and that chat is about nothing else, the chat becomes about the new dashboard and opens in its Chat tab.
 Suggested blocks, text blocks and snapshots are left out.
 
 ### Discuss beside the blocks
@@ -399,6 +400,17 @@ The run block then cites these blocks, and a run adds them once, so saving the f
 The page names each cited block by the finding's heading or the panel's title.
 An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
 A finding saved by a run that has an observation takes its own id, and one saved with no run observation takes the id of the observation it creates; its `observation_id` names the observation either way.
+
+Where the answer goes depends on what the question was asked on.
+A question asked on one block puts the run block, the text block and the evidence panels directly under that block, in that order, and the blocks below move down by that many places.
+A question on the whole page, and one asked on a block that has been deleted since, puts them at the end of the page.
+The new blocks are full width, and the order, widths and heights you arranged for the other blocks stay as they are.
+The same rule holds when the agent writes its answer over MCP, when you save an answer from a chat onto the page, and when a commenter asks, whose blocks arrive as `requested` blocks in the same place.
+
+On the page a run block that finished normally shows the outcome and **View the run** on one line, and **Run details** unfolds the steps and the blocks it cites.
+A run that failed or was stopped stays unfolded, so its error and the retry control show without a click.
+A text block written by a run that is longer than 600 characters shows its heading and first paragraph, and **The rest of the answer** shows or hides the remainder.
+Folding is only how the page is drawn, so the stored block, a published revision and a snapshot always hold the whole text.
 
 A block is `live` when you can edit the observation's folder at the moment it is written, and `requested` when you can only comment.
 When the run's observation is gone, hidden from you, or in a folder you cannot comment in, saving the finding fails and writes nothing, instead of opening a second observation.

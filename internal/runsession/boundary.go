@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -76,8 +77,14 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 		return *first.answer, nil
 	}
 	done := dispatched{start: time.Now()}
-	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(ctx, first.adm.ReadsRefused), first.adm.Unchecked))
+	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
+	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked))
 	done.took = time.Since(done.start)
+	if readRestricted() {
+		if err := s.markReadRestricted(ctx, req); err != nil {
+			return Answer{}, err
+		}
+	}
 	if done.err == nil {
 		done.content, done.err = json.Marshal(done.res.Content)
 	}

@@ -35,6 +35,46 @@ func (q *Queries) AdminsOnlyDatasourceUIDs(ctx context.Context) ([]string, error
 	return items, nil
 }
 
+const dashboardHoldsRestrictedAnswer = `-- name: DashboardHoldsRestrictedAnswer :one
+SELECT dashboard_holds_restricted_answer($1::uuid)::boolean
+`
+
+func (q *Queries) DashboardHoldsRestrictedAnswer(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, dashboardHoldsRestrictedAnswer, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const dashboardKeptWithAdmins = `-- name: DashboardKeptWithAdmins :one
+SELECT (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted,
+  (f.admins_only AND dashboard_has_run_in_flight(d.id))::boolean AS in_flight
+FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = $1
+`
+
+type DashboardKeptWithAdminsRow struct {
+	Restricted bool
+	InFlight   bool
+}
+
+func (q *Queries) DashboardKeptWithAdmins(ctx context.Context, id pgtype.UUID) (DashboardKeptWithAdminsRow, error) {
+	row := q.db.QueryRow(ctx, dashboardKeptWithAdmins, id)
+	var i DashboardKeptWithAdminsRow
+	err := row.Scan(&i.Restricted, &i.InFlight)
+	return i, err
+}
+
+const findingRun = `-- name: FindingRun :one
+SELECT agent_request_id FROM findings WHERE id = $1
+`
+
+func (q *Queries) FindingRun(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findingRun, id)
+	var agent_request_id pgtype.UUID
+	err := row.Scan(&agent_request_id)
+	return agent_request_id, err
+}
+
 const lockDashboardPlacement = `-- name: LockDashboardPlacement :one
 SELECT folder_id FROM dashboards WHERE id = $1 FOR UPDATE
 `
@@ -53,6 +93,35 @@ SELECT pg_advisory_xact_lock(hashtextextended('datasource_uid:' || $1::text, 0))
 func (q *Queries) LockDatasourceUID(ctx context.Context, uid string) error {
 	_, err := q.db.Exec(ctx, lockDatasourceUID, uid)
 	return err
+}
+
+const observationHoldsRestrictedAnswer = `-- name: ObservationHoldsRestrictedAnswer :one
+SELECT observation_holds_restricted_answer($1::uuid)::boolean
+`
+
+func (q *Queries) ObservationHoldsRestrictedAnswer(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, observationHoldsRestrictedAnswer, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const observationKeptWithAdmins = `-- name: ObservationKeptWithAdmins :one
+SELECT (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean AS restricted,
+  (f.admins_only AND observation_has_run_in_flight(o.id))::boolean AS in_flight
+FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = $1
+`
+
+type ObservationKeptWithAdminsRow struct {
+	Restricted bool
+	InFlight   bool
+}
+
+func (q *Queries) ObservationKeptWithAdmins(ctx context.Context, id pgtype.UUID) (ObservationKeptWithAdminsRow, error) {
+	row := q.db.QueryRow(ctx, observationKeptWithAdmins, id)
+	var i ObservationKeptWithAdminsRow
+	err := row.Scan(&i.Restricted, &i.InFlight)
+	return i, err
 }
 
 const placementDashboardSpecs = `-- name: PlacementDashboardSpecs :many
@@ -395,6 +464,93 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 		return nil, err
 	}
 	return items, nil
+}
+
+const restrictedAnswerFolder = `-- name: RestrictedAnswerFolder :one
+SELECT COALESCE(
+  (SELECT f.id FROM agent_requests r
+    CROSS JOIN LATERAL (VALUES
+      (1, (SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id)),
+      (2, (SELECT o.folder_id FROM observations o WHERE o.id = r.observation_id)),
+      (3, (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))) AS subject(rank, folder_id)
+    JOIN folders f ON f.id = subject.folder_id
+    WHERE r.id = $1 AND f.admins_only
+    ORDER BY subject.rank LIMIT 1),
+  (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = $2 AND f.admins_only)
+)::uuid AS folder_id
+`
+
+type RestrictedAnswerFolderParams struct {
+	RunID          pgtype.UUID
+	AuditFolderKey string
+}
+
+func (q *Queries) RestrictedAnswerFolder(ctx context.Context, arg RestrictedAnswerFolderParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, restrictedAnswerFolder, arg.RunID, arg.AuditFolderKey)
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
+}
+
+const restrictedAnswerHolders = `-- name: RestrictedAnswerHolders :many
+SELECT kind, id, title, restricted FROM (
+  SELECT 'dashboard'::text AS kind, d.id, d.title, (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted, dashboard_has_run_in_flight(d.id) AS in_flight
+  FROM dashboards d WHERE d.folder_id = $1
+  UNION ALL
+  SELECT 'observation'::text, o.id, o.title, (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean, observation_has_run_in_flight(o.id)
+  FROM observations o WHERE o.folder_id = $1
+) held
+WHERE restricted OR in_flight
+ORDER BY restricted DESC, kind, title, id
+LIMIT $2
+`
+
+type RestrictedAnswerHoldersParams struct {
+	FolderID pgtype.UUID
+	RowLimit int32
+}
+
+type RestrictedAnswerHoldersRow struct {
+	Kind       string
+	ID         pgtype.UUID
+	Title      string
+	Restricted bool
+}
+
+func (q *Queries) RestrictedAnswerHolders(ctx context.Context, arg RestrictedAnswerHoldersParams) ([]RestrictedAnswerHoldersRow, error) {
+	rows, err := q.db.Query(ctx, restrictedAnswerHolders, arg.FolderID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RestrictedAnswerHoldersRow
+	for rows.Next() {
+		var i RestrictedAnswerHoldersRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.ID,
+			&i.Title,
+			&i.Restricted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const runAnswerKeptWithAdmins = `-- name: RunAnswerKeptWithAdmins :one
+SELECT run_answer_kept_with_admins(r.id, '{}')::boolean FROM agent_requests r WHERE r.id = $1
+`
+
+func (q *Queries) RunAnswerKeptWithAdmins(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, runAnswerKeptWithAdmins, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const shareDashboardPlacement = `-- name: ShareDashboardPlacement :one

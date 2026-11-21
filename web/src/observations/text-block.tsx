@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react"
-import { PencilIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronRightIcon, PencilIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { FindingMarkdown } from "@/findings/finding-markdown"
 import { isModEnter } from "@/lib/shortcuts"
 
+import { foldAnswer } from "./blocks/answer-fold"
 import { blockWriteProblem } from "./errors"
 import { useUpdateBlock, type Block } from "./queries"
 import { TextCanvas } from "./text-canvas"
@@ -123,6 +124,40 @@ function TextEditor({ block, onClose }: { block: Block; onClose: () => void }) {
   )
 }
 
+function FoldedAnswer({ opening, rest }: { opening: string; rest: string }) {
+  const restId = useId()
+  const [open, setOpen] = useState(false)
+  const Chevron = open ? ChevronDownIcon : ChevronRightIcon
+  return (
+    <>
+      <FindingMarkdown markdown={opening} />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-1"
+        aria-expanded={open}
+        aria-controls={open ? restId : undefined}
+        onClick={() => setOpen(!open)}
+      >
+        <Chevron aria-hidden="true" />
+        The rest of the answer
+      </Button>
+      {open ? (
+        <div id={restId} className="mt-1">
+          <FindingMarkdown markdown={rest} />
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function Answer({ block }: { block: Block }) {
+  const markdown = markdownOf(block)
+  const fold = block.run_id === null ? null : foldAnswer(markdown)
+  if (fold === null) return <FindingMarkdown markdown={markdown} />
+  return <FoldedAnswer opening={fold.opening} rest={fold.rest} />
+}
+
 export function TextBlock({
   block,
   onCanvas = false,
@@ -154,7 +189,7 @@ export function TextBlock({
       {onCanvas ? (
         <TextCanvas block={block} markdown={markdownOf(block)} />
       ) : (
-        <FindingMarkdown markdown={markdownOf(block)} />
+        <Answer block={block} />
       )}
       {canEdit ? (
         <Button

@@ -19,7 +19,7 @@ const (
 	codeObservationHasNoPanels    = "observation_has_no_panels"
 
 	descPinObservation = "Pin an observation to a dashboard as an annotation (not pin_dashboard, which stars a dashboard). Needs edit access to the dashboard; dashboard_id defaults to the one the observation's run was about. Pinning again returns the same annotation."
-	descMakeDashboard  = "Make a dashboard in My Dashboards from the live panel blocks of an observation, or from one block with block_id; the variables each block carries come along. Making it again returns the first one unless new is true."
+	descMakeDashboard  = "Make a dashboard in My Dashboards from the live panel blocks of an observation, or from one block with block_id; the variables each block carries come along. Making it again returns the first one unless new is true. When the observation, or the block, came from the caller's own chat and that chat is about nothing else, the chat becomes about the new dashboard."
 
 	schemaPinObservation = `{"type":"object","properties":{` + propObservationID + `,` +
 		`"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to pin to. Default: the dashboard the observation's run was about."}},"required":["observation_id"],"additionalProperties":false}`
