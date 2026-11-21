@@ -221,8 +221,8 @@ func TestTheEventCarriesTheAddressThePlatformResolved(t *testing.T) {
 	if err := engine.SetTrustedProxies([]string{"192.0.2.0/24"}); err != nil {
 		t.Fatal(err)
 	}
-	engine.Group("/api/v1", mw).GET("/dashboards", func(c *gin.Context) { c.Status(http.StatusOK) })
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboards", nil)
+	engine.Group("/api/v1", mw).POST("/dashboards/:id/versions", func(c *gin.Context) { c.Status(http.StatusForbidden) })
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions", nil)
 	req.RemoteAddr = "192.0.2.7:4100"
 	req.Header.Set("X-Forwarded-For", "198.51.100.1, 203.0.113.9")
 	rec := httptest.NewRecorder()
