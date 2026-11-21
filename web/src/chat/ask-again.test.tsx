@@ -76,7 +76,6 @@ describe("AskAgainButton", () => {
       kind: "ask",
       dashboard_id: "d1",
     })
-    expect(sent).not.toHaveProperty("follows_id")
   })
 
   it("stays off while another run goes on", async () => {

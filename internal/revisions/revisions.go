@@ -85,7 +85,6 @@ var (
 	ErrTooManyRequests   = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
 	ErrAgentBusy         = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound   = errors.New("agent request not found")
-	ErrFollowsDashboard  = errors.New("follows_id names a request that has a dashboard; send dashboard_id to continue it")
 	ErrUnknownPanel      = errors.New("panel does not exist in the latest version of the dashboard")
 	ErrCommentNotFound   = errors.New("comment not found")
 	errNoThreads         = errors.New("comment threads are not configured")

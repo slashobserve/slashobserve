@@ -367,21 +367,6 @@ func TestSaveAnswerErrorLines(t *testing.T) {
 	}
 }
 
-func TestAPromptFollowingAChatSendsFollowsID(t *testing.T) {
-	const created = `{"request":{"id":"` + stoppedID + `","status":"queued","state":"queued","steps":[]}}`
-	call, _, stderr, code := runAgainst(t, http.StatusAccepted, created, "--no-wait", "--follows", stoppedID, "and the day before?")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
-	}
-	if call.path != "/api/v1/observe" || call.body != `{"follows_id":"`+stoppedID+`","prompt":"and the day before?"}` {
-		t.Fatalf("got %+v", call)
-	}
-	_, _, stderr, code = runAgainst(t, http.StatusAccepted, created, "--follows", stoppedID, "--dashboard", stoppedID, "why")
-	if code != 2 || !strings.Contains(stderr, "exclude each other") {
-		t.Fatalf("both flags: exit %d, stderr %q", code, stderr)
-	}
-}
-
 func TestControlCommandsRejectABadID(t *testing.T) {
 	for _, name := range []string{"cancel", "continue", "retry", "save-answer"} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, name, "nope")

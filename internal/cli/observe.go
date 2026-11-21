@@ -82,7 +82,6 @@ type promptOptions struct {
 	revise    bool
 	apply     string
 	chat      string
-	follows   string
 	at        string
 	noWait    bool
 	timeout   time.Duration
@@ -99,7 +98,6 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 	flags.BoolVar(&a.prompt.revise, "revise", false, "change --dashboard with this prompt instead of only answering about it")
 	flags.StringVar(&a.prompt.apply, "apply", "", "with --revise and no prompt: change --dashboard as this answer's suggested change says, by its finding id")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
-	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
 	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object or a short form such as pos:0.4,0.3")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.prompt.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
@@ -164,12 +162,6 @@ func (a *app) runApplyAnswer(cmd *cobra.Command, args []string) error {
 }
 
 func (o promptOptions) payload(prompt string) (map[string]any, error) {
-	if o.dashboard != "" && o.follows != "" {
-		return nil, usagef("--dashboard and --follows exclude each other")
-	}
-	if o.chat != "" && o.follows != "" {
-		return nil, usagef("--chat and --follows exclude each other")
-	}
 	if o.revise && o.dashboard == "" {
 		return nil, usagef("--revise needs --dashboard")
 	}
@@ -177,7 +169,7 @@ func (o promptOptions) payload(prompt string) (map[string]any, error) {
 	if o.revise {
 		payload["kind"] = kindRevise
 	}
-	for field, raw := range map[string]string{"dashboard_id": o.dashboard, "chat_id": o.chat, "follows_id": o.follows} {
+	for field, raw := range map[string]string{"dashboard_id": o.dashboard, "chat_id": o.chat} {
 		if raw == "" {
 			continue
 		}

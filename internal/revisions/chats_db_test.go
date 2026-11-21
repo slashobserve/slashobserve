@@ -107,14 +107,13 @@ func TestAChatIDMustNameTheCallersLiveChatOnTheSameSubject(t *testing.T) {
 		req  revisions.StartRequest
 		want error
 	}{
-		"someone else's chat":     {account, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
-		"an Admin":                {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatReadOnly},
-		"an Admin on archived":    {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
-		"an archived chat":        {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
-		"a chat that never was":   {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
-		"a Home chat on a board":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}, nil},
-		"a board chat from Home":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(chatOfTurn(t, d, onDash))}, nil},
-		"chat_id with follows_id": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), FollowsID: text(home.String())}, nil},
+		"someone else's chat":    {account, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
+		"an Admin":               {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatReadOnly},
+		"an Admin on archived":   {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
+		"an archived chat":       {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
+		"a chat that never was":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
+		"a Home chat on a board": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}, nil},
+		"a board chat from Home": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(chatOfTurn(t, d, onDash))}, nil},
 	} {
 		_, err := svc.Start(ctx, c.by, c.req)
 		var refusal *revisions.StartError
