@@ -2,12 +2,24 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+)
+
+const (
+	lockNotAvailable      = "55P03"
+	connectionException   = "08"
+	insufficientResources = "53"
+	operatorIntervention  = "57"
 )
 
 type writerLimits struct {
@@ -91,8 +103,12 @@ func (w *Writer) run(ctx context.Context) {
 	defer ticker.Stop()
 	batch := make([]dbsqlc.InsertAuditEventParams, 0, w.limits.batch)
 	for {
+		queue := w.queue
+		if len(batch) >= w.limits.batch {
+			queue = nil
+		}
 		select {
-		case row := <-w.queue:
+		case row := <-queue:
 			batch = append(batch, row)
 			if len(batch) >= w.limits.batch {
 				batch = w.flush(context.WithoutCancel(ctx), batch)
@@ -143,7 +159,7 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 				batch = w.flush(ctx, batch)
 			}
 		default:
-			w.flush(ctx, batch)
+			w.discard(w.flush(ctx, batch))
 			return
 		}
 	}
@@ -151,30 +167,58 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 
 func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) []dbsqlc.InsertAuditEventParams {
 	w.recorder.metrics.BufferedEvents(len(w.queue))
-	events := weigh(batch)
 	lost := w.lost.Swap(0)
+	rows := batch
 	if lost > 0 {
 		if gap, err := w.recorder.row(context.Background(), Event{Action: ActionGap, Data: map[string]any{"lost": lost}}); err == nil {
-			batch = append(batch, gap)
+			rows = append(slices.Clip(batch), gap)
 		}
 	}
-	if len(batch) == 0 {
+	if len(rows) == 0 {
 		return batch
 	}
+	err := w.write(ctx, rows)
+	if err == nil {
+		return batch[:0]
+	}
+	w.lost.Add(lost)
+	w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
+	if retryable(err) {
+		return batch
+	}
+	w.discard(batch)
+	return batch[:0]
+}
+
+func (w *Writer) write(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) error {
 	rows := make([]dbsqlc.CopyAuditEventsParams, len(batch))
 	for i, row := range batch {
 		rows[i] = dbsqlc.CopyAuditEventsParams(row)
 	}
 	start := time.Now()
 	wctx, cancel := context.WithTimeout(ctx, w.limits.timeout)
+	defer cancel()
 	_, err := w.recorder.db.Queries().CopyAuditEvents(wctx, rows)
-	cancel()
 	w.recorder.metrics.BatchWritten(time.Since(start))
-	if err != nil {
-		w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
-		w.recorder.metrics.EventsDropped(DroppedWriteFailed, events)
-		w.lost.Add(lost + int64(events))
-		return batch[:0]
+	return err
+}
+
+func (w *Writer) discard(batch []dbsqlc.InsertAuditEventParams) {
+	events := weigh(batch)
+	if events == 0 {
+		return
 	}
-	return batch[:0]
+	w.recorder.metrics.EventsDropped(DroppedWriteFailed, events)
+	w.lost.Add(int64(events))
+}
+
+func retryable(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) || pgconn.Timeout(err) || pgconn.SafeToRetry(err) {
+		return true
+	}
+	var failure *pgconn.PgError
+	if !errors.As(err, &failure) {
+		return false
+	}
+	return failure.Code == lockNotAvailable || strings.HasPrefix(failure.Code, connectionException) || strings.HasPrefix(failure.Code, operatorIntervention) || strings.HasPrefix(failure.Code, insufficientResources)
 }
