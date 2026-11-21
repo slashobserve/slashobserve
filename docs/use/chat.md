@@ -16,7 +16,7 @@ The answer stays in the chat, and no observation is created, until you choose **
 When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; an answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
 A chat is titled the same way, from your message.
 
 ## Start a chat
