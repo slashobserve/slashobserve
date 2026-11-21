@@ -5,5 +5,6 @@ export const manifest: RendererManifest = {
   supported: true,
   minWidth: 180,
   minHeight: 120,
+  anchors: () => import("./anchors"),
   load: () => import("./gauge-panel"),
 }

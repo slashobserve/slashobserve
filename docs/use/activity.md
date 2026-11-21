@@ -96,6 +96,8 @@ After a dropped connection it reconnects and continues from the last event it sh
 After 500 new events the page reloads the list up to now, so the newest of them are in the list and the older ones a click on Load older events away.
 It turns itself off with a message when you are no longer an Admin, when you already hold 5 audit streams, or when the query is too slow to follow.
 The query, the time range and the open event are in the page's address, so a link opens the same view.
+**Open in Logs** opens the [Logs page](logs-and-traces.md) on the audit datasource with the page's current query and time range, so the same events can be read there like any OpenSearch logs.
+A query longer than the Logs page accepts is left out and Logs opens with the time range alone.
 
 **Export** downloads the matching events as NDJSON or CSV through `GET /api/v1/audit/export`, which records the download as `audit.export` with the query, the window, the format and the row count.
 The file downloads in the browser, which shows its progress and can cancel it, so the page never holds the file in memory.

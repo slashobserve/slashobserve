@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
-import { act, renderHook } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 import { dashboardKeys, threadKeys } from "@/api/keys"
@@ -8,13 +8,15 @@ import { testQueryClient } from "@/test/render"
 
 import { useDashboardEvents } from "./use-dashboard-events"
 
+const router = vi.hoisted(() => ({
+  state: { matches: [] },
+  navigate: vi.fn(),
+  invalidate: vi.fn(),
+}))
+
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
-  useRouter: () => ({
-    state: { matches: [] },
-    navigate: vi.fn(),
-    invalidate: vi.fn(),
-  }),
+  useRouter: () => router,
 }))
 
 type Listener = (event: Event) => void
@@ -198,3 +200,32 @@ it.each(["comment.created", "comment.updated", "revision.updated"])(
     ).toContainEqual(threadKeys.list("dashboard:d1"))
   }
 )
+
+it("checks the dashboard as soon as its stream ends, so a dashboard the caller lost shows as gone without waiting for a reconnect", async () => {
+  const requested: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (request: Request) => {
+      requested.push(new URL(request.url).pathname)
+      return new Response(
+        JSON.stringify({ error: "dashboard not found", code: "not_found" }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      )
+    })
+  )
+  router.invalidate.mockClear()
+  renderHook(() => useDashboardEvents("d1", {}), {
+    wrapper: wrapperWith(testQueryClient()),
+  })
+  const source = openSources()[0]
+  act(() => source.send("ready", { dashboard_id: "d1", latest_version: 1 }))
+
+  source.readyState = FakeEventSource.CONNECTING
+  act(() => source.onerror?.())
+  await waitFor(() => expect(router.invalidate).toHaveBeenCalledTimes(1))
+  expect(requested).toEqual(["/api/v1/dashboards/d1"])
+
+  act(() => source.onerror?.())
+  await Promise.resolve()
+  expect(requested).toEqual(["/api/v1/dashboards/d1"])
+})

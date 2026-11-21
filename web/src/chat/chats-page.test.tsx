@@ -4,26 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
+import type { Chat } from "./chats-queries"
 import { ChatsPage } from "./chats-page"
+import type { ChatsSearch } from "./chats-search"
 
 const session = vi.hoisted(() => ({ role: "editor", id: "u1" }))
 const observation = vi.hoisted(() => ({ allowed: [] as string[] }))
-
-function observationReply(url: string): Response | null {
-  const path = new URL(url, "http://localhost").pathname
-  const id = /^\/api\/v1\/observations\/([^/]+)$/.exec(path)?.[1]
-  if (id === undefined) return null
-  return new Response(
-    JSON.stringify({
-      observation: {
-        id,
-        title: "p99 latency",
-        allowed_actions: observation.allowed,
-      },
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  )
-}
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -32,7 +18,27 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   }),
 }))
 
-function request(id: string, requester: string, title: string) {
+const dashboardId = "5b0e3c55-6a8e-4e1f-9d0a-0d6f1f6f7f10"
+
+function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
+  return {
+    id,
+    title,
+    dashboard_id: null,
+    dashboard_title: null,
+    observation_id: null,
+    pinned_at: null,
+    created_at: "2026-11-21T09:00:00Z",
+    last_turn_at: "2026-11-21T10:00:00Z",
+    turns: 1,
+    last_turn: { id, state: "succeeded", prompt: title },
+    owner: { kind: "user", name: "Ada" },
+    read_only: false,
+    ...overrides,
+  }
+}
+
+function turn(id: string, title: string) {
   return {
     id,
     kind: "build",
@@ -62,90 +68,88 @@ function request(id: string, requester: string, title: string) {
     continue_note: null,
     observation_id: "o1",
     observation_title: "p99 latency",
-    chat_id: id,
+    chat_id: "c1",
     origin: "web",
     origin_client: null,
-    created_at: new Date().toISOString(),
+    created_at: "2026-11-21T09:00:00Z",
     started_at: null,
     finished_at: null,
-    requested_by: { kind: "user", id: requester, name: "Someone" },
+    requested_by: { kind: "user", id: "u1", name: "Ada" },
   }
 }
 
-function stubList(requests: unknown[]) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(
-      async (input: Request | string) =>
-        observationReply(input instanceof Request ? input.url : input) ??
-        new Response(
-          JSON.stringify({
-            requests,
-            next_cursor: null,
-            summary: { total: requests.length, people: null },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
-    )
-  )
+type Call = { method: string; url: string; query: string; body: string }
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  })
 }
 
-function stubRecordedList(
-  requests: unknown[],
-  written: unknown = { request: {} }
+function stub(
+  chats: Chat[],
+  {
+    turns = [turn("c1", "what does p99 mean")],
+    written = { request: {} },
+  }: { turns?: unknown[]; written?: unknown } = {}
 ) {
-  const calls: { method: string; url: string; body: string }[] = []
+  const calls: Call[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: Request | string, init?: RequestInit) => {
       const req = input instanceof Request ? input : new Request(input, init)
-      const method = req.method
-      if (method !== "GET") {
-        calls.push({
-          method,
-          url: new URL(req.url).pathname,
-          body: await req.text(),
-        })
-        return new Response(JSON.stringify(written), {
-          status: method === "DELETE" ? 204 : 200,
-          headers: { "Content-Type": "application/json" },
+      const url = new URL(req.url)
+      calls.push({
+        method: req.method,
+        url: url.pathname,
+        query: url.search,
+        body: req.method === "GET" ? "" : await req.text(),
+      })
+      if (req.method === "DELETE") return new Response(null, { status: 204 })
+      if (req.method !== "GET") return json(written)
+      const observationId = /^\/api\/v1\/observations\/([^/]+)$/.exec(
+        url.pathname
+      )?.[1]
+      if (observationId !== undefined) {
+        return json({
+          observation: {
+            id: observationId,
+            title: "p99 latency",
+            allowed_actions: observation.allowed,
+          },
         })
       }
-      const reply = observationReply(req.url)
-      if (reply !== null) return reply
-      return new Response(
-        JSON.stringify({
-          requests,
+      if (url.pathname === "/api/v1/observe") {
+        return json({
+          requests: turns,
           next_cursor: null,
-          summary: { total: requests.length, people: null },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+          summary: { total: turns.length, people: null },
+        })
+      }
+      return json({ chats, next_cursor: null })
     })
   )
   return calls
 }
 
-function twoTurnChat() {
-  return [
-    {
-      ...request("t2", "u1", "make it blue"),
-      base_version: 1,
-      dashboard_id: "d1",
-      chat_id: "t1",
-    },
-    {
-      ...request("t1", "u1", "Checkout health"),
-      dashboard_id: "d1",
-      chat_id: "t1",
-    },
-  ]
+function writes(calls: readonly Call[]) {
+  return calls.filter((call) => call.method !== "GET")
 }
 
-function render() {
-  return renderWithProviders(<ChatsPage search={{}} onSearch={vi.fn()} />, {
-    route: { path: "/", url: "/" },
-  })
+function render(search: ChatsSearch = {}, onSearch = vi.fn()) {
+  return renderWithProviders(
+    <ChatsPage search={search} onSearch={onSearch} />,
+    { route: { path: "/", url: "/" } }
+  )
+}
+
+async function openMenu(title: string) {
+  const { user } = render()
+  await user.click(
+    await screen.findByRole("button", { name: `Chat actions: ${title}` })
+  )
+  return user
 }
 
 beforeEach(() => {
@@ -157,19 +161,78 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ChatsPage rows", () => {
-  it("gives a chat the same actions as the History panel", async () => {
-    stubList([request("r1", "u1", "what does p99 mean")])
-    const { user } = render()
-    const link = await screen.findByRole("link", { name: /what does p99 mean/ })
-    const row = link.parentElement as HTMLElement
+  it("lists one row per chat with its dashboard, turns and link", async () => {
+    stub([
+      chat("c1", "Why did checkout errors rise", {
+        dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
+        turns: 3,
+      }),
+      chat("c2", "Card declines by issuer", { turns: 2 }),
+    ])
+    render()
+    const link = await screen.findByRole("link", {
+      name: "Why did checkout errors rise",
+    })
+    expect(link).toHaveAttribute("href", "/c/c1")
+    const row = link.closest("tr") as HTMLElement
+    expect(await within(row).findByText("Checkout health")).toBeInTheDocument()
+    expect(within(row).getByText("3")).toBeInTheDocument()
+    const other = screen
+      .getByRole("link", { name: "Card declines by issuer" })
+      .closest("tr") as HTMLElement
+    expect(within(other).getByText("No dashboard")).toBeInTheDocument()
+    expect(screen.getByText("2 chats.")).toBeInTheDocument()
+  })
+
+  it("names each chat's dashboard by the title the server gives it", async () => {
+    const unlisted = "6c1f4d66-7b9f-4f2a-8e7a-1e7f2f7f8f21"
+    stub([
+      chat("c1", "Beyond the first page", {
+        dashboard_id: unlisted,
+        dashboard_title: "Refund volume",
+      }),
+      chat("c2", "Lost access", {
+        dashboard_id: dashboardId,
+        dashboard_title: null,
+      }),
+    ])
+    render()
+    const row = (title: string) =>
+      screen.getByRole("link", { name: title }).closest("tr") as HTMLElement
+    await screen.findByRole("link", { name: "Beyond the first page" })
     expect(
-      within(row).getByRole("button", { name: "Save prompt" })
+      within(row("Beyond the first page")).getByText("Refund volume")
     ).toBeInTheDocument()
-    await user.click(
-      within(row).getByRole("button", {
-        name: "Chat actions: what does p99 mean",
-      })
-    )
+    expect(
+      within(row("Lost access")).getByText("A dashboard you cannot see")
+    ).toBeInTheDocument()
+  })
+
+  it("keeps the server's order, which puts your pinned chats first", async () => {
+    stub([
+      chat("c1", "Pinned older chat", { pinned_at: "2026-11-20T10:00:00Z" }),
+      chat("c2", "Newest chat"),
+      chat("c3", "Pinned on a later page", {
+        pinned_at: "2026-11-21T08:00:00Z",
+      }),
+    ])
+    render()
+    await screen.findByRole("link", { name: /Pinned older chat/ })
+    const titles = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("link")[0].textContent)
+    expect(titles).toEqual([
+      "Pinned older chat",
+      "Newest chat",
+      "Pinned on a later page",
+    ])
+  })
+
+  it("offers Rename, Pin and Delete on your own chat", async () => {
+    stub([chat("c1", "what does p99 mean")])
+    await openMenu("what does p99 mean")
     expect(
       await screen.findByRole("menuitem", { name: "Rename" })
     ).toBeInTheDocument()
@@ -177,106 +240,37 @@ describe("ChatsPage rows", () => {
     expect(screen.getByRole("menuitem", { name: "Delete" })).toBeInTheDocument()
   })
 
-  it("words the delete dialog for the answer the chat left", async () => {
-    stubList([request("r1", "u1", "what does p99 mean")])
-    const { user } = render()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Chat actions: what does p99 mean",
-      })
-    )
-    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
-    expect(
-      await screen.findByText(
-        /The answer stays in the observation "p99 latency"/
-      )
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/The dashboard it made stays/)).toBeNull()
-    expect(screen.queryByRole("checkbox")).toBeNull()
-  })
-
-  it("deletes the saved observation too when the person chooses it", async () => {
-    observation.allowed = ["delete"]
-    const calls = stubRecordedList([request("r1", "u1", "what does p99 mean")])
-    const { user } = render()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Chat actions: what does p99 mean",
-      })
-    )
-    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
-    const box = await screen.findByRole("checkbox", {
-      name: 'Also delete the observation "p99 latency"',
-    })
-    expect(box).not.toBeChecked()
-    await user.click(box)
-    expect(
-      screen.getByText(/The observation "p99 latency" is deleted for everyone/)
-    ).toBeInTheDocument()
-    await user.click(
-      screen.getByRole("button", { name: "Delete chat and observation" })
-    )
-    await waitFor(() => expect(calls).toHaveLength(2))
-    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
-      "DELETE /api/v1/observations/o1",
-      "DELETE /api/v1/observe/r1",
-    ])
-  })
-
-  it("offers no actions on a chat someone else asked", async () => {
+  it("offers no actions on a chat it reads only as an Admin", async () => {
     session.role = "admin"
-    stubList([request("r2", "u2", "their question")])
-    render()
+    stub([chat("c2", "their question", { read_only: true })])
+    render({ scope: "all" })
     await screen.findByRole("link", { name: /their question/ })
+    expect(screen.getByText("Ada")).toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: /Chat actions/ })
     ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole("button", { name: "Save prompt" })
-    ).not.toBeInTheDocument()
   })
 
-  it("keeps Save prompt from a Viewer, who cannot save one", async () => {
-    session.role = "viewer"
-    stubList([request("r1", "u1", "what does p99 mean")])
-    render()
-    await screen.findByRole("link", { name: /what does p99 mean/ })
-    expect(
-      screen.queryByRole("button", { name: "Save prompt" })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole("button", { name: "Chat actions: what does p99 mean" })
-    ).toBeInTheDocument()
-  })
-
-  it("renames the first ask of a chat, whose title the row shows", async () => {
-    const calls = stubRecordedList(twoTurnChat())
-    const { user } = render()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Chat actions: Checkout health",
-      })
-    )
+  it("renames the chat through its first request", async () => {
+    const calls = stub([chat("c1", "Checkout health", { turns: 2 })])
+    const user = await openMenu("Checkout health")
     await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
     const field = await screen.findByRole("textbox", { name: "Chat title" })
     await user.clear(field)
     await user.type(field, "Checkout status{Enter}")
-    await waitFor(() => expect(calls).toHaveLength(1))
-    expect(calls[0].method).toBe("PATCH")
-    expect(calls[0].url).toBe("/api/v1/observe/t1")
+    await waitFor(() => expect(writes(calls)).toHaveLength(1))
+    expect(writes(calls)[0]).toMatchObject({
+      method: "PATCH",
+      url: "/api/v1/observe/c1",
+    })
   })
 
   it("says when the observation made from the chat keeps its title", async () => {
     const info = vi.spyOn(toast, "info")
-    stubRecordedList(twoTurnChat(), {
-      request: { observation_rename: "kept" },
+    stub([chat("c1", "Checkout health")], {
+      written: { request: { observation_rename: "kept" } },
     })
-    const { user } = render()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Chat actions: Checkout health",
-      })
-    )
+    const user = await openMenu("Checkout health")
     await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
     const field = await screen.findByRole("textbox", { name: "Chat title" })
     await user.clear(field)
@@ -289,40 +283,81 @@ describe("ChatsPage rows", () => {
     info.mockRestore()
   })
 
-  it("deletes every turn of the chat the row stands for", async () => {
-    const calls = stubRecordedList(twoTurnChat())
-    const { user } = render()
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Chat actions: Checkout health",
-      })
-    )
+  it("words the delete dialog from the chat's turns and archives the chat", async () => {
+    const calls = stub([chat("c1", "what does p99 mean")])
+    const user = await openMenu("what does p99 mean")
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
-    expect(await screen.findByText(/All 2 messages/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        /The answer stays in the observation "p99 latency"/
+      )
+    ).toBeInTheDocument()
+    expect(
+      calls.some(
+        (call) =>
+          call.url === "/api/v1/observe" && call.query.includes("chat_id=c1")
+      )
+    ).toBe(true)
     await user.click(screen.getByRole("button", { name: "Delete chat" }))
-    await waitFor(() => expect(calls).toHaveLength(2))
-    expect(calls.map((call) => call.url).sort()).toEqual([
-      "/api/v1/observe/t1",
-      "/api/v1/observe/t2",
-    ])
+    await waitFor(() => expect(writes(calls)).toHaveLength(1))
+    expect(writes(calls)[0]).toMatchObject({
+      method: "DELETE",
+      url: "/api/v1/chats/c1",
+    })
   })
 
-  it("saves the first prompt of the chat, not its latest message", async () => {
-    stubList(twoTurnChat())
-    render()
-    const link = await screen.findByRole("link", { name: /Checkout health/ })
-    expect(
-      within(link.parentElement as HTMLElement).getByRole("button", {
-        name: "Save prompt",
+  it("deletes the saved observation first when the person chooses it", async () => {
+    observation.allowed = ["delete"]
+    const calls = stub([chat("c1", "what does p99 mean")])
+    const user = await openMenu("what does p99 mean")
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+    await user.click(
+      await screen.findByRole("checkbox", {
+        name: 'Also delete the observation "p99 latency"',
       })
-    ).toBeInTheDocument()
+    )
+    await user.click(
+      screen.getByRole("button", { name: "Delete chat and observation" })
+    )
+    await waitFor(() => expect(writes(calls)).toHaveLength(2))
+    expect(writes(calls).map((call) => `${call.method} ${call.url}`)).toEqual([
+      "DELETE /api/v1/observations/o1",
+      "DELETE /api/v1/chats/c1",
+    ])
   })
 })
 
-describe("ChatsPage footer", () => {
-  it("counts the conversations listed, not their requests", async () => {
-    stubList([...twoTurnChat(), request("r3", "u1", "what does p99 mean")])
-    render()
-    expect(await screen.findByText("2 chats.")).toBeInTheDocument()
+describe("ChatsPage filters", () => {
+  it("reads the list from GET /chats with the dashboard chosen", async () => {
+    const calls = stub([
+      chat("c1", "Why did checkout errors rise", {
+        dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
+      }),
+    ])
+    render({ dashboard: dashboardId, q: "checkout" })
+    await screen.findByRole("link", { name: "Why did checkout errors rise" })
+    const list = calls.find((call) => call.url === "/api/v1/chats")
+    expect(list?.query).toContain(`dashboard_id=${dashboardId}`)
+    expect(list?.query).toContain("q=checkout")
+    expect(list?.query).not.toContain("source=")
+  })
+
+  it("offers the dashboards of the listed chats", async () => {
+    const onSearch = vi.fn()
+    stub([
+      chat("c1", "Why did checkout errors rise", {
+        dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
+      }),
+      chat("c2", "Card declines by issuer"),
+    ])
+    const { user } = render({}, onSearch)
+    await screen.findByRole("link", { name: "Card declines by issuer" })
+    await user.click(screen.getByRole("combobox", { name: "Dashboard" }))
+    await user.click(
+      await screen.findByRole("option", { name: "Dashboard: Checkout health" })
+    )
+    expect(onSearch).toHaveBeenCalledWith({ dashboard: dashboardId })
   })
 })

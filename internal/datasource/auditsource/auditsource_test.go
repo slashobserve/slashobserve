@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 type fakeStore struct {
@@ -232,11 +233,13 @@ func TestACountQueryFillsEveryStep(t *testing.T) {
 func TestTheVolumeCountsEachStepByOutcome(t *testing.T) {
 	store := &fakeStore{answer: func(q filter.Query) trail.Aggregation {
 		if len(q.Aggs[0].Aggs) == 0 {
-			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"2026-11-01T10:01:00Z"}, DocCount: 4}}}
+			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"2026-11-01T10:01:00Z"}, DocCount: 7}}}
 		}
 		return trail.Aggregation{Rows: []trail.AggRow{
+			{Keys: []any{"2026-11-01T10:01:00Z", "failed"}, DocCount: 2},
 			{Keys: []any{"2026-11-01T10:01:00Z", "denied"}, DocCount: 1},
 			{Keys: []any{"2026-11-01T10:01:00Z", "success"}, DocCount: 3},
+			{Keys: []any{"2026-11-01T10:01:00Z", "unknown"}, DocCount: 1},
 		}}
 	}}
 	ds := open(t, store)
@@ -244,8 +247,9 @@ func TestTheVolumeCountsEachStepByOutcome(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := h.Volume(); got.Total != 4 || got.Buckets[1].Other != 4 {
-		t.Errorf("volume = %+v, want four events in the second step", got)
+	want := logvolume.Bucket{Start: from.Add(time.Minute), Error: 2, Warning: 1, Info: 3, Other: 1}
+	if got := h.Volume(); got.Total != 7 || got.Buckets[1] != want {
+		t.Errorf("volume = %+v, want the second step to be %+v", got, want)
 	}
 	if len(store.queries) != 2 {
 		t.Errorf("volume ran %d aggregations, want the time buckets and then the outcomes in them", len(store.queries))
@@ -278,6 +282,28 @@ func TestFacetsCountEachFieldInItsOwnAggregation(t *testing.T) {
 	want := map[string][]datasource.FacetValue{"outcome": {{Value: "success", Count: 8}}, "origin": {{Value: "web", Count: 6}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("facets = %+v, want %+v", got, want)
+	}
+}
+
+func TestTheDefaultFacetsOfEveryFieldStayWithinTheAggregationCap(t *testing.T) {
+	store := &fakeStore{answer: func(q filter.Query) trail.Aggregation {
+		if q.Aggs[0].Type == terms && q.Aggs[0].Field == "outcome" {
+			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"denied"}, DocCount: 2}}}
+		}
+		return trail.Aggregation{}
+	}}
+	ds := open(t, store)
+	facets, err := ds.LogFacets(t.Context(), datasource.FacetRequest{Query: datasource.Query{Text: ""}, Range: span, Limit: 5})
+	if err != nil {
+		t.Fatalf("LogFacets of every field: %v", err)
+	}
+	if len(facets.Fields) <= maxAggregations/2 {
+		t.Fatalf("%d facet fields, want more than one request's worth", len(facets.Fields))
+	}
+	for _, f := range facets.Fields {
+		if f.Name == "outcome" && (len(f.Values) != 1 || f.Values[0].Value != "denied") {
+			t.Errorf("outcome facet = %+v", f.Values)
+		}
 	}
 }
 
@@ -432,5 +458,51 @@ func TestTheMessageLineNamesTheActorAgentAndTarget(t *testing.T) {
 	anonymous := trail.Event{Action: "auth.login_failed", Outcome: "denied", ActorKind: "anonymous", Origin: "web", TargetKind: text("session")}
 	if got, want := Line(anonymous), "auth.login_failed denied by anonymous via web on session"; got != want {
 		t.Errorf("line = %q, want %q", got, want)
+	}
+}
+
+func TestTheLintAcceptsEveryAliasTheQueryAccepts(t *testing.T) {
+	ds := open(t, &fakeStore{})
+	for _, f := range filter.Fields() {
+		for _, alias := range f.Aliases {
+			diags, err := ds.Lint(t.Context(), alias+":x*")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(diags) != 0 {
+				t.Errorf("lint of the alias %s = %+v, want no diagnostics", alias, diags)
+			}
+		}
+	}
+	diags, err := ds.Lint(t.Context(), "actor.nmae:admin*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 1 || !strings.Contains(diags[0].Message, `unknown field "actor.nmae"`) {
+		t.Errorf("lint of an unknown field = %+v, want one unknown field warning", diags)
+	}
+}
+
+func TestTheLintWarnsOfAFieldPatternExactlyWhenTheQueryRefusesIt(t *testing.T) {
+	lintAgreesWithQuery(t, "actor.*", "target.*", "actor_*", "Actor_*", "mess*", "nosuch*", "actor.name", "message", "nosuch")
+}
+
+func TestTheLintIgnoresTheCaseOfAFieldNameAsTheQueryDoes(t *testing.T) {
+	lintAgreesWithQuery(t, "ACTOR", "Target.Name", "Actor_Name", "NOSUCH")
+}
+
+func lintAgreesWithQuery(t *testing.T, fields ...string) {
+	t.Helper()
+	ds := open(t, &fakeStore{})
+	for _, field := range fields {
+		text := field + ": alice"
+		diags, err := ds.Lint(t.Context(), text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, queryErr := ds.QueryInstant(t.Context(), datasource.Query{Text: text}, span)
+		if warned := len(diags) > 0; warned != (queryErr != nil) {
+			t.Errorf("%s: lint %+v, query error %v; the lint must warn exactly when the query refuses the field", field, diags, queryErr)
+		}
 	}
 }

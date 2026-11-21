@@ -236,6 +236,84 @@ func TestWithoutObservationsAnInvestigationNamesNone(t *testing.T) {
 	}
 }
 
+func claimedSteps(t *testing.T, svc *revisions.Service, id pgtype.UUID) []string {
+	t.Helper()
+	claimed, found := claimAs(t, svc, builtinClaimant)
+	if !found || claimed.Row.ID != id {
+		t.Fatalf("claim = %v found %v, want %v", claimed.Row.ID, found, id)
+	}
+	var stored []revisions.Step
+	if err := json.Unmarshal(storedRun(t, svc, id.String()).Steps, &stored); err != nil {
+		t.Fatal(err)
+	}
+	messages := make([]string, 0, len(stored))
+	for _, s := range stored {
+		messages = append(messages, s.Message)
+	}
+	return messages
+}
+
+func TestAnInvestigationWithNoObservationSaysTheAnswerStaysOnTheRun(t *testing.T) {
+	cases := []struct {
+		name  string
+		start func(r observationRig) pgtype.UUID
+	}{
+		{"no observation was opened", func(r observationRig) pgtype.UUID {
+			return investigate(t, newTestService(r.d.DB, succeedWith(2), quietLogger()), revisions.InvestigateParams{}).ID
+		}},
+		{"the named observation is full", func(r observationRig) pgtype.UUID {
+			full := r.observation(t, user, pgtype.UUID{})
+			for range observations.MaxBlocks {
+				if _, err := r.observations.AddBlock(reading(t.Context()), user, mustUUID(t, full.ID), observations.BlockInput{Kind: observations.KindText, Body: json.RawMessage(`{"markdown":"x"}`)}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			row := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: seedDashboard(t, r.d, 1), ObservationID: mustUUID(t, full.ID)})
+			if row.ObservationID.Valid {
+				t.Fatalf("the run names %v", row.ObservationID)
+			}
+			return row.ID
+		}},
+		{"its observation was deleted before the claim", func(r observationRig) pgtype.UUID {
+			row := investigate(t, r.svc, revisions.InvestigateParams{})
+			r.d.Exec(t, "DELETE FROM observations WHERE id = $1", row.ObservationID)
+			return row.ID
+		}},
+	}
+	for _, c := range cases {
+		r := newObservationRig(t)
+		got := claimedSteps(t, r.svc, c.start(r))
+		if len(got) != 1 || got[0] != "No observation to write into; the answer stays on this run" {
+			t.Errorf("%s: steps %q", c.name, got)
+		}
+	}
+}
+
+func TestAClaimedRunWithSomewhereToWriteRecordsNoStep(t *testing.T) {
+	cases := []struct {
+		name  string
+		start func(r observationRig, dash pgtype.UUID) pgtype.UUID
+	}{
+		{"an investigation with its observation", func(r observationRig, dash pgtype.UUID) pgtype.UUID {
+			return investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash}).ID
+		}},
+		{"a private ask about a dashboard", func(r observationRig, dash pgtype.UUID) pgtype.UUID {
+			first, err := r.svc.Start(reading(t.Context()), user, revisions.StartRequest{Prompt: text("why"), DashboardID: text(dash.String())})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return first.ID
+		}},
+	}
+	for _, c := range cases {
+		r := newObservationRig(t)
+		id := c.start(r, seedDashboard(t, r.d, 1))
+		if got := claimedSteps(t, r.svc, id); len(got) != 0 {
+			t.Errorf("%s: steps %q", c.name, got)
+		}
+	}
+}
+
 func TestARetriedPrivateAskStaysPrivateOnItsSubjectForWhoeverMayAskIt(t *testing.T) {
 	r := newObservationRig(t)
 	cy := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Cy", Role: auth.RoleCommenter}

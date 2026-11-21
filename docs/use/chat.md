@@ -14,6 +14,7 @@ A request the server cannot do, such as an alert, a notification or a schedule, 
 A request for a dashboard builds one, and a message in a dashboard's chat is a question about that dashboard: it gets an answer in the chat and leaves the dashboard as it is, even when it asks for a change.
 The dashboard changes only when you choose **Revise the dashboard** on an answer.
 The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation.
+When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 
 On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** sends the suggested change as the next turn of the chat.
 The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
@@ -168,7 +169,7 @@ On a screen wider than 1200 px the chat is a pane on the left, which you can wid
 On a smaller screen the chat sits below the build.
 The pane holds the conversation with the status line, such as "Building, 12 of 40 panels", **Cancel run**, and, when the agent stops, **Save what was built** and **Continue**.
 Its heading links to the full chat page at `/c/<request id>`.
-The dashboard is saved once, as one version, and the build page then opens it.
+The dashboard is saved once, as one version, and the build page then opens it with the chat in the Chat tab of its side panel.
 
 If the agent stops before it finishes, the build page keeps what was built for 7 days.
 Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
@@ -180,7 +181,7 @@ The button shows only on the newest turn of the chat, so once you have asked for
 
 On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
-On the dashboard page, the running entry shows the same status line and, for you, a **Watch live** link.
+On the dashboard page, the running entry shows the same status line and, for you, an **Open chat** link that opens the request's chat in the Chat tab of the side panel.
 Every turn of the conversation keeps its card and buttons for as long as the build is kept, not only the latest ones.
 
 ### Queue position
@@ -270,6 +271,7 @@ Every request has an id, shown as "Request" and its first eight characters at th
 
 **Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
 **Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
+An answer's actions sit in one row: **Make a dashboard**, **Save as observation**, **Copy answer** and **Ask again**, each where it applies.
 It is off while a run goes on.
 While a run works you see its live text, but the answer itself is written in one piece when the agent saves it, so there is nothing to copy until then.
 The model comes from the server's configuration and cannot be picked in the chat box.
@@ -318,6 +320,15 @@ A follow-up and a revise need Comment on the dashboard's folder, which Commenter
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
+### In the dashboard's Chat tab
+
+A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.
+It opens your latest chat about the dashboard and names it in the address as `tab=chat&chat=<chat id>`, so the chat stays open when a turn in another chat makes that one the latest.
+The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns, and **All your chats** opens the Chats page filtered to this dashboard.
+**New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left; the chat your first message lands in then takes its place in the address.
+For now the first message after **New chat** still joins your latest chat about the dashboard when you have one, and the tab then shows that chat.
+A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
+
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.
@@ -334,23 +345,24 @@ The dashboard reloads the new version, and panels the version added fade in once
 
 ## Your chats
 
-Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
-A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
-The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
-Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
-An answer is searched only where you could read it: one kept in the chat while you can open the dashboard it is about, and one saved as an observation while you can see that observation's folder.
-Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
-The list ends with how many chats it shows, counting a conversation of several messages once, and on Everyone how many people started them; while older chats are still to load it says "so far".
+Home's **Recent chats** lists the five chats you asked in most recently, and **All chats** opens the Chats page at `/chats`.
+A chat is one row however many turns it has: its title, how many turns it has, and the dashboard it is about, if any, with the time of its last message.
+The Ask page's Recent chats shows the same rows.
+The Chats page lists all your chats in a table with the columns Chat, Dashboard, Turns and Last message: the chats you pinned first, then the rest, each part with the chat asked in most recently first, and the order holds as older chats load.
+A chat about no dashboard, or about one that was deleted, reads "No dashboard", and one about a dashboard you cannot see, such as one in another person's My Dashboards in the Everyone list, "A dashboard you cannot see".
+Search finds chats whose title or any of whose prompts contains the text, ignoring case, **Dashboard** keeps the chats about one dashboard, and older chats load as you scroll.
+Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, by their last message only, and opens someone else's chat read only, with no composer and no actions.
+The list ends with how many chats it shows; while older chats are still to load it says "so far".
 
-Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
+History says for each chat its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 A run that ended on a suggested panel or a proposal reads "Suggested a panel" or "Opened a proposal".
 An investigation reads "Answered in <title>" with the observation it was saved to, as long as you can open that observation's folder.
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
-On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
-On a row that joins several turns, the actions apply to the whole conversation: Rename changes the title of its first request, which the row shows, Save prompt saves that first prompt, and Delete removes every one of your turns in it, with a dialog that says how many.
+On the Chats page, each of your chats has a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
+The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
 From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Save as observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).

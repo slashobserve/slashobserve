@@ -135,7 +135,7 @@ func TestAChatSharesItsTitleOnlyWithItsOneObservationThatTheCallerMayEdit(t *tes
 	}
 
 	onDashboard := r.chat(t, editor, pgtype.UUID{})
-	r.db.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, onDashboard, r.open)
+	r.db.Exec(t, `UPDATE agent_requests SET kind = 'investigate', dashboard_id = $2 WHERE id = $1`, onDashboard, r.open)
 	dashboardObservation := r.savedAnswer(t, editor, onDashboard)
 	if got := r.renameObservation(t, editor, dashboardObservation, "On a dashboard"); got != "" {
 		t.Fatalf("an observation from a dashboard chat: %q", got)

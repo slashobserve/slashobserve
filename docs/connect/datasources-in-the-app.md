@@ -8,10 +8,10 @@ Open the Datasources page, choose Add datasource, pick the type, fill in the add
 The datasource answers queries as soon as it is saved, and other servers in a fleet pick it up within 10 seconds.
 
 The Datasources page is in the sidebar for Admins only.
-Each row shows the name and id, the type, whether the datasource is "From file" or "Added in the app", its status, how many dashboards use it and when it was last checked.
+Each row shows the name and id, the type, whether the datasource is "From file", "Added in the app" or "Built in", an **Only Admins** badge when only Admins can query it, its status, how many dashboards use it and when it was last checked.
 The page refreshes itself every 30 seconds, and **Recheck** on a row runs a fresh health check at once.
 A row also links to the page that reads it: **Explore logs**, **Search traces** or **Explore metrics**.
-**Edit** and **Remove** appear only on datasources added in the app.
+**Edit** and **Remove** appear only on datasources added in the app, so a datasource from the file and the built-in audit trail show only **Recheck** and the links to the pages that read them.
 The app also reloads its datasource list every 15 seconds while any datasource is unhealthy, which the sidebar and the Logs, Traces and Metrics source lists read, so a source that was still starting when the page loaded shows as available once it answers.
 
 ## Where a datasource comes from
@@ -21,7 +21,7 @@ They are read once at startup and are read-only in the app.
 Datasources added in the app show as "Added in the app".
 When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
 
-Every server also has one built-in datasource, the audit trail, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
+Every server also has one built-in datasource, the audit trail, which shows as "Built in" with the **Only Admins** badge, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
 Only Admins see it, nobody can edit or remove it, and `PATCH`, `DELETE` and `GET /api/v1/datasources/slashobserve-audit/config` answer `409 datasource_read_only`.
 A file entry with that uid stops the server at startup, and an app datasource with it is not loaded.
 [Audit queries](../reference/audit-queries.md#the-audit-datasource) describes what it answers.
@@ -32,7 +32,7 @@ A datasource added in the app is open to everyone from Viewer up by default.
 Set its audience to `admins` with `"audience": "admins"` on `POST /api/v1/datasources` or `PATCH /api/v1/datasources/{uid}`, or `--audience admins` on `observe datasources add` and `edit`, and only Admins and Admin keys can then list, query or health-check it.
 Every other role, key and public link gets the same answer for it as for a datasource that does not exist.
 A change that leaves the audience out keeps it, and `"audience": "everyone"` opens the datasource again.
-The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page does not show or change it yet.
+The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page shows an **Only Admins** badge on a datasource with the `admins` audience but does not change it.
 For an Admin, each row of the MCP tool `list_datasources` also carries `audience`; other callers never see an `admins` datasource, so their rows leave it out.
 
 A dashboard, proposal, observation or saved search that reads an Admins-only datasource lives only in a [folder only Admins can read](../teams/folders.md).

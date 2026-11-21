@@ -21,6 +21,12 @@ const version: PanelSource = {
 }
 const build: PanelSource = { kind: "build", requestId: "req", saves: 4 }
 const shared: PanelSource = { kind: "public", token: "pub_tok", version: 7 }
+const block: PanelSource = {
+  kind: "block",
+  observationId: "obs",
+  blockId: "blk",
+  version: 2,
+}
 const params = { selections: {} }
 
 describe("panelFingerprint", () => {
@@ -140,6 +146,37 @@ describe("public panel data keys", () => {
     expect(panelDataKey(shared, "p1", "", params)).not.toEqual(
       panelDataKey({ ...shared, version: 8 }, "p1", "", params)
     )
+  })
+})
+
+describe("block panel data keys", () => {
+  it("keys a block's data by block and version under the observation prefix", () => {
+    expect(panelDataKey(block, "block", "ignored", params)).toEqual([
+      "observations",
+      "blocks",
+      "blk",
+      2,
+      "data",
+      params,
+    ])
+    expect(panelDataKey(block, "block", "", params)).not.toEqual(
+      panelDataKey({ ...block, version: 3 }, "block", "", params)
+    )
+  })
+
+  it("keeps a block's data across a refetch of the same block version only", () => {
+    const key = panelDataKey(block, "block", "", params)
+    expect(keepsPreviousData(block, "", key)).toBe(true)
+    expect(keepsPreviousData({ ...block, version: 3 }, "", key)).toBe(false)
+    expect(keepsPreviousData({ ...block, blockId: "other" }, "", key)).toBe(
+      false
+    )
+  })
+
+  it("scopes a block by block and version, and its state by block", () => {
+    expect(sourceScope(block)).toBe("block:blk:2")
+    expect(stateScope(block)).toBe("block:blk")
+    expect(stateScope({ ...block, version: 3 })).toBe(stateScope(block))
   })
 })
 

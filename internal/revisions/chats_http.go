@@ -27,17 +27,18 @@ type chatTurnJSON struct {
 }
 
 type chatJSON struct {
-	ID            string        `json:"id"`
-	Title         string        `json:"title"`
-	DashboardID   *string       `json:"dashboard_id"`
-	ObservationID *string       `json:"observation_id"`
-	PinnedAt      *string       `json:"pinned_at"`
-	CreatedAt     string        `json:"created_at"`
-	LastTurnAt    string        `json:"last_turn_at"`
-	Turns         int           `json:"turns"`
-	LastTurn      *chatTurnJSON `json:"last_turn"`
-	Owner         chatOwnerJSON `json:"owner"`
-	ReadOnly      bool          `json:"read_only"`
+	ID             string        `json:"id"`
+	Title          string        `json:"title"`
+	DashboardID    *string       `json:"dashboard_id"`
+	DashboardTitle *string       `json:"dashboard_title"`
+	ObservationID  *string       `json:"observation_id"`
+	PinnedAt       *string       `json:"pinned_at"`
+	CreatedAt      string        `json:"created_at"`
+	LastTurnAt     string        `json:"last_turn_at"`
+	Turns          int           `json:"turns"`
+	LastTurn       *chatTurnJSON `json:"last_turn"`
+	Owner          chatOwnerJSON `json:"owner"`
+	ReadOnly       bool          `json:"read_only"`
 }
 
 type chatOwnerJSON struct {
@@ -57,16 +58,17 @@ type chatDetailJSON struct {
 
 func newChatJSON(c Chat) chatJSON {
 	out := chatJSON{
-		ID:            c.ID.String(),
-		Title:         c.Title,
-		DashboardID:   optionalUUID(c.DashboardID),
-		ObservationID: optionalUUID(c.ObservationID),
-		PinnedAt:      formatOptionalTime(c.PinnedAt),
-		CreatedAt:     httpapi.FormatTime(c.CreatedAt),
-		LastTurnAt:    httpapi.FormatTime(c.LastTurnAt),
-		Turns:         c.Turns,
-		Owner:         chatOwnerJSON{Kind: c.Owner.Kind, Name: c.Owner.Name},
-		ReadOnly:      c.ReadOnly,
+		ID:             c.ID.String(),
+		Title:          c.Title,
+		DashboardID:    optionalUUID(c.DashboardID),
+		DashboardTitle: c.DashboardTitle,
+		ObservationID:  optionalUUID(c.ObservationID),
+		PinnedAt:       formatOptionalTime(c.PinnedAt),
+		CreatedAt:      httpapi.FormatTime(c.CreatedAt),
+		LastTurnAt:     httpapi.FormatTime(c.LastTurnAt),
+		Turns:          c.Turns,
+		Owner:          chatOwnerJSON{Kind: c.Owner.Kind, Name: c.Owner.Name},
+		ReadOnly:       c.ReadOnly,
 	}
 	if c.LastTurn != nil {
 		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt}

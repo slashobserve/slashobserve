@@ -53,3 +53,39 @@ describe("DatasourceTable audience", () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe("DatasourceTable built-in datasource", () => {
+  const builtin = status({
+    uid: "slashobserve-audit",
+    name: "Audit trail",
+    type: "opensearch",
+    source: "builtin",
+    audience: "admins",
+  })
+
+  it("says it is built in and for Admins only", async () => {
+    renderTable([builtin])
+    const row = (await screen.findByText("Audit trail")).closest("tr")
+    expect(row).toHaveTextContent("Built in")
+    expect(row).toHaveTextContent("Only Admins")
+  })
+
+  it("offers no Edit or Remove, only Recheck and the logs link", async () => {
+    renderTable([builtin])
+    await screen.findByText("Audit trail")
+    expect(
+      screen.queryByRole("button", { name: "Edit slashobserve-audit" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /Remove slashobserve-audit/ })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Recheck slashobserve-audit" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", {
+        name: "Explore logs in slashobserve-audit",
+      })
+    ).toBeInTheDocument()
+  })
+})

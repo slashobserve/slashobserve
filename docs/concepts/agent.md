@@ -330,6 +330,8 @@ That opens a comment thread on the dashboard or observation, at the same panel, 
 With a thread id the two are added to that thread instead, which must be on the same dashboard or observation.
 Everyone who can read the thread then reads the answer and its evidence, while the run and the rest of the chat stay yours.
 A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
+While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the thread and makes the run a private ask again, which you can share later.
+On an observation the answer already written onto the page stays, and no MCP tool withdraws, because none deletes.
 
 ### When the requester cannot edit
 

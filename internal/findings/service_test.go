@@ -111,8 +111,8 @@ func (r rig) dashboard(t *testing.T, title string) pgtype.UUID {
 func (r rig) request(t *testing.T, by auth.Principal, dashboardID pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
-VALUES ('ask', 'why', $1, $2::uuid, $3, $4, $5::timestamptz - interval '1 hour', $5::timestamptz) RETURNING id::text`,
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
+VALUES ('ask', CASE WHEN $4::uuid IS NULL THEN 'build' ELSE 'investigate' END, 'why', $1, $2::uuid, $3, $4, $5::timestamptz - interval '1 hour', $5::timestamptz) RETURNING id::text`,
 		string(by.Kind), by.ID, by.Name, dashboardID, windowTo).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}

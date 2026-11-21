@@ -14,7 +14,7 @@ import {
   sourceScope,
   stateScope,
   variableValuesKey,
-  type PanelSource,
+  type VariableSource,
 } from "./panel-source"
 import { useSetDashboardSearch, withVariables } from "./search"
 import {
@@ -45,7 +45,7 @@ type UrlVarsUpdate = (
 ) => Record<string, string[]>
 
 type Args = {
-  source: PanelSource
+  source: VariableSource
   variables: Variable[]
   from?: string
   to?: string

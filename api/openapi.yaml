@@ -142,6 +142,8 @@ paths:
     $ref: "./paths/threads.yaml#/threads-threadid-reopen"
   /threads/{thread_id}/read:
     $ref: "./paths/threads.yaml#/threads-threadid-read"
+  /threads/{thread_id}/share:
+    $ref: "./paths/threads.yaml#/threads-threadid-share"
   /messages/{message_id}:
     $ref: "./paths/threads.yaml#/messages-messageid"
   /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
@@ -4931,7 +4933,7 @@ components:
     Chat:
       type: object
       additionalProperties: false
-      required: [id, title, dashboard_id, observation_id, pinned_at, created_at, last_turn_at, turns, last_turn, owner, read_only]
+      required: [id, title, dashboard_id, dashboard_title, observation_id, pinned_at, created_at, last_turn_at, turns, last_turn, owner, read_only]
       properties:
         id:
           type: string
@@ -4944,6 +4946,10 @@ components:
           format: uuid
           nullable: true
           description: The dashboard the chat is about; a chat about nothing gains the dashboard its first saved build made.
+        dashboard_title:
+          type: string
+          nullable: true
+          description: The title of `dashboard_id`, null when the chat is about no dashboard or the caller cannot see it, as an Admin cannot see one in someone's personal folder.
         observation_id:
           type: string
           format: uuid
@@ -7409,6 +7415,9 @@ components:
           type: integer
           minimum: 0
           description: Moves the block; clamped to the last position, and the blocks in between shift.
+        follow_page:
+          type: boolean
+          description: True clears a panel block's own range, so it follows the observation's range; never sent with `body`.
     PinObservationRequest:
       type: object
       additionalProperties: false

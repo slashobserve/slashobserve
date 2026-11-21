@@ -1298,7 +1298,7 @@ func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 2)
 	okID := observeFor(t, svc, user, "fine")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
 	failedID := observeFor(t, svc, user, "limited")
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 	waitFor(t, "the limited observe request to fail", func() bool {

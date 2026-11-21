@@ -391,6 +391,48 @@ threads-threadid-read:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+threads-threadid-share:
+  parameters:
+    - name: thread_id
+      in: path
+      required: true
+      description: The thread's id, or the id of any of its messages.
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: withdrawSharedAnswer
+    x-audit: { action: run.withdraw, target: { kind: run } }
+    x-surfaces:
+      cli: [observe comments withdraw]
+    summary: Withdraw a shared answer back to only you.
+    description: >-
+      Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread: it deletes the thread with every message in it and makes each of those runs a private question again, read only by its requester and Admins.
+      It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`).
+      On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block.
+      The run can be shared again afterwards, which opens a new thread.
+      Each withdrawn run is recorded as `run.withdraw`, and the thread's deletion as a `thread.deleted` activity event.
+      Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404.
+      It is a delete, so no MCP tool reaches it.
+    responses:
+      "204":
+        description: The thread is deleted and its answers are private again.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: Someone other than the asker wrote in the thread, so the answer stays shared (`others_wrote`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 threads-mentionable:
   get:
     operationId: listMentionablePeople

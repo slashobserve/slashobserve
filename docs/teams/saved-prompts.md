@@ -9,10 +9,10 @@ Each prompt belongs to the person who saved it and is either private or shared w
 
 ## Save a prompt
 
-The web app has two places to save a prompt, the History panel and the **Chats** page.
+The web app saves a prompt from the History panel.
 Only an Editor or an Admin sees the button.
 
-1. Open the chat home or any conversation and choose **History**, or open **Chats** in the sidebar.
+1. Open the chat home or any conversation and choose **History**.
 2. Point at one of your chats and choose the bookmark button (**Save prompt**).
    On a device without hover the button is always visible.
 3. Check the name and the text, choose **Only me** or **Everyone on this server**, and choose **Save prompt**.

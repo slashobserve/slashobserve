@@ -25,8 +25,12 @@ describe("focusComment", () => {
     }
     const focus = vi.fn()
 
-    focusComment(field as never)
+    let search: DashboardSearch = { vars: {}, tab: "chat", chat: "c1" }
+    focusComment((update) => {
+      search = update(search)
+    }, field as never)
     expect(useActivityStore.getState().open).toBe(true)
+    expect(search).toMatchObject({ tab: "activity", chat: "c1" })
     frames.shift()?.()
     expect(focus).not.toHaveBeenCalled()
     field.current = { focus }
@@ -41,7 +45,7 @@ describe("focusComment", () => {
       frames.push(run)
       return frames.length
     })
-    focusComment({ current: null })
+    focusComment(() => undefined, { current: null })
     let guard = 0
     while (frames.length > 0 && guard < 100) {
       frames.shift()?.()
@@ -88,6 +92,11 @@ describe("askAboutPanel", () => {
       to: "agent",
       panelId: "latency",
     })
+  })
+
+  it("switches the side panel from the Chat tab to Activity", () => {
+    const state = asking({ vars: {}, tab: "chat", chat: "c1" }, "latency")
+    expect(state).toMatchObject({ tab: "activity", panel: "latency" })
   })
 
   it("moves the target when another panel is asked about next", () => {

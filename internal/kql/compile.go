@@ -11,12 +11,17 @@ var rangeKeys = map[string]string{">": "gt", ">=": "gte", "<": "lt", "<=": "lte"
 const queryStringSpecials = `+-=&|><!(){}[]^"~*?:\/ `
 
 type compiler struct {
-	fields   Fields
-	seen     map[string]bool
-	warnings []Diagnostic
+	fields     Fields
+	knownField func(string) bool
+	seen       map[string]bool
+	warnings   []Diagnostic
 }
 
 func Compile(text string, fields Fields) (Compiled, error) {
+	return CompileKnowing(text, fields, nil)
+}
+
+func CompileKnowing(text string, fields Fields, knownField func(string) bool) (Compiled, error) {
 	root, diags := Parse(text)
 	if len(diags) > 0 {
 		return Compiled{Diagnostics: diags}, errors.New(diags[0].Message)
@@ -24,7 +29,7 @@ func Compile(text string, fields Fields) (Compiled, error) {
 	if root == nil {
 		return Compiled{}, nil
 	}
-	c := &compiler{fields: fields, seen: map[string]bool{}}
+	c := &compiler{fields: fields, knownField: knownField, seen: map[string]bool{}}
 	return Compiled{Query: c.clause(root), Diagnostics: c.warnings}, nil
 }
 
@@ -151,6 +156,9 @@ func (c *compiler) sameEnding(field string) string {
 }
 
 func (c *compiler) known(field string) bool {
+	if c.knownField != nil {
+		return c.knownField(field)
+	}
 	if !strings.Contains(field, "*") {
 		_, ok := c.fields[field]
 		return ok

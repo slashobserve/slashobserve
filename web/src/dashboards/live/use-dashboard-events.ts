@@ -86,6 +86,7 @@ export function useDashboardEvents(
     let disposed = false
     let suspended = false
     let readyCount = 0
+    let checkedSinceReady = true
     let attempt = 0
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let hiddenTimer: ReturnType<typeof setTimeout> | undefined
@@ -185,6 +186,7 @@ export function useDashboardEvents(
         case "ready": {
           attempt = 0
           readyCount++
+          checkedSinceReady = false
           report("live")
           const cached = cachedLatestVersion(queryClient, dashboardId)
           const behind = cached !== undefined && cached < event.latestVersion
@@ -273,6 +275,12 @@ export function useDashboardEvents(
       }
     }
 
+    function checkOnceAfterDrop() {
+      if (checkedSinceReady) return
+      checkedSinceReady = true
+      void checkDashboard()
+    }
+
     async function recover() {
       reportReconnecting()
       const authenticated = await refreshSession().then(
@@ -306,6 +314,7 @@ export function useDashboardEvents(
       }
       stream.onerror = () => {
         if (source !== stream) return
+        checkOnceAfterDrop()
         if (stream.readyState === EventSource.CONNECTING) {
           reportReconnecting()
           return

@@ -51,6 +51,7 @@ function observationOutcome(request: RequestSummary): string {
       ? "Answered, no dashboard"
       : "Answered, dashboard unchanged"
   }
+  if (request.result_kind === "answer") return "Answered, no observation"
   return request.observation_title === null
     ? "Saved an observation"
     : `Answered in ${request.observation_title}`

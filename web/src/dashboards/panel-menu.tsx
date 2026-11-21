@@ -26,6 +26,7 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
+import type { Selections } from "@/api/keys"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -74,6 +75,7 @@ type Props = {
   composerRef: RefObject<HTMLTextAreaElement | null>
   inToolbar?: boolean
   observationVariables?: readonly Variable[]
+  block?: BlockMenuHost
 }
 
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
@@ -92,7 +94,7 @@ function returnFocusToComposerUntilInput() {
   for (const type of personInput) document.addEventListener(type, stop, true)
 }
 
-type MenuItem = {
+export type MenuItem = {
   id: string
   label: string
   icon: ReactNode
@@ -100,6 +102,14 @@ type MenuItem = {
   disabled?: boolean
   destructive?: boolean
   shortcut?: string
+  opensPopup?: boolean
+}
+
+export type BlockMenuHost = {
+  onInspect?: () => void
+  range: { from: string | undefined; to: string | undefined }
+  vars: Selections
+  actions: MenuItem[]
 }
 
 export function PanelMenu({
@@ -119,6 +129,7 @@ export function PanelMenu({
   composerRef,
   inToolbar = false,
   observationVariables,
+  block,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
@@ -133,7 +144,9 @@ export function PanelMenu({
   const [addingToObservation, setAddingToObservation] = useState(false)
   const [removing, setRemoving] = useState(false)
   const items: MenuItem[] = []
-  if (canComment) {
+  const data = isDataPanel(panel)
+  const onDashboard = block === undefined
+  if (onDashboard && canComment) {
     items.push({
       id: "comment",
       label: idle ? "Comment" : "Comment (finish the layout first)",
@@ -144,7 +157,7 @@ export function PanelMenu({
         commentOnPanel(setSearch, panel.id)
       },
     })
-  } else {
+  } else if (onDashboard) {
     items.push({
       id: "comment",
       label: "Comment (needs Comment access on this folder)",
@@ -153,8 +166,7 @@ export function PanelMenu({
       onSelect: () => {},
     })
   }
-  const data = isDataPanel(panel)
-  if (canInvestigate && data && agentAvailable) {
+  if (onDashboard && canInvestigate && data && agentAvailable) {
     items.push({
       id: "ask",
       label: idle ? "Ask" : "Ask (finish the layout first)",
@@ -166,7 +178,7 @@ export function PanelMenu({
       },
     })
   }
-  if (data && idle) {
+  if (onDashboard && data && idle) {
     items.push({
       id: "observation",
       label: "Add to observation",
@@ -178,7 +190,7 @@ export function PanelMenu({
     })
   }
   const canPropose = canComment && !canEdit
-  if ((canEdit || canPropose) && isEditablePanel(panel)) {
+  if (onDashboard && (canEdit || canPropose) && isEditablePanel(panel)) {
     const name = canEdit ? "Edit" : "Suggest an edit"
     items.push({
       id: "edit",
@@ -204,27 +216,30 @@ export function PanelMenu({
       onSelect: onToggleTableView,
     })
   }
-  items.push(
-    viewing
-      ? {
-          id: "view",
-          label: "Back to dashboard",
-          icon: <ArrowLeftIcon aria-hidden="true" />,
-          onSelect: () =>
-            setSearch((state) => ({ ...state, viewPanel: undefined })),
-          shortcut: shortcutText("view"),
-        }
-      : {
-          id: "view",
-          label: idle ? "View" : "View (finish the layout first)",
-          icon: <ExpandIcon aria-hidden="true" />,
-          disabled: !idle,
-          onSelect: () =>
-            setSearch((state) => ({ ...state, viewPanel: panel.id })),
-          shortcut: shortcutText("view"),
-        }
-  )
-  if (data && isRenderable(panel.type)) {
+  if (onDashboard) {
+    items.push(
+      viewing
+        ? {
+            id: "view",
+            label: "Back to dashboard",
+            icon: <ArrowLeftIcon aria-hidden="true" />,
+            onSelect: () =>
+              setSearch((state) => ({ ...state, viewPanel: undefined })),
+            shortcut: shortcutText("view"),
+          }
+        : {
+            id: "view",
+            label: idle ? "View" : "View (finish the layout first)",
+            icon: <ExpandIcon aria-hidden="true" />,
+            disabled: !idle,
+            onSelect: () =>
+              setSearch((state) => ({ ...state, viewPanel: panel.id })),
+            shortcut: shortcutText("view"),
+          }
+    )
+  }
+  const inspectable = onDashboard || block.onInspect !== undefined
+  if (data && inspectable && isRenderable(panel.type)) {
     items.push({
       id: "inspect",
       label: idle ? "Inspect" : "Inspect (finish the layout first)",
@@ -232,6 +247,10 @@ export function PanelMenu({
       disabled: !idle,
       onSelect: () => {
         focusAfterClose = "none"
+        if (block?.onInspect !== undefined) {
+          block.onInspect()
+          return
+        }
         setSearch((state) => ({
           ...state,
           edit: undefined,
@@ -240,16 +259,21 @@ export function PanelMenu({
           inspectTab: undefined,
         }))
       },
-      shortcut: shortcutText("inspect"),
+      shortcut: onDashboard ? shortcutText("inspect") : undefined,
     })
   }
   if (data && (panel.type === "logs" || panel.type === "traces")) {
     const explorer = panel.type === "logs" ? "Open in Logs" : "Open in Traces"
+    const vars = block?.vars ?? dashboardSearch.vars
+    const range = block?.range ?? {
+      from: dashboardSearch.from,
+      to: dashboardSearch.to,
+    }
     const explore = exploreTarget(
       panel,
-      (ref) => resolveDatasourceRef(ref, dashboardSearch.vars),
+      (ref) => resolveDatasourceRef(ref, vars),
       (uid) => datasourceTypeOf(datasources, uid),
-      { from: dashboardSearch.from, to: dashboardSearch.to }
+      range
     )
     items.push({
       id: "explore",
@@ -319,6 +343,7 @@ export function PanelMenu({
       }
     )
   }
+  if (block) items.push(...block.actions)
   return (
     <>
       <DropdownMenu>
@@ -363,7 +388,10 @@ export function PanelMenu({
               key={item.id}
               disabled={item.disabled}
               variant={item.destructive ? "destructive" : undefined}
-              onClick={item.onSelect}
+              onClick={() => {
+                if (item.opensPopup) focusAfterClose = "none"
+                item.onSelect()
+              }}
             >
               {item.icon}
               {item.label}

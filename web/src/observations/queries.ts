@@ -449,6 +449,7 @@ export function useUpdateBlock(id: string) {
       body?: BlockBody
       width?: BlockWidth
       position?: number
+      follow_page?: boolean
     }) =>
       api
         .PATCH("/blocks/{id}", { params: { path: { id: blockId } }, body })

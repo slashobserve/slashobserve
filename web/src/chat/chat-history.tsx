@@ -359,6 +359,7 @@ function HistoryRow({
         ) : null}
         <ChatRowMenu
           request={request}
+          turns={[request]}
           current={current}
           onRename={() => setRenaming(true)}
           afterDelete={heading}

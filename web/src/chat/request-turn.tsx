@@ -395,14 +395,22 @@ export function RequestTurn({
             detail?.finding != null ? (
               <>
                 {detail.finding.observation_id === null ? (
-                  <ChatAnswer
-                    request={detail}
-                    finding={detail.finding}
-                    own={request.requested_by.id === principal.id}
-                    onRevised={openNewRun}
-                  />
+                  <>
+                    <ChatAnswer
+                      request={detail}
+                      finding={detail.finding}
+                      own={request.requested_by.id === principal.id}
+                      onRevised={openNewRun}
+                    />
+                    {answerActions}
+                  </>
                 ) : (
-                  <FindingCard finding={detail.finding} showOpenLink />
+                  <FindingCard
+                    finding={detail.finding}
+                    showOpenLink
+                    chatId={detail.chat_id ?? undefined}
+                    actions={answerActions}
+                  />
                 )}
                 {detail.finding.ask_on !== null ? (
                   <AskOnDashboard
@@ -410,7 +418,6 @@ export function RequestTurn({
                     prompt={request.prompt}
                   />
                 ) : null}
-                {answerActions}
               </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (

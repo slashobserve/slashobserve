@@ -240,8 +240,8 @@ func TestListObserveHidesTheTitleOfADashboardInAFolderTheCallerCannotSee(t *test
 	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "platform"))
 	onVisible := observeFor(t, svc, account, "visible")
 	onHidden := observeFor(t, svc, account, "hidden")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
 
 	rows := listObserve(t, observeRouterAs(svc, account), "").Requests
 	if len(rows) != 2 {

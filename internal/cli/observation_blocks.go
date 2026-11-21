@@ -9,13 +9,14 @@ import (
 )
 
 type blockEditOptions struct {
-	source    textSource
-	panelFile string
-	from, to  string
-	version   int
-	half      bool
-	full      bool
-	position  int
+	source     textSource
+	panelFile  string
+	from, to   string
+	version    int
+	half       bool
+	full       bool
+	position   int
+	followPage bool
 }
 
 func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
@@ -33,6 +34,9 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 	if content != nil {
 		body["body"] = content
 	}
+	if o.followPage {
+		body["follow_page"] = true
+	}
 	switch {
 	case o.half:
 		body["width"] = "half"
@@ -46,7 +50,7 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 		body["position"] = o.position
 	}
 	if len(body) == 1 {
-		return nil, usagef("give something to change: --text, --text-file, --panel-file, --half, --full or --position")
+		return nil, usagef("give something to change: --text, --text-file, --panel-file, --half, --full, --position or --follow-page")
 	}
 	return body, nil
 }
@@ -58,6 +62,9 @@ func (o blockEditOptions) content() (any, error) {
 	}
 	if hasText && o.panelFile != "" {
 		return nil, usagef("give --text or --text-file, or --panel-file, not both")
+	}
+	if o.followPage && (hasText || o.panelFile != "") {
+		return nil, usagef("--follow-page goes without --text, --text-file or --panel-file")
 	}
 	if (o.from != "" || o.to != "") && o.panelFile == "" {
 		return nil, usagef("--from and --to go with --panel-file")
@@ -74,9 +81,9 @@ func (o blockEditOptions) content() (any, error) {
 func (a *app) observationEditBlockCommand() *cobra.Command {
 	var opts blockEditOptions
 	cmd := &cobra.Command{
-		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path>) [--half | --full] [--position <n>]",
+		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path> | --follow-page) [--half | --full] [--position <n>]",
 		Short: "Change a live block's text, panel, width or position",
-		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, or its position, which moves the blocks in between.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
+		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, or its position, which moves the blocks in between.\n--follow-page drops a panel block's own range, so it shows the observation's range again.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
 		Args:  exactArgs(1, "one block id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -107,6 +114,7 @@ func (a *app) observationEditBlockCommand() *cobra.Command {
 	flags.BoolVar(&opts.half, "half", false, "make the block half width")
 	flags.BoolVar(&opts.full, "full", false, "make the block full width")
 	flags.IntVar(&opts.position, "position", 0, "move the block to this position")
+	flags.BoolVar(&opts.followPage, "follow-page", false, "drop a panel block's own range so it follows the observation's")
 	return cmd
 }
 

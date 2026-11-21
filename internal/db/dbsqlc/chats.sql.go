@@ -101,37 +101,45 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (Chat, e
 }
 
 const getChat = `-- name: GetChat :one
-SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, coalesce(owner.requested_by_name, '')::text AS owner_name
+SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, coalesce(owner.requested_by_name, '')::text AS owner_name, d.title AS dashboard_title
 FROM chats c
 LEFT JOIN LATERAL (
   SELECT t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) owner ON true
-WHERE c.id = $1
-  AND ($2::uuid IS NULL OR (c.owner_kind = $3::text AND c.owner_id = $2::uuid))
+LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY($1::uuid[])
+WHERE c.id = $2
+  AND ($3::uuid IS NULL OR (c.owner_kind = $4::text AND c.owner_id = $3::uuid))
 `
 
 type GetChatParams struct {
+	Folders   []pgtype.UUID
 	ID        pgtype.UUID
 	OwnerID   pgtype.UUID
 	OwnerKind pgtype.Text
 }
 
 type GetChatRow struct {
-	ID            pgtype.UUID
-	OwnerKind     string
-	OwnerID       pgtype.UUID
-	Title         pgtype.Text
-	DashboardID   pgtype.UUID
-	ObservationID pgtype.UUID
-	PinnedAt      pgtype.Timestamptz
-	ArchivedAt    pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	LastTurnAt    pgtype.Timestamptz
-	OwnerName     string
+	ID             pgtype.UUID
+	OwnerKind      string
+	OwnerID        pgtype.UUID
+	Title          pgtype.Text
+	DashboardID    pgtype.UUID
+	ObservationID  pgtype.UUID
+	PinnedAt       pgtype.Timestamptz
+	ArchivedAt     pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	LastTurnAt     pgtype.Timestamptz
+	OwnerName      string
+	DashboardTitle pgtype.Text
 }
 
 func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (GetChatRow, error) {
-	row := q.db.QueryRow(ctx, getChat, arg.ID, arg.OwnerID, arg.OwnerKind)
+	row := q.db.QueryRow(ctx, getChat,
+		arg.Folders,
+		arg.ID,
+		arg.OwnerID,
+		arg.OwnerKind,
+	)
 	var i GetChatRow
 	err := row.Scan(
 		&i.ID,
@@ -145,12 +153,13 @@ func (q *Queries) GetChat(ctx context.Context, arg GetChatParams) (GetChatRow, e
 		&i.CreatedAt,
 		&i.LastTurnAt,
 		&i.OwnerName,
+		&i.DashboardTitle,
 	)
 	return i, err
 }
 
 const listChatRequests = `-- name: ListChatRequests :many
-SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, applies_finding_id, subject_observation_id FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id FROM agent_requests WHERE chat_id = $1 ORDER BY created_at, id
 `
 
 func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]AgentRequest, error) {
@@ -218,6 +227,7 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 			&i.BlockID,
 			&i.ClientID,
 			&i.Intent,
+			&i.Kind,
 			&i.AppliesFindingID,
 			&i.SubjectObservationID,
 		); err != nil {
@@ -233,8 +243,10 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 
 const listChats = `-- name: ListChats :many
 SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
-  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
+  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
+  d.title AS dashboard_title
 FROM chats c
+LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY($1::uuid[])
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
 LEFT JOIN LATERAL (
   SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
@@ -242,20 +254,23 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
   SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
-WHERE ($1::uuid IS NULL OR (c.owner_kind = $2::text AND c.owner_id = $1::uuid))
+WHERE ($2::uuid IS NULL OR (c.owner_kind = $3::text AND c.owner_id = $2::uuid))
   AND c.archived_at IS NULL
-  AND ($3::uuid IS NULL OR c.dashboard_id = $3::uuid)
-  AND ($4::uuid IS NULL OR c.observation_id = $4::uuid)
-  AND ($5::boolean IS NULL OR (c.pinned_at IS NOT NULL) = $5::boolean)
-  AND ($6::text IS NULL OR c.title ILIKE $6::text OR EXISTS (
-    SELECT 1 FROM agent_requests t WHERE t.chat_id = c.id AND t.prompt ILIKE $6::text))
-  AND ($7::timestamptz IS NULL
-    OR (c.last_turn_at, c.id) < ($7::timestamptz, $8::uuid))
-ORDER BY c.last_turn_at DESC, c.id DESC
-LIMIT $9
+  AND ($4::uuid IS NULL OR c.dashboard_id = $4::uuid)
+  AND ($5::uuid IS NULL OR c.observation_id = $5::uuid)
+  AND ($6::boolean IS NULL OR (c.pinned_at IS NOT NULL) = $6::boolean)
+  AND ($7::text IS NULL OR c.title ILIKE $7::text OR EXISTS (
+    SELECT 1 FROM agent_requests t WHERE t.chat_id = c.id AND t.prompt ILIKE $7::text))
+  AND ($8::timestamptz IS NULL
+    OR (($9::boolean AND c.pinned_at IS NOT NULL) = $10::boolean
+      AND (c.last_turn_at, c.id) < ($8::timestamptz, $11::uuid))
+    OR ($10::boolean AND NOT ($9::boolean AND c.pinned_at IS NOT NULL)))
+ORDER BY ($9::boolean AND c.pinned_at IS NOT NULL) DESC, c.last_turn_at DESC, c.id DESC
+LIMIT $12
 `
 
 type ListChatsParams struct {
+	Folders       []pgtype.UUID
 	OwnerID       pgtype.UUID
 	OwnerKind     pgtype.Text
 	DashboardID   pgtype.UUID
@@ -263,6 +278,8 @@ type ListChatsParams struct {
 	Pinned        pgtype.Bool
 	Pattern       pgtype.Text
 	CursorAt      pgtype.Timestamptz
+	PinnedFirst   bool
+	CursorPinned  bool
 	CursorID      pgtype.UUID
 	RowLimit      int32
 }
@@ -284,10 +301,12 @@ type ListChatsRow struct {
 	LastTurnID     pgtype.UUID
 	LastTurnState  string
 	LastTurnPrompt string
+	DashboardTitle pgtype.Text
 }
 
 func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListChatsRow, error) {
 	rows, err := q.db.Query(ctx, listChats,
+		arg.Folders,
 		arg.OwnerID,
 		arg.OwnerKind,
 		arg.DashboardID,
@@ -295,6 +314,8 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 		arg.Pinned,
 		arg.Pattern,
 		arg.CursorAt,
+		arg.PinnedFirst,
+		arg.CursorPinned,
 		arg.CursorID,
 		arg.RowLimit,
 	)
@@ -322,6 +343,7 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 			&i.LastTurnID,
 			&i.LastTurnState,
 			&i.LastTurnPrompt,
+			&i.DashboardTitle,
 		); err != nil {
 			return nil, err
 		}

@@ -811,6 +811,46 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	return id_2, err
 }
 
+const lockSharedRunsInThread = `-- name: LockSharedRunsInThread :many
+SELECT r.id, r.chat_id FROM agent_requests r
+JOIN thread_messages m ON m.id = r.thread_message_id
+WHERE m.thread_id = $1 AND r.chat_id IS NOT NULL
+  AND r.requested_by_kind = $2 AND r.requested_by_id = $3
+ORDER BY r.id
+FOR UPDATE OF r
+`
+
+type LockSharedRunsInThreadParams struct {
+	ThreadID        pgtype.UUID
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+}
+
+type LockSharedRunsInThreadRow struct {
+	ID     pgtype.UUID
+	ChatID pgtype.UUID
+}
+
+func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRunsInThreadParams) ([]LockSharedRunsInThreadRow, error) {
+	rows, err := q.db.Query(ctx, lockSharedRunsInThread, arg.ThreadID, arg.RequestedByKind, arg.RequestedByID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockSharedRunsInThreadRow
+	for rows.Next() {
+		var i LockSharedRunsInThreadRow
+		if err := rows.Scan(&i.ID, &i.ChatID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockThreadForWrite = `-- name: LockThreadForWrite :one
 SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id FROM threads WHERE id = $1 FOR NO KEY UPDATE
 `
@@ -1369,4 +1409,13 @@ func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]Us
 		return nil, err
 	}
 	return items, nil
+}
+
+const withdrawRunShares = `-- name: WithdrawRunShares :exec
+UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) WithdrawRunShares(ctx context.Context, ids []pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, withdrawRunShares, ids)
+	return err
 }

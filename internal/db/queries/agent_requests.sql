@@ -10,13 +10,13 @@ WHERE dashboard_id = @dashboard_id AND intent = 'apply' AND status IN ('queued',
 
 -- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, intent, comment_id, prompt, panel_id, base_version,
+  id, dashboard_id, intent, kind, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
   assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
   chat_id, anchor, block_id, client_id
 ) VALUES (
-  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @intent, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
+  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @intent, 'build', sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
@@ -228,16 +228,16 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:observe', 0));
 
 -- name: CountActiveObserveRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE intent = 'ask' AND dashboard_id IS NULL AND observation_id IS NULL AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id
+WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id
   AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL));
 
 -- name: CountActiveObserveRequests :one
-SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND dashboard_id IS NULL AND observation_id IS NULL AND status IN ('queued', 'running')
+SELECT count(*) FROM agent_requests WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running')
   AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL));
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (id, intent, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
-VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), 'ask', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
+INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
+VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), 'ask', 'build', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
   sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('client_id')::uuid)
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
@@ -274,8 +274,13 @@ SET steps = (
 ) || jsonb_build_array(@step::jsonb)
 WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 
+-- name: SeedAgentRequestStep :execrows
+UPDATE agent_requests
+SET steps = steps || jsonb_build_array(@step::jsonb)
+WHERE id = @id AND status = 'queued';
+
 -- name: ListAgentRequestsBy :many
-SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.kind, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
@@ -311,7 +316,7 @@ ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 
 -- name: ListAgentRequestsAll :many
-SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.kind, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
@@ -390,10 +395,10 @@ SELECT count(*) FROM agent_requests WHERE intent = 'suggest' AND status IN ('que
 
 -- name: EnqueueSuggestRequest :one
 INSERT INTO agent_requests (
-  dashboard_id, intent, prompt, panel_id, base_version, draft,
+  dashboard_id, intent, kind, prompt, panel_id, base_version, draft,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
 ) VALUES (
-  @dashboard_id, 'suggest', @prompt, @panel_id, @base_version::integer, sqlc.narg('draft')::jsonb,
+  @dashboard_id, 'suggest', 'build', @prompt, @panel_id, @base_version::integer, sqlc.narg('draft')::jsonb,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
 )
@@ -416,12 +421,12 @@ SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND
 
 -- name: EnqueueInvestigateRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, intent, prompt, panel_id, context_from, context_to,
+  id, dashboard_id, intent, kind, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
   chat_id, anchor, block_id, client_id, subject_observation_id
 ) VALUES (
-  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'ask', @prompt, sqlc.narg('panel_id')::text,
+  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'ask', 'investigate', @prompt, sqlc.narg('panel_id')::text,
   sqlc.narg('context_from')::timestamptz, sqlc.narg('context_to')::timestamptz,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
@@ -435,10 +440,10 @@ RETURNING *;
 
 -- name: CountActiveInvestigateRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE intent = 'ask' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+WHERE kind = 'investigate' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
 
 -- name: CountActiveInvestigateRequests :one
-SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
+SELECT count(*) FROM agent_requests WHERE kind = 'investigate' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
 
 -- name: SucceedFindingRequest :one
 UPDATE agent_requests
