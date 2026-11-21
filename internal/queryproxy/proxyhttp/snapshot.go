@@ -58,5 +58,5 @@ func (h *Handler) Freeze(ctx context.Context, by auth.Principal, d *spec.Dashboa
 	if len(body) > observations.MaxSnapshotBytes {
 		return observations.Frozen{}, observations.ErrSnapshotTooLarge
 	}
-	return observations.Frozen{Data: body, UserScoped: queryproxy.DashboardUsesUser(d)}, nil
+	return observations.Frozen{Data: body, UserScoped: queryproxy.DashboardUsesUser(d), Datasources: queryproxy.ResolvedRefs(d, selections)}, nil
 }

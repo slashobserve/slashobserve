@@ -63,6 +63,21 @@ func DatasourceRefs(d *spec.Dashboard) []string {
 	return refs
 }
 
+func ResolvedRefs(d *spec.Dashboard, selections map[string]Selection) []string {
+	refs := DatasourceRefs(d)
+	for _, v := range d.Variables {
+		if v.Type != spec.DatasourceVariable {
+			continue
+		}
+		for _, uid := range selections[v.Name].Values {
+			if !slices.Contains(refs, uid) {
+				refs = append(refs, uid)
+			}
+		}
+	}
+	return refs
+}
+
 func (r *Runner) CheckPanelAccess(ctx context.Context, d *spec.Dashboard, panelID string, selections map[string]Selection) error {
 	panel, ok := dataPanel(d, panelID)
 	if !ok {

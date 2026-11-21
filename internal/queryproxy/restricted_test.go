@@ -39,3 +39,17 @@ func TestFirstRestrictedNamesTheFirstAdminsOnlyRef(t *testing.T) {
 		t.Fatal("an open datasource counted as restricted")
 	}
 }
+
+func TestResolvedRefsAddTheDatasourceEachVariableSelected(t *testing.T) {
+	d := &spec.Dashboard{
+		Variables: []spec.Variable{
+			{Name: "ds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus},
+			{Name: "job", Type: spec.QueryVariable, Datasource: "${ds}"},
+		},
+		Panels: []spec.Panel{{ID: "p", Datasource: "${ds}", Queries: []spec.Query{{Query: "up"}, {Datasource: "prom", Query: "up"}}}},
+	}
+	got := ResolvedRefs(d, map[string]Selection{"ds": {Values: []string{"audit"}}, "job": {Values: []string{"api"}}})
+	if !slices.Equal(got, []string{"prom", "audit"}) {
+		t.Fatalf("refs = %v, want the written prom and the selected audit", got)
+	}
+}

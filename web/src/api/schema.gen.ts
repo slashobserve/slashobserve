@@ -15826,13 +15826,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). */
+            /** @description The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`). Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["ObservationInvalid"];

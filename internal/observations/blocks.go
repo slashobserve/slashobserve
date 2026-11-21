@@ -138,7 +138,17 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, folder folders.
 	if err != nil {
 		return frozenSnapshot{}, err
 	}
-	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to, datasources: queryproxy.DatasourceRefs(d)}, nil
+	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to, datasources: frozenRefs(d, frozen)}, nil
+}
+
+func frozenRefs(d *spec.Dashboard, frozen Frozen) []string {
+	refs := queryproxy.DatasourceRefs(d)
+	for _, uid := range frozen.Datasources {
+		if !slices.Contains(refs, uid) {
+			refs = append(refs, uid)
+		}
+	}
+	return refs
 }
 
 func splitQueries(panel json.RawMessage) (json.RawMessage, json.RawMessage, error) {

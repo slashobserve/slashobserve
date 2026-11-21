@@ -33,8 +33,9 @@ const maxFolderRetries = 5
 var errFolderMoved = errors.New("the observation moved to another folder")
 
 type Frozen struct {
-	Data       json.RawMessage
-	UserScoped bool
+	Data        json.RawMessage
+	UserScoped  bool
+	Datasources []string
 }
 
 type Freezer interface {

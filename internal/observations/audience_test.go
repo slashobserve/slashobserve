@@ -17,15 +17,16 @@ import (
 )
 
 type audienceFreezer struct {
-	mu         sync.Mutex
-	restricted []bool
+	mu          sync.Mutex
+	restricted  []bool
+	datasources []string
 }
 
 func (f *audienceFreezer) Freeze(ctx context.Context, _ auth.Principal, _ *spec.Dashboard, _ string, _, _ time.Time) (observations.Frozen, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.restricted = append(f.restricted, datasource.ReadsRestricted(ctx))
-	return observations.Frozen{Data: json.RawMessage(frozenData)}, nil
+	return observations.Frozen{Data: json.RawMessage(frozenData), Datasources: f.datasources}, nil
 }
 
 func (f *audienceFreezer) reads() []bool {
@@ -73,4 +74,32 @@ func TestAnAdminFreezesASharedObservationAsEveryoneDoes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAFreezeThatResolvedAnAdminsOnlyDatasourceIsKeptOutOfASharedFolder(t *testing.T) {
+	r, f := newAudienceRig(t)
+	r.adminsOnlyDatasource(t)
+	f.datasources = []string{"prom", "audit"}
+	ctx := asCaller(t.Context(), admin)
+
+	open := r.create(t, admin, r.shared)
+	panel := r.addPanel(t, admin, open)
+	_, err := r.service.AddBlock(ctx, admin, mustUUID(t, open.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, panel.ID)})
+	refusedAsRestricted(t, err)
+	_, err = r.service.Publish(ctx, admin, mustUUID(t, open.ID))
+	refusedAsRestricted(t, err)
+	if n := r.count(t, `SELECT count(*) FROM snapshots WHERE observation_id = $1::uuid`, open.ID); n != 0 {
+		t.Fatalf("snapshots kept in the shared folder = %d, want 0", n)
+	}
+
+	locked := r.create(t, admin, foldertest.AdminsOnly(t, r.db, "Payroll"))
+	lockedPanel := r.addPanel(t, admin, locked)
+	if _, err := r.service.AddBlock(ctx, admin, mustUUID(t, locked.ID), observations.BlockInput{Kind: observations.KindSnapshot, FromBlockID: mustUUID(t, lockedPanel.ID)}); err != nil {
+		t.Fatalf("snapshot in an Admins-only folder: %v", err)
+	}
+	if n := r.count(t, `SELECT count(*) FROM snapshots WHERE observation_id = $1::uuid AND 'audit' = ANY(datasource_uids)`, locked.ID); n != 1 {
+		t.Fatalf("snapshots naming the resolved datasource = %d, want 1", n)
+	}
+	_, err = r.service.Move(ctx, admin, mustUUID(t, locked.ID), r.shared)
+	refusedAsRestricted(t, err)
 }

@@ -51,38 +51,9 @@ func (s *Service) insertRCA(ctx context.Context, q *dbsqlc.Queries, parent dbsql
 	if err != nil {
 		return dbsqlc.ObservationRca{}, err
 	}
-	refs := make(map[pgtype.UUID]snapshotRef, len(live))
-	for _, b := range live {
-		switch Kind(b.Kind) {
-		case KindPanel:
-			snap := frozen[b.ID]
-			inserted, err := q.InsertSnapshot(ctx, dbsqlc.InsertSnapshotParams{
-				ObservationID:  parent.ID,
-				Panel:          snap.panel,
-				Query:          snap.query,
-				Frames:         snap.frames,
-				UserScoped:     snap.userScoped,
-				DatasourceUids: snap.datasources,
-				TimeFrom:       pgtype.Timestamptz{Time: snap.from, Valid: true},
-				TimeTo:         pgtype.Timestamptz{Time: snap.to, Valid: true},
-				CreatedByKind:  cols.Kind,
-				CreatedByID:    cols.ID,
-				CreatedByName:  cols.Name,
-				Origin:         cols.Origin,
-				OriginClient:   cols.Client,
-				RunID:          cols.RunID,
-			})
-			if err != nil {
-				return dbsqlc.ObservationRca{}, fmt.Errorf("insert snapshot: %w", err)
-			}
-			refs[b.ID] = snapshotRef{id: inserted.ID, panel: inserted.Panel}
-		case KindSnapshot:
-			existing, err := q.SnapshotByID(ctx, b.SnapshotID)
-			if err != nil {
-				return dbsqlc.ObservationRca{}, fmt.Errorf("read snapshot of block %s: %w", b.ID, err)
-			}
-			refs[b.ID] = snapshotRef{id: existing.ID, panel: existing.Panel}
-		}
+	refs, err := s.insertRCASnapshots(ctx, q, parent, live, frozen, cols)
+	if err != nil {
+		return dbsqlc.ObservationRca{}, err
 	}
 	blocks, err := rcaBlocks(live, refs)
 	if err != nil {
@@ -173,4 +144,44 @@ func publishedSummary(o dbsqlc.Observation) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return o.Summary
+}
+
+func (s *Service) insertRCASnapshots(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, live []dbsqlc.ObservationBlock, frozen map[pgtype.UUID]frozenSnapshot, cols actor.Columns) (map[pgtype.UUID]snapshotRef, error) {
+	refs := make(map[pgtype.UUID]snapshotRef, len(live))
+	for _, b := range live {
+		switch Kind(b.Kind) {
+		case KindPanel:
+			snap := frozen[b.ID]
+			if err := s.placeBlock(ctx, q, parent, KindSnapshot, nil, &snap); err != nil {
+				return nil, err
+			}
+			inserted, err := q.InsertSnapshot(ctx, dbsqlc.InsertSnapshotParams{
+				ObservationID:  parent.ID,
+				Panel:          snap.panel,
+				Query:          snap.query,
+				Frames:         snap.frames,
+				UserScoped:     snap.userScoped,
+				DatasourceUids: snap.datasources,
+				TimeFrom:       pgtype.Timestamptz{Time: snap.from, Valid: true},
+				TimeTo:         pgtype.Timestamptz{Time: snap.to, Valid: true},
+				CreatedByKind:  cols.Kind,
+				CreatedByID:    cols.ID,
+				CreatedByName:  cols.Name,
+				Origin:         cols.Origin,
+				OriginClient:   cols.Client,
+				RunID:          cols.RunID,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("insert snapshot: %w", err)
+			}
+			refs[b.ID] = snapshotRef{id: inserted.ID, panel: inserted.Panel}
+		case KindSnapshot:
+			existing, err := q.SnapshotByID(ctx, b.SnapshotID)
+			if err != nil {
+				return nil, fmt.Errorf("read snapshot of block %s: %w", b.ID, err)
+			}
+			refs[b.ID] = snapshotRef{id: existing.ID, panel: existing.Panel}
+		}
+	}
+	return refs, nil
 }
