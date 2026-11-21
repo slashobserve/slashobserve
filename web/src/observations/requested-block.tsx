@@ -10,6 +10,7 @@ import { useDiscardBlock, useKeepBlock, type Block } from "./queries"
 
 type Props = {
   block: Block
+  besideLivePanel: boolean
   children: ReactNode
   onKept: () => void
   onDiscarded: () => void
@@ -19,6 +20,7 @@ type Pressed = "keep" | "discard"
 
 export function RequestedBlock({
   block,
+  besideLivePanel,
   children,
   onKept,
   onDiscarded,
@@ -70,7 +72,7 @@ export function RequestedBlock({
       <p className="text-xs text-muted-foreground">{caption}</p>
       {children}
       {canKeep || canDiscard ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canKeep ? (
             <Button
               size="sm"
@@ -91,6 +93,12 @@ export function RequestedBlock({
             >
               Discard
             </Button>
+          ) : null}
+          {canKeep && besideLivePanel ? (
+            <p className="text-xs text-muted-foreground">
+              Keeping it adds this block next to the one above; it replaces
+              nothing.
+            </p>
           ) : null}
         </div>
       ) : null}

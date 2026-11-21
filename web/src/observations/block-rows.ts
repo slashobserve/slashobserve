@@ -270,6 +270,16 @@ export function nextBlockId(
   return sorted[index + 1]?.id ?? null
 }
 
+export function followsLivePanel(
+  blocks: readonly Block[],
+  blockId: string
+): boolean {
+  const sorted = blocks.toSorted((a, b) => a.position - b.position)
+  const index = sorted.findIndex((block) => block.id === blockId)
+  const above = index > 0 ? sorted[index - 1] : undefined
+  return above?.kind === "panel" && above.state === "live"
+}
+
 export function newPanelBody(
   panel: DataPanel,
   range: Pick<Observation, "from" | "to">,

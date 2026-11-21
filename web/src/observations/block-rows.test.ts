@@ -14,6 +14,7 @@ import {
   dropTarget,
   holdsAgentOutput,
   moveBlock,
+  followsLivePanel,
   nextBlockId,
   orderOf,
   packRows,
@@ -182,6 +183,30 @@ describe("nextBlockId", () => {
   it("names nothing after the last block or an unknown block", () => {
     expect(nextBlockId(blocks, "c")).toBeNull()
     expect(nextBlockId(blocks, "zzz")).toBeNull()
+  })
+})
+
+describe("followsLivePanel", () => {
+  const panel = (id: string, position: number, state: Block["state"]) =>
+    block(id, position, "full", { kind: "panel", state })
+
+  it("is true right after a live panel block in page order", () => {
+    const blocks = [
+      block("s", 1, "full", { state: "requested" }),
+      panel("p", 0, "live"),
+    ]
+    expect(followsLivePanel(blocks, "s")).toBe(true)
+  })
+
+  it("is false after a text block, a requested panel or at the top", () => {
+    expect(followsLivePanel([block("t", 0), block("s", 1)], "s")).toBe(false)
+    expect(
+      followsLivePanel([panel("p", 0, "requested"), block("s", 1)], "s")
+    ).toBe(false)
+    expect(followsLivePanel([panel("p", 1, "live"), block("s", 0)], "s")).toBe(
+      false
+    )
+    expect(followsLivePanel([panel("p", 0, "live")], "zzz")).toBe(false)
   })
 })
 

@@ -94,6 +94,7 @@ An editor's block goes on the page as `live`.
 A commenter's block is `requested`: it shows with a dashed border and the caption "`<name>` suggests this block", or "Observe Agent suggests this block" when an agent run wrote it.
 **Keep** makes it live and **Discard** removes it.
 Both show to an editor, and only **Discard** shows to the person who asked for the block.
+When the block above a suggestion is a live panel block, the row also says that keeping it adds this block next to the one above and replaces nothing.
 Resolving does not close the page: a resolved observation still takes blocks from editors and suggestions from commenters, and the row says "This observation is resolved" so nobody is surprised; an editor who does not want more reopens it or discards the suggestion.
 
 A panel block's caption names its datasource and its window: "Last hour, live", the page's range, or "Pinned to" the block's own; a snapshot's caption says "Frozen" with the time range of its data.
@@ -112,7 +113,7 @@ The preview runs with exactly the access the block's own data has, so it needs c
 Nothing changes until you save, and `Esc`, **Close panel editor** or leaving the page asks first when the draft has changes.
 
 **Save** changes the block in place and keeps its width, height and window.
-A commenter's **Suggest edit** leaves the block as it is and adds the edited copy right after it as a requested block, which an editor keeps or discards like any other suggestion.
+A commenter's **Suggest edit** leaves the block as it is and adds the edited copy right after it as a requested block, which an editor keeps or discards like any other suggestion; keeping it adds a second block, so an editor who wants only the edit then deletes the original.
 When someone changed the block since you opened it, the editor says so and keeps your draft.
 A snapshot and a published RCA revision are frozen, so neither offers the editor.
 
