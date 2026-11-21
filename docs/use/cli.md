@@ -129,11 +129,13 @@ A request that saved no observation is refused and left as it was.
 ### Your chats
 
 Every prompt you send is a turn of a chat, which you and Admins can read and nobody else sees.
-`bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
+`bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, whether it is pinned, the state of the last turn, the number of turns, when it was last asked, its dashboard and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
 An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`, each once per reader in 10 minutes.
+
+`chats pin <chat-id>` and `chats unpin <chat-id>` pin a chat of yours to the top of the list and take it back, as Pin and Unpin do on the Chats page; pinning a pinned chat changes nothing, and only the chat's owner can do it.
 `chats archive <chat-id> --yes` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 It needs `--yes` because nothing brings an archived chat back to the lists, and only the chat's owner can do it: an Admin who can read it gets `chat_read_only`.
 
@@ -340,7 +342,8 @@ The group is named `o`, with `observations` as an alias, so a prompt that starts
 It files the observation in `--folder <id>`, by default your My Dashboards, and `--from` and `--to`, RFC 3339 times that go together, set the range its panels show.
 `--text <markdown>` or `--text-file <path>`, never both, also adds a first text block.
 
-`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width and, for a text block, its first line, or for a panel block its title.
+`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width, range and, for a text block, its first line, or for a panel block its title.
+The range of a panel block is its own window as `from..to` (RFC 3339, to the minute), or `page` when it follows the observation's range; the other blocks show `-`.
 A block that someone who can only comment added shows the state `requested`.
 
 `bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.

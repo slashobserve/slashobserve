@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -57,12 +59,12 @@ type chatListOptions struct {
 func (a *app) chatsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "chats",
-		Short: "List, read and archive your chats with the agent",
+		Short: "List, read, pin and archive your chats with the agent",
 		Long:  "chats works the chats you had with the built-in agent: each prompt you send is a turn of one.\nYou and Admins can read your chats, and nobody else sees them; an Admin reads anyone's read only.\nobserve --chat <id> asks the next turn of a chat.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.chatsListCommand(), a.chatsShowCommand(), a.chatsArchiveCommand())
+	cmd.AddCommand(a.chatsListCommand(), a.chatsShowCommand(), a.chatsPinCommand(true), a.chatsPinCommand(false), a.chatsArchiveCommand())
 	return cmd
 }
 
@@ -109,11 +111,11 @@ func (a *app) chatsListCommand() *cobra.Command {
 				if opts.everyone() {
 					row = append(row, text(chat.Owner.Name))
 				}
-				rows = append(rows, append(row, state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), firstLine(chat.Title)))
+				rows = append(rows, append(row, pinnedWord(chat.PinnedAt), state, strconv.Itoa(chat.Turns), when(chat.LastTurnAt), chat.dashboardLabel(), firstLine(chat.Title)))
 			}
-			header := []string{"ID", "LAST TURN", "TURNS", "ASKED", "TITLE"}
+			header := []string{"ID", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
 			if opts.everyone() {
-				header = []string{"ID", "OWNER", "LAST TURN", "TURNS", "ASKED", "TITLE"}
+				header = []string{"ID", "OWNER", "PINNED", "LAST TURN", "TURNS", "ASKED", "DASHBOARD", "TITLE"}
 			}
 			out.table(header, rows)
 			pageFooter(out, len(list.Chats), nil, list.NextCursor)
@@ -128,6 +130,20 @@ func (a *app) chatsListCommand() *cobra.Command {
 	flags.StringVar(&opts.dashboard, "dashboard", "", "keep only the chats about this dashboard id")
 	flags.StringVar(&opts.observation, "observation", "", "keep only the chats about this observation id")
 	return cmd
+}
+
+func pinnedWord(pinnedAt *string) string {
+	if pinnedAt == nil {
+		return "-"
+	}
+	return "yes"
+}
+
+func (c chatRow) dashboardLabel() string {
+	if c.DashboardTitle != nil && *c.DashboardTitle != "" {
+		return orDash(c.DashboardTitle)
+	}
+	return orDash(c.DashboardID)
 }
 
 func (o chatListOptions) everyone() bool {
@@ -203,6 +219,44 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			}
 			out.line("")
 			out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
+			return nil
+		},
+	}
+}
+
+func (a *app) chatsPinCommand(pin bool) *cobra.Command {
+	use, short, long, done := "pin", "Pin one of your chats to the top of chats list", "pin keeps one of your chats at the top of chats list, as Pin does on the Chats page.\nPinning a pinned chat changes nothing.\nOnly the person who started the chat can pin it.", "Pinned"
+	if !pin {
+		use, short, long, done = "unpin", "Unpin one of your chats", "unpin returns one of your chats to its place by date in chats list.\nUnpinning an unpinned chat changes nothing.\nOnly the person who started the chat can unpin it.", "Unpinned"
+	}
+	return &cobra.Command{
+		Use:   use + " <chat-id>",
+		Short: short,
+		Long:  long,
+		Args:  exactArgs(1, "one chat id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			body, err := json.Marshal(map[string]bool{"pinned": pin})
+			if err != nil {
+				return fmt.Errorf("encode the request: %w", err)
+			}
+			c, err := a.newClient()
+			if err != nil {
+				return err
+			}
+			data, err := c.do(cmd.Context(), http.MethodPatch, "observe/"+id, nil, body)
+			if err != nil {
+				return err
+			}
+			out := a.output()
+			if a.json {
+				out.body(data)
+				return nil
+			}
+			out.confirm("%s chat %s", done, id)
 			return nil
 		},
 	}

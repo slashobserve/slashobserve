@@ -297,7 +297,7 @@ Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of you
 A request an ask in a thread started belongs to no chat: its `chat_id` is null, `GET /chats/{id}` has nothing to open for it, and a further ask in the same thread is another request in that thread, which sees the thread's earlier messages.
 Without `chat_id` a new chat starts, except a follow-up on a dashboard, which joins your latest chat on that dashboard; `follows_id`, an earlier request of yours without a dashboard, is the older way to name a chat.
 `client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
-`GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats`, and MCP `list_chats` and `get_chat`.
+`GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats` (`list`, `show`, `pin`, `unpin` and `archive`), and MCP `list_chats` and `get_chat`; a chat is pinned with `PATCH /observe/{id}` on its first request, which MCP `pin_run` and `unpin_run` call.
 
 The agent revises the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.
