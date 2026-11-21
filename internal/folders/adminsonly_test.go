@@ -139,9 +139,8 @@ func TestAdminsOnlyIsRefusedWithEntriesForNonAdminsAndOnPersonalFolders(t *testi
 	ada := addUser(t, d, "ada")
 	owner := engineAs(t, d, userAs(ada, auth.RoleAdmin), nil)
 	personal := personalFolderIDs(t, d, ada)[0].String()
-	if got := call(t, owner, http.MethodPut, "/api/v1/folders/"+personal+"/permissions", `{"entries":[],"admins_only":true}`); got.Code != http.StatusConflict ||
-		!strings.Contains(got.Body.String(), `"personal_folder"`) {
-		t.Fatalf("personal = %d %s, want 409 personal_folder", got.Code, got.Body)
+	if got := call(t, owner, http.MethodPut, "/api/v1/folders/"+personal+"/permissions", `{"entries":[],"admins_only":true}`); got.Code != http.StatusForbidden {
+		t.Fatalf("personal = %d %s, want 403", got.Code, got.Body)
 	}
 	if events := sharingEvents(t, d, folder); len(events) != 0 {
 		t.Fatalf("refused changes recorded %v", events)

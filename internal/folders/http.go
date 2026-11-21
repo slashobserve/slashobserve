@@ -27,10 +27,9 @@ const (
 )
 
 var (
-	errFolderGone         = errors.New("folder is gone")
-	errGeneralFolder      = errors.New("general folder")
-	errPersonalAdminsOnly = errors.New("personal folder cannot be admins only")
-	errDuplicateUser      = errors.New("duplicate user")
+	errFolderGone    = errors.New("folder is gone")
+	errGeneralFolder = errors.New("general folder")
+	errDuplicateUser = errors.New("duplicate user")
 )
 
 type unknownUserError struct {
@@ -340,9 +339,6 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 }
 
 func (h *Handler) setAdminsOnly(ctx context.Context, q *dbsqlc.Queries, folder dbsqlc.Folder, adminsOnly bool) error {
-	if adminsOnly && folder.Personal {
-		return errPersonalAdminsOnly
-	}
 	if AdminsOnly(folder) && !adminsOnly && h.opening != nil {
 		if err := h.opening(ctx, q, folder); err != nil {
 			return err
@@ -363,8 +359,6 @@ func abortPermissionsRefusal(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 	case errors.Is(err, errGeneralFolder):
 		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder is open to everyone and cannot be restricted")
-	case errors.Is(err, errPersonalAdminsOnly):
-		httpapi.AbortError(c, http.StatusConflict, "personal_folder", "My Dashboards belongs to one person and cannot be made a folder only Admins can read")
 	case errors.Is(err, errDuplicateUser):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a user can appear only once")
 	case errors.As(err, &unknown):

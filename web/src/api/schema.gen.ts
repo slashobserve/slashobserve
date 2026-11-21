@@ -9628,7 +9628,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), `admins_only` was sent for a personal folder (`personal_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`). */
             409: {
                 headers: {
                     [name: string]: unknown;
