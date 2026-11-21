@@ -10,6 +10,17 @@ export async function openDashboard(page: Page, id: string, search = "") {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 }
 
+export const saveToastTimeout = 15_000
+
+export async function expectSavedVersion(
+  scope: Page | Locator,
+  version: number
+) {
+  await expect(scope.getByText(`Saved version ${version}`)).toBeVisible({
+    timeout: saveToastTimeout,
+  })
+}
+
 export function versionButton(page: Page) {
   return page
     .getByRole("navigation", { name: "Breadcrumb" })

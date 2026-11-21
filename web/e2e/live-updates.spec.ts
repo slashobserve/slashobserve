@@ -3,6 +3,7 @@ import type { APIRequestContext, Page } from "@playwright/test"
 import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
 import {
   expectPanelsReady,
+  saveToastTimeout,
   openDashboard,
   selectPanelToArrange,
   unsavedLayout,
@@ -147,7 +148,9 @@ test("does not toast the author's own save", async ({ page, request }) => {
     .click()
 
   const toasts = page.locator("[data-sonner-toast]")
-  await expect(toasts.filter({ hasText: "Saved version 2" })).toBeVisible()
+  await expect(toasts.filter({ hasText: "Saved version 2" })).toBeVisible({
+    timeout: saveToastTimeout,
+  })
   await expect(badge(page, 2)).toBeVisible()
   await page.waitForTimeout(1_500)
   await expect(toasts).toHaveCount(1)

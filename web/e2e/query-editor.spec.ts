@@ -10,6 +10,7 @@ import {
 } from "./api"
 import {
   expectPanelsReady,
+  expectSavedVersion,
   openDashboard,
   panel,
   selectPanelToArrange,
@@ -171,7 +172,7 @@ test("saves an edited query as a new version", async ({ page, request }) => {
   await replaceQuery(page, savedQuery)
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   await expect(sheet(page)).toHaveCount(0)
   await expect(page).not.toHaveURL(/panel=/)
   await expect(versionButton(page)).toHaveText(/v2$/)
@@ -324,7 +325,7 @@ test("keeps an unsaved query when a newer version arrives", async ({
   await sheet(page)
     .getByRole("button", { name: "Save my changes as version 3" })
     .click()
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
   expect(saved.title).toBe(renamed)
@@ -348,7 +349,7 @@ test("applying my query keeps a panel title renamed in the newer version", async
     .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
   const rps = saved.spec.panels.find((item) => item.id === "rps")
@@ -377,7 +378,7 @@ test("applying my title keeps a panel query changed in the newer version", async
     .getByRole("button", { name: "Save my changes as version 3" })
     .click()
 
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
@@ -469,7 +470,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   await sheet(page)
     .getByRole("button", { name: "Save my changes as version 3" })
     .click()
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
@@ -653,7 +654,7 @@ test("offers Try again when the server cannot check the query right now", async 
 
   await page.unroute(/\/dashboards\/[^/]+\/panels$/)
   await sheet(page).getByRole("button", { name: "Try again" }).click()
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
@@ -689,7 +690,7 @@ test("retries a transient failure with the edits made after it", async ({
     .fill("Edited after the failure")
   await sheet(page).getByRole("button", { name: "Try again" }).click()
 
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
@@ -819,7 +820,7 @@ test("applies to the newer version when Try again follows a transient error", as
   await waitForVersionToastToClear(page)
   await sheet(page).getByRole("button", { name: "Try again" }).click()
 
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
@@ -979,7 +980,7 @@ test("saves a query and then a layout on top of it", async ({
   await openFromMenu(page, rpsTitle)
   await replaceQuery(page, savedQuery)
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   await expect(sheet(page)).toHaveCount(0)
   await expectPanelsReady(page)
 
@@ -991,7 +992,7 @@ test("saves a query and then a layout on top of it", async ({
     .getByRole("dialog", { name: "Save layout" })
     .getByRole("button", { name: "Save", exact: true })
     .click()
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
 
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
@@ -1217,7 +1218,7 @@ test("edits the content of a text panel and saves it", async ({
   await expect(sheet(page).getByText("1 change: content")).toBeVisible()
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   const notes = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "notes"
   )
@@ -1312,7 +1313,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         .fill("Second query")
       await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-      await expect(page.getByText("Saved version 2")).toBeVisible()
+      await expectSavedVersion(page, 2)
       await expect(
         page
           .getByRole("complementary", { name: "Activity" })
