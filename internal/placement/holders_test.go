@@ -47,9 +47,9 @@ func (r holdersRig) observation(t *testing.T, folder pgtype.UUID) string {
 
 func (r holdersRig) personalFolder(t *testing.T) pgtype.UUID {
 	t.Helper()
+	user := r.scalar(t, `INSERT INTO users (oidc_issuer, oidc_subject, email, name) VALUES ('https://idp', gen_random_uuid()::text, gen_random_uuid()::text || '@example.com', 'Ada') RETURNING id::text`)
 	var id pgtype.UUID
-	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `WITH u AS (INSERT INTO users (oidc_issuer, oidc_subject, email, name) VALUES ('https://idp', gen_random_uuid()::text, gen_random_uuid()::text || '@example.com', 'Ada') RETURNING id)
-SELECT f.id FROM folders f, u WHERE f.personal AND f.owner_id = u.id`).Scan(&id); err != nil {
+	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT id FROM folders WHERE personal AND owner_id = $1::uuid`, user).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	return id
