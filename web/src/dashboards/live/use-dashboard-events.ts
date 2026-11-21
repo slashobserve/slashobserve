@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { closeWhileCached } from "@/lib/page-cache"
 import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
@@ -334,12 +335,14 @@ export function useDashboardEvents(
     }
 
     document.addEventListener("visibilitychange", onVisibilityChange)
+    const stopWatchingCache = closeWhileCached(suspend, onVisibilityChange)
     if (document.hidden) onVisibilityChange()
     open()
 
     return () => {
       disposed = true
       document.removeEventListener("visibilitychange", onVisibilityChange)
+      stopWatchingCache()
       clearTimeout(retryTimer)
       clearTimeout(hiddenTimer)
       clearTimeout(reconnectingTimer)

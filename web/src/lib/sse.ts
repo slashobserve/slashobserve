@@ -1,3 +1,5 @@
+import { closeWhileCached } from "./page-cache"
+
 export type SseFrame = { event: string; data: string; id: string }
 
 const lineBreak = /\r\n|\r|\n/
@@ -94,13 +96,33 @@ function mediaType(response: Response): string {
     .toLowerCase()
 }
 
+type ReadOptions = {
+  lastEventId: string
+  signal: AbortSignal
+  onFrame: (frame: SseFrame) => void
+}
+
 export async function readSse(
   url: string,
-  options: {
-    lastEventId: string
-    signal: AbortSignal
-    onFrame: (frame: SseFrame) => void
+  options: ReadOptions
+): Promise<SseRead> {
+  const connection = new AbortController()
+  const drop = () => connection.abort()
+  if (options.signal.aborted) drop()
+  options.signal.addEventListener("abort", drop)
+  const stopWatchingCache = closeWhileCached(drop)
+  try {
+    return await readUntilEnd(url, options, connection.signal)
+  } finally {
+    stopWatchingCache()
+    options.signal.removeEventListener("abort", drop)
   }
+}
+
+async function readUntilEnd(
+  url: string,
+  options: ReadOptions,
+  connection: AbortSignal
 ): Promise<SseRead> {
   const parser = new SseParser(options.lastEventId)
   const finish = (end: SseEnd): SseRead => ({
@@ -117,7 +139,7 @@ export async function readSse(
       headers,
       credentials: "same-origin",
       cache: "no-store",
-      signal: options.signal,
+      signal: connection,
     })
   } catch {
     return finish({ kind: "dropped" })

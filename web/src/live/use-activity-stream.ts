@@ -1,6 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react"
 
 import { backoffDelay } from "@/dashboards/live/reconnect"
+import { closeWhileCached } from "@/lib/page-cache"
 
 import type { ActivityEvent } from "./activity-match"
 
@@ -113,11 +114,25 @@ export function useActivityStream({
       }
     }
 
-    open()
-    return () => {
+    function close() {
       clearTimeout(retryTimer)
       source?.close()
       source = undefined
+    }
+
+    const stopWatchingCache = closeWhileCached(
+      () => {
+        if (source !== undefined) gapPending = true
+        close()
+      },
+      () => {
+        if (source === undefined) open()
+      }
+    )
+    open()
+    return () => {
+      stopWatchingCache()
+      close()
     }
   }, [folderId, dashboardId, typesKey, enabled])
 }

@@ -203,4 +203,31 @@ describe("readSse", () => {
     expect(onFrame).toHaveBeenCalledTimes(1)
     expect(read.end).toEqual({ kind: "aborted" })
   })
+
+  test("drops the connection when the page is hidden for the cache", async () => {
+    fetchMock.mockImplementation((_url: string, init: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode("event: ready\ndata: {}\n\n"))
+          init.signal?.addEventListener("abort", () =>
+            controller.error(new DOMException("aborted", "AbortError"))
+          )
+        },
+      })
+      return Promise.resolve(
+        new Response(body, {
+          headers: { "content-type": "text/event-stream" },
+        })
+      )
+    })
+    const onFrame = vi.fn()
+    const reading = readSse("/s", {
+      lastEventId: "",
+      signal: new AbortController().signal,
+      onFrame,
+    })
+    await vi.waitFor(() => expect(onFrame).toHaveBeenCalledTimes(1))
+    window.dispatchEvent(new Event("pagehide"))
+    expect((await reading).end).toEqual({ kind: "dropped" })
+  })
 })
