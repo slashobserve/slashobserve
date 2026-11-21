@@ -1839,7 +1839,7 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 const listAgentRequests = `-- name: ListAgentRequests :many
 SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation, read_restricted FROM agent_requests
 WHERE dashboard_id = $1 AND intent = 'apply'
-  AND (NOT read_restricted OR $2::boolean OR (requested_by_kind = $3 AND requested_by_id = $4::uuid))
+  AND ($2::boolean OR (requested_by_kind = $3 AND requested_by_id = $4::uuid) OR NOT run_answer_kept_with_admins(id, '{}'))
   AND ($5::timestamptz IS NULL
     OR (created_at, id) < ($5::timestamptz, $6::uuid))
 ORDER BY created_at DESC, id DESC

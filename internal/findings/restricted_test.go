@@ -142,3 +142,32 @@ func TestAnAnswerAboutADashboardOnlyAdminsReadIsPinnedOnItButMadeADashboardOnlyA
 		t.Fatalf("save as a dashboard after the dashboard moved out: %v", err)
 	}
 }
+
+func TestAFindingAboutADashboardOnlyAdminsReadSaysItIsRestrictedUntilTheDashboardMovesOut(t *testing.T) {
+	r := newRig(t)
+	request := r.investigation(t, admin, r.open)
+	notes := panelOf(t, `{"id":"evidence-1","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":12,"h":8},"content":"Root changed it"}`)
+	f := r.save(t, admin, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Evidence: []spec.Panel{notes}})
+	id := mustUUID(t, f.ID)
+	locked := r.folder(t, "Audit")
+	r.db.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, locked)
+
+	for _, c := range []struct {
+		name   string
+		folder string
+		want   bool
+	}{
+		{"in a folder only Admins read", "locked", true},
+		{"after it moved to General", "general", false},
+	} {
+		if c.folder == "locked" {
+			r.db.Exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, r.open, locked)
+		} else {
+			r.db.Exec(t, `UPDATE dashboards SET folder_id = general_folder_id() WHERE id = $1`, r.open)
+		}
+		got, err := r.service.Get(reading(t.Context()), admin, id)
+		if err != nil || got.Restricted != c.want {
+			t.Fatalf("the dashboard %s: restricted %v, want %v, %v", c.name, got.Restricted, c.want, err)
+		}
+	}
+}

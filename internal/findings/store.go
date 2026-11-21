@@ -141,7 +141,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
-	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.ReadRestricted
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.KeptWithAdmins
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err
 }
 
@@ -158,7 +158,7 @@ func (s *store) forRequestIn(ctx context.Context, q *dbsqlc.Queries, requestID p
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
-	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.ReadRestricted
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.KeptWithAdmins
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
 }
 
@@ -180,7 +180,7 @@ func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, vi
 		return nil, fmt.Errorf("list findings of dashboard: %w", err)
 	}
 	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID, bool) {
-		return r.Finding, r.ObservationFolderID, r.ReadRestricted
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
 }
 
@@ -195,7 +195,7 @@ func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, visible 
 		return nil, fmt.Errorf("list findings of folder: %w", err)
 	}
 	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID, bool) {
-		return r.Finding, r.ObservationFolderID, r.ReadRestricted
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
 }
 
@@ -214,7 +214,7 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 		return nil, fmt.Errorf("list findings of creator: %w", err)
 	}
 	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID, bool) {
-		return r.Finding, r.ObservationFolderID, r.ReadRestricted
+		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
 }
 

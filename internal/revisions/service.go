@@ -594,10 +594,15 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
-	switch {
-	case sameActor(requesterOf(row), by):
+	if sameActor(requesterOf(row), by) {
 		return row, nil
-	case PrivateAsk(row), hidesRun(row, by):
+	}
+	hidden, err := s.hidesRun(ctx, row, by)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	switch {
+	case PrivateAsk(row), hidden:
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	case AskedPrivately(row):
 		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
@@ -647,17 +652,33 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	return row, true, nil
 }
 
-func hidesRun(row dbsqlc.AgentRequest, by auth.Principal) bool {
-	return row.ReadRestricted && !sameActor(requesterOf(row), by) && !by.Role.AtLeast(auth.RoleAdmin)
+func (s *Service) hidesRun(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) (bool, error) {
+	if sameActor(requesterOf(row), by) || by.Role.AtLeast(auth.RoleAdmin) {
+		return false, nil
+	}
+	if row.ReadRestricted {
+		return true, nil
+	}
+	kept, err := s.db.Queries().RunAnswerKeptWithAdmins(ctx, row.ID)
+	if err != nil {
+		return false, fmt.Errorf("read whether the run's answer is kept with Admins: %w", err)
+	}
+	return kept, nil
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, dashboardID, id pgtype.UUID) (Revision, error) {
 	row, err := s.db.Queries().GetAgentRequest(ctx, dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dashboardID})
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && hidesRun(row, by)) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return Revision{}, ErrNotFound
 	}
 	if err != nil {
 		return Revision{}, fmt.Errorf("get agent request: %w", err)
+	}
+	if hidden, err := s.hidesRun(ctx, row, by); err != nil || hidden {
+		if err == nil {
+			err = ErrNotFound
+		}
+		return Revision{}, err
 	}
 	s.recordRunView(ctx, row)
 	return revisionFromRow(row), nil

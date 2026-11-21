@@ -339,7 +339,7 @@ Deleting it while it is in a folder only Admins can read, or deleting a run whos
 A run about a dashboard that files into an observation, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
 
 A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
-A `restricted` run answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them.
+A `restricted` run, and a run whose answer is kept for what it is about, answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them, until nothing keeps it any more; its finding says `restricted` for as long.
 Saving a restricted answer as an observation files it in the first folder only Admins can read among those of the dashboard it was about, the observation its run files into and the observation it was asked about, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
 Withdrawing a share and the privacy of chats are unchanged.
 

@@ -14,7 +14,7 @@ import (
 const getFinding = `-- name: GetFinding :one
 SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, r.context_to AS request_to,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
-  r.thread_message_id AS request_thread_message_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+  r.thread_message_id AS request_thread_message_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -30,7 +30,7 @@ type GetFindingRow struct {
 	RequestedByID          pgtype.UUID
 	AskDashboardTitle      pgtype.Text
 	RequestThreadMessageID pgtype.UUID
-	ReadRestricted         bool
+	KeptWithAdmins         bool
 }
 
 func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow, error) {
@@ -63,7 +63,7 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 		&i.RequestedByID,
 		&i.AskDashboardTitle,
 		&i.RequestThreadMessageID,
-		&i.ReadRestricted,
+		&i.KeptWithAdmins,
 	)
 	return i, err
 }
@@ -71,7 +71,7 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
 SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
-  r.thread_message_id AS request_thread_message_id, r.read_restricted
+  r.thread_message_id AS request_thread_message_id, run_answer_kept_with_admins(r.id, '{}')::boolean AS kept_with_admins
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 JOIN agent_requests r ON r.id = f.agent_request_id
@@ -86,7 +86,7 @@ type GetFindingByAgentRequestRow struct {
 	RequestedByID          pgtype.UUID
 	AskDashboardTitle      pgtype.Text
 	RequestThreadMessageID pgtype.UUID
-	ReadRestricted         bool
+	KeptWithAdmins         bool
 }
 
 func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID pgtype.UUID) (GetFindingByAgentRequestRow, error) {
@@ -118,7 +118,7 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 		&i.RequestedByID,
 		&i.AskDashboardTitle,
 		&i.RequestThreadMessageID,
-		&i.ReadRestricted,
+		&i.KeptWithAdmins,
 	)
 	return i, err
 }
@@ -200,7 +200,7 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 }
 
 const listFindingsBy = `-- name: ListFindingsBy :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -224,7 +224,7 @@ type ListFindingsByParams struct {
 type ListFindingsByRow struct {
 	Finding             Finding
 	ObservationFolderID pgtype.UUID
-	ReadRestricted      bool
+	KeptWithAdmins      bool
 }
 
 func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) ([]ListFindingsByRow, error) {
@@ -265,7 +265,7 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.ObservationFolderID,
-			&i.ReadRestricted,
+			&i.KeptWithAdmins,
 		); err != nil {
 			return nil, err
 		}
@@ -278,7 +278,7 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 }
 
 const listFindingsByDashboard = `-- name: ListFindingsByDashboard :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -301,7 +301,7 @@ type ListFindingsByDashboardParams struct {
 type ListFindingsByDashboardRow struct {
 	Finding             Finding
 	ObservationFolderID pgtype.UUID
-	ReadRestricted      bool
+	KeptWithAdmins      bool
 }
 
 func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsByDashboardParams) ([]ListFindingsByDashboardRow, error) {
@@ -341,7 +341,7 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.ObservationFolderID,
-			&i.ReadRestricted,
+			&i.KeptWithAdmins,
 		); err != nil {
 			return nil, err
 		}
@@ -354,7 +354,7 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 }
 
 const listFindingsInFolder = `-- name: ListFindingsInFolder :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -377,7 +377,7 @@ type ListFindingsInFolderParams struct {
 type ListFindingsInFolderRow struct {
 	Finding             Finding
 	ObservationFolderID pgtype.UUID
-	ReadRestricted      bool
+	KeptWithAdmins      bool
 }
 
 func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFolderParams) ([]ListFindingsInFolderRow, error) {
@@ -417,7 +417,7 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.ObservationFolderID,
-			&i.ReadRestricted,
+			&i.KeptWithAdmins,
 		); err != nil {
 			return nil, err
 		}

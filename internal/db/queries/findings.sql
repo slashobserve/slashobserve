@@ -10,7 +10,7 @@ RETURNING *;
 -- name: GetFinding :one
 SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, r.context_to AS request_to,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
-  r.thread_message_id AS request_thread_message_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+  r.thread_message_id AS request_thread_message_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -20,7 +20,7 @@ WHERE f.id = @id;
 -- name: GetFindingByAgentRequest :one
 SELECT sqlc.embed(f), o.folder_id AS observation_folder_id,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
-  r.thread_message_id AS request_thread_message_id, r.read_restricted
+  r.thread_message_id AS request_thread_message_id, run_answer_kept_with_admins(r.id, '{}')::boolean AS kept_with_admins
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 JOIN agent_requests r ON r.id = f.agent_request_id
@@ -28,7 +28,7 @@ LEFT JOIN dashboards ask ON ask.id = f.ask_dashboard_id
 WHERE f.agent_request_id = @agent_request_id;
 
 -- name: ListFindingsByDashboard :many
-SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -40,7 +40,7 @@ ORDER BY f.created_at DESC, f.id DESC
 LIMIT @row_limit;
 
 -- name: ListFindingsBy :many
-SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -52,7 +52,7 @@ ORDER BY f.created_at DESC, f.id DESC
 LIMIT @row_limit;
 
 -- name: ListFindingsInFolder :many
-SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(r.read_restricted, false)::boolean AS read_restricted
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
