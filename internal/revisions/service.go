@@ -597,7 +597,11 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:
-		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+		err := s.checkObservationVisible(ctx, row.ObservationID, by)
+		if errors.Is(err, ErrRequestNotFound) && row.SubjectObservationID.Valid {
+			err = s.checkObservationVisible(ctx, row.SubjectObservationID, by)
+		}
+		return row, err
 	case row.SubjectObservationID.Valid:
 		return row, s.checkObservationVisible(ctx, row.SubjectObservationID, by)
 	}

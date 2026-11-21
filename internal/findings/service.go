@@ -194,7 +194,7 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	if err != nil {
 		return Finding{}, err
 	}
-	folder, abilities, err := s.place(ctx, by, f)
+	f, folder, abilities, err := s.readPlace(ctx, by, f)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -239,7 +239,7 @@ func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID p
 	if err != nil || !found {
 		return Finding{}, false, err
 	}
-	_, _, err = s.place(ctx, by, f)
+	f, _, _, err = s.readPlace(ctx, by, f)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return Finding{}, false, nil
@@ -476,6 +476,15 @@ func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (fold
 		return folders.Folder{}, folders.Abilities{}, err
 	}
 	return s.observations.Placement(ctx, by, observationID)
+}
+
+func (s *Service) readPlace(ctx context.Context, by auth.Principal, f Finding) (Finding, folders.Folder, folders.Abilities, error) {
+	folder, abilities, err := s.place(ctx, by, f)
+	if errors.Is(err, ErrNotFound) && f.Saved() && s.readableInThread(ctx, by, f) == nil {
+		f.ObservationID, f.FolderID = "", ""
+		return f, folders.Folder{}, folders.Abilities{View: true}, nil
+	}
+	return f, folder, abilities, err
 }
 
 func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Finding) error {

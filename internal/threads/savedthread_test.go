@@ -147,3 +147,31 @@ func TestARetryOfASavedThreadAnswerBySomeoneInTheThreadAnswersInIt(t *testing.T)
 		t.Fatalf("retry %+v, want a thread ask about %v", next, s.about)
 	}
 }
+
+func TestASavedThreadAnswerIsStillReadFromTheThreadByThoseWhoCannotSeeTheSavedObservation(t *testing.T) {
+	r := newShareRig(t)
+	about := r.filedObservationIn(t, testUser, foldertest.Open(t, r.db, "Shared"))
+	_, _, started, refusal := r.openWithRun(t, testUser, OpenInput{Target: target(KindObservation, about), Body: "@observe look at this"})
+	if started == nil || refusal != nil {
+		t.Fatalf("started = %+v, refusal = %+v", started, refusal)
+	}
+	run := mustParse(t, started.ID)
+	answer := r.answer(t, testUser, findings.SaveInput{AgentRequestID: run})
+	r.finishWithAnswer(t, run)
+	saved := r.savedAsObservation(t, run, about)
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, saved, foldertest.AdminsOnly(t, r.db, "Admins"))
+
+	for _, reader := range []auth.Principal{commenter, viewer} {
+		if code := r.observeStatus(t, reader, run); code != http.StatusOK {
+			t.Errorf("%s reads the run with %d", reader.Name, code)
+		}
+		f, err := r.findingOfRun(t, reader, run)
+		if err != nil || f.ID != answer.ID {
+			t.Errorf("%s reads the run's answer %+v, %v", reader.Name, f, err)
+		}
+		got, err := r.findings.Get(reading(t.Context()), reader, mustParse(t, answer.ID))
+		if err != nil || got.Folder != nil || got.ObservationID != "" || got.FolderID != "" {
+			t.Errorf("%s reads the answer %+v, %v, want it without the saved observation or its folder", reader.Name, got, err)
+		}
+	}
+}
