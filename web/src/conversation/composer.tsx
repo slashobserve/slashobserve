@@ -7,6 +7,7 @@ import { agentLabel } from "@/chat/agent-label"
 import { ContextChips, type ContextChip } from "@/chat/context-chips"
 import { ImportLink } from "@/chat/import-link"
 import { NoAgentNote } from "@/chat/no-agent-note"
+import { promptCounter } from "@/chat/prompt-length"
 import {
   commandHints,
   commandLabels,
@@ -252,7 +253,7 @@ function DockedComposer({
   const modelName = agentLabel(agent.data)
   const onKeyDown = useKeyDown(model, () => void model.submit())
   const unavailable = typeof disabledReason === "string"
-  const { counter } = model
+  const counter = promptCounter(model.wire)
   return (
     <form
       aria-label={formLabel}
@@ -311,10 +312,7 @@ function DockedComposer({
               label={sendLabel(model)}
               size="icon-sm"
               disabled={
-                model.wire === "" ||
-                unavailable ||
-                model.sendBlock !== null ||
-                counter?.over === true
+                model.wire === "" || unavailable || model.sendBlock !== null
               }
             />
           </div>
@@ -343,6 +341,7 @@ function DockedComposer({
           )}
         >
           {counter.text}
+          {counter.over ? ", too long" : null}
         </span>
       )}
       <Feedback model={model} errorId={errorId} />
@@ -408,7 +407,7 @@ function PageComposer({
   const modelName = agentLabel(agent.data)
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
   const matches = matchingCommands(model.text, model.commands)
-  const { counter } = model
+  const counter = promptCounter(model.text)
 
   useEffect(() => {
     if (!autoFocus) return
@@ -528,6 +527,7 @@ function PageComposer({
                   )}
                 >
                   {counter.text}
+                  {counter.over ? ", too long" : null}
                 </span>
               )}
               {healthy.map((datasource) => (
@@ -554,7 +554,7 @@ function PageComposer({
                 model={model}
                 label="Send"
                 size="icon"
-                disabled={busy || disabled || counter?.over === true}
+                disabled={busy || disabled}
               />
             </div>
           </div>

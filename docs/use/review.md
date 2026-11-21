@@ -60,7 +60,7 @@ Above the box, a "To:" chip says who reads the message and a "Visible to:" chip 
 A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
 A mention of an agent turns the chip to that agent's name.
 Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
-A comment is 1 to 4000 characters, counted without the spaces around it: from 3500 a counter such as "500 characters left" appears under the box, and past 4000 it reads "1 character over" and **Send** is off.
+A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
 To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
 The card opens scoped to that panel with the cursor in the box.

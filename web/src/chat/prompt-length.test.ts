@@ -8,31 +8,23 @@ import {
 } from "./prompt-length"
 
 describe("promptCounter", () => {
-  test("stays hidden while more than 500 characters are left", () => {
-    expect(promptCounter("a".repeat(3499))).toBeNull()
+  test("stays hidden while there is room", () => {
+    expect(promptCounter("a".repeat(3599))).toBeNull()
   })
 
-  test("says how many characters are left from 3500", () => {
-    expect(promptCounter("a".repeat(3500))).toEqual({
-      text: "500 characters left",
-      over: false,
-    })
-    expect(promptCounter("a".repeat(3999))?.text).toBe("1 character left")
-  })
-
-  test("is not over at the limit, counting the trimmed text", () => {
-    expect(promptCounter(`  ${"a".repeat(4000)}  `)).toEqual({
-      text: "0 characters left",
+  test("appears at 90 percent of the limit", () => {
+    expect(promptCounter("a".repeat(3600))).toEqual({
+      text: "3600 of 4000",
       over: false,
     })
   })
 
-  test("says how far over the limit the text is", () => {
+  test("is not over at the limit and is over one past it", () => {
+    expect(promptCounter("a".repeat(4000))?.over).toBe(false)
     expect(promptCounter("a".repeat(4001))).toEqual({
-      text: "1 character over",
+      text: "4001 of 4000",
       over: true,
     })
-    expect(promptCounter("a".repeat(4010))?.text).toBe("10 characters over")
   })
 
   test("counts characters like the server, not UTF-16 units, and ignores outer space", () => {
