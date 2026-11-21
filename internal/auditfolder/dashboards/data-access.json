@@ -146,7 +146,7 @@
       "id": "top_dashboards",
       "type": "table",
       "title": "Most viewed dashboards",
-      "description": "Dashboards by views in the range.",
+      "description": "Dashboard ids by views in the range.",
       "gridPos": {
         "x": 0,
         "y": 12,
@@ -156,7 +156,7 @@
       "datasource": "slashobserve-audit",
       "queries": [
         {
-          "query": "{\"query\":{\"term\":{\"action\":\"dashboard.view\"}},\"aggs\":{\"by_target_name\":{\"terms\":{\"field\":\"target_name\",\"size\":10}}}}",
+          "query": "{\"query\":{\"term\":{\"action\":\"dashboard.view\"}},\"aggs\":{\"by_target_id\":{\"terms\":{\"field\":\"target_id\",\"size\":10}}}}",
           "format": "table"
         }
       ]

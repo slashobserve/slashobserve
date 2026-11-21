@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"slices"
 	"time"
 
@@ -52,15 +53,19 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 	targets, truncated := facetTargets(prep.mapping, roles, req.Fields)
 	facets := datasource.Facets{Fields: []datasource.FacetField{}, Truncated: truncated}
 	counted := slices.DeleteFunc(slices.Clone(targets), func(t facetTarget) bool { return !t.countable() })
-	var resp searchResponse
-	if len(counted) > 0 {
-		raw, err := d.search(ctx, facetsBody(prep, d.opts.TimeField, req.Range, lim, counted, facetValues(req.Limit)))
+	resp := searchResponse{Aggregations: map[string]json.RawMessage{}}
+	for batch := range slices.Chunk(counted, d.facetsPerSearch(len(counted))) {
+		raw, err := d.search(ctx, facetsBody(prep, d.opts.TimeField, req.Range, lim, batch, facetValues(req.Limit)))
 		if err != nil {
 			return datasource.Facets{}, err
 		}
-		if resp, err = parseSearch(raw); err != nil {
+		part, err := parseSearch(raw)
+		if err != nil {
 			return datasource.Facets{}, err
 		}
+		resp.TimedOut = resp.TimedOut || part.TimedOut
+		resp.Shards.Failed += part.Shards.Failed
+		maps.Copy(resp.Aggregations, part.Aggregations)
 	}
 	for _, t := range targets {
 		field := datasource.FacetField{Name: t.name, Kind: string(t.kind), Values: []datasource.FacetValue{}}
@@ -72,6 +77,13 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		facets.Fields = append(facets.Fields, field)
 	}
 	return facets, nil
+}
+
+func (d *Datasource) facetsPerSearch(fields int) int {
+	if d.opts.MaxAggregations < 2 {
+		return max(fields, 1)
+	}
+	return d.opts.MaxAggregations / 2
 }
 
 func facetValues(limit int) int {
