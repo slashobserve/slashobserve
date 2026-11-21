@@ -20,6 +20,9 @@ linters:
     - staticcheck
     - unused
   settings:
+    misspell:
+      ignore-rules:
+        - andd
     gocyclo:
       min-complexity: 15
     sloglint:
