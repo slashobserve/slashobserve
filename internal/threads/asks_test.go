@@ -206,7 +206,7 @@ func TestAnObservationThreadAskIsAnsweredInTheThreadAndWritesNothingOnThePage(t 
 	}
 }
 
-func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
+func TestAMentionSentToEveryoneStartsNothing(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	tg := target(KindDashboard, dash)
@@ -219,11 +219,11 @@ func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
 		t.Fatalf("reply = %v, %+v, %+v", err, run, refusal)
 	}
 	if runs := r.queuedRuns(t); len(runs) != 0 {
-		t.Fatalf("%d runs queued without start_runs", len(runs))
+		t.Fatalf("%d runs queued for a message to everyone", len(runs))
 	}
 }
 
-func TestStartRunsWithoutAnAgentMentionStartsNothingAndKeepsTheMessage(t *testing.T) {
+func TestAMessageWithoutAnAgentMentionStartsNothingAndKeepsTheMessage(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
@@ -291,7 +291,7 @@ func TestAnnotationAndProposalThreadsStoreTheMessageAndRefuseTheRun(t *testing.T
 	}
 }
 
-func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
+func TestTwoAgentMentionsAreRefusedAndWriteNothing(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	grant := r.connectedAgent(t, testUser)
@@ -594,19 +594,19 @@ func TestHTTPAsksByMentionUnlessToIsEveryoneAndAnswersTheRunOrTheRefusal(t *test
 	}
 	threadID := started.at(t, "thread", "id").(string)
 
-	replied := r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "@observe again", "start_runs": true})
+	replied := r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "@observe again", "to": "agent"})
 	replied.expect(t, http.StatusCreated, "")
 	if replied.at(t, "message", "run", "id") == nil || len(r.queuedRuns(t)) != 2 {
 		t.Fatalf("reply answered %v", replied.body)
 	}
 
-	refused := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "annotation:" + note.String(), "body": "@observe hi", "start_runs": true})
+	refused := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "annotation:" + note.String(), "body": "@observe hi", "to": "agent"})
 	refused.expect(t, http.StatusCreated, "")
 	if refused.at(t, "message", "run") != nil || refused.at(t, "message", "run_refusal", "code") != RefusalUnsupportedTarget {
 		t.Fatalf("refusal answered %v", refused.body)
 	}
 
-	two := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe @[Codex](grant:" + grantID + ")", "start_runs": true})
+	two := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@observe @[Codex](grant:" + grantID + ")", "to": "agent"})
 	two.expect(t, http.StatusUnprocessableEntity, CodeTooManyAgents)
 
 	foreign := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": dashTarget, "body": "@[Codex](grant:" + grantID + ")"})
@@ -636,7 +636,7 @@ func TestHTTPStartsAnAskOnAnObservationThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 
-	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "start_runs": true})
+	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "to": "agent"})
 	started.expect(t, http.StatusCreated, "")
 	queued := r.queuedRuns(t)
 	if len(queued) != 1 || queued[0].Intent != "ask" || queued[0].SubjectID != id.String() ||

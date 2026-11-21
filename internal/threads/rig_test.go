@@ -275,19 +275,19 @@ func target(kind Kind, id pgtype.UUID) Target {
 	return Target{Kind: kind, ID: id}
 }
 
-func deliveryFor(startRuns bool) To {
-	if startRuns {
+func deliveryFor(asksAgent bool) To {
+	if asksAgent {
 		return ToAuto
 	}
 	return ToEveryone
 }
 
-func (r *rig) askOpen(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
-	sent, err := r.asks.Open(ctx, by, in, deliveryFor(startRuns))
+func (r *rig) askOpen(ctx context.Context, by auth.Principal, in OpenInput, asksAgent bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Open(ctx, by, in, deliveryFor(asksAgent))
 	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
 }
 
-func (r *rig) askReply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
-	sent, err := r.asks.Reply(ctx, by, threadID, in, deliveryFor(startRuns))
+func (r *rig) askReply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, asksAgent bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Reply(ctx, by, threadID, in, deliveryFor(asksAgent))
 	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
 }

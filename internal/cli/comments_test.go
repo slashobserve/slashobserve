@@ -480,8 +480,8 @@ func TestCommentsCommands(t *testing.T) {
 			wantOut:    []string{"Started thread " + testThread, "Started run " + testRun + ", taken by builtin"},
 		},
 		{
-			name:       "add with the deprecated --start-runs asks, prints a refusal and still succeeds",
-			args:       []string{"comments", "add", "--start-runs", "--on", on, "@observe", "hi"},
+			name:       "add with --to agent prints a refusal and still succeeds",
+			args:       []string{"comments", "add", "--to", "agent", "--on", on, "@observe", "hi"},
 			status:     http.StatusCreated,
 			response:   refusedMessageEnvelope,
 			wantMethod: http.MethodPost,
@@ -532,12 +532,6 @@ func TestCommentsCommands(t *testing.T) {
 			args:     []string{"comments", "add", "--to", "nobody", "--on", on, "hi"},
 			wantCode: 2,
 			wantErr:  `--to must be agent or everyone, not "nobody"`,
-		},
-		{
-			name:     "add refuses --start-runs with --to everyone",
-			args:     []string{"comments", "add", "--start-runs", "--to", "everyone", "--on", on, "hi"},
-			wantCode: 2,
-			wantErr:  "--start-runs is the old spelling of --to agent",
 		},
 		{
 			name:       "add with --at sends the anchor",

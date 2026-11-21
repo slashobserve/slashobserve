@@ -298,7 +298,7 @@ An observation has one discussion, so `create_comment` on an observation that ha
 Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`.
-A comment is for everyone and asks no agent unless the call sets `to` to `agent`; `start_runs` is the deprecated spelling of the same.
+A comment is for everyone and asks no agent unless the call sets `to` to `agent`.
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
