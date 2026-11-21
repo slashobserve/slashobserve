@@ -179,7 +179,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 `Esc` clears the selection, and with the title focused `↑`, `↓`, `Home` and `End` move it through the panels in reading order.
 The toolbar shows only what you may do:
 
-- **Comment**, when you can comment, starts a comment on the panel.
+- **Comment**, when you can comment, opens the composer on the whole panel, as `c`, the panel menu's **Comment** and the **Comment** button in the panel's header do; in the full-size view and TV mode it starts the comment in the activity pane instead.
 - **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the activity pane with the panel as the target and the "To:" chip on Observe Agent.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).

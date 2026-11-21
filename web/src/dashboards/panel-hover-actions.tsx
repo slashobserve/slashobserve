@@ -13,7 +13,7 @@ import { panelTitle, type LayoutPanel } from "@/spec"
 
 import {
   askAboutPanelAndFocus,
-  commentOnPanelAndFocus,
+  commentOnThisPanel,
   useConversationActions,
 } from "./panel-actions"
 import { useSetDashboardSearch } from "./search"
@@ -36,6 +36,7 @@ type Props = {
   canComment: boolean
   idle: boolean
   viewing?: boolean
+  onCanvas: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -78,6 +79,7 @@ export function PanelHoverActions({
   canComment,
   idle,
   viewing = false,
+  onCanvas,
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
@@ -110,7 +112,9 @@ export function PanelHoverActions({
         label={`Comment on ${title}`}
         tooltip={`Comment (${shortcutText("comment")})${pause}`}
         disabled={!idle}
-        onClick={() => commentOnPanelAndFocus(setSearch, panel.id, composerRef)}
+        onClick={() =>
+          commentOnThisPanel(setSearch, panel.id, onCanvas, composerRef)
+        }
       >
         <MessageSquarePlusIcon aria-hidden="true" />
       </HoverAction>

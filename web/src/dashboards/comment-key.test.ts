@@ -11,9 +11,9 @@ const base: CommentKeyInput = {
 }
 
 describe("commentKeyAction", () => {
-  it("opens the whole-panel composer on the panel under the pointer", () => {
+  it("comments on the panel under the pointer", () => {
     expect(commentKeyAction({ ...base, panelId: "p1" })).toEqual({
-      kind: "panelDraft",
+      kind: "panel",
       panelId: "p1",
     })
   })
@@ -31,10 +31,7 @@ describe("commentKeyAction", () => {
     ).toEqual({ kind: "leaveMode" })
   })
 
-  it("comments in the activity pane where the canvas takes no comments", () => {
-    expect(
-      commentKeyAction({ ...base, onCanvas: false, panelId: "p1" })
-    ).toEqual({ kind: "panelInPane", panelId: "p1" })
+  it("opens the activity pane with no panel where the canvas takes no comments", () => {
     expect(commentKeyAction({ ...base, onCanvas: false })).toEqual({
       kind: "pane",
     })

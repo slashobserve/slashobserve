@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
+import { useCanvasTool } from "./canvas-tools"
 import { PanelMenu } from "./panel-menu"
 
 vi.mock("@/observations/add-to-observation-panel", () => ({
@@ -60,7 +61,8 @@ const dashboardRange = { from: "now-24h", to: "now" }
 function renderMenu(
   canComment = true,
   downloadsReady?: boolean,
-  shown: LayoutPanel = panel
+  shown: LayoutPanel = panel,
+  onCanvas = false
 ) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
@@ -73,6 +75,7 @@ function renderMenu(
         onToggleTableView={() => {}}
         idle
         viewing={false}
+        onCanvas={onCanvas}
         canComment={canComment}
         canEdit={false}
         composerRef={composer}
@@ -132,6 +135,23 @@ describe("PanelMenu", () => {
         screen.getByRole("textbox", { name: "Comment or request" })
       ).toHaveFocus()
     )
+  })
+
+  it("opens the canvas composer on the whole panel and leaves the comment box alone where the panel takes canvas comments", async () => {
+    const { user } = renderMenu(true, undefined, panel, true)
+    await chooseComment(user)
+    finishExit()
+    await waitFor(() =>
+      expect(useCanvasTool.getState().draft).toMatchObject({
+        panelId: panel.id,
+        tool: "comment",
+        anchor: null,
+      })
+    )
+    expect(
+      screen.getByRole("textbox", { name: "Comment or request" })
+    ).not.toHaveFocus()
+    useCanvasTool.getState().close()
   })
 
   it("leaves focus where the person clicked when the menu finishes closing after they moved on", async () => {

@@ -480,6 +480,7 @@ export const PanelContainer = memo(function PanelContainer({
       onToggleTableView={() => setTableView((current) => !current)}
       idle={!layoutSession}
       viewing={viewing}
+      onCanvas={onCanvas}
       onDownloadCsv={onDownloadCsv}
       onSavePng={onSavePng}
       downloadsReady={downloadsReady}
@@ -630,6 +631,7 @@ export const PanelContainer = memo(function PanelContainer({
           from={rangeFrom}
           to={rangeTo}
           idle={!layoutSession}
+          onCanvas={onCanvas}
           menu={panelMenu(true)}
           observationVariables={observationVariables}
         />

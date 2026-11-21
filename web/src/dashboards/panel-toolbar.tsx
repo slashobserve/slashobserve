@@ -32,7 +32,7 @@ import {
 
 import {
   askAboutPanelAndFocus,
-  commentOnPanelAndFocus,
+  commentOnThisPanel,
   editPanelQuery,
   useConversationActions,
 } from "./panel-actions"
@@ -48,6 +48,7 @@ type Props = {
   from: string | undefined
   to: string | undefined
   idle: boolean
+  onCanvas: boolean
   menu: ReactNode
   observationVariables?: readonly Variable[]
 }
@@ -127,6 +128,7 @@ export function PanelToolbar({
   from,
   to,
   idle,
+  onCanvas,
   menu,
   observationVariables,
 }: Props) {
@@ -205,7 +207,7 @@ export function PanelToolbar({
           tooltip={finishFirst("Comment")}
           disabled={!idle}
           onClick={() => {
-            commentOnPanelAndFocus(setSearch, panel.id, composerRef)
+            commentOnThisPanel(setSearch, panel.id, onCanvas, composerRef)
           }}
         >
           <MessageSquarePlusIcon aria-hidden="true" />

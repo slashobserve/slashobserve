@@ -8,8 +8,7 @@ export type CommentKeyInput = {
 
 export type CommentKeyAction =
   | { kind: "leaveMode" }
-  | { kind: "panelDraft"; panelId: string }
-  | { kind: "panelInPane"; panelId: string }
+  | { kind: "panel"; panelId: string }
   | { kind: "enterMode" }
   | { kind: "pane" }
 
@@ -22,10 +21,6 @@ export function commentKeyAction({
 }: CommentKeyInput): CommentKeyAction {
   if (commenting) return { kind: "leaveMode" }
   if (!canComment || editing) return { kind: "pane" }
-  if (panelId !== undefined) {
-    return onCanvas
-      ? { kind: "panelDraft", panelId }
-      : { kind: "panelInPane", panelId }
-  }
+  if (panelId !== undefined) return { kind: "panel", panelId }
   return onCanvas ? { kind: "enterMode" } : { kind: "pane" }
 }
