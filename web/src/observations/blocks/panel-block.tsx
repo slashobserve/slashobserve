@@ -213,7 +213,6 @@ function ReadablePanelBlock({
     : []
   const blockMenu: BlockMenuHost = {
     onInspect: inspect === null ? undefined : () => inspect.open(block.id),
-    range: { from: range.from, to: range.to },
     vars: selections,
     actions,
   }

@@ -60,6 +60,7 @@ import { useSetDashboardSearch, validateDashboardSearch } from "./search"
 
 type Props = {
   panel: LayoutPanel
+  range: { from: string; to: string }
   tableView: boolean
   onToggleTableView: () => void
   idle: boolean
@@ -107,13 +108,13 @@ export type MenuItem = {
 
 export type BlockMenuHost = {
   onInspect?: () => void
-  range: { from: string | undefined; to: string | undefined }
   vars: Selections
   actions: MenuItem[]
 }
 
 export function PanelMenu({
   panel,
+  range,
   tableView,
   onToggleTableView,
   idle,
@@ -265,10 +266,6 @@ export function PanelMenu({
   if (data && (panel.type === "logs" || panel.type === "traces")) {
     const explorer = panel.type === "logs" ? "Open in Logs" : "Open in Traces"
     const vars = block?.vars ?? dashboardSearch.vars
-    const range = block?.range ?? {
-      from: dashboardSearch.from,
-      to: dashboardSearch.to,
-    }
     const explore = exploreTarget(
       panel,
       (ref) => resolveDatasourceRef(ref, vars),
@@ -411,8 +408,8 @@ export function PanelMenu({
         <AddToObservationPanel
           panel={panel}
           variables={observationVariables}
-          from={dashboardSearch.from}
-          to={dashboardSearch.to}
+          from={range.from}
+          to={range.to}
           trigger={menuButton}
           onClose={() => setAddingToObservation(false)}
         />
