@@ -56,6 +56,8 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | A Go duration from `24h` to `87600h`; `8760h` is one year. Audit events are stored in one Postgres partition per UTC day, and events copied from the activity log at upgrade in one per UTC month, or per UTC year when older than two years; the daily `audit_partitions` job drops each partition whose end is older than this, recording an `audit.prune` event. |
+| `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` | unset | An absolute `http` or `https` URL of an OTLP/HTTP receiver; unset turns the export off. The server posts every audit event as an OTLP log record to this URL followed by `/v1/logs`. See [Audit export](../operate/audit-export.md). |
+| `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE` | unset | A file of `Name: value` request headers, one per line, sent with every export request; it needs the endpoint. |
 
 ## Dashboard provisioning
 
