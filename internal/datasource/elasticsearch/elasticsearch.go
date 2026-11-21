@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 type Flavor string
@@ -58,6 +59,7 @@ type Options struct {
 	MaxResponseBytes  int64
 	MaxAggregations   int
 	FieldAliases      map[string]string
+	LevelKinds        map[string]logvolume.Kind
 }
 
 type Datasource struct {

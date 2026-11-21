@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 type fakeStore struct {
@@ -232,11 +233,13 @@ func TestACountQueryFillsEveryStep(t *testing.T) {
 func TestTheVolumeCountsEachStepByOutcome(t *testing.T) {
 	store := &fakeStore{answer: func(q filter.Query) trail.Aggregation {
 		if len(q.Aggs[0].Aggs) == 0 {
-			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"2026-11-01T10:01:00Z"}, DocCount: 4}}}
+			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"2026-11-01T10:01:00Z"}, DocCount: 7}}}
 		}
 		return trail.Aggregation{Rows: []trail.AggRow{
+			{Keys: []any{"2026-11-01T10:01:00Z", "failed"}, DocCount: 2},
 			{Keys: []any{"2026-11-01T10:01:00Z", "denied"}, DocCount: 1},
 			{Keys: []any{"2026-11-01T10:01:00Z", "success"}, DocCount: 3},
+			{Keys: []any{"2026-11-01T10:01:00Z", "unknown"}, DocCount: 1},
 		}}
 	}}
 	ds := open(t, store)
@@ -244,8 +247,9 @@ func TestTheVolumeCountsEachStepByOutcome(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := h.Volume(); got.Total != 4 || got.Buckets[1].Other != 4 {
-		t.Errorf("volume = %+v, want four events in the second step", got)
+	want := logvolume.Bucket{Start: from.Add(time.Minute), Error: 2, Warning: 1, Info: 3, Other: 1}
+	if got := h.Volume(); got.Total != 7 || got.Buckets[1] != want {
+		t.Errorf("volume = %+v, want the second step to be %+v", got, want)
 	}
 	if len(store.queries) != 2 {
 		t.Errorf("volume ran %d aggregations, want the time buckets and then the outcomes in them", len(store.queries))

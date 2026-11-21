@@ -48,7 +48,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 	if err != nil {
 		return nil, err
 	}
-	return foldVolume(raw, req)
+	return d.foldVolume(raw, req)
 }
 
 func volumeBody(prep prepared, timeField string, r datasource.TimeRange, level string, step time.Duration, lim datasource.Limits) map[string]any {
@@ -95,7 +95,7 @@ type volumeResponse struct {
 	} `json:"buckets"`
 }
 
-func foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram, error) {
+func (d *Datasource) foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram, error) {
 	resp, err := parseSearch(raw)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram,
 		start := time.UnixMilli(int64(bucket.Key)).UTC()
 		leveled := int64(0)
 		for _, level := range bucket.Level.Buckets {
-			hist.Add(start, logvolume.KindOf(keyText(level.Key)), level.DocCount)
+			hist.Add(start, d.levelKind(keyText(level.Key)), level.DocCount)
 			leveled += level.DocCount
 		}
 		if rest := bucket.DocCount - leveled; rest > 0 {
@@ -127,6 +127,13 @@ func foldVolume(raw []byte, req datasource.VolumeRequest) (*logvolume.Histogram,
 		}
 	}
 	return hist, nil
+}
+
+func (d *Datasource) levelKind(word string) logvolume.Kind {
+	if kind, ok := d.opts.LevelKinds[word]; ok {
+		return kind
+	}
+	return logvolume.KindOf(word)
 }
 
 func keyText(key json.RawMessage) string {

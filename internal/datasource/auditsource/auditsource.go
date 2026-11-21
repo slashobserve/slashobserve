@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 const (
@@ -32,6 +33,12 @@ const (
 	resultWindow   = 10000
 	maxRequestBody = 1 << 20
 )
+
+var outcomeLevels = map[string]logvolume.Kind{
+	string(audit.OutcomeFailed):  logvolume.Error,
+	string(audit.OutcomeDenied):  logvolume.Warning,
+	string(audit.OutcomeSuccess): logvolume.Info,
+}
 
 type Store interface {
 	Rows(ctx context.Context, q filter.Query, w filter.Window, page filter.Page) ([]trail.Event, error)
@@ -50,6 +57,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 		Limits:          datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
 		MaxAggregations: maxAggregations,
 		FieldAliases:    fieldAliases(),
+		LevelKinds:      outcomeLevels,
 		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
 	})
 	if err != nil {

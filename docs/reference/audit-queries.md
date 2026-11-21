@@ -158,6 +158,7 @@ A datasources file entry with the uid `slashobserve-audit` stops the server at s
 
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.
+The Logs page histogram counts `failed` as error, `denied` as warning, `success` as info and `unknown` as other.
 The time field is `occurred_at`, and the field list marks the fields that `terms` can group by.
 
 It answers searches sorted by `occurred_at`, oldest or newest first, paged with `from` and `size` up to 10,000 events deep, with totals counted up to 10,000 and at most 1,000 events a read.
