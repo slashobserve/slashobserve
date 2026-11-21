@@ -280,7 +280,7 @@ datasources-uid-config:
         type: string
   get:
     operationId: getDatasourceConfig
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe datasources get]
     summary: Read the definition of a datasource added in the app.

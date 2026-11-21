@@ -30,6 +30,7 @@ func (s storeRig) engine(t *testing.T, handler gin.HandlerFunc) *gin.Engine {
 	api := engine.Group("/api/v1", mw)
 	api.POST("/dashboards/:id/versions", handler)
 	api.GET("/dashboards/:id", handler)
+	api.GET("/dashboards/:id/versions/:version", handler)
 	api.GET("/dashboards", handler)
 	api.POST("/dashboards", handler)
 	return engine
@@ -208,5 +209,33 @@ func TestANotFoundIsDeniedOnlyOnARouteWithATarget(t *testing.T) {
 	}
 	if got := s.eventsOf(t, onNone); len(got) != 0 {
 		t.Errorf("404 on a route declared none: %+v, want nothing", got)
+	}
+}
+
+func TestARefusedReadOnARouteDeclaredNoneWithATargetIsRecordedEveryTime(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	status, code := http.StatusNotFound, "not_found"
+	engine := s.engine(t, func(c *gin.Context) { c.JSON(status, gin.H{"error": "refused", "code": code}) })
+	path := "/api/v1/dashboards/" + dashboardID + "/versions/3"
+	_, first := serve(t, engine, http.MethodGet, path)
+	_, second := serve(t, engine, http.MethodGet, path)
+	status, code = http.StatusForbidden, "forbidden_role"
+	_, forbidden := serve(t, engine, http.MethodGet, path)
+	status = http.StatusOK
+	_, found := serve(t, engine, http.MethodGet, path)
+	s.run(t)()
+	missing := requestEvent{action: string(ActionRefuse), outcome: "denied", reason: "not_found", targetKind: "dashboard", targetID: dashboardID, route: "/api/v1/dashboards/{id}/versions/{version}", method: "GET", status: 404}
+	for name, request := range map[string]uuid.UUID{"first": first, "second": second} {
+		if got := s.eventsOf(t, request); len(got) != 1 || got[0] != missing {
+			t.Errorf("%s refused read = %+v, want %+v", name, got, missing)
+		}
+	}
+	refusal := missing
+	refusal.reason, refusal.status = "forbidden_role", 403
+	if got := s.eventsOf(t, forbidden); len(got) != 1 || got[0] != refusal {
+		t.Errorf("403 = %+v, want %+v", got, refusal)
+	}
+	if got := s.eventsOf(t, found); len(got) != 0 {
+		t.Errorf("a successful read recorded %+v, want nothing", got)
 	}
 }

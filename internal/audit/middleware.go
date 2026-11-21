@@ -126,7 +126,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		action = cmp.Or(action, inTx[0].action)
 	}
 	if action == "" {
-		if !refused(o.status) {
+		if !refused(o.status) && !o.declared.hidesTarget(o.status) {
 			return
 		}
 		action = ActionRefuse
@@ -194,13 +194,12 @@ func OutcomeForStatus(status int) Outcome {
 }
 
 func outcomeFor(status int, declared Declaration) Outcome {
-	_, namesTarget := declared.Target.PathParam()
 	switch {
 	case redirected(status):
 		return OutcomeUnknown
 	case status < http.StatusBadRequest:
 		return OutcomeSuccess
-	case refused(status), status == http.StatusNotFound && namesTarget:
+	case refused(status), declared.hidesTarget(status):
 		return OutcomeDenied
 	}
 	return OutcomeFailed

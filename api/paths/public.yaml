@@ -8,7 +8,7 @@ dashboards-id-public-links:
         format: uuid
   get:
     operationId: listPublicLinks
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: dashboard, id: path.id } }
     summary: List the public links of a dashboard.
     description: >-
       Lists at most 100 links, newest first.

@@ -26,7 +26,8 @@ func TestReadDeclaration(t *testing.T) {
 		{name: "none with a reason", raw: map[string]any{"none": "list read"}, want: Declaration{None: "list read"}},
 		{name: "neither", raw: map[string]any{}, wantErr: "neither"},
 		{name: "both", raw: map[string]any{"action": "dashboard.update", "none": "x"}, wantErr: "both"},
-		{name: "none with a target", raw: map[string]any{"none": "x", "target": map[string]any{"kind": "dashboard"}}, wantErr: "no target"},
+		{name: "none with a path target", raw: map[string]any{"none": "x", "target": map[string]any{"kind": "dashboard", "id": "path.id"}}, want: Declaration{None: "x", Target: &TargetRule{Kind: "dashboard", ID: "path.id"}}},
+		{name: "none with a target that names no id", raw: map[string]any{"none": "x", "target": map[string]any{"kind": "dashboard"}}, wantErr: "path parameter"},
 		{name: "a target without a kind", raw: map[string]any{"action": "dashboard.update", "target": map[string]any{"id": "path.id"}}, wantErr: "no kind"},
 		{name: "a target id from the body", raw: map[string]any{"action": "dashboard.update", "target": map[string]any{"kind": "dashboard", "id": "body.id"}}, wantErr: "path.<name>"},
 		{name: "not an object", raw: "dashboard.update", wantErr: "{action, target}"},
@@ -70,7 +71,10 @@ func TestTheEmbeddedDocumentDeclaresRoutesByTemplate(t *testing.T) {
 		t.Fatalf("target parameter = %q %v, want id", name, ok)
 	}
 	if _, ok := routes.lookup("GET", "/api/v1/dashboards"); ok {
-		t.Fatal("a route declared none is in the action table")
+		t.Fatal("a route declared none without a target is in the table")
+	}
+	if d, ok := routes.lookup("GET", "/api/v1/dashboards/{id}/versions/{version}"); !ok || d.Action != "" || d.Target == nil || d.Target.Kind != "dashboard" {
+		t.Fatalf("GET /dashboards/{id}/versions/{version} = %+v %v, want none with a dashboard target", d, ok)
 	}
 }
 

@@ -16,6 +16,7 @@ A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded 
 A list of chats or requests is one `chat.list` or `run.list` event, recorded once per reader and scope in 10 minutes, never one per row.
 The Agents page's list of one agent's runs is a `run.list` with scope `workspace` for an Admin or `you`, and the connected agent or service account as its target.
 A refused view is recorded every time.
+A read that answers 404 for an id the caller cannot see is recorded every time too, as a denied `request.refuse` or the route's own view action, with the kind and id the caller asked for as its target and `not_found` as its reason; this holds for every route that names the id, including the dashboard versions, a diff, a folder and the datasource schema, so probing for hidden ids leaves a trace.
 
 ## Fields
 

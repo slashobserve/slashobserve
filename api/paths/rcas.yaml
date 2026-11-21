@@ -55,7 +55,7 @@ observations-id-rcas:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listRcas
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [list_rcas]
       cli: [observe o rcas]
@@ -99,7 +99,7 @@ observations-id-rcas-revision:
         minimum: 1
   get:
     operationId: getRca
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [get_rca]
       cli: [observe o rcas]
@@ -171,7 +171,7 @@ observations-id-rcas-revision-public-links:
         minimum: 1
   get:
     operationId: listRcaPublicLinks
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: observation, id: path.id } }
     summary: List the public links of one revision of an RCA.
     description: >-
       Lists the links newest first, without their tokens.
