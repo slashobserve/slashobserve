@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/anchor"
@@ -187,4 +188,43 @@ VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada
 			t.Errorf("a second person listed the turn %s that is not theirs", r.ID)
 		}
 	}
+}
+
+func TestMCPShowsAnAnchorToTheAskerAndFiltersLikeTheAPI(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	spot := &anchor.Anchor{Kind: anchor.Position, Pos: anchor.Pos{X: 0.5, Y: 0.5}}
+	asked := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("here?"), Kind: text("ask"), DashboardID: text(dash.String()), Anchor: spot})
+	revised := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("change here"), Kind: text("revise"), DashboardID: text(dash.String()), Anchor: spot})
+	plain := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("anywhere"), Kind: text("ask"), DashboardID: text(dash.String())})
+	chat := chatOfTurn(t, d, asked)
+	w := newPrivateWalk(t, svc, d)
+
+	listed := w.mcp(user, "list_runs", `{"anchored":true}`, false)
+	for id, want := range map[string]bool{asked.String(): true, revised.String(): true, plain.String(): false} {
+		if strings.Contains(listed, id) != want {
+			t.Errorf("list_runs anchored mentions %s = %v, want %v in %s", id, !want, want, listed)
+		}
+	}
+	if !strings.Contains(listed, `"anchor":{"kind":"position"`) {
+		t.Errorf("list_runs shows no anchor: %s", listed)
+	}
+	for _, body := range []string{
+		w.mcp(user, "get_run", `{"id":"`+asked.String()+`"}`, false),
+		w.mcp(user, "get_chat", `{"id":"`+chat+`"}`, false),
+	} {
+		if !strings.Contains(body, `"anchor":{"kind":"position"`) {
+			t.Errorf("the asker's read shows no anchor: %s", body)
+		}
+	}
+	for _, body := range []string{
+		w.mcp(stranger, "get_run", `{"id":"`+revised.String()+`"}`, false),
+		w.mcp(bea, "get_chat", `{"id":"`+chat+`"}`, false),
+		w.mcp(bea, "list_runs", `{"scope":"all"}`, false),
+	} {
+		if strings.Contains(body, `"kind":"position"`) {
+			t.Errorf("a reader who did not ask sees the anchor: %s", body)
+		}
+	}
+	w.mcp(bea, "list_runs", `{"anchored":true,"scope":"all"}`, true)
 }
