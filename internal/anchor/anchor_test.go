@@ -106,7 +106,7 @@ func TestParseRejectsSharedInvalidCases(t *testing.T) {
 
 func TestParseRejectsMalformedText(t *testing.T) {
 	for name, text := range map[string]string{
-		"not json":          `row:service=payments`,
+		"not json":          `service=payments`,
 		"empty":             ``,
 		"unknown field":     `{"kind":"title","pos":{"x":0,"y":0},"colour":"red"}`,
 		"trailing data":     `{"kind":"title","pos":{"x":0,"y":0}} {}`,
