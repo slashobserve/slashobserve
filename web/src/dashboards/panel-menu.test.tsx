@@ -134,7 +134,7 @@ describe("PanelMenu", () => {
   ])(
     "with canPropose %s, Suggest an edit is shown: %s",
     async (canPropose, shown) => {
-      const { user } = renderMenu(true, undefined, panel, canPropose)
+      const { user } = renderMenu(true, undefined, panel, false, canPropose)
       await user.click(
         await screen.findByRole("button", {
           name: "Panel menu: Checkout latency",
