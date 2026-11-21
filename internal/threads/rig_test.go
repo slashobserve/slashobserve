@@ -282,12 +282,12 @@ func deliveryFor(startRuns bool) To {
 	return ToEveryone
 }
 
-func (r *rig) askOpen(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
-	sent, err := r.asks.Open(ctx, by, in, deliveryFor(startRuns), opts...)
+func (r *rig) askOpen(ctx context.Context, by auth.Principal, in OpenInput, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Open(ctx, by, in, deliveryFor(startRuns))
 	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
 }
 
-func (r *rig) askReply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, startRuns bool, opts ...RunOption) (Thread, Message, *StartedRun, *RunRefusal, error) {
-	sent, err := r.asks.Reply(ctx, by, threadID, in, deliveryFor(startRuns), opts...)
+func (r *rig) askReply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, startRuns bool) (Thread, Message, *StartedRun, *RunRefusal, error) {
+	sent, err := r.asks.Reply(ctx, by, threadID, in, deliveryFor(startRuns))
 	return sent.Thread, sent.Message, sent.Run, sent.Refusal, err
 }
