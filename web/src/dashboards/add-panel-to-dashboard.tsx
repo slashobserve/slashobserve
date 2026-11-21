@@ -4,8 +4,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
-import { issueLines } from "@/api/issues"
+import { unwrap } from "@/api/errors"
 import { exploreKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,9 +13,11 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dashboardLink, proposalLink } from "@/lib/links"
+import { exploreErrorText } from "@/logs/explore"
 import { SidePanel } from "@/shell/side-panel"
 import type { DataPanel } from "@/spec"
 
+import { addProblem, type Problem } from "./add-problem"
 import { appendPanel } from "./append-panel"
 import { asDashboardSpec, latestDashboardQuery, useAddVersion } from "./queries"
 import { saveToast } from "./save-outcome"
@@ -31,38 +32,10 @@ type Props = {
   trigger: RefObject<HTMLElement | null>
 }
 
-import { exploreErrorText } from "@/logs/explore"
-
 type Target = { id: string; title: string }
-
-type Problem = { lines: string[]; hint?: string }
 
 const searchDelayMs = 250
 const skeletonRows = [0, 1, 2]
-const saveRefusedHint =
-  "A dashboard save runs every query over the dashboard's own time range, so a query with no lines in that range is refused."
-
-function addProblem(error: unknown): Problem {
-  if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return {
-        lines: [
-          "Someone saved this dashboard a moment ago. Add again to place the panel on the latest version.",
-        ],
-      }
-    }
-    if (error.status === 422) {
-      return {
-        lines:
-          error.issues.length > 0 ? issueLines(error.issues) : [error.message],
-        hint: saveRefusedHint,
-      }
-    }
-    if (error.status === 403)
-      return { lines: ["You cannot edit this dashboard."] }
-  }
-  return { lines: [exploreErrorText(error)] }
-}
 
 function useDebounced(value: string): string {
   const [debounced, setDebounced] = useState(value)
