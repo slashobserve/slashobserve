@@ -1,9 +1,9 @@
 import {
-  appendKql,
   escapeKql,
   flatClauses,
-  kqlText,
   parseKql,
+  parseKqlClauses,
+  type KqlClause,
   type KqlNode,
 } from "@/logs/kql"
 import { splitForm } from "@/logs/query-form"
@@ -12,7 +12,7 @@ export type FacetField = { name: string; alias: string | null }
 
 export type TermState = "include" | "exclude" | null
 
-type Found = { clauses: KqlNode[]; indexes: number[]; state: TermState }
+type Source = { prefix: string; body: string; clauses: KqlClause[] }
 
 function namesOf(field: FacetField): string[] {
   return field.alias === null ? [field.name] : [field.name, field.alias]
@@ -33,24 +33,31 @@ function stateOf(node: KqlNode, names: string[], value: string): TermState {
   return null
 }
 
-function readKql(text: string): { prefix: string; body: string } | null {
+function readKql(text: string): Source | null {
   const { form, body, offset } = splitForm(text)
   if (form !== "kql") return null
-  if (parseKql(body).error !== null) return null
-  return { prefix: text.slice(0, offset), body }
+  const clauses = parseKqlClauses(body)
+  if (clauses === null) return null
+  return { prefix: text.slice(0, offset), body, clauses }
 }
 
-function find(body: string, field: FacetField, value: string): Found | null {
-  const { node } = parseKql(body)
-  if (node === null) return null
-  const clauses = flatClauses(node)
-  if (clauses === null) return null
-  const names = namesOf(field)
-  const indexes = clauses.flatMap((clause, index) =>
-    stateOf(clause, names, value) === null ? [] : [index]
+function stateAt(
+  clause: KqlClause,
+  field: FacetField,
+  value: string
+): TermState {
+  const flat = flatClauses(clause.node)?.[0]
+  return flat === undefined ? null : stateOf(flat, namesOf(field), value)
+}
+
+function foundAt(
+  clauses: KqlClause[],
+  field: FacetField,
+  value: string
+): number[] {
+  return clauses.flatMap((clause, index) =>
+    stateAt(clause, field, value) === null ? [] : [index]
   )
-  if (indexes.length === 0) return null
-  return { clauses, indexes, state: stateOf(clauses[indexes[0]], names, value) }
 }
 
 export function canEditTerms(text: string): boolean {
@@ -62,24 +69,58 @@ export function termState(
   field: FacetField,
   value: string
 ): TermState {
-  const kql = readKql(text)
-  if (kql === null) return null
-  return find(kql.body, field, value)?.state ?? null
+  const source = readKql(text)
+  if (source === null) return null
+  const [first] = foundAt(source.clauses, field, value)
+  return first === undefined
+    ? null
+    : stateAt(source.clauses[first], field, value)
 }
 
-function term(field: string, value: string, exclude: boolean): KqlNode {
-  const match: KqlNode = {
-    kind: "match",
-    field,
-    value,
-    quoted: true,
-    wildcard: false,
+function termText(field: string, value: string, exclude: boolean): string {
+  const clause = `${field}:${escapeKql(value)}`
+  return exclude ? `not ${clause}` : clause
+}
+
+function appended(body: string, clause: string): string {
+  const trimmed = body.trim()
+  if (trimmed === "" || trimmed === "*") return clause
+  const wrapped = parseKql(trimmed).node?.kind === "or"
+  return wrapped ? `(${trimmed}) and ${clause}` : `${trimmed} and ${clause}`
+}
+
+function withoutClause(body: string, clauses: KqlClause[], index: number) {
+  const clause = clauses[index]
+  if (clauses.length === 1) return body.slice(0, clause.start)
+  if (index === 0) {
+    return body.slice(0, clause.start) + body.slice(clauses[1].start)
   }
-  return exclude ? { kind: "not", item: match } : match
+  return body.slice(0, clauses[index - 1].end) + body.slice(clause.end)
 }
 
-function printed(clauses: KqlNode[]): string {
-  return clauses.map(kqlText).join(" and ")
+function replacingClause(body: string, clause: KqlClause, text: string) {
+  return body.slice(0, clause.start) + text + body.slice(clause.end)
+}
+
+function removeCopies(
+  body: string,
+  field: FacetField,
+  value: string,
+  keep: number
+): string {
+  let current = body
+  let kept = keep
+  for (;;) {
+    const clauses = parseKqlClauses(current)
+    if (clauses === null) return current
+    const found = foundAt(clauses, field, value).filter(
+      (index) => index !== kept
+    )
+    if (found.length === 0) return current
+    const last = found[found.length - 1]
+    current = withoutClause(current, clauses, last)
+    if (last < kept) kept -= 1
+  }
 }
 
 export function toggleTerm(
@@ -88,21 +129,24 @@ export function toggleTerm(
   value: string,
   exclude: boolean
 ): string | null {
-  const kql = readKql(text)
-  if (kql === null) return null
-  const wanted: TermState = exclude ? "exclude" : "include"
-  const found = find(kql.body, field, value)
-  if (found === null) {
-    return kql.prefix + appendKql(kql.body, field.name, value, exclude)
+  const source = readKql(text)
+  if (source === null) return null
+  const { prefix, body, clauses } = source
+  const found = foundAt(clauses, field, value)
+  if (found.length === 0) {
+    return prefix + appended(body, termText(field.name, value, exclude))
   }
-  const [first, ...copies] = found.indexes
-  const dropped = found.state === wanted ? found.indexes : copies
-  const clauses = found.clauses.map((clause, index) =>
-    index === first ? term(field.name, value, exclude) : clause
+  const [first] = found
+  const wanted: TermState = exclude ? "exclude" : "include"
+  if (stateAt(clauses[first], field, value) === wanted) {
+    return prefix + removeCopies(body, field, value, -1).trimEnd()
+  }
+  const flipped = replacingClause(
+    body,
+    clauses[first],
+    termText(field.name, value, exclude)
   )
-  return (
-    kql.prefix + printed(clauses.filter((_, index) => !dropped.includes(index)))
-  )
+  return prefix + removeCopies(flipped, field, value, first)
 }
 
 export function requestQuery(requestId: string): string {

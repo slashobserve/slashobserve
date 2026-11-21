@@ -37,7 +37,7 @@ describe("toggleTerm", () => {
   test("removes a term that is already there", () => {
     expect(
       toggleTerm('origin:mcp and outcome:"denied"', outcome, "denied", false)
-    ).toBe("origin : mcp")
+    ).toBe("origin:mcp")
     expect(toggleTerm("outcome:denied", outcome, "denied", false)).toBe("")
   })
 
@@ -49,7 +49,7 @@ describe("toggleTerm", () => {
         "denied",
         false
       )
-    ).toBe("origin : mcp")
+    ).toBe("origin:mcp")
   })
 
   test("flips a term written twice into one copy", () => {
@@ -60,7 +60,7 @@ describe("toggleTerm", () => {
         "denied",
         true
       )
-    ).toBe('not outcome : "denied" and origin : mcp')
+    ).toBe('not outcome:"denied" and origin:mcp')
   })
 
   test("finds a term written with the field's alias", () => {
@@ -70,19 +70,55 @@ describe("toggleTerm", () => {
   test("flips an included term to excluded in place", () => {
     expect(
       toggleTerm("outcome:denied and origin:mcp", outcome, "denied", true)
-    ).toBe('not outcome : "denied" and origin : mcp')
+    ).toBe('not outcome:"denied" and origin:mcp')
   })
 
   test("removes an excluded term when excluded again", () => {
     expect(
       toggleTerm("not outcome:denied and origin:mcp", outcome, "denied", true)
-    ).toBe("origin : mcp")
+    ).toBe("origin:mcp")
   })
 
   test("wraps an or query before adding a term", () => {
     expect(
       toggleTerm("origin:mcp or origin:cli", outcome, "denied", false)
     ).toBe('(origin:mcp or origin:cli) and outcome:"denied"')
+  })
+
+  test("hands back the typed text byte for byte after a chip goes on and off", () => {
+    const typed = [
+      "actor:admin and not action:query.run",
+      "actor : admin   and\n  not action:query.run",
+      'origin:mcp and (action:a or action:b) and actor:"Ada Lovelace"',
+      "kql:  origin:mcp",
+      "origin:mcp",
+    ]
+    for (const text of typed) {
+      const on = toggleTerm(text, outcome, "denied", false)
+      expect(on).not.toBe(null)
+      expect(toggleTerm(on as string, outcome, "denied", false)).toBe(text)
+      const off = toggleTerm(text, outcome, "denied", true)
+      expect(toggleTerm(off as string, outcome, "denied", true)).toBe(text)
+    }
+  })
+
+  test("removes only the chip's clause from text typed with odd spacing", () => {
+    const text = "actor:admin   and\n  not action:query.run  and origin:mcp"
+    const action = { name: "action", alias: null }
+    expect(toggleTerm(text, action, "query.run", true)).toBe(
+      "actor:admin  and origin:mcp"
+    )
+    expect(
+      toggleTerm(text, { name: "actor", alias: null }, "admin", false)
+    ).toBe("not action:query.run  and origin:mcp")
+  })
+
+  test("finds a chip beside a group the person typed", () => {
+    const text = '(origin:mcp or origin:cli) and outcome:"denied"'
+    expect(termState(text, outcome, "denied")).toBe("include")
+    expect(toggleTerm(text, outcome, "denied", false)).toBe(
+      "(origin:mcp or origin:cli)"
+    )
   })
 
   test("keeps the kql: prefix", () => {
