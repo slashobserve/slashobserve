@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/discoveryhttp"
@@ -38,11 +39,13 @@ import (
 	"github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/sealed"
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const (
@@ -89,18 +92,22 @@ func title(role auth.Role) string {
 }
 
 type stack struct {
-	t            *testing.T
-	server       *httptest.Server
-	sessions     map[auth.Role]string
-	keys         map[auth.Role]string
-	personTokens map[string]string
-	auditFolder  string
-	starters     []string
-	starterTitle string
-	starterPanel string
-	controlBoard string
-	controlDir   string
-	eventID      string
+	t              *testing.T
+	server         *httptest.Server
+	sessions       map[auth.Role]string
+	keys           map[auth.Role]string
+	personTokens   map[string]string
+	auditFolder    string
+	starters       []string
+	starterTitle   string
+	starterPanel   string
+	controlBoard   string
+	controlDir     string
+	eventID        string
+	adminID        string
+	restrictedRun  string
+	plainRun       string
+	restrictedChat string
 }
 
 type mcpCredentials struct {
@@ -159,7 +166,19 @@ func newStack(t *testing.T) *stack {
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, dashboardsService, folderAccess, registry, logger)
 	activityStore := activity.NewStore(database.DB, folderAccess)
 	searchService := search.New(database.DB, folderAccess, publicURL)
+	revisionsService := revisions.NewService(database.DB, logger,
+		revisions.WithAccess(folderAccess),
+		revisions.WithPrincipals(authService),
+		revisions.WithThreads(threads.NewRuns(database.DB)),
+		revisions.WithBuiltInAgent(),
+	)
+	observeOptions := revisions.ObserveOptions{
+		DashboardURL:       func(string, string) string { return "" },
+		ObservationURL:     func(string) string { return "" },
+		ObservationVisible: func(context.Context, auth.Principal, pgtype.UUID) (bool, error) { return false, nil },
+	}
 	toolRegistry := tools.New(tools.Deps{
+		Runs:        revisions.NewRunDesk(revisionsService, observeOptions),
 		Datasources: registry,
 		Runner:      runner,
 		Dashboards:  dashboardsService,
@@ -189,7 +208,7 @@ func newStack(t *testing.T) *stack {
 
 	s := &stack{t: t, sessions: map[auth.Role]string{}, keys: map[auth.Role]string{}, personTokens: map[string]string{}}
 	s.seedPeople(database)
-	s.seedAuditContent(database, dashboardsService, folderAccess, logger)
+	s.seedAuditContent(database, dashboardsService, folderAccess, revisionsService, logger)
 
 	handler, err := server.New(server.Options{
 		Logger:          logger,
@@ -199,6 +218,8 @@ func newStack(t *testing.T) *stack {
 		API: []server.Registrar{
 			dashboardsService,
 			folders.NewHandler(database.DB, folderAccess, logger),
+			revisionsService,
+			revisions.NewObserveHandler(revisionsService, observeOptions),
 			trail.NewHandler(reader, authService, logger),
 			stream.NewAuditHandler(broker, reader, authService, logger),
 			activity.NewHandler(activityStore, logger),
@@ -237,6 +258,9 @@ func (s *stack) seedPeople(database *dbtest.Database) {
 		}
 		s.sessions[role] = token
 		s.personTokens["Bearer person-"+string(role)] = user.ID.String()
+		if role == auth.RoleAdmin {
+			s.adminID = user.ID.String()
+		}
 
 		account, err := database.Queries().CreateServiceAccount(ctx, dbsqlc.CreateServiceAccountParams{Name: "key-" + string(role), Role: string(role)})
 		if err != nil {
@@ -255,7 +279,7 @@ func (s *stack) seedPeople(database *dbtest.Database) {
 	}
 }
 
-func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *dashboards.Service, access *folders.Access, logger *slog.Logger) {
+func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *dashboards.Service, access *folders.Access, runs *revisions.Service, logger *slog.Logger) {
 	t := s.t
 	ctx := datasource.WithAccess(t.Context(), datasource.Access{System: true})
 	ids := trailtest.Insert(t, database, trailtest.Event{At: time.Now().Add(-time.Minute), Action: "dashboard.update", TargetKind: "dashboard", TargetName: marker, Actor: "Ada"})
@@ -301,6 +325,35 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 		t.Fatal(err)
 	}
 	s.controlBoard = dash.ID
+	s.seedRuns(database, runs)
+}
+
+func (s *stack) seedRuns(database *dbtest.Database, runs *revisions.Service) {
+	t := s.t
+	ctx := datasource.WithAccess(t.Context(), datasource.Access{System: true})
+	admin := auth.Principal{Kind: auth.KindUser, ID: s.adminID, Name: title(auth.RoleAdmin), Role: auth.RoleAdmin}
+	dashboardID, err := db.ParseUUID(s.controlBoard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	finish := func(id pgtype.UUID, restricted bool) string {
+		database.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', read_restricted = $2 WHERE id = $1", id, restricted)
+		return id.String()
+	}
+	enqueue := func(prompt string, restricted bool) string {
+		row, err := runs.Enqueue(ctx, database.Queries(), revisions.EnqueueParams{DashboardID: dashboardID, Prompt: prompt, BaseVersion: 1, By: admin})
+		if err != nil {
+			t.Fatalf("enqueue a run on the control dashboard: %v", err)
+		}
+		return finish(row.ID, restricted)
+	}
+	s.restrictedRun = enqueue("who read the audit trail", true)
+	s.plainRun = enqueue("what does the control board show", false)
+	chat, err := runs.SubmitObserve(ctx, admin, "which people were denied")
+	if err != nil {
+		t.Fatalf("start a chat: %v", err)
+	}
+	s.restrictedChat = finish(chat.ID, true)
 }
 
 func (s *stack) previewBody() string {

@@ -171,6 +171,7 @@ func (r restSpec) row(name string) surfaceRow {
 
 type toolSpec struct {
 	tool    string
+	label   string
 	args    func(s *stack, hidden string) map[string]any
 	hidden  text
 	proof   text
@@ -190,7 +191,7 @@ func (r toolSpec) row() surfaceRow {
 			return observeTool(s.call(c, r.tool, args))
 		}
 	}
-	row := surfaceRow{name: "MCP " + r.tool, proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member}
+	row := surfaceRow{name: "MCP " + r.tool + r.label, proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member}
 	row.send = send(func(s *stack) string {
 		if r.hidden == nil {
 			return ""
@@ -317,6 +318,24 @@ func workspaceRESTRows() []surfaceRow {
 	}
 }
 
+func restrictedRunRESTRows() []surfaceRow {
+	restrictedRun := func(s *stack) string { return s.restrictedRun }
+	plainRun := func(s *stack) string { return s.plainRun }
+	restrictedChat := func(s *stack) string { return s.restrictedChat }
+	revision := func(id text) text {
+		return func(s *stack) string { return "/dashboards/" + s.controlBoard + "/revisions/" + id(s) }
+	}
+	return []surfaceRow{
+		restSpec{
+			method: http.MethodGet, target: func(s *stack) string { return "/dashboards/" + s.controlBoard + "/revisions" },
+			proof: restrictedRun, control: plainRun, list: true, admin: servesData, member: absentFromList,
+		}.row("GET /dashboards/{id}/revisions of a run that read the audit trail"),
+		restSpec{method: http.MethodGet, target: revision(restrictedRun), hidden: restrictedRun, proof: restrictedRun, admin: servesData, member: notFound}.row("GET /dashboards/{id}/revisions/{revision_id} of a run that read the audit trail"),
+		restSpec{method: http.MethodGet, target: revision(plainRun), proof: plainRun, admin: servesData, member: servesData}.row("GET /dashboards/{id}/revisions/{revision_id} of an ordinary run"),
+		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/observe/" + s.restrictedChat }, hidden: restrictedChat, proof: restrictedChat, admin: servesData, member: notFound}.row("GET /observe/{id} of a chat that read the audit trail"),
+	}
+}
+
 func mcpRows() []surfaceRow {
 	adminOnly := func(tool, proof string, args func(s *stack, _ string) map[string]any) surfaceRow {
 		return toolSpec{tool: tool, args: args, proof: fixed(proof), admin: servesData, member: forbiddenRole}.row()
@@ -340,7 +359,7 @@ func mcpRows() []surfaceRow {
 		}.row()
 	}
 	return []surfaceRow{
-		adminOnly("search_audit_events", marker, nil),
+		adminOnly("search_audit_events", marker, func(*stack, string) map[string]any { return map[string]any{"query": "actor_name:Ada"} }),
 		adminOnly("get_audit_event", marker, func(s *stack, _ string) map[string]any { return map[string]any{"id": s.eventID} }),
 		adminOnly("list_audit_facets", "Ada", func(*stack, string) map[string]any { return map[string]any{"field": "actor_name"} }),
 		adminOnly("get_audit_histogram", "buckets", nil),
@@ -362,6 +381,18 @@ func mcpRows() []surfaceRow {
 			args: func(*stack, string) map[string]any { return map[string]any{"q": "audit"} },
 		}.row(),
 		toolSpec{tool: "list_activity", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row(),
+		toolSpec{
+			tool: "get_run", label: " of a run that read the audit trail", hidden: func(s *stack) string { return s.restrictedRun }, proof: func(s *stack) string { return s.restrictedRun }, admin: servesData, member: notFound,
+			args: func(_ *stack, id string) map[string]any { return map[string]any{"id": id} },
+		}.row(),
+		toolSpec{
+			tool: "get_run", label: " of an ordinary run", proof: func(s *stack) string { return s.plainRun }, admin: servesData, member: servesData,
+			args: func(s *stack, _ string) map[string]any { return map[string]any{"id": s.plainRun} },
+		}.row(),
+		toolSpec{
+			tool: "get_chat", label: " of a chat that read the audit trail", hidden: func(s *stack) string { return s.restrictedChat }, proof: func(s *stack) string { return s.restrictedChat }, admin: servesData, member: notFound,
+			args: func(_ *stack, id string) map[string]any { return map[string]any{"id": id} },
+		}.row(),
 		{
 			name: "MCP tools/list",
 			send: func(s *stack, c caller) observed {
@@ -373,7 +404,7 @@ func mcpRows() []surfaceRow {
 }
 
 func allRows() []surfaceRow {
-	return slices.Concat(auditRESTRows(), datasourceRESTRows(), workspaceRESTRows(), mcpRows(), datasourceMutationRows())
+	return slices.Concat(auditRESTRows(), datasourceRESTRows(), workspaceRESTRows(), restrictedRunRESTRows(), mcpRows(), datasourceMutationRows())
 }
 
 func TestAuditSurfacesByRoleAndCredential(t *testing.T) {
