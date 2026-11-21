@@ -145,6 +145,8 @@ func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
 		ProposalIds:    uuidsOf(byKind["proposal"]),
+		Admin:          a.Admin,
+		Folders:        visibleFolders(a),
 	})
 	if err != nil {
 		return inboxTexts{}, fmt.Errorf("list inbox titles: %w", err)
@@ -152,19 +154,15 @@ func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []
 	for _, r := range titleRows {
 		texts.titles[objectRef{r.Kind, r.ID.String()}] = r.Title
 	}
-	messageRows, err := q.InboxMessageBodies(ctx, uuidsOf(messages))
+	threadRows, err := q.InboxThreadTexts(ctx, dbsqlc.InboxThreadTextsParams{Ids: uuidsOf(messages), Admin: a.Admin, Folders: visibleFolders(a)})
 	if err != nil {
-		return inboxTexts{}, fmt.Errorf("list inbox messages: %w", err)
+		return inboxTexts{}, fmt.Errorf("list inbox thread texts: %w", err)
 	}
-	for _, r := range messageRows {
+	for _, r := range threadRows {
 		texts.bodies[r.ID.String()] = r.Body
-	}
-	questionRows, err := q.InboxAnsweredQuestions(ctx, dbsqlc.InboxAnsweredQuestionsParams{Ids: uuidsOf(messages), Admin: a.Admin, Folders: visibleFolders(a)})
-	if err != nil {
-		return inboxTexts{}, fmt.Errorf("list inbox answered questions: %w", err)
-	}
-	for _, r := range questionRows {
-		texts.questions[r.ID.String()] = r.Body
+		if r.Question.Valid {
+			texts.questions[r.ID.String()] = r.Question.String
+		}
 	}
 	runRows, err := q.InboxRunTexts(ctx, uuidsOf(runs))
 	if err != nil {

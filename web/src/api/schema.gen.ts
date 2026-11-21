@@ -5280,9 +5280,9 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | "access_request" | null;
             unread: boolean;
-            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists. */
+            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it. */
             target_title: string | null;
-            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items. */
+            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read. */
             excerpt: string | null;
             /** @description The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote; null for every other item, when that message is gone, and when the caller cannot read the thread. */
             question: string | null;

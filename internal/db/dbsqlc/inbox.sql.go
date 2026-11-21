@@ -40,91 +40,21 @@ func (q *Queries) InboxAccessRequestNotes(ctx context.Context, ids []pgtype.UUID
 	return items, nil
 }
 
-const inboxAnsweredQuestions = `-- name: InboxAnsweredQuestions :many
-SELECT m.id, q.body
-FROM thread_messages m
-JOIN agent_requests r ON r.id = m.run_id
-JOIN thread_messages q ON q.id = r.thread_message_id AND q.thread_id = m.thread_id
-JOIN threads t ON t.id = m.thread_id
-WHERE m.id = ANY($1::uuid[])
-  AND ($2::boolean OR coalesce(
-    (SELECT d.folder_id FROM dashboards d WHERE d.id = t.dashboard_id),
-    (SELECT o.folder_id FROM observations o WHERE o.id = t.observation_id),
-    (SELECT d.folder_id FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id WHERE p.id = t.proposal_id),
-    (SELECT d.folder_id FROM annotations a JOIN dashboards d ON d.id = a.dashboard_id WHERE a.id = t.annotation_id)
-  ) = ANY($3::uuid[]))
-`
-
-type InboxAnsweredQuestionsParams struct {
-	Ids     []pgtype.UUID
-	Admin   bool
-	Folders []pgtype.UUID
-}
-
-type InboxAnsweredQuestionsRow struct {
-	ID   pgtype.UUID
-	Body string
-}
-
-func (q *Queries) InboxAnsweredQuestions(ctx context.Context, arg InboxAnsweredQuestionsParams) ([]InboxAnsweredQuestionsRow, error) {
-	rows, err := q.db.Query(ctx, inboxAnsweredQuestions, arg.Ids, arg.Admin, arg.Folders)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []InboxAnsweredQuestionsRow
-	for rows.Next() {
-		var i InboxAnsweredQuestionsRow
-		if err := rows.Scan(&i.ID, &i.Body); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const inboxMessageBodies = `-- name: InboxMessageBodies :many
-SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY($1::uuid[])
-`
-
-type InboxMessageBodiesRow struct {
-	ID   pgtype.UUID
-	Body string
-}
-
-func (q *Queries) InboxMessageBodies(ctx context.Context, ids []pgtype.UUID) ([]InboxMessageBodiesRow, error) {
-	rows, err := q.db.Query(ctx, inboxMessageBodies, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []InboxMessageBodiesRow
-	for rows.Next() {
-		var i InboxMessageBodiesRow
-		if err := rows.Scan(&i.ID, &i.Body); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const inboxObjectTitles = `-- name: InboxObjectTitles :many
-SELECT 'dashboard'::text AS kind, d.id AS id, d.title AS title FROM dashboards d WHERE d.id = ANY($1::uuid[])
+SELECT 'dashboard'::text AS kind, d.id AS id, d.title AS title FROM dashboards d
+WHERE d.id = ANY($1::uuid[]) AND ($2::boolean OR d.folder_id = ANY($3::uuid[]))
 UNION ALL
-SELECT 'observation', o.id, o.title FROM observations o WHERE o.id = ANY($2::uuid[])
+SELECT 'observation', o.id, o.title FROM observations o
+WHERE o.id = ANY($4::uuid[]) AND ($2::boolean OR o.folder_id = ANY($3::uuid[]))
 UNION ALL
-SELECT 'proposal', p.id, p.title FROM proposals p WHERE p.id = ANY($3::uuid[])
+SELECT 'proposal', p.id, p.title FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id
+WHERE p.id = ANY($5::uuid[]) AND ($2::boolean OR d.folder_id = ANY($3::uuid[]))
 `
 
 type InboxObjectTitlesParams struct {
 	DashboardIds   []pgtype.UUID
+	Admin          bool
+	Folders        []pgtype.UUID
 	ObservationIds []pgtype.UUID
 	ProposalIds    []pgtype.UUID
 }
@@ -136,7 +66,13 @@ type InboxObjectTitlesRow struct {
 }
 
 func (q *Queries) InboxObjectTitles(ctx context.Context, arg InboxObjectTitlesParams) ([]InboxObjectTitlesRow, error) {
-	rows, err := q.db.Query(ctx, inboxObjectTitles, arg.DashboardIds, arg.ObservationIds, arg.ProposalIds)
+	rows, err := q.db.Query(ctx, inboxObjectTitles,
+		arg.DashboardIds,
+		arg.Admin,
+		arg.Folders,
+		arg.ObservationIds,
+		arg.ProposalIds,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +140,53 @@ func (q *Queries) InboxRunTexts(ctx context.Context, ids []pgtype.UUID) ([]Inbox
 	for rows.Next() {
 		var i InboxRunTextsRow
 		if err := rows.Scan(&i.ID, &i.Error, &i.Prompt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const inboxThreadTexts = `-- name: InboxThreadTexts :many
+SELECT m.id, m.body, q.body AS question
+FROM thread_messages m
+JOIN threads t ON t.id = m.thread_id
+LEFT JOIN agent_requests r ON r.id = m.run_id
+LEFT JOIN thread_messages q ON q.id = r.thread_message_id AND q.thread_id = m.thread_id
+WHERE m.id = ANY($1::uuid[])
+  AND ($2::boolean OR coalesce(
+    (SELECT d.folder_id FROM dashboards d WHERE d.id = t.dashboard_id),
+    (SELECT o.folder_id FROM observations o WHERE o.id = t.observation_id),
+    (SELECT d.folder_id FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id WHERE p.id = t.proposal_id),
+    (SELECT coalesce(d.folder_id, (SELECT f.id FROM folders f WHERE f.general)) FROM annotations a LEFT JOIN dashboards d ON d.id = a.dashboard_id WHERE a.id = t.annotation_id)
+  ) = ANY($3::uuid[]))
+`
+
+type InboxThreadTextsParams struct {
+	Ids     []pgtype.UUID
+	Admin   bool
+	Folders []pgtype.UUID
+}
+
+type InboxThreadTextsRow struct {
+	ID       pgtype.UUID
+	Body     string
+	Question pgtype.Text
+}
+
+func (q *Queries) InboxThreadTexts(ctx context.Context, arg InboxThreadTextsParams) ([]InboxThreadTextsRow, error) {
+	rows, err := q.db.Query(ctx, inboxThreadTexts, arg.Ids, arg.Admin, arg.Folders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InboxThreadTextsRow
+	for rows.Next() {
+		var i InboxThreadTextsRow
+		if err := rows.Scan(&i.ID, &i.Body, &i.Question); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
