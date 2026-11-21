@@ -8,6 +8,7 @@ import {
 
 import { useOpenSentTurn } from "@/chat/open-sent"
 import { composerPlaceholder } from "@/chat/prompt-length"
+import type { Example } from "@/chat/examples"
 import { useChooseExample } from "@/chat/use-choose-example"
 import { useExamples } from "@/chat/use-examples"
 import { Button } from "@/components/ui/button"
@@ -130,26 +131,33 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
   )
 }
 
-export function ExampleChips() {
-  const { examples, agentReady } = useExamples()
+export function ExampleChips({
+  questionsOnly = false,
+  label = "Example prompts",
+  onChoose,
+  disabled = false,
+}: {
+  questionsOnly?: boolean
+  label?: string
+  onChoose?: (example: Example) => void
+  disabled?: boolean
+}) {
+  const source = useExamples()
   const { choose, pending } = useChooseExample()
-  if (!agentReady || examples.length === 0) return null
+  const shown = questionsOnly ? source.questions : source.examples
+  if (!source.agentReady || shown.length === 0) return null
 
   return (
-    <div
-      role="group"
-      aria-label="Example prompts"
-      className="flex flex-wrap gap-1.5"
-    >
-      {examples.map((example) => (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+      {shown.map((example) => (
         <Button
           key={example.label}
           type="button"
           variant="outline"
           size="sm"
           className="font-normal narrow:h-11"
-          disabled={pending}
-          onClick={() => choose(example)}
+          disabled={pending || disabled}
+          onClick={() => (onChoose ?? choose)(example)}
         >
           {example.label}
         </Button>

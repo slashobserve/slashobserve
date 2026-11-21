@@ -341,3 +341,25 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 	}
 	return f, nil
 }
+
+func (s *store) attachChat(ctx context.Context, by auth.Principal, runID, dashboardID string) error {
+	run, err := db.ParseUUID(runID)
+	if err != nil {
+		return nil
+	}
+	dashboard, err := db.ParseUUID(dashboardID)
+	if err != nil {
+		return fmt.Errorf("read the made dashboard id: %w", err)
+	}
+	owner, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return fmt.Errorf("read the caller id: %w", err)
+	}
+	err = s.db.Queries().AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{
+		DashboardID: dashboard, RunID: run, OwnerKind: string(by.Kind), OwnerID: owner,
+	})
+	if err != nil {
+		return fmt.Errorf("attach the chat to the dashboard made from its answer: %w", err)
+	}
+	return nil
+}
