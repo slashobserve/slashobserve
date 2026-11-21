@@ -34,8 +34,10 @@ var (
 
 type AnswerShower func(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requestID, observationID pgtype.UUID) error
 
-func (s *Service) ShowAnswersWith(show AnswerShower) {
-	s.showAnswer = show
+type AnswerHider func(ctx context.Context, q *dbsqlc.Queries, requestID, observationID pgtype.UUID) error
+
+func (s *Service) ShowAnswersWith(show AnswerShower, hide AnswerHider) {
+	s.showAnswer, s.hideAnswer = show, hide
 }
 
 type ShareInput struct {

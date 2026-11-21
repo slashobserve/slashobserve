@@ -378,7 +378,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	case SourceInvestigate:
 		private := PrivateAsk(row)
 		about := row.ObservationID
-		if private {
+		if !about.Valid {
 			about = row.SubjectObservationID
 		}
 		return s.SubmitInvestigate(ctx, InvestigateParams{
