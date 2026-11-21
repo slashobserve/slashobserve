@@ -8,6 +8,8 @@ function summary(
   overrides: Partial<RequestSummary> & { id: string }
 ): RequestSummary {
   return {
+    anchor: null,
+    block_id: null,
     intent: "apply",
     base_version: null,
     comment_id: null,
