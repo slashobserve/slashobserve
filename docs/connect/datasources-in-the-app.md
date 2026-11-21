@@ -28,6 +28,7 @@ Set its audience to `admins` with `"audience": "admins"` on `POST /api/v1/dataso
 Every other role, key and public link gets the same answer for it as for a datasource that does not exist.
 A change that leaves the audience out keeps it, and `"audience": "everyone"` opens the datasource again.
 The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page does not show or change it yet.
+For an Admin, each row of the MCP tool `list_datasources` also carries `audience`; other callers never see an `admins` datasource, so their rows leave it out.
 
 A dashboard, proposal, observation or saved search that reads an Admins-only datasource lives only in a [folder only Admins can read](../teams/folders.md).
 That counts a panel or query that names it, and a datasource variable whose default or fixed options name it, and a snapshot taken from such a panel.
