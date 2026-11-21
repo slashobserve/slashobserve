@@ -11,6 +11,9 @@ import { type AuditEvent, liveRowLimit } from "./stream"
 import { FakeStream, refusedStream } from "./stream-fake"
 
 const fetchMock = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
+
+vi.mock("sonner", () => ({ toast: { success: toastSuccess } }))
 
 let liveStream: FakeStream | null = null
 let streamRequests: { url: string; init?: RequestInit }[] = []
@@ -151,6 +154,7 @@ function untilOf(url: URL): number {
 
 beforeEach(() => {
   fetchMock.mockReset()
+  toastSuccess.mockReset()
   liveStream = null
   streamRequests = []
   vi.stubGlobal("fetch", fetchMock)
@@ -447,8 +451,12 @@ describe("AuditSettings", () => {
       const { user } = renderPage({ q: "origin:mcp" })
       await screen.findByText("No audit events match these filters.")
       await user.click(screen.getByRole("button", { name: "Export" }))
+      expect(await screen.findByRole("menu")).toHaveClass("w-max")
       await user.click(await screen.findByRole("menuitem", { name: /^CSV/ }))
       await waitFor(() => expect(clicked).toHaveLength(1))
+      expect(toastSuccess).toHaveBeenCalledWith(
+        "Download started: the audit log as CSV."
+      )
       const url = new URL(clicked[0])
       expect(url.pathname).toBe("/api/v1/audit/export")
       expect(url.searchParams.get("q")).toBe("origin:mcp")
