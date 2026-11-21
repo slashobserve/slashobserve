@@ -1,3 +1,7 @@
+import { useId, useState } from "react"
+import { Link } from "@tanstack/react-router"
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+
 import { ApiError } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { Button } from "@/components/ui/button"
@@ -90,6 +94,8 @@ function RunProgress({
   blocks: readonly Block[]
   onCite: (blockId: string) => void
 }) {
+  const detailsId = useId()
+  const [open, setOpen] = useState(false)
   const query = useObserveRequest(runId)
   const request = query.data
   if (request === undefined) {
@@ -103,6 +109,7 @@ function RunProgress({
     )
   }
   const finished = isTerminal(request)
+  const expanded = !finished || open
   const timeline = (working: boolean) => (
     <StepTimeline
       steps={request.steps}
@@ -116,30 +123,58 @@ function RunProgress({
     <section
       aria-label="Observe Agent run"
       aria-busy={!finished}
-      className="flex flex-col gap-3 rounded-card border px-3.5 py-3"
+      className={`flex flex-col rounded-card border px-3.5 ${expanded ? "gap-3 py-3" : "py-1.5"}`}
     >
       <div className="flex items-center gap-2.5">
         <AuthorMark mark={observeAgentMark} size={24} />
         <h3 className="min-w-0 flex-1 text-[13px] font-semibold">
           {runHeading(request.state)}
         </h3>
-        <CancelRequestButton request={request} />
+        {finished ? (
+          <>
+            <Link
+              to="/c/$requestId"
+              params={{ requestId: runId }}
+              className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              View the run
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={open}
+              aria-controls={open ? detailsId : undefined}
+              onClick={() => setOpen(!open)}
+            >
+              {open ? (
+                <ChevronDownIcon aria-hidden="true" />
+              ) : (
+                <ChevronRightIcon aria-hidden="true" />
+              )}
+              Run details
+            </Button>
+          </>
+        ) : (
+          <CancelRequestButton request={request} />
+        )}
       </div>
       {finished ? (
-        <>
-          {request.state === "failed" ? (
-            <TurnFailure request={request} onRetried={ignoreRetried} />
-          ) : null}
-          <details>
-            <summary className="cursor-pointer text-[13px] text-muted-foreground">
-              Show steps
-            </summary>
-            <div className="flex flex-col gap-2.5 pt-2.5">
-              {timeline(false)}
-            </div>
-          </details>
-          <Cites cites={cites} blocks={blocks} onCite={onCite} />
-        </>
+        open ? (
+          <div id={detailsId} className="flex flex-col gap-3">
+            {request.state === "failed" ? (
+              <TurnFailure request={request} onRetried={ignoreRetried} />
+            ) : null}
+            <details>
+              <summary className="cursor-pointer text-[13px] text-muted-foreground">
+                Show steps
+              </summary>
+              <div className="flex flex-col gap-2.5 pt-2.5">
+                {timeline(false)}
+              </div>
+            </details>
+            <Cites cites={cites} blocks={blocks} onCite={onCite} />
+          </div>
+        ) : null
       ) : (
         <div className="flex flex-col gap-2.5">
           {timeline(showsWorkingRow(request, query.isError))}

@@ -378,6 +378,16 @@ The page names each cited block by the finding's heading or the panel's title.
 An evidence panel that is not valid, or that does not fit in the page's limits, is left out, and the text block is still written.
 A finding saved by a run that has an observation takes its own id, and one saved with no run observation takes the id of the observation it creates; its `observation_id` names the observation either way.
 
+Where the answer goes depends on what the question was asked on.
+A question asked on one block puts the run block, the text block and the evidence panels directly under that block, in that order, and the blocks below move down by that many places.
+A question on the whole page, and one asked on a block that has been deleted since, puts them at the end of the page.
+The new blocks are full width, and the order, widths and heights you arranged for the other blocks stay as they are.
+The same rule holds when the agent writes its answer over MCP, when you save an answer from a chat onto the page, and when a commenter asks, whose blocks arrive as `requested` blocks in the same place.
+
+On the page a run block shows the outcome and **View the run** on one line once the run has finished, and **Run details** unfolds the steps, the failure and the blocks it cites.
+A text block written by a run that is longer than 600 characters shows its heading and first paragraph, and **The rest of the answer** shows or hides the remainder.
+Folding is only how the page is drawn, so the stored block, a published revision and a snapshot always hold the whole text.
+
 A block is `live` when you can edit the observation's folder at the moment it is written, and `requested` when you can only comment.
 When the run's observation is gone, hidden from you, or in a folder you cannot comment in, saving the finding fails and writes nothing, instead of opening a second observation.
 A server error while the observation is opened queues nothing and answers the request with that error.
