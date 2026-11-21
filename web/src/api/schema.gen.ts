@@ -4939,6 +4939,8 @@ export interface components {
             code: "restricted_content";
             /** @description The uid of the Admins-only datasource the content reads. */
             datasource: string;
+            /** @description How many more items block the change than `items` lists; absent when `items` lists them all. */
+            unlisted?: number;
             /** @description The content that blocks the change, when the change is to a folder or a datasource rather than to one piece of content. */
             items?: {
                 /** @enum {string} */
@@ -10193,7 +10195,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10455,7 +10457,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12318,7 +12320,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;

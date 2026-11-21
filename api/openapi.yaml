@@ -1860,6 +1860,9 @@ components:
         datasource:
           type: string
           description: The uid of the Admins-only datasource the content reads.
+        unlisted:
+          type: integer
+          description: How many more items block the change than `items` lists; absent when `items` lists them all.
         items:
           type: array
           maxItems: 20
