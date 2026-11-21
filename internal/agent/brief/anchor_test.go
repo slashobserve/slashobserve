@@ -73,11 +73,20 @@ func TestRenderWithoutAnAnchorIsUnchanged(t *testing.T) {
 		if strings.Contains(got.User, "points at") {
 			t.Fatalf("%s: a request with no anchor names one:\n%s", name, got.User)
 		}
+	}
+}
+
+func TestRenderNamesTheWholeBlockARequestIsAbout(t *testing.T) {
+	for name, tc := range renderCases(t) {
 		task := tc.task
 		task.Pointer = Pointer{BlockID: "b1", ObservationID: "o1"}
-		again, err := Render(statuses, task, tc.views[0], Fresh, "")
-		if err != nil || again != got {
-			t.Fatalf("%s: a block with no anchor changed the brief (err %v)", name, err)
+		got, err := Render(statuses, task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		const note = "The request is about the whole of block b1 of observation o1."
+		if !strings.Contains(got.Context, "\n\n"+note) || strings.Contains(got.Context, "points at") {
+			t.Fatalf("%s: the whole block is not named in\n%s", name, got.Context)
 		}
 	}
 }

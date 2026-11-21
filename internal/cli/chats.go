@@ -226,8 +226,11 @@ func (a *app) chatsShowCommand() *cobra.Command {
 			out.line("")
 			out.table([]string{"REQUEST", "STATE", "PROMPT"}, rows)
 			for _, turn := range detail.Turns {
-				if turn.Anchor != nil {
+				switch {
+				case turn.Anchor != nil:
 					out.line("Request %s points at %s", text(turn.ID), anchorText(turn.Anchor))
+				case turn.BlockID != nil:
+					out.line("Request %s is about block %s", text(turn.ID), text(*turn.BlockID))
 				}
 				if turn.SharedThread != nil {
 					out.line("Request %s is shared in thread %s", text(turn.ID), text(*turn.SharedThread))

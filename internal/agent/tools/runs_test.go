@@ -265,6 +265,17 @@ func TestStartRunPassesTheAnchorTheTurnIsAbout(t *testing.T) {
 	}
 }
 
+func TestStartRunPassesTheWholeBlockAnAskIsAbout(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why this block","observation_id":"`+runID+`","block_id":"`+runID+`"}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	if got := runs.started; got == nil || got.BlockID == nil || *got.BlockID != runID || got.Anchor != nil {
+		t.Fatalf("start request = %+v", got)
+	}
+}
+
 func TestStartRunHasNoWayToAskForAnInvestigation(t *testing.T) {
 	runs := &fakeRuns{raw: json.RawMessage(`{}`)}
 	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why is it slow","kind":"investigate"}`)
