@@ -509,7 +509,7 @@ func (r seedRig) moveToOpsAsEdited(t *testing.T, id string) string {
 		`INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name) VALUES ('Ops', 'user', $1, 'Ada') RETURNING id::text`, admin.ID).Scan(&ops); err != nil {
 		t.Fatal(err)
 	}
-	plain := `{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[]}`
+	plain := `{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[{"id":"n","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":6,"h":4},"content":"mine"}]}`
 	r.exec(t, `UPDATE dashboard_versions SET author_kind = 'user', author_id = $2, spec = $3::jsonb WHERE dashboard_id = $1 AND version = 1`, id, admin.ID, plain)
 	r.exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, id, ops)
 	return ops
@@ -572,7 +572,7 @@ func TestAnAdminsOwnDashboardWithAStarterTitleIsNotTakenOver(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := datasource.WithAccess(t.Context(), datasource.Access{By: admin})
-	created, _, err := r.dashboards.Create(ctx, admin, parentFolder, []byte(`{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[]}`), "mine")
+	created, _, err := r.dashboards.Create(ctx, admin, parentFolder, []byte(`{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[{"id":"n","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":6,"h":4},"content":"mine"}]}`), "mine")
 	if err != nil {
 		t.Fatal(err)
 	}
