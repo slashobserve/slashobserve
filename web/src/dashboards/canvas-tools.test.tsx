@@ -134,7 +134,7 @@ describe("CanvasTools", () => {
     await renderTools({ comment: true, edit: false }, true)
     expect(screen.getByRole("button", { name: "Select" })).toHaveAttribute(
       "aria-keyshortcuts",
-      "V"
+      "Escape"
     )
     expect(screen.getByRole("button", { name: "Comment" })).toHaveAttribute(
       "aria-keyshortcuts",

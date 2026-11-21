@@ -84,7 +84,8 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { CanvasTools, openKeyDraft, useCanvasTool } from "./canvas-tools"
+import { commentKeyAction } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -610,14 +611,25 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
-      const panel = shortcutPanel()
-      const mayComment =
-        panel !== undefined &&
-        !editing &&
-        conversationActionsFor(panel, permissions.comment, agentAvailable)
-          .comment
-      if (mayComment) commentOnPanelAndFocus(setSearch, panel.id, composerRef)
-      else focusComment(setSearch, composerRef)
+      const action = commentKeyAction({
+        commenting: commentTool,
+        panelId: shortcutPanel()?.id,
+        canComment: permissions.comment,
+        editing,
+        onCanvas: !kiosk && viewed === undefined,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("comment")
+        case "panelDraft":
+          return openKeyDraft(action.panelId, "comment")
+        case "panelInPane":
+          return commentOnPanelAndFocus(setSearch, action.panelId, composerRef)
+        case "pane":
+          return focusComment(setSearch, composerRef)
+      }
     },
     ask: () => {
       const panel = shortcutPanel()
