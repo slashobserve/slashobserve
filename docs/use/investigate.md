@@ -20,7 +20,7 @@ A finding is the agent's answer, written as Markdown of at most 400 words.
 It carries up to four evidence panels, each a panel whose query the server ran and checked before the finding was saved.
 It covers one window of time, shown under the answer with when it was found.
 
-An answer about a dashboard may also carry `suggested_change`, one plain sentence describing a change to the dashboard that would help; the agent never makes the change itself, and nothing applies it until someone starts a revision with it.
+An answer about a dashboard may also carry `suggested_change`, one plain sentence describing a change to the dashboard that would help; the agent never makes the change itself, and nothing applies it until someone starts a revision with it or, for an answer given in a dashboard thread, applies it from that thread (`POST /threads/{id}/apply`, `apply_suggested_change` or `observe comments apply`), which posts "Revise the dashboard: <suggested change>" there and starts the revision as them.
 `observe_worthy` is true when the agent judged that the answer shows a jump, a drop or an error spike worth keeping as an observation; it saves nothing by itself.
 Both are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
 

@@ -178,6 +178,7 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsEditCommand(),
 		a.commentsDeleteCommand(),
 		a.commentsWithdrawCommand(),
+		a.commentsApplyCommand(),
 		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
@@ -616,6 +617,43 @@ func (a *app) commentsWithdrawCommand() *cobra.Command {
 			})
 		},
 	}
+}
+
+func (a *app) commentsApplyCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "apply <comment-id> <finding-id>",
+		Short: "Ask the agent to make the change an answer in a dashboard thread suggests",
+		Long:  "apply takes a dashboard comment thread (its id or the id of any of its comments) and the id of an answer given in it, the id of the finding of the run that answered, which observe status <request-id> --json prints.\nIt posts \"Revise the dashboard: <suggested change>\" in the thread as you and starts a run that makes the change: a new version when you can edit the dashboard, a proposal when you can only comment.\nThe run is yours and goes to the agent that answered; applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints the first run.",
+		Args:  exactArgs(2, "a comment id and a finding id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			threadID, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			findingID, err := parseID(args[1])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodPost, "threads/"+threadID+"/apply", map[string]any{"finding_id": findingID}, func(out *output, data []byte) error {
+				applied, err := decode[appliedChange](data)
+				if err != nil {
+					return err
+				}
+				if applied.Replayed && applied.Message.Run != nil {
+					out.line("Already applied by run %s", text(applied.Message.Run.ID))
+					return nil
+				}
+				out.line("Asked to revise the dashboard in thread %s", text(applied.Thread.ID))
+				reportRun(out, applied.Message)
+				return nil
+			})
+		},
+	}
+}
+
+type appliedChange struct {
+	threadMessageEnvelope
+	Replayed bool `json:"replayed"`
 }
 
 type mentionablePeople struct {

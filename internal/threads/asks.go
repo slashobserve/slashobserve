@@ -175,7 +175,7 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 	var target revisions.RunTarget
 	switch r.sc.target.Kind {
 	case KindDashboard:
-		target = revisions.RunTarget{Intent: revisions.IntentApply, DashboardID: r.sc.target.ID}
+		target = revisions.RunTarget{Intent: revisions.IntentAsk, DashboardID: r.sc.target.ID}
 	case KindObservation:
 		if r.policy.noInvestigations {
 			r.denied = &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}
@@ -349,13 +349,9 @@ func capRefusal(err error) *RunRefusal {
 }
 
 func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent revisions.Assignee) (dbsqlc.AgentRequest, error) {
-	threadID, err := db.ParseUUID(thread.ID)
+	asked, err := askedIn(r.ctx, q, thread, message)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("thread id: %w", err)
-	}
-	messageID, err := db.ParseUUID(message.ID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("message id: %w", err)
+		return dbsqlc.AgentRequest{}, err
 	}
 	prompt := message.Body
 	if mentioned := agentMentions(message.Body); len(mentioned) == 1 {
@@ -363,44 +359,51 @@ func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent r
 			prompt = cut
 		}
 	}
-	earlier, err := q.ThreadTranscript(r.ctx, dbsqlc.ThreadTranscriptParams{ThreadID: threadID, BeforeID: messageID, RowLimit: transcriptMessages})
+	params := revisions.InvestigateParams{
+		Prompt:          prompt,
+		By:              r.by,
+		Assignee:        agent,
+		Trigger:         triggerMention,
+		ThreadMessageID: asked.message,
+		ThreadContext:   asked.transcript,
+		Point:           asked.point,
+		Ask:             true,
+	}
+	switch thread.Target.Kind {
+	case KindDashboard:
+		params.DashboardID, params.PanelID = thread.Target.ID, thread.PanelID
+	case KindObservation:
+		params.ObservationID = thread.Target.ID
+	default:
+		return dbsqlc.AgentRequest{}, fmt.Errorf("start a run on a %s thread", thread.Target.Kind)
+	}
+	return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, params)
+}
+
+type askContext struct {
+	thread, message pgtype.UUID
+	transcript      string
+	point           revisions.Point
+}
+
+func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Message) (askContext, error) {
+	threadID, err := db.ParseUUID(thread.ID)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("read the thread transcript: %w", err)
+		return askContext{}, fmt.Errorf("thread id: %w", err)
+	}
+	messageID, err := db.ParseUUID(message.ID)
+	if err != nil {
+		return askContext{}, fmt.Errorf("message id: %w", err)
+	}
+	earlier, err := q.ThreadTranscript(ctx, dbsqlc.ThreadTranscriptParams{ThreadID: threadID, BeforeID: messageID, RowLimit: transcriptMessages})
+	if err != nil {
+		return askContext{}, fmt.Errorf("read the thread transcript: %w", err)
 	}
 	point, err := pointOfThread(thread)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, err
+		return askContext{}, err
 	}
-	transcript := transcriptOf(earlier)
-	switch thread.Target.Kind {
-	case KindDashboard:
-		return r.asks.queue.EnqueueAssigned(r.ctx, q, revisions.EnqueueParams{
-			DashboardID:     thread.Target.ID,
-			CommentID:       threadID,
-			Prompt:          prompt,
-			PanelID:         thread.PanelID,
-			BaseVersion:     *thread.Version,
-			By:              r.by,
-			Assignee:        agent,
-			Trigger:         triggerMention,
-			ThreadMessageID: messageID,
-			ThreadContext:   transcript,
-			Point:           point,
-		})
-	case KindObservation:
-		return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, revisions.InvestigateParams{
-			Prompt:          prompt,
-			By:              r.by,
-			ObservationID:   thread.Target.ID,
-			Assignee:        agent,
-			Trigger:         triggerMention,
-			ThreadMessageID: messageID,
-			ThreadContext:   transcript,
-			Point:           point,
-			Ask:             true,
-		})
-	}
-	return dbsqlc.AgentRequest{}, fmt.Errorf("start a run on a %s thread", thread.Target.Kind)
+	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier), point: point}, nil
 }
 
 func pointOfThread(thread Thread) (revisions.Point, error) {

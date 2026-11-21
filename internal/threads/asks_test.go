@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -18,6 +19,7 @@ import (
 type queuedRun struct {
 	ID              string
 	Intent          string
+	Kind            string
 	Trigger         string
 	AssignedKind    string
 	AssignedID      string
@@ -33,7 +35,7 @@ type queuedRun struct {
 
 func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, intent, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, intent, kind, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
 		coalesce(observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
 		thread_context, prompt, requested_by_id::text FROM agent_requests ORDER BY created_at, id`)
 	if err != nil {
@@ -43,7 +45,7 @@ func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	var out []queuedRun
 	for rows.Next() {
 		var q queuedRun
-		if err := rows.Scan(&q.ID, &q.Intent, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
+		if err := rows.Scan(&q.ID, &q.Intent, &q.Kind, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
 			t.Fatal(err)
 		}
 		out = append(out, q)
@@ -105,7 +107,7 @@ func (r *rig) replyWithRun(t *testing.T, by auth.Principal, thread, body string)
 	return message, run, refusal
 }
 
-func TestMentioningObserveOnADashboardThreadQueuesACommentRunWithItsMessage(t *testing.T) {
+func TestMentioningObserveOnADashboardThreadQueuesAReadOnlyAskWithItsMessage(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 	tg := target(KindDashboard, dash)
@@ -119,8 +121,8 @@ func TestMentioningObserveOnADashboardThreadQueuesACommentRunWithItsMessage(t *t
 		t.Fatalf("%d runs queued, want 1", len(queued))
 	}
 	got := queued[0]
-	if got.ID != run.ID || got.Intent != "apply" || got.Trigger != "mention" || got.AssignedKind != "builtin" || got.AssignedID != "" ||
-		got.CommentID != thread.ID || got.DashboardID != dash.String() || got.BaseVersion != "1" || got.ThreadMessageID != first.ID ||
+	if got.ID != run.ID || got.Intent != "ask" || got.Kind != revisions.KindInvestigate || got.Trigger != "mention" || got.AssignedKind != "builtin" || got.AssignedID != "" ||
+		got.CommentID != "" || got.ObservationID != "" || got.DashboardID != dash.String() || got.BaseVersion != "" || got.ThreadMessageID != first.ID ||
 		got.Prompt != "why did errors rise?" || got.RequestedByID != testUserID || got.ThreadContext.Valid {
 		t.Fatalf("run row = %+v", got)
 	}
@@ -136,8 +138,27 @@ func TestMentioningObserveOnADashboardThreadQueuesACommentRunWithItsMessage(t *t
 	}
 	reply := queued[1]
 	wantContext := "Ada: @observe why did errors rise?\n\nBo: the deploy was at 09:10"
-	if reply.ThreadMessageID != second.ID || reply.CommentID != thread.ID || reply.Prompt != "and what about latency?" || !reply.ThreadContext.Valid || reply.ThreadContext.String != wantContext {
+	if reply.ThreadMessageID != second.ID || reply.Intent != "ask" || reply.ObservationID != "" || reply.Prompt != "and what about latency?" || !reply.ThreadContext.Valid || reply.ThreadContext.String != wantContext {
 		t.Fatalf("reply run = %+v, want context %q", reply, wantContext)
+	}
+}
+
+func TestADashboardThreadAsksAnswerIsReadThroughTheThreadAndOpensNoObservation(t *testing.T) {
+	r := newShareRig(t)
+	dash := r.createDashboard(t, "rps", "errors")
+	_, run := r.mentionRun(t, target(KindDashboard, dash))
+	r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
+
+	f, err := r.findingOfRun(t, commenter, run.ID)
+	if err != nil || f.ObservationID != "" {
+		t.Fatalf("another reader of the thread reads the answer %+v, %v", f, err)
+	}
+	var observations int
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observations`).Scan(&observations); err != nil {
+		t.Fatal(err)
+	}
+	if observations != 0 {
+		t.Fatalf("a dashboard thread ask opened %d observations", observations)
 	}
 }
 
@@ -330,21 +351,17 @@ func TestAConnectedAgentMentionOnAnObservationAssignsTheInvestigationToIt(t *tes
 	}
 }
 
-func TestAFullDashboardQueueRefusesTheRunButKeepsTheMessage(t *testing.T) {
+func TestAsksOnADashboardAreNotHeldToItsRunCap(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 	tg := target(KindDashboard, dash)
-	for i := range revisions.MaxActive {
+	for i := range revisions.MaxActive + 1 {
 		if _, _, run, refusal := r.openWithRun(t, testUser, OpenInput{Target: tg, Body: fmt.Sprintf("@observe note %d", i)}); run == nil || refusal != nil {
-			t.Fatalf("run %d = %+v, refusal = %+v", i, run, refusal)
+			t.Fatalf("ask %d = %+v, refusal = %+v", i, run, refusal)
 		}
 	}
-	_, message, run, refusal := r.openWithRun(t, testUser, OpenInput{Target: tg, Body: "@observe one too many"})
-	if run != nil || refusal == nil || refusal.Code != RefusalTooManyRuns || refusal.Message == "" {
-		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
-	}
-	if message.ID == "" || r.messageCount(t) != revisions.MaxActive+1 || len(r.queuedRuns(t)) != revisions.MaxActive {
-		t.Fatalf("%d messages, %d runs", r.messageCount(t), len(r.queuedRuns(t)))
+	if n := len(r.queuedRuns(t)); n != revisions.MaxActive+1 {
+		t.Fatalf("%d asks queued, want %d", n, revisions.MaxActive+1)
 	}
 }
 
@@ -612,7 +629,7 @@ func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) 
 	}
 }
 
-func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
+func TestOverMCPADashboardThreadStillStartsAnAsk(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
@@ -631,7 +648,7 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
 	}
 	queued := r.queuedRuns(t)
-	if len(queued) != 2 || queued[0].Intent != "apply" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "apply" {
+	if len(queued) != 2 || queued[0].Intent != "ask" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "ask" {
 		t.Fatalf("runs = %+v", queued)
 	}
 }
@@ -665,9 +682,9 @@ func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.
 		wantSource   revisions.Source
 		wantWrites   origin.Origin
 	}{
-		{"built-in agent on a dashboard", target(KindDashboard, dash), "@observe look", origin.Origin{Kind: origin.CLI}, revisions.AssignBuiltin, revisions.SourceComment, origin.Origin{Kind: origin.CLI}},
+		{"built-in agent on a dashboard", target(KindDashboard, dash), "@observe look", origin.Origin{Kind: origin.CLI}, revisions.AssignBuiltin, revisions.SourceInvestigate, origin.Origin{Kind: origin.CLI}},
 		{"built-in agent on an observation", target(KindObservation, obs), "@observe look", origin.Origin{Kind: origin.Web}, revisions.AssignBuiltin, revisions.SourceInvestigate, origin.Origin{Kind: origin.Web}},
-		{"connected agent", target(KindDashboard, dash), grantToken(grant) + " look", mcp, revisions.AssignGrant, revisions.SourceComment, outside},
+		{"connected agent", target(KindDashboard, dash), grantToken(grant) + " look", mcp, revisions.AssignGrant, revisions.SourceInvestigate, outside},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
