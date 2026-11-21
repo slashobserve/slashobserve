@@ -64,7 +64,7 @@ var credentialArguments = map[string]argumentRule{
 	"redis":                   {positions: []int{4}},
 	"remote":                  {positions: []int{3, 4}},
 	"remotesecure":            {positions: []int{3, 4}},
-	"materializedpostgresql":  {positions: []int{3}},
+	"materializedpostgresql":  {positions: []int{4}, shortLen: 4, whenShort: []int{3}},
 	"materializedmysql":       {positions: []int{3}},
 	"jdbc":                    {positions: []int{0}, whole: true},
 	"odbc":                    {positions: []int{0}, whole: true},
@@ -172,6 +172,12 @@ func literalInner(text string, arg span) (span, bool) {
 	if arg.end-arg.start < 1 {
 		return span{}, false
 	}
+	if strings.HasPrefix(text[arg.start:arg.end], "$$") {
+		if arg.end-arg.start >= 4 && strings.HasSuffix(text[arg.start:arg.end], "$$") {
+			return span{arg.start + 2, arg.end - 2}, true
+		}
+		return span{arg.start + 2, arg.end}, true
+	}
 	q := text[arg.start]
 	if q != '\'' && q != '"' {
 		return span{}, false
@@ -249,6 +255,12 @@ func callArguments(text string, open int) []span {
 			i = end - 1
 			continue
 		}
+		if end := heredocEnd(text, i); end > i {
+			s.see(i)
+			s.see(end - 1)
+			i = end - 1
+			continue
+		}
 		switch tokenOf(c, depth) {
 		case tokSpace:
 			continue
@@ -308,9 +320,19 @@ func tokenOf(c byte, depth int) token {
 	return tokOther
 }
 
+func heredocEnd(text string, i int) int {
+	if !strings.HasPrefix(text[i:], "$$") {
+		return i
+	}
+	if end := strings.Index(text[i+2:], "$$"); end >= 0 {
+		return i + 2 + end + 2
+	}
+	return len(text)
+}
+
 func commentEnd(text string, i int) int {
 	switch {
-	case strings.HasPrefix(text[i:], "--"):
+	case strings.HasPrefix(text[i:], "--"), text[i] == '#':
 		if nl := strings.IndexByte(text[i:], '\n'); nl >= 0 {
 			return i + nl
 		}

@@ -76,6 +76,11 @@ var maskCases = []maskCase{
 	{"azureBlobStorageCluster account key", "azureBlobStorageCluster('c', 'https://a.blob.core.windows.net', 'cont', 'blob', 'acct', 'SECRETVALUE', 'CSV')", "azureBlobStorageCluster('c', 'https://a.blob.core.windows.net', 'cont', 'blob', 'acct', '***', 'CSV')"},
 	{"azureBlobStorageCluster connection string", "azureBlobStorageCluster('c', 'AccountName=a;AccountKey=SECRETVALUE', 'cont', 'blob')", "azureBlobStorageCluster('c', '***', 'cont', 'blob')"},
 	{"MaterializedPostgreSQL", "CREATE DATABASE d ENGINE = MaterializedPostgreSQL('h:5432', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MaterializedPostgreSQL('h:5432', 'db', 'u', '***')"},
+	{"MaterializedPostgreSQL table engine", "CREATE TABLE t (a Int8) ENGINE = MaterializedPostgreSQL('h:5432', 'db', 't', 'u', 'SECRETVALUE')", "CREATE TABLE t (a Int8) ENGINE = MaterializedPostgreSQL('h:5432', 'db', 't', 'u', '***')"},
+	{"a hash comment before an argument", "mysql('h','db','t','u', # pw\n 'SECRETVALUE')", "mysql('h','db','t','u', # pw\n '***')"},
+	{"a heredoc credential", "s3('https://b/x', $$ak12$$, $$SECRETVALUE$$, 'CSV')", "s3('https://b/x', $$***$$, $$***$$, 'CSV')"},
+	{"a heredoc holding a comma and a quote", "mysql('h','db','t','u', $$pw,'x)$$)", "mysql('h','db','t','u', $$***$$)"},
+	{"a heredoc that never ends", "mysql('h','db','t','u', $$SECRETVALUE", "mysql('h','db','t','u', $$***"},
 	{"MaterializedMySQL", "CREATE DATABASE d ENGINE = MaterializedMySQL('h:3306', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MaterializedMySQL('h:3306', 'db', 'u', '***')"},
 	{"MySQL database engine", "CREATE DATABASE d ENGINE = MySQL('h:3306', 'db', 'root', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MySQL('h:3306', 'db', 'root', '***')"},
 	{"PostgreSQL database engine", "CREATE DATABASE d ENGINE = PostgreSQL('h:5432', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = PostgreSQL('h:5432', 'db', 'u', '***')"},
@@ -140,7 +145,7 @@ func TestMaskSecretsNeverLengthensAndNeverPanicsOnAnyPrefixOrGarbage(t *testing.
 		state = state*6364136223846793005 + 1442695040888963407
 		return int(state>>33) % n
 	}
-	pieces := []string{"s3(", "--", "/*", "*/", "mysql(", "url(", "headers(", "remote(", "'", `"`, "`", "\\", ",", ")", "(", "=", ":", "@", "://", "password", "token", "Bearer ", "AKIA", "eyJ", ".", "-----BEGIN PRIVATE KEY-----", " ", "\n", "é", "a", "9"}
+	pieces := []string{"s3(", "--", "#", "$$", "/*", "*/", "mysql(", "url(", "headers(", "remote(", "'", `"`, "`", "\\", ",", ")", "(", "=", ":", "@", "://", "password", "token", "Bearer ", "AKIA", "eyJ", ".", "-----BEGIN PRIVATE KEY-----", " ", "\n", "é", "a", "9"}
 	for range 400 {
 		var b strings.Builder
 		for range next(60) {
@@ -157,7 +162,7 @@ func TestMaskSecretsNeverLengthensAndNeverPanicsOnAnyPrefixOrGarbage(t *testing.
 	}
 }
 
-func TestMaskSecretsRunsInLinearTimeOnHostileInput(t *testing.T) {
+func TestMaskSecretsStaysBoundedOnHostileInput(t *testing.T) {
 	for name, unit := range map[string]string{
 		"nested calls": "s3(", "open quotes": "mysql('", "keys": "password=", "headers": "url(headers(", "urls": "a://b", "pem": "-----BEGIN PRIVATE KEY-----",
 	} {
