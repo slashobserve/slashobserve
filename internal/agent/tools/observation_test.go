@@ -623,3 +623,36 @@ func TestAnInvestigationReadsObservationsAsTheRequesterAndCannotChangeThem(t *te
 		t.Errorf("an investigation added a block: %#v", res.Content)
 	}
 }
+
+func TestListFoldersShowsWhichFoldersAreOnlyAdminsToAdminsAlone(t *testing.T) {
+	r := newObservationRig(t)
+	locked := foldertest.AdminsOnly(t, r.db, "Payroll").String()
+
+	byFolder := func(by auth.Principal) map[string]*bool {
+		listed, ok := r.call(t, by, nameListFolders, `{}`).Content.(folderListOut)
+		if !ok {
+			t.Fatalf("list_folders as %s", by.Name)
+		}
+		out := map[string]*bool{}
+		for _, f := range listed.Folders {
+			out[f.ID] = f.AdminsOnly
+		}
+		return out
+	}
+	asAdmin := byFolder(adminCaller)
+	if got := asAdmin[locked]; got == nil || !*got {
+		t.Errorf("an Admin sees Payroll as %v, want true", got)
+	}
+	if got := asAdmin[r.folder]; got == nil || *got {
+		t.Errorf("an Admin sees Incidents as %v, want false", got)
+	}
+	for id, got := range byFolder(editorCaller) {
+		if got != nil {
+			t.Errorf("an Editor sees admins_only on %s", id)
+		}
+	}
+	raw := textOf(t, r.call(t, editorCaller, nameListFolders, `{}`))
+	if strings.Contains(raw, "admins_only") {
+		t.Errorf("an Editor's list_folders = %s", raw)
+	}
+}
