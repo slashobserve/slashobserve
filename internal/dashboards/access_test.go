@@ -162,7 +162,7 @@ func TestRestrictedFolderDashboardsNeverLeakIntoListings(t *testing.T) {
 				}
 			}
 
-			tags, err := b.rig.service.Tags(reading(t.Context()), c.by)
+			tags, err := b.rig.service.Tags(reading(t.Context()), c.by, false)
 			if err != nil {
 				t.Fatal(err)
 			}

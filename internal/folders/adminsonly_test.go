@@ -222,3 +222,27 @@ func TestOnlyTheFolderRecordedAsTheAuditFolderCarriesTheAuditFlag(t *testing.T) 
 		t.Fatalf("rename = %d %s, want audit kept", renamed.Code, renamed.Body)
 	}
 }
+
+func TestANonAdminsFolderListCarriesNoAuditFolder(t *testing.T) {
+	d := dbtest.New(t)
+	trail := folderMadeBy(t, d, "Trail", addUser(t, d, "alice"))
+	d.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, trail)
+	d.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, AuditStarterKey, trail)
+	editor := auth.Principal{Kind: auth.KindServiceAccount, ID: "00000000-0000-4000-8000-0000000000bb", Name: "ci", Role: auth.RoleEditor}
+
+	rec := call(t, engineAs(t, d, editor, nil), http.MethodGet, "/api/v1/folders", "")
+	var body struct {
+		Folders []struct {
+			ID    string `json:"id"`
+			Audit bool   `json:"audit"`
+		} `json:"folders"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("list = %d %s", rec.Code, rec.Body)
+	}
+	for _, f := range body.Folders {
+		if f.Audit || f.ID == trail {
+			t.Errorf("a non-Admin's list holds %+v, want no Audit folder", f)
+		}
+	}
+}

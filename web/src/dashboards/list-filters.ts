@@ -1,4 +1,5 @@
 import type { DashboardListFilters } from "@/api/keys"
+import { auditDatasourceUid } from "@/audit/audit-source"
 import {
   importedFilter,
   isProblemFilter,
@@ -156,6 +157,16 @@ export function foldersToBrowse<T extends { id: string; audit: boolean }>(
   chosen: string | undefined
 ): T[] {
   return folders.filter((folder) => !folder.audit || folder.id === chosen)
+}
+
+export function datasourcesToBrowse<T extends { uid: string }>(
+  datasources: readonly T[],
+  chosen: string | undefined
+): T[] {
+  return datasources.filter(
+    (datasource) =>
+      datasource.uid !== auditDatasourceUid || datasource.uid === chosen
+  )
 }
 
 export function hasFilters(search: ListSearch): boolean {

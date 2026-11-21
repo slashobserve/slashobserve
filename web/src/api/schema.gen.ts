@@ -10980,7 +10980,10 @@ export interface operations {
     };
     listDashboardTags: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `true` leaves out the dashboards in the built-in Audit folder, so their tags and the counts come from the other folders only. Default `false`. */
+                exclude_audit?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

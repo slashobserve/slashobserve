@@ -116,3 +116,60 @@ func TestListRouteTakesExcludeAuditAsABoolean(t *testing.T) {
 		}
 	}
 }
+
+func TestExcludeAuditChangesNothingForSomeoneWhoCannotSeeTheAuditFolder(t *testing.T) {
+	b := seedBoards(t)
+	trail := foldertest.AdminsOnly(t, b.rig.db, "Trail")
+	if _, _, err := b.rig.service.Create(reading(t.Context()), adminUser, trail, specWithDatasources("Sign-ins", "", "prom"), "create"); err != nil {
+		t.Fatal(err)
+	}
+	b.rig.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, folders.AuditStarterKey, trail)
+
+	for _, order := range []string{"updated", "folder", "views", "name"} {
+		var seen [2]ListPage
+		for i, exclude := range []bool{false, true} {
+			page, err := b.rig.service.List(reading(t.Context()), otherUser, ListParams{Limit: 50, ExcludeAudit: exclude, ByFolder: order == "folder", ByViews: order == "views", ByName: order == "name"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			seen[i] = page
+		}
+		if got, want := titlesOf(seen[1].Items), titlesOf(seen[0].Items); !slices.Equal(got, want) || seen[1].Total != seen[0].Total || seen[0].Total != 1 {
+			t.Errorf("by %s: with exclude_audit %v (total %d), without %v (total %d), want the same single dashboard", order, got, seen[1].Total, want, seen[0].Total)
+		}
+	}
+}
+
+func TestTagsLeaveOutTheAuditFoldersWhenAsked(t *testing.T) {
+	b := seedBoards(t)
+	trail := foldertest.AdminsOnly(t, b.rig.db, "Trail")
+	if _, _, err := b.rig.service.Create(reading(t.Context()), adminUser, trail, boardSpec("Sign-ins", "", "prom", "audit"), "create"); err != nil {
+		t.Fatal(err)
+	}
+	b.rig.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, folders.AuditStarterKey, trail)
+
+	tagsOf := func(exclude bool) map[string]int {
+		tags, err := b.rig.service.Tags(reading(t.Context()), adminUser, exclude)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]int{}
+		for _, tag := range tags {
+			out[tag.Tag] = tag.Dashboards
+		}
+		return out
+	}
+	if got := tagsOf(false); got["audit"] != 1 {
+		t.Errorf("tags without exclude_audit = %v, want audit counted once", got)
+	}
+	if got := tagsOf(true); got["audit"] != 0 || got["open-tag"] != 1 {
+		t.Errorf("tags with exclude_audit = %v, want no audit tag and the others kept", got)
+	}
+	rec := b.serve(adminUser, http.MethodGet, "/dashboards/tags?exclude_audit=true", "")
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `"audit"`) {
+		t.Errorf("GET /dashboards/tags?exclude_audit=true = %d %s", rec.Code, rec.Body)
+	}
+	if rec := b.serve(adminUser, http.MethodGet, "/dashboards/tags?exclude_audit=maybe", ""); rec.Code != http.StatusBadRequest {
+		t.Errorf("exclude_audit=maybe = %d, want 400", rec.Code)
+	}
+}

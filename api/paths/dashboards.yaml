@@ -195,6 +195,15 @@ dashboards-tags:
     x-surfaces:
       cli: [observe dashboards tags]
     summary: List every dashboard tag with its dashboard count, by tag name.
+    parameters:
+      - name: exclude_audit
+        in: query
+        description: >-
+          `true` leaves out the dashboards in the built-in Audit folder, so their tags and the counts come from the other folders only.
+          Default `false`.
+        schema:
+          type: boolean
+          default: false
     responses:
       "200":
         description: Every tag in use, at most 500, ordered by name.

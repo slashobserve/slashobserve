@@ -30,6 +30,7 @@ import { roleAtLeast } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
 import {
+  datasourcesToBrowse,
   folderText,
   foldersToBrowse,
   madeByText,
@@ -107,8 +108,15 @@ export function MadeByMenu({ value, onChange }: MenuProps) {
   )
 }
 
-export function DatasourceMenu({ value, onChange }: MenuProps) {
-  const datasources = useQuery(datasourcesQuery()).data ?? []
+type ExcludingAuditProps = MenuProps & { excludeAudit: boolean }
+
+export function DatasourceMenu({
+  value,
+  onChange,
+  excludeAudit,
+}: ExcludingAuditProps) {
+  const listed = useQuery(datasourcesQuery()).data ?? []
+  const datasources = excludeAudit ? datasourcesToBrowse(listed, value) : listed
   return (
     <DropdownMenu>
       <Trigger>{`Datasource: ${value ?? "any"}`}</Trigger>
@@ -207,11 +215,18 @@ export function ProblemMenu({
   )
 }
 
-function tagsQuery() {
+function tagsQuery(excludeAudit: boolean) {
   return queryOptions({
-    queryKey: dashboardKeys.tags(),
+    queryKey: dashboardKeys.tagsFor(excludeAudit),
     queryFn: ({ signal }) =>
-      api.GET("/dashboards/tags", { signal }).then(unwrap),
+      api
+        .GET("/dashboards/tags", {
+          params: {
+            query: { exclude_audit: excludeAudit ? true : undefined },
+          },
+          signal,
+        })
+        .then(unwrap),
     staleTime: 60_000,
   })
 }
@@ -219,10 +234,11 @@ function tagsQuery() {
 type TagsMenuProps = {
   value: string[] | undefined
   onChange: (tags: string[] | undefined) => void
+  excludeAudit: boolean
 }
 
-export function TagsMenu({ value, onChange }: TagsMenuProps) {
-  const known = useQuery(tagsQuery()).data?.tags ?? []
+export function TagsMenu({ value, onChange, excludeAudit }: TagsMenuProps) {
+  const known = useQuery(tagsQuery(excludeAudit)).data?.tags ?? []
   const selected = value ?? []
   const missing = selected.filter((tag) => !known.some((t) => t.tag === tag))
   const toggle = (tag: string, checked: boolean) => {

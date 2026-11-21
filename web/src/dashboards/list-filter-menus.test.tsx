@@ -6,7 +6,7 @@ import { renderWithProviders } from "@/test/render"
 
 import type { Folder } from "@/folders/queries"
 
-import { FolderMenu, MadeByMenu } from "./list-filter-menus"
+import { FolderMenu, MadeByMenu, TagsMenu } from "./list-filter-menus"
 
 const session = vi.hoisted(() => ({ role: "admin" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -103,4 +103,34 @@ describe("FolderMenu", () => {
       await screen.findByRole("menuitemradio", { name: "Trail" })
     ).toBeDefined()
   })
+})
+
+describe("TagsMenu", () => {
+  it.each([
+    [true, "exclude_audit=true"],
+    [false, ""],
+  ])(
+    "asks for the tags with excludeAudit %s as %j",
+    async (excludeAudit, query) => {
+      const fetch = vi.fn<(request: Request) => Promise<Response>>(
+        async () =>
+          new Response(JSON.stringify({ tags: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+      )
+      vi.stubGlobal("fetch", fetch)
+      renderWithProviders(
+        <TagsMenu
+          value={undefined}
+          onChange={() => {}}
+          excludeAudit={excludeAudit}
+        />
+      )
+      await waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+      const url = new URL(fetch.mock.calls[0]![0].url)
+      expect(url.pathname).toBe("/api/v1/dashboards/tags")
+      expect(url.search).toBe(query === "" ? "" : `?${query}`)
+    }
+  )
 })

@@ -230,7 +230,7 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards viewers <dashboard-id>` | Lists, by name, the other people who have the dashboard open now; it needs View and prints nothing when nobody is looking. |
 | `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
-| `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
+| `bin/observe dashboards tags [--exclude-audit]` | Lists every tag with the number of dashboards that carry it; `--exclude-audit` counts only dashboards outside the Audit folder. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default the dashboard's own folder when you may create there, else your default folder, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |

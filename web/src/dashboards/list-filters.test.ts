@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   clampQuery,
+  datasourcesToBrowse,
   folderText,
   foldersToBrowse,
   hasFilters,
@@ -419,5 +420,21 @@ describe("foldersToBrowse", () => {
 
   it("keeps it when it is the chosen folder", () => {
     expect(foldersToBrowse(folders, "b")).toEqual(folders)
+  })
+})
+
+describe("datasourcesToBrowse", () => {
+  const datasources = [{ uid: "prom" }, { uid: "slashobserve-audit" }]
+
+  it("drops the audit datasource", () => {
+    expect(datasourcesToBrowse(datasources, undefined)).toEqual([
+      { uid: "prom" },
+    ])
+  })
+
+  it("keeps it when it is the chosen one", () => {
+    expect(datasourcesToBrowse(datasources, "slashobserve-audit")).toEqual(
+      datasources
+    )
   })
 })

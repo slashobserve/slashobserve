@@ -164,6 +164,7 @@ function FilterRow({
   offerImported,
 }: FilterRowProps) {
   const health = useListHealthLoad()
+  const hideAudit = leavesOutAudit(search, folderLocked)
   const [text, setText] = useState(search.q ?? "")
   const emitted = useRef(search.q)
   const typed = text.trim() === "" ? undefined : text.trim()
@@ -205,6 +206,7 @@ function FilterRow({
         onChange={(made_by) => onSearchChange({ ...search, made_by })}
       />
       <DatasourceMenu
+        excludeAudit={hideAudit}
         value={search.datasource}
         onChange={(datasource) => onSearchChange({ ...search, datasource })}
       />
@@ -220,6 +222,7 @@ function FilterRow({
         onChange={(kind) => onSearchChange({ ...search, kind })}
       />
       <TagsMenu
+        excludeAudit={hideAudit}
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
       />
