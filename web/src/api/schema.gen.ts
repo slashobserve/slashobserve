@@ -5385,6 +5385,8 @@ export interface components {
             creator: components["schemas"]["Creator"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
+            provisioned: boolean;
         };
         HomeDashboard: {
             /**
@@ -5429,6 +5431,8 @@ export interface components {
             view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
+            provisioned: boolean;
         };
         VersionMeta: {
             version: number;
@@ -6706,6 +6710,11 @@ export interface components {
             observation_id: string | null;
             /**
              * Format: uuid
+             * @description The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, and when `redacted`.
+             */
+            subject_observation_id: string | null;
+            /**
+             * Format: uuid
              * @description The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
              */
             shared_thread_id: string | null;
@@ -6727,6 +6736,11 @@ export interface components {
             prompt: string;
             /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
             investigation: boolean;
+            /**
+             * Format: uuid
+             * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise.
+             */
+            subject_observation_id: string | null;
         };
         Chat: {
             /**
@@ -11058,7 +11072,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11169,7 +11183,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11247,7 +11261,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11353,7 +11367,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11543,7 +11557,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["ProposalForbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`), which a proposal cannot change. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12432,7 +12446,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). */
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14450,6 +14464,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The panel does not exist in the latest version (`unknown_panel`). */
             422: {
@@ -14548,6 +14571,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description The dashboard or the version does not exist. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17191,7 +17223,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or `update_dashboard` names a starter the server keeps current with each release (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -23,6 +23,7 @@ function chat(over: Partial<Chat> = {}): Chat {
       state: "running",
       prompt: "x",
       investigation: false,
+      subject_observation_id: null,
     },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
@@ -47,6 +48,7 @@ describe("refreshChat", () => {
         state: "succeeded",
         prompt: "x",
         investigation: false,
+        subject_observation_id: null,
       },
     })
     vi.stubGlobal(

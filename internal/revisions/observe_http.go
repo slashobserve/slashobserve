@@ -124,6 +124,7 @@ type agentRequestJSON struct {
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
 	ObservationID *string         `json:"observation_id"`
+	SubjectID     *string         `json:"subject_observation_id"`
 	ChatID        *string         `json:"chat_id"`
 	SharedThread  *string         `json:"shared_thread_id"`
 	Finding       json.RawMessage `json:"finding"`

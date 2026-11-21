@@ -18,6 +18,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 var (
@@ -150,10 +151,15 @@ func (r *Recorder) insertNow(ctx context.Context, row dbsqlc.InsertAuditEventPar
 	}
 	ictx, cancel := context.WithTimeout(ctx, r.writer.limits.timeout)
 	defer cancel()
-	if err := r.db.Queries().InsertAuditEvent(ictx, row); err != nil {
-		return fmt.Errorf("insert audit event: %w", err)
+	err := r.db.Queries().InsertAuditEvent(ictx, row)
+	if err == nil {
+		return nil
 	}
-	return nil
+	if retryable(err) && r.writer.handOff(row) {
+		r.logger.WarnContext(ctx, "audit event queued to be written again", logattrs.Failure("audit_write_failed", err)...)
+		return nil
+	}
+	return fmt.Errorf("insert audit event: %w", err)
 }
 
 func (r *Recorder) row(ctx context.Context, e Event) (dbsqlc.InsertAuditEventParams, error) {

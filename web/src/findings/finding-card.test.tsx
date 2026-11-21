@@ -12,9 +12,12 @@ vi.mock("./evidence-panel", () => ({
   ),
 }))
 
-const permissions = vi.hoisted(() => ({ edit: false }))
+const permissions = vi.hoisted(() => ({ edit: false, provisioned: false }))
 
 vi.mock("@/dashboards/permissions", () => ({
+  mayEditBesidesContent: (p: { edit: boolean }, provisioned: boolean) =>
+    p.edit || provisioned,
+  useLatestProvisioned: () => permissions.provisioned,
   useLatestPermissions: () => ({
     comment: true,
     edit: permissions.edit,
@@ -229,6 +232,25 @@ describe("FindingCard", () => {
     expect(
       await screen.findByRole("button", { name: "Pin to dashboard" })
     ).toBeVisible()
+  })
+
+  it("offers Pin to dashboard on a starter dashboard, where Edit is never shown", async () => {
+    permissions.edit = false
+    permissions.provisioned = true
+    try {
+      renderWithProviders(
+        <FindingCard
+          finding={{ ...finding(), dashboard_id: "d1" }}
+          showOpenLink={false}
+        />,
+        { route: { path: "/", url: "/" } }
+      )
+      expect(
+        await screen.findByRole("button", { name: "Pin to dashboard" })
+      ).toBeVisible()
+    } finally {
+      permissions.provisioned = false
+    }
   })
 
   it("still shows a pinned finding to someone who cannot pin", async () => {

@@ -307,7 +307,7 @@ A run started this way is checked like one the same person starts in the web app
 
 An answer on a dashboard may carry `suggested_change`, one sentence on a change that would help, and `apply_suggested_change` (`comment_id` and the answer's `finding_id` from `get_run`) posts "Revise the dashboard: <suggested change>" in that thread as you and starts a run that makes the change: it saves a version when you can edit the dashboard and opens a proposal when you can only comment.
 The run is yours and goes to the agent that answered; a repeat call while it is queued or running, or after it succeeded, posts nothing and returns that run with `replayed` true.
-An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable` and `assignee_unavailable`.
+An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable`, `assignee_unavailable` and `provisioned` on a starter dashboard.
 Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
 The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
@@ -430,6 +430,7 @@ The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `resul
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
 A run from someone else's private chat, other than an investigation or an answer shared into a thread, has `redacted: true` and its `title`, `prompt`, step messages and `live_text` empty.
+`subject_observation_id` names the observation an ask is about, such as one asked from an observation's chat, and stays set after its answer is saved into another observation; it is null when `redacted`.
 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.

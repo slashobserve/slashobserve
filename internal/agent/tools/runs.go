@@ -231,6 +231,8 @@ func runFailure(err error) (Result, error) {
 		return toolError("unknown_panel", err.Error()), nil
 	case errors.Is(err, revisions.ErrDashboardVersionNotFound):
 		return toolError(codeVersionNotFound, err.Error()), nil
+	case errors.Is(err, folders.ErrProvisioned):
+		return toolError(codeProvisioned, err.Error()+provisionedHint), nil
 	}
 	if reply, ok := revisions.ReplyFor(err); ok {
 		if reply.Code == forbidden.Code {

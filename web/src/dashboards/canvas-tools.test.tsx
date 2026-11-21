@@ -36,7 +36,7 @@ async function renderTools(
 
 describe("CanvasTools", () => {
   it("shows Select and Comment to a Commenter", async () => {
-    await renderTools({ comment: true, edit: false }, true)
+    await renderTools({ comment: true, edit: false }, true, false)
     expect(
       screen.getByRole("toolbar", { name: "Canvas tools" })
     ).toBeInTheDocument()
@@ -45,6 +45,12 @@ describe("CanvasTools", () => {
     expect(
       screen.queryByRole("button", { name: "Ask" })
     ).not.toBeInTheDocument()
+  })
+
+  it("shows Ask and Comment on a starter dashboard, where nobody has Edit", async () => {
+    await renderTools({ comment: true, edit: false }, true, true)
+    expect(screen.getByRole("button", { name: "Ask" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Comment" })).toBeEnabled()
   })
 
   it("shows Ask to an Editor with an agent", async () => {
@@ -68,7 +74,7 @@ describe("CanvasTools", () => {
       false,
     ],
   ])("hides the whole bar for %s", async (_who, permissions, agent) => {
-    await renderTools(permissions, agent)
+    await renderTools(permissions, agent, permissions.edit)
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Select" })

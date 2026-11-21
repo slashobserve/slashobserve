@@ -5,7 +5,11 @@ import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { RelativeTime } from "@/components/relative-time"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { useLatestPermissions } from "@/dashboards/permissions"
+import {
+  mayEditBesidesContent,
+  useLatestPermissions,
+  useLatestProvisioned,
+} from "@/dashboards/permissions"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -47,7 +51,10 @@ function PinOnDashboard({
   dashboardId: string
 }) {
   const pin = usePinFinding(finding)
-  const mayPin = useLatestPermissions(dashboardId).edit
+  const mayPin = mayEditBesidesContent(
+    useLatestPermissions(dashboardId),
+    useLatestProvisioned(dashboardId)
+  )
   if (pin.isSuccess || finding.annotation_id !== null) {
     return (
       <p className="flex flex-wrap items-center gap-x-2 text-[13px]">

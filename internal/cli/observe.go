@@ -31,6 +31,7 @@ type agentRequest struct {
 	Prompt        string        `json:"prompt"`
 	Redacted      bool          `json:"redacted"`
 	DashboardID   *string       `json:"dashboard_id"`
+	SubjectID     *string       `json:"subject_observation_id"`
 	Status        string        `json:"status"`
 	State         string        `json:"state"`
 	ResultVer     *int          `json:"result_version"`
@@ -335,6 +336,9 @@ func printRequest(out *output, req agentRequest) {
 		{"Error", orDash(req.Error)},
 		{"Title", wordsOf(req, req.Title)},
 		{"Prompt", wordsOf(req, req.Prompt)},
+	}
+	if req.SubjectID != nil {
+		fields = append(fields, [2]string{"About observation", text(*req.SubjectID)})
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})

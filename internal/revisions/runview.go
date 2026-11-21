@@ -331,6 +331,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
+		SubjectID:     optionalUUID(row.SubjectObservationID),
 		ChatID:        chatShownTo(row, caller),
 	}
 	if row.CanceledByKind.Valid {
@@ -375,7 +376,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 
 func (out *agentRequestJSON) redact() {
 	out.Redacted = true
-	out.Title, out.Prompt, out.LiveText, out.ContinueNote = "", "", nil, nil
+	out.Title, out.Prompt, out.LiveText, out.ContinueNote, out.SubjectID = "", "", nil, nil, nil
 	for i := range out.Steps {
 		out.Steps[i].Message = ""
 	}
