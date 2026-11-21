@@ -35,6 +35,7 @@ type Service struct {
 	dashboards   *dashboards.Service
 	observations Observations
 	threads      ThreadReader
+	answerReads  AnswerReadRecorder
 	logger       *slog.Logger
 }
 
@@ -47,6 +48,10 @@ func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash
 
 func (s *Service) ReadThreadsWith(read ThreadReader) {
 	s.threads = read
+}
+
+func (s *Service) RecordAnswerReadsWith(record AnswerReadRecorder) {
+	s.answerReads = record
 }
 
 type SaveInput struct {
@@ -185,6 +190,19 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	}
 	f.Abilities = abilities
 	return s.askOnIfViewable(ctx, by, f)
+}
+
+func (s *Service) Read(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
+	f, err := s.Get(ctx, by, id)
+	if err != nil || f.Saved() || s.answerReads == nil {
+		return f, err
+	}
+	run, err := db.ParseUUID(f.AgentRequestID)
+	if err != nil {
+		return Finding{}, fmt.Errorf("answer run id: %w", err)
+	}
+	s.answerReads(ctx, run)
+	return f, nil
 }
 
 func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {

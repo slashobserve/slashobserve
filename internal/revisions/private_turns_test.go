@@ -248,7 +248,7 @@ func recordedReads(t *testing.T, d *dbtest.Database) []string {
 	return got
 }
 
-func TestAReadOfSomeoneElsesRunOrChatIsRecordedOncePerReaderInTheWindowAndARefusedReadEveryTime(t *testing.T) {
+func TestEveryReadOfARunOrChatIsRecordedOncePerReaderInTheWindowAndARefusedReadEveryTime(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(&recordingBuilds{}))
 	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
@@ -309,11 +309,19 @@ func TestAReadOfSomeoneElsesRunOrChatIsRecordedOncePerReaderInTheWindowAndARefus
 	<-done
 
 	want := []string{
+		"chat.list " + userID + " success - - mine",
+		"chat.list " + adminID + " success - - mine",
 		"chat.list " + adminID + " success - - all",
+		"chat.list " + strangerID + " success - - mine",
+		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + strangerID + " denied " + chat + " - -",
 		"chat.view " + strangerID + " denied " + chat + " - -",
+		"run.list " + userID + " success - - mine",
+		"run.list " + adminID + " success - - mine",
 		"run.list " + adminID + " success - - all",
+		"run.list " + strangerID + " success - - mine",
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
 		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
 		"run.view " + strangerID + " denied " + run + " - -",
 		"run.view " + strangerID + " denied " + run + " - -",

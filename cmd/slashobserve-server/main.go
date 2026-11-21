@@ -463,6 +463,7 @@ func run() error {
 	}
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
+	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
 	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),

@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
-	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -19,16 +18,12 @@ const (
 	actionRunList  audit.Action = "run.list"
 	actionChatView audit.Action = "chat.view"
 	actionChatList audit.Action = "chat.list"
+
+	dashboardRunsScope = "dashboard"
 )
 
-var everyonesList = map[string]any{"scope": string(ScopeAll)}
-
-func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) {
-	if sameActor(requesterOf(row), by) {
-		audit.Skip(ctx)
-		return
-	}
-	s.recordFirstRead(ctx, audit.Event{
+func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest) {
+	s.recordFirstRead(ctx, row.ID.String(), audit.Event{
 		Action: actionRunView,
 		Target: audit.Target{Kind: "run", ID: row.ID.String(), DashboardID: nullUUID(row.DashboardID), ObservationID: nullUUID(row.ObservationID)},
 		Chat:   nullUUID(row.ChatID),
@@ -36,12 +31,17 @@ func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by
 	})
 }
 
-func (s *Service) recordChatView(ctx context.Context, chat Chat) {
-	if !chat.ReadOnly {
-		audit.Skip(ctx)
+func (s *Service) RecordAnswerRead(ctx context.Context, runID pgtype.UUID) {
+	row, err := s.GetByID(ctx, runID)
+	if err != nil {
+		s.logger.WarnContext(ctx, "answer read not recorded", logattrs.Failure("audit_record_failed", err, slog.String("agent_request_id", runID.String()))...)
 		return
 	}
-	s.recordFirstRead(ctx, audit.Event{
+	s.recordRunView(ctx, row)
+}
+
+func (s *Service) recordChatView(ctx context.Context, chat Chat) {
+	s.recordFirstRead(ctx, chat.ID.String(), audit.Event{
 		Action: actionChatView,
 		Target: audit.Target{Kind: "chat", ID: chat.ID.String(), DashboardID: nullUUID(chat.DashboardID), ObservationID: nullUUID(chat.ObservationID)},
 		Chat:   nullUUID(chat.ID),
@@ -63,12 +63,20 @@ func (s *Service) recordRefusedBuildRead(ctx context.Context, run pgtype.UUID, e
 	})
 }
 
-func (s *Service) recordEveryonesList(ctx context.Context, action audit.Action) {
-	s.recordFirstRead(ctx, audit.Event{Action: action, Data: everyonesList})
+func (s *Service) recordList(ctx context.Context, action audit.Action, scope ListScope) {
+	s.recordFirstRead(ctx, string(scope), audit.Event{Action: action, Data: map[string]any{"scope": string(scope)}})
 }
 
-func (s *Service) recordFirstRead(ctx context.Context, e audit.Event) {
-	if s.reads.SeenRecently(ctx, string(e.Action)+":"+e.Target.ID, time.Now()) {
+func (s *Service) recordDashboardRunList(ctx context.Context, dashboardID pgtype.UUID) {
+	s.recordFirstRead(ctx, dashboardRunsScope+":"+dashboardID.String(), audit.Event{
+		Action: actionRunList,
+		Target: audit.Target{Kind: "dashboard", ID: dashboardID.String(), DashboardID: nullUUID(dashboardID)},
+		Data:   map[string]any{"scope": dashboardRunsScope},
+	})
+}
+
+func (s *Service) recordFirstRead(ctx context.Context, subject string, e audit.Event) {
+	if s.reads.SeenRecently(ctx, string(e.Action)+":"+subject, time.Now()) {
 		audit.Skip(ctx)
 		return
 	}

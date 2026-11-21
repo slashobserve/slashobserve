@@ -2117,7 +2117,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List the agent requests of a dashboard, newest first, including the new-dashboard request that created it. */
+        /**
+         * List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
+         * @description A list is recorded in the audit trail as one `run.list` with the dashboard as its target and `scope` `dashboard`, once per caller and dashboard in 10 minutes.
+         */
         get: operations["listDashboardRevisions"];
         put?: never;
         /**
@@ -2141,7 +2144,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Read one revision request. */
+        /**
+         * Read one revision request.
+         * @description A read is recorded in the audit trail as `run.view` with the requester's id as `owner_id`, once per reader and request in 10 minutes.
+         */
         get: operations["getDashboardRevision"];
         put?: never;
         post?: never;
@@ -2185,7 +2191,7 @@ export interface paths {
         };
         /**
          * Read one panel suggestion.
-         * @description Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404. `panel` is set only when the status is `succeeded` and `error` only when it is `failed`. Poll every second until the status is `succeeded` or `failed`; suggestions send no events.
+         * @description Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404. `panel` is set only when the status is `succeeded` and `error` only when it is `failed`. Poll every second until the status is `succeeded` or `failed`; suggestions send no events. A read is recorded in the audit trail as `run.view`, once per reader and suggestion in 10 minutes.
          */
         get: operations["getPanelSuggestion"];
         put?: never;
@@ -2225,7 +2231,7 @@ export interface paths {
         };
         /**
          * List agent requests, newest first: the caller's own, or everyone's for an Admin.
-         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. A `scope=all` list is recorded as `run.list` once per caller in 10 minutes.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. Every list is recorded in the audit trail as one `run.list` with `scope` (`mine` or `all`) in its data, never one event per request, once per caller and scope in 10 minutes.
          */
         get: operations["listObserveRequests"];
         put?: never;
@@ -2249,7 +2255,7 @@ export interface paths {
         };
         /**
          * List your chats, pinned ones first and then the one most recently asked in, or everyone's for an Admin.
-         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. Your own chats come pinned first, each group ordered by its last turn, newest first, and `next_cursor` keeps that order across pages; everyone's chats are ordered by their last turn only. A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+         * @description A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it. With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403. `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin. Your own chats come pinned first, each group ordered by its last turn, newest first, and `next_cursor` keeps that order across pages; everyone's chats are ordered by their last turn only. Every list is recorded in the audit trail as one `chat.list` with `scope` (`mine` or `all`) in its data, never one event per chat, once per caller and scope in 10 minutes. `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively. Archived chats are left out. `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
          */
         get: operations["listChats"];
         put?: never;
@@ -2271,7 +2277,7 @@ export interface paths {
         };
         /**
          * Read one of your chats, or as an Admin anyone's, with every turn, oldest first.
-         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. A read of someone else's chat is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`, once per reader and chat in 10 minutes; a refused read is recorded every time, and the owner's own reads are not recorded.
+         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. Every read of a chat, its owner's included, is recorded in the audit trail as one `chat.view` with the chat as its target and the owner's id as `owner_id`, never one event per turn, once per reader and chat in 10 minutes; a refused read is recorded every time.
          */
         get: operations["getChat"];
         put?: never;
@@ -2297,7 +2303,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. A read of someone else's request is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build and `get_run`; a refused read is recorded every time, and the requester's own reads are not recorded. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
+         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. Every read of a request, its requester's included, is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build, `get_run`, a dashboard revision, a suggestion and an unsaved answer under `GET /findings/{id}`; a refused read is recorded every time. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -2549,7 +2555,7 @@ export interface paths {
         /**
          * Read one finding.
          * @deprecated
-         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description A finding follows the folder of its observation: anyone who can view that folder may read it, on a dashboard or not. `folder` is that folder and `permissions` what the caller may do with the finding. A finding the caller cannot read gives 404, never 403. The answer to a plain question has no observation until its requester saves it: only the requester and an Admin read it, on a dashboard only while they can view that dashboard, `folder` is null and `permissions` allow viewing only. A read of such an answer is recorded in the audit trail as `run.view` of its request, once per reader and request in 10 minutes. The `Link` header names the observation as the `successor-version`, and is absent while there is none. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         get: operations["getFinding"];
         put?: never;
