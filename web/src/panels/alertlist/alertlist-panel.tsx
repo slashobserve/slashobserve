@@ -3,7 +3,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
 
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import type { Size } from "../anchors"
-import { visibleBand } from "../list-anchors"
+import { scrollWithin, visibleBand } from "../list-anchors"
 import { thresholdColor, thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import type { AlertAnchorLayout } from "./anchors"
@@ -153,10 +153,11 @@ const AlertlistPanel: PanelRenderer = ({
   const publish = useAnchorPublisher("alertlist")
   const reveal = useCallback(
     (key: string) => {
-      const index = model.alerts.findIndex((alert) => alert.key === key)
-      listRef.current?.children
-        .item(index)
-        ?.scrollIntoView?.({ block: "nearest" })
+      const list = listRef.current
+      const row = list?.children.item(
+        model.alerts.findIndex((alert) => alert.key === key)
+      )
+      if (list && row) scrollWithin(list, row)
     },
     [model.alerts]
   )

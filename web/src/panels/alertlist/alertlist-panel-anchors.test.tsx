@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { panelOf, renderPublishing } from "../anchor-harness"
+import { panelOf, renderPublishing, stubRects } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
+import { locate } from "./anchors"
 import type { AlertAnchorLayout } from "./anchors"
 import { alertModel } from "./alert-model"
 import AlertlistPanel from "./alertlist-panel"
@@ -28,6 +29,31 @@ const frames = [
   alert("HighErrorRate", "firing", { service: "checkout" }),
   alert("SlowRequests", "pending", { service: "search" }),
 ]
+
+const many = Array.from({ length: 5 }, (_, index) =>
+  alert(`Alert${index}`, "firing")
+)
+
+function stubList() {
+  stubRects((element) => {
+    if (element.tagName === "UL") {
+      return { x: 0, y: 0, width: 400, height: 100 }
+    }
+    const list = element.parentElement
+    if (element.tagName !== "LI" || list?.tagName !== "UL") return undefined
+    return {
+      x: 0,
+      y: Array.from(list.children).indexOf(element) * 50 - list.scrollTop,
+      width: 400,
+      height: 50,
+    }
+  })
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView")
+})
 
 describe("alert list anchors", () => {
   it("publishes a row for each alert it drew", () => {
@@ -66,20 +92,51 @@ describe("alert list anchors", () => {
     expect(store.current()).toBeNull()
   })
 
-  it("publishes a reveal that scrolls the alert's row into view", () => {
-    const scroll = vi.fn()
-    Element.prototype.scrollIntoView = scroll
+  it("culls rows scrolled out of the list into elsewhere", () => {
+    stubList()
+    const { store } = renderPublishing(
+      AlertlistPanel,
+      panelOf("alertlist"),
+      many
+    )
+    const layout = store.current()?.layout as AlertAnchorLayout
+    expect(layout.rows.map(({ alert }) => alert.name)).toEqual([
+      "Alert0",
+      "Alert1",
+    ])
+    expect(layout.rows[1].rect).toEqual({
+      x: 0,
+      y: 50,
+      width: 400,
+      height: 50,
+    })
+    expect(layout.elsewhere?.map(({ name }) => name)).toEqual([
+      "Alert2",
+      "Alert3",
+      "Alert4",
+    ])
+    expect(
+      locate(layout, {
+        kind: "row",
+        pos: { x: 0, y: 0 },
+        row: { alertname: "Alert4" },
+      })
+    ).toEqual({ x: 0, y: 238, width: 400, height: 2 })
+  })
+
+  it("scrolls the list itself to a hidden row and never the page", () => {
+    stubList()
+    const page = vi.fn()
+    Element.prototype.scrollIntoView = page
     const { store, view } = renderPublishing(
       AlertlistPanel,
       panelOf("alertlist"),
-      frames
+      many
     )
-    const second = alertModel(frames, {}, now).alerts[1]
     const layout = store.current()?.layout as AlertAnchorLayout
-    layout.reveal?.(second.key)
-    expect(scroll).toHaveBeenCalledTimes(1)
-    expect(scroll.mock.contexts[0]).toBe(
-      view.container.querySelectorAll("li")[1]
-    )
+    const hidden = alertModel(many, {}, now).alerts[4]
+    layout.reveal?.(hidden.key)
+    expect(view.container.querySelector("ul")?.scrollTop).toBe(150)
+    expect(page).not.toHaveBeenCalled()
   })
 })

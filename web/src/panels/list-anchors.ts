@@ -27,3 +27,12 @@ export function revealKey(
   reveal(key)
   return true
 }
+
+export function scrollWithin(scroller: Element, row: Element): void {
+  const view = scroller.getBoundingClientRect()
+  const box = row.getBoundingClientRect()
+  if (box.top < view.top) scroller.scrollTop += box.top - view.top
+  else if (box.bottom > view.bottom) {
+    scroller.scrollTop += box.bottom - view.bottom
+  }
+}
