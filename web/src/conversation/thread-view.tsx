@@ -30,13 +30,13 @@ import {
 import type { Finding } from "@/findings/queries"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
-import {
-  observeRequestQuery,
-  sentence,
-  type ObserveRequest,
-} from "@/observe/queries"
+import { observeRequestQuery, type ObserveRequest } from "@/observe/queries"
 
-import { AnswerCard, type RevisionAsked } from "./answer-card"
+import {
+  AnswerCard,
+  reviseFailureText,
+  type RevisionAsked,
+} from "./answer-card"
 import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
 import { planRevise, subjectOf } from "./send-plan"
 import {
@@ -164,11 +164,7 @@ function RunAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(
-        error instanceof Error && error.message !== ""
-          ? sentence(error.message)
-          : "The change could not be asked for. Try again."
-      )
+      toast.error(reviseFailureText(error))
       return false
     }
   }
@@ -187,6 +183,7 @@ function RunAnswer({
                 gate,
                 entry.thread.agent?.kind === "builtin"
               ),
+              dashboardId: subject.id,
             }
           : undefined
       }

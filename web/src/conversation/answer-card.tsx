@@ -16,6 +16,7 @@ import {
 import { plainTitle } from "@/comments/plain-title"
 import { ApiError } from "@/api/errors"
 import { useThreads } from "@/comments/thread-queries"
+import { starterNote, useLatestChange } from "@/dashboards/permissions"
 import { EvidencePanel } from "@/findings/evidence-panel"
 import { MakeDashboardAction, PinAction } from "@/findings/finding-actions"
 import { evidencePanels, type Finding } from "@/findings/queries"
@@ -48,6 +49,15 @@ type AnswerMenu = {
 
 export type RevisionAsked = boolean
 
+export function reviseFailureText(error: unknown): string {
+  if (error instanceof ApiError && error.code === "provisioned") {
+    return starterNote
+  }
+  return error instanceof Error && error.message !== ""
+    ? sentence(error.message)
+    : "The change could not be asked for. Try again."
+}
+
 type Props = {
   finding: Finding
   requestId: string
@@ -56,6 +66,7 @@ type Props = {
     onRevise: () => Promise<RevisionAsked>
     pending: boolean
     blocked: string | null
+    dashboardId: string
   }
   menu?: AnswerMenu
   chatId?: string
@@ -357,7 +368,11 @@ export function AnswerCard({
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const blockedId = useId()
-  const blocked = revise?.blocked ?? null
+  const latest = useLatestChange(revise?.dashboardId ?? null)
+  const refused = latest?.content === "none"
+  const offered = refused ? undefined : revise
+  const starter = revise !== undefined && refused && latest.provisioned
+  const blocked = offered?.blocked ?? null
   const change = finding.suggested_change
   const observationId = finding.observation_id
   const promoted =
@@ -394,16 +409,16 @@ export function AnswerCard({
             )}
           </Button>
         )}
-        {change === null || revise === undefined ? null : (
+        {change === null || offered === undefined ? null : (
           <Button
             type="button"
             size="sm"
-            disabled={revise.pending || revisionAsked || blocked !== null}
+            disabled={offered.pending || revisionAsked || blocked !== null}
             focusableWhenDisabled
-            aria-busy={revise.pending}
+            aria-busy={offered.pending}
             aria-describedby={blocked === null ? undefined : blockedId}
             onClick={() =>
-              void revise.onRevise().then((asked) => {
+              void offered.onRevise().then((asked) => {
                 if (asked) markAsked(finding.id)
               })
             }
@@ -432,16 +447,19 @@ export function AnswerCard({
           />
         )}
       </div>
-      {revise === undefined || change === null ? null : (
+      {offered === undefined || change === null ? null : (
         <span role="status" className="sr-only">
           {revisionAsked ? "The revision was asked for." : ""}
         </span>
       )}
-      {blocked === null || revise === undefined || change === null ? null : (
+      {blocked === null || offered === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}
         </p>
       )}
+      {starter && change !== null ? (
+        <p className="text-xs text-muted-foreground">{starterNote}</p>
+      ) : null}
       {unfolded ? (
         <div id={evidenceId} className="flex flex-col gap-2.5">
           <div className="@container">

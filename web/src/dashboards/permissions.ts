@@ -34,6 +34,9 @@ export function mayEditBesidesContent(
   return p.edit || provisioned
 }
 
+export const starterNote =
+  "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it from the dashboard menu to get a copy you can change."
+
 export type ComposerMode = "full" | "comment-only" | "provisioned" | "read-only"
 
 export function composerMode(
@@ -56,7 +59,7 @@ export function readerNote(
     case "comment-only":
       return `You can view and comment in ${folderTitle}. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges.`
     case "provisioned":
-      return "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it from the dashboard menu to get a copy you can change."
+      return starterNote
     case "read-only":
       return `You can view dashboards in ${folderTitle}. To comment, ask the people who manage this folder for Comment access.`
   }
@@ -92,6 +95,21 @@ export function useLatestProvisioned(dashboardId: string): boolean {
       select: selectProvisioned,
     }).data ?? false
   )
+}
+
+function selectChange(envelope: DashboardEnvelope) {
+  const { permissions, provisioned } = envelope.dashboard
+  return { content: contentChange(permissions, provisioned), provisioned }
+}
+
+export function useLatestChange(dashboardId: string | null) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId ?? ""),
+    enabled: dashboardId !== null,
+    staleTime: Infinity,
+    select: selectChange,
+  }).data
 }
 
 export function useLatestPermissions(

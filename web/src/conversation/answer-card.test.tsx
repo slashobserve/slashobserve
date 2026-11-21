@@ -1,12 +1,19 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
-import { observeKeys, threadKeys } from "@/api/keys"
+import { dashboardKeys, observeKeys, threadKeys } from "@/api/keys"
+import { ApiError } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
+import { starterNote } from "@/dashboards/permissions"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { AnswerCard, evidenceChipText, threadLabel } from "./answer-card"
+import {
+  AnswerCard,
+  evidenceChipText,
+  reviseFailureText,
+  threadLabel,
+} from "./answer-card"
 
 vi.mock("@/findings/evidence-panel", () => ({
   EvidencePanel: ({ panel }: { panel: { title: string } }) => (
@@ -127,8 +134,20 @@ async function sent(fetch: ReturnType<typeof stubFetch>, call = 0) {
   }
 }
 
-function renderCard(props: Partial<Parameters<typeof AnswerCard>[0]> = {}) {
+type LatestDashboard = {
+  permissions: { comment: boolean; edit: boolean }
+  provisioned: boolean
+}
+
+function renderCard(
+  props: Partial<Parameters<typeof AnswerCard>[0]> = {},
+  latest: LatestDashboard = {
+    permissions: { comment: true, edit: true },
+    provisioned: false,
+  }
+) {
   const queryClient = testQueryClient()
+  queryClient.setQueryData(dashboardKeys.latest("d1"), { dashboard: latest })
   queryClient.setQueryData(threadKeys.list("dashboard:d1"), {
     pages: [
       {
@@ -183,6 +202,26 @@ describe("threadLabel", () => {
   })
 })
 
+describe("reviseFailureText", () => {
+  it("names a starter dashboard when the server refuses the change as provisioned", () => {
+    expect(
+      reviseFailureText(
+        new ApiError(409, "provisioned", "dashboard is provisioned")
+      )
+    ).toBe(starterNote)
+  })
+
+  it.each([
+    [
+      new ApiError(429, "too_many_revisions", "too many revisions"),
+      "Too many revisions.",
+    ],
+    [new Error(""), "The change could not be asked for. Try again."],
+  ])("words any other refusal from its message", (error, text) => {
+    expect(reviseFailureText(error)).toBe(text)
+  })
+})
+
 describe("AnswerCard", () => {
   beforeAll(() => import("@/findings/finding-markdown"))
 
@@ -210,7 +249,7 @@ describe("AnswerCard", () => {
     const onRevise = vi.fn(async () => false)
     const { user } = renderCard({
       finding: finding({ suggested_change: "Add a p99 latency panel" }),
-      revise: { onRevise, pending: false, blocked: null },
+      revise: { onRevise, pending: false, blocked: null, dashboardId: "d1" },
     })
     expect(
       await screen.findByText("Suggested change: Add a p99 latency panel")
@@ -228,6 +267,7 @@ describe("AnswerCard", () => {
         onRevise: vi.fn(async () => true),
         pending: false,
         blocked: null,
+        dashboardId: "d1",
       },
     })
     const button = await screen.findByRole("button", {
@@ -244,12 +284,65 @@ describe("AnswerCard", () => {
     )
   })
 
+  it("offers Revise the dashboard once the latest dashboard says the reader may change it", async () => {
+    renderCard(
+      {
+        finding: finding({ suggested_change: "Add a p99 latency panel" }),
+        revise: {
+          onRevise: vi.fn(async () => false),
+          pending: false,
+          blocked: null,
+          dashboardId: "d1",
+        },
+      },
+      { permissions: { comment: true, edit: false }, provisioned: false }
+    )
+    expect(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    ).toBeVisible()
+    expect(screen.queryByText(starterNote)).toBeNull()
+  })
+
+  it.each([
+    ["a starter dashboard", { comment: true, edit: true }, true, true],
+    [
+      "a dashboard the reader can no longer comment on",
+      { comment: false, edit: false },
+      false,
+      false,
+    ],
+  ])(
+    "keeps the suggested change but offers no Revise on %s",
+    async (_name, permissions, provisioned, noted) => {
+      renderCard(
+        {
+          finding: finding({ suggested_change: "Add a p99 latency panel" }),
+          revise: {
+            onRevise: vi.fn(async () => false),
+            pending: false,
+            blocked: null,
+            dashboardId: "d1",
+          },
+        },
+        { permissions, provisioned }
+      )
+      expect(
+        await screen.findByText("Suggested change: Add a p99 latency panel")
+      ).toBeVisible()
+      expect(
+        screen.queryByRole("button", { name: "Revise the dashboard" })
+      ).toBeNull()
+      expect(screen.queryByText(starterNote) !== null).toBe(noted)
+    }
+  )
+
   it("shows a suggested change to a reader who cannot revise, without the button", async () => {
     const view = renderCard({
       revise: {
         onRevise: vi.fn(async () => false),
         pending: false,
         blocked: null,
+        dashboardId: "d1",
       },
     })
     await screen.findByText("doubled")
