@@ -294,7 +294,7 @@ func TestEveryReadOfARunOrAChatIsRecordedWithItsOwner(t *testing.T) {
 				t.Fatalf("%s listed %s with %d: %s", who.Name, path, rec.Code, rec.Body)
 			}
 		}
-		toolCtx := audit.Open(auth.WithPrincipal(t.Context(), who), audit.Scope{Actor: auth.AuditActor(who)})
+		toolCtx := audit.Open(auth.WithPrincipal(t.Context(), who), audit.Scope{Actor: auth.AuditActor(who), Initiator: audit.InitiatorPerson, Origin: audit.Origin{Kind: "mcp"}})
 		calls := [][2]string{{"get_chat", `{"id":"` + chat + `"}`}, {"get_run", `{"id":"` + run + `"}`}, {"get_run_build", `{"id":"` + run + `"}`}, {"list_chats", `{}`}, {"list_runs", `{}`}}
 		if who.Role.AtLeast(auth.RoleAdmin) {
 			calls = append(calls, [2]string{"list_chats", `{"scope":"all"}`}, [2]string{"list_runs", `{"scope":"all"}`})
