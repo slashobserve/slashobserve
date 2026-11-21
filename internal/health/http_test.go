@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,14 +23,17 @@ import (
 	"github.com/slashobserve/slashobserve/api/apitest"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/scheduler"
 )
 
 type fakeJobs struct {
 	mu    sync.Mutex
 	names []string
 	by    []*audit.By
+	err   error
 }
 
 func (f *fakeJobs) RunNow(_ context.Context, name string, by *audit.By) error {
@@ -36,7 +41,7 @@ func (f *fakeJobs) RunNow(_ context.Context, name string, by *audit.By) error {
 	defer f.mu.Unlock()
 	f.names = append(f.names, name)
 	f.by = append(f.by, by)
-	return nil
+	return f.err
 }
 
 func serve(t *testing.T, svc *health.Service, repairs *health.Repairs, jobs health.Jobs, by auth.Principal, method, path, body string) *httptest.ResponseRecorder {
@@ -293,5 +298,45 @@ func TestAHealthRunStartedByAPersonCarriesThatPersonToTheJobAndAnUnscopedOneCarr
 	}
 	if named != 1 || anonymous != 1 {
 		t.Errorf("jobs were started by %+v, want one by the person and one by nobody", jobs.by)
+	}
+}
+
+func TestAHealthRunThatDoesNotStartRecordsTheCallerAndWhy(t *testing.T) {
+	cases := []struct {
+		name        string
+		err         error
+		wantOutcome string
+		wantReason  string
+	}{
+		{"already running", scheduler.ErrJobLeased, "denied", "already_running"},
+		{"claim failed", errors.New("database is down"), "failed", "start_failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			audit.Install(audit.New(audit.Config{DB: r.db.DB}))
+			t.Cleanup(func() { audit.Install(nil) })
+			h := health.NewHandler(t.Context(), r.svc, r.repairs, &fakeJobs{err: tc.err})
+			person := uuid.New()
+			scoped := audit.Open(t.Context(), audit.Scope{
+				Actor:     audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada", Role: "admin"},
+				Initiator: audit.InitiatorPerson,
+				Origin:    audit.Origin{Kind: audit.OriginAPI},
+			})
+			h.StartRun(scoped)
+			h.Wait()
+
+			got := r.db.AuditEvents(t, "job.run")
+			if len(got) != 1 {
+				t.Fatalf("events %+v, want one", got)
+			}
+			e := got[0]
+			want := dbtest.AuditEvent{Action: "job.run", Outcome: tc.wantOutcome, Reason: tc.wantReason, ActorKind: "user", ActorID: person.String(), Initiator: "person", Origin: "api", TargetKind: "job", TargetID: "dashboard_health"}
+			trigger := e.Data["trigger"]
+			e.Data = nil
+			if fmt.Sprint(e) != fmt.Sprint(want) || trigger != "manual" {
+				t.Errorf("event %+v with trigger %v, want %+v with trigger manual", e, trigger, want)
+			}
+		})
 	}
 }

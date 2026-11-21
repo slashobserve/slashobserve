@@ -127,7 +127,7 @@ health-repairs:
 health-run:
   post:
     operationId: runDashboardHealth
-    x-audit: { none: "the run is asynchronous; the job records job.run when it finishes, as the person who started it" }
+    x-audit: { none: "the run is asynchronous; the job records job.run as the person who started it, and the handler records one when the run does not start; refused callers are recorded as request.refuse" }
     x-surfaces:
       mcp: [run_dashboard_health]
       cli: [observe health run]
