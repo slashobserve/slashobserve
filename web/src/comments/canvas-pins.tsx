@@ -24,7 +24,12 @@ import {
   type AnchorLayoutStore,
 } from "@/panels/anchor-layout"
 
-import { placePin, revealAnchor, type PinPlacement } from "./canvas-target"
+import {
+  placePin,
+  revealAnchor,
+  type PinPlacement,
+  type PinView,
+} from "./canvas-target"
 import { threadParticipants } from "./mentions"
 import { plainTitle } from "./plain-title"
 import {
@@ -49,13 +54,14 @@ export type PanelPin = {
 export function panelPins(
   threads: readonly ThreadWithMessages[],
   panelId: string,
-  place: (anchor: Anchor) => PinPlacement
+  place: (anchor: Anchor) => PinPlacement | null
 ): PanelPin[] {
   return threads.flatMap((entry) => {
     const { anchor, panel_id: onPanel } = entry.thread
     if (anchor === null || onPanel !== panelId) return []
     if (entry.messages.length === 0) return []
-    return [{ entry, anchor, placement: place(anchor) }]
+    const placement = place(anchor)
+    return placement === null ? [] : [{ entry, anchor, placement }]
   })
 }
 
@@ -361,7 +367,7 @@ type Props = {
   panelTitle: string
   store: AnchorLayoutStore
   body: Size
-  dataShown: boolean
+  view: PinView
   gateInput: GateInput
 }
 
@@ -371,7 +377,7 @@ export function CanvasPins({
   panelTitle,
   store,
   body,
-  dataShown,
+  view,
   gateInput,
 }: Props) {
   const { threads } = useThreads(`dashboard:${dashboardId}`)
@@ -381,10 +387,10 @@ export function CanvasPins({
     () =>
       stackPins(
         panelPins(threads, panelId, (anchor) =>
-          placePin(anchor, body, { module, published }, dataShown)
+          placePin(anchor, body, { module, published }, view)
         )
       ),
-    [threads, panelId, body, module, published, dataShown]
+    [threads, panelId, body, module, published, view]
   )
   const onOpen = (anchor: Anchor) => {
     revealAnchor({ module, published }, anchor)

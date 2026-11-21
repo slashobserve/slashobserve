@@ -27,6 +27,7 @@ export type TimeseriesAnchorLayout = {
   xMax: number
   xs: readonly number[]
   series: readonly AnchorSeries[]
+  hidden?: readonly Record<string, string>[]
 }
 
 export const pointRadius = 12
@@ -267,4 +268,32 @@ export function locate(
     default:
       return null
   }
+}
+
+function namesHidden(layout: TimeseriesAnchorLayout, anchor: Anchor): boolean {
+  return (layout.hidden ?? []).some((labels) =>
+    namesLabels(anchor.series, labels)
+  )
+}
+
+function outsideShownTime(
+  layout: TimeseriesAnchorLayout,
+  anchor: Anchor
+): boolean {
+  switch (anchor.kind) {
+    case "point":
+    case "time":
+      return !inWindow(layout, secondsOf(anchor.from))
+    case "range":
+      return (
+        secondsOf(anchor.to) < layout.xMin ||
+        secondsOf(anchor.from) > layout.xMax
+      )
+    default:
+      return false
+  }
+}
+
+export function hides(layout: TimeseriesAnchorLayout, anchor: Anchor): boolean {
+  return namesHidden(layout, anchor) || outsideShownTime(layout, anchor)
 }

@@ -92,7 +92,7 @@ function renderPins() {
         panelTitle="Latency"
         store={createAnchorLayoutStore()}
         body={{ width: 400, height: 200 }}
-        dataShown
+        view="data"
         gateInput={ungated}
       />
     </div>,

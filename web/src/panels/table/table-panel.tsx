@@ -63,6 +63,7 @@ import { LinksCell } from "./cells/links"
 import { MarkdownCell } from "./cells/markdown"
 import { PillCell } from "./cells/pill"
 import { SparklineCell } from "./cells/sparkline"
+import { useRowReveal } from "./row-reveal"
 import { TextCell } from "./cells/text"
 import {
   clearFilter,
@@ -858,13 +859,11 @@ const TablePanel: PanelRenderer = ({
       ),
     [paginate, sorted, rows, views, fields]
   )
-  const revealing = useRef<string | null>(null)
-  const [, setRevealed] = useState(0)
+  const revealRow = useRowReveal(regionRef, paginate ? sorted : rows)
   const reveal = useCallback(
     (key: string) => {
       const region = regionRef.current
       if (region === null) return
-      revealing.current = key
       const index = rows.findIndex((row) => row.key === key)
       if (index < 0) {
         const at = sorted.findIndex((row) => row.key === key)
@@ -873,7 +872,7 @@ const TablePanel: PanelRenderer = ({
         const height = measuredRowHeight ?? rowHeightPx(rowHeight)
         region.scrollTop = Math.max(0, index * height - region.clientHeight / 2)
       }
-      setRevealed((count) => count + 1)
+      revealRow(key)
     },
     [
       regionRef,
@@ -884,19 +883,9 @@ const TablePanel: PanelRenderer = ({
       windowed,
       measuredRowHeight,
       rowHeight,
+      revealRow,
     ]
   )
-  useLayoutEffect(() => {
-    const key = revealing.current
-    const region = regionRef.current
-    if (key === null || region === null) return
-    const row = Array.from(
-      region.querySelectorAll<HTMLElement>("[data-row-key]")
-    ).find((element) => element.dataset.rowKey === key)
-    if (row === undefined) return
-    revealing.current = null
-    row.scrollIntoView({ block: "nearest" })
-  })
   const publish = useAnchorPublisher("table")
   useLayoutEffect(() => {
     const region = regionRef.current

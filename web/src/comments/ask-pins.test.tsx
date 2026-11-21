@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useCanvasTool } from "@/dashboards/canvas-tools"
@@ -7,6 +7,7 @@ import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders } from "@/test/render"
 
 import { AskPins } from "./ask-pins"
+import type { PinView } from "./canvas-target"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -46,7 +47,7 @@ function stubRequests(requests: Record<string, unknown>[]) {
   return listed
 }
 
-function renderPins() {
+function renderPins(view: PinView = "data") {
   return renderWithProviders(
     <AskPins
       dashboardId="d1"
@@ -55,7 +56,7 @@ function renderPins() {
       surfaceId="s1"
       store={createAnchorLayoutStore()}
       body={{ width: 400, height: 200 }}
-      dataShown
+      view={view}
     />,
     { route: { path: "/", url: "/" } }
   )
@@ -122,5 +123,12 @@ describe("AskPins", () => {
       requestId: "r2",
       chatId: "c2",
     })
+  })
+
+  it("draws no pin while the panel is not showing its data", async () => {
+    const listed = stubRequests([summary({ id: "r1" })])
+    renderPins("hidden")
+    await waitFor(() => expect(listed).toHaveLength(1))
+    expect(screen.queryByRole("button")).toBeNull()
   })
 })

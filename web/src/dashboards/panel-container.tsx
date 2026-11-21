@@ -23,6 +23,7 @@ import {
 import { AskPins } from "@/comments/ask-pins"
 import { AskPopover, useOpenChat } from "@/comments/ask-popover"
 import { CanvasPins } from "@/comments/canvas-pins"
+import { pinView } from "@/comments/canvas-target"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { PanelHealthBadge } from "@/health/panel-health-badge"
@@ -632,7 +633,7 @@ export const PanelContainer = memo(function PanelContainer({
                 panelTitle={panelName}
                 store={layoutStore}
                 body={body}
-                dataShown={state !== "empty"}
+                view={pinView(state, tableView)}
                 gateInput={gateInput}
               />
             ) : null}
@@ -644,7 +645,7 @@ export const PanelContainer = memo(function PanelContainer({
                 surfaceId={surfaceId}
                 store={layoutStore}
                 body={body}
-                dataShown={state !== "empty"}
+                view={pinView(state, tableView)}
               />
             ) : null}
           </div>

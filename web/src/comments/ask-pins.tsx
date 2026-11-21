@@ -19,6 +19,7 @@ import {
   revealAnchor,
   type CanvasSurface,
   type PinPlacement,
+  type PinView,
 } from "./canvas-target"
 import {
   markerClass,
@@ -143,7 +144,7 @@ type Props = {
   surfaceId: string
   store: AnchorLayoutStore
   body: Size
-  dataShown: boolean
+  view: PinView
 }
 
 export function AskPins({
@@ -153,7 +154,7 @@ export function AskPins({
   surfaceId,
   store,
   body,
-  dataShown,
+  view,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const { requests } = useMyRequests(
@@ -166,12 +167,12 @@ export function AskPins({
   const stacks = useMemo(
     () =>
       stackPins(
-        privatePins(requests, panelId, principal.id).map((pin) => ({
-          pin,
-          placement: placePin(pin.anchor, body, surface, dataShown),
-        }))
+        privatePins(requests, panelId, principal.id).flatMap((pin) => {
+          const placement = placePin(pin.anchor, body, surface, view)
+          return placement === null ? [] : [{ pin, placement }]
+        })
       ),
-    [requests, panelId, principal.id, body, surface, dataShown]
+    [requests, panelId, principal.id, body, surface, view]
   )
   if (stacks.length === 0) return null
   const spot: Spot = { panelId, panelTitle, surfaceId, surface }

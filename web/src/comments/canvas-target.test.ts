@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import type { Anchor, AnchorsModule, Point, Rect } from "@/panels/anchors"
+import * as timeseries from "@/panels/timeseries/anchors"
+import type { TimeseriesAnchorLayout } from "@/panels/timeseries/anchors"
 
 import {
   dragAnchor,
   minDrag,
   outlineOf,
+  pinView,
   placePin,
   pointerAnchor,
   revealAnchor,
@@ -91,12 +94,12 @@ describe("outlineOf", () => {
 describe("placePin", () => {
   it("keeps the stored spot when it is inside the located target", () => {
     expect(
-      placePin({ ...onBar, pos: { x: 0.3, y: 0.5 } }, body, surface({}), true)
+      placePin({ ...onBar, pos: { x: 0.3, y: 0.5 } }, body, surface({}), "data")
     ).toEqual({ at: { x: 120, y: 100 }, gone: false })
   })
 
   it("moves the pin onto the target when the data moved", () => {
-    expect(placePin(onBar, body, surface({}), true)).toEqual({
+    expect(placePin(onBar, body, surface({}), "data")).toEqual({
       at: { x: 120, y: 40 },
       gone: false,
     })
@@ -104,16 +107,16 @@ describe("placePin", () => {
 
   it("falls back to the stored spot when the data is gone", () => {
     expect(
-      placePin({ ...onBar, category: "search" }, body, surface({}), true)
+      placePin({ ...onBar, category: "search" }, body, surface({}), "data")
     ).toEqual({ at: { x: 120, y: 20 }, gone: true })
-    expect(placePin(onBar, body, surface({}), false)).toEqual({
+    expect(placePin(onBar, body, surface({}), "empty")).toEqual({
       at: { x: 120, y: 20 },
       gone: true,
     })
   })
 
   it("trusts the stored spot when the panel cannot locate anchors", () => {
-    expect(placePin(onBar, body, blank, true)).toEqual({
+    expect(placePin(onBar, body, blank, "data")).toEqual({
       at: { x: 120, y: 20 },
       gone: false,
     })
@@ -122,9 +125,109 @@ describe("placePin", () => {
   it("never calls a spot or a title gone", () => {
     for (const kind of ["position", "title"] as const) {
       expect(
-        placePin({ kind, pos: { x: 0.5, y: 0.5 } }, body, surface({}), false)
+        placePin({ kind, pos: { x: 0.5, y: 0.5 } }, body, surface({}), "empty")
       ).toEqual({ at: { x: 200, y: 100 }, gone: false })
     }
+  })
+})
+
+describe("placePin on a time chart", () => {
+  const chart: TimeseriesAnchorLayout = {
+    body,
+    plot: { x: 0, y: 0, width: 400, height: 200 },
+    xMin: 1000,
+    xMax: 1400,
+    xs: [1000, 1100, 1200, 1300, 1400],
+    series: [
+      {
+        name: "checkout",
+        labels: { service: "checkout" },
+        ys: [100, 100, 100, 100, 100],
+        values: [1, 1, 1, 1, 1],
+        format: String,
+      },
+    ],
+    hidden: [{ service: "payments" }],
+  }
+  const onChart: CanvasSurface = {
+    module: timeseries as AnchorsModule,
+    published: { type: "timeseries", layout: chart },
+  }
+  const iso = (seconds: number) => new Date(seconds * 1000).toISOString()
+  const pos = { x: 0.5, y: 0.5 }
+
+  it("draws no pin for a moment outside the shown range, rather than calling it gone", () => {
+    for (const anchor of [
+      { kind: "time", pos, from: iso(500) },
+      { kind: "point", pos, from: iso(2000), series: { service: "checkout" } },
+      { kind: "range", pos, from: iso(100), to: iso(900) },
+    ] as Anchor[]) {
+      expect(placePin(anchor, body, onChart, "data")).toBeNull()
+    }
+  })
+
+  it("keeps a range that is partly in view on the plot", () => {
+    expect(
+      placePin(
+        {
+          kind: "range",
+          pos: { x: 0.9, y: 0.5 },
+          from: iso(500),
+          to: iso(1100),
+        },
+        body,
+        onChart,
+        "data"
+      )
+    ).toEqual({ at: { x: 101, y: 100 }, gone: false })
+  })
+
+  it("calls a point gone only when its series no longer exists while its time is in view", () => {
+    expect(
+      placePin(
+        { kind: "point", pos, from: iso(1200), series: { service: "search" } },
+        body,
+        onChart,
+        "data"
+      )
+    ).toEqual({ at: { x: 200, y: 100 }, gone: true })
+  })
+
+  it("draws no pin on a series hidden from the legend", () => {
+    for (const anchor of [
+      { kind: "point", pos, from: iso(1200), series: { service: "payments" } },
+      { kind: "series", pos, series: { service: "payments" } },
+    ] as Anchor[]) {
+      expect(placePin(anchor, body, onChart, "data")).toBeNull()
+    }
+  })
+})
+
+describe("placePin while the panel shows something other than its chart", () => {
+  it("draws only title pins in the error state, while loading and in the table view", () => {
+    expect(placePin(onBar, body, surface({}), "hidden")).toBeNull()
+    expect(
+      placePin(
+        { kind: "position", pos: { x: 0.5, y: 0.5 } },
+        body,
+        blank,
+        "hidden"
+      )
+    ).toBeNull()
+    expect(
+      placePin({ kind: "title", pos: { x: 0.5, y: 0 } }, body, blank, "hidden")
+    ).toEqual({ at: { x: 200, y: 0 }, gone: false })
+  })
+})
+
+describe("pinView", () => {
+  it("shows data pins only while the panel draws its own data", () => {
+    expect(pinView("ready", false)).toBe("data")
+    expect(pinView("empty", false)).toBe("empty")
+    for (const state of ["error", "loading", "unsupported"] as const) {
+      expect(pinView(state, false)).toBe("hidden")
+    }
+    expect(pinView("ready", true)).toBe("hidden")
   })
 })
 

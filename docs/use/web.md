@@ -201,7 +201,9 @@ The composer closes when you post, press `Esc` or click outside it, and Comment 
 A thread on a part of a panel shows as a pin with its author's mark at the spot it names.
 A pin follows its data: when the series, bar or row moves, the pin moves with it.
 A resolved thread's pin is grey.
-When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
+A pin on a moment, a point or a range outside the shown time range is not drawn until the range shows it again, and a range partly in view keeps its pin on the part that shows.
+A pin on a series hidden in the legend is not drawn either, and while the panel shows an error, is loading or is in its table view only pins on its title are drawn.
+When the series, row or cell is no longer on the panel while its time is in view, for example after a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
 A table row that is on the panel but scrolled out of view, or on another page of the table, points at the bottom edge of the table, and opening its pin scrolls or pages the table to that row.
 
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
