@@ -16,7 +16,13 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { AudienceBadge } from "./audience-badge"
 import { RemoveDatasourceButton } from "./remove-datasource"
 
-import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
+import {
+  exploreTargets,
+  sourceLabel,
+  statusOf,
+  typeLabel,
+  usageLabel,
+} from "./format"
 import {
   datasourcesQuery,
   useRecheckDatasource,
@@ -128,9 +134,7 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
                 <div className="flex flex-col">
                   <span>{typeLabel(datasource.type)}</span>
                   <span className="text-xs text-muted-foreground">
-                    {datasource.source === "file"
-                      ? "From file"
-                      : "Added in the app"}
+                    {sourceLabel(datasource.source)}
                   </span>
                 </div>
               </Cell>

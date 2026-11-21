@@ -3,8 +3,10 @@ title: Comments, agent requests and versions
 description: Review a dashboard with comments, send changes to the agent, and compare or restore saved versions.
 ---
 
-Every dashboard keeps its comments, the requests people sent to the agent and its saved versions in one place, the **Activity** card.
-Choose **Activity** at the top right of a dashboard to open it; the button shows the number of open comments.
+Every dashboard keeps its comments, the requests people sent to the agent and its saved versions in one place, the **Activity** tab of its side panel.
+Choose **Activity** at the top right of a dashboard to open the side panel; the button shows the number of open comments.
+The side panel has two tabs, **Chat** and **Activity**, and the address keeps the open one as `tab=chat` or `tab=activity`.
+The Chat tab is described in [Chat with the agent](chat.md#in-the-dashboards-chat-tab).
 
 Versions are immutable and linear.
 Each save adds the next version number, and nothing edits or deletes an earlier one.
@@ -14,8 +16,7 @@ Anyone with the dashboard open sees a toast saying that it was deleted.
 
 ## The activity timeline
 
-The card is headed "Activity" with the description "Comments, agent requests, proposals, annotations and saved versions."
-Without a model on the server it reads "Comments, proposals, annotations and saved versions."
+The Activity tab holds comments, agent requests, proposals, annotations and saved versions.
 Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
 They come in six kinds:
 
@@ -191,6 +192,7 @@ Resolving and replying need the same access as commenting.
 The version button in the dashboard's top row reads "Live · v3" when you are on the latest version and "v2 of 3" when you have pinned an older one.
 "Live" becomes "Connecting" or "Reconnecting" while the page has no connection for live updates.
 A dashboard in a background tab lets go of that connection after 15 seconds and catches up with what changed when you return to it.
+When someone moves the dashboard into a folder you cannot open, the page shows "Dashboard not found" as soon as that connection ends.
 Choose it to see the five newest versions, each with its number, summary, author and time, and "Latest" on the newest.
 Picking one pins it in the page address as `version=2`, so a link shares exactly that version.
 

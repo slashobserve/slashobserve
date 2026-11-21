@@ -3,6 +3,7 @@ package revisions_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -381,4 +382,99 @@ func TestAKindTellsAnAskFromARevise(t *testing.T) {
 			t.Errorf("an ask about nothing = %+v, want a Home turn that may build", home.AgentRequest)
 		}
 	}
+}
+
+func chatIDs(chats []revisions.Chat) []pgtype.UUID {
+	ids := make([]pgtype.UUID, len(chats))
+	for i, c := range chats {
+		ids[i] = c.ID
+	}
+	return ids
+}
+
+func pageThrough(t *testing.T, svc *revisions.Service, by auth.Principal, f revisions.ChatFilter) []pgtype.UUID {
+	t.Helper()
+	var ids []pgtype.UUID
+	cursor := ""
+	for range 10 {
+		page, next, err := svc.Chats(context.Background(), by, f, 1, cursor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, chatIDs(page)...)
+		if next == "" {
+			return ids
+		}
+		cursor = next
+	}
+	t.Fatalf("paging did not end: %v", ids)
+	return nil
+}
+
+func TestYourPinnedChatsComeFirstOnEveryPageAndEveryonesAreByLastTurn(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
+	ctx := context.Background()
+	oldest := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("oldest")})
+	middle := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("middle")})
+	newest := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("newest")})
+	pinned := true
+	if _, err := svc.UpdateListFields(ctx, oldest, user, nil, false, &pinned); err != nil {
+		t.Fatal(err)
+	}
+
+	mine := pageThrough(t, svc, user, revisions.ChatFilter{})
+	if want := []pgtype.UUID{oldest, newest, middle}; !slices.Equal(mine, want) {
+		t.Fatalf("your chats page by page = %v, want the pinned one first, then by last turn %v", mine, want)
+	}
+	everyone := pageThrough(t, svc, bea, revisions.ChatFilter{Everyone: true})
+	if want := []pgtype.UUID{newest, middle, oldest}; !slices.Equal(everyone, want) {
+		t.Fatalf("everyone's chats page by page = %v, want them by last turn only %v", everyone, want)
+	}
+}
+
+func TestAChatCarriesItsDashboardTitleOnlyForAReaderWhoSeesTheDashboard(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	shared := seedDashboard(t, d, 1)
+	d.Exec(t, `UPDATE dashboards SET title = 'Checkout health' WHERE id = $1`, shared)
+	private := personalDashboardOf(t, d, user)
+	d.Exec(t, `UPDATE dashboards SET title = 'My scratch board' WHERE id = $1`, private)
+	onShared := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("on shared"), DashboardID: text(shared.String())})
+	onPrivate := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("on private"), DashboardID: text(private.String())})
+	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("about nothing")})
+
+	titles := func(by auth.Principal, f revisions.ChatFilter) map[pgtype.UUID]string {
+		t.Helper()
+		chats, _, err := svc.Chats(ctx, by, f, 10, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[pgtype.UUID]string{}
+		for _, c := range chats {
+			out[c.ID] = "<none>"
+			if c.DashboardTitle != nil {
+				out[c.ID] = *c.DashboardTitle
+			}
+		}
+		return out
+	}
+	ownerSees := titles(user, revisions.ChatFilter{})
+	if ownerSees[chatOfTurnID(t, d, onShared)] != "Checkout health" || ownerSees[chatOfTurnID(t, d, onPrivate)] != "My scratch board" || ownerSees[home] != "<none>" {
+		t.Fatalf("the owner reads titles %v", ownerSees)
+	}
+	adminSees := titles(bea, revisions.ChatFilter{Everyone: true})
+	if adminSees[chatOfTurnID(t, d, onShared)] != "Checkout health" || adminSees[chatOfTurnID(t, d, onPrivate)] != "<none>" {
+		t.Fatalf("an Admin reads titles %v, want none for a dashboard in someone's personal folder", adminSees)
+	}
+	if chat, _, err := svc.Chat(ctx, bea, chatOfTurnID(t, d, onPrivate)); err != nil || chat.DashboardTitle != nil {
+		t.Fatalf("an Admin reads the private chat as %+v, %v; want no dashboard title", chat, err)
+	}
+	if chat, _, err := svc.Chat(ctx, user, chatOfTurnID(t, d, onShared)); err != nil || chat.DashboardTitle == nil || *chat.DashboardTitle != "Checkout health" {
+		t.Fatalf("the owner reads the shared chat as %+v, %v", chat, err)
+	}
+}
+
+func chatOfTurnID(t *testing.T, d *dbtest.Database, turn pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	return mustUUID(t, chatOfTurn(t, d, turn))
 }

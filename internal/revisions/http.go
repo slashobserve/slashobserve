@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -259,33 +260,55 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	if clientgone.Handle(c, s.logger, action, err) {
 		return
 	}
+	reply, known := failureReplyFor(err)
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound), errors.Is(err, ErrChatNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrChatReadOnly):
-		httpapi.AbortError(c, http.StatusForbidden, CodeChatReadOnly, err.Error())
-	case errors.Is(err, ErrForbidden):
-		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
-	case errors.Is(err, ErrUnknownPanel):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
-	case errors.Is(err, ErrClientIDReused):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "client_id_reused", err.Error())
-	case errors.Is(err, ErrTooManyRevisions):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
-	case errors.Is(err, ErrTooManyRequests):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_requests", err.Error())
-	case errors.Is(err, ErrAgentBusy):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "agent_busy", err.Error())
-	case errors.Is(err, ErrRequestNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrUnavailable):
-		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
-	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	case known && errors.Is(err, ErrForbidden):
+		c.AbortWithStatusJSON(reply.Status, forbidden.BodyOf(err))
+	case known:
+		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)
 	default:
 		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, append(idAttrs, principalAttrs(c)...)...)...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
+}
+
+var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound}
+
+func failureReplyFor(err error) (Reply, bool) {
+	switch {
+	case slices.ContainsFunc(missingForFail, func(target error) bool { return errors.Is(err, target) }):
+		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
+	case errors.Is(err, ErrChatReadOnly):
+		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: err.Error()}, true
+	case errors.Is(err, ErrForbidden):
+		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.RoleMessage}, true
+	case errors.Is(err, ErrUnknownPanel):
+		return Reply{Status: http.StatusUnprocessableEntity, Code: "unknown_panel", Message: err.Error()}, true
+	case errors.Is(err, ErrClientIDReused):
+		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: err.Error()}, true
+	case errors.Is(err, ErrTooManyRevisions):
+		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
+	case errors.Is(err, ErrTooManyRequests):
+		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
+	case errors.Is(err, ErrAgentBusy):
+		return Reply{Status: http.StatusTooManyRequests, Code: "agent_busy", Message: err.Error()}, true
+	case errors.Is(err, ErrUnavailable):
+		return Reply{Status: http.StatusServiceUnavailable, Code: "agent_unavailable", Message: err.Error()}, true
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
+		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: err.Error()}, true
+	}
+	return Reply{}, false
+}
+
+func StartReplyFor(err error) Reply {
+	var invalid *StartError
+	if errors.As(err, &invalid) {
+		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: invalid.Error()}
+	}
+	if reply, known := failureReplyFor(err); known {
+		return reply
+	}
+	return Reply{Status: http.StatusInternalServerError, Code: "internal", Message: "internal error"}
 }
 
 func principalAttrs(c *gin.Context) []any {

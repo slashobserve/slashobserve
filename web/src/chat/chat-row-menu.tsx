@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input"
 import {
   sentence,
   useDeleteChatTurns,
+  useMyRequests,
   usePinChat,
   useRenameChat,
   type RequestSummary,
@@ -45,9 +46,14 @@ import {
   deleteTurnsText,
   savedObservations,
 } from "./chat-state"
+import { useArchiveChat } from "./chats-queries"
 import { keptTitleNote } from "./shared-title"
 
 const maxTitleLength = 120
+const chatTurnsShown = 50
+const archiveText = "The chat leaves your chat lists."
+
+type ChatRef = Pick<RequestSummary, "id" | "title" | "pinned_at">
 
 function failureText(error: unknown): string {
   return error instanceof Error && error.message !== ""
@@ -67,14 +73,16 @@ function focusRow(requestId: string) {
 
 export function ChatRowMenu({
   request,
-  turns = [request],
+  turns: givenTurns,
+  wholeChat = false,
   current,
   onRename,
   afterDelete,
   className,
 }: {
-  request: RequestSummary
+  request: ChatRef
   turns?: readonly RequestSummary[]
+  wholeChat?: boolean
   current: boolean
   onRename: () => void
   afterDelete: RefObject<HTMLElement | null>
@@ -82,9 +90,17 @@ export function ChatRowMenu({
 }) {
   const navigate = useNavigate()
   const pin = usePinChat(request.id)
-  const remove = useDeleteChatTurns(turns.map((turn) => turn.id))
-  const removeObservation = useDeleteObservation()
   const [confirming, setConfirming] = useState(false)
+  const loaded = useMyRequests(
+    { chatId: request.id },
+    chatTurnsShown,
+    wholeChat && confirming
+  )
+  const turns = wholeChat ? loaded.requests : (givenTurns ?? [])
+  const removeTurns = useDeleteChatTurns(turns.map((turn) => turn.id))
+  const archive = useArchiveChat(request.id)
+  const remove = wholeChat ? archive : removeTurns
+  const removeObservation = useDeleteObservation()
   const [problem, setProblem] = useState<string | null>(null)
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set())
   const pinned = request.pinned_at !== null
@@ -196,7 +212,9 @@ export function ChatRowMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTurnsText(turns, removing)}
+              {turns.length === 0
+                ? archiveText
+                : deleteTurnsText(turns, removing)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deletable.length > 0 ? (
@@ -258,7 +276,7 @@ export function ChatRenameForm({
   rowId = request.id,
   onDone,
 }: {
-  request: RequestSummary
+  request: ChatRef
   rowId?: string
   onDone: () => void
 }) {

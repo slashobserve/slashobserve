@@ -145,10 +145,14 @@ describe("field list", () => {
     expect(narrowed.available.map((row) => row.name)).toEqual(["http.method"])
   })
 
-  it("reads a Loki-style query that is not a log query as needing no retry", () => {
-    const invalid = new ApiError(422, "query_invalid", "metric query")
+  it("shows the server's refusal of the query and offers no retry", () => {
+    const invalid = new ApiError(
+      422,
+      "query_invalid",
+      "the query is a metric query, not a log query"
+    )
     expect(facetsErrorText(invalid)).toEqual({
-      text: "Fields need a log query.",
+      text: "the query is a metric query, not a log query",
       retry: false,
     })
     expect(facetsErrorText(new ApiError(500, "internal", "boom")).retry).toBe(

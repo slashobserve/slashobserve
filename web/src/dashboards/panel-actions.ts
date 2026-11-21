@@ -2,14 +2,22 @@ import type { RefObject } from "react"
 
 import { useActivityStore } from "@/activity/activity-store"
 
-import type { useSetDashboardSearch } from "./search"
+import type { DashboardSearch, useSetDashboardSearch } from "./search"
 
 type SetSearch = ReturnType<typeof useSetDashboardSearch>
 
 const focusFrames = 10
 
-export function focusComment(field: RefObject<HTMLTextAreaElement | null>) {
+function onActivityTab(state: DashboardSearch): DashboardSearch {
+  return state.tab === "activity" ? state : { ...state, tab: "activity" }
+}
+
+export function focusComment(
+  setSearch: SetSearch,
+  field: RefObject<HTMLTextAreaElement | null>
+) {
   useActivityStore.getState().setOpen(true)
+  setSearch(onActivityTab)
   function attempt(framesLeft: number) {
     if (field.current !== null) {
       field.current.focus()
@@ -22,14 +30,22 @@ export function focusComment(field: RefObject<HTMLTextAreaElement | null>) {
 
 export function commentOnPanel(setSearch: SetSearch, panelId: string) {
   useActivityStore.getState().setOpen(true)
-  setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
+  setSearch((state) => ({
+    ...onActivityTab(state),
+    panel: panelId,
+    edit: undefined,
+  }))
 }
 
 export function askAboutPanel(setSearch: SetSearch, panelId: string) {
   const activity = useActivityStore.getState()
   activity.setOpen(true)
   activity.setAgentKind("investigate")
-  setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
+  setSearch((state) => ({
+    ...onActivityTab(state),
+    panel: panelId,
+    edit: undefined,
+  }))
 }
 
 export function editPanelQuery(setSearch: SetSearch, panelId: string) {
@@ -41,5 +57,9 @@ export function askAboutDashboard(setSearch: SetSearch) {
   const activity = useActivityStore.getState()
   activity.setOpen(true)
   activity.setAgentKind("investigate")
-  setSearch((state) => ({ ...state, panel: undefined, edit: undefined }))
+  setSearch((state) => ({
+    ...onActivityTab(state),
+    panel: undefined,
+    edit: undefined,
+  }))
 }

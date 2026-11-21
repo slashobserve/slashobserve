@@ -169,6 +169,7 @@ func (th *Threads) Register(api auth.Routes) {
 	api.POST("/threads/:thread_id/resolve", auth.RoleViewer, th.resolve)
 	api.POST("/threads/:thread_id/reopen", auth.RoleViewer, th.reopen)
 	api.POST("/threads/:thread_id/read", auth.RoleViewer, auth.RequireUser, th.markRead)
+	api.DELETE("/threads/:thread_id/share", auth.RoleViewer, th.withdraw)
 	api.PATCH("/messages/:message_id", auth.RoleViewer, th.edit)
 	api.DELETE("/messages/:message_id", auth.RoleViewer, th.deleteMessage)
 }
@@ -347,6 +348,18 @@ func (th *Threads) deleteMessage(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (th *Threads) withdraw(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "thread_id")
+	if !ok {
+		return
+	}
+	if err := th.service.Withdraw(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		th.fail(c, "withdraw shared answer", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (th *Threads) resolve(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "thread_id")
 	if !ok {
@@ -441,8 +454,10 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 
 func abortKnown(c *gin.Context, err error) bool {
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound), errors.Is(err, ErrNothingShared):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrOthersWroteHere):
+		httpapi.AbortError(c, http.StatusConflict, CodeOthersWroteHere, err.Error())
 	case errors.Is(err, ErrNotStarter):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotStarter, err.Error())
 	case errors.Is(err, ErrUnknownPanel):

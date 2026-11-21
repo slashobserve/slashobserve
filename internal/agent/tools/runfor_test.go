@@ -24,15 +24,19 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 		want Run
 	}{
 		"a new dashboard request builds a new dashboard": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Prompt: "shop", Attempt: 2},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceObserve, Prompt: "shop", Attempt: 2},
 			want: Run{Mode: ModeCreate, Build: true, RequestID: runForRequestID, Attempt: 2, Prompt: "shop"},
 		},
+		"an investigate ask that lost its observation stays read-only": {
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
+		},
 		"an ask into an observation keeps its window and panel": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
 			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to},
 		},
 		"a private ask about an observation with half a window has none": {
-			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, From: &from},
+			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, From: &from},
 			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
 		},
 	}

@@ -1,0 +1,103 @@
+package threads
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+)
+
+const (
+	actionRunWithdraw audit.Action = "run.withdraw"
+
+	CodeOthersWroteHere = "others_wrote"
+)
+
+var (
+	ErrNothingShared   = errors.New("no answer of yours is shared in this thread")
+	ErrOthersWroteHere = errors.New("someone else wrote in this thread, so the answer stays shared there")
+)
+
+func (s *Service) Withdraw(ctx context.Context, by auth.Principal, threadID pgtype.UUID) error {
+	row, err := s.db.Queries().GetThreadOfMessage(ctx, threadID)
+	if err != nil {
+		return threadLookup(err)
+	}
+	sc, err := s.scopeOfThread(ctx, by, row)
+	if err != nil {
+		return err
+	}
+	requester, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return ErrNothingShared
+	}
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := lockTarget(ctx, q, sc, false); err != nil {
+			return err
+		}
+		runs, err := q.LockSharedRunsInThread(ctx, dbsqlc.LockSharedRunsInThreadParams{ThreadID: row.ID, RequestedByKind: string(by.Kind), RequestedByID: requester})
+		if err != nil {
+			return fmt.Errorf("lock the runs shared in the thread: %w", err)
+		}
+		if len(runs) == 0 {
+			return ErrNothingShared
+		}
+		others, err := s.threadsWithOtherAuthors(ctx, q, by, []pgtype.UUID{row.ID})
+		if err != nil {
+			return err
+		}
+		if others[row.ID] {
+			return ErrOthersWroteHere
+		}
+		ids := make([]pgtype.UUID, len(runs))
+		for i, r := range runs {
+			ids[i] = r.ID
+		}
+		if err := q.WithdrawRunShares(ctx, ids); err != nil {
+			return fmt.Errorf("withdraw the shared runs: %w", err)
+		}
+		if err := q.DeleteThread(ctx, row.ID); err != nil {
+			return fmt.Errorf("delete the thread: %w", err)
+		}
+		if err := (emitter{scope: sc, thread: row, actor: actorOf(ctx, by)}).deleted(ctx, q, row.ID); err != nil {
+			return err
+		}
+		return s.recordWithdraws(ctx, q, by, row, runs)
+	})
+	return threadGone(err)
+}
+
+func (s *Service) recordWithdraws(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, thread dbsqlc.Thread, runs []dbsqlc.LockSharedRunsInThreadRow) error {
+	cols, err := actorOf(ctx, by).Columns()
+	if err != nil {
+		return err
+	}
+	subject := targetOf(thread)
+	for _, run := range runs {
+		target := audit.Target{Kind: "run", ID: run.ID.String()}
+		on := uuid.NullUUID{UUID: subject.ID.Bytes, Valid: true}
+		if subject.Kind == KindDashboard {
+			target.DashboardID = on
+		} else {
+			target.ObservationID = on
+		}
+		err := audit.Record(ctx, q, audit.Event{
+			Action: actionRunWithdraw,
+			Target: target,
+			Thread: uuid.NullUUID{UUID: thread.ID.Bytes, Valid: true},
+			Chat:   uuid.NullUUID{UUID: run.ChatID.Bytes, Valid: run.ChatID.Valid},
+			By:     cols.AuditBy(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

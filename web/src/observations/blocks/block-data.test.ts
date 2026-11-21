@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 
+import { describeRange, liveNowRefresh, refreshToMs } from "@/lib/time"
 import type { Block } from "@/observations/queries"
 import type { DataPanel } from "@/spec"
 
 import {
   datasourceUidOf,
   frozenCaption,
+  pageRangeFor,
   panelBlockBody,
+  pinnedBody,
+  resolveBlockRange,
   runBlockBody,
   snapshotIdOf,
 } from "./block-data"
@@ -136,5 +140,107 @@ describe("frozenCaption", () => {
     expect(frozenCaption(from, to)).toMatch(
       /^Frozen, 2026-11-06 10:00 to 2026-11-06 11:30 \S+$/
     )
+  })
+})
+
+describe("resolveBlockRange", () => {
+  const pageFrom = "2026-11-20T23:56:00Z"
+  const pageTo = "2026-11-21T00:56:00Z"
+  const pinFrom = "2026-11-20T10:00:00Z"
+  const pinTo = "2026-11-20T11:00:00Z"
+
+  it("shows the last hour live, refreshing as a live dashboard does, when neither the page nor the block has a range", () => {
+    expect(resolveBlockRange({ from: null, to: null }, {})).toEqual({
+      from: "now-1h",
+      to: "now",
+      pinned: false,
+      caption: "Last hour, live",
+      refreshMs: refreshToMs(liveNowRefresh),
+    })
+  })
+
+  it("follows the page's range when the block has none", () => {
+    expect(resolveBlockRange({ from: pageFrom, to: pageTo }, {})).toEqual({
+      from: pageFrom,
+      to: pageTo,
+      pinned: false,
+      caption: describeRange(pageFrom, pageTo),
+      refreshMs: null,
+    })
+  })
+
+  it("keeps a pinned block on its own window and says so", () => {
+    expect(
+      resolveBlockRange(
+        { from: pageFrom, to: pageTo },
+        { from: pinFrom, to: pinTo }
+      )
+    ).toEqual({
+      from: pinFrom,
+      to: pinTo,
+      pinned: true,
+      caption: `Pinned to ${describeRange(pinFrom, pinTo)}`,
+      refreshMs: null,
+    })
+    expect(
+      resolveBlockRange({ from: null, to: null }, { from: pinFrom, to: pinTo })
+        .pinned
+    ).toBe(true)
+  })
+
+  it("treats half a range on either side as no range", () => {
+    expect(
+      resolveBlockRange({ from: pageFrom, to: null }, { from: pinFrom })
+    ).toMatchObject({ from: "now-1h", to: "now", pinned: false })
+  })
+})
+
+describe("pageRangeFor", () => {
+  const now = Date.parse("2026-11-20T19:26:00Z")
+
+  it("clears the page's range for the last hour, so the page stays live", () => {
+    expect(pageRangeFor({ from: "now-1h", to: "now" }, now)).toEqual({
+      from: null,
+      to: null,
+    })
+  })
+
+  it("stores any other range as the absolute window it means now", () => {
+    expect(pageRangeFor({ from: "now-6h", to: "now" }, now)).toEqual({
+      from: "2026-11-20T13:26:00.000Z",
+      to: "2026-11-20T19:26:00.000Z",
+    })
+  })
+})
+
+describe("pinnedBody", () => {
+  const now = Date.parse("2026-11-20T19:26:00Z")
+  const body = { panel: { type: "timeseries" }, variables: [] }
+
+  it("keeps the panel and pins it to the absolute window", () => {
+    expect(pinnedBody(body, "now-1h", "now", now)).toEqual({
+      ...body,
+      from: "2026-11-20T18:26:00.000Z",
+      to: "2026-11-20T19:26:00.000Z",
+    })
+  })
+
+  it("reads a dragged range in epoch milliseconds", () => {
+    expect(
+      pinnedBody(
+        body,
+        String(Date.parse("2026-11-20T10:00:00Z")),
+        String(Date.parse("2026-11-20T10:30:00Z")),
+        now
+      )
+    ).toEqual({
+      ...body,
+      from: "2026-11-20T10:00:00.000Z",
+      to: "2026-11-20T10:30:00.000Z",
+    })
+  })
+
+  it("pins nothing when the window ends before it starts", () => {
+    expect(pinnedBody(body, "now", "now-1h", now)).toBeNull()
   })
 })

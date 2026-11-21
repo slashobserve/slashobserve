@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -17,6 +17,12 @@ import { rcasQuery } from "@/rca/queries"
 
 import { AddBlockRow } from "./add-block-row"
 import { BlockList, type Reveal } from "./block-list"
+import {
+  BlockInspectContext,
+  BlockInspectDock,
+  useBlockInspectState,
+} from "./blocks/block-inspect"
+import { PageRangeContext } from "./blocks/block-data"
 import { DiscussionPane } from "./discussion-pane"
 import { observationIsMissing } from "./errors"
 import { MovePanel } from "./move-panel"
@@ -92,6 +98,12 @@ function LoadedObservation({
   const { threads } = useThreads(`observation:${observation.id}`)
   const count = messageCount(threads)
   useObservationLive(observation)
+  const inspect = useBlockInspectState(blocks)
+  const pageRange = useMemo(
+    () => ({ from: observation.from, to: observation.to }),
+    [observation.from, observation.to]
+  )
+  const inspecting = inspect.block !== undefined
 
   useEffect(() => {
     const target = focusAfterToggle.current
@@ -156,14 +168,18 @@ function LoadedObservation({
             ) : null
           }
         />
-        <BlockList
-          observation={observation}
-          blocks={blocks}
-          canAdd={canAdd}
-          reveal={reveal}
-          onRevealed={revealed}
-          onAdded={added}
-        />
+        <PageRangeContext value={pageRange}>
+          <BlockInspectContext value={inspect.context}>
+            <BlockList
+              observation={observation}
+              blocks={blocks}
+              canAdd={canAdd}
+              reveal={reveal}
+              onRevealed={revealed}
+              onAdded={added}
+            />
+          </BlockInspectContext>
+        </PageRangeContext>
         {canAdd ? (
           <AddBlockRow
             observation={observation}
@@ -181,11 +197,20 @@ function LoadedObservation({
           folderTitle={envelope.folder.title}
           canAdd={canAdd}
           canEdit={permissions.edit}
-          hidden={rca.open || moving || picking}
+          hidden={rca.open || moving || picking || inspecting}
           headingRef={headingRef}
           onClose={onClosePane}
           onShowBlock={onShowBlock}
           onAdded={addedFromDiscussion}
+        />
+      ) : null}
+      {inspect.block !== undefined && !(rca.open || moving || picking) ? (
+        <BlockInspectDock
+          block={inspect.block}
+          tab={inspect.tab}
+          target={inspect.target}
+          onTabChange={inspect.setTab}
+          onClose={inspect.close}
         />
       ) : null}
       {rca.open ? (

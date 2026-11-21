@@ -128,6 +128,7 @@ func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result,
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, FollowsID: in.FollowsID, ChatID: in.ChatID, NewChat: in.NewChat, ClientID: in.ClientID, Anchor: in.Anchor, Kind: in.Kind, ObservationID: in.ObservationID})
 	if err != nil {
+		r.recordRefusedStart(ctx, err)
 		return runFailure(err)
 	}
 	var started struct {
@@ -251,7 +252,9 @@ func (r *Registry) getRunBuild(ctx context.Context, input json.RawMessage) (Resu
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Build(ctx, id, principal)
 	if err != nil {
-		r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
+		if !errors.Is(err, revisions.ErrNoBuild) {
+			r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
+		}
 		return runFailure(err)
 	}
 	return success("Read the build of run "+id.String(), raw), nil

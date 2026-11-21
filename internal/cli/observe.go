@@ -94,7 +94,7 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
 	flags.BoolVar(&a.prompt.newChat, "new-chat", false, "start a new chat instead of joining your latest one on --dashboard")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
-	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object")
+	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object or a short form such as pos:0.4,0.3")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.prompt.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
 }

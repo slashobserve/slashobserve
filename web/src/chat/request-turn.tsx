@@ -338,6 +338,8 @@ export function RequestTurn({
                       ? request.id
                       : undefined
                   }
+                  chatId={detail.chat_id ?? undefined}
+                  actions={answerActions}
                 />
                 {detail.finding.ask_on !== null ? (
                   <AskOnDashboard
@@ -345,7 +347,6 @@ export function RequestTurn({
                     prompt={request.prompt}
                   />
                 ) : null}
-                {answerActions}
               </>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (

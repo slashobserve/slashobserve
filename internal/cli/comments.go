@@ -177,6 +177,7 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
 		a.commentsDeleteCommand(),
+		a.commentsWithdrawCommand(),
 		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
@@ -347,7 +348,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --at, --version, --to, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--at points the thread at one spot, as the anchor JSON object, for example {\"kind\":\"position\",\"pos\":{\"x\":0.4,\"y\":0.3}}; with --block it points into that block, and an observation then gets a thread of its own beside its discussion.\nThe comment is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and a refused run prints its code.\nAn observation has one discussion, so a second add on it without --at adds the comment to that discussion.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --at, --version, --to, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--at points the thread at one spot, as the anchor JSON object, for example {\"kind\":\"position\",\"pos\":{\"x\":0.4,\"y\":0.3}}, or as a short form: row:service=payments,span=authorize_card, time:2026-11-20T23:56Z, range:23:50Z..23:58Z, series:service=checkout or pos:0.4,0.3; with --block it points into that block, and an observation then gets a thread of its own beside its discussion.\nThe comment is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and a refused run prints its code.\nAn observation has one discussion, so a second add on it without --at adds the comment to that discussion.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -356,7 +357,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&a.commentAdd.panel, "panel", "", "the panel of the dashboard to comment on")
 	cmd.Flags().StringVar(&a.commentAdd.block, "block", "", "the block of the observation to comment on; the whole observation by default")
 	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
-	cmd.Flags().StringVar(&a.commentAdd.at, "at", "", "the spot the thread points at, as the anchor JSON object")
+	cmd.Flags().StringVar(&a.commentAdd.at, "at", "", "the spot the thread points at, as the anchor JSON object or a short form such as pos:0.4,0.3")
 	cmd.Flags().StringVar(&a.commentAdd.to, "to", "", "agent to ask an agent, or everyone (the default) for a plain comment")
 	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "the same as --to agent")
 	_ = cmd.Flags().MarkDeprecated("start-runs", "use --to agent")
@@ -592,6 +593,25 @@ func (a *app) commentsDeleteCommand() *cobra.Command {
 			}
 			return a.observationCall(cmd, http.MethodDelete, "messages/"+id, nil, func(out *output, _ []byte) error {
 				out.confirm("Deleted comment %s", text(id))
+				return nil
+			})
+		},
+	}
+}
+
+func (a *app) commentsWithdrawCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "withdraw <comment-id>",
+		Short: "Withdraw an answer you shared, back to only you",
+		Long:  "withdraw undoes observe share-answer: it deletes the thread your shared question and its answer opened, and the answer is read again only by you and Admins.\nIt takes the id of the thread or of any of its comments, and only the person who asked can withdraw, while nobody else has written in the thread.\nOn an observation the answer already written onto the page stays.\nYou can share the answer again later with observe share-answer.",
+		Args:  exactArgs(1, "one comment id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodDelete, "threads/"+id+"/share", nil, func(out *output, _ []byte) error {
+				out.confirm("Withdrew the answer shared in thread %s", text(id))
 				return nil
 			})
 		},

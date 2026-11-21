@@ -92,6 +92,7 @@
   --color-syntax-string: var(--syntax-string);
   --color-syntax-number: var(--syntax-number);
   --color-syntax-keyword: var(--syntax-keyword);
+  --ease-out: var(--ease-out);
   --ease-panel: var(--ease-panel);
   --radius-chip: 4px;
   --radius-control: 6px;
@@ -188,7 +189,9 @@
   --person-5-foreground: #3a6212;
   --person-6: #f3e0f5;
   --person-6-foreground: #7a2585;
+  --duration-fast: 150ms;
   --duration-panel: 220ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
 }
 

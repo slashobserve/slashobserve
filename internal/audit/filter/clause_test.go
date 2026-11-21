@@ -87,3 +87,25 @@ func TestInputsCompileToParameterisedWhereClauses(t *testing.T) {
 		})
 	}
 }
+
+func TestKnownDecidesAFieldAsTheQueryDoes(t *testing.T) {
+	for name, want := range map[string]bool{
+		"actor_name":  true,
+		"actor.name":  true,
+		"actor":       true,
+		"actor_*":     true,
+		"*_name":      true,
+		"actor.*":     false,
+		"target.*":    false,
+		"target":      true,
+		"message":     false,
+		"nosuch*":     false,
+		"ACTOR":       true,
+		"Target.Name": true,
+		"Actor_*":     false,
+	} {
+		if got := Known(name); got != want {
+			t.Errorf("Known(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

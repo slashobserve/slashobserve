@@ -23,6 +23,7 @@ import (
 
 var (
 	ErrBuildNotFound   = errors.New("build not found")
+	ErrNoBuild         = fmt.Errorf("%w", ErrBuildNotFound)
 	ErrBuildEmpty      = errors.New("the build has no panels")
 	ErrBuildNotSavable = errors.New("the request is no longer a failed request with an unsaved build")
 	ErrBuildRunning    = errors.New("the agent may still change the build")
@@ -184,6 +185,7 @@ func (h *ObserveHandler) getBuild(c *gin.Context) {
 	}
 	view, err := h.service.builds.ViewBuild(ctx, caller, row.ID)
 	if err != nil {
+		h.service.recordRefusedBuildRead(ctx, row.ID, err)
 		h.failBuild(c, "get agent request build", err, idAttr)
 		return
 	}

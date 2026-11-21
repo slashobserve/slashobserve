@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from "react"
+import { lazy, Suspense, useMemo, type ReactNode } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -72,7 +72,13 @@ function PinOnDashboard({
   )
 }
 
-function MakeDashboardAction({ finding }: { finding: Finding }) {
+function MakeDashboardAction({
+  finding,
+  chatId,
+}: {
+  finding: Finding
+  chatId: string | undefined
+}) {
   const navigate = useNavigate()
   const make = useMakeDashboard(finding.id)
   const busy = make.isPending || make.isSuccess
@@ -85,9 +91,10 @@ function MakeDashboardAction({ finding }: { finding: Finding }) {
       onClick={() =>
         make.mutate(undefined, {
           onSuccess: (saved) =>
-            void navigate(
-              dashboardLink(saved.dashboard.id, saved.dashboard.title)
-            ),
+            void navigate({
+              ...dashboardLink(saved.dashboard.id, saved.dashboard.title),
+              search: chatId === undefined ? {} : { tab: "chat", chat: chatId },
+            }),
           onError: toastError,
         })
       }
@@ -144,11 +151,15 @@ export function FindingCard({
   finding,
   showOpenLink,
   saveAnswerOf,
+  chatId,
+  actions,
   variant = "card",
 }: {
   finding: Finding
   showOpenLink: boolean
   saveAnswerOf?: string
+  chatId?: string
+  actions?: ReactNode
   variant?: FindingVariant
 }) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
@@ -193,7 +204,7 @@ export function FindingCard({
       <div className="flex flex-wrap items-center gap-2">
         {observationId !== null ? <PinAction finding={finding} /> : null}
         {panels.length > 0 && mayAct ? (
-          <MakeDashboardAction finding={finding} />
+          <MakeDashboardAction finding={finding} chatId={chatId} />
         ) : null}
         {observationId === null && saveAnswerOf !== undefined ? (
           <SaveAnswerAction requestId={saveAnswerOf} />
@@ -206,6 +217,7 @@ export function FindingCard({
         >
           Copy answer
         </CopyButton>
+        {actions}
         {showOpenLink && observationId !== null ? (
           <Link
             {...observationLink(observationId)}

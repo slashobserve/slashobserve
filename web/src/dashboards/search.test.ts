@@ -439,6 +439,28 @@ describe("chat", () => {
   })
 })
 
+describe("tab", () => {
+  it.each(["chat", "activity"] as const)(
+    "round-trips the %s tab through the URL",
+    (tab) => {
+      const state = validateDashboardSearch(parseSearch(`?tab=${tab}`))
+      expect(state).toEqual({ tab, vars: {} })
+      expect(searchFromState(state)).toEqual({ tab })
+    }
+  )
+
+  it("keeps the legacy tab=query as the query editor, not a side panel tab", () => {
+    expect(
+      validateDashboardSearch({ panel: "rps", tab: "query" })
+    ).toMatchObject({ panel: "rps", edit: "query" })
+    expect(validateDashboardSearch({ tab: "query" }).tab).toBeUndefined()
+  })
+
+  it("drops an unknown tab", () => {
+    expect(validateDashboardSearch({ tab: "share" })).toEqual({ vars: {} })
+  })
+})
+
 describe("thread", () => {
   it("round-trips a thread id through the URL", () => {
     const id = "3f2c8d1e-0b5a-4c7d-9e11-2a6b8c4d5e70"

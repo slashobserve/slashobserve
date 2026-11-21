@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest"
 
-import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
+import {
+  exploreTargets,
+  sourceLabel,
+  statusOf,
+  typeLabel,
+  usageLabel,
+} from "./format"
 import type { DatasourceStatus } from "./queries"
 
 function makeDatasource(
@@ -30,6 +36,14 @@ describe("typeLabel", () => {
 
   test("keeps an unknown type as written", () => {
     expect(typeLabel("graphite")).toBe("graphite")
+  })
+})
+
+describe("sourceLabel", () => {
+  test("says in plain words where a datasource comes from", () => {
+    expect(sourceLabel("file")).toBe("From file")
+    expect(sourceLabel("app")).toBe("Added in the app")
+    expect(sourceLabel("builtin")).toBe("Built in")
   })
 })
 

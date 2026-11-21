@@ -5,5 +5,6 @@ export const manifest: RendererManifest = {
   supported: true,
   minWidth: 200,
   minHeight: 120,
+  anchors: () => import("./anchors"),
   load: () => import("./bargauge-panel"),
 }

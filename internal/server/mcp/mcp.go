@@ -20,6 +20,7 @@ import (
 	mcpserver "github.com/mark3labs/mcp-go/server"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
@@ -45,6 +46,7 @@ type Credential struct {
 	Client    string
 	Claimer   *claims.Claimer
 	Run       *revisions.Request
+	Agent     audit.Agent
 	Loopback  bool
 	ClaimOnly bool
 	Mode      grantmode.Mode

@@ -23,7 +23,7 @@ export function DatasourcesPage() {
     <>
       <PageHeader
         title="Datasources"
-        description="Where dashboards and the agent read data from. Entries from the datasources file are read only; the ones you add here can be changed."
+        description="Where dashboards and the agent read data from. Entries from the datasources file and the built-in audit trail are read only; the ones you add here can be changed."
         actions={
           <div className="flex flex-wrap gap-2">
             <a

@@ -12,6 +12,7 @@ import type {
   TextPanel,
 } from "@/spec"
 
+import type { AnchorsModule } from "./anchors"
 import type { FieldResolver, LinkScope } from "./field-config"
 import type { SharedCursor } from "./shared-cursor"
 import type { PreparedFrame } from "./transforms"
@@ -58,6 +59,7 @@ export type RendererManifest =
       supported: boolean
       minWidth?: number
       minHeight?: number
+      anchors?: () => Promise<AnchorsModule>
       load: () => Promise<{ default: PanelRenderer }>
     }
   | {
@@ -65,5 +67,6 @@ export type RendererManifest =
       supported: boolean
       minWidth?: number
       minHeight?: number
+      anchors?: () => Promise<AnchorsModule>
       load: () => Promise<{ default: StaticPanelRenderer }>
     }

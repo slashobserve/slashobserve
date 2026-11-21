@@ -191,6 +191,16 @@ describe("chatOutcome", () => {
       "Saved an observation",
     ],
     [
+      "an investigation that had no observation to write into",
+      {
+        kind: "investigate",
+        result_kind: "answer",
+        observation_id: null,
+        observation_title: null,
+      },
+      "Answered, no observation",
+    ],
+    [
       "a request for a dashboard that was only answered",
       {
         intent: "apply",

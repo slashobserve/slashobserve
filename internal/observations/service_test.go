@@ -995,8 +995,8 @@ func TestDeletingWaitsForTheRunsOfTheObservationToEnd(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	var run string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
-VALUES ('ask', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
+VALUES ('ask', 'investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
 		t.Fatal(err)
 	}
 	for _, state := range []string{"queued", "running"} {
@@ -1057,5 +1057,47 @@ func TestACommentersPositionsCountOnlyTheBlocksTheyCanSee(t *testing.T) {
 	first := 0
 	if _, err := r.service.UpdateBlock(reading(t.Context()), commenter, mustUUID(t, mine.ID), observations.BlockChange{Version: mine.Version, Position: &first}); err == nil {
 		t.Error("a commenter moved a suggestion, so UpdateBlock needs the reader's positions too")
+	}
+}
+
+func TestFollowPageDropsAPanelsOwnRangeAndKeepsItsPanel(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	pinned := json.RawMessage(`{"panel":{"type":"timeseries","title":"Rate","datasource":"prom","queries":[{"ref":"A","query":"sum(rate(http_requests_total[5m]))"}]},"from":"2026-11-20T10:00:00Z","to":"2026-11-20T11:00:00Z"}`)
+	b, err := r.service.AddBlock(reading(t.Context()), editor, mustUUID(t, o.ID), observations.BlockInput{Kind: observations.KindPanel, Body: pinned})
+	if err != nil {
+		t.Fatalf("add pinned panel: %v", err)
+	}
+	id := mustUUID(t, b.ID)
+	followed, err := r.service.UpdateBlock(reading(t.Context()), editor, id, observations.BlockChange{Version: b.Version, FollowPage: true})
+	if err != nil {
+		t.Fatalf("follow the page: %v", err)
+	}
+	var body map[string]json.RawMessage
+	if err := json.Unmarshal(followed.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["from"]; ok {
+		t.Errorf("from kept: %s", followed.Body)
+	}
+	if _, ok := body["to"]; ok {
+		t.Errorf("to kept: %s", followed.Body)
+	}
+	if !strings.Contains(string(body["panel"]), "http_requests_total") || followed.Version != b.Version+1 {
+		t.Errorf("followed block %d: %s", followed.Version, followed.Body)
+	}
+
+	refusals := map[string]struct {
+		block pgtype.UUID
+		in    observations.BlockChange
+	}{
+		"with a body":     {id, observations.BlockChange{Version: followed.Version, FollowPage: true, Body: panelBody()}},
+		"on a text block": {mustUUID(t, r.addText(t, editor, o, "note").ID), observations.BlockChange{Version: 1, FollowPage: true}},
+	}
+	for name, c := range refusals {
+		var refused *observations.InvalidInputError
+		if _, err := r.service.UpdateBlock(reading(t.Context()), editor, c.block, c.in); !errors.As(err, &refused) || refused.Code != observations.CodeInvalidBlock {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

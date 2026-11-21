@@ -39,6 +39,8 @@ type Props = {
   variables: readonly Variable[]
   zone: string | undefined
   onClose: () => void
+  onTabChange?: (tab: InspectTab) => void
+  inContainer?: boolean
 }
 
 export function InspectPane({
@@ -48,6 +50,8 @@ export function InspectPane({
   variables,
   zone,
   onClose,
+  onTabChange,
+  inContainer = false,
 }: Props) {
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
@@ -55,6 +59,12 @@ export function InspectPane({
   const setWidth = useActivityStore((state) => state.setWidth)
   const setSearch = useSetDashboardSearch()
   const timing = useRequestTiming(target?.queryKey)
+  const changeTab =
+    onTabChange ??
+    ((value: InspectTab) =>
+      setSearch((state) => ({ ...state, inspectTab: value }), {
+        replace: true,
+      }))
   return (
     <DockPanel
       id={inspectPaneId}
@@ -62,7 +72,7 @@ export function InspectPane({
       width={layout.width}
       bounds={layout.bounds}
       onWidthChange={setWidth}
-      stacked={layout.stacked}
+      stacked={inContainer ? "container" : layout.stacked}
     >
       <DockHeader
         headingId={headingId}
@@ -74,11 +84,7 @@ export function InspectPane({
       />
       <Tabs
         value={tab}
-        onValueChange={(value: InspectTab) =>
-          setSearch((state) => ({ ...state, inspectTab: value }), {
-            replace: true,
-          })
-        }
+        onValueChange={changeTab}
         className="min-h-0 flex-1 gap-0"
       >
         <TabsList
