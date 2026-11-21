@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
-import { threadKeys } from "@/api/keys"
+import { observeKeys, threadKeys } from "@/api/keys"
 import type { Message, Thread } from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -141,6 +141,7 @@ function renderCard(props: Partial<Parameters<typeof AnswerCard>[0]> = {}) {
     ],
     pageParams: [undefined],
   })
+  queryClient.setQueryData(observeKeys.request("r1"), {})
   return renderWithProviders(
     <AnswerCard
       finding={finding()}
@@ -150,6 +151,10 @@ function renderCard(props: Partial<Parameters<typeof AnswerCard>[0]> = {}) {
     />,
     { queryClient, route: { path: "/", url: "/" } }
   )
+}
+
+function requestStale(queryClient: ReturnType<typeof testQueryClient>) {
+  return queryClient.getQueryState(observeKeys.request("r1"))?.isInvalidated
 }
 
 afterEach(() => {
@@ -530,11 +535,19 @@ describe("AnswerCard", () => {
 
   it("withdraws a shared answer back to only the asker", async () => {
     const fetch = stubResponses(shared, { status: 204 })
-    const { user } = renderCard({
+    const { user, queryClient } = renderCard({
       menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
     })
     await shareToEveryone(user)
+    await waitFor(() => expect(requestStale(queryClient)).toBe(true))
+    queryClient.setQueryData(observeKeys.request("r1"), {})
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "Withdraw Removes your question and this answer from the thread, and the thread too when sharing opened it, while no one else has written in it.",
+      })
+    ).toBeVisible()
     await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
+    await waitFor(() => expect(requestStale(queryClient)).toBe(true))
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
     expect(await sent(fetch, 1)).toEqual({
       line: "DELETE /api/v1/threads/t9/share",

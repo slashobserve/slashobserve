@@ -22,7 +22,7 @@ While no model is connected to the server, the button is off with "No model is c
 
 The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
 Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
-Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which deletes the thread and makes the answer private again.
+Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which makes the answer private again: it removes your question and the answer from the thread, and deletes the thread only when sharing opened it, so a thread you shared into keeps its other messages.
 Withdraw works only while every message in the thread is yours or the agent's reply to you; once someone else wrote in it, the answer stays shared.
 After a withdraw you can share the answer again, which opens a new thread.
 Sharing an answer that is already shared, from another tab for example, adds nothing and says "This answer is already shared in its thread".

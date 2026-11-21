@@ -207,7 +207,7 @@ function showDetail(onPage: boolean): string {
 
 function withdrawDetail(onPage: boolean): string {
   const base =
-    "Deletes the thread and makes this answer private again, while no one else has written in it."
+    "Removes your question and this answer from the thread, and the thread too when sharing opened it, while no one else has written in it."
   return onPage ? `${base} Blocks it already wrote on the page stay.` : base
 }
 
@@ -232,7 +232,7 @@ function AnswerMenuButton({
 }) {
   const { shareTarget } = menu
   const share = useShareAnswer(requestId, shareTarget ?? "")
-  const withdraw = useWithdrawShare(shareTarget ?? "")
+  const withdraw = useWithdrawShare(requestId, shareTarget ?? "")
   const [sharedHere, setSharedHere] = useState<string | null | undefined>()
   const sharedThreadId =
     sharedHere === undefined ? menu.sharedThreadId : sharedHere

@@ -440,11 +440,12 @@ export function useShareAnswer(id: string, target: string) {
         .then(unwrap),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
     },
   })
 }
 
-export function useWithdrawShare(target: string) {
+export function useWithdrawShare(id: string, target: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (threadId: string) =>
@@ -455,6 +456,7 @@ export function useWithdrawShare(target: string) {
         .then(unwrap),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
     },
   })
 }
