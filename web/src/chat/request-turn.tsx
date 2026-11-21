@@ -123,6 +123,10 @@ function ChatAnswer({
   const revised: Subject | null =
     dashboardId === null ? null : { kind: "dashboard", id: dashboardId }
   const subject = revised ?? about
+  const asked: Subject | null =
+    request.subject_observation_id === null
+      ? subject
+      : { kind: "observation", id: request.subject_observation_id }
   const { deliver, pending } = useDeliver(subject)
   const agent = useAgentInfo()
   const mayRevise = own && !request.read_only && revised !== null
@@ -167,8 +171,9 @@ function ChatAnswer({
       }
       chatId={request.chat_id ?? undefined}
       menu={{
-        shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
+        shareTarget: own && asked !== null ? threadTargetOf(asked) : null,
         sharedThreadId: request.shared_thread_id,
+        subjectObservationId: request.subject_observation_id,
       }}
     />
   )

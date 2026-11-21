@@ -29,6 +29,7 @@ const root = {
   investigation: false,
   dashboard_id: dashboardId,
   observation_id: null,
+  subject_observation_id: null,
   read_only: false,
   allowed_actions: [],
   requested_by: { kind: "user", id: "u1", name: "Ada" },
@@ -300,6 +301,69 @@ describe("Conversation", () => {
     ).toHaveAttribute("href", "/o/o9")
     expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
   })
+
+  it("offers sharing into the observation an answer was about after it was saved into another", async () => {
+    stubServer(chatAbout({ observation_id: observationId }))
+    const { user } = renderConversation(
+      answered({
+        dashboard_id: null,
+        subject_observation_id: observationId,
+        observation_id: "o9",
+        result_kind: "observation",
+        finding: { ...finding, observation_id: "o9" },
+      })
+    )
+    expect(
+      await screen.findByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Show to everyone/ })
+    ).toHaveTextContent("writes the answer onto the page")
+    expect(
+      screen.getByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeVisible()
+  })
+
+  it.each([
+    [
+      "saved into the observation it was about",
+      {
+        dashboard_id: null,
+        subject_observation_id: observationId,
+        observation_id: observationId,
+        finding: { ...finding, observation_id: observationId },
+      },
+      chatAbout({ observation_id: observationId }),
+    ],
+    [
+      "about no observation",
+      {
+        subject_observation_id: null,
+        observation_id: "o9",
+        finding: { ...finding, observation_id: "o9" },
+      },
+      chatAbout({ dashboard_id: dashboardId }),
+    ],
+  ])(
+    "offers no sharing once an answer %s is saved",
+    async (_name, patch, chat) => {
+      stubServer(chat)
+      const { user } = renderConversation(
+        answered({ result_kind: "observation", ...patch })
+      )
+      await openAnswerMenu(user)
+      expect(
+        await screen.findByRole("menuitem", { name: /^Copy answer/ })
+      ).toBeVisible()
+      expect(
+        screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+      ).toBeNull()
+      expect(
+        screen.queryByRole("menuitem", { name: /^Share to thread/ })
+      ).toBeNull()
+    }
+  )
 
   it("keeps the shared thread on an answer shared and then saved", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))

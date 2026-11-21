@@ -40,7 +40,11 @@ const FindingMarkdown = lazy(() =>
 const evidenceHeight = 220
 const threadLabelLength = 60
 
-type AnswerMenu = { shareTarget: string | null; sharedThreadId: string | null }
+type AnswerMenu = {
+  shareTarget: string | null
+  sharedThreadId: string | null
+  subjectObservationId: string | null
+}
 
 export type RevisionAsked = boolean
 
@@ -237,7 +241,10 @@ function AnswerMenuButton({
   const sharedThreadId =
     sharedHere === undefined ? menu.sharedThreadId : sharedHere
   const busy = share.isPending || withdraw.isPending
-  const shareable = finding.observation_id === null
+  const shareable =
+    finding.observation_id === null ||
+    (menu.subjectObservationId !== null &&
+      finding.observation_id !== menu.subjectObservationId)
   const onPage =
     shareTarget !== null && subjectOf(shareTarget)?.kind === "observation"
 

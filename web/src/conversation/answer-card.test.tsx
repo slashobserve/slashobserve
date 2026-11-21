@@ -366,7 +366,11 @@ describe("AnswerCard", () => {
       replayed: false,
     })
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -393,7 +397,11 @@ describe("AnswerCard", () => {
       replayed: false,
     })
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -416,7 +424,11 @@ describe("AnswerCard", () => {
   it("says the answer is already shared in its thread when the share replays", async () => {
     stubFetch({ thread_id: "t5", message_id: "m5", replayed: true })
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -470,7 +482,11 @@ describe("AnswerCard", () => {
   it("links to the thread a shared answer is in and offers Withdraw", async () => {
     stubResponses(shared)
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await shareToEveryone(user)
     expect(
@@ -487,7 +503,11 @@ describe("AnswerCard", () => {
 
   it("knows an answer the request says is already shared", async () => {
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: "t5" },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: "t5",
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -503,7 +523,11 @@ describe("AnswerCard", () => {
   it("keeps Shared in the thread and Withdraw on an answer shared and then saved", async () => {
     const { user } = renderCard({
       finding: finding({ observation_id: "o9" }),
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: "t5" },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: "t5",
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -517,7 +541,11 @@ describe("AnswerCard", () => {
   it("offers no share choices on a saved answer that is not shared", async () => {
     const { user } = renderCard({
       finding: finding({ observation_id: "o9" }),
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })
@@ -536,7 +564,11 @@ describe("AnswerCard", () => {
   it("withdraws a shared answer back to only the asker", async () => {
     const fetch = stubResponses(shared, { status: 204 })
     const { user, queryClient } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await shareToEveryone(user)
     await waitFor(() => expect(requestStale(queryClient)).toBe(true))
@@ -570,7 +602,11 @@ describe("AnswerCard", () => {
       body: { error: "someone else wrote", code: "others_wrote" },
     })
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await shareToEveryone(user)
     await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
@@ -591,7 +627,11 @@ describe("AnswerCard", () => {
       body: { error: "not found", code: "not_found" },
     })
     const { user } = renderCard({
-      menu: { shareTarget: "dashboard:d1", sharedThreadId: null },
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await shareToEveryone(user)
     await user.click(await screen.findByRole("menuitem", { name: /^Withdraw/ }))
@@ -608,7 +648,11 @@ describe("AnswerCard", () => {
 
   it("offers only Copy answer when there is nowhere to share", async () => {
     const { user } = renderCard({
-      menu: { shareTarget: null, sharedThreadId: null },
+      menu: {
+        shareTarget: null,
+        sharedThreadId: null,
+        subjectObservationId: null,
+      },
     })
     await user.click(
       await screen.findByRole("button", { name: "Answer actions" })

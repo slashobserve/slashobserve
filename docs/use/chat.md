@@ -288,6 +288,7 @@ The model comes from the server's configuration and cannot be picked in the chat
 
 An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
 Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
