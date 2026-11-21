@@ -9,7 +9,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -46,7 +48,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 		QueryLanguage: elasticsearch.QueryLanguageKQL,
 		Fields:        elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
 		Limits:        datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
-		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger}},
+		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger, repeats: trail.NewRepeats(time.Now)}},
 	})
 	if err != nil {
 		return datasource.Instance{}, err
@@ -55,8 +57,9 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 }
 
 type emulator struct {
-	store  Store
-	logger *slog.Logger
+	store   Store
+	logger  *slog.Logger
+	repeats *trail.Repeats
 }
 
 func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -92,6 +95,14 @@ func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
 		ContentLength: int64(len(raw)),
 		Request:       req,
 	}, nil
+}
+
+func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
+	scope, _ := audit.ScopeOf(ctx)
+	key, err := json.Marshal([]any{scope.Method, scope.Route, req.clause, req.aggs, req.size, req.from, req.ascending})
+	if err == nil && e.repeats.Repeated(ctx, string(key)) {
+		audit.RepeatedRead(ctx)
+	}
 }
 
 func (e *emulator) serve(ctx context.Context, method, path string, body []byte) (int, any, error) {

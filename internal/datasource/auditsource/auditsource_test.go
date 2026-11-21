@@ -299,6 +299,26 @@ func TestALuceneBodyIsReadByTheAuditParser(t *testing.T) {
 	}
 }
 
+func TestEveryFormOfTheLogsQueryBarReachesTheStore(t *testing.T) {
+	for _, text := range []string{
+		"checkout",
+		"action:dashboard.* and not origin:web",
+		`actor_name:"Sam Lee" or status >= 500`,
+		"lucene: outcome:denied AND origin:(mcp OR cli)",
+		"lucene: status:[500 TO 599] -action:auth.*",
+	} {
+		t.Run(text, func(t *testing.T) {
+			store := &fakeStore{}
+			if _, err := open(t, store).Lines(t.Context(), datasource.LinesRequest{Query: datasource.Query{Text: text}, Range: span, Limit: 5}); err != nil {
+				t.Fatal(err)
+			}
+			if len(store.queries) != 1 || store.queries[0].Clause == nil {
+				t.Fatalf("queries = %+v", store.queries)
+			}
+		})
+	}
+}
+
 func flatKeysSorted(v any) []string {
 	keys := flatKeys(v)
 	slices.Sort(keys)

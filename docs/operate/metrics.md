@@ -55,6 +55,7 @@ A series with labels appears after its first observation, so a server that has r
 
 These series describe only the audit recorder's own health.
 Counts of audit events by action, person or outcome are not exported here, because `/metrics` is open to anyone and those counts are for Admins only.
+For the same reason, queries on the built-in audit datasource (`slashobserve-audit`) are left out of `slashobserve_proxy_query_duration_seconds` and the slot gauges, since they would show when Admins read the trail; read audit counts through that datasource instead, see [Audit queries](../reference/audit-queries.md).
 
 The Go runtime series (`go_*`) and the process series (`process_*`) come from the Prometheus client library.
 

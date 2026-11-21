@@ -404,6 +404,7 @@ func (e *emulator) search(ctx context.Context, body []byte) (map[string]any, err
 		}
 		out["aggregations"] = aggs
 	}
+	e.noteRead(ctx, req)
 	return out, nil
 }
 

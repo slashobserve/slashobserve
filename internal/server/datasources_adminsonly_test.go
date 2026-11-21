@@ -18,7 +18,7 @@ func TestAnAdminsOnlyDatasourceIsListedAndRecheckedOnlyForAnAdmin(t *testing.T) 
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: unhealthyDatasource{}}); err != nil {
+			if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: unhealthyDatasource{}}); err != nil {
 				t.Fatal(err)
 			}
 			engine := datasourceEngine(t, role, registry)

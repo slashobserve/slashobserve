@@ -37,7 +37,7 @@ func adminsOnlyTools(t *testing.T) (*Registry, *atomic.Int32) {
 			return nil, nil
 		},
 	}
-	if err := reg.AddAdminsOnly(datasource.Instance{UID: "audit", Name: "Audit", Datasource: audit}); err != nil {
+	if err := reg.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: audit}); err != nil {
 		t.Fatal(err)
 	}
 	return New(Deps{Datasources: reg, Runner: queryproxy.NewRunner(reg, logger), Logger: logger}), &touched

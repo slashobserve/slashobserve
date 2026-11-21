@@ -26,7 +26,7 @@ func newPlacementRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: fakeDatasource{}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: fakeDatasource{}}); err != nil {
 		t.Fatal(err)
 	}
 	return &rig{db: database, service: New(database.DB, queryproxy.NewRunner(registry, logger), folders.NewAccess(database.DB), logger)}

@@ -39,7 +39,7 @@ func withAdminsOnly(t *testing.T) *datasource.Registry {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: failingHealth{}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: failingHealth{}}); err != nil {
 		t.Fatal(err)
 	}
 	return registry
@@ -135,11 +135,11 @@ func TestAnAdminsOnlyDatasourceCannotBeReplacedRemovedOrDuplicated(t *testing.T)
 	if !registry.AdminsOnly("audit") || registry.AdminsOnly("prom") || registry.AdminsOnly("missing") {
 		t.Fatal("AdminsOnly answers the wrong datasources")
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: failingHealth{}}); err == nil {
-		t.Fatal("a second AddAdminsOnly with the same uid succeeded")
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: failingHealth{}}); err == nil {
+		t.Fatal("a second AddBuiltIn with the same uid succeeded")
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "prom", Datasource: failingHealth{}}); err == nil {
-		t.Fatal("AddAdminsOnly replaced an everyone datasource")
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "prom", Datasource: failingHealth{}}); err == nil {
+		t.Fatal("AddBuiltIn replaced an everyone datasource")
 	}
 	if err := registry.Put(datasource.Instance{UID: "audit", Datasource: failingHealth{}}); err == nil {
 		t.Fatal("Put replaced the admins only datasource")
@@ -149,8 +149,8 @@ func TestAnAdminsOnlyDatasourceCannotBeReplacedRemovedOrDuplicated(t *testing.T)
 		t.Fatal("Remove deleted the admins only datasource")
 	}
 	in, err := registry.For(datasource.WithAccess(t.Context(), datasource.Access{System: true}), "audit")
-	if err != nil || in.Source != datasource.SourceFile {
-		t.Fatalf("audit = %+v, %v; want a read-only file source", in, err)
+	if err != nil || in.Source != datasource.SourceBuiltin {
+		t.Fatalf("audit = %+v, %v; want a read-only built-in source", in, err)
 	}
 }
 

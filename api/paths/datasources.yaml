@@ -156,7 +156,7 @@ datasources-test:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: "`base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
+        description: "`base` names a datasource from the file or the built-in audit datasource (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`)."
         content:
           application/json:
             schema:
@@ -193,7 +193,7 @@ datasources-uid:
       `secrets` replaces the credentials it names and `clear_secrets` removes them.
       A new address passes the outbound allowlist check like adding one.
       The change applies at once on this server and within 15 seconds on the others.
-      A datasource from the datasources file answers 409 `datasource_read_only`.
+      A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
     requestBody:
       required: true
       content:
@@ -221,7 +221,7 @@ datasources-uid:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`).
+          The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`).
           Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open.
         content:
           application/json:
@@ -251,7 +251,7 @@ datasources-uid:
       Only Admins can call this endpoint.
       A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first.
       The list holds only what the caller can see, and `hidden` counts the rest.
-      A datasource from the datasources file answers 409 `datasource_read_only`.
+      A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
     responses:
       "204":
         description: The datasource is removed.
@@ -262,7 +262,7 @@ datasources-uid:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`).
+        description: The datasource is from the file or built in (`datasource_read_only`), or something uses it (`datasource_in_use`).
         content:
           application/json:
             schema:
@@ -288,7 +288,7 @@ datasources-uid-config:
       Only Admins can call this endpoint.
       The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned.
       `GET /datasources` never carries an address.
-      A datasource from the datasources file answers 409 `datasource_read_only`.
+      A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
     responses:
       "200":
         description: The definition without credentials.
@@ -303,7 +303,7 @@ datasources-uid-config:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The datasource is from the file (`datasource_read_only`).
+        description: The datasource is from the file or built in (`datasource_read_only`).
         content:
           application/json:
             schema:

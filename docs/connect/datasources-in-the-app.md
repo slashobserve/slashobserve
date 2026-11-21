@@ -14,12 +14,17 @@ A row also links to the page that reads it: **Explore logs**, **Search traces** 
 **Edit** and **Remove** appear only on datasources added in the app.
 The app also reloads its datasource list every 15 seconds while any datasource is unhealthy, which the sidebar and the Logs, Traces and Metrics source lists read, so a source that was still starting when the page loaded shows as available once it answers.
 
-## Two sources
+## Where a datasource comes from
 
 Entries in the [datasources file](../reference/datasources-file.md) show as "From file".
 They are read once at startup and are read-only in the app.
 Datasources added in the app show as "Added in the app".
 When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
+
+Every server also has one built-in datasource, the audit trail, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
+Only Admins see it, nobody can edit or remove it, and `PATCH`, `DELETE` and `GET /api/v1/datasources/slashobserve-audit/config` answer `409 datasource_read_only`.
+A file entry with that uid stops the server at startup, and an app datasource with it is not loaded.
+[Audit queries](../reference/audit-queries.md#the-audit-datasource) describes what it answers.
 
 ## Who can query it
 

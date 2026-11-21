@@ -32,7 +32,7 @@ func restrictedTools(t *testing.T) *Registry {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := reg.AddAdminsOnly(datasource.Instance{UID: "audit", Name: "Audit", Datasource: answers}); err != nil {
+	if err := reg.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: answers}); err != nil {
 		t.Fatal(err)
 	}
 	runner := queryproxy.NewRunner(reg, logger)

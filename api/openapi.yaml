@@ -1601,8 +1601,8 @@ components:
           type: string
         source:
           type: string
-          enum: [file, app]
-          description: "`file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app."
+          enum: [file, app, builtin]
+          description: "`file` for an entry of the datasources file, which only the server's operator changes, `app` for one an Admin added in the app, and `builtin` for the audit trail datasource every server has, which only Admins see and nobody changes or deletes."
         index:
           type: string
           description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.

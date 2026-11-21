@@ -39,7 +39,7 @@ func adminsOnlyHarness(t *testing.T) (*harness, *fakeDatasource) {
 	t.Helper()
 	hn := newHarness(t)
 	audit := &fakeDatasource{valuesFor: func(datasource.Query) []string { return []string{"secret"} }}
-	if err := hn.h.registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: audit}); err != nil {
+	if err := hn.h.registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: audit}); err != nil {
 		t.Fatal(err)
 	}
 	restricted := testDashboard()

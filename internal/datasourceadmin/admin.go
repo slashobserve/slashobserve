@@ -42,6 +42,7 @@ const (
 var (
 	ErrNotFound        = errors.New("datasource not found")
 	ErrReadOnly        = errors.New("this datasource is defined in the datasources file on the server and cannot be changed here")
+	ErrBuiltIn         = errors.New("this datasource is built into the server and cannot be changed or deleted")
 	ErrUIDTaken        = errors.New("a datasource with this uid already exists")
 	ErrNoSecretKey     = errors.New("SLASHOBSERVE_SECRET_KEY must be set to store credentials")
 	ErrTooMany         = errors.New("too many datasources were added in the app")
@@ -165,8 +166,13 @@ func recordOf(row dbsqlc.Datasource) (Record, error) {
 func (s *Service) row(ctx context.Context, uid string) (dbsqlc.Datasource, error) {
 	row, err := s.db.Queries().GetDatasource(ctx, uid)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if in, err := s.registry.For(ctx, uid); err == nil && in.Source == datasource.SourceFile {
-			return dbsqlc.Datasource{}, ErrReadOnly
+		if in, err := s.registry.For(ctx, uid); err == nil {
+			switch in.Source {
+			case datasource.SourceFile:
+				return dbsqlc.Datasource{}, ErrReadOnly
+			case datasource.SourceBuiltin:
+				return dbsqlc.Datasource{}, ErrBuiltIn
+			}
 		}
 		return dbsqlc.Datasource{}, ErrNotFound
 	}

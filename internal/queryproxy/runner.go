@@ -652,7 +652,9 @@ func upstream[T any](ctx context.Context, r *Runner, subject string, inst dataso
 	}()
 	start := time.Now()
 	out, err = call(ctx)
-	r.metrics.ProxyQuery(inst.Datasource.Type(), queryOutcome(err), time.Since(start))
+	if inst.Source != datasource.SourceBuiltin {
+		r.metrics.ProxyQuery(inst.Datasource.Type(), queryOutcome(err), time.Since(start))
+	}
 	if err != nil {
 		if status, code, _ := Classify(err); status == http.StatusInternalServerError {
 			r.logger.ErrorContext(ctx, "datasource call failed", append([]any{

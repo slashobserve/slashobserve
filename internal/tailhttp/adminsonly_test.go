@@ -15,7 +15,7 @@ func withAdminsOnly(t *testing.T) *fixture {
 	t.Helper()
 	f := newFixture(t)
 	audit := &fakeLines{typ: "loki", responses: []response{lines(1)}}
-	if err := f.h.registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: audit}); err != nil {
+	if err := f.h.registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: audit}); err != nil {
 		t.Fatal(err)
 	}
 	return f
