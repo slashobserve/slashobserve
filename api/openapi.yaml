@@ -3443,8 +3443,8 @@ components:
           properties:
             code:
               type: string
-              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs, investigation_person_only]
-              description: "`investigation_person_only` when an MCP client or key asks the agent on an observation, which only a person starts from the web app or the CLI, `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
+              enum: [mention_target_unsupported, agent_unavailable, forbidden_role, too_many_runs]
+              description: "`mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full."
             message:
               type: string
     ThreadPage:

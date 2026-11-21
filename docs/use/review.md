@@ -150,12 +150,13 @@ A refusal, such as five revisions already waiting on the dashboard, shows the se
 While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
 
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
 
 A discussion entry reads "asked the agent" only when the message started a run.
-A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
+A message that mentions an agent but started none, such as a comment for everyone, reads "mentioned the agent".
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
