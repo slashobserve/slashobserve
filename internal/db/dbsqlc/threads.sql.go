@@ -431,7 +431,7 @@ const insertRunReply = `-- name: InsertRunReply :one
 INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
 SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
   $6::text, $7::text, $8::uuid, $9::text
-WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid AND thread_id = $1::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = $8::uuid AND thread_replied_at IS NULL)
 RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
@@ -1231,7 +1231,7 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 }
 
 const shareRunInThread = `-- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = $1 WHERE id = $2 AND thread_message_id IS NULL
+UPDATE agent_requests SET thread_message_id = $1, thread_replied_at = NULL WHERE id = $2 AND thread_message_id IS NULL
 `
 
 type ShareRunInThreadParams struct {

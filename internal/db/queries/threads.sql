@@ -63,12 +63,12 @@ SELECT id FROM annotations WHERE id = @id FOR KEY SHARE;
 INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
 SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text
-WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid AND thread_id = @thread_id::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = @run_id::uuid AND thread_replied_at IS NULL)
 RETURNING *;
 
 -- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = @thread_message_id WHERE id = @id AND thread_message_id IS NULL;
+UPDATE agent_requests SET thread_message_id = @thread_message_id, thread_replied_at = NULL WHERE id = @id AND thread_message_id IS NULL;
 
 -- name: LockSharedRunsInThread :many
 SELECT r.id, r.chat_id FROM agent_requests r
