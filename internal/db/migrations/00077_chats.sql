@@ -19,6 +19,33 @@ CREATE INDEX IF NOT EXISTS chats_owner_observation_idx ON chats (owner_id, obser
 
 ALTER TABLE agent_requests ADD COLUMN IF NOT EXISTS client_id UUID;
 
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION agent_requests_old_server_chat() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.chat_id IS NULL THEN
+    IF NEW.source = 'observe' AND NEW.thread_message_id IS NULL THEN
+      INSERT INTO chats (id, owner_kind, owner_id, created_at, last_turn_at)
+      VALUES (NEW.id, NEW.requested_by_kind, NEW.requested_by_id, NEW.created_at, NEW.created_at)
+      ON CONFLICT (id) DO NOTHING;
+      NEW.chat_id := NEW.id;
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.chat_id <> NEW.id THEN
+    INSERT INTO chats (id, owner_kind, owner_id, title, pinned_at, archived_at, created_at, last_turn_at)
+    SELECT p.id, p.requested_by_kind, p.requested_by_id, p.title, p.pinned_at, p.archived_at, p.created_at, NEW.created_at
+    FROM agent_requests p WHERE p.id = NEW.chat_id
+    ON CONFLICT (id) DO UPDATE SET last_turn_at = greatest(chats.last_turn_at, EXCLUDED.last_turn_at);
+    UPDATE agent_requests SET chat_id = id WHERE id = NEW.chat_id AND chat_id IS NULL;
+  END IF;
+  RETURN NEW;
+END
+$$;
+-- +goose StatementEnd
+
+CREATE OR REPLACE TRIGGER agent_requests_old_server_chat BEFORE INSERT ON agent_requests
+FOR EACH ROW EXECUTE FUNCTION agent_requests_old_server_chat();
+
 UPDATE agent_requests SET chat_id = id
 WHERE chat_id IS NULL AND source = 'observe' AND thread_message_id IS NULL;
 
@@ -65,7 +92,9 @@ FROM (
   GROUP BY r.chat_id
 ) g
 JOIN agent_requests root ON root.id = g.chat_id
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, dashboard_id = EXCLUDED.dashboard_id, observation_id = EXCLUDED.observation_id,
+  pinned_at = EXCLUDED.pinned_at, archived_at = EXCLUDED.archived_at, created_at = least(chats.created_at, EXCLUDED.created_at),
+  last_turn_at = greatest(chats.last_turn_at, EXCLUDED.last_turn_at);
 
 ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_chat_id_fkey,
@@ -78,6 +107,8 @@ DROP INDEX CONCURRENTLY IF EXISTS agent_requests_chat_order_idx;
 CREATE INDEX CONCURRENTLY agent_requests_chat_order_idx ON agent_requests (chat_id, created_at, id) WHERE chat_id IS NOT NULL AND status IN ('queued', 'running');
 
 -- +goose Down
+DROP TRIGGER IF EXISTS agent_requests_old_server_chat ON agent_requests;
+DROP FUNCTION IF EXISTS agent_requests_old_server_chat();
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_chat_order_idx;
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_client_idx;
 ALTER TABLE agent_requests DROP CONSTRAINT IF EXISTS agent_requests_chat_id_fkey, DROP COLUMN IF EXISTS client_id;

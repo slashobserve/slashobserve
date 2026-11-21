@@ -264,6 +264,53 @@ VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', '00000000-0000-4000-8000-000000
 	}
 }
 
+const oldObserveInsert = `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone)
+VALUES ('observe', 'p', 'user', $1::uuid, 'Ada', NULL, 'web', NULL, NULL, NULL, NULL, nullif($2, '')::uuid, NULL, NULL) RETURNING id::text`
+
+func TestAnOldServersRunsBecomeChatsAfterTheMigration(t *testing.T) {
+	d := newMigratedTo(t, chatsVersion)
+	sqlDB := d.SQLDB(t)
+	ada := convUser(t, sqlDB, "Ada")
+	seedDashboard(t, d, convDashboard, 1)
+	seedVersion(t, d, convDashboard, 1, "{}")
+	chatRow := func(id string) string {
+		return foScalar(t, sqlDB, `SELECT coalesce((SELECT owner_kind || ':' || owner_id::text FROM chats WHERE id = $1::uuid), 'none')`, id)
+	}
+	chatOf := func(id string) string {
+		return foScalar(t, sqlDB, `SELECT coalesce(chat_id::text, 'none') FROM agent_requests WHERE id = $1::uuid`, id)
+	}
+
+	root := foScalar(t, sqlDB, oldObserveInsert, ada, "")
+	if got := chatOf(root); got != root {
+		t.Errorf("an old server's first turn: chat_id = %s, want its own id", got)
+	}
+	if got := chatRow(root); got != "user:"+ada {
+		t.Errorf("an old server's first turn: chat = %s, want one owned by its requester", got)
+	}
+	followUp := foScalar(t, sqlDB, oldObserveInsert, ada, root)
+	if got := chatOf(followUp); got != root {
+		t.Errorf("an old server's follow-up: chat_id = %s, want %s", got, root)
+	}
+	if got := foScalar(t, sqlDB, `SELECT (c.last_turn_at = r.created_at)::text FROM chats c JOIN agent_requests r ON r.id = $2::uuid WHERE c.id = $1::uuid`, root, followUp); got != "true" {
+		t.Errorf("the chat's last turn is not the old server's follow-up")
+	}
+
+	d.Exec(t, `ALTER TABLE agent_requests DISABLE TRIGGER agent_requests_old_server_chat`)
+	unseen := foScalar(t, sqlDB, oldObserveInsert, ada, "")
+	d.Exec(t, `ALTER TABLE agent_requests ENABLE TRIGGER agent_requests_old_server_chat`)
+	lateFollowUp := foScalar(t, sqlDB, oldObserveInsert, ada, unseen)
+	if got := chatOf(unseen) + " " + chatOf(lateFollowUp) + " " + chatRow(unseen); got != unseen+" "+unseen+" user:"+ada {
+		t.Errorf("a follow-up to a first turn the backfill missed: %s, want both turns in a chat of the first", got)
+	}
+
+	repair, investigation := convID(30), convID(31)
+	convRequest(t, d, repair, "prompt", ada, convDashboard, "", "builtin", "")
+	convRequest(t, d, investigation, "investigate", ada, "", "", "builtin", "")
+	if got := chatOf(repair) + " " + chatOf(investigation); got != "none none" {
+		t.Errorf("runs this server leaves without a chat: %s, want none none", got)
+	}
+}
+
 func chatsBackfillState(t *testing.T, sqlDB *sql.DB) string {
 	t.Helper()
 	return foScalar(t, sqlDB, `SELECT coalesce((SELECT string_agg(id::text || '=' || coalesce(chat_id::text, '-'), ',' ORDER BY id) FROM agent_requests), '') || E'\n' || coalesce((SELECT string_agg(c::text, ',' ORDER BY c.id) FROM chats c), '')`)
@@ -288,13 +335,27 @@ func runChatsMigrationHalf(t *testing.T, sqlDB *sql.DB, half string) {
 	if !ok {
 		t.Fatalf("%s has no %s section", chatsMigrationFile, half)
 	}
-	rest, _, _ = strings.Cut(rest, "-- +goose ")
-	for statement := range strings.SplitSeq(rest, ";\n") {
-		if strings.TrimSpace(statement) == "" {
-			continue
-		}
+	rest, _, _ = strings.Cut(rest, "-- +goose Down\n")
+	for _, statement := range migrationStatements(rest) {
 		if _, err := sqlDB.Exec(statement); err != nil {
 			t.Fatalf("%s again: %v\n%s", half, err, statement)
 		}
+	}
+}
+
+func migrationStatements(body string) []string {
+	var statements []string
+	for {
+		plain, block, found := strings.Cut(body, "-- +goose StatementBegin\n")
+		for statement := range strings.SplitSeq(plain, ";\n") {
+			if strings.TrimSpace(statement) != "" {
+				statements = append(statements, statement)
+			}
+		}
+		if !found {
+			return statements
+		}
+		block, body, _ = strings.Cut(block, "-- +goose StatementEnd\n")
+		statements = append(statements, block)
 	}
 }
