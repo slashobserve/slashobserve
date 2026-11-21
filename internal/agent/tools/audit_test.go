@@ -285,7 +285,6 @@ func TestEveryAuditToolReadIsRecordedAsThatToolOverMCP(t *testing.T) {
 		{nameGetAuditHistogram, r.window()},
 		{nameAggregateAuditEvents, aggregate},
 		{nameListAuditFields, map[string]any{}},
-		{nameGetAuditHistogram, r.window()},
 	}
 	caller := origin.With(auth.WithPrincipal(t.Context(), adminCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
 	for _, c := range calls {
