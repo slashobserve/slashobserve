@@ -166,7 +166,7 @@ func TestSettingAFolderPermissionsRecordsWhatWasAddedRemovedAndChanged(t *testin
 			t.Fatalf("set = %d %s", rec.Code, rec.Body)
 		}
 		got := onlyEventAfter(t, d, earlier, rec)
-		wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "added", "changed", "count_after", "count_before", "removed", "truncated")
+		wantFolderEvent(t, got, "folder.permissions_change", id, "Locked", "added", "admins_only", "admins_only_before", "changed", "count_after", "count_before", "removed", "truncated")
 		return got
 	}
 	sre := map[string]any{"kind": "group", "name": "sre", "level": "edit"}
@@ -301,7 +301,7 @@ func TestAChangeThatChangesNothingStillRecordsOneEventWithTheReasonNoChange(t *t
 		t.Fatalf("set = %d %s", rec.Code, rec.Body)
 	}
 	permissions := onlyEventAfter(t, d, earlier, rec)
-	wantFolderEvent(t, permissions, "folder.permissions_change", id, "Steady", "added", "changed", "count_after", "count_before", "removed", "truncated")
+	wantFolderEvent(t, permissions, "folder.permissions_change", id, "Steady", "added", "admins_only", "admins_only_before", "changed", "count_after", "count_before", "removed", "truncated")
 	if permissions.Reason != "no_change" {
 		t.Errorf("permissions reason = %q, want no_change", permissions.Reason)
 	}
