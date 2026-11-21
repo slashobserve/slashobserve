@@ -139,18 +139,26 @@ func TestADeclaredReadRecordsAnAccessEvent(t *testing.T) {
 
 func TestARepeatedReadIsDroppedOnlyWhenItIsASuccessfulRead(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
-	status := http.StatusOK
+	status, fresh := http.StatusOK, false
 	engine := s.engine(t, func(c *gin.Context) {
-		RepeatedRead(c.Request.Context())
+		NoteRead(c.Request.Context(), true)
+		if fresh {
+			NoteRead(c.Request.Context(), false)
+		}
 		c.JSON(status, gin.H{})
 	})
 	_, read := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
 	_, change := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
-	status = http.StatusForbidden
+	fresh = true
+	_, mixed := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	fresh, status = false, http.StatusForbidden
 	_, refused := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
 	s.run(t)()
 	if got := s.eventsOf(t, read); len(got) != 0 {
 		t.Fatalf("a repeated read recorded %+v", got)
+	}
+	if got := s.eventsOf(t, mixed); len(got) != 1 || got[0].action != "dashboard.view" {
+		t.Fatalf("a request with one repeated and one new read recorded %+v, want its view", got)
 	}
 	if got := s.eventsOf(t, change); len(got) != 1 || got[0].action != "dashboard.update" {
 		t.Fatalf("a change marked as a repeated read recorded %+v", got)

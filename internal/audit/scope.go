@@ -19,7 +19,8 @@ type state struct {
 	scope        Scope
 	inTx         []written
 	committed    bool
-	repeatedRead bool
+	reads        int
+	repeated     int
 	result       *Result
 }
 
@@ -70,11 +71,14 @@ func Skip(ctx context.Context) {
 	}
 }
 
-func RepeatedRead(ctx context.Context) {
+func NoteRead(ctx context.Context, repeated bool) {
 	if st := stateOf(ctx); st != nil {
 		st.mu.Lock()
 		defer st.mu.Unlock()
-		st.repeatedRead = true
+		st.reads++
+		if repeated {
+			st.repeated++
+		}
 	}
 }
 
@@ -98,8 +102,8 @@ func (st *state) unsettled() (bool, []written, *Result) {
 
 func (st *state) repeatsARead(action Action, outcome Outcome) bool {
 	st.mu.Lock()
-	repeated := st.repeatedRead
+	everyReadRepeated := st.reads > 0 && st.repeated == st.reads
 	st.mu.Unlock()
 	spec, known := Lookup(action)
-	return repeated && outcome == OutcomeSuccess && known && spec.Class == ClassAccess
+	return everyReadRepeated && outcome == OutcomeSuccess && known && spec.Class == ClassAccess
 }

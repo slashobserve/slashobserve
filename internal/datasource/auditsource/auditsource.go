@@ -100,9 +100,7 @@ func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
 func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
 	scope, _ := audit.ScopeOf(ctx)
 	key, err := json.Marshal([]any{scope.Method, scope.Route, req.clause, req.aggs, req.size, req.from, req.ascending})
-	if err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now()) {
-		audit.RepeatedRead(ctx)
-	}
+	audit.NoteRead(ctx, err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now()))
 }
 
 func (e *emulator) serve(ctx context.Context, method, path string, body []byte) (int, any, error) {
