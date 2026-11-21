@@ -34,6 +34,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -62,6 +63,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/prompts"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
@@ -170,6 +172,25 @@ func datasourcesExit(err error) error {
 		exit.detail = buildErr.Message
 	}
 	return exit
+}
+
+func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
+	var adminsOnly []string
+	for _, ds := range sources {
+		if ds.Audience == datasource.AudienceAdmins {
+			adminsOnly = append(adminsOnly, ds.UID)
+		}
+	}
+	err := placement.CheckFileAudiences(ctx, q, adminsOnly)
+	var misplaced *placement.MisplacedError
+	switch {
+	case err == nil:
+		return nil
+	case errors.As(err, &misplaced):
+		return &exitError{code: "datasource_audience_refused", detail: misplaced.Error(), cause: err,
+			attrs: []any{slog.String("datasource_uid", misplaced.Datasource), slog.Int("count", misplaced.Count)}}
+	}
+	return withheld("datasource_audience_check_failed", err)
 }
 
 func serviceAccountsExit(err error) error {
@@ -316,6 +337,9 @@ func run() error {
 	appliedMigrations, err := database.Migrate(ctx)
 	if err != nil {
 		return migrationExit(err)
+	}
+	if err := checkFileAudiences(ctx, database.Queries(), cfg.Datasources); err != nil {
+		return err
 	}
 	instance, err := database.Queries().GetInstance(ctx)
 	if err != nil {
