@@ -27,6 +27,7 @@ type Props = {
   autoFocus?: boolean
   onFocus?: () => void
   completionNames?: readonly string[]
+  onSubmit?: () => void
 }
 
 const appearance = Prec.highest(
@@ -40,6 +41,19 @@ const appearance = Prec.highest(
     ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "transparent" },
   })
 )
+
+const IME_KEY_CODE = 229
+
+function isPlainEnter(event: KeyboardEvent) {
+  return (
+    event.key === "Enter" &&
+    event.keyCode !== IME_KEY_CODE &&
+    !event.shiftKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  )
+}
 
 function accessMode(readOnly: boolean) {
   return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]
@@ -60,6 +74,7 @@ export function CodeEditor({
   autoFocus = false,
   onFocus,
   completionNames,
+  onSubmit,
 }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -75,6 +90,7 @@ export function CodeEditor({
     readOnly,
     ariaLabel,
     onFocus,
+    onSubmit,
   })
   useEffect(() => {
     latest.current = {
@@ -84,6 +100,7 @@ export function CodeEditor({
       readOnly,
       ariaLabel,
       onFocus,
+      onSubmit,
     }
   })
 
@@ -103,6 +120,18 @@ export function CodeEditor({
                 ),
                 lintLines(),
               ],
+          Prec.high(
+            EditorView.domEventHandlers({
+              keydown: (event, view) => {
+                const submit = latest.current.onSubmit
+                if (submit === undefined || !isPlainEnter(event)) return false
+                if (view.composing || event.isComposing) return false
+                event.preventDefault()
+                submit()
+                return true
+              },
+            })
+          ),
           appearance,
           access.current.of(accessMode(current.readOnly)),
           label.current.of(labelAttributes(current.ariaLabel)),

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { DownloadIcon, LoaderCircleIcon, XIcon } from "lucide-react"
 
 import type { AuditWindowKey } from "@/api/keys"
@@ -14,6 +15,7 @@ import {
 
 import {
   auditExportUrl,
+  downloadStartedText,
   exportLimitText,
   startDownload,
   type ExportFormat,
@@ -36,6 +38,7 @@ export function useAuditExport(window: AuditWindowKey | null) {
     setPending(false)
     setNotice(total === null ? null : exportLimitText(total))
     startDownload(auditExportUrl(window, format))
+    toast.success(downloadStartedText(format))
   }
 
   return { pending, notice, start, dismiss: () => setNotice(null) }
@@ -72,7 +75,12 @@ export function ExportMenu({
         )}
         Export
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        side="left"
+        align="start"
+        sideOffset={8}
+        className="w-max max-w-[calc(100vw-2rem)] min-w-64"
+      >
         <DropdownMenuItem onClick={() => onExport("ndjson")}>
           NDJSON, one event per line
         </DropdownMenuItem>

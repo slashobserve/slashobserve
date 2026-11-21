@@ -55,6 +55,7 @@ export function AuditFilterBar({
             readOnly={false}
             ariaLabel={`Audit query, ${form}`}
             completionNames={names}
+            onSubmit={onRun}
           />
         </div>
         <Button onClick={onRun} title={`Search (${runChord})`}>
@@ -63,8 +64,8 @@ export function AuditFilterBar({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        {form}. Start with lucene: for Lucene or with {"{"} for Query DSL. Press{" "}
-        {runChord} to search.
+        {form}. Start with lucene: for Lucene or with {"{"} for Query DSL. Enter
+        searches, Shift+Enter adds a line, and {runChord} searches too.
       </p>
       {problem !== null ? (
         <div role="alert" className="flex flex-col gap-1">

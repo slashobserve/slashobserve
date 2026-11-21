@@ -1,4 +1,13 @@
+import { agentRefPath, type AgentRef } from "@/agents/agent-ref"
 import type { StatusTone } from "@/components/status-label"
+import {
+  chatPath,
+  dashboardPath,
+  findingPath,
+  folderPath,
+  observationPath,
+  proposalPath,
+} from "@/lib/links"
 
 import type { AuditEvent } from "./stream"
 
@@ -29,6 +38,41 @@ export function targetText(event: AuditEvent): string {
   if (present(event.target_name)) return event.target_name
   if (present(event.target_id)) return event.target_id
   return ""
+}
+
+const removalAction = /(delete|remove)$/
+
+function targetGone(event: AuditEvent): boolean {
+  return event.outcome === "success" && removalAction.test(event.action)
+}
+
+function agentPath(ref: AgentRef): string {
+  return `/agents/${encodeURIComponent(agentRefPath(ref))}`
+}
+
+export function targetPath(event: AuditEvent): string | null {
+  const id = event.target_id
+  if (!present(id) || targetGone(event)) return null
+  switch (event.target_kind) {
+    case "dashboard":
+      return dashboardPath(id, event.target_name ?? undefined)
+    case "folder":
+      return folderPath(id)
+    case "observation":
+      return observationPath(id)
+    case "finding":
+      return findingPath(id)
+    case "proposal":
+      return proposalPath(id)
+    case "run":
+      return chatPath(id)
+    case "service_account":
+      return agentPath({ kind: "service_account", id })
+    case "grant":
+      return agentPath({ kind: "grant", id })
+    default:
+      return null
+  }
 }
 
 export function originText(event: AuditEvent): string {

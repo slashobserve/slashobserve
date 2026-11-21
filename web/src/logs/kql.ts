@@ -24,7 +24,14 @@ export type KqlNode =
 
 export type KqlError = { message: string; start: number; end: number }
 
-type Parsed = { node: KqlNode; start: number; end: number }
+type Parsed = {
+  node: KqlNode
+  start: number
+  end: number
+  parts?: Parsed[]
+}
+
+export type KqlClause = { node: KqlNode; start: number; end: number }
 
 type Segment = { text: string; star: boolean }
 
@@ -267,6 +274,7 @@ class Parser {
           node: { kind, items: children.map((child) => child.node) },
           start: first.start,
           end: last.end,
+          parts: children,
         })
       }
       children.push(item())
@@ -517,19 +525,36 @@ class Parser {
   }
 }
 
+function parseText(text: string): Parsed | null {
+  const tokens = lex(text)
+  if (tokens[0].kind === "eof") return null
+  return new Parser(text, tokens).parse()
+}
+
 export function parseKql(text: string): {
   node: KqlNode | null
   error: KqlError | null
 } {
   try {
-    const tokens = lex(text)
-    if (tokens[0].kind === "eof") return { node: null, error: null }
-    return { node: new Parser(text, tokens).parse().node, error: null }
+    return { node: parseText(text)?.node ?? null, error: null }
   } catch (thrown) {
     if (thrown instanceof KqlSyntaxError) {
       const { message, start, end } = thrown
       return { node: null, error: { message, start, end } }
     }
+    throw thrown
+  }
+}
+
+export function parseKqlClauses(text: string): KqlClause[] | null {
+  try {
+    const root = parseText(text)
+    if (root === null) return []
+    const parts =
+      root.node.kind === "and" && root.parts !== undefined ? root.parts : [root]
+    return parts.map(({ node, start, end }) => ({ node, start, end }))
+  } catch (thrown) {
+    if (thrown instanceof KqlSyntaxError) return null
     throw thrown
   }
 }
