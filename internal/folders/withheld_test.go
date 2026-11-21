@@ -21,7 +21,8 @@ func TestAnAdminWritingWhereOthersReadSeesNoAdminsOnlyFolder(t *testing.T) {
 		visible bool
 	}{
 		{"no access in the context", nil, true},
-		{"its own access", &datasource.Access{By: rootAdmin}, true},
+		{"its own request outside a run", &datasource.Access{By: rootAdmin}, true},
+		{"its private chat", &datasource.Access{By: rootAdmin, Audience: datasource.AudienceCaller}, true},
 		{"writing where only Admins read", &datasource.Access{By: rootAdmin, Audience: datasource.AudienceAdmins}, true},
 		{"writing where others read", &datasource.Access{By: rootAdmin, Audience: datasource.AudienceEveryone}, false},
 		{"someone else writing where others read", &datasource.Access{By: other, Audience: datasource.AudienceEveryone}, true},

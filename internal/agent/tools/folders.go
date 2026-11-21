@@ -152,7 +152,7 @@ func (r *Registry) viewableDashboard(ctx context.Context, id pgtype.UUID, notFou
 }
 
 func readDashboardIn(ctx context.Context, id pgtype.UUID, f folders.Folder) {
-	if run, inRun := RunFrom(ctx); inRun && run.Mode != ModeInvestigate && run.DashboardID == id.String() {
+	if run, inRun := RunFrom(ctx); inRun && (run.Mode == ModeRevise || run.Mode == ModeSuggest) && run.DashboardID == id.String() {
 		return
 	}
 	folders.Read(ctx, f)

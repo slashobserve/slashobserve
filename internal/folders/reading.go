@@ -23,5 +23,5 @@ func Read(ctx context.Context, f Folder) {
 
 func withholdsAdminsOnly(ctx context.Context, p auth.Principal) bool {
 	a, ok := datasource.AccessFrom(ctx)
-	return ok && a.By.Kind == p.Kind && a.By.ID == p.ID && !a.Reads(datasource.AudienceAdmins)
+	return ok && a.Audience == datasource.AudienceEveryone && a.By.Kind == p.Kind && a.By.ID == p.ID
 }

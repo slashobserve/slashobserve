@@ -142,3 +142,25 @@ func TestARunReadsWhatOnlyAdminsReadOnlyWhenNoOneElseReadsWhatItWritesAndIsMarke
 		})
 	}
 }
+
+func TestARunReadingTheDashboardItChangesIsNotMarkedButAnAskAboutItIs(t *testing.T) {
+	r := newAccessRig(t)
+	content := r.adminsOnlyContent(t)
+	for _, c := range []struct {
+		mode   Mode
+		marked bool
+	}{{ModeRevise, false}, {ModeSuggest, false}, {ModeInvestigate, true}} {
+		t.Run(string(c.mode), func(t *testing.T) {
+			ctx, read := datasource.NotingRestrictedReads(auth.WithPrincipal(reading(t.Context()), adminCaller))
+			run := Run{Mode: c.mode, RequestID: "00000000-0000-4000-8000-000000000001", DashboardID: content.dashboard.String(), PanelID: "p_up",
+				Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
+			res, err := r.registry.Call(WithRun(ctx, run), nameGetDashboard, []byte(`{"dashboard_id":"`+content.dashboard.String()+`"}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if read() != c.marked {
+				t.Fatalf("marked %v, want %v, read %s", read(), c.marked, textOf(t, res))
+			}
+		})
+	}
+}
