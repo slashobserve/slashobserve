@@ -11,7 +11,7 @@ type answerAppliedByLaterRun struct {
 	applyRun  string
 }
 
-func (r *rig) seedAnswerAppliedByLaterRun(t *testing.T, dashboard string, chat *string) answerAppliedByLaterRun {
+func (r *rig) seedAnswerRunScannedBeforeTheRunThatAppliesIt(t *testing.T, dashboard string, chat *string) answerAppliedByLaterRun {
 	t.Helper()
 	sqlDB := r.db.SQLDB(t)
 	var seeded answerAppliedByLaterRun
@@ -23,8 +23,8 @@ func (r *rig) seedAnswerAppliedByLaterRun(t *testing.T, dashboard string, chat *
 		VALUES ($1, $2, 'Answer', 'It is the first one', now() - interval '1 hour', now(), 'user', $3, 'Ada') RETURNING id`, seeded.answerRun, dashboard, testUser.ID).Scan(&seeded.answer); err != nil {
 		t.Fatal(err)
 	}
-	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, base_version, applies_finding_id, chat_id)
-		VALUES ('apply', 'build', 'revise the dashboard', 'user', $1, 'Ada', $2, 1, $3, $4) RETURNING id`, testUser.ID, dashboard, seeded.answer, chat).Scan(&seeded.applyRun); err != nil {
+	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, base_version, applies_finding_id, chat_id, created_at)
+		VALUES ('apply', 'build', 'revise the dashboard', 'user', $1, 'Ada', $2, 1, $3, $4, now() - interval '1 hour') RETURNING id`, testUser.ID, dashboard, seeded.answer, chat).Scan(&seeded.applyRun); err != nil {
 		t.Fatal(err)
 	}
 	return seeded
@@ -59,7 +59,7 @@ func TestDeletingADashboardDeletesAnAnswerThatALaterRunRevisedFrom(t *testing.T)
 				}
 				chat = &chatID
 			}
-			seeded := r.seedAnswerAppliedByLaterRun(t, id.String(), chat)
+			seeded := r.seedAnswerRunScannedBeforeTheRunThatAppliesIt(t, id.String(), chat)
 			if err := r.service.Delete(reading(t.Context()), testUser, id); err != nil {
 				t.Fatalf("delete: %v", err)
 			}
@@ -80,7 +80,7 @@ func TestDeletingADashboardLeavesAnotherDashboardsRunThatRevisedFromItsAnswer(t 
 	r := newRig(t, true)
 	doomed := r.createDashboard(t)
 	kept := r.createDashboard(t, "p99")
-	seeded := r.seedAnswerAppliedByLaterRun(t, doomed.String(), nil)
+	seeded := r.seedAnswerRunScannedBeforeTheRunThatAppliesIt(t, doomed.String(), nil)
 	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `UPDATE agent_requests SET dashboard_id = $1 WHERE id = $2`, kept.String(), seeded.applyRun); err != nil {
 		t.Fatal(err)
 	}
