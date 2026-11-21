@@ -97,6 +97,8 @@ func (e *apiError) hint() string {
 		return outboundDomainHint
 	case e.code == "observation_thread_exists":
 		return e.threadExistsHint()
+	case e.code == "restricted_content":
+		return e.restrictedItemsHint()
 	case e.status == http.StatusBadRequest && strings.Contains(e.message, "cursor"):
 		return badCursorHint
 	}
@@ -344,4 +346,27 @@ func decode[T any](data []byte) (T, error) {
 		return value, errors.New("the server sent a response the CLI cannot read; check that the CLI and the server versions match")
 	}
 	return value, nil
+}
+
+func (e *apiError) restrictedItemsHint() string {
+	var body struct {
+		Items []struct {
+			Kind        string `json:"kind"`
+			ID          string `json:"id"`
+			Title       string `json:"title"`
+			FolderTitle string `json:"folder_title"`
+		} `json:"items"`
+		Hidden int `json:"hidden"`
+	}
+	if json.Unmarshal(e.raw, &body) != nil || len(body.Items) == 0 && body.Hidden == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(body.Items)+1)
+	for _, it := range body.Items {
+		lines = append(lines, fmt.Sprintf("  %s %s %q in folder %q", strings.ReplaceAll(it.Kind, "_", " "), it.ID, it.Title, it.FolderTitle))
+	}
+	if body.Hidden > 0 {
+		lines = append(lines, fmt.Sprintf("  and %d in people's My Dashboards", body.Hidden))
+	}
+	return strings.Join(lines, "\n")
 }
