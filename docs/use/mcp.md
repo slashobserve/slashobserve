@@ -302,14 +302,14 @@ A comment is for everyone and asks no agent unless the call sets `to` to `agent`
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
-A dashboard thread starts a read-only ask that answers in the thread, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
+A dashboard or an observation thread starts a read-only ask, which needs Comment on the dashboard or observation and answers in the thread without changing it, and an annotation or a proposal thread starts none.
 A run started this way is checked like one the same person starts in the web app.
 
 An answer on a dashboard may carry `suggested_change`, one sentence on a change that would help, and `apply_suggested_change` (`comment_id` and the answer's `finding_id` from `get_run`) posts "Revise the dashboard: <suggested change>" in that thread as you and starts a run that makes the change: it saves a version when you can edit the dashboard and opens a proposal when you can only comment.
 The run is yours and goes to the agent that answered; a repeat call while it is queued or running, or after it succeeded, posts nothing and returns that run with `replayed` true.
 An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable` and `assignee_unavailable`.
 Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
-The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
+The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
