@@ -150,20 +150,82 @@ func TestAuditExportStreamsToStandardOutput(t *testing.T) {
 	}
 }
 
-func TestAuditExportWritesAFileAndWarnsAtTheLimit(t *testing.T) {
+func exportServer(t *testing.T, serve func(w http.ResponseWriter)) string {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { serve(w) }))
+	t.Cleanup(server.Close)
+	return server.URL
+}
+
+func runExport(url string, args ...string) (string, string, int) {
+	var stdout, stderr bytes.Buffer
+	code := Main(append([]string{"--server", url, "--token", "k", "audit", "export"}, args...), IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	return stdout.String(), stderr.String(), code
+}
+
+func sendExport(body, truncated string) func(w http.ResponseWriter) {
+	return func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set(exportRowLimitKey, "2")
+		w.Header().Set("Trailer", exportTruncatedKey)
+		_, _ = io.WriteString(w, body)
+		if truncated != "" {
+			w.Header().Set(exportTruncatedKey, truncated)
+		}
+	}
+}
+
+func TestAuditExportWritesAFileAndWarnsOnlyWhenMoreRowsExisted(t *testing.T) {
 	body := "id,action\n1,auth.login\n2,\"dashboard.update\nwith a newline\"\n"
-	header := http.Header{"Content-Type": {"text/csv"}, exportRowLimitKey: {"2"}}
-	file := filepath.Join(t.TempDir(), "audit.csv")
-	call, stdout, stderr, code := runAudit(t, http.StatusOK, header, body, "audit", "export", "--format", "csv", "--file", file)
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, stderr)
+	for _, tc := range []struct {
+		truncated string
+		warns     bool
+	}{{"true", true}, {"false", false}, {"", false}} {
+		file := filepath.Join(t.TempDir(), "audit.csv")
+		stdout, stderr, code := runExport(exportServer(t, sendExport(body, tc.truncated)), "--format", "csv", "--file", file)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		written, err := os.ReadFile(file) //nolint:gosec // a test file under t.TempDir
+		if err != nil || string(written) != body {
+			t.Fatalf("file %q, %v", written, err)
+		}
+		if _, err := os.Stat(file + ".partial"); !os.IsNotExist(err) {
+			t.Errorf("a partial file is left: %v", err)
+		}
+		if !strings.Contains(stdout+stderr, "Wrote 2 events to "+file) || strings.Contains(stderr, "limit of 2 rows") != tc.warns {
+			t.Errorf("truncated %q: stdout %q, stderr %q", tc.truncated, stdout, stderr)
+		}
 	}
-	written, err := os.ReadFile(file) //nolint:gosec // a test file under t.TempDir
-	if err != nil || string(written) != body {
-		t.Fatalf("file %q, %v", written, err)
+}
+
+func cutOff(body string) func(w http.ResponseWriter) {
+	return func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, body)
+		w.(http.Flusher).Flush()
+		panic(http.ErrAbortHandler)
 	}
-	if call.accept != "text/csv" || !strings.Contains(stdout+stderr, "Wrote 2 events to "+file) || !strings.Contains(stderr, "limit of 2 rows") {
-		t.Fatalf("call %+v, stdout %q, stderr %q", call, stdout, stderr)
+}
+
+func TestAuditExportCutOffByTheServerFailsAndKeepsAPartialFile(t *testing.T) {
+	body := `{"id":"a"}` + "\n" + `{"id":"b"}` + "\n" + `{"id":`
+	file := filepath.Join(t.TempDir(), "audit.ndjson")
+	stdout, stderr, code := runExport(exportServer(t, cutOff(body)), "--file", file)
+	if code != 1 || !strings.Contains(stderr, "incomplete") || !strings.Contains(stderr, file+".partial holds the first 2 events") || strings.Contains(stdout, "Wrote") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if _, err := os.Stat(file); !os.IsNotExist(err) {
+		t.Errorf("the requested file exists: %v", err)
+	}
+	if written, err := os.ReadFile(file + ".partial"); err != nil || string(written) != body { //nolint:gosec // a test file under t.TempDir
+		t.Errorf("partial file %q, %v", written, err)
+	}
+
+	stdout, stderr, code = runExport(exportServer(t, cutOff(body)))
+	if code != 1 || !strings.Contains(stderr, "incomplete after 2 events") || stdout != body {
+		t.Fatalf("to standard output: exit %d, stdout %q, stderr %q", code, stdout, stderr)
 	}
 }
 

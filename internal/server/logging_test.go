@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -131,4 +133,30 @@ func TestAccessLogRecordsAClientThatWentAwayAs499WithNoBytes(t *testing.T) {
 	if records != 3 {
 		t.Fatalf("access log records = %d, want 3", records)
 	}
+}
+
+func TestAnAbortedHandlerCutsTheResponseOff(t *testing.T) {
+	logger, logs := logtest.New()
+	engine := gin.New()
+	engine.Use(recoverPanics(logger))
+	engine.GET("/cut", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+		_, _ = c.Writer.WriteString("first page\n")
+		c.Writer.Flush()
+		panic(http.ErrAbortHandler)
+	})
+	server := httptest.NewUnstartedServer(engine)
+	server.Config.ErrorLog = log.New(io.Discard, "", 0)
+	server.Start()
+	t.Cleanup(server.Close)
+	resp, err := http.Get(server.URL + "/cut")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if !errors.Is(err, io.ErrUnexpectedEOF) || string(body) != "first page\n" {
+		t.Fatalf("body %q, error %v, want the first page and an unexpected end", body, err)
+	}
+	logs.AssertAbsent(t, "panic serving request")
 }

@@ -3,11 +3,14 @@ package trail
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 )
 
 type httpRig struct {
@@ -271,5 +275,76 @@ func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
 	got, _ := reads[0].data["query"].(string)
 	if got != text[:MaxRecordedQueryBytes]+truncatedMark {
 		t.Fatalf("recorded a %d byte query ending %q", len(got), got[max(0, len(got)-20):])
+	}
+}
+
+type flushHook struct {
+	gin.ResponseWriter
+	after func()
+}
+
+func (w *flushHook) Flush() {
+	w.ResponseWriter.Flush()
+	w.after()
+}
+
+func (r *httpRig) serve(t *testing.T, reader *Reader, hook func()) *httptest.Server {
+	t.Helper()
+	mw, err := r.recorder.Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := gin.New()
+	api := engine.Group("/api/v1", mw, func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), admin))
+		c.Writer = &flushHook{ResponseWriter: c.Writer, after: hook}
+		c.Next()
+	})
+	NewHandler(reader, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
+	server := httptest.NewServer(engine)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestAnExportThatFailsAfterItsFirstPageIsCutOff(t *testing.T) {
+	r := newHTTPRig(t)
+	r.db.Exec(t, `INSERT INTO audit_events (id, occurred_at, category, action, outcome, actor_kind, initiator, origin, server_id, server_version)
+SELECT gen_random_uuid(), $1::timestamptz - make_interval(secs => n), 'content', 'dashboard.update', 'success', 'user', 'person', 'web', 'test', 'test'
+FROM generate_series(1, $2::int) AS n`, r.base, exportPageRows+5)
+	second, err := db.Open(t.Context(), db.Config{URL: r.db.URL()}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	server := r.serve(t, NewReader(second, slog.New(slog.DiscardHandler)), func() { once.Do(second.Close) })
+	resp, err := http.Get(server.URL + "/api/v1/audit/export?" + r.hourWindow(nil).Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || !errors.Is(err, io.ErrUnexpectedEOF) || strings.Count(string(body), "\n") != exportPageRows {
+		t.Fatalf("export = %d, %d lines, read error %v; want the first page cut off", resp.StatusCode, strings.Count(string(body), "\n"), err)
+	}
+	reads := r.reads(t)
+	if len(reads) != 1 || reads[0].action != "audit.export" || reads[0].outcome != "failed" || reads[0].data["row_count"] != float64(exportPageRows) {
+		t.Fatalf("recorded %+v", reads)
+	}
+}
+
+func TestACompleteExportSaysWhetherRowsWereLeftOut(t *testing.T) {
+	r := newHTTPRig(t)
+	trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5)})
+	server := r.serve(t, r.reader, func() {})
+	resp, err := http.Get(server.URL + "/api/v1/audit/export?" + r.hourWindow(nil).Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if _, err := io.ReadAll(resp.Body); err != nil {
+		t.Fatal(err)
+	}
+	if got := resp.Trailer.Get(TruncatedHeader); got != "false" {
+		t.Fatalf("%s trailer = %q, want false", TruncatedHeader, got)
 	}
 }

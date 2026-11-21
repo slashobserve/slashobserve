@@ -17,7 +17,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
-const RowLimitHeader = "X-Export-Row-Limit"
+const (
+	RowLimitHeader  = "X-Export-Row-Limit"
+	TruncatedHeader = "X-Export-Truncated"
+)
 
 type Handler struct {
 	reader *Reader
@@ -294,17 +297,21 @@ func (h *Handler) export(c *gin.Context) {
 			c.Header("Content-Type", contentType)
 			c.Header("Content-Disposition", `attachment; filename="`+name+`"`)
 			c.Header(RowLimitHeader, strconv.Itoa(MaxExportRows))
+			c.Header("Trailer", TruncatedHeader)
 			c.Status(http.StatusOK)
 			return c.Writer
 		},
 		Flush: c.Writer.Flush,
 	}
-	_, err := h.reader.Export(c.Request.Context(), p, format, MaxExportRows, sink)
+	result, err := h.reader.Export(c.Request.Context(), p, format, MaxExportRows, sink)
 	switch {
 	case err == nil:
+		c.Writer.Header().Set(TruncatedHeader, strconv.FormatBool(result.Truncated))
 	case !begun:
 		h.fail(c, "export audit events", err)
-	case !clientgone.Is(c.Request.Context(), err):
+	case clientgone.Is(c.Request.Context(), err):
+	default:
 		h.logger.ErrorContext(c.Request.Context(), "export audit events failed", logattrs.Failure("audit_export_failed", err)...)
+		panic(http.ErrAbortHandler)
 	}
 }

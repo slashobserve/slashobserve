@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -23,6 +24,7 @@ const (
 	maxAuditBuckets     = 200
 	auditTimeLayout     = "2006-01-02T15:04:05Z"
 	exportRowLimitKey   = "X-Export-Row-Limit"
+	exportTruncatedKey  = "X-Export-Truncated"
 )
 
 var auditExportFormats = map[string]string{"ndjson": "application/x-ndjson", "csv": "text/csv"}
@@ -555,7 +557,7 @@ func (a *app) auditExportCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export [--query <filter>] [--from <time>] [--to <time>] [--format ndjson|csv] [--file <path>]",
 		Short: "Download the matching events as NDJSON or CSV",
-		Long:  "export streams every matching event in the window, newest first, to --file or to standard output: one JSON object per line, or CSV with a header row and data as JSON text.\nAn export stops at the server's row limit, one million rows, and says so; narrow the window to export the rest.\nThe export is itself recorded in the trail.",
+		Long:  "export streams every matching event in the window, newest first, to --file or to standard output: one JSON object per line, or CSV with a header row and data as JSON text.\nAn export stops at the server's row limit, one million rows, and says so; narrow the window to export the rest.\nWith --file it writes to <file>.partial and renames it when the export is complete; if the server or the connection ends the export early, it exits 1, says how many events arrived and leaves them in <file>.partial.\nThe export is itself recorded in the trail.",
 		Args:  noArgs,
 		RunE:  a.runAuditExport,
 	}
@@ -581,34 +583,46 @@ func (a *app) runAuditExport(cmd *cobra.Command, _ []string) (err error) {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	dst := a.std.Out
-	if a.audit.file != "" {
-		f, err := os.Create(a.audit.file)
+	if a.audit.file == "" {
+		rows, err := copyExport(a.std.Out, resp.Body, a.audit.format)
 		if err != nil {
-			return usagef("cannot write %s: %v", a.audit.file, err)
+			return exportCut(cmd, fmt.Errorf("the export is incomplete after %d events: %w", rows, err))
 		}
-		defer func() {
-			if cerr := f.Close(); err == nil && cerr != nil {
-				err = fmt.Errorf("write %s: %w", a.audit.file, cerr)
-			}
-		}()
-		dst = f
+		a.warnTruncated(resp)
+		return nil
 	}
-	rows, err := copyExport(dst, resp.Body, a.audit.format)
+	partial := a.audit.file + ".partial"
+	f, err := os.Create(partial) //nolint:gosec // the path the person asked to write
 	if err != nil {
-		if cmd.Context().Err() != nil {
-			return errInterrupted
-		}
-		return fmt.Errorf("the export stopped after %d rows: %w", rows, err)
+		return usagef("cannot write %s: %v", partial, err)
 	}
-	out := a.output()
-	if limit, convErr := strconv.Atoi(resp.Header.Get(exportRowLimitKey)); convErr == nil && rows >= limit {
-		out.warn("The export stopped at the server's limit of %d rows; narrow --from and --to to export the rest.", limit)
+	rows, err := copyExport(f, resp.Body, a.audit.format)
+	if cerr := f.Close(); err == nil && cerr != nil {
+		return fmt.Errorf("write %s: %w", partial, cerr)
 	}
-	if a.audit.file != "" {
-		out.confirm("Wrote %d events to %s.", rows, a.audit.file)
+	if err != nil {
+		return exportCut(cmd, fmt.Errorf("the export is incomplete: %s holds the first %d events: %w", partial, rows, err))
 	}
+	if err := os.Rename(partial, a.audit.file); err != nil {
+		return fmt.Errorf("move %s to %s: %w", partial, a.audit.file, err)
+	}
+	a.warnTruncated(resp)
+	a.output().confirm("Wrote %d events to %s.", rows, a.audit.file)
 	return nil
+}
+
+func exportCut(cmd *cobra.Command, err error) error {
+	if cmd.Context().Err() != nil {
+		return errInterrupted
+	}
+	return err
+}
+
+func (a *app) warnTruncated(resp *http.Response) {
+	if resp.Trailer.Get(exportTruncatedKey) != "true" {
+		return
+	}
+	a.output().warn("The export stopped at the server's limit of %s rows; narrow --from and --to to export the rest.", text(resp.Header.Get(exportRowLimitKey)))
 }
 
 func copyExport(dst io.Writer, src io.Reader, format string) (int, error) {

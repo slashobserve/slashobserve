@@ -97,6 +97,8 @@ Each read runs in a read-only transaction with a 30 second statement timeout and
 A search returns 100 events a page by default and at most 1,000, newest first by `occurred_at` and then `id`.
 `next_cursor` pages through one search without repeating or skipping an event, even while new events are recorded, because it keeps the window of the first page; a cursor sent with another query is refused.
 An export streams up to 1,000,000 events, the value of its `X-Export-Row-Limit` header, and stops there.
+A complete export ends with the HTTP trailer `X-Export-Truncated`: `true` when more matching events existed past the limit, `false` otherwise.
+When a read fails after the first rows were sent (a statement timeout, a lost database connection), the server cuts the connection off instead of ending the response, so the client sees an unexpected end of the body rather than a short file that looks complete; the failed export is recorded with its row count.
 
 ## Following new events
 
