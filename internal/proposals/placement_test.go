@@ -71,8 +71,8 @@ func TestARunThatReadAdminOnlyDataProposesOnlyWhereOnlyAdminsRead(t *testing.T) 
 				t.Fatal(err)
 			}
 			var run pgtype.UUID
-			if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, read_restricted)
-				VALUES ('apply', 'tidy it', 'user', $1::uuid, 'Root', 'running', 'running', $2) RETURNING id`, admin.ID, c.restricted).Scan(&run); err != nil {
+			if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, dashboard_id, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, read_restricted)
+				VALUES ('apply', $3::uuid, 'tidy it', 'user', $1::uuid, 'Root', 'running', 'running', $2) RETURNING id`, admin.ID, c.restricted, dash.ID).Scan(&run); err != nil {
 				t.Fatal(err)
 			}
 			proposed, err := spec.Parse(specOf("t", panel{"rps", "up"}, panel{"errs", "rate(errors[5m])"}))

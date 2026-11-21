@@ -14,7 +14,7 @@ import (
 
 func (r holdersRig) run(t *testing.T, readRestricted bool) string {
 	t.Helper()
-	return r.scalar(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, read_restricted) VALUES ('ask', 'who changed it', 'user', gen_random_uuid(), 'Root', $1) RETURNING id::text`, readRestricted)
+	return r.scalar(t, `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, read_restricted) VALUES ('ask', 'investigate', 'who changed it', 'user', gen_random_uuid(), 'Root', $1) RETURNING id::text`, readRestricted)
 }
 
 func (r holdersRig) ended(t *testing.T, run, set, id string) {
