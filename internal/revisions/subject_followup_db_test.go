@@ -39,12 +39,12 @@ func TestAFollowUpCarryingAnAnswerAboutAnotherAdminsOnlySubjectIsMarked(t *testi
 			if err != nil {
 				t.Fatal(err)
 			}
-			d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, first.ID, subject)
+			d.Exec(t, `UPDATE agent_requests SET kind = 'investigate', dashboard_id = $2 WHERE id = $1`, first.ID, subject)
 			switch c.about {
 			case "subject":
-				d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, second.ID, subject)
+				d.Exec(t, `UPDATE agent_requests SET kind = 'investigate', dashboard_id = $2 WHERE id = $1`, second.ID, subject)
 			case "other":
-				d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, second.ID, other)
+				d.Exec(t, `UPDATE agent_requests SET kind = 'investigate', dashboard_id = $2 WHERE id = $1`, second.ID, other)
 			}
 			if c.movedOut {
 				d.Exec(t, `UPDATE dashboards SET folder_id = general_folder_id() WHERE id = $1`, subject)
@@ -83,7 +83,7 @@ func TestARunThatStartsFromAnAnswerAboutAnAdminsOnlySubjectIsMarkedUntilTheSubje
 					t.Fatal(err)
 				}
 				answerWith(t, d, first.ID, "pending layoffs: payments team")
-				d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2 WHERE id = $1`, first.ID, subject)
+				d.Exec(t, `UPDATE agent_requests SET kind = 'investigate', dashboard_id = $2 WHERE id = $1`, first.ID, subject)
 				if movedOut {
 					d.Exec(t, `UPDATE dashboards SET folder_id = general_folder_id() WHERE id = $1`, subject)
 				}
