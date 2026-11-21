@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -34,9 +35,12 @@ import {
 } from "@/traces/minimap"
 import { highlightText } from "@/traces/trace-toolbar"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { styleForSlot } from "../colors"
+import { visibleBand } from "../list-anchors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { SpanAnchorLayout } from "./anchors"
 import {
   foldedRows,
   foldLabel,
@@ -868,6 +872,42 @@ function isFormField(target: EventTarget | null): boolean {
   )
 }
 
+function spanAnchorLayout(
+  scroller: HTMLElement,
+  spans: readonly Span[]
+): SpanAnchorLayout {
+  const root = surfaceOf(scroller)
+  const { width, height } = root.getBoundingClientRect()
+  const area = rectWithin(scroller, root)
+  const ruler = scroller.firstElementChild
+  const below =
+    ruler === null
+      ? area.y
+      : rectWithin(ruler, root).y + rectWithin(ruler, root).height
+  const view = { ...area, y: below, height: area.y + area.height - below }
+  const byId = new Map(spans.map((span) => [span.id, span]))
+  const drawn: SpanAnchorLayout["spans"][number][] = []
+  const shown = new Set<string>()
+  for (const item of scroller.querySelectorAll<HTMLElement>(
+    "li[data-span-id]"
+  )) {
+    const id = item.dataset.spanId ?? ""
+    const span = byId.get(id)
+    const rect = visibleBand(
+      rectWithin(item.firstElementChild ?? item, root),
+      view
+    )
+    if (span === undefined || rect === null) continue
+    drawn.push({ rect, span })
+    shown.add(id)
+  }
+  return {
+    body: { width, height },
+    spans: drawn,
+    elsewhere: spans.flatMap(({ id }) => (shown.has(id) ? [] : [id])),
+  }
+}
+
 export function TraceView(props: TraceViewProps) {
   const { model, filters, zone, width, height, attributes, toolbar } = props
   const [internalCollapsed, setInternalCollapsed] = useState<
@@ -985,6 +1025,29 @@ export function TraceView(props: TraceViewProps) {
       row.scrollIntoView({ block: "nearest" })
     }
   }, [focusedId, range.start, range.end])
+
+  const publish = useAnchorPublisher("traces")
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (list === null) {
+      publish(null)
+      return
+    }
+    const measure = () => publish(spanAnchorLayout(list, filtered.spans))
+    measure()
+    list.addEventListener("scroll", measure, { passive: true })
+    return () => list.removeEventListener("scroll", measure)
+  }, [
+    publish,
+    filtered.spans,
+    rows,
+    range.start,
+    range.end,
+    openId,
+    detailHeight,
+    width,
+    height,
+  ])
 
   const toggle = (id: string) => {
     const next = new Set(collapsed)

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type LogAnchorLayout } from "./anchors"
+import { edgeHeight } from "../list-anchors"
+
+import { hitTest, locate, type LogAnchorLayout } from "./anchors"
 
 const layout: LogAnchorLayout = {
   body: { width: 400, height: 100 },
@@ -43,5 +45,27 @@ describe("logs hitTest", () => {
 
   it("returns null below the last line", () => {
     expect(hitTest(layout, { x: 40, y: 90 })).toBeNull()
+  })
+})
+
+describe("logs locate", () => {
+  it("finds the line a hit test named", () => {
+    const anchor = hitTest(layout, { x: 40, y: 30 })
+    expect(anchor).not.toBeNull()
+    expect(locate(layout, anchor!)).toEqual(layout.lines[1].rect)
+  })
+
+  it("points at the bottom edge for a line scrolled out of view", () => {
+    const scrolled = { ...layout, elsewhere: ["row-9"] }
+    expect(
+      locate(scrolled, { kind: "log_line", pos: { x: 0, y: 0 }, id: "row-9" })
+    ).toEqual({ x: 0, y: 100 - edgeHeight, width: 400, height: edgeHeight })
+  })
+
+  it("returns null when the line is gone or the anchor is not a log line", () => {
+    expect(
+      locate(layout, { kind: "log_line", pos: { x: 0, y: 0 }, id: "row-9" })
+    ).toBeNull()
+    expect(locate(layout, { kind: "position", pos: { x: 0, y: 0 } })).toBeNull()
   })
 })

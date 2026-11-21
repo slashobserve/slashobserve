@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type AlertAnchorLayout } from "./anchors"
+import { edgeHeight } from "../list-anchors"
+
+import { hitTest, locate, type AlertAnchorLayout } from "./anchors"
 
 const layout: AlertAnchorLayout = {
   body: { width: 300, height: 100 },
@@ -14,6 +16,10 @@ const layout: AlertAnchorLayout = {
           ["severity", "page"],
         ],
       },
+    },
+    {
+      rect: { x: 0, y: 30, width: 300, height: 30 },
+      alert: { name: "SlowRequests", labels: [["service", "search"]] },
     },
   ],
 }
@@ -32,6 +38,50 @@ describe("alert list hitTest", () => {
   })
 
   it("returns null below the last row", () => {
-    expect(hitTest(layout, { x: 30, y: 60 })).toBeNull()
+    expect(hitTest(layout, { x: 30, y: 80 })).toBeNull()
+  })
+})
+
+describe("alert list locate", () => {
+  it("finds the row a hit test named", () => {
+    const point = { x: 30, y: 45 }
+    const anchor = hitTest(layout, point)
+    expect(anchor).not.toBeNull()
+    expect(locate(layout, anchor!)).toEqual(layout.rows[1].rect)
+  })
+
+  it("finds a row by the alert name alone", () => {
+    expect(
+      locate(layout, {
+        kind: "row",
+        pos: { x: 0, y: 0 },
+        row: { alertname: "HighErrorRate" },
+      })
+    ).toEqual(layout.rows[0].rect)
+  })
+
+  it("points at the bottom edge for an alert scrolled out of view", () => {
+    const scrolled: AlertAnchorLayout = {
+      ...layout,
+      elsewhere: [{ name: "DiskFull", labels: [] }],
+    }
+    expect(
+      locate(scrolled, {
+        kind: "row",
+        pos: { x: 0, y: 0 },
+        row: { alertname: "DiskFull" },
+      })
+    ).toEqual({ x: 0, y: 100 - edgeHeight, width: 300, height: edgeHeight })
+  })
+
+  it("returns null when the alert is gone or the anchor is not a row", () => {
+    expect(
+      locate(layout, {
+        kind: "row",
+        pos: { x: 0, y: 0 },
+        row: { alertname: "DiskFull" },
+      })
+    ).toBeNull()
+    expect(locate(layout, { kind: "position", pos: { x: 0, y: 0 } })).toBeNull()
   })
 })

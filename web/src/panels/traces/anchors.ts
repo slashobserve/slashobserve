@@ -8,6 +8,7 @@ import {
   type Rect,
   type Size,
 } from "../anchors"
+import { bottomEdge } from "../list-anchors"
 import type { Span } from "./trace-model"
 
 export type SpanAnchorLayout = {
@@ -16,6 +17,7 @@ export type SpanAnchorLayout = {
     rect: Rect
     span: Pick<Span, "id" | "service" | "operation">
   }[]
+  elsewhere?: readonly string[]
 }
 
 export function hitTest(layout: SpanAnchorLayout, point: Point): Anchor | null {
@@ -28,4 +30,12 @@ export function hitTest(layout: SpanAnchorLayout, point: Point): Anchor | null {
     id: clip(span.id),
     quote: clip([span.service, span.operation].filter(Boolean).join(" ")),
   })
+}
+
+export function locate(layout: SpanAnchorLayout, anchor: Anchor): Rect | null {
+  if (anchor.kind !== "span") return null
+  const named = (id: string) => clip(id) === anchor.id
+  const drawn = layout.spans.find(({ span }) => named(span.id))
+  if (drawn !== undefined) return drawn.rect
+  return (layout.elsewhere ?? []).some(named) ? bottomEdge(layout.body) : null
 }

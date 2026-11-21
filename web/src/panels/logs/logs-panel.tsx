@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,9 +22,13 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import type { Size } from "../anchors"
 import type { FieldResolver } from "../field-config"
+import { visibleBand } from "../list-anchors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { LogAnchorLayout } from "./anchors"
 import { logWindow, rowOffsets } from "./log-window"
 import {
   detailText,
@@ -649,6 +654,32 @@ function useViewportHeight(element: HTMLDivElement | null) {
   return height
 }
 
+function logAnchorLayout(
+  scroller: HTMLElement,
+  list: HTMLElement,
+  entries: readonly LogEntry[],
+  body: Size
+): LogAnchorLayout {
+  const root = surfaceOf(scroller)
+  const view = rectWithin(scroller, root)
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]))
+  const lines: LogAnchorLayout["lines"][number][] = []
+  const shown = new Set<string>()
+  for (const element of list.children) {
+    const key = (element as HTMLElement).dataset.key ?? ""
+    const entry = byKey.get(key)
+    const rect = visibleBand(rectWithin(element, root), view)
+    if (entry === undefined || rect === null) continue
+    lines.push({ rect, entry })
+    shown.add(key)
+  }
+  return {
+    body,
+    lines,
+    elsewhere: entries.flatMap(({ key }) => (shown.has(key) ? [] : [key])),
+  }
+}
+
 export function LogsView({
   panelTitle,
   frames,
@@ -797,6 +828,26 @@ export function LogsView({
   useEffect(() => {
     if (windowed) observeRows(listRef.current)
   })
+
+  const publish = useAnchorPublisher("logs")
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (scrollElement === null || list === null) {
+      publish(null)
+      return
+    }
+    const measure = () =>
+      publish(logAnchorLayout(scrollElement, list, entries, { width, height }))
+    measure()
+    scrollElement.addEventListener("scroll", measure, { passive: true })
+    const observer = new ResizeObserver(measure)
+    observer.observe(scrollElement)
+    observer.observe(list)
+    return () => {
+      scrollElement.removeEventListener("scroll", measure)
+      observer.disconnect()
+    }
+  }, [publish, scrollElement, entries, range.start, range.end, width, height])
 
   const scrolledKey = useRef<string | null>(null)
   useEffect(() => {

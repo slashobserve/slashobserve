@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { edgeHeight, hitTest, locate, type TableAnchorLayout } from "./anchors"
+import { edgeHeight } from "../list-anchors"
+
+import { hitTest, locate, type TableAnchorLayout } from "./anchors"
 
 const layout: TableAnchorLayout = {
   body: { width: 400, height: 200 },
