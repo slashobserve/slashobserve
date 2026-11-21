@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -191,8 +193,8 @@ func TestOnlyTheAskerSeesWhichThreadTheirAnswerIsSharedIn(t *testing.T) {
 	if onRun, onTurn := r.sharedThreadShown(t, admin, run); onRun != nil || onTurn != nil {
 		t.Fatalf("an Admin reads shared_thread_id %v on the run and %v on the turn, want none", onRun, onTurn)
 	}
-	if _, err := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{}).Run(reading(t.Context()), run, otherEditor, 0); err == nil {
-		t.Fatal("another viewer of the thread reads the run itself")
+	if shown := r.runAsReadBy(t, otherEditor, run); !shown.ReadOnly || shown.SharedThread != nil || shown.ChatID != nil {
+		t.Fatalf("another reader of the thread reads the run as %+v, want read only with no thread or chat", shown)
 	}
 
 	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
@@ -229,5 +231,105 @@ func TestAnAdminCannotShareOrWithdrawSomeoneElsesPrivateAnswer(t *testing.T) {
 	}
 	if events := r.db.AuditEvents(t, "run.withdraw"); len(events) != 0 {
 		t.Fatalf("run.withdraw events after the Admin's refusal = %+v", events)
+	}
+}
+
+type runShown struct {
+	ReadOnly       bool     `json:"read_only"`
+	AllowedActions []string `json:"allowed_actions"`
+	SharedThread   *string  `json:"shared_thread_id"`
+	ChatID         *string  `json:"chat_id"`
+}
+
+func (r *rig) runAsReadBy(t *testing.T, by auth.Principal, run pgtype.UUID) runShown {
+	t.Helper()
+	raw, err := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{}).Run(reading(t.Context()), run, by, 0)
+	if err != nil {
+		t.Fatalf("%s reads the run: %v", by.Name, err)
+	}
+	var shown runShown
+	if err := json.Unmarshal(raw, &shown); err != nil {
+		t.Fatal(err)
+	}
+	return shown
+}
+
+func (r *rig) observeStatus(t *testing.T, who auth.Principal, run pgtype.UUID) int {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	revisions.NewObserveHandler(r.revisions, revisions.ObserveOptions{}).Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
+	})))
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/observe/"+run.String(), nil))
+	return rec.Code
+}
+
+func TestASharedAnswerIsReadByTheThreadsReadersUntilItIsWithdrawn(t *testing.T) {
+	r := newShareRig(t)
+	_, run, shared := r.sharedDashboardAnswer(t)
+	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+
+	if shown := r.runAsReadBy(t, testUser, run); shown.ReadOnly || shown.SharedThread == nil || len(shown.AllowedActions) == 0 {
+		t.Fatalf("the asker reads the run as %+v", shown)
+	}
+	for _, reader := range []auth.Principal{otherEditor, viewer, admin} {
+		if shown := r.runAsReadBy(t, reader, run); !shown.ReadOnly || len(shown.AllowedActions) != 0 || shown.SharedThread != nil || shown.ChatID != nil && reader.ID != adminID {
+			t.Errorf("%s reads the shared run as %+v, want read only", reader.Name, shown)
+		}
+		if _, err := r.findingOfRun(t, reader, run); err != nil {
+			t.Errorf("%s reads the shared answer: %v", reader.Name, err)
+		}
+		if code := r.observeStatus(t, reader, run); code != http.StatusOK {
+			t.Errorf("%s: GET /observe/{id} of the shared run answered %d", reader.Name, code)
+		}
+	}
+
+	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
+		t.Fatal(err)
+	}
+	for _, former := range []auth.Principal{otherEditor, viewer} {
+		if _, err := desk.Run(reading(t.Context()), run, former, 0); !errors.Is(err, revisions.ErrRequestNotFound) {
+			t.Errorf("%s reads the withdrawn run: %v", former.Name, err)
+		}
+		if code := r.observeStatus(t, former, run); code != http.StatusNotFound {
+			t.Errorf("%s: GET /observe/{id} of the withdrawn run answered %d", former.Name, code)
+		}
+	}
+	if shown := r.runAsReadBy(t, admin, run); !shown.ReadOnly {
+		t.Errorf("an Admin reads the withdrawn run as %+v", shown)
+	}
+	if shown := r.runAsReadBy(t, testUser, run); shown.ReadOnly {
+		t.Errorf("the asker reads the withdrawn run as %+v", shown)
+	}
+}
+
+func TestOnlyThoseWhoReadTheThreadReadASharedRunAndMayApplyItsSuggestion(t *testing.T) {
+	r := newShareRig(t)
+	dash, run, shared := r.sharedDashboardAnswer(t)
+	r.db.Exec(t, `UPDATE findings SET suggested_change = $2 WHERE agent_request_id = $1`, run, declinesPanel)
+	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	finding, err := r.findingOfRun(t, otherEditor, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sent := r.applied(t, otherEditor, shared.Thread.ID, mustParse(t, finding.ID))
+	applyRun, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), mustParse(t, sent.Run.ID))
+	if err != nil || applyRun.RequestedByID.String() != otherEditor.ID || applyRun.Intent != string(revisions.IntentApply) {
+		t.Fatalf("the reader's apply run = %+v, %v", applyRun, err)
+	}
+
+	insider := auth.Principal{Kind: auth.KindUser, ID: "77777777-7777-4777-8777-777777777777", Name: "In", Role: auth.RoleEditor, Groups: []string{payrollGroup}}
+	foldertest.Move(t, r.db, dash, foldertest.Restricted(t, r.db, "Payroll", payrollGroup))
+	if _, err := desk.Run(reading(t.Context()), run, otherEditor, 0); !errors.Is(err, revisions.ErrRequestNotFound) {
+		t.Errorf("someone who can no longer read the thread reads the run: %v", err)
+	}
+	if _, err := r.findingOfRun(t, otherEditor, run); !errors.Is(err, findings.ErrNotFound) {
+		t.Errorf("someone who can no longer read the thread reads the answer: %v", err)
+	}
+	if shown := r.runAsReadBy(t, insider, run); !shown.ReadOnly {
+		t.Errorf("a reader of the restricted thread reads the run as %+v", shown)
 	}
 }

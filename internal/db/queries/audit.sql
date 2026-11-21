@@ -44,3 +44,21 @@ SELECT migrated_at FROM audit_backfill;
 
 -- name: CatchUpAuditEvents :one
 SELECT audit_events_catch_up(@since::timestamptz, @by_server::text, @by_version::text, false)::bigint AS inserted;
+
+-- name: GetAuditExportCursor :one
+SELECT xid, seq, occurred_at FROM audit_export_cursor;
+
+-- name: AdvanceAuditExportCursor :exec
+INSERT INTO audit_export_cursor (xid, seq, occurred_at) VALUES (@xid::xid8, @seq::bigint, @occurred_at::timestamptz)
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = GREATEST(audit_export_cursor.occurred_at, EXCLUDED.occurred_at), updated_at = now()
+WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq);
+
+-- name: GetAuditExportLag :one
+SELECT COALESCE(GREATEST(EXTRACT(EPOCH FROM edge.newest - edge.exported), 0), 0)::float8 AS lag_seconds
+FROM (
+  SELECT (SELECT max(occurred_at) FROM audit_events) AS newest,
+         COALESCE((SELECT occurred_at FROM audit_export_cursor), (SELECT min(occurred_at) FROM audit_events)) AS exported
+) AS edge;
+
+-- name: GetOldestAuditEventAt :one
+SELECT min(occurred_at)::timestamptz AS oldest FROM audit_events;

@@ -39,6 +39,7 @@ type Service struct {
 	specs        SpecReader
 	builds       Builds
 	threads      Threads
+	threadReads  ThreadReader
 
 	observations RunObservations
 	principals   Principals
@@ -610,7 +611,16 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 		s.recordRunView(ctx, row)
 		return row, false, nil
 	}
-	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
+	if !errors.Is(err, ErrRequestNotFound) {
+		return dbsqlc.AgentRequest{}, false, err
+	}
+	if shared, ok, sharedErr := s.sharedWith(ctx, id, by); sharedErr != nil || ok {
+		if ok {
+			s.recordRunView(ctx, shared)
+		}
+		return shared, ok, sharedErr
+	}
+	if !by.Role.AtLeast(auth.RoleAdmin) {
 		return dbsqlc.AgentRequest{}, false, err
 	}
 	row, err = s.GetByID(ctx, id)

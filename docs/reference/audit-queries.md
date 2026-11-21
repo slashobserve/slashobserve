@@ -10,6 +10,10 @@ A search is recorded once per caller and query text in 10 minutes: the repeats, 
 The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
 A query that is refused is recorded every time, as a `failed` event with its reason.
 
+A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded once per reader and subject in 10 minutes, the owner's own views included.
+A list of chats or requests is one `chat.list` or `run.list` event, recorded once per reader and scope in 10 minutes, never one per row.
+A refused view is recorded every time.
+
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.
@@ -21,7 +25,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `id` | | uuid | Event id |
 | `category` | | enum | `auth`, `access`, `content`, `conversation`, `agent`, `query`, `admin` or `system` |
 | `action` | | text | What was attempted, such as `dashboard.update`; `dashboard.*` matches a prefix |
-| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm |
+| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm; a `run.finish` is `success` when the run saved its result and `failed` when it failed, timed out or was canceled, and its `result` says which of `succeeded`, `failed` or `canceled` |
 | `reason` | | text | The API error code of a refusal or failure, such as `forbidden_role` |
 | `status` | | int | HTTP status of the request |
 | `duration_ms` | `duration` | int | How long the action took, in milliseconds |
@@ -50,6 +54,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `server_id`, `server_version` | | text | The server replica and build that recorded the event |
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
+A `run.finish` recorded by a server older than 0.1.4 says `success` whatever the run's result, so read `data.result` on those events, which a query cannot filter on; every later one agrees with its run.
 A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
 Repeated refusals are folded so an attack cannot flood the trail: `auth.credential_rejected`, `auth.csrf_rejected` and `auth.login_failed` events that share an action, reason, target, actor and provider error are one key.
 The first event of a key is written at once with `data.count` of 1.

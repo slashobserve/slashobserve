@@ -483,7 +483,7 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 `--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
-A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
+A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs Comment on the observation; an annotation or a proposal thread starts none.
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.

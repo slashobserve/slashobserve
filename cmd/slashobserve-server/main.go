@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	auditexport "github.com/slashobserve/slashobserve/internal/audit/export"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -375,8 +376,9 @@ func run() error {
 	}
 
 	serverID := instanceID()
+	auditMetrics := serverMetrics.Audit()
 	recorder := audit.New(audit.Config{
-		DB: database, Server: serverID, Version: version, Metrics: serverMetrics.Audit(), Retention: cfg.AuditRetention, Logger: logger,
+		DB: database, Server: serverID, Version: version, Metrics: auditMetrics, Retention: cfg.AuditRetention, Logger: logger,
 	})
 	audit.Install(recorder)
 	if err := recorder.PartitionJob()(ctx); err != nil {
@@ -464,6 +466,10 @@ func run() error {
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
+	revisionsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
+		_, err := threadsService.ReadMessage(ctx, by, messageID)
+		return err
+	})
 	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
@@ -521,6 +527,8 @@ func run() error {
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("audit_partitions", 24*time.Hour, recorder.PartitionJob())
+	stopAuditExport := registerAuditExport(ctx, jobs, cfg.AuditExport, auditReader, database, auditMetrics, logger)
+	defer stopAuditExport()
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))
@@ -870,6 +878,17 @@ func reportedEffort(llm config.LLM) string {
 }
 
 func poolFloor(workers int) int { return 2*workers + 8 }
+
+func registerAuditExport(ctx context.Context, jobs *scheduler.Scheduler, export config.AuditExport, reader *trail.Reader, database *db.DB, m metrics.Audit, logger *slog.Logger) func() {
+	if export.Endpoint == nil {
+		return func() {}
+	}
+	cursor := auditexport.NewCursor(database.Queries())
+	sender := auditexport.NewSender(export.Endpoint, export.Headers)
+	exporter := auditexport.New(reader, cursor, sender.Send, m, logger)
+	jobs.Register(auditexport.JobName, auditexport.JobEvery, exporter.Run)
+	return startBackground(ctx, "audit export lag", auditexport.NewLagWatcher(cursor, m, logger).Run, logger)
+}
 
 func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog.Logger) func() {
 	schedulerCtx, cancel := context.WithCancel(ctx)

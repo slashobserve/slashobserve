@@ -106,30 +106,14 @@ func (f *Follow) Next(ctx context.Context) ([]Followed, error) {
 	if err != nil {
 		return nil, refused(err)
 	}
-	out := []Followed{}
-	err = f.reader.readWithin(ctx, f.reader.followTimeout, func(tx db.Rows) error {
-		rows, err := tx.Query(ctx, c.SQL, c.Args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var xid string
-			e, err := scanEvent(rows, &xid)
-			if err != nil {
-				return err
-			}
-			at := filter.Position{Seq: e.Seq}
-			if at.Xid, err = strconv.ParseUint(xid, 10, 64); err != nil {
-				return fmt.Errorf("read audit position: %w", err)
-			}
-			out = append(out, Followed{ID: eventID(at, e.at), Event: e})
-			f.at = at
-		}
-		return rows.Err()
-	})
+	rows, err := f.reader.positioned(ctx, c, f.reader.followTimeout)
 	if err != nil {
 		return nil, err
+	}
+	out := make([]Followed, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, Followed{ID: eventID(row.At, row.Event.at), Event: row.Event})
+		f.at = row.At
 	}
 	return out, nil
 }
