@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"slices"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -85,7 +88,7 @@ func (r *rig) answerMention(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.Agent
 
 func (r *rig) answersByRun(t *testing.T, by auth.Principal, tg Target) map[string]*Answer {
 	t.Helper()
-	page, err := r.service.List(reading(t.Context()), by, ListQuery{Target: tg, Status: StatusAll, Limit: 50})
+	page, err := r.service.List(reading(t.Context()), by, ListQuery{Target: tg, Status: StatusAll, Limit: 50, WithAnswers: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,8 +118,14 @@ func (r *rig) answersByRun(t *testing.T, by auth.Principal, tg Target) map[strin
 }
 
 type answerPage struct {
-	target                                    Target
-	open, kept, shared, unshared, savedHidden pgtype.UUID
+	target                                                             Target
+	open, kept, shared, unshared, redacted, savedHidden, build, failed pgtype.UUID
+}
+
+func (r *rig) replyNaming(t *testing.T, tg Target, run pgtype.UUID) {
+	t.Helper()
+	opened, _ := r.open(t, testUser, OpenInput{Target: tg, Version: new(1), PanelID: new("rps"), Body: "a reply row that names a run"})
+	r.db.Exec(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1, 'Answered.', 'user', $2, 'Ada', $3, 'builtin')`, mustParse(t, opened.ID), mustParse(t, testUserID), run)
 }
 
 func (r *rig) mixedAnswerPage(t *testing.T) answerPage {
@@ -135,8 +144,23 @@ func (r *rig) mixedAnswerPage(t *testing.T) answerPage {
 	}
 
 	p.unshared = r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "errors")
-	openThread, _ := r.open(t, testUser, OpenInput{Target: tg, Version: new(1), PanelID: new("rps"), Body: "a reply row that names a private ask"})
-	r.db.Exec(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1, 'Answered.', 'user', $2, 'Ada', $3, 'builtin')`, mustParse(t, openThread.ID), mustParse(t, testUserID), p.unshared)
+	r.replyNaming(t, tg, p.unshared)
+
+	p.redacted = r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "errors")
+	r.db.Exec(t, `UPDATE agent_requests SET kind = 'build', intent = 'apply', context_from = NULL, context_to = NULL WHERE id = $1`, p.redacted)
+	r.replyNaming(t, tg, p.redacted)
+
+	_, build := r.mentionRun(t, tg)
+	if err := r.runEnded(t, succeededWithVersion(build, 1)); err != nil {
+		t.Fatal(err)
+	}
+	p.build = build.ID
+
+	_, failed := r.mentionRun(t, tg)
+	if err := r.runEnded(t, ended(failed, revisions.StateFailed)); err != nil {
+		t.Fatal(err)
+	}
+	p.failed = failed.ID
 
 	saved, _ := r.answeredMentionRun(t, tg)
 	if _, _, err := r.findings.SaveAsObservation(reading(t.Context()), testUser, saved.ID); err != nil {
@@ -161,11 +185,14 @@ func (r *rig) mixedAnswerPage(t *testing.T) answerPage {
 func TestAThreadListGivesEachReaderTheAnswersTheSingleReadGivesThem(t *testing.T) {
 	r := newAnswersRig(t)
 	p := r.mixedAnswerPage(t)
-	runs := map[string]pgtype.UUID{"open": p.open, "kept": p.kept, "shared": p.shared, "unshared": p.unshared, "saved in a hidden folder": p.savedHidden}
+	runs := map[string]pgtype.UUID{"open": p.open, "kept": p.kept, "shared": p.shared, "unshared": p.unshared, "a chat seen redacted": p.redacted, "saved in a hidden folder": p.savedHidden, "a build": p.build, "a failed run": p.failed}
 
 	for _, reader := range []auth.Principal{admin, testUser, otherEditor, viewer, robotKey} {
 		t.Run(reader.Name, func(t *testing.T) {
 			listed := r.answersByRun(t, reader, p.target)
+			if a := listed[p.open.String()]; a == nil {
+				t.Fatalf("%s reads no answer for the open run", reader.Name)
+			}
 			for name, run := range runs {
 				single := r.singleRead(t, reader, run)
 				var batch json.RawMessage
@@ -277,4 +304,95 @@ func jsonEqual(t *testing.T, a, b json.RawMessage) bool {
 		t.Fatal(err)
 	}
 	return bytes.Equal(ca.Bytes(), cb.Bytes())
+}
+
+type countingGate struct {
+	RunGate
+	asked map[pgtype.UUID]int
+}
+
+func (g *countingGate) ShowsRunAnswer(ctx context.Context, run pgtype.UUID, by auth.Principal) (bool, error) {
+	g.asked[run]++
+	return g.RunGate.ShowsRunAnswer(ctx, run, by)
+}
+
+func TestAThreadListDecidesAccessOnlyForRunsThatSavedAnAnswer(t *testing.T) {
+	r := newShareRig(t)
+	p := r.mixedAnswerPage(t)
+	gate := &countingGate{RunGate: r.revisions, asked: map[pgtype.UUID]int{}}
+	r.service.ReadAnswersWith(gate, findingAnswers{r.findings})
+
+	r.answersByRun(t, viewer, p.target)
+	for name, run := range map[string]pgtype.UUID{"a build": p.build, "a failed run": p.failed} {
+		if n := gate.asked[run]; n != 0 {
+			t.Errorf("%s with no answer was read %d times", name, n)
+		}
+	}
+	for name, run := range map[string]pgtype.UUID{"open": p.open, "kept": p.kept, "shared": p.shared} {
+		if n := gate.asked[run]; n != 1 {
+			t.Errorf("%s was read %d times, want once", name, n)
+		}
+	}
+
+	clear(gate.asked)
+	if _, _, err := r.comments.List(reading(t.Context()), viewer, p.target.ID, StatusAll, "", 50, ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(gate.asked) != 0 {
+		t.Errorf("the dashboard comments list, which carries no answer, read %d runs", len(gate.asked))
+	}
+}
+
+func TestAThreadListRecordsNoReadOfTheRunsItAnswers(t *testing.T) {
+	r := newAnswersRig(t)
+	p := r.mixedAnswerPage(t)
+	var before int64
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT coalesce(max(seq), 0) FROM audit_events`).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	recorder := audit.New(audit.Config{DB: r.db.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
+	audit.Install(recorder)
+	t.Cleanup(func() { audit.Install(nil) })
+	ctx, stop := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		recorder.Run(ctx)
+	}()
+
+	scoped := func(who auth.Principal) context.Context {
+		return audit.Open(auth.WithPrincipal(reading(t.Context()), who), audit.Scope{Actor: auth.AuditActor(who), Initiator: audit.InitiatorPerson, Origin: audit.Origin{Kind: "mcp"}})
+	}
+	for _, who := range []auth.Principal{admin, testUser, otherEditor, viewer, robotKey} {
+		if _, err := r.service.List(scoped(who), who, ListQuery{Target: p.target, Status: StatusAll, Limit: 50, WithAnswers: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	if _, err := desk.Run(scoped(viewer), p.open, viewer, 0); err != nil {
+		t.Fatal(err)
+	}
+	stop()
+	<-done
+
+	var events []string
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT action || ' ' || coalesce(actor_id::text, '-') || ' ' || coalesce(target_id, '-') FROM audit_events WHERE seq > $1 ORDER BY seq`, before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var e string
+		if err := rows.Scan(&e); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"run.view " + viewerID + " " + p.open.String()}
+	if !slices.Equal(events, want) {
+		t.Fatalf("audit events = %q, want only the run read %q", events, want)
+	}
 }

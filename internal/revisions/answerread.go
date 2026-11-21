@@ -10,12 +10,12 @@ import (
 )
 
 func (s *Service) ShowsRunAnswer(ctx context.Context, id pgtype.UUID, by auth.Principal) (bool, error) {
-	row, _, err := s.ReadObserve(ctx, id, by)
+	row, _, err := s.resolveObserve(ctx, id, by)
 	switch {
 	case errors.Is(err, ErrRequestNotFound):
 		return false, nil
 	case err != nil:
 		return false, err
 	}
-	return mayHaveFinding(row) && s.viewOf(ctx, row, by) != viewNone, nil
+	return findingShown(s.viewOf(ctx, row, by), row), nil
 }

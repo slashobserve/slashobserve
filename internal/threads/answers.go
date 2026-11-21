@@ -3,6 +3,7 @@ package threads
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -43,14 +44,12 @@ func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsql
 	if s.answers == nil {
 		return nil, nil
 	}
+	runs, err := s.answeredRuns(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	out := map[pgtype.UUID]Answer{}
-	seen := map[pgtype.UUID]bool{}
-	for _, r := range rows {
-		run := r.ThreadMessage.RunID
-		if !run.Valid || seen[run] {
-			continue
-		}
-		seen[run] = true
+	for _, run := range runs {
 		a, found, err := s.answers.read(ctx, by, run)
 		if err != nil {
 			return nil, err
@@ -60,6 +59,25 @@ func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsql
 		}
 	}
 	return out, nil
+}
+
+func (s *Service) answeredRuns(ctx context.Context, rows []dbsqlc.ListThreadMessagesRow) ([]pgtype.UUID, error) {
+	var replied []pgtype.UUID
+	seen := map[pgtype.UUID]bool{}
+	for _, r := range rows {
+		if run := r.ThreadMessage.RunID; run.Valid && !seen[run] {
+			seen[run] = true
+			replied = append(replied, run)
+		}
+	}
+	if len(replied) == 0 {
+		return nil, nil
+	}
+	answered, err := s.db.Queries().ListAnsweredRuns(ctx, replied)
+	if err != nil {
+		return nil, fmt.Errorf("list the page's runs that saved an answer: %w", err)
+	}
+	return answered, nil
 }
 
 func (r *answerReads) read(ctx context.Context, by auth.Principal, run pgtype.UUID) (Answer, bool, error) {

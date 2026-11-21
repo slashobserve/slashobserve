@@ -515,6 +515,30 @@ func (q *Queries) InsertRunReply(ctx context.Context, arg InsertRunReplyParams) 
 	return i, err
 }
 
+const listAnsweredRuns = `-- name: ListAnsweredRuns :many
+SELECT agent_request_id::uuid FROM findings WHERE agent_request_id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListAnsweredRuns(ctx context.Context, runIds []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listAnsweredRuns, runIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var agent_request_id pgtype.UUID
+		if err := rows.Scan(&agent_request_id); err != nil {
+			return nil, err
+		}
+		items = append(items, agent_request_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMentions = `-- name: ListMentions :many
 SELECT message_id, user_id, agent, name, agent_grant_id, agent_service_account_id FROM thread_mentions WHERE message_id = ANY($1::uuid[]) ORDER BY message_id, agent NULLS LAST, name, user_id, agent_grant_id, agent_service_account_id
 `

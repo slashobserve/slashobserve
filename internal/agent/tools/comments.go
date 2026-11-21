@@ -358,7 +358,7 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 		return res, nil
 	}
 	for {
-		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor})
+		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor, WithAnswers: true})
 		if err != nil {
 			return commentFailure(err)
 		}

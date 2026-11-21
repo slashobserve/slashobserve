@@ -178,12 +178,12 @@ func TestListCommentsGivesAnAgentKeyTheAnswersItsRunReadGivesIt(t *testing.T) {
 	r := newAnswerRig(t)
 	open := r.answeredAsk(t, false)
 	kept := r.answeredAsk(t, true)
-	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "77777777-7777-4777-8777-777777777777", Name: "ci", Role: auth.RoleViewer}
+	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "88888888-8888-4888-8888-888888888888", Name: "ci", Role: auth.RoleViewer}
 
 	for _, tt := range []struct {
 		reader     auth.Principal
 		open, kept bool
-	}{{key, true, false}, {placeholderUser, true, true}} {
+	}{{key, true, false}, {placeholderUser, true, true}, {adminCaller, true, true}, {editorCaller, true, false}, {viewerCaller, true, false}} {
 		listed := r.listedAnswers(t, tt.reader)
 		for _, run := range []struct {
 			id   pgtype.UUID

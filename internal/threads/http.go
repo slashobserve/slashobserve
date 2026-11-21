@@ -206,7 +206,7 @@ func (th *Threads) list(c *gin.Context) {
 		return
 	}
 	page, err := th.service.List(c.Request.Context(), httpapi.Caller(c), ListQuery{
-		Target: target, Status: status, PanelID: panelID, Limit: limit, Cursor: c.Query("cursor"),
+		Target: target, Status: status, PanelID: panelID, Limit: limit, Cursor: c.Query("cursor"), WithAnswers: true,
 	})
 	if err != nil {
 		th.fail(c, "list threads", err)

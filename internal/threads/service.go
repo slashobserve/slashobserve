@@ -93,6 +93,8 @@ type ListQuery struct {
 	PanelID string
 	Limit   int
 	Cursor  string
+
+	WithAnswers bool
 }
 
 type Page struct {
@@ -601,6 +603,11 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	if in.WithAnswers {
+		if pd.answers, err = s.answersOf(ctx, by, rows); err != nil {
+			return Page{}, fmt.Errorf("read the answers of the page's runs: %w", err)
+		}
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
@@ -655,9 +662,6 @@ func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, r
 	}
 	if pd.unread, err = s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows)); err != nil {
 		return pageData{}, err
-	}
-	if pd.answers, err = s.answersOf(ctx, by, rows); err != nil {
-		return pageData{}, fmt.Errorf("read the answers of the page's runs: %w", err)
 	}
 	return pd, nil
 }
