@@ -245,7 +245,8 @@ func TestEveryReadOfTheTrailIsRecordedWithItsQueryAndView(t *testing.T) {
 	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5), Actor: "secretname"}, trailtest.Event{At: r.at(-6)})
 	engine := r.engine(t, &admin)
 	const text = "actor_name:secretname"
-	aggs := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1s"},"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}}}`
+	unknown := trailtest.IDAt(r.base).String()
+	aggs := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"10m"},"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}}}`
 	for _, call := range []struct {
 		path  string
 		query url.Values
@@ -260,7 +261,7 @@ func TestEveryReadOfTheTrailIsRecordedWithItsQueryAndView(t *testing.T) {
 		{"/audit/aggregate", r.hourWindow(url.Values{"q": {aggs}})},
 		{"/audit/facets", r.hourWindow(url.Values{"q": {"outcome:ok"}, "field": {"origin"}})},
 		{"/audit/facets", r.hourWindow(url.Values{"field": {"nofield"}})},
-		{"/audit/events/" + trailtest.IDAt(r.base).String(), nil},
+		{"/audit/events/" + unknown, nil},
 		{"/audit/fields", nil},
 	} {
 		r.get(t, engine, call.path, call.query)
@@ -275,10 +276,10 @@ func TestEveryReadOfTheTrailIsRecordedWithItsQueryAndView(t *testing.T) {
 		{"audit.export", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "format": "ndjson", "row_count": 1.0, "truncated": false}},
 		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
 		{"audit.export", "failed", "", map[string]any{"query": text}},
-		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "view": "aggregate"}},
+		{"audit.search", "success", "", map[string]any{"form": "dsl", "since": since, "until": until, "query": aggs, "view": "aggregate"}},
 		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
 		{"audit.search", "failed", "", map[string]any{"form": "kql", "since": since, "until": until, "view": "facets", "field": "nofield"}},
-		{"audit.search", "failed", "", map[string]any{"query": "id:" + trailtest.IDAt(r.base).String(), "view": "event"}},
+		{"audit.search", "failed", "", map[string]any{"query": "id:" + unknown, "view": "event"}},
 	}
 	if len(reads) != len(want) {
 		t.Fatalf("recorded %d reads: %+v", len(reads), reads)
