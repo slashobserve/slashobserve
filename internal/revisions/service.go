@@ -690,12 +690,21 @@ const (
 )
 
 type ListFilter struct {
-	Scope       ListScope
-	DashboardID pgtype.UUID
-	ChatID      pgtype.UUID
-	Pinned      *bool
-	Query       string
-	States      []State
+	Scope         ListScope
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	ChatID        pgtype.UUID
+	Pinned        *bool
+	Query         string
+	States        []State
+	Anchored      bool
+}
+
+func (f ListFilter) check() error {
+	if f.Anchored && f.Scope != ScopeMine {
+		return ErrAnchoredNeedsMine
+	}
+	return nil
 }
 
 func (f ListFilter) stateNames() []string {
@@ -732,6 +741,9 @@ type RequestCount struct {
 }
 
 func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter ListFilter) (RequestCount, error) {
+	if err := filter.check(); err != nil {
+		return RequestCount{}, err
+	}
 	if filter.Scope == ScopeAll && !by.Role.AtLeast(auth.RoleAdmin) {
 		return RequestCount{}, ErrForbidden
 	}
@@ -749,12 +761,13 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	match := filter.match()
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
-			Folders:     levels.Visible(),
-			DashboardID: filter.DashboardID,
-			ChatID:      filter.ChatID,
-			Pinned:      match.pinned,
-			Pattern:     match.pattern,
-			States:      match.states,
+			Folders:       levels.Visible(),
+			DashboardID:   filter.DashboardID,
+			ObservationID: filter.ObservationID,
+			ChatID:        filter.ChatID,
+			Pinned:        match.pinned,
+			Pattern:       match.pattern,
+			States:        match.states,
 		})
 		if err != nil {
 			return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -766,10 +779,12 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByID:   requesterID,
 		Folders:         levels.Visible(),
 		DashboardID:     filter.DashboardID,
+		ObservationID:   filter.ObservationID,
 		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
 		Pattern:         match.pattern,
 		States:          match.states,
+		Anchored:        filter.Anchored,
 	})
 	if err != nil {
 		return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -778,6 +793,9 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 }
 
 func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+	if err := filter.check(); err != nil {
+		return nil, "", err
+	}
 	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
@@ -807,6 +825,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
@@ -829,10 +848,12 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
 			States:          match.states,
+			Anchored:        filter.Anchored,
 			CursorCreatedAt: cursorAt,
 			CursorID:        cursorID,
 			CursorPinned:    afterPinned,

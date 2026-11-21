@@ -3312,7 +3312,7 @@ components:
       type: object
       additionalProperties: false
       required: [kind, pos]
-      description: One spot on a panel or an observation block, with the fields its kind needs.
+      description: One spot on a panel or an observation block, with the fields its kind needs. Text in it may not contain control, bidirectional override or hidden characters, the rule thread messages follow (400 `invalid_request`).
       properties:
         kind:
           type: string
@@ -4720,6 +4720,8 @@ components:
         - subject_observation_id
         - chat_id
         - shared_thread_id
+        - anchor
+        - block_id
         - finding
       properties:
         id:
@@ -4955,6 +4957,16 @@ components:
           format: uuid
           nullable: true
           description: The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
         finding:
           nullable: true
           allOf:
@@ -4970,7 +4982,7 @@ components:
     ChatTurnSummary:
       type: object
       additionalProperties: false
-      required: [id, state, prompt, investigation, subject_observation_id]
+      required: [id, state, prompt, investigation, subject_observation_id, anchor, block_id]
       properties:
         id:
           type: string
@@ -4988,6 +5000,16 @@ components:
           format: uuid
           nullable: true
           description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation."
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     Chat:
       type: object
       additionalProperties: false
@@ -5107,6 +5129,8 @@ components:
         - started_at
         - finished_at
         - requested_by
+        - anchor
+        - block_id
       properties:
         id:
           type: string
@@ -5253,6 +5277,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     ContinueObserveRequest:
       type: object
       additionalProperties: false
