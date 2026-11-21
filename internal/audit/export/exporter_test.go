@@ -49,7 +49,7 @@ func (s *fakeSource) add(actions ...string) {
 		n := int64(len(s.events)+1) + s.skip
 		e := fullEvent()
 		e.Action, e.Seq = a, n
-		s.events = append(s.events, trail.Positioned{Event: e, At: filter.Position{Xid: uint64(100 + n), Seq: n}})
+		s.events = append(s.events, trail.Positioned{Event: e, At: filter.Position{Xid: uint64(100 + n), Seq: n}}) //nolint:gosec // small test positions
 	}
 }
 
