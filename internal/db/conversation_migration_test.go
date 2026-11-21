@@ -264,6 +264,47 @@ VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', '00000000-0000-4000-8000-000000
 	}
 }
 
+func TestChatsBackfillKeepsAnAskedFirstTurnAndArchivesOnlyWholeChats(t *testing.T) {
+	ctx := context.Background()
+	d := newMigratedTo(t, chatsVersion-1)
+	sqlDB := d.SQLDB(t)
+	ada := convUser(t, sqlDB, "Ada")
+	seedDashboard(t, d, convDashboard, 1)
+	seedVersion(t, d, convDashboard, 1, "{}")
+	message := foScalar(t, sqlDB, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, '@observe why', 'user', $2::uuid, 'Ada') RETURNING id::text`, convThread(t, sqlDB), ada)
+
+	asked, followUp := convID(40), convID(41)
+	convRequest(t, d, asked, "investigate", ada, "", "", "builtin", "")
+	d.Exec(t, `UPDATE agent_requests SET thread_message_id = $2::uuid WHERE id = $1::uuid`, asked, message)
+	convRequest(t, d, followUp, "observe", ada, "", asked, "builtin", "")
+	archivedRoot, liveTurn := convID(42), convID(43)
+	convRequest(t, d, archivedRoot, "observe", ada, "", "", "builtin", "")
+	convRequest(t, d, liveTurn, "observe", ada, "", archivedRoot, "builtin", "")
+	gone, goneTurn := convID(44), convID(45)
+	convRequest(t, d, gone, "observe", ada, "", "", "builtin", "")
+	convRequest(t, d, goneTurn, "observe", ada, "", gone, "builtin", "")
+	d.Exec(t, `UPDATE agent_requests SET archived_at = now() WHERE id = ANY($1::uuid[])`, "{"+archivedRoot+","+gone+","+goneTurn+"}")
+
+	if err := d.MigrateUpTo(ctx, chatsVersion); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+	chatOf := func(id string) string {
+		return foScalar(t, sqlDB, `SELECT coalesce(chat_id::text, 'none') FROM agent_requests WHERE id = $1::uuid`, id)
+	}
+	if got := chatOf(asked) + " " + chatOf(followUp); got != asked+" "+asked {
+		t.Errorf("a thread-asked investigation and its follow-up: %s, want both in the investigation's chat", got)
+	}
+	archived := func(chat string) string {
+		return foScalar(t, sqlDB, `SELECT (archived_at IS NOT NULL)::text FROM chats WHERE id = $1::uuid`, chat)
+	}
+	if got := archived(archivedRoot); got != "false" {
+		t.Errorf("a chat whose first turn alone was archived: archived = %s, want false", got)
+	}
+	if got := archived(gone); got != "true" {
+		t.Errorf("a chat whose every turn was archived: archived = %s, want true", got)
+	}
+}
+
 const oldObserveInsert = `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone)
 VALUES ('observe', 'p', 'user', $1::uuid, 'Ada', NULL, 'web', NULL, NULL, NULL, NULL, nullif($2, '')::uuid, NULL, NULL) RETURNING id::text`
 

@@ -33,7 +33,7 @@ BEGIN
   END IF;
   IF NEW.chat_id <> NEW.id THEN
     INSERT INTO chats (id, owner_kind, owner_id, title, pinned_at, archived_at, created_at, last_turn_at)
-    SELECT p.id, p.requested_by_kind, p.requested_by_id, p.title, p.pinned_at, p.archived_at, p.created_at, NEW.created_at
+    SELECT p.id, p.requested_by_kind, p.requested_by_id, p.title, p.pinned_at, NULL, p.created_at, NEW.created_at
     FROM agent_requests p WHERE p.id = NEW.chat_id
     ON CONFLICT (id) DO UPDATE SET last_turn_at = greatest(chats.last_turn_at, EXCLUDED.last_turn_at);
     UPDATE agent_requests SET chat_id = id WHERE id = NEW.chat_id AND chat_id IS NULL;
@@ -46,19 +46,55 @@ $$;
 CREATE OR REPLACE TRIGGER agent_requests_old_server_chat BEFORE INSERT ON agent_requests
 FOR EACH ROW EXECUTE FUNCTION agent_requests_old_server_chat();
 
-UPDATE agent_requests SET chat_id = id
-WHERE chat_id IS NULL AND source = 'observe' AND thread_message_id IS NULL;
+-- +goose StatementBegin
+DO $$
+DECLARE
+  batch uuid[];
+  after_id uuid := '00000000-0000-0000-0000-000000000000';
+BEGIN
+  LOOP
+    SELECT array_agg(id ORDER BY id) INTO batch FROM (
+      SELECT id FROM agent_requests
+      WHERE id > after_id AND chat_id IS NULL AND thread_message_id IS NULL AND source NOT IN ('suggest', 'comment')
+        AND NOT (source = 'prompt' AND dashboard_id IS NOT NULL)
+      ORDER BY id LIMIT 1000) b;
+    EXIT WHEN batch IS NULL;
+    UPDATE agent_requests SET chat_id = id WHERE id = ANY (batch) AND chat_id IS NULL;
+    after_id := batch[array_upper(batch, 1)];
+    COMMIT;
+  END LOOP;
+END
+$$;
+-- +goose StatementEnd
 
-UPDATE agent_requests r SET chat_id = g.first_id
-FROM (
-  SELECT id, first_value(id) OVER (PARTITION BY requested_by_kind, requested_by_id, dashboard_id ORDER BY created_at, id) AS first_id
-  FROM agent_requests
-  WHERE chat_id IS NULL AND source = 'prompt' AND dashboard_id IS NOT NULL AND thread_message_id IS NULL
-) g
-WHERE r.id = g.id AND r.chat_id IS NULL;
+-- +goose StatementBegin
+DO $$
+DECLARE
+  batch uuid[];
+  after_id uuid := '00000000-0000-0000-0000-000000000000';
+BEGIN
+  LOOP
+    SELECT array_agg(id ORDER BY id) INTO batch FROM (
+      SELECT id FROM agent_requests
+      WHERE id > after_id AND chat_id IS NULL AND thread_message_id IS NULL AND source = 'prompt' AND dashboard_id IS NOT NULL
+      ORDER BY id LIMIT 1000) b;
+    EXIT WHEN batch IS NULL;
+    UPDATE agent_requests r SET chat_id = (
+      SELECT f.id FROM agent_requests f
+      WHERE f.source = 'prompt' AND f.dashboard_id = r.dashboard_id AND f.thread_message_id IS NULL
+        AND f.requested_by_kind = r.requested_by_kind AND f.requested_by_id = r.requested_by_id
+        AND (f.chat_id IS NULL OR f.chat_id = f.id)
+      ORDER BY f.created_at, f.id LIMIT 1)
+    WHERE r.id = ANY (batch) AND r.chat_id IS NULL;
+    after_id := batch[array_upper(batch, 1)];
+    COMMIT;
+  END LOOP;
+END
+$$;
+-- +goose StatementEnd
 
-UPDATE agent_requests SET chat_id = id
-WHERE chat_id IS NULL AND source NOT IN ('suggest', 'comment') AND thread_message_id IS NULL;
+UPDATE agent_requests p SET chat_id = p.id
+WHERE p.chat_id IS NULL AND EXISTS (SELECT 1 FROM agent_requests r WHERE r.chat_id = p.id AND r.id <> p.id);
 
 WITH RECURSIVE walk AS (
   SELECT r.id, p.chat_id AS root, 1 AS depth
@@ -78,14 +114,15 @@ WHERE r.id = d.id AND r.chat_id IS DISTINCT FROM d.root;
 INSERT INTO chats (id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at)
 SELECT g.chat_id, root.requested_by_kind, root.requested_by_id, root.title,
   g.dashboard_id, CASE WHEN g.dashboard_id IS NULL AND g.observations = 1 THEN g.observation_id END,
-  root.pinned_at, root.archived_at, g.created_at, g.last_turn_at
+  root.pinned_at, g.archived_at, g.created_at, g.last_turn_at
 FROM (
   SELECT r.chat_id,
     (array_agg(r.dashboard_id ORDER BY r.created_at, r.id) FILTER (WHERE r.dashboard_id IS NOT NULL))[1] AS dashboard_id,
     count(DISTINCT o.id) AS observations,
     (array_agg(o.id) FILTER (WHERE o.id IS NOT NULL))[1] AS observation_id,
     min(r.created_at) AS created_at,
-    max(r.created_at) AS last_turn_at
+    max(r.created_at) AS last_turn_at,
+    CASE WHEN bool_and(r.archived_at IS NOT NULL) THEN max(r.archived_at) END AS archived_at
   FROM agent_requests r
   LEFT JOIN observations o ON o.run_id = r.id
   WHERE r.chat_id IS NOT NULL
