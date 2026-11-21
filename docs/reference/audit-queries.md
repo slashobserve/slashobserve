@@ -132,6 +132,7 @@ Each stream reads the trail every 2 seconds, one read at a time, under a 5 secon
 | Export as NDJSON or CSV | `GET /api/v1/audit/export` | | `observe audit export` |
 | Follow new events | `GET /api/v1/audit/stream` | `search_audit_events` | `observe audit search --follow` |
 
+The filter is the `q` parameter of the API and the `query` argument of the MCP tools and the `--query` flag of the CLI.
 Every route answers 403 `forbidden_role` to a caller below Admin.
 An export has no MCP tool, because an MCP answer holds at most 16 KiB; an agent pages the same events with `search_audit_events`, 20 a call by default and at most 100.
 When the 16 KiB cap, not `limit` or the end of the results, ends a page early, the answer carries `truncated: true` and a `note` that says how many events it kept; `next_cursor` continues from there.

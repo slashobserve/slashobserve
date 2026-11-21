@@ -45,6 +45,22 @@ func TestAuditToolsAreReadOnlyAndMCPOnly(t *testing.T) {
 	}
 }
 
+func TestAuditToolsTakeTheirFilterAsQuery(t *testing.T) {
+	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
+	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents} {
+		properties := schemaProperties(t, registry.entries[name].tool.InputSchema)
+		if _, ok := properties["query"]; !ok {
+			t.Errorf("%s has no query property", name)
+		}
+		if _, ok := properties["q"]; ok {
+			t.Errorf("%s still has a q property", name)
+		}
+		if desc := registry.entries[name].tool.Description; strings.Contains(desc, " q ") {
+			t.Errorf("%s description still names q: %s", name, desc)
+		}
+	}
+}
+
 func TestListAuditFieldsFitsOneAnswer(t *testing.T) {
 	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
 	res, err := registry.Call(auth.WithPrincipal(t.Context(), adminCaller), nameListAuditFields, nil)
@@ -167,13 +183,13 @@ func TestSearchAuditEventsSaysWhenTheSizeCapCutAPage(t *testing.T) {
 func TestAuditToolsNameTheBytesOfAParseError(t *testing.T) {
 	r := newAuditToolRig(t)
 	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents} {
-		input := map[string]any{"q": "outcome:denied and status:x"}
+		input := map[string]any{"query": "outcome:denied and status:x"}
 		if name == nameListAuditFacets {
 			input["field"] = "actor_name"
 		}
 		res := r.call(t, name, input)
 		body, ok := res.Content.(errorBody)
-		if !res.IsError || !ok || body.Code != trail.CodeQueryInvalid || !strings.Contains(body.Message, "(bytes 19 to 27 of q)") {
+		if !res.IsError || !ok || body.Code != trail.CodeQueryInvalid || !strings.Contains(body.Message, "(bytes 19 to 27 of query)") {
 			t.Errorf("%s = %+v", name, res)
 		}
 	}
@@ -188,7 +204,7 @@ func TestAuditToolsWarnAboutAMisspelledOperator(t *testing.T) {
 	warning := `"andd" is searched as text; did you mean "and"?`
 	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram} {
 		input := r.window()
-		input["q"] = "outcome:denied andd origin:mcp"
+		input["query"] = "outcome:denied andd origin:mcp"
 		if name == nameListAuditFacets {
 			input["field"] = "actor_name"
 		}
@@ -213,7 +229,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	)
 
 	facets := r.window()
-	facets["field"], facets["q"] = "actor_name", "outcome:denied"
+	facets["field"], facets["query"] = "actor_name", "outcome:denied"
 	res := r.call(t, nameListAuditFacets, facets)
 	if out, ok := res.Content.(trail.FacetsJSON); !ok || len(out.Values) != 1 || out.Values[0].Value != "Ada" || out.Values[0].Count != 2 {
 		t.Errorf("facets = %+v", res)
@@ -227,7 +243,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 
 	aggregate := r.window()
-	aggregate["q"] = `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`
+	aggregate["query"] = `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`
 	res = r.call(t, nameAggregateAuditEvents, aggregate)
 	if out, ok := res.Content.(trail.AggregationJSON); !ok || len(out.Rows) != 2 || out.Truncated {
 		t.Errorf("aggregate = %+v", res)
@@ -258,7 +274,7 @@ func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
 	facets := r.window()
 	facets["field"] = "origin"
 	aggregate := r.window()
-	aggregate["q"] = `{"aggs":{"by":{"terms":{"field":"origin"}}}}`
+	aggregate["query"] = `{"aggs":{"by":{"terms":{"field":"origin"}}}}`
 	calls := []struct {
 		name  string
 		input any
