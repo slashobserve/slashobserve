@@ -37,6 +37,7 @@ const (
 	CodeVersionConflict = "version_conflict"
 	CodeNotFound        = "not_found"
 	CodeFolderExists    = "folder_exists"
+	CodeRestricted      = folders.CodeRestrictedContent
 
 	applySummaryPrefix = "Applied from "
 	maxPathBytes       = 512
@@ -337,6 +338,7 @@ func refused(res Result, code, message string) Result {
 func failure(res Result, err error) (Result, error) {
 	var invalid *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
+	var restricted *folders.RestrictedContentError
 	switch {
 	case errors.As(err, &invalid):
 		res = refused(res, CodeInvalidSpec, issuesMessage(invalid.Issues))
@@ -344,6 +346,8 @@ func failure(res Result, err error) (Result, error) {
 		return res, nil
 	case errors.As(err, &conflict):
 		return refused(res, CodeVersionConflict, "the dashboard got a newer version while the file was applied; apply it again"), nil
+	case errors.As(err, &restricted):
+		return refused(res, CodeRestricted, restricted.Error()), nil
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, dashboards.ErrFolderNotFound):
 		return refused(res, CodeNotFound, "the dashboard or its folder no longer exists"), nil
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):

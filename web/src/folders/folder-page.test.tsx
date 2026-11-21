@@ -36,6 +36,7 @@ function folder(extra: Partial<Folder> = {}): Folder {
     general: false,
     personal: false,
     restricted: false,
+    admins_only: false,
     dashboard_count: 1,
     grantees: [],
     grantee_count: 0,

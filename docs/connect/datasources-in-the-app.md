@@ -28,6 +28,21 @@ Set its audience to `admins` with `"audience": "admins"` on `POST /api/v1/dataso
 Every other role, key and public link gets the same answer for it as for a datasource that does not exist.
 A change that leaves the audience out keeps it, and `"audience": "everyone"` opens the datasource again.
 The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page does not show or change it yet.
+For an Admin, each row of the MCP tool `list_datasources` also carries `audience`; other callers never see an `admins` datasource, so their rows leave it out.
+
+A dashboard, proposal, observation or saved search that reads an Admins-only datasource lives only in a [folder only Admins can read](../teams/folders.md).
+That counts a panel or query that names it, a datasource variable whose default or fixed options name it, and a snapshot or RCA panel that read it when it was frozen, the datasource a variable picked included.
+Saving, importing, applying or proposing one anywhere else is refused with `409 restricted_content`, which names the datasource and says to use a folder only Admins can read, and so is moving it out to another kind of folder.
+Every version of a dashboard and every revision of its proposals count for a move, because the history stays readable.
+The same answer reaches the web app, the agent, MCP tools, the CLI, files applied with `observe dashboards apply`, the provisioning directory and the Grafana import.
+
+Content in any other folder is read as everyone reads it, by Admins too: a panel, variable, snapshot or RCA there never queries an Admins-only datasource, and a datasource variable with no default picks among the datasources everyone can query.
+Only content in a folder only Admins can read, the explore query, panel drafts and agent builds read with the Admin's own role.
+
+Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
+`items` lists up to 20 of them outside people's My Dashboards with their kind, id, title and folder, so an Admin can move them first, the message says how many more are not listed, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
+`observe datasources edit` prints the same list.
+Each server checks every app datasource that is already `admins` when it starts, for content left outside such folders from before this rule: it logs one warning per datasource, `admins only datasource read outside admins only folders`, with the datasource uid and the number of items in shared folders and in people's My Dashboards, never their titles, and starts anyway.
 
 ## Credentials are write-only
 

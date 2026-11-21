@@ -27,6 +27,8 @@ func TestLevelFor(t *testing.T) {
 		{"creator of an unrestricted folder", Facts{Creator: true}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with a view row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelView}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 		{"creator with an edit row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelEdit}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
+		{"admins only folder", Facts{AdminsOnly: true, Restricted: true}, want{LevelNone, LevelNone, LevelNone, LevelAdmin}},
+		{"creator of an admins only folder", Facts{AdminsOnly: true, Restricted: true, Creator: true}, want{LevelNone, LevelNone, LevelNone, LevelAdmin}},
 		{"owner of a personal folder", Facts{Personal: true, Owner: true}, want{LevelEdit, LevelEdit, LevelEdit, LevelEdit}},
 		{"someone else's personal folder", Facts{Personal: true}, want{LevelNone, LevelNone, LevelNone, LevelNone}},
 		{"someone else's personal folder, creator and granted", Facts{Personal: true, Creator: true, Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelNone, LevelNone, LevelNone, LevelNone}},

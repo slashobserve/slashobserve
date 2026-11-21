@@ -249,6 +249,7 @@ func testDashboard() *spec.Dashboard {
 type fakeAccess struct {
 	mu        sync.Mutex
 	abilities folders.Abilities
+	folder    folders.Folder
 	err       error
 }
 
@@ -265,7 +266,13 @@ func (f *fakeAccess) set(a folders.Abilities, err error) {
 func (f *fakeAccess) Dashboard(context.Context, auth.Principal, pgtype.UUID) (folders.DashboardAccess, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return folders.DashboardAccess{Abilities: f.abilities}, f.err
+	return folders.DashboardAccess{Abilities: f.abilities, Folder: f.folder}, f.err
+}
+
+func (f *fakeAccess) adminsOnly(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.folder.AdminsOnly = on
 }
 
 func (f *fakeAccess) RequireDashboard(n folders.Need) gin.HandlerFunc {
@@ -279,6 +286,7 @@ func (f *fakeAccess) RequireDashboard(n folders.Need) gin.HandlerFunc {
 			httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage)
 			return
 		}
+		folders.SetDashboard(c, access)
 		c.Next()
 	}
 }

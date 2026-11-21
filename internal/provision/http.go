@@ -166,7 +166,7 @@ func (h *ApplyHandler) apply(c *gin.Context) {
 		c.JSON(http.StatusOK, applyResultJSON{Path: res.Path, Outcome: res.Outcome, DashboardID: res.DashboardID, Version: res.Version})
 	case CodeInvalidSpec:
 		httpapi.AbortInvalidSpec(c, res.Message, res.Issues)
-	case CodeAmbiguous, CodeProvisioned, CodeVersionConflict, CodeFolderExists:
+	case CodeAmbiguous, CodeProvisioned, CodeVersionConflict, CodeFolderExists, CodeRestricted:
 		httpapi.AbortError(c, http.StatusConflict, res.Code, res.Message)
 	case CodeNotFound:
 		httpapi.AbortError(c, http.StatusNotFound, res.Code, res.Message)

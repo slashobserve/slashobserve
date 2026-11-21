@@ -5,8 +5,14 @@ export function publishTargets(folders: readonly Folder[]): Folder[] {
 }
 
 export function publishAudience(
-  folder: Pick<Folder, "title" | "restricted" | "grantees" | "grantee_count">
+  folder: Pick<
+    Folder,
+    "title" | "restricted" | "admins_only" | "grantees" | "grantee_count"
+  >
 ): string {
+  if (folder.admins_only) {
+    return `${folder.title} is Admins only, so only instance admins can open it.`
+  }
   if (!folder.restricted) {
     return `Everyone on this server can open it, each with the level their role gives: Viewers view, Commenters comment and Editors edit.`
   }

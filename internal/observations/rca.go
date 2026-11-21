@@ -231,7 +231,7 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 		return RCA{}, err
 	}
 	live := publishable(rows)
-	frozen, err := s.freezePanels(ctx, by, observationID, live)
+	frozen, err := s.freezePanels(ctx, by, folder, observationID, live)
 	if err != nil {
 		return RCA{}, err
 	}
@@ -255,7 +255,7 @@ func (s *Service) Publish(ctx context.Context, by auth.Principal, observationID 
 	return rcaOf(published)
 }
 
-func (s *Service) freezePanels(ctx context.Context, by auth.Principal, observationID pgtype.UUID, live []dbsqlc.ObservationBlock) (map[pgtype.UUID]frozenSnapshot, error) {
+func (s *Service) freezePanels(ctx context.Context, by auth.Principal, folder folders.Folder, observationID pgtype.UUID, live []dbsqlc.ObservationBlock) (map[pgtype.UUID]frozenSnapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, publishTimeout)
 	defer cancel()
 	group, ctx := errgroup.WithContext(ctx)
@@ -269,7 +269,7 @@ func (s *Service) freezePanels(ctx context.Context, by auth.Principal, observati
 			break
 		}
 		group.Go(func() error {
-			snap, err := s.freeze(ctx, by, observationID, b.ID, anyBlock)
+			snap, err := s.freeze(ctx, by, folder, observationID, b.ID, anyBlock)
 			if err != nil {
 				return s.panelFailure(ctx, observationID, b, err)
 			}
