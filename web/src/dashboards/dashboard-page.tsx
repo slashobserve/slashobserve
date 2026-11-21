@@ -42,6 +42,7 @@ import {
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
+import { useAgentInfo } from "@/observe/queries"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
@@ -69,7 +70,12 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
-import { focusComment } from "./panel-actions"
+import {
+  askAboutPanelAndFocus,
+  commentOnPanelAndFocus,
+  conversationActionsFor,
+  focusComment,
+} from "./panel-actions"
 import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
@@ -589,6 +595,7 @@ function DashboardView({
           const next = move(Date.now())
           if (next) setSearch((state) => ({ ...state, ...next }))
         }
+  const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
   useDashboardShortcuts({
@@ -608,7 +615,26 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
-    comment: () => focusComment(setSearch, composerRef),
+    comment: () => {
+      const panel = shortcutPanel()
+      const mayComment =
+        panel !== undefined &&
+        !editing &&
+        conversationActionsFor(panel, permissions.comment, agentAvailable)
+          .comment
+      if (mayComment) commentOnPanelAndFocus(setSearch, panel.id, composerRef)
+      else focusComment(setSearch, composerRef)
+    },
+    ask: () => {
+      const panel = shortcutPanel()
+      if (
+        panel !== undefined &&
+        !editing &&
+        conversationActionsFor(panel, permissions.comment, agentAvailable).ask
+      ) {
+        askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+      }
+    },
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
