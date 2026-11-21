@@ -2,8 +2,10 @@ package folders_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +50,30 @@ func TestAudienceRefusalWithACompleteListCountsZeroUnlisted(t *testing.T) {
 func TestRefusalWithoutItemsCarriesNoCounts(t *testing.T) {
 	body := abortBody(t, folders.RestrictedSave(folders.ContentDashboard, "payroll"))
 	if _, ok := body["unlisted"]; ok {
+		t.Fatalf("body = %v", body)
+	}
+}
+
+func TestAnAnswerThatReadAdminOnlyDataIsShownOnlyInAFolderOnlyAdminsRead(t *testing.T) {
+	for _, tc := range []struct {
+		restricted, adminsOnly bool
+		refused                bool
+	}{
+		{false, false, false},
+		{false, true, false},
+		{true, true, false},
+		{true, false, true},
+	} {
+		if err := folders.ShowAnswer(tc.restricted, tc.adminsOnly); (err != nil) != tc.refused {
+			t.Errorf("restricted %v, Only Admins folder %v: err = %v, want refused %v", tc.restricted, tc.adminsOnly, err, tc.refused)
+		}
+	}
+}
+
+func TestARestrictedAnswerRefusalAnswersRestrictedAnswerWithWhy(t *testing.T) {
+	body := abortBody(t, fmt.Errorf("share: %w", folders.ErrRestrictedAnswer))
+	message, _ := body["error"].(string)
+	if body["code"] != folders.CodeRestrictedAnswer || !strings.Contains(message, "only Admins") || !strings.Contains(message, "private chat") {
 		t.Fatalf("body = %v", body)
 	}
 }

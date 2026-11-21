@@ -12,6 +12,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	guard "github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -20,6 +22,7 @@ const (
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
 	replyAnswered        = "Answered."
+	replyRestricted      = "The run ended. Its answer read data only Admins can query, such as the audit trail, and people who are not Admins read this thread, so it is not shown here; only whoever asked and Admins read it, in the run."
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
@@ -34,11 +37,11 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	if err != nil {
 		return fmt.Errorf("read thread of the message that started the run: %w", err)
 	}
-	sc, held, err := lockForReply(ctx, q, thread)
+	sc, folder, held, err := lockForReply(ctx, q, thread)
 	if err != nil || !held {
 		return err
 	}
-	body, err := replyBody(ctx, q, run)
+	body, err := placedReplyBody(ctx, q, run, folder)
 	if err != nil {
 		return err
 	}
@@ -85,25 +88,36 @@ func replyAuthor(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	return revisions.AssigneeActor(run, name), nil
 }
 
-func lockForReply(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread) (sc scope, held bool, err error) {
+func lockForReply(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread) (sc scope, folder pgtype.UUID, held bool, err error) {
 	var lock error
 	switch {
 	case thread.DashboardID.Valid:
-		_, lock = q.LockDashboardKeyShareSkipLocked(ctx, thread.DashboardID)
+		folder, lock = q.LockDashboardKeyShareSkipLocked(ctx, thread.DashboardID)
 		sc = scope{target: Target{Kind: KindDashboard, ID: thread.DashboardID}, dashboard: thread.DashboardID, activity: activity.OnDashboard(thread.DashboardID)}
 	case thread.ObservationID.Valid:
-		_, lock = q.LockObservationKeyShareSkipLocked(ctx, thread.ObservationID)
+		folder, lock = q.LockObservationKeyShareSkipLocked(ctx, thread.ObservationID)
 		sc = scope{target: Target{Kind: KindObservation, ID: thread.ObservationID}, activity: activity.OnObservation(thread.ObservationID)}
 	default:
-		return scope{}, false, nil
+		return scope{}, pgtype.UUID{}, false, nil
 	}
 	if errors.Is(lock, pgx.ErrNoRows) {
-		return scope{}, false, nil
+		return scope{}, pgtype.UUID{}, false, nil
 	}
 	if lock != nil {
-		return scope{}, false, fmt.Errorf("lock thread target: %w", lock)
+		return scope{}, pgtype.UUID{}, false, fmt.Errorf("lock thread target: %w", lock)
 	}
-	return sc, true, nil
+	return sc, folder, true, nil
+}
+
+func placedReplyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, folder pgtype.UUID) (string, error) {
+	err := guard.Answer(ctx, q, run.ID, folder)
+	if errors.Is(err, folders.ErrRestrictedAnswer) {
+		return replyRestricted, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return replyBody(ctx, q, run)
 }
 
 func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) (string, error) {

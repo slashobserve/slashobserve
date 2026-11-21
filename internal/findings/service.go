@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -23,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -104,7 +106,23 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if chatOnly {
 		conclude = func(*dbsqlc.Queries) (pgtype.UUID, bool, error) { return pgtype.UUID{}, false, nil }
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, conclude)
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, inheritingRestricted(ctx, in.AgentRequestID, conclude))
+}
+
+func inheritingRestricted(ctx context.Context, runID pgtype.UUID, next conclude) conclude {
+	if !runID.Valid {
+		return next
+	}
+	return func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		row, err := q.GetAgentRequestByID(ctx, runID)
+		if err != nil {
+			return pgtype.UUID{}, false, fmt.Errorf("read the run of the answer: %w", err)
+		}
+		if _, err := placement.InheritRestricted(ctx, q, row); err != nil {
+			return pgtype.UUID{}, false, err
+		}
+		return next(q)
+	}
 }
 
 func (s *Service) answersWithoutObservation(ctx context.Context, requestID pgtype.UUID) (bool, error) {
@@ -138,6 +156,15 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 		return Finding{}, false, ErrRequesterOnly
 	}
 	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	kept, err := placement.AnswerKeptWithAdmins(ctx, s.store.db.Queries(), requestID)
+	if err != nil {
+		return Finding{}, false, err
+	}
+	if kept {
+		if conclusion.FolderID, err = s.restrictedAnswerFolder(ctx, requestID); err != nil {
+			return Finding{}, false, err
+		}
+	}
 	if f.DashboardID != "" {
 		if conclusion.DashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
 			return Finding{}, false, err
@@ -151,6 +178,17 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 	}
 	f, err = s.Get(ctx, by, id)
 	return f, !attached, err
+}
+
+func (s *Service) restrictedAnswerFolder(ctx context.Context, runID pgtype.UUID) (pgtype.UUID, error) {
+	folder, err := s.store.db.Queries().RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("read the folder only Admins read for an answer that read Admin-only data: %w", err)
+	}
+	if !folder.Valid {
+		return pgtype.UUID{}, folders.ErrRestrictedAnswer
+	}
+	return folder, nil
 }
 
 func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requestID, observationID pgtype.UUID) error {
@@ -420,11 +458,11 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	at := f.CreatedAt
-	if f.RequestTo != nil {
-		at = *f.RequestTo
+	pin, err := pinOf(f, dashboardID)
+	if err != nil {
+		return annotations.Annotation{}, false, err
 	}
-	a, err := s.annotations.Create(ctx, by, annotations.CreateInput{DashboardID: dashboardID, From: at, Text: PinText(f), Tags: []string{PinTag}})
+	a, err := s.annotations.Create(ctx, by, pin)
 	switch {
 	case errors.Is(err, annotations.ErrNotFound):
 		return annotations.Annotation{}, false, ErrNotFound
@@ -457,6 +495,16 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	return a, false, err
 }
 
+func pinOf(f Finding, dashboardID pgtype.UUID) (annotations.CreateInput, error) {
+	pin := annotations.CreateInput{DashboardID: dashboardID, From: f.CreatedAt, Text: PinText(f), Tags: []string{PinTag}}
+	if f.RequestTo != nil {
+		pin.From = *f.RequestTo
+	}
+	run, err := runOf(f)
+	pin.AnswerOf = run
+	return pin, err
+}
+
 func (s *Service) pinned(ctx context.Context, f Finding) (annotations.Annotation, error) {
 	if f.AnnotationID == "" {
 		return annotations.Annotation{}, ErrNotFound
@@ -479,11 +527,15 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if len(f.Evidence) == 0 {
 		return dashboards.Dashboard{}, dashboards.Version{}, ErrNoEvidence
 	}
+	run, err := runOf(f)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, err
+	}
 	raw, err := json.Marshal(f.Spec())
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
-	made, version, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+	made, version, err := s.dashboards.CreateFromAnswer(ctx, by, raw, savedDashboardSummary, run)
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
@@ -491,6 +543,13 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its answer", logattrs.Failure("chat_attach_failed", err, slog.String("finding_id", f.ID), slog.String("dashboard_id", made.ID))...)
 	}
 	return made, version, nil
+}
+
+func runOf(f Finding) (pgtype.UUID, error) {
+	if f.AgentRequestID == "" {
+		return pgtype.UUID{}, nil
+	}
+	return db.ParseUUID(f.AgentRequestID)
 }
 
 type Placement struct {

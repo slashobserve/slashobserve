@@ -27,6 +27,7 @@ function finding(patch: Partial<Finding> = {}): Finding {
     dashboard_id: null,
     folder_id: null,
     ask_on: null,
+    restricted: false,
     title: "Checkout errors rose after the deploy",
     markdown: "The error rate doubled at 10:02.",
     evidence: [

@@ -286,10 +286,10 @@ func TestADashboardRevisionOrSuggestionReadIsARunRead(t *testing.T) {
 	suggestion := suggestFor(t, svc, dash, user)
 	_, flush := recordingAudit(t, d)
 
-	if _, err := svc.Get(mcpContext(t, bea), dash, mustUUID(t, rev.ID)); err != nil {
+	if _, err := svc.Get(mcpContext(t, bea), bea, dash, mustUUID(t, rev.ID)); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := svc.List(mcpContext(t, bea), dash, 10, ""); err != nil {
+	if _, _, err := svc.List(mcpContext(t, bea), bea, dash, 10, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.GetSuggestion(mcpContext(t, user), dash, suggestion.ID, user); err != nil {
