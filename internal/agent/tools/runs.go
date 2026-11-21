@@ -177,10 +177,9 @@ func (r *Registry) retryRun(ctx context.Context, input json.RawMessage) (Result,
 		return runFailure(err)
 	}
 	var shape struct {
-		Kind          string  `json:"kind"`
-		ObservationID *string `json:"observation_id"`
+		Investigation bool `json:"investigation"`
 	}
-	if json.Unmarshal(current, &shape) == nil && shape.Kind == revisions.KindInvestigate && shape.ObservationID != nil {
+	if json.Unmarshal(current, &shape) == nil && shape.Investigation {
 		return toolError(threads.RefusalPersonStarts, "an investigation is a person's decision; ask the person to retry it in the web app"), nil
 	}
 	raw, err := r.deps.Runs.Retry(ctx, id, principal)

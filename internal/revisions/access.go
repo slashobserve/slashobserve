@@ -28,12 +28,10 @@ func targetOf(row dbsqlc.AgentRequest) RunTarget {
 }
 
 func (r RunShape) target() RunTarget {
-	t := RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID}
-	if !t.ObservationID.Valid {
-		t.ObservationID = r.SubjectID
+	if r.Investigation {
+		return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID, Files: true}
 	}
-	t.Files = r.Intent == IntentAsk && r.ObservationID.Valid && !r.ThreadMessageID.Valid
-	return t
+	return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.SubjectID}
 }
 
 func retryTarget(source Source, ran RunTarget) RunTarget {

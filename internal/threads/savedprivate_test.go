@@ -91,3 +91,23 @@ func TestARetryOfASavedPrivateAnswerIsAPrivateAskAboutTheSameObservation(t *test
 		t.Fatalf("retry %+v, want a private ask about %v in the same chat", next, about)
 	}
 }
+
+func TestASavedPrivateAnswerAboutADashboardStaysAPrivateAsk(t *testing.T) {
+	r := newShareRig(t)
+	dash := r.createDashboard(t, "rps", "errors")
+	id := dash.String()
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "")
+	saved, _, err := r.findings.SaveAsObservation(reading(t.Context()), testUser, run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, mustParse(t, saved.ObservationID), foldertest.AdminsOnly(t, r.db, "Admins"))
+
+	if code := r.observeStatus(t, otherEditor, run); code != http.StatusNotFound {
+		t.Fatalf("a reader of the dashboard reads the saved private answer with %d", code)
+	}
+	next := r.runRow(t, retriedOverHTTP(t, r.observeEngine(testUser), run))
+	if next.Investigation || !revisions.PrivateAsk(next) || next.DashboardID != dash || next.ChatID != r.runRow(t, run).ChatID {
+		t.Fatalf("retry %+v, want a private ask about dashboard %v in the same chat", next, dash)
+	}
+}
