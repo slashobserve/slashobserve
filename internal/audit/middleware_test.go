@@ -141,9 +141,9 @@ func TestARepeatedReadIsDroppedOnlyWhenItIsASuccessfulRead(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
 	status, fresh := http.StatusOK, false
 	engine := s.engine(t, func(c *gin.Context) {
-		NoteRead(c.Request.Context(), true)
+		NoteRead(c.Request.Context(), Read{Repeated: true})
 		if fresh {
-			NoteRead(c.Request.Context(), false)
+			NoteRead(c.Request.Context(), Read{})
 		}
 		c.JSON(status, gin.H{})
 	})

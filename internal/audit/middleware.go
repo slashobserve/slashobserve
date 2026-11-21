@@ -134,6 +134,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	if len(inTx) == 0 && st.repeatsARead(action, outcome) {
 		return
 	}
+	data = st.withReadWindow(action, data)
 	row, err := r.row(ctx, Event{
 		Action:   action,
 		Outcome:  outcome,

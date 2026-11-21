@@ -99,8 +99,35 @@ func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
 	scope, _ := audit.ScopeOf(ctx)
-	key, err := json.Marshal([]any{scope.Method, scope.Route, req.clause, req.aggs, req.size, req.from, req.ascending})
-	audit.NoteRead(ctx, err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now()))
+	key, err := readKey(scope, req)
+	repeated := err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now())
+	audit.NoteRead(ctx, audit.Read{From: req.window.From, To: req.window.To, Repeated: repeated})
+}
+
+func readKey(scope audit.Scope, req searchRequest) ([]byte, error) {
+	span := max(req.window.To.Sub(req.window.From).Round(time.Minute), time.Minute)
+	period := req.window.From.Truncate(span)
+	return json.Marshal([]any{scope.Method, scope.Route, req.clause, withoutBounds(req.aggs), req.size, req.from, req.ascending, span.String(), period.Unix()})
+}
+
+func withoutBounds(node any) any {
+	switch x := node.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for key, child := range x {
+			if key != "extended_bounds" && key != "hard_bounds" {
+				out[key] = withoutBounds(child)
+			}
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i, child := range x {
+			out[i] = withoutBounds(child)
+		}
+		return out
+	}
+	return node
 }
 
 func (e *emulator) serve(ctx context.Context, method, path string, body []byte) (int, any, error) {

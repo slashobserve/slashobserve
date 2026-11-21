@@ -165,6 +165,8 @@ It answers `date_histogram` and `terms` buckets, `date_histogram` with a `time_z
 Any other request, body key, sort field or aggregation is refused with 400 and a message that names it, which a panel shows as its query error.
 
 Reading through it is recorded as `query.run`, never as `audit.search`: the Logs page and the agent's queries record one event per query, with the datasource uid as its target, and a panel records nothing beyond the dashboard view.
-The same query from the same caller on the same route within 10 minutes is recorded once when it succeeds, so a live tail or a refresh does not fill the trail; a refused or failed query is recorded every time.
+Each such `query.run` holds `from` and `to`, the range it read as RFC 3339 times.
+The same query from the same caller on the same route over the same period within 10 minutes is recorded once when it succeeds, and a request is left out only when every search in it was such a repeat; a refused or failed query is recorded every time.
+The period is the range's length to the minute and the start of the stretch of that length it begins in, so a panel that refreshes the last 15 minutes is recorded at most once each 15 minutes, while a wider or other range is recorded on its own.
 The whole fleet runs at most 4 queries on it at once, and its queries are left out of the [proxy metrics](../operate/metrics.md) so `/metrics` never shows when Admins read the trail.
 

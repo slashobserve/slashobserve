@@ -2,6 +2,8 @@ package audit
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,13 +17,15 @@ type written struct {
 }
 
 type state struct {
-	mu           sync.Mutex
-	scope        Scope
-	inTx         []written
-	committed    bool
-	reads        int
-	repeated     int
-	result       *Result
+	mu        sync.Mutex
+	scope     Scope
+	inTx      []written
+	committed bool
+	reads     int
+	repeated  int
+	readFrom  time.Time
+	readTo    time.Time
+	result    *Result
 }
 
 type scopeKey struct{}
@@ -71,15 +75,44 @@ func Skip(ctx context.Context) {
 	}
 }
 
-func NoteRead(ctx context.Context, repeated bool) {
-	if st := stateOf(ctx); st != nil {
-		st.mu.Lock()
-		defer st.mu.Unlock()
-		st.reads++
-		if repeated {
-			st.repeated++
-		}
+type Read struct {
+	From, To time.Time
+	Repeated bool
+}
+
+func NoteRead(ctx context.Context, r Read) {
+	st := stateOf(ctx)
+	if st == nil {
+		return
 	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.reads++
+	if r.Repeated {
+		st.repeated++
+	}
+	if st.readFrom.IsZero() || r.From.Before(st.readFrom) {
+		st.readFrom = r.From
+	}
+	if r.To.After(st.readTo) {
+		st.readTo = r.To
+	}
+}
+
+func (st *state) withReadWindow(action Action, data map[string]any) map[string]any {
+	st.mu.Lock()
+	from, to := st.readFrom, st.readTo
+	st.mu.Unlock()
+	spec, _ := Lookup(action)
+	if from.IsZero() || !slices.Contains(spec.Data, "from") {
+		return data
+	}
+	out := maps.Clone(data)
+	if out == nil {
+		out = map[string]any{}
+	}
+	out["from"], out["to"] = from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339)
+	return out
 }
 
 func (st *state) wroteInTx(w written) {

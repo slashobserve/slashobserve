@@ -126,7 +126,7 @@ func TestTheAdapterReadsTheAuditTrailInEveryQueryShape(t *testing.T) {
 	}
 }
 
-func TestAReadThroughTheDatasourceIsOneQueryRunPerQueryInTenMinutes(t *testing.T) {
+func TestAReadThroughTheDatasourceIsOneQueryRunPerQueryAndPeriodInTenMinutes(t *testing.T) {
 	r := newTrailRig(t)
 	recorder := audit.New(audit.Config{DB: r.d.DB})
 	mw, err := recorder.Middleware()
@@ -138,7 +138,7 @@ func TestAReadThroughTheDatasourceIsOneQueryRunPerQueryInTenMinutes(t *testing.T
 	engine.POST("/api/v1/datasources/:uid/query", mw, func(c *gin.Context) {
 		ctx := auth.WithPrincipal(c.Request.Context(), admin)
 		audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(admin) })
-		minutes := 30 + len(c.Query("shift"))
+		minutes := 30 + 30*len(c.Query("wider"))
 		_, err := r.ds.Lines(ctx, datasource.LinesRequest{Query: datasource.Query{Text: c.Query("q")}, Range: datasource.TimeRange{From: r.base, To: r.base.Add(time.Duration(minutes) * time.Minute)}, Limit: 10})
 		if err != nil {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "query failed", "code": "query_invalid"})
@@ -153,28 +153,31 @@ func TestAReadThroughTheDatasourceIsOneQueryRunPerQueryInTenMinutes(t *testing.T
 		defer close(done)
 		recorder.Run(ctx)
 	}()
-	for _, query := range []string{"q=outcome:denied", "q=outcome:denied&shift=x", "q=origin:mcp", "q=outcome:denied", "q=no_such_field:x", "q=no_such_field:x"} {
+	for _, query := range []string{"q=outcome:denied", "q=outcome:denied&wider=x", "q=origin:mcp", "q=outcome:denied", "q=no_such_field:x", "q=no_such_field:x"} {
 		rec := httptest.NewRecorder()
 		engine.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/datasources/"+UID+"/query?"+query, strings.NewReader("{}")))
 	}
 	stop()
 	<-done
 
-	rows, err := r.d.SQLDB(t).QueryContext(t.Context(), `SELECT action, outcome FROM audit_events WHERE route = '/api/v1/datasources/{uid}/query' ORDER BY occurred_at, id`)
+	rows, err := r.d.SQLDB(t).QueryContext(t.Context(), `SELECT action, outcome, coalesce(data->>'from', ''), coalesce(data->>'to', '') FROM audit_events WHERE route = '/api/v1/datasources/{uid}/query' ORDER BY occurred_at, id`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = rows.Close() }()
 	var got []string
 	for rows.Next() {
-		var action, outcome string
-		if err := rows.Scan(&action, &outcome); err != nil {
+		var action, outcome, from, to string
+		if err := rows.Scan(&action, &outcome, &from, &to); err != nil {
 			t.Fatal(err)
+		}
+		if len(got) == 0 && (from != r.base.UTC().Format(time.RFC3339) || to != r.base.Add(30*time.Minute).UTC().Format(time.RFC3339)) {
+			t.Errorf("the first query.run holds from %q and to %q, want its 30 minute range", from, to)
 		}
 		got = append(got, action+" "+outcome)
 	}
-	want := []string{"query.run success", "query.run success", "query.run failed", "query.run failed"}
+	want := []string{"query.run success", "query.run success", "query.run success", "query.run failed", "query.run failed"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("recorded %v, want %v: a repeat of a query is not recorded again, a failure always is", got, want)
+		t.Fatalf("recorded %v, want %v: a repeat of a query over the same period is not recorded again, a wider period and a failure always are", got, want)
 	}
 }
