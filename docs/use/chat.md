@@ -41,7 +41,7 @@ Inside the box a line says so ("Enter sends. Shift+Enter adds a new line. Up arr
 Pressing `/` outside a text field moves the cursor to the box.
 A prompt is 1 to 4000 characters, at least one of them visible, and cannot contain control or bidirectional-text characters; see [Text rules](../reference/text-rules.md).
 The box shows "Ask a question or describe a dashboard first." when it is empty and "Use at most 4000 characters." when it is too long.
-From 3600 characters a counter such as "3650 of 4000" appears in the box's footer, and turns red with "too long" past 4000.
+A message is 1 to 4000 characters: from 3500 a counter such as "500 characters left" appears in the box's footer, and past 4000 it turns red, reads "1 character over" and **Send** is off.
 A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
 
 An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.

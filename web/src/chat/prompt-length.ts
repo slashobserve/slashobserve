@@ -1,20 +1,23 @@
 import { maxPromptLength } from "@/prompts/rules"
 
-const warnFrom = Math.floor(maxPromptLength * 0.9)
+const counterRoom = 500
 
 export function promptLength(text: string): number {
   return [...text.trim()].length
 }
 
-export function promptCounter(
-  text: string
-): { text: string; over: boolean } | null {
-  const length = promptLength(text)
-  if (length < warnFrom) return null
-  return {
-    text: `${length} of ${maxPromptLength}`,
-    over: length > maxPromptLength,
-  }
+export type PromptCounter = { text: string; over: boolean }
+
+function characters(count: number): string {
+  return count === 1 ? "1 character" : `${count} characters`
+}
+
+export function promptCounter(text: string): PromptCounter | null {
+  const left = maxPromptLength - promptLength(text)
+  if (left > counterRoom) return null
+  return left < 0
+    ? { text: `${characters(-left)} over`, over: true }
+    : { text: `${characters(left)} left`, over: false }
 }
 
 export const composerPlaceholder =

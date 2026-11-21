@@ -92,6 +92,25 @@ function renderComposer(
   return { ...result, onSent }
 }
 
+function ThreadComposer() {
+  const model = useComposer({
+    subject: { kind: "dashboard", id: dashboardId },
+    place: { kind: "thread", threadId: null, agent: null, agentOff: false },
+    gate: ungated,
+    onSent: () => {},
+  })
+  return <Composer model={model} layout="docked" placeholder="Message" />
+}
+
+function renderThreadComposer() {
+  const queryClient = testQueryClient()
+  queryClient.setQueryData(observeKeys.agent(), { available: true })
+  return renderWithProviders(<ThreadComposer />, {
+    queryClient,
+    route: { path: "/", url: "/" },
+  })
+}
+
 async function box() {
   return screen.findByRole("textbox", { name: "Message the agent" })
 }
@@ -257,15 +276,36 @@ describe("Composer in a chat", () => {
     )
   })
 
-  it("counts characters near the limit and marks an over-long prompt", async () => {
+  it("counts the characters left from 3500 and turns Send off past the limit", async () => {
+    const fetch = stubCreate()
     const { user } = renderComposer()
     const field = await box()
     await user.click(field)
-    await user.paste("a".repeat(3600))
-    expect(screen.getByText("3600 of 4000")).toBeInTheDocument()
-    await user.paste("a".repeat(401))
-    expect(screen.getByText("4001 of 4000, too long")).toBeInTheDocument()
+    await user.paste("a".repeat(3499))
+    expect(screen.queryByText(/characters? (left|over)/)).toBeNull()
+    await user.paste("a")
+    expect(screen.getByText("500 characters left")).toBeInTheDocument()
+    await user.paste("a".repeat(501))
+    expect(screen.getByText("1 character over")).toBeInTheDocument()
     expect(field).toHaveAttribute("aria-invalid", "true")
+    const send = screen.getByRole("button", { name: "Send" })
+    expect(send).toHaveAttribute("aria-disabled", "true")
+    await user.keyboard("{Enter}")
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it("counts the same way in a thread's box", async () => {
+    stubCreate()
+    const { user } = renderThreadComposer()
+    const field = await screen.findByRole("textbox", { name: "Message" })
+    const send = () => screen.getByRole("button", { name: /^Send/ })
+    await user.click(field)
+    await user.paste("a".repeat(3600))
+    expect(screen.getByText("400 characters left")).toBeInTheDocument()
+    expect(send()).not.toHaveAttribute("aria-disabled", "true")
+    await user.paste("a".repeat(401))
+    expect(screen.getByText("1 character over")).toBeInTheDocument()
+    expect(send()).toHaveAttribute("aria-disabled", "true")
   })
 
   it("opens with a prefilled prompt and sends nothing until the person does", async () => {
