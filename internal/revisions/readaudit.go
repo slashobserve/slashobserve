@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -19,7 +20,10 @@ const (
 
 var everyonesList = map[string]any{"scope": string(ScopeAll)}
 
-func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest) {
+func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) {
+	if sameActor(requesterOf(row), by) {
+		return
+	}
 	chat := chatRoot(row.ID, row.ChatID)
 	s.recordRead(ctx, audit.Event{
 		Action: actionRunView,
@@ -30,6 +34,9 @@ func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest) {
 }
 
 func (s *Service) recordChatView(ctx context.Context, chat Chat) {
+	if !chat.ReadOnly {
+		return
+	}
 	s.recordRead(ctx, audit.Event{
 		Action: actionChatView,
 		Target: audit.Target{Kind: "chat", ID: chat.ID.String(), DashboardID: nullUUID(chat.DashboardID), ObservationID: nullUUID(chat.ObservationID)},

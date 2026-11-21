@@ -128,7 +128,7 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
-An Admin may show anyone's chat, read only; every show of a chat, yours included, is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`.
+An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`.
 `chats archive <chat-id>` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 
 ### Discovering what a datasource holds

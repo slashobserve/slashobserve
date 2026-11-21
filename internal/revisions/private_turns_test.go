@@ -248,7 +248,7 @@ func recordedReads(t *testing.T, d *dbtest.Database) []string {
 	return got
 }
 
-func TestEveryReadOfARunOrAChatIsRecordedWithItsOwner(t *testing.T) {
+func TestEveryReadOfSomeoneElsesRunOrChatIsRecordedWithItsOwner(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(&recordingBuilds{}))
 	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
@@ -314,8 +314,6 @@ func TestEveryReadOfARunOrAChatIsRecordedWithItsOwner(t *testing.T) {
 		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + strangerID + " denied " + chat + " - -",
-		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
-		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
 		"run.list " + adminID + " success - - all",
 		"run.list " + adminID + " success - - all",
 		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
@@ -324,10 +322,6 @@ func TestEveryReadOfARunOrAChatIsRecordedWithItsOwner(t *testing.T) {
 		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
 		"run.view " + strangerID + " denied " + run + " - -",
 		"run.view " + strangerID + " denied " + run + " - -",
-		"run.view " + userID + " success " + run + " " + chat + " " + userID,
-		"run.view " + userID + " success " + run + " " + chat + " " + userID,
-		"run.view " + userID + " success " + run + " " + chat + " " + userID,
-		"run.view " + userID + " success " + run + " " + chat + " " + userID,
 	}
 	slices.Sort(want)
 	if got := recordedReads(t, d); !slices.Equal(got, want) {
@@ -358,6 +352,7 @@ func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
 	}
 	w.http(eve, "/api/v1/observe/"+question.String(), http.StatusNotFound)
 	w.http(eve, "/api/v1/chats/"+question.String(), http.StatusNotFound)
+	w.mcp(eve, "get_chat", `{"id":"`+question.String()+`"}`, true)
 	mustNotContain(t, eve.Name, "their own turns of the chat", w.http(eve, "/api/v1/observe?chat_id="+question.String(), http.StatusOK), build.String(), question.String())
 	for _, who := range []auth.Principal{user, bea} {
 		for _, body := range []string{w.http(who, "/api/v1/observe/"+build.String(), http.StatusOK), w.mcp(who, "get_run", `{"id":"`+build.String()+`"}`, false)} {

@@ -570,7 +570,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err == nil {
-		s.recordRunView(ctx, row)
+		s.recordRunView(ctx, row, by)
 		return row, false, nil
 	}
 	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
@@ -583,7 +583,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	if row.Source == string(SourceSuggest) {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
-	s.recordRunView(ctx, row)
+	s.recordRunView(ctx, row, by)
 	return row, true, nil
 }
 
