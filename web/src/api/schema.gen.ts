@@ -879,7 +879,7 @@ export interface paths {
         get: operations["getFolderPermissions"];
         /**
          * Replace the people and groups a folder is restricted to.
-         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone. The General folder is never restricted. `admins_only: true` with an empty `entries` list makes the folder one only Admins can read, its creator included; only an Admin can set it, never on a personal folder, and any other change clears it. A folder that holds content reading an Admins-only datasource cannot be opened or given entries (409 `restricted_content`, with that content in `items`).
+         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone. The General folder is never restricted. `admins_only: true` with an empty `entries` list makes the folder one only Admins can read, its creator included; only an Admin can set it, never on a personal folder, and any other change clears it. A folder that holds content reading an Admins-only datasource cannot be opened or given entries (409 `restricted_content`, with that content in `items`). Nor can a folder that holds a dashboard or observation with an answer that read Admin-only data (409 `restricted_answer`, naming that content).
          */
         put: operations["setFolderPermissions"];
         post?: never;
@@ -1058,7 +1058,7 @@ export interface paths {
         put?: never;
         /**
          * Save the latest version as version 1 of a new dashboard.
-         * @description Needs View on the dashboard and Create in the target folder. The copy keeps every Spec field except `title`, and the source version's `unverified` list. Its datasource references are checked but its queries are not run, as for a restore, so duplicating does not fail because an upstream is briefly down. Versions, comments, agent requests and the import record stay with the original.
+         * @description Needs View on the dashboard and Create in the target folder. The copy keeps every Spec field except `title`, and the source version's `unverified` list. Its datasource references are checked but its queries are not run, as for a restore, so duplicating does not fail because an upstream is briefly down. Versions, comments, agent requests and the import record stay with the original. A copy of a dashboard that holds an answer that read Admin-only data goes only into a folder only Admins can read, and then holds that answer itself.
          */
         post: operations["duplicateDashboard"];
         delete?: never;
@@ -2119,7 +2119,7 @@ export interface paths {
         };
         /**
          * List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
-         * @description A list is recorded in the audit trail as one `run.list` with the dashboard as its target and `scope` `dashboard`, once per caller and dashboard in 10 minutes.
+         * @description A list is recorded in the audit trail as one `run.list` with the dashboard as its target and `scope` `dashboard`, once per caller and dashboard in 10 minutes. A run that read data only Admins can query (`restricted`) is left out for anyone who is neither its requester nor an Admin.
          */
         get: operations["listDashboardRevisions"];
         put?: never;
@@ -2146,7 +2146,7 @@ export interface paths {
         };
         /**
          * Read one revision request.
-         * @description A read is recorded in the audit trail as `run.view` with the requester's id as `owner_id`, once per reader and request in 10 minutes.
+         * @description A read is recorded in the audit trail as `run.view` with the requester's id as `owner_id`, once per reader and request in 10 minutes. A run that read data only Admins can query (`restricted`) answers 404 to anyone who is neither its requester nor an Admin.
          */
         get: operations["getDashboardRevision"];
         put?: never;
@@ -2303,7 +2303,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. A private ask is readable only by its requester and Admins, and while its answer is shared into a comment thread also by everyone who can read that thread. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin or as a reader of the thread its answer is shared in: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. Every read of a request, its requester's included, is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build, `get_run`, a dashboard revision, a suggestion and an unsaved answer under `GET /findings/{id}`; a refused read is recorded every time. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
+         * @description Works for any agent request, including comment and prompt revisions. A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404. So is a request that read data only Admins can query (`restricted`), wherever it writes. A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation. A private ask is readable only by its requester and Admins, and while its answer is shared into a comment thread also by everyone who can read that thread. An Admin also reads a request on a dashboard it cannot see. `read_only` is true when the caller reads the request only as an Admin or as a reader of the thread its answer is shared in: `allowed_actions` is then empty and every write route answers as it does today. Clients poll it once a second until the status is `succeeded` or `failed`. Every read of a request, its requester's included, is recorded as `run.view` with the owner's id as `owner_id`, once per reader and request in 10 minutes across this route, its build, `get_run`, a dashboard revision, a suggestion and an unsaved answer under `GET /findings/{id}`; a refused read is recorded every time. After a shutdown release the re-claimed run reuses its attempt number and keeps the steps already recorded, so a client detects a restarted run by each step's `at`, not by `attempt` alone. `build` reports the progress of the dashboard the agent is assembling for the request, without its Spec, to everyone who can see the request; it is null when there is no build. A `failed` request keeps its build for 7 days after it finished; `build_saved_at` is set once the requester saved it as a version. `state` and `result_kind` say where the request is and what it left behind, and `allowed_actions` lists what the caller may do with it now; the tables are in `docs/reference/states.md`.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -2445,7 +2445,7 @@ export interface paths {
         put?: never;
         /**
          * Save the answer of an agent request as an observation.
-         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
          */
         post: operations["saveObserveRequestAnswer"];
         delete?: never;
@@ -2839,7 +2839,7 @@ export interface paths {
         put?: never;
         /**
          * Pin an observation to a dashboard as an annotation.
-         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation. An observation that holds an answer that read Admin-only data is pinned only onto a dashboard in a folder only Admins can read, and the annotation then holds that answer.
          */
         post: operations["pinObservation"];
         delete?: never;
@@ -6976,6 +6976,8 @@ export interface components {
             suggested_change: string | null;
             /** @description True when the agent judged the answer worth keeping as an observation, because it describes a jump, a drop or an error spike; it only promotes saving the answer and saves nothing. */
             observe_worthy: boolean;
+            /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
+            restricted: boolean;
             /**
              * Format: date-time
              * @description The start of the window the evidence shows.
@@ -10848,7 +10850,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or the folder holds a dashboard or an observation with an answer that read Admin-only data and the change would let others read it (`restricted_answer`, naming that content), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11095,7 +11097,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11441,13 +11443,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -12478,7 +12480,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`). */
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`). Or the run that wrote the answer read data only Admins can query, such as the audit trail, and the dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14837,7 +14839,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Someone else's request already applies `applies_finding_id` (`already_applied`). */
+            /** @description Someone else's request already applies `applies_finding_id` (`already_applied`). Or the request that wrote that answer read data only Admins can query, such as the audit trail, and `dashboard_id` is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15272,7 +15274,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15317,7 +15319,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and neither the folder of what it was about nor the built-in Audit folder is one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15380,7 +15382,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`). Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`). Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the dashboard or observation is not in a folder only Admins can read (`restricted_answer`, saying why); keep such an answer in the chat, or share it where only Admins read. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15657,7 +15659,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15695,7 +15697,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no evidence panels (`finding_has_no_evidence`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The finding has no evidence panels (`finding_has_no_evidence`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and your default folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16002,7 +16004,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). Or an RCA of the observation has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16287,7 +16289,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data and the dashboard is not in a folder only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16337,7 +16339,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation has no live panel block (`observation_has_no_panels`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation has no live panel block (`observation_has_no_panels`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16388,13 +16390,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["InvalidSpec"];

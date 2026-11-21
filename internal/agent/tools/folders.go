@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -34,7 +35,7 @@ func init() { registerEntries((*Registry).folderEntries) }
 
 func (r *Registry) folderEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListFolders, Description: descListFolders, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.listFolders},
+		{Tool{Name: nameListFolders, Description: descListFolders, InputSchema: json.RawMessage(schemaListFolders), ReadOnly: true, MinRole: auth.RoleViewer}, r.listFolders},
 		{Tool{Name: nameCreateFolder, Description: descCreateFolder, InputSchema: json.RawMessage(schemaCreateFolder), MCPOnly: true, MinRole: auth.RoleViewer}, r.createFolder},
 		{Tool{Name: nameRenameFolder, Description: descRenameFolder, InputSchema: json.RawMessage(schemaRenameFolder), MCPOnly: true, MinRole: auth.RoleViewer}, r.renameFolder},
 	}
@@ -49,24 +50,33 @@ type folderItemOut struct {
 }
 
 type folderListOut struct {
-	Folders   []folderItemOut `json:"folders"`
-	Truncated bool            `json:"truncated,omitempty"`
+	Folders    []folderItemOut `json:"folders"`
+	Truncated  bool            `json:"truncated,omitempty"`
+	LeftOut    int             `json:"left_out,omitempty"`
+	LeftOutWhy string          `json:"left_out_note,omitempty"`
 }
 
 func (r *Registry) listFolders(ctx context.Context, input json.RawMessage) (Result, error) {
-	var in struct{}
+	var in struct {
+		IncludeRestricted bool `json:"include_restricted"`
+	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
 	if r.deps.Folders == nil {
 		return Result{}, errFoldersNotConfigured
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, in.IncludeRestricted)
+	if err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
 	levels, err := r.deps.Folders.Levels(ctx, principal)
 	if err != nil {
 		return Result{}, err
 	}
-	all := levels.Folders()
+	all := slices.DeleteFunc(levels.Folders(), func(f folders.Folder) bool { return !titles.keep(f.ID, f.ID.String()) })
+	titles.done(ctx)
 	visible := all[:min(len(all), maxListFolders)]
 	items := make([]folderItemOut, len(visible))
 	for i, f := range visible {
@@ -76,7 +86,7 @@ func (r *Registry) listFolders(ctx context.Context, input json.RawMessage) (Resu
 		}
 	}
 	kept, cut := fit(items, listBudget)
-	return success("Listed "+plural(len(kept), "folder", "folders"), folderListOut{Folders: kept, Truncated: cut || len(all) > len(visible)}), nil
+	return success("Listed "+plural(len(kept), "folder", "folders"), folderListOut{Folders: kept, Truncated: cut || len(all) > len(visible), LeftOut: titles.leftOut, LeftOutWhy: titles.note("folder", "folders")}), nil
 }
 
 func (r *Registry) createFolder(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -144,8 +154,18 @@ func folderWriteFailure(err error) (Result, bool) {
 }
 
 func (r *Registry) viewableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
-	_, res, ok, err := r.dashboardAbilities(ctx, id, notFoundMessage)
+	access, res, ok, err := r.dashboardAccess(ctx, id, notFoundMessage)
+	if ok {
+		readContentIn(ctx, id.String(), access.Folder)
+	}
 	return res, ok, err
+}
+
+func readContentIn(ctx context.Context, id string, f folders.Folder) {
+	if run, inRun := RunFrom(ctx); inRun && run.about(id) {
+		return
+	}
+	folders.Read(ctx, f)
 }
 
 func (r *Registry) commentableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {

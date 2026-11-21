@@ -225,6 +225,7 @@ function finding(id: string, createdAt: string): Finding {
     url: "",
     suggested_change: null,
     observe_worthy: false,
+    restricted: false,
   }
 }
 

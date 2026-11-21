@@ -269,7 +269,9 @@ observe:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: Someone else's request already applies `applies_finding_id` (`already_applied`).
+        description: >-
+          Someone else's request already applies `applies_finding_id` (`already_applied`).
+          Or the request that wrote that answer read data only Admins can query, such as the audit trail, and `dashboard_id` is not in a folder only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:
@@ -314,6 +316,7 @@ observe-id:
     description: >-
       Works for any agent request, including comment and prompt revisions.
       A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404.
+      So is a request that read data only Admins can query (`restricted`), wherever it writes.
       A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation.
       A private ask is readable only by its requester and Admins, and while its answer is shared into a comment thread also by everyone who can read that thread.
       An Admin also reads a request on a dashboard it cannot see.
@@ -492,6 +495,7 @@ observe-id-build-save:
         description: >-
           The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:
@@ -519,6 +523,7 @@ observe-id-observation:
     description: >-
       A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own.
       This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General).
+      An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead.
       Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes.
       The request gains `observation_id` and `url`, and `finding.observation_id` is set.
       A repeat call answers 200 with `replayed` true and the same observation.
@@ -548,6 +553,7 @@ observe-id-observation:
         description: >-
           The request has no answer to save (`no_answer`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the request read data only Admins can query, such as the audit trail, and neither the folder of what it was about nor the built-in Audit folder is one only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:
@@ -620,6 +626,7 @@ observe-id-share:
         description: >-
           The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`).
           Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the request read data only Admins can query, such as the audit trail, and the dashboard or observation is not in a folder only Admins can read (`restricted_answer`, saying why); keep such an answer in the chat, or share it where only Admins read.
         content:
           application/json:
             schema:
