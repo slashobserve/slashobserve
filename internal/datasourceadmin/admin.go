@@ -380,6 +380,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	}
 	var row dbsqlc.Datasource
 	err = s.saveOnAllowedHost(ctx, by, cand.host, func(q *dbsqlc.Queries) error {
+		if err := q.LockDatasourceUID(ctx, cand.def.UID); err != nil {
+			return err
+		}
 		var err error
 		if row, err = q.InsertDatasource(ctx, params); err != nil {
 			return err

@@ -1,3 +1,9 @@
+-- name: ShareDatasourceUIDs :exec
+SELECT pg_advisory_xact_lock_shared(hashtextextended('datasource_uid:' || u.uid, 0)) FROM unnest(@uids::text[]) AS u(uid);
+
+-- name: LockDatasourceUID :exec
+SELECT pg_advisory_xact_lock(hashtextextended('datasource_uid:' || @uid::text, 0));
+
 -- name: ShareDatasourceAudiences :many
 SELECT uid, audience FROM datasources WHERE uid = ANY(@uids::text[]) ORDER BY uid FOR SHARE;
 

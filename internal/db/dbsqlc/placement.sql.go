@@ -46,6 +46,15 @@ func (q *Queries) LockDashboardPlacement(ctx context.Context, id pgtype.UUID) (p
 	return folder_id, err
 }
 
+const lockDatasourceUID = `-- name: LockDatasourceUID :exec
+SELECT pg_advisory_xact_lock(hashtextextended('datasource_uid:' || $1::text, 0))
+`
+
+func (q *Queries) LockDatasourceUID(ctx context.Context, uid string) error {
+	_, err := q.db.Exec(ctx, lockDatasourceUID, uid)
+	return err
+}
+
 const placementDashboardSpecs = `-- name: PlacementDashboardSpecs :many
 SELECT v.spec FROM dashboard_versions v WHERE v.dashboard_id = $1
 UNION ALL
@@ -495,6 +504,15 @@ func (q *Queries) ShareDatasourceAudiences(ctx context.Context, uids []string) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const shareDatasourceUIDs = `-- name: ShareDatasourceUIDs :exec
+SELECT pg_advisory_xact_lock_shared(hashtextextended('datasource_uid:' || u.uid, 0)) FROM unnest($1::text[]) AS u(uid)
+`
+
+func (q *Queries) ShareDatasourceUIDs(ctx context.Context, uids []string) error {
+	_, err := q.db.Exec(ctx, shareDatasourceUIDs, uids)
+	return err
 }
 
 const shareFolderPlacement = `-- name: ShareFolderPlacement :one

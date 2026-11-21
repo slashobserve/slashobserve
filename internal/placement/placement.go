@@ -33,6 +33,9 @@ func (g *Guard) Restricted(ctx context.Context, q *dbsqlc.Queries, refs []string
 	if len(refs) == 0 {
 		return "", false, nil
 	}
+	if err := q.ShareDatasourceUIDs(ctx, refs); err != nil {
+		return "", false, fmt.Errorf("lock datasource uids: %w", err)
+	}
 	rows, err := q.ShareDatasourceAudiences(ctx, refs)
 	if err != nil {
 		return "", false, fmt.Errorf("lock datasource audiences: %w", err)
