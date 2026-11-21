@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, observeKeys } from "@/api/keys"
+import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
@@ -100,7 +101,7 @@ function renderConversation(request: ObserveRequest = root) {
 
 afterEach(() => vi.unstubAllGlobals())
 
-const finding = {
+const finding: Finding = {
   id: "f1",
   observation_id: null,
   agent_request_id: rootId,
@@ -114,7 +115,15 @@ const finding = {
   to: "2026-11-21T10:00:00Z",
   annotation_id: null,
   created_by: { kind: "user", id: "u1", name: "Ada" },
-  actor: root.requested_by,
+  actor: {
+    kind: "user",
+    id: "u1",
+    name: "Ada",
+    origin: "web",
+    client: null,
+    run_id: rootId,
+    label: "Observe Agent for Ada",
+  },
   created_at: "2026-11-21T10:01:00Z",
   url: null,
   suggested_change: "Add a p99 panel",
@@ -240,6 +249,20 @@ describe("Conversation", () => {
     expect(
       screen.getByRole("menuitem", { name: /^Withdraw/ })
     ).toHaveTextContent("Blocks it already wrote on the page stay.")
+  })
+
+  it("keeps the answer card for an answer saved as an observation", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(
+      answered({
+        result_kind: "observation",
+        finding: { ...finding, observation_id: "o9" },
+      })
+    )
+    expect(
+      await screen.findByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
+    expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
   })
 
   it("lets an Admin read another person's chat in full with no actions", async () => {

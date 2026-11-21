@@ -146,8 +146,12 @@ function ChatAnswer({
           ? { onRevise: (change) => void revise(change), pending }
           : undefined
       }
+      chatId={request.chat_id ?? undefined}
       menu={{
-        shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
+        shareTarget:
+          own && subject !== null && finding.observation_id === null
+            ? threadTargetOf(subject)
+            : null,
         sharedThreadId: request.shared_thread_id,
       }}
     />
@@ -402,7 +406,7 @@ export function RequestTurn({
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
               <>
-                {detail.finding.observation_id === null ? (
+                {!investigates ? (
                   <>
                     <ChatAnswer
                       request={detail}

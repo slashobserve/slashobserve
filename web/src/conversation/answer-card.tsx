@@ -17,6 +17,7 @@ import { plainTitle } from "@/comments/plain-title"
 import { ApiError } from "@/api/errors"
 import { useThreads } from "@/comments/thread-queries"
 import { EvidencePanel } from "@/findings/evidence-panel"
+import { MakeDashboardAction, PinAction } from "@/findings/finding-actions"
 import { evidencePanels, type Finding } from "@/findings/queries"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
@@ -46,6 +47,7 @@ type Props = {
   canSave: boolean
   revise?: { onRevise: (change: string) => void; pending: boolean }
   menu?: AnswerMenu
+  chatId?: string
 }
 
 export function evidenceChipText(count: number): string {
@@ -92,6 +94,26 @@ function CreateObservation({
     >
       {busy ? "Creating the observation" : "Create observation"}
     </Button>
+  )
+}
+
+function OpenObservation({
+  observationId,
+  className,
+}: {
+  observationId: string
+  className?: string
+}) {
+  return (
+    <Link
+      {...observationLink(observationId)}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "sm" }),
+        className
+      )}
+    >
+      Open the observation
+    </Link>
   )
 }
 
@@ -308,6 +330,7 @@ export function AnswerCard({
   canSave,
   revise,
   menu,
+  chatId,
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
@@ -362,6 +385,16 @@ export function AnswerCard({
         {promoted ? (
           <CreateObservation requestId={requestId} variant="outline" />
         ) : null}
+        {observationId === null ? null : (
+          <>
+            <PinAction finding={finding} />
+            {panels.length > 0 ? (
+              <MakeDashboardAction finding={finding} chatId={chatId} />
+            ) : (
+              <OpenObservation observationId={observationId} />
+            )}
+          </>
+        )}
         {menu === undefined ? null : (
           <AnswerMenuButton
             finding={finding}
@@ -387,15 +420,10 @@ export function AnswerCard({
             </div>
           </div>
           {observationId !== null ? (
-            <Link
-              {...observationLink(observationId)}
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "sm" }),
-                "-ml-2 self-start"
-              )}
-            >
-              Open the observation
-            </Link>
+            <OpenObservation
+              observationId={observationId}
+              className="-ml-2 self-start"
+            />
           ) : canSave ? (
             <CreateObservation requestId={requestId} variant="link" />
           ) : null}

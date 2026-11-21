@@ -275,10 +275,14 @@ Every request has an id, shown as "Request" and its first eight characters at th
 
 **Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
 **Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
-An answer's actions sit in one row: **Make a dashboard**, **Save as observation**, **Copy answer** and **Ask again**, each where it applies.
+An answer's actions sit in one row, each where it applies: the evidence chip, **Revise the dashboard**, **Create observation**, and, once the answer is in an observation, **Pin to dashboard** and **Make a dashboard**, then **Ask again** and the **Answer actions** menu with **Copy answer**.
 It is off while a run goes on.
 While a run works you see its live text, but the answer itself is written in one piece when the agent saves it, so there is nothing to copy until then.
 The model comes from the server's configuration and cannot be picked in the chat box.
+
+An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
+Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it.
+An investigation's answer shows as the observation's finding instead, with its evidence open.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
@@ -365,7 +369,7 @@ A run that ended on a suggested panel or a proposal reads "Suggested a panel" or
 An investigation reads "Answered in <title>" with the observation it was saved to, as long as you can open that observation's folder.
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
-**Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
+**Create observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 On the Chats page, each of your chats has a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
 The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.

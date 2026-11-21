@@ -14,6 +14,15 @@ vi.mock("@/findings/evidence-panel", () => ({
   ),
 }))
 
+vi.mock("@/dashboards/permissions", () => ({
+  useLatestPermissions: () => ({
+    comment: true,
+    edit: true,
+    manage: false,
+    create: false,
+  }),
+}))
+
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
 
@@ -264,6 +273,52 @@ describe("AnswerCard", () => {
     expect(
       screen.queryByRole("button", { name: "Create observation" })
     ).toBeNull()
+  })
+
+  it("offers Pin and Make a dashboard only once the answer is in an observation", async () => {
+    const view = renderCard({ finding: finding({ dashboard_id: "d1" }) })
+    await screen.findByText("doubled")
+    expect(
+      screen.queryByRole("button", { name: "Make a dashboard" })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Pin to dashboard" })
+    ).toBeNull()
+    view.unmount()
+    renderCard({
+      finding: finding({ dashboard_id: "d1", observation_id: "o9" }),
+    })
+    expect(
+      await screen.findByRole("button", { name: "Make a dashboard" })
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Pin to dashboard" })
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "2 evidence panels" })
+    ).toBeVisible()
+  })
+
+  it("hands the chat to a dashboard made from the answer", async () => {
+    const dashboardId = "33333333-3333-4333-8333-333333333333"
+    stubFetch({ dashboard: { id: dashboardId, title: "Checkout errors" } }, 201)
+    const { user, router } = renderCard({
+      finding: finding({ observation_id: "o9" }),
+      chatId: "c1",
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Make a dashboard" })
+    )
+    await vi.waitFor(() =>
+      expect(router?.state.location.search).toEqual({ tab: "chat", chat: "c1" })
+    )
+  })
+
+  it("links to the observation in its row when there is no evidence to unfold", async () => {
+    renderCard({ finding: finding({ evidence: [], observation_id: "o9" }) })
+    expect(
+      await screen.findByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
   })
 
   it("has no menu unless one is asked for", async () => {
