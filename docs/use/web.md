@@ -197,6 +197,8 @@ A click on the title bar comments on the panel's title, and Tab to the title and
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
+The copies of a repeated panel take no canvas comments: Comment mode does nothing on a copy, **Comment** or `c` on a copy starts the comment in the activity pane, and pins show only on the first panel.
+
 ### Comment pins
 
 A thread on a part of a panel shows as a pin with its author's mark at the spot it names.

@@ -18,7 +18,6 @@ import {
   CanvasComposer,
   CanvasLayer,
   useCanvasGate,
-  useOnTv,
 } from "@/comments/canvas-composer"
 import { CanvasPins } from "@/comments/canvas-pins"
 import { pinView } from "@/comments/canvas-target"
@@ -159,6 +158,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  onCanvas?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
   focusOnRender: boolean
@@ -204,6 +204,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  onCanvas = false,
   onToggleResponsive,
   layoutActions,
   focusOnRender,
@@ -408,8 +409,8 @@ export const PanelContainer = memo(function PanelContainer({
 
   const panelId = panel.id
   const onPointerEnter = useCallback(
-    () => useHoveredPanel.getState().enter(panelId),
-    [panelId]
+    () => useHoveredPanel.getState().enter(panelId, repeatOf !== undefined),
+    [panelId, repeatOf]
   )
   const onPointerLeave = useCallback(
     () => useHoveredPanel.getState().leave(panelId),
@@ -428,14 +429,6 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
-  const onTv = useOnTv()
-  const onCanvas =
-    dashboardId !== undefined &&
-    sourceKind === "version" &&
-    canComment &&
-    !onTv &&
-    !viewing &&
-    !editingPanel
   const commenting = onCanvas && commentTool && !layoutSession
   const draft = useCanvasTool((state) =>
     ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null

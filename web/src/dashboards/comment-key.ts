@@ -24,3 +24,21 @@ export function commentKeyAction({
   if (panelId !== undefined) return { kind: "panel", panelId }
   return onCanvas ? { kind: "enterMode" } : { kind: "pane" }
 }
+
+export type CanvasPlaceInput = {
+  canComment: boolean
+  onTv: boolean
+  viewing: boolean
+  editingPanel: boolean
+  copy: boolean
+}
+
+export function takesCanvasComments({
+  canComment,
+  onTv,
+  viewing,
+  editingPanel,
+  copy,
+}: CanvasPlaceInput): boolean {
+  return canComment && !onTv && !viewing && !editingPanel && !copy
+}

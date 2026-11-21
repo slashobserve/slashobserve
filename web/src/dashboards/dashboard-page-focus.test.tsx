@@ -106,7 +106,7 @@ class IdleEventSource {
   close() {}
 }
 
-function mockServer() {
+function mockServer(served: unknown = envelope) {
   vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
     "fetch",
@@ -119,7 +119,7 @@ function mockServer() {
         case "/api/v1/auth/session":
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
-          return json(envelope)
+          return json(served)
         case "/api/v1/agent":
           return json({ available: true })
         case "/api/v1/datasources":
@@ -268,6 +268,47 @@ describe("dashboard page panel keys", () => {
     expect(composer).toHaveAttribute("data-opened-by", "key")
     expect(composer).toHaveTextContent("Note, whole panel")
     expect(useActivityStore.getState().askingAgent).toBe(false)
+  })
+
+  it("comments on a repeated panel's copy in the activity pane, since copies take no canvas comments", async () => {
+    const spec = envelope.version.spec
+    mockServer({
+      ...envelope,
+      version: {
+        ...envelope.version,
+        spec: {
+          ...spec,
+          variables: [
+            {
+              name: "env",
+              type: "custom",
+              options: ["a", "b"],
+              multi: true,
+              default: ["a", "b"],
+            },
+          ],
+          panels: [spec.panels[0], { ...spec.panels[1], repeat: "env" }],
+        },
+      },
+    })
+    const { user, router } = renderDashboard()
+    await waitFor(() =>
+      expect(screen.getAllByRole("article", { name: "Latency" })).toHaveLength(
+        2
+      )
+    )
+    const copy = screen.getAllByRole("article", { name: "Latency" })[1]
+    await user.hover(copy)
+    await user.keyboard("c")
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        tab: "activity",
+        panel: "p_latency",
+      })
+    )
+    expect(
+      screen.queryByRole("dialog", { name: "Comment on the canvas" })
+    ).not.toBeInTheDocument()
   })
 
   it("enters Comment mode with c over no panel and leaves it with c again", async () => {

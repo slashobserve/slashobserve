@@ -70,14 +70,6 @@ export function targetChips(
   ]
 }
 
-export function useOnTv(): boolean {
-  return useSearch({
-    strict: false,
-    select: (search: Record<string, unknown>) =>
-      validateDashboardSearch(search).kiosk === true,
-  })
-}
-
 export function useCanvasGate(canComment: boolean): GateInput {
   const pinned = useSearch({
     strict: false,
