@@ -401,6 +401,10 @@ components:
           type: string
         code:
           type: string
+        datasource:
+          type: string
+          description: >-
+            Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource.
         reason:
           type: string
           description: >-

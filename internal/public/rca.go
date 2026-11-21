@@ -28,7 +28,7 @@ const maxLinksPerObservation = 20
 
 var (
 	ErrRCAPersonalFolder = errors.New("an observation in My Dashboards cannot have a public link")
-	ErrRCAAdminsOnly     = errors.New("an observation in a folder only Admins can read cannot have a public link; move it to another folder first")
+	ErrRCAAdminsOnly     = errors.New("an observation in a folder only Admins can read cannot have a public link; move it to a folder that is not Only Admins first")
 	ErrRCAUserScoped     = errors.New("a snapshot in this RCA shows data that depends on who is viewing, so it cannot be shared publicly")
 	ErrTooManyRCALinks   = fmt.Errorf("an observation has at most %d public links; revoke one first", maxLinksPerObservation)
 )
@@ -121,7 +121,11 @@ func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observat
 		return CreatedRCA{}, err
 	}
 	if place.AdminsOnly {
-		return CreatedRCA{}, ErrRCAAdminsOnly
+		datasource, err := s.guard.ObservationDatasource(ctx, s.db.Queries(), observationID)
+		if err != nil {
+			return CreatedRCA{}, err
+		}
+		return CreatedRCA{}, refuseAdminsOnly(ErrRCAAdminsOnly, "observation", datasource)
 	}
 	rca, err := s.rcas.GetRCA(ctx, by, observationID, revision)
 	if err != nil {
@@ -182,7 +186,11 @@ func (s *Service) insertRCALink(ctx context.Context, by auth.Principal, observat
 		case err != nil:
 			return fmt.Errorf("lock folder: %w", err)
 		case adminsOnly:
-			return ErrRCAAdminsOnly
+			datasource, err := s.guard.ObservationDatasource(ctx, q, observationID)
+			if err != nil {
+				return err
+			}
+			return refuseAdminsOnly(ErrRCAAdminsOnly, "observation", datasource)
 		}
 		count, err := q.CountObservationPublicLinks(ctx, observationID)
 		if err != nil {

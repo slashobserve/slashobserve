@@ -4173,6 +4173,8 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
+            datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
             reason?: string;
             /**
@@ -15973,7 +15975,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links. */
+            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links; the `datasource` field names an Admins-only datasource it reads, which keeps it in that folder. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17786,7 +17788,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard is in My Dashboards (`personal_folder`) or in a folder only Admins can read (`admins_only_folder`); move it to a shared folder first. */
+            /** @description The dashboard is in My Dashboards (`personal_folder`; move it to a shared folder first) or in a folder only Admins can read (`admins_only_folder`; move it to a folder that is not Only Admins, unless it reads an Admins-only datasource, which the `datasource` field names and which keeps it where it is). */
             409: {
                 headers: {
                     [name: string]: unknown;
