@@ -201,7 +201,7 @@ func Known(name string) bool {
 	if strings.Contains(name, "*") {
 		return len(matchingFields(name)) > 0
 	}
-	_, ok := fieldIndex[name]
+	_, ok := lookupField(name)
 	return ok
 }
 

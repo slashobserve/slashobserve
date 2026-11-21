@@ -487,6 +487,10 @@ func TestTheLintWarnsOfAFieldPatternExactlyWhenTheQueryRefusesIt(t *testing.T) {
 	lintAgreesWithQuery(t, "actor.*", "target.*", "actor_*", "Actor_*", "mess*", "nosuch*", "actor.name", "message", "nosuch")
 }
 
+func TestTheLintIgnoresTheCaseOfAFieldNameAsTheQueryDoes(t *testing.T) {
+	lintAgreesWithQuery(t, "ACTOR", "Target.Name", "Actor_Name", "NOSUCH")
+}
+
 func lintAgreesWithQuery(t *testing.T, fields ...string) {
 	t.Helper()
 	ds := open(t, &fakeStore{})
