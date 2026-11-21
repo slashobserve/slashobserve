@@ -150,7 +150,7 @@ function AskDraft({
         label="Ask about this"
         formLabel="Ask on the canvas"
         placeholder="Ask about this"
-        showVisibleTo={false}
+        showVisibility={false}
         disabledReason={disabledReasonOf(model)}
         chips={<ContextChips chips={askChips(panelTitle, spot.anchor)} />}
       />
@@ -316,7 +316,7 @@ function AskThread({
           label="Ask a follow-up"
           formLabel="Ask a follow-up"
           placeholder="Ask a follow-up"
-          showVisibleTo={false}
+          showVisibility={false}
           disabledReason={disabledReasonOf(model)}
         />
       </div>

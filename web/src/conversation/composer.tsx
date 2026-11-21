@@ -66,7 +66,7 @@ type ComposerProps = {
   framed?: boolean
   importLink?: boolean
   contextChips?: ContextChip[]
-  showVisibleTo?: boolean
+  showVisibility?: boolean
 }
 
 const keyboardHint =
@@ -104,10 +104,10 @@ function DeliveryChip({
 
 function DeliveryChips({
   model,
-  showVisibleTo = true,
+  showVisibility = true,
 }: {
   model: ComposerModel
-  showVisibleTo?: boolean
+  showVisibility?: boolean
 }) {
   const toAgent = model.delivery.to === "agent"
   const onlyMe = model.delivery.visibleTo === "me"
@@ -118,7 +118,7 @@ function DeliveryChips({
         turnLabel={toAgent ? `Send to ${everyoneHere}` : "Ask the agent"}
         onTurn={model.flips.to ? model.turnTo : null}
       />
-      {showVisibleTo ? (
+      {showVisibility ? (
         <DeliveryChip
           text={`Visible to: ${onlyMe ? "only you" : everyoneHere}`}
           turnLabel={onlyMe ? `Show to ${everyoneHere}` : "Keep it to yourself"}
@@ -255,7 +255,7 @@ function DockedComposer({
   notice,
   hint,
   disabledReason = null,
-  showVisibleTo,
+  showVisibility,
 }: ComposerProps) {
   const { field } = model
   const errorId = useId()
@@ -277,7 +277,7 @@ function DockedComposer({
       <div className="rounded-card border border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50 has-aria-invalid:border-destructive">
         <div className="flex flex-wrap items-center gap-1.5 px-2 pt-2">
           {chips}
-          <DeliveryChips model={model} showVisibleTo={showVisibleTo} />
+          <DeliveryChips model={model} showVisibility={showVisibility} />
         </div>
         <Textarea
           ref={field}

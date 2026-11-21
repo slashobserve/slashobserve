@@ -277,7 +277,7 @@ describe("AskPopover", () => {
     )
   })
 
-  it("asks in the open chat with the spot, the value shown and the window, then shows it working", async () => {
+  it("asks privately in the open chat with the spot, the value shown and the window, then shows it working", async () => {
     const posts = stubServer()
     const onChatStarted = vi.fn()
     openDraft()
@@ -287,13 +287,15 @@ describe("AskPopover", () => {
       "Why is payments slow?{Enter}"
     )
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0]).toMatchObject({
+    expect(posts[0]).toEqual({
       prompt: "Why is payments slow?",
       dashboard_id: dashboardId,
       kind: "ask",
       chat_id: "c1",
       panel_id: "p1",
       anchor: onRow,
+      client_id: expect.any(String),
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
     expect(
       await screen.findByRole("list", { name: "Your chat on this spot" })
