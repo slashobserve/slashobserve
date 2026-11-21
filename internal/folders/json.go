@@ -1,6 +1,10 @@
 package folders
 
-import "github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+)
 
 type Permissions struct {
 	Comment bool `json:"comment"`
@@ -26,6 +30,7 @@ type folderJSON struct {
 	Personal       bool         `json:"personal"`
 	Restricted     bool         `json:"restricted"`
 	AdminsOnly     bool         `json:"admins_only"`
+	Audit          bool         `json:"audit"`
 	DashboardCount int          `json:"dashboard_count"`
 	Grantees       []string     `json:"grantees"`
 	GranteeCount   int          `json:"grantee_count"`
@@ -34,7 +39,7 @@ type folderJSON struct {
 	Level          string       `json:"level"`
 }
 
-func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON {
+func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow, audit pgtype.UUID) folderJSON {
 	body := folderJSON{
 		ID:             f.ID.String(),
 		Title:          f.Title,
@@ -42,6 +47,7 @@ func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON
 		Personal:       f.Personal,
 		Restricted:     f.Restricted,
 		AdminsOnly:     f.AdminsOnly,
+		Audit:          audit.Valid && audit == f.ID,
 		DashboardCount: int(d.DashboardCount),
 		Grantees:       d.Grantees,
 		GranteeCount:   int(d.GranteeCount),

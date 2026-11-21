@@ -13,6 +13,7 @@ type listedFolder struct {
 	DashboardCount int    `json:"dashboard_count"`
 	Level          string `json:"level"`
 	AdminsOnly     bool   `json:"admins_only"`
+	Audit          bool   `json:"audit"`
 }
 
 type listedFolders struct {
@@ -59,6 +60,8 @@ func folderLabel(f listedFolder) string {
 		return text(f.Title) + " (General)"
 	case f.Personal:
 		return text(f.Title) + " (yours)"
+	case f.Audit:
+		return text(f.Title) + " (Audit folder)"
 	case f.AdminsOnly:
 		return text(f.Title) + " (Only Admins)"
 	}

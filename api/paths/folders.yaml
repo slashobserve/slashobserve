@@ -9,7 +9,7 @@ folders:
     description: >-
       A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone.
       Folders are sorted by title without regard to case, with General last.
-      Each folder carries the caller's own `permissions` on it.
+      Each folder carries the caller's own `permissions` on it, and `audit` is true on the Audit folder.
       The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
     responses:
       "200":

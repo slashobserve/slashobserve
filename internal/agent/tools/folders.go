@@ -46,6 +46,7 @@ type folderItemOut struct {
 	General    bool   `json:"general"`
 	CanCreate  bool   `json:"can_create"`
 	AdminsOnly *bool  `json:"admins_only,omitempty"`
+	Audit      bool   `json:"audit,omitempty"`
 }
 
 type folderListOut struct {
@@ -66,11 +67,15 @@ func (r *Registry) listFolders(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
+	audit, err := r.deps.Folders.AuditFolder(ctx)
+	if err != nil {
+		return Result{}, err
+	}
 	all := levels.Folders()
 	visible := all[:min(len(all), maxListFolders)]
 	items := make([]folderItemOut, len(visible))
 	for i, f := range visible {
-		items[i] = folderItemOut{ID: f.ID.String(), Title: f.Title, General: f.General, CanCreate: levels.Of(f.ID).Create}
+		items[i] = folderItemOut{ID: f.ID.String(), Title: f.Title, General: f.General, CanCreate: levels.Of(f.ID).Create, Audit: audit.Valid && audit == f.ID}
 		if principal.Role == auth.RoleAdmin {
 			items[i].AdminsOnly = &f.AdminsOnly
 		}
