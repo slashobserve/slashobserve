@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -62,7 +63,8 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 				role = auth.Role(given)
 			}
 			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Name: c.GetHeader("X-Test-Name"), Role: role}
-			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
+			ctx := audit.Open(auth.WithPrincipal(c.Request.Context(), p), audit.Scope{Actor: auth.AuditActor(p), Initiator: audit.InitiatorPerson, Origin: audit.Origin{Kind: audit.OriginWeb}})
+			c.Request = c.Request.WithContext(ctx)
 		}
 	})
 	NewHandler(database.DB, authService, folders.NewAccess(database.DB), logger).Register(auth.NewRoutes(api))

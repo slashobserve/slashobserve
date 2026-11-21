@@ -26,16 +26,10 @@ var pendingAuditActions = []audit.Action{
 	"audit.search",
 	"auth.credential_rejected",
 	"auth.csrf_rejected",
-	"block.add",
-	"block.edit",
-	"block.remove",
 	"chat.create",
 	"chat.delete",
 	"chat.turn",
-	"dashboard.export",
 	"finding.apply",
-	"folder.move",
-	"logs.export",
 	"migration.apply",
 	"oauth.authorize",
 	"oauth.client_register",
@@ -46,7 +40,6 @@ var pendingAuditActions = []audit.Action{
 	"run.withdraw",
 	"server.start",
 	"server.stop",
-	"settings.change",
 	"thread.agent_set",
 	"webhook.deliver",
 }
@@ -130,6 +123,17 @@ func TestEveryCatalogActionHasASource(t *testing.T) {
 	for _, action := range pendingAuditActions {
 		if _, ok := audit.Lookup(action); !ok {
 			t.Errorf("pending action %s is not in the catalog", action)
+		}
+	}
+}
+
+func TestFolderAndTeamActionsAreRecordedAndNotPending(t *testing.T) {
+	for _, action := range []audit.Action{"folder.create", "folder.rename", "folder.delete", "folder.permissions_change", "team.create", "team.delete", "team.member_add", "team.member_remove"} {
+		if _, ok := audit.Lookup(action); !ok {
+			t.Errorf("%s is not in the catalog", action)
+		}
+		if slices.Contains(pendingAuditActions, action) {
+			t.Errorf("%s is recorded inside its service's transaction and must not be pending", action)
 		}
 	}
 }

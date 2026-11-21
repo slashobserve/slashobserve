@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
 const (
@@ -111,12 +110,7 @@ func (a *Access) createImportFolder(ctx context.Context, p auth.Principal, title
 	if err != nil {
 		return ImportFolder{}, false, err
 	}
-	row, err := a.db.Queries().CreateFolder(ctx, dbsqlc.CreateFolderParams{
-		Title:         title,
-		CreatedByKind: pgtype.Text{String: string(p.Kind), Valid: true},
-		CreatedByID:   principalID,
-		CreatedByName: pgtype.Text{String: callerName(p), Valid: true},
-	})
+	row, err := a.insertFolder(ctx, p, principalID, title)
 	if isPgError(err, uniqueViolation) {
 		return ImportFolder{}, true, nil
 	}
