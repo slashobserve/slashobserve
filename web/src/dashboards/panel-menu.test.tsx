@@ -48,6 +48,13 @@ const logsPanel: LayoutPanel = {
   queries: [{ query: '{app="checkout"}' }],
 }
 
+const variableLogsPanel: LayoutPanel = {
+  ...logsPanel,
+  id: "p3",
+  title: "Variable logs",
+  datasource: "${logs}",
+}
+
 const dashboardRange = { from: "now-24h", to: "now" }
 
 function renderMenu(
@@ -61,6 +68,7 @@ function renderMenu(
       <PanelMenu
         panel={shown}
         range={dashboardRange}
+        selections={{ logs: ["loki"] }}
         tableView={false}
         onToggleTableView={() => {}}
         idle
@@ -200,6 +208,17 @@ describe("PanelMenu", () => {
     )
     expect(await screen.findByTestId("add-to-observation")).toHaveTextContent(
       "now-24h|now"
+    )
+  })
+
+  it("resolves a datasource variable from the dashboard's selections when the address carries none", async () => {
+    const { user, router } = renderMenu(true, undefined, variableLogsPanel)
+    await openMenu(user, "Variable logs")
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Open in Logs" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.pathname).toBe("/logs/loki")
     )
   })
 })

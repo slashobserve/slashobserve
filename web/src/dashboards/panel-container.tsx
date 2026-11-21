@@ -434,6 +434,7 @@ export const PanelContainer = memo(function PanelContainer({
     <PanelMenu
       panel={panel}
       range={{ from: rangeFrom, to: rangeTo }}
+      selections={selections}
       tableView={tableView}
       onToggleTableView={() => setTableView((current) => !current)}
       idle={!layoutSession}

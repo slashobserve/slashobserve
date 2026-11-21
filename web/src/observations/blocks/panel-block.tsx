@@ -213,7 +213,6 @@ function ReadablePanelBlock({
     : []
   const blockMenu: BlockMenuHost = {
     onInspect: inspect === null ? undefined : () => inspect.open(block.id),
-    vars: selections,
     actions,
   }
   const dataPanel = isDataPanel(panel) ? panel : undefined
