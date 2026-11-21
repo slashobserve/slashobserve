@@ -1,8 +1,12 @@
 import type { LucideIcon } from "lucide-react"
-import { useMemo } from "react"
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import type { Size } from "../anchors"
+import { scrollWithin, visibleBand } from "../list-anchors"
 import { thresholdColor, thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { AlertAnchorLayout } from "./anchors"
 import {
   alertModel,
   viewOf,
@@ -111,6 +115,26 @@ function CountTiles({ counts }: { counts: AlertCounts }) {
   )
 }
 
+function alertAnchorLayout(
+  list: HTMLElement,
+  alerts: readonly Alert[],
+  body: Size,
+  reveal: (key: string) => void
+): AlertAnchorLayout {
+  const root = surfaceOf(list)
+  const view = rectWithin(list, root)
+  const rows: AlertAnchorLayout["rows"][number][] = []
+  const elsewhere: Alert[] = []
+  alerts.forEach((alert, index) => {
+    const element = list.children.item(index)
+    const rect =
+      element === null ? null : visibleBand(rectWithin(element, root), view)
+    if (rect === null) elsewhere.push(alert)
+    else rows.push({ rect, alert })
+  })
+  return { body, rows, elsewhere, reveal }
+}
+
 const AlertlistPanel: PanelRenderer = ({
   frames,
   display,
@@ -124,6 +148,31 @@ const AlertlistPanel: PanelRenderer = ({
   )
   const view = viewOf(display)
   const empty = model.total === 0
+  const listed = !model.reason && !empty && view === "list"
+  const listRef = useRef<HTMLUListElement>(null)
+  const publish = useAnchorPublisher("alertlist")
+  const reveal = useCallback(
+    (key: string) => {
+      const list = listRef.current
+      const row = list?.children.item(
+        model.alerts.findIndex((alert) => alert.key === key)
+      )
+      if (list && row) scrollWithin(list, row)
+    },
+    [model.alerts]
+  )
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (list === null) {
+      publish(null)
+      return
+    }
+    const measure = () =>
+      publish(alertAnchorLayout(list, model.alerts, { width, height }, reveal))
+    measure()
+    list.addEventListener("scroll", measure, { passive: true })
+    return () => list.removeEventListener("scroll", measure)
+  }, [publish, listed, model.alerts, reveal, width, height])
   return (
     <div
       data-view={view}
@@ -140,6 +189,7 @@ const AlertlistPanel: PanelRenderer = ({
       ) : (
         <>
           <ul
+            ref={listRef}
             aria-label="Alerts"
             className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0"
           >

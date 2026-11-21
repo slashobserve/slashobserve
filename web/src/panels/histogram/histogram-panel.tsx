@@ -1,7 +1,9 @@
 import {
   memo,
   useCallback,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type MouseEvent,
@@ -10,6 +12,7 @@ import {
 import { formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { useSeriesLegend } from "../legend/use-series-legend"
 import type { PanelRenderer } from "../types"
 import { scalePosition } from "../value-axis"
@@ -378,6 +381,33 @@ const HistogramPanel: PanelRenderer = ({
     [model.edges, format]
   )
   const ready = buckets > 0 && plotWidth > 0 && estimatedHeight > 0
+  const svgRef = useRef<SVGSVGElement>(null)
+  const publish = useAnchorPublisher("histogram")
+  useLayoutEffect(() => {
+    const element = svgRef.current
+    if (element === null) {
+      publish(null)
+      return
+    }
+    const { x, y } = rectWithin(element, surfaceOf(element))
+    publish({
+      body: { width, height },
+      origin: { x, y },
+      plot: { width: plotWidth, height: plotHeight },
+      edges: model.edges,
+      format,
+    })
+  }, [
+    publish,
+    ready,
+    width,
+    height,
+    plotWidth,
+    plotHeight,
+    leftWidth,
+    model.edges,
+    format,
+  ])
 
   function onMove(event: MouseEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect()
@@ -439,6 +469,7 @@ const HistogramPanel: PanelRenderer = ({
                 onMouseLeave={() => setHover(null)}
               >
                 <svg
+                  ref={svgRef}
                   role="img"
                   aria-label={`Histogram of ${model.total} values in ${buckets} buckets`}
                   viewBox={`0 0 ${plotWidth} 100`}

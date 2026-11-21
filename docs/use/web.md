@@ -192,7 +192,7 @@ At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask*
 **Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
 In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
-On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
+On a time series, a heatmap, a state timeline or a status history, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
@@ -210,11 +210,33 @@ A resolved thread's pin is grey.
 A pin on a moment, a point or a range outside the shown time range is not drawn until the range shows it again, and a range partly in view keeps its pin on the part that shows.
 A pin on a series hidden in the legend is not drawn either, and while the panel shows an error, is loading or is in its table view only pins on its title are drawn.
 When the series, row or cell is no longer on the panel while its time is in view, for example after a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
-A table row that is on the panel but scrolled out of view, or on another page of the table, points at the bottom edge of the table, and opening its pin scrolls or pages the table to that row.
+A table row, log line, span or alert that is on the panel but scrolled out of view, or a table row on another page, points at the bottom edge of the panel, and opening its pin scrolls or pages the panel to it.
 
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
 Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.
 Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
+
+### What a click can name
+
+Each panel type names the finest part of itself that it draws, and a pin follows that part when the data moves.
+
+| Panel | A click names | The pin follows |
+|---|---|---|
+| Time series | A point on a line, a line, a moment in time, or a dragged range | The series and the time, or the range |
+| Bar chart | A bar, a stacked segment or a category | The category and the series |
+| Histogram | A bucket | The bucket's edges |
+| Heatmap | A cell, or a dragged range of time | The cell's time step and bucket, or the range |
+| Pie chart | A slice | The slice's name |
+| Stat, Gauge, Bar gauge | The value under the pointer | The value's series |
+| Table | A column header, or a row with the value under the pointer | The row's identifying cells and the column |
+| State timeline, Status history | A state at a time, a row, or a dragged range of time | The row and the time, or the range |
+| Logs | A log line | The line |
+| Traces | A span | The span |
+| Alert list | An alert, in the list view | The alert's name and labels |
+| Canvas | An element | The element, the topmost one where drawings overlap |
+
+A canvas element panned out of view, and a row on another page of a state timeline, count as gone.
+The panel types not listed, and the alert list's count view, have nothing finer than the whole panel, so a click there comments on the spot you clicked and the whole panel is outlined.
 
 ### Arrange panels
 

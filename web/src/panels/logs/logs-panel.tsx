@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,9 +22,13 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import { clip, type Size } from "../anchors"
 import type { FieldResolver } from "../field-config"
+import { scrollWithin, visibleBand } from "../list-anchors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { LogAnchorLayout } from "./anchors"
 import { logWindow, rowOffsets } from "./log-window"
 import {
   detailText,
@@ -649,6 +654,41 @@ function useViewportHeight(element: HTMLDivElement | null) {
   return height
 }
 
+type LogIndex = {
+  byKey: ReadonlyMap<string, LogEntry>
+  resolve: (id: string) => string | undefined
+}
+
+function logIndex(entries: readonly LogEntry[]): LogIndex {
+  const byKey = new Map<string, LogEntry>()
+  const byId = new Map<string, string>()
+  for (const entry of entries) {
+    byKey.set(entry.key, entry)
+    const id = clip(entry.key)
+    if (!byId.has(id)) byId.set(id, entry.key)
+  }
+  return { byKey, resolve: (id) => byId.get(id) }
+}
+
+function logAnchorLayout(
+  scroller: HTMLElement,
+  list: HTMLElement,
+  { byKey, resolve }: LogIndex,
+  body: Size,
+  reveal: (key: string) => void
+): LogAnchorLayout {
+  const root = surfaceOf(scroller)
+  const view = rectWithin(scroller, root)
+  const lines: LogAnchorLayout["lines"][number][] = []
+  for (const element of list.children) {
+    const entry = byKey.get((element as HTMLElement).dataset.key ?? "")
+    const rect = visibleBand(rectWithin(element, root), view)
+    if (entry === undefined || rect === null) continue
+    lines.push({ rect, entry })
+  }
+  return { body, lines, resolve, reveal }
+}
+
 export function LogsView({
   panelTitle,
   frames,
@@ -797,6 +837,59 @@ export function LogsView({
   useEffect(() => {
     if (windowed) observeRows(listRef.current)
   })
+
+  const publish = useAnchorPublisher("logs")
+  const anchorIndex = useMemo(() => logIndex(entries), [entries])
+  const reveal = useCallback(
+    (key: string) => {
+      const index = keys.indexOf(key)
+      if (index < 0 || scrollElement === null) return
+      if (windowed) {
+        scrollElement.scrollTo({ top: offsets[index] })
+        return
+      }
+      const row = Array.from(listRef.current?.children ?? []).find(
+        (child) => (child as HTMLElement).dataset.key === key
+      )
+      if (row) scrollWithin(scrollElement, row)
+    },
+    [keys, windowed, offsets, scrollElement]
+  )
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (scrollElement === null || list === null) {
+      publish(null)
+      return
+    }
+    const measure = () =>
+      publish(
+        logAnchorLayout(
+          scrollElement,
+          list,
+          anchorIndex,
+          { width, height },
+          reveal
+        )
+      )
+    measure()
+    scrollElement.addEventListener("scroll", measure, { passive: true })
+    const observer = new ResizeObserver(measure)
+    observer.observe(scrollElement)
+    observer.observe(list)
+    return () => {
+      scrollElement.removeEventListener("scroll", measure)
+      observer.disconnect()
+    }
+  }, [
+    publish,
+    scrollElement,
+    anchorIndex,
+    range.start,
+    range.end,
+    reveal,
+    width,
+    height,
+  ])
 
   const scrolledKey = useRef<string | null>(null)
   useEffect(() => {

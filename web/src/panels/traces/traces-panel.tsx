@@ -1,6 +1,8 @@
 import {
+  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -34,9 +36,13 @@ import {
 } from "@/traces/minimap"
 import { highlightText } from "@/traces/trace-toolbar"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import { clip } from "../anchors"
 import { styleForSlot } from "../colors"
+import { visibleBand } from "../list-anchors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { SpanAnchorLayout } from "./anchors"
 import {
   foldedRows,
   foldLabel,
@@ -46,6 +52,7 @@ import {
   revealSpan,
   rowId,
   type FoldGroup,
+  type Row,
 } from "./fold"
 import { niceTicks, tickAnchor, tickLimit, type TickAnchor } from "./ruler"
 import {
@@ -868,6 +875,53 @@ function isFormField(target: EventTarget | null): boolean {
   )
 }
 
+type SpanIndex = {
+  drawn: ReadonlyMap<string, Span>
+  resolve: (id: string) => string | undefined
+}
+
+function spanIndex(known: readonly Span[], rows: readonly Row[]): SpanIndex {
+  const drawn = new Map<string, Span>()
+  for (const row of rows) {
+    if (row.kind === "span") drawn.set(row.span.id, row.span)
+  }
+  const byId = new Map<string, string>()
+  for (const { id } of known) {
+    const clipped = clip(id)
+    if (!byId.has(clipped)) byId.set(clipped, id)
+  }
+  return { drawn, resolve: (id) => byId.get(id) }
+}
+
+function spanAnchorLayout(
+  scroller: HTMLElement,
+  { drawn, resolve }: SpanIndex,
+  reveal: (id: string) => void
+): SpanAnchorLayout {
+  const root = surfaceOf(scroller)
+  const { width, height } = root.getBoundingClientRect()
+  const area = rectWithin(scroller, root)
+  const ruler = scroller.firstElementChild
+  const below =
+    ruler === null
+      ? area.y
+      : rectWithin(ruler, root).y + rectWithin(ruler, root).height
+  const view = { ...area, y: below, height: area.y + area.height - below }
+  const spans: SpanAnchorLayout["spans"][number][] = []
+  for (const item of scroller.querySelectorAll<HTMLElement>(
+    "li[data-span-id]"
+  )) {
+    const span = drawn.get(item.dataset.spanId ?? "")
+    const rect = visibleBand(
+      rectWithin(item.firstElementChild ?? item, root),
+      view
+    )
+    if (span === undefined || rect === null) continue
+    spans.push({ rect, span })
+  }
+  return { body: { width, height }, spans, resolve, reveal }
+}
+
 export function TraceView(props: TraceViewProps) {
   const { model, filters, zone, width, height, attributes, toolbar } = props
   const [internalCollapsed, setInternalCollapsed] = useState<
@@ -886,10 +940,14 @@ export function TraceView(props: TraceViewProps) {
   const detailsId = props.detailsId ?? ownDetailsId
 
   const wanted = props.collapsed ?? internalCollapsed
-  const setCollapsed = (next: ReadonlySet<string>) => {
-    props.onCollapsedChange?.(next)
-    if (!props.onCollapsedChange) setInternalCollapsed(next)
-  }
+  const { onCollapsedChange } = props
+  const setCollapsed = useCallback(
+    (next: ReadonlySet<string>) => {
+      onCollapsedChange?.(next)
+      if (!onCollapsedChange) setInternalCollapsed(next)
+    },
+    [onCollapsedChange]
+  )
   const openId = props.onOpenIdChange ? (props.openId ?? null) : internalOpenId
   const setOpenId = (id: string | null) => {
     props.onOpenIdChange?.(id)
@@ -985,6 +1043,68 @@ export function TraceView(props: TraceViewProps) {
       row.scrollIntoView({ block: "nearest" })
     }
   }, [focusedId, range.start, range.end])
+
+  const publish = useAnchorPublisher("traces")
+  const anchorIndex = useMemo(
+    () => spanIndex(filtered.spans, rows),
+    [filtered.spans, rows]
+  )
+  const revealPending = useRef<string | null>(null)
+  const scrollToSpan = useCallback(
+    (id: string) => {
+      const list = listRef.current
+      const indexOf = (target: string | null) =>
+        rows.findIndex((row) => row.kind === "span" && row.span.id === target)
+      const index = indexOf(id)
+      if (list === null || index < 0) return false
+      const opened = inline ? indexOf(openId) : -1
+      const top =
+        index * rowHeight + (opened >= 0 && opened < index ? detailHeight : 0)
+      list.scrollTop = Math.max(top - height / 2, 0)
+      return true
+    },
+    [rows, inline, openId, detailHeight, height]
+  )
+  useEffect(() => {
+    const id = revealPending.current
+    if (id !== null && scrollToSpan(id)) revealPending.current = null
+  }, [scrollToSpan])
+  const reveal = useCallback(
+    (id: string) => {
+      const ancestors = ancestorIds(model.spans, id)
+      const collapsedAbove = ancestors.some((ancestor) => wanted.has(ancestor))
+      const folds = revealSpan(opened, groups, model.spans, id)
+      if (!collapsedAbove && folds === opened) {
+        scrollToSpan(id)
+        return
+      }
+      revealPending.current = id
+      if (collapsedAbove) setCollapsed(withoutIds(wanted, ancestors))
+      if (folds !== opened) setOpened(folds)
+    },
+    [model.spans, wanted, opened, groups, setCollapsed, scrollToSpan]
+  )
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (list === null) {
+      publish(null)
+      return
+    }
+    const measure = () => publish(spanAnchorLayout(list, anchorIndex, reveal))
+    measure()
+    list.addEventListener("scroll", measure, { passive: true })
+    return () => list.removeEventListener("scroll", measure)
+  }, [
+    publish,
+    reveal,
+    anchorIndex,
+    range.start,
+    range.end,
+    openId,
+    detailHeight,
+    width,
+    height,
+  ])
 
   const toggle = (id: string) => {
     const next = new Set(collapsed)

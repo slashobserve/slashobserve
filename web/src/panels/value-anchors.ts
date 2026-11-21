@@ -10,9 +10,10 @@ import {
   type Rect,
   type Size,
 } from "./anchors"
+import { bottomEdge } from "./list-anchors"
 
 type ValueTarget = {
-  rect: Rect
+  rect: Rect | null
   name: string
   labels: Record<string, string> | undefined
   text: string
@@ -27,7 +28,9 @@ export function hitTest(
   layout: ValueAnchorLayout,
   point: Point
 ): Anchor | null {
-  const target = layout.targets.find(({ rect }) => inRect(rect, point))
+  const target = layout.targets.find(
+    ({ rect }) => rect !== null && inRect(rect, point)
+  )
   if (target === undefined) return null
   return fit({
     kind: "value",
@@ -42,5 +45,6 @@ export function locate(layout: ValueAnchorLayout, anchor: Anchor): Rect | null {
   const target = layout.targets.find(({ labels, name }) =>
     namesLabels(anchor.series, seriesLabels(labels, name))
   )
-  return target?.rect ?? null
+  if (target === undefined) return null
+  return target.rect ?? bottomEdge(layout.body)
 }

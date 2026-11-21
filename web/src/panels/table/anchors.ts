@@ -10,6 +10,7 @@ import {
   type Rect,
   type Size,
 } from "../anchors"
+import { bottomEdge } from "../list-anchors"
 
 export type AnchorColumn = {
   name: string
@@ -91,8 +92,6 @@ export function hitTest(
   })
 }
 
-export const edgeHeight = 2
-
 function rowRect(layout: TableAnchorLayout, row: AnchorRow): Rect {
   return { x: 0, y: row.top, width: layout.body.width, height: row.height }
 }
@@ -132,15 +131,6 @@ function rowElsewhere(
   )
 }
 
-function edge(layout: TableAnchorLayout): Rect {
-  return {
-    x: 0,
-    y: layout.body.height - edgeHeight,
-    width: layout.body.width,
-    height: edgeHeight,
-  }
-}
-
 export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
   const column = layout.columns.find(({ name }) => clip(name) === anchor.column)
   switch (anchor.kind) {
@@ -151,7 +141,9 @@ export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
       if (anchor.kind === "cell" && column === undefined) return null
       const row = drawnRow(layout, anchor)
       if (row === null)
-        return rowElsewhere(layout, anchor) === null ? null : edge(layout)
+        return rowElsewhere(layout, anchor) === null
+          ? null
+          : bottomEdge(layout.body)
       return column === undefined
         ? rowRect(layout, row)
         : columnRect(layout, column, row)
