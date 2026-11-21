@@ -1,10 +1,12 @@
 package audit
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -325,5 +327,27 @@ func TestShutdownWritesEveryHeldStatementWhileTheDatabaseIsHealthy(t *testing.T)
 	}
 	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 0 {
 		t.Fatalf("dropped %s = %d, want 0", DroppedWriteFailed, got)
+	}
+}
+
+func TestOnlyTimeoutsInARowCountTowardsASplit(t *testing.T) {
+	s := newStoreRig(t, writerLimits{}, 0)
+	w := s.recorder.writer
+	st := &statement{rows: s.views(t, 4)}
+	for range splitAfterTimeouts - 1 {
+		if w.tooBig(st, context.DeadlineExceeded) {
+			t.Fatal("split before the timeouts in a row were reached")
+		}
+	}
+	if w.tooBig(st, &pgconn.PgError{Code: "08006"}) {
+		t.Fatal("a connection failure was read as too big")
+	}
+	for range splitAfterTimeouts - 1 {
+		if w.tooBig(st, context.DeadlineExceeded) {
+			t.Fatal("the count carried over a different error")
+		}
+	}
+	if !w.tooBig(st, context.DeadlineExceeded) {
+		t.Fatalf("no split after %d timeouts in a row", splitAfterTimeouts)
 	}
 }

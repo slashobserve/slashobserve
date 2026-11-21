@@ -296,6 +296,7 @@ func (w *Writer) tooBig(st *statement, err error) bool {
 		return true
 	}
 	if !timedOut(err) {
+		st.timeouts = 0
 		return false
 	}
 	st.timeouts++
