@@ -50,7 +50,6 @@ type Activity struct {
 type AgentRequest struct {
 	ID                pgtype.UUID
 	DashboardID       pgtype.UUID
-	Source            string
 	CommentID         pgtype.UUID
 	Prompt            string
 	PanelID           pgtype.Text
@@ -103,6 +102,8 @@ type AgentRequest struct {
 	Anchor            []byte
 	BlockID           pgtype.UUID
 	ClientID          pgtype.UUID
+	Intent            string
+	AppliesFindingID  pgtype.UUID
 }
 
 type AgentRequestBuild struct {
@@ -354,24 +355,26 @@ type DraftQuerySpend struct {
 }
 
 type Finding struct {
-	ID             pgtype.UUID
-	AgentRequestID pgtype.UUID
-	DashboardID    pgtype.UUID
-	Title          string
-	Markdown       string
-	Evidence       []byte
-	TimeFrom       pgtype.Timestamptz
-	TimeTo         pgtype.Timestamptz
-	CreatedByKind  string
-	CreatedByID    pgtype.UUID
-	CreatedByName  string
-	AnnotationID   pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	Origin         pgtype.Text
-	OriginClient   pgtype.Text
-	FolderID       pgtype.UUID
-	ObservationID  pgtype.UUID
-	AskDashboardID pgtype.UUID
+	ID              pgtype.UUID
+	AgentRequestID  pgtype.UUID
+	DashboardID     pgtype.UUID
+	Title           string
+	Markdown        string
+	Evidence        []byte
+	TimeFrom        pgtype.Timestamptz
+	TimeTo          pgtype.Timestamptz
+	CreatedByKind   string
+	CreatedByID     pgtype.UUID
+	CreatedByName   string
+	AnnotationID    pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	Origin          pgtype.Text
+	OriginClient    pgtype.Text
+	FolderID        pgtype.UUID
+	ObservationID   pgtype.UUID
+	AskDashboardID  pgtype.UUID
+	SuggestedChange pgtype.Text
+	ObserveWorthy   bool
 }
 
 type Folder struct {

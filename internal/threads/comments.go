@@ -100,7 +100,6 @@ func (cm *Comments) open(ctx context.Context, by auth.Principal, dashboardID pgt
 		}
 		queued, err := cm.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
 			DashboardID: dashboardID,
-			Source:      revisions.SourceComment,
 			CommentID:   threadID,
 			Prompt:      message.Body,
 			PanelID:     thread.PanelID,

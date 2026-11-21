@@ -50,7 +50,7 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 			return Claimed{}, false, err
 		}
 		if result.firstClaim && result.request.StartedAt.Valid && result.request.CreatedAt.Valid {
-			s.metrics.RequestClaimed(result.request.Source, result.request.StartedAt.Time.Sub(result.request.CreatedAt.Time))
+			s.metrics.RequestClaimed(string(SourceOf(result.request)), result.request.StartedAt.Time.Sub(result.request.CreatedAt.Time))
 		}
 		req, outcome := s.admit(ctx, c, result.request)
 		switch outcome {
@@ -64,7 +64,7 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 }
 
 func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest) (Request, admission) {
-	if Source(row.Source) != SourceSuggest {
+	if SourceOf(row) != SourceSuggest {
 		if done, progressed := s.settleSaved(ctx, row, nil); done {
 			if progressed {
 				return Request{}, settled
@@ -82,7 +82,7 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 		s.releaseLogged(ctx, row, true)
 		return Request{}, released
 	}
-	switch err := s.checkRun(ctx, Source(row.Source), row.DashboardID, requester); {
+	switch err := s.checkRun(ctx, SourceOf(row), row.DashboardID, requester); {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
 		s.finishLogged(ctx, row, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
 		return Request{}, settled
@@ -143,7 +143,7 @@ func (s *Service) End(ctx context.Context, row dbsqlc.AgentRequest, e Ending) (d
 }
 
 func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e Ending) (outcome, error) {
-	if Source(row.Source) != SourceSuggest {
+	if SourceOf(row) != SourceSuggest {
 		success, saved, err := s.savedOutcome(ctx, row, e.Usage)
 		if err != nil {
 			return outcome{}, err
@@ -164,9 +164,9 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 		return canceledOutcome(nil, e.Usage), nil
 	case e.Failure != "":
 		return outcome{message: e.Message, code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
-	case Source(row.Source) == SourceSuggest:
+	case SourceOf(row) == SourceSuggest:
 		return suggestionOutcome(e.Suggestion, e.Usage), nil
-	case Source(row.Source) == SourceInvestigate:
+	case SourceOf(row) == SourceInvestigate:
 		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
 	}
 	return outcome{message: noSaveMessage, code: "agent_no_save", failure: FailureNoToolCall, usage: e.Usage}, nil
@@ -174,7 +174,7 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 
 func (s *Service) savedOutcome(ctx context.Context, row dbsqlc.AgentRequest, usage *Usage) (success outcome, saved bool, err error) {
 	finding := outcome{finding: true, usage: usage}
-	if Source(row.Source) == SourceInvestigate {
+	if SourceOf(row) == SourceInvestigate {
 		found, err := s.hasFinding(ctx, row)
 		return finding, found, err
 	}
@@ -264,7 +264,7 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 	return Request{
 		ID:           row.ID.String(),
 		DashboardID:  row.DashboardID.String(),
-		Source:       Source(row.Source),
+		Source:       SourceOf(row),
 		Prompt:       row.Prompt,
 		PanelID:      row.PanelID.String,
 		BaseVersion:  int(row.BaseVersion.Int32),

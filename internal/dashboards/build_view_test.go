@@ -23,7 +23,7 @@ func (r *rig) personalRevisionBuild(t *testing.T, owner person) pgtype.UUID {
 		t.Fatal(err)
 	}
 	row, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{
-		DashboardID: dashID, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: owner.principal,
+		DashboardID: dashID, Prompt: "revise", BaseVersion: 1, By: owner.principal,
 	})
 	if err != nil {
 		t.Fatal(err)

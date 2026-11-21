@@ -107,7 +107,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
 		var allowed []Action
 		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
-			mayStart, err := starts.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+			mayStart, err := starts.may(ctx, State(row.State), listedSource(row), row.DashboardID)
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may start a listed agent request again: %w", err)
 			}
@@ -115,7 +115,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may keep a listed agent request's build: %w", err)
 			}
-			allowed = allowedActions(newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
+			allowed = allowedActions(newFacts(State(row.State), listedSource(row), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
 		}
 		state := states[row.ID]
 		state.build = state.progressFor(requester, caller)
@@ -249,7 +249,7 @@ func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assig
 }
 
 func mayHaveFinding(row dbsqlc.AgentRequest) bool {
-	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
+	return SourceOf(row) != SourceSuggest && !row.ResultVersion.Valid
 }
 
 func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
@@ -269,8 +269,9 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
 	out := agentRequestJSON{
 		ID:          row.ID.String(),
-		Kind:        Kind(Source(row.Source)),
-		Source:      Source(row.Source),
+		Kind:        Kind(SourceOf(row)),
+		Intent:      Intent(row.Intent),
+		Source:      SourceOf(row),
 		Trigger:     row.Trigger,
 		Title:       titleShownTo(row, caller),
 		Prompt:      row.Prompt,
@@ -380,8 +381,9 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:           row.ID.String(),
-		Kind:         Kind(Source(row.Source)),
-		Source:       Source(row.Source),
+		Kind:         Kind(listedSource(row)),
+		Intent:       Intent(row.Intent),
+		Source:       listedSource(row),
 		Trigger:      row.Trigger,
 		Title:        requestTitle(row.Title, row.Prompt),
 		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),

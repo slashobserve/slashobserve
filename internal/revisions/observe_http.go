@@ -74,6 +74,7 @@ type agentInfoJSON struct {
 type agentRequestJSON struct {
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind"`
+	Intent         Intent             `json:"intent"`
 	Source         Source             `json:"source"`
 	Trigger        string             `json:"trigger"`
 	Title          string             `json:"title"`
@@ -137,6 +138,7 @@ type assigneeJSON struct {
 type requestSummaryJSON struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
+	Intent         Intent     `json:"intent"`
 	Source         Source     `json:"source"`
 	Trigger        string     `json:"trigger"`
 	Title          string     `json:"title"`

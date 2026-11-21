@@ -220,7 +220,7 @@ func TestListObserveFiltersByState(t *testing.T) {
 func TestListObserveAllHidesWhatTheAdminCannotSee(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := personalDashboardOf(t, d, user)
-	onPrivate, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "private revision", BaseVersion: 1, By: user})
+	onPrivate, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "private revision", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestAdminReadsButCannotActOnSomeoneElsesChat(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(&recordingBuilds{}))
 	noDashboard := observeFor(t, svc, user, "chat without a dashboard")
-	private, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: personalDashboardOf(t, d, user), Source: revisions.SourcePrompt, Prompt: "chat on a private dashboard", BaseVersion: 1, By: user})
+	private, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: personalDashboardOf(t, d, user), Prompt: "chat on a private dashboard", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}

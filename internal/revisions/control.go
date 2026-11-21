@@ -96,7 +96,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
 }
 
 type startChecks struct {
@@ -159,7 +159,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, dashb
 
 func (s *Service) factsFor(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) (runFacts, error) {
 	checks := s.newStartChecks(by)
-	mayStart, err := checks.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+	mayStart, err := checks.may(ctx, State(row.State), SourceOf(row), row.DashboardID)
 	if err != nil {
 		return runFacts{}, err
 	}
@@ -259,7 +259,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err := s.continueBlocker(ctx, row, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if err := s.checkRun(ctx, Source(row.Source), row.DashboardID, by); err != nil {
+	if err := s.checkRun(ctx, SourceOf(row), row.DashboardID, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
@@ -276,7 +276,6 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
-				Source:       Source(row.Source),
 				CommentID:    row.CommentID,
 				Prompt:       row.Prompt,
 				PanelID:      row.PanelID.String,
@@ -379,7 +378,7 @@ func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, bui
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
 	threadMessage, threadContext := threadOf(row)
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
-	switch Source(row.Source) {
+	switch SourceOf(row) {
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:

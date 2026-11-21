@@ -45,6 +45,7 @@ type requesterJSON struct {
 
 type runJSON struct {
 	ID          string        `json:"id"`
+	Intent      string        `json:"intent"`
 	Source      string        `json:"source"`
 	Title       string        `json:"title"`
 	State       string        `json:"state"`
@@ -202,8 +203,8 @@ func (h *Handler) runScope(ctx context.Context, caller auth.Principal, callerID 
 func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	out := runJSON{
 		ID:          row.ID.String(),
-		Source:      row.Source,
-		Title:       runTitle(row.Title.String, row.Prompt, row.Source),
+		Intent:      row.Intent,
+		Source:      string(revisions.SourceFor(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)),
 		State:       row.State,
 		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
 		FailureCode: optionalText(row.FailureCode),
@@ -213,6 +214,7 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
 		Openable:    row.RequestedByKind == "user" && row.RequestedByID == callerID,
 	}
+	out.Title = runTitle(row.Title.String, row.Prompt, out.Source)
 	if row.Priced {
 		out.CostUSD = &row.CostUsd
 	}

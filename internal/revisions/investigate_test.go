@@ -44,7 +44,7 @@ func TestInvestigateStoresItsWindow(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
 	from := investigateWindowTo.Add(-time.Hour)
 	row := investigate(t, svc, revisions.InvestigateParams{From: &from, To: &investigateWindowTo})
-	if row.Source != string(revisions.SourceInvestigate) || !row.ContextFrom.Time.Equal(from) || !row.ContextTo.Time.Equal(investigateWindowTo) || row.DashboardID.Valid {
+	if revisions.SourceOf(row) != revisions.SourceInvestigate || !row.ContextFrom.Time.Equal(from) || !row.ContextTo.Time.Equal(investigateWindowTo) || row.DashboardID.Valid {
 		t.Fatalf("enqueued = %+v", row)
 	}
 }
@@ -69,14 +69,14 @@ func TestAnInvestigationAskedInAThreadSkipsThePersonAndInstanceCaps(t *testing.T
 		investigate(t, svc, revisions.InvestigateParams{})
 	}
 	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
-		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, source) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'investigate')`)
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', (SELECT id FROM observations LIMIT 1))`)
 	}
 	ctx := reading(context.Background())
 	if _, err := svc.SubmitInvestigate(ctx, revisions.InvestigateParams{Prompt: "one more", By: user}); !errors.Is(err, revisions.ErrTooManyInvestigations) {
 		t.Fatalf("a fourth investigation of one person: %v", err)
 	}
 	row, err := svc.EnqueueAssignedInvestigate(ctx, d.Queries(), revisions.InvestigateParams{Prompt: "asked in a thread", By: user, Ask: true})
-	if err != nil || row.Source != "investigate" {
+	if err != nil || revisions.SourceOf(row) != revisions.SourceInvestigate {
 		t.Fatalf("an asked investigation with both caps full: %+v, %v", row, err)
 	}
 }
@@ -227,8 +227,8 @@ func TestTheWorkerFinishesAnAnsweredRequestByItsFinding(t *testing.T) {
 			if final.Status != string(revisions.StatusSucceeded) || final.FailureCode.Valid || final.ResultVersion.Valid || final.DashboardID != row.DashboardID {
 				t.Fatalf("finished %s with %q, version %v, dashboard %v", final.Status, final.FailureCode.String, final.ResultVersion, final.DashboardID)
 			}
-			if final.Source != string(c.source) {
-				t.Fatalf("source %q", final.Source)
+			if revisions.SourceOf(final) != c.source {
+				t.Fatalf("source %q", revisions.SourceOf(final))
 			}
 		})
 	}

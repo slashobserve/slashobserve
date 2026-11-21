@@ -366,7 +366,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 		t.Fatal(err)
 	}
 	row, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
-		DashboardID: dashboard, Source: "prompt", Prompt: "why is this panel flat", BaseVersion: 1,
+		DashboardID: dashboard, Intent: "apply", Prompt: "why is this panel flat", BaseVersion: 1,
 		RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
 	if err != nil {

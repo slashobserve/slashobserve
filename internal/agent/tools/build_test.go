@@ -34,7 +34,7 @@ func (r *panelsRig) createRun(t *testing.T) panelsCaller {
 func (r *panelsRig) reviseRun(ctx context.Context, t *testing.T, id string) panelsCaller {
 	t.Helper()
 	queue := revisions.NewService(r.database.DB, slog.New(slog.DiscardHandler), revisions.WithBuiltInAgent(), revisions.WithAccess(folders.NewAccess(r.database.DB)))
-	request, err := queue.Submit(r.ctx, revisions.EnqueueParams{DashboardID: mustUUID(t, id), Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: placeholderUser})
+	request, err := queue.Submit(r.ctx, revisions.EnqueueParams{DashboardID: mustUUID(t, id), Prompt: "revise", BaseVersion: 1, By: placeholderUser})
 	if err != nil {
 		t.Fatal(err)
 	}

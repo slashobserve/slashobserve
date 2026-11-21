@@ -995,8 +995,8 @@ func TestDeletingWaitsForTheRunsOfTheObservationToEnd(t *testing.T) {
 	o := r.create(t, editor, r.shared)
 	id := mustUUID(t, o.ID)
 	var run string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
-VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, observation_id, context_from, context_to)
+VALUES ('ask', 'why', 'user', $1::uuid, 'Eve', $2, $3::uuid, $4::timestamptz - interval '1 hour', $4::timestamptz) RETURNING id::text`, editor.ID, about, o.ID, windowTo).Scan(&run); err != nil {
 		t.Fatal(err)
 	}
 	for _, state := range []string{"queued", "running"} {

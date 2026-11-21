@@ -63,7 +63,6 @@ func (r *Repairs) repairOne(ctx context.Context, by auth.Principal, requester pg
 		}
 		queued, err = r.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
 			DashboardID: id,
-			Source:      revisions.SourcePrompt,
 			Prompt:      prompt,
 			BaseVersion: latest,
 			By:          by,

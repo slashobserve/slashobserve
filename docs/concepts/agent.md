@@ -296,6 +296,10 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 ## Whose permissions it uses
 
+Each run carries an `intent`: `ask` reads and answers, `apply` changes a dashboard, and `suggest` proposes one panel.
+A new-dashboard request is an `ask` until it saves its dashboard, and then an `apply`.
+The `source` that run listings show (`observe`, `prompt`, `comment`, `suggest` or `investigate`) is worked out from the intent and what the run is about, and `?source=` filters on that worked-out value.
+
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
 A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key, unless the request names a folder the requester can create in: the agent reads the folders with `list_folders` and passes one as `folder_id`, and a folder it cannot create in is refused and never replaced by another.

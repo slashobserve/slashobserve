@@ -297,7 +297,7 @@ func seedDashboard(t *testing.T, d *dbtest.Database) pgtype.UUID {
 func (r *rig) submit(source revisions.Source, panelID string) dbsqlc.AgentRequest {
 	r.t.Helper()
 	row, err := r.runs.Submit(context.Background(), revisions.EnqueueParams{
-		DashboardID: r.dash, Source: source, Prompt: "add a latency panel", PanelID: panelID, BaseVersion: 1, By: ada,
+		DashboardID: r.dash, Prompt: "add a latency panel", PanelID: panelID, BaseVersion: 1, By: ada,
 	})
 	if err != nil {
 		r.t.Fatal(err)

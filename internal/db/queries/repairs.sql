@@ -20,7 +20,7 @@ LEFT JOIN imports i ON i.dashboard_id = d.id
 LEFT JOIN dashboard_versions iv ON iv.dashboard_id = i.dashboard_id AND iv.version = i.version
 LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.finished_at FROM agent_requests a
-  WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND a.prompt = @repair_prompt::text
+  WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND a.prompt = @repair_prompt::text
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) r ON true
@@ -40,5 +40,5 @@ WHERE d.id = @dashboard_id;
 
 -- name: CountActiveRepairsBy :one
 SELECT count(*) FROM agent_requests
-WHERE requested_by_id = @requester_id AND source = 'prompt' AND prompt = @repair_prompt::text
+WHERE requested_by_id = @requester_id AND intent = 'apply' AND base_version IS NOT NULL AND prompt = @repair_prompt::text
   AND status IN ('queued', 'running');

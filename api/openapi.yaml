@@ -987,11 +987,15 @@ components:
     AgentRun:
       type: object
       additionalProperties: false
-      required: [id, source, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
+      required: [id, intent, source, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
       properties:
         id:
           type: string
           format: uuid
+        intent:
+          type: string
+          enum: [ask, apply]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
@@ -1085,11 +1089,14 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, source, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
+            required: [id, intent, source, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
             properties:
               id:
                 type: string
                 format: uuid
+              intent:
+                type: string
+                enum: [ask, apply]
               source:
                 type: string
                 enum: [comment, prompt, observe, investigate]
@@ -4618,6 +4625,7 @@ components:
         - id
         - kind
         - title
+        - intent
         - source
         - trigger
         - prompt
@@ -4674,6 +4682,10 @@ components:
         title:
           type: string
           description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none.
+        intent:
+          type: string
+          enum: [ask, apply]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
         source:
           type: string
           enum: [comment, prompt, observe, investigate]
@@ -4987,6 +4999,7 @@ components:
         - kind
         - title
         - pinned_at
+        - intent
         - source
         - trigger
         - prompt
@@ -5022,6 +5035,10 @@ components:
           format: uuid
         requested_by:
           $ref: "#/components/schemas/Author"
+        intent:
+          type: string
+          enum: [ask, apply]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
         source:
           type: string
           enum: [comment, prompt, observe, investigate]

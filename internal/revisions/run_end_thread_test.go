@@ -43,7 +43,7 @@ func mentionRun(t *testing.T, svc *revisions.Service, d *dbtest.Database, dash p
 	t.Helper()
 	thread := openThread(t, d, dash)
 	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-		DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "why", BaseVersion: 1, By: user,
+		DashboardID: dash, Prompt: "why", BaseVersion: 1, By: user,
 		ThreadMessageID: thread.ID, ThreadContext: "Ada: earlier",
 	})
 	if err != nil {

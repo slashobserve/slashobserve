@@ -160,8 +160,8 @@ func (r *rig) run(t *testing.T, in run) {
 		}
 		usage = string(raw)
 	}
-	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, run_usage, assigned_kind, assigned_id, created_at, started_at)
-		SELECT 'observe', 'p', 'user', $1::uuid, 'x', $2, $3, $4, $5::jsonb, $6, nullif($7, '')::uuid, at, CASE WHEN $2 <> 'queued' THEN at + make_interval(secs => $9) END
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, run_usage, assigned_kind, assigned_id, created_at, started_at)
+		SELECT 'ask', 'p', 'user', $1::uuid, 'x', $2, $3, $4, $5::jsonb, $6, nullif($7, '')::uuid, at, CASE WHEN $2 <> 'queued' THEN at + make_interval(secs => $9) END
 		FROM (SELECT now() - make_interval(days => $8) AS at) t`,
 		in.by.ID, status, in.state, failure, usage, in.kind, in.assignedID, in.createdDaysAgo, in.waitSeconds)
 }
@@ -325,8 +325,8 @@ func TestPresenceFollowsTheAgentWorkerAndHeldRuns(t *testing.T) {
 		t.Fatalf("after the grant asked for work = %+v, %+v last seen %v, want the grant listening and present, the account offline", g, a, last)
 	}
 
-	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, lease_until, assigned_kind, assigned_id, claimed_by)
-		VALUES ('observe', 'p', 'user', $1::uuid, 'Ada', 'running', 'running', now() + interval '1 minute', 'service_account', $2::uuid, 'service_account:' || $2)`, ada.ID, account)
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, lease_until, assigned_kind, assigned_id, claimed_by)
+		VALUES ('ask', 'p', 'user', $1::uuid, 'Ada', 'running', 'running', now() + interval '1 minute', 'service_account', $2::uuid, 'service_account:' || $2)`, ada.ID, account)
 	if _, a, _ := read(); a != (seen{"working", true}) {
 		t.Fatalf("a service account holding a run = %+v, want working and present", a)
 	}

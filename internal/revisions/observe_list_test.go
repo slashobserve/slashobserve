@@ -134,7 +134,7 @@ func TestListObservePagesWithoutOverlapAndEndsWithANullCursor(t *testing.T) {
 	for _, prompt := range []string{"a", "b", "c"} {
 		created = append(created, observeFor(t, svc, user, prompt))
 	}
-	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "d", BaseVersion: 1, By: user})
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "d", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,11 +172,11 @@ func TestListObserveFiltersBySourceAndRefusesBadQueries(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	observe := observeFor(t, svc, user, "new dashboard")
-	prompt, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "follow-up", BaseVersion: 1, By: user})
+	prompt, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "follow-up", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourceComment, Prompt: "comment", BaseVersion: 1, By: user})
+	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "comment", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}

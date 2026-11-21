@@ -104,8 +104,8 @@ func (r rig) run(t *testing.T, requester actor.Actor, state string) pgtype.UUID 
 	if state == "failed" {
 		failure = "internal"
 	}
-	return r.uuid(t, r.scalar(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code)
-		VALUES ('observe', 'p', 'user', $1::uuid, $2, $3, $3, $4) RETURNING id::text`, requester.ID, requester.Name, state, failure))
+	return r.uuid(t, r.scalar(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code)
+		VALUES ('ask', 'p', 'user', $1::uuid, $2, $3, $3, $4) RETURNING id::text`, requester.ID, requester.Name, state, failure))
 }
 
 func (r rig) failedRun(t *testing.T, requester actor.Actor) (run pgtype.UUID, seq int64) {
@@ -123,8 +123,8 @@ func (r rig) promptRun(t *testing.T, requester actor.Actor, prompt, state string
 	if state == "failed" {
 		failure = "internal"
 	}
-	return r.uuid(t, r.scalar(t, `INSERT INTO agent_requests (dashboard_id, base_version, source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, result_version)
-		VALUES ($1, 1, 'prompt', $2, 'user', $3::uuid, $4, $5, $5, $6, $7) RETURNING id::text`, dashboard.String(), prompt, requester.ID, requester.Name, state, failure, version))
+	return r.uuid(t, r.scalar(t, `INSERT INTO agent_requests (dashboard_id, base_version, intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, result_version)
+		VALUES ($1, 1, 'apply', $2, 'user', $3::uuid, $4, $5, $5, $6, $7) RETURNING id::text`, dashboard.String(), prompt, requester.ID, requester.Name, state, failure, version))
 }
 
 func (r rig) endedPromptRun(t *testing.T, requester actor.Actor, prompt, state string, version any) (run pgtype.UUID, seq int64) {
@@ -259,7 +259,7 @@ func TestInboxListsAFailedRunUntilItIsContinued(t *testing.T) {
 
 	wantReasons(t, "a failed run", r.inbox(t, mia, ViewForYou), ReasonRunFailed)
 
-	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, continues_id) VALUES ('observe', 'again', 'user', $1::uuid, 'Mia', $2::uuid)`, mia.ID, run.String())
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, continues_id) VALUES ('ask', 'again', 'user', $1::uuid, 'Mia', $2::uuid)`, mia.ID, run.String())
 	wantReasons(t, "after a continuation", r.inbox(t, mia, ViewForYou))
 }
 

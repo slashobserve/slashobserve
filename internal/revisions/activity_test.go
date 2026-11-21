@@ -22,17 +22,16 @@ var (
 )
 
 func runRow(status Status, source Source) dbsqlc.AgentRequest {
-	return dbsqlc.AgentRequest{
+	return shapedAs(dbsqlc.AgentRequest{
 		ID:              runRequestID,
 		DashboardID:     runDashboardID,
-		Source:          string(source),
 		Status:          string(status),
 		State:           string(status),
 		RequestedByKind: string(auth.KindUser),
 		RequestedByID:   runRequesterID,
 		RequestedByName: "Ada",
 		Origin:          pgtype.Text{String: string(origin.Web), Valid: true},
-	}
+	}, source)
 }
 
 func dataOf(t *testing.T, e activity.Entry) map[string]any {

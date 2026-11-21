@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -31,6 +32,7 @@ type workingAgentJSON struct {
 
 type workingRunJSON struct {
 	ID          string           `json:"id"`
+	Intent      string           `json:"intent"`
 	Source      string           `json:"source"`
 	State       string           `json:"state"`
 	CreatedAt   string           `json:"created_at"`
@@ -124,7 +126,8 @@ func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalK
 	mine := row.RequestedByKind == string(callerKind) && row.RequestedByID == callerID
 	out := workingRunJSON{
 		ID:          row.ID.String(),
-		Source:      row.Source,
+		Intent:      row.Intent,
+		Source:      string(revisions.SourceFor(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)),
 		State:       row.State,
 		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:   optionalTime(row.StartedAt),
@@ -133,7 +136,7 @@ func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalK
 		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
 	}
 	if mine {
-		title := runTitle(row.Title.String, row.Prompt, row.Source)
+		title := runTitle(row.Title.String, row.Prompt, out.Source)
 		out.Title = &title
 	}
 	if row.VisibleDashboardID.Valid {

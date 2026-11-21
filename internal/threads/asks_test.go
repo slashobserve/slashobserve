@@ -17,7 +17,7 @@ import (
 
 type queuedRun struct {
 	ID              string
-	Source          string
+	Intent          string
 	Trigger         string
 	AssignedKind    string
 	AssignedID      string
@@ -33,7 +33,7 @@ type queuedRun struct {
 
 func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	t.Helper()
-	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, source, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
+	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, intent, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
 		coalesce(observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
 		thread_context, prompt, requested_by_id::text FROM agent_requests ORDER BY created_at, id`)
 	if err != nil {
@@ -43,7 +43,7 @@ func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	var out []queuedRun
 	for rows.Next() {
 		var q queuedRun
-		if err := rows.Scan(&q.ID, &q.Source, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
+		if err := rows.Scan(&q.ID, &q.Intent, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
 			t.Fatal(err)
 		}
 		out = append(out, q)
@@ -119,7 +119,7 @@ func TestMentioningObserveOnADashboardThreadQueuesACommentRunWithItsMessage(t *t
 		t.Fatalf("%d runs queued, want 1", len(queued))
 	}
 	got := queued[0]
-	if got.ID != run.ID || got.Source != "comment" || got.Trigger != "mention" || got.AssignedKind != "builtin" || got.AssignedID != "" ||
+	if got.ID != run.ID || got.Intent != "apply" || got.Trigger != "mention" || got.AssignedKind != "builtin" || got.AssignedID != "" ||
 		got.CommentID != thread.ID || got.DashboardID != dash.String() || got.BaseVersion != "1" || got.ThreadMessageID != first.ID ||
 		got.Prompt != "why did errors rise?" || got.RequestedByID != testUserID || got.ThreadContext.Valid {
 		t.Fatalf("run row = %+v", got)
@@ -187,7 +187,7 @@ func TestMentioningObserveOnAnObservationThreadQueuesAnInvestigationIntoIt(t *te
 		t.Fatalf("%d runs queued, want 1", len(queued))
 	}
 	got := queued[0]
-	if got.Source != "investigate" || got.Trigger != "mention" || got.ObservationID != id.String() || got.DashboardID != "" || got.CommentID != "" ||
+	if got.Intent != "ask" || got.Trigger != "mention" || got.ObservationID != id.String() || got.DashboardID != "" || got.CommentID != "" ||
 		got.ThreadMessageID != first.ID || got.Prompt != "what changed at 09:10?" || got.ThreadContext.Valid {
 		t.Fatalf("run row = %+v", got)
 	}
@@ -631,7 +631,7 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
 	}
 	queued := r.queuedRuns(t)
-	if len(queued) != 2 || queued[0].Source != "comment" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Source != "comment" {
+	if len(queued) != 2 || queued[0].Intent != "apply" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "apply" {
 		t.Fatalf("runs = %+v", queued)
 	}
 }
@@ -643,7 +643,7 @@ func TestHTTPStartsAnInvestigationOnAnObservationThread(t *testing.T) {
 	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "start_runs": true})
 	started.expect(t, http.StatusCreated, "")
 	queued := r.queuedRuns(t)
-	if len(queued) != 1 || queued[0].Source != "investigate" || queued[0].ObservationID != id.String() ||
+	if len(queued) != 1 || queued[0].Intent != "ask" || queued[0].ObservationID != id.String() ||
 		started.at(t, "message", "run", "id") != queued[0].ID || started.at(t, "message", "run_refusal") != nil {
 		t.Fatalf("answer %v, runs %+v", started.body, queued)
 	}

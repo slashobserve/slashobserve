@@ -152,7 +152,7 @@ func againChat(row dbsqlc.AgentRequest, by auth.Principal) chatChoice {
 		return chatChoice{}
 	case sameActor(requesterOf(row), by):
 		return chatChoice{mode: sameChat, id: row.ChatID}
-	case Source(row.Source) == SourcePrompt:
+	case SourceOf(row) == SourcePrompt:
 		return chatChoice{mode: dashboardChat}
 	}
 	return chatChoice{mode: newChat}

@@ -154,7 +154,7 @@ func TestSuggestionsDoNotCountTowardTheDashboardRevisionCap(t *testing.T) {
 	for i := range revisions.MaxActive {
 		submit(t, svc, dash, fmt.Sprintf("p%d", i))
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth revision: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestSuggestionsAreCappedPerPrincipalAndPerInstance(t *testing.T) {
 	}
 
 	var stored int
-	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests WHERE source = 'suggest'").Scan(&stored); err != nil || stored != revisions.MaxActiveSuggest {
+	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests WHERE intent = 'suggest'").Scan(&stored); err != nil || stored != revisions.MaxActiveSuggest {
 		t.Fatalf("stored %d suggestions, err %v", stored, err)
 	}
 }

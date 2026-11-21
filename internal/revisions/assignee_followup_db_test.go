@@ -108,7 +108,7 @@ func TestRetryOfAnOutsideAgentsRunDoesNotNeedTheBuiltInAgent(t *testing.T) {
 	for _, source := range []string{"prompt", "investigate"} {
 		first := insertCanceledRun(t, d, dash, source, "grant", grant)
 		next, err := svc.Retry(reading(context.Background()), first, user)
-		if err != nil || next.AssignedKind != "grant" || next.AssignedID.String() != grant || next.Source != source {
+		if err != nil || next.AssignedKind != "grant" || next.AssignedID.String() != grant || string(revisions.SourceOf(next)) != source {
 			t.Fatalf("retry of a %s run = %+v, %v, want a %s run for the grant", source, next, err, source)
 		}
 	}
@@ -121,8 +121,8 @@ func TestRetryOfAnOutsideAgentsRunDoesNotNeedTheBuiltInAgent(t *testing.T) {
 func insertCanceledRun(t *testing.T, d *dbtest.Database, dash pgtype.UUID, source, kind, assignee string) pgtype.UUID {
 	t.Helper()
 	var id pgtype.UUID
-	row := d.SQLDB(t).QueryRowContext(reading(context.Background()), `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, state, status, failure_code, finished_at)
-		VALUES ($1, $5::text, 'look again', CASE WHEN $5::text = 'investigate' THEN NULL ELSE 1 END, 'user', $2::uuid, 'Ada', $3, NULLIF($4, '')::uuid, 'canceled', 'failed', 'canceled', now()) RETURNING id`, dash, userID, kind, assignee, source)
+	row := d.SQLDB(t).QueryRowContext(reading(context.Background()), `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, state, status, failure_code, finished_at)
+		VALUES ($1, CASE WHEN $5::text = 'investigate' THEN 'ask' ELSE 'apply' END, 'look again', CASE WHEN $5::text = 'investigate' THEN NULL ELSE 1 END, 'user', $2::uuid, 'Ada', $3, NULLIF($4, '')::uuid, 'canceled', 'failed', 'canceled', now()) RETURNING id`, dash, userID, kind, assignee, source)
 	if err := row.Scan(&id); err != nil {
 		t.Fatal(err)
 	}

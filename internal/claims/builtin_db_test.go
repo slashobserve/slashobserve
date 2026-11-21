@@ -15,7 +15,7 @@ import (
 func (f *fixture) queueBuiltin(t *testing.T) string {
 	t.Helper()
 	row, err := f.runs.Submit(context.Background(), revisions.EnqueueParams{
-		DashboardID: f.dashboard, Source: revisions.SourcePrompt, Prompt: "add a latency panel", BaseVersion: 1, By: ada,
+		DashboardID: f.dashboard, Prompt: "add a latency panel", BaseVersion: 1, By: ada,
 	})
 	if err != nil {
 		t.Fatal(err)

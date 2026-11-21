@@ -112,7 +112,7 @@ func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 func submit(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, prompt string) revisions.Revision {
 	t.Helper()
 	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-		DashboardID: dashboard, Source: revisions.SourcePrompt, Prompt: prompt, BaseVersion: 1, By: user,
+		DashboardID: dashboard, Prompt: prompt, BaseVersion: 1, By: user,
 	})
 	if err != nil {
 		t.Fatalf("submit %q: %v", prompt, err)
@@ -1013,7 +1013,7 @@ func TestActiveRequestsPerDashboardAreCapped(t *testing.T) {
 			first = rev
 		}
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth submit: %v", err)
 	}
@@ -1033,7 +1033,7 @@ func TestConcurrentSubmitsNeverExceedTheCap(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-				DashboardID: dash, Source: revisions.SourcePrompt, Prompt: fmt.Sprintf("p%d", i), BaseVersion: 1, By: user,
+				DashboardID: dash, Prompt: fmt.Sprintf("p%d", i), BaseVersion: 1, By: user,
 			})
 			switch {
 			case err == nil:
@@ -1061,7 +1061,7 @@ func TestSubmitWithoutAnAgentIsRefused(t *testing.T) {
 	if svc.Available() {
 		t.Fatal("a service without a reviser reports itself available")
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "x", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "x", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
@@ -1224,7 +1224,7 @@ func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-				DashboardID: tc.dashboard, Source: revisions.SourcePrompt, Prompt: "go", BaseVersion: 1, By: tc.by,
+				DashboardID: tc.dashboard, Prompt: "go", BaseVersion: 1, By: tc.by,
 			})
 			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
 				t.Fatalf("err = %v, want %v", err, tc.want)

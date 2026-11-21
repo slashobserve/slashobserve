@@ -4521,6 +4521,11 @@ export interface components {
         AgentRun: {
             /** Format: uuid */
             id: string;
+            /**
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @enum {string}
+             */
+            intent: "ask" | "apply";
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word. */
@@ -4567,6 +4572,8 @@ export interface components {
             items: {
                 /** Format: uuid */
                 id: string;
+                /** @enum {string} */
+                intent: "ask" | "apply";
                 /** @enum {string} */
                 source: "comment" | "prompt" | "observe" | "investigate";
                 /** @enum {string} */
@@ -6435,6 +6442,11 @@ export interface components {
             kind: "build" | "investigate";
             /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
             title: string;
+            /**
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @enum {string}
+             */
+            intent: "ask" | "apply";
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /**
@@ -6636,6 +6648,11 @@ export interface components {
             /** Format: uuid */
             id: string;
             requested_by: components["schemas"]["Author"];
+            /**
+             * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape.
+             * @enum {string}
+             */
+            intent: "ask" | "apply";
             /** @enum {string} */
             source: "comment" | "prompt" | "observe" | "investigate";
             /**

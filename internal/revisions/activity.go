@@ -16,7 +16,7 @@ import (
 )
 
 func runEventFor(row dbsqlc.AgentRequest, a Action) (string, bool) {
-	if row.Source == string(SourceSuggest) {
+	if SourceOf(row) == SourceSuggest {
 		return "", false
 	}
 	typ := RunMachine.EventFor(a, State(row.State))
@@ -57,7 +57,7 @@ func runActivity(row dbsqlc.AgentRequest, typ string) activity.Entry {
 
 func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) activity.Entry {
 	columns := requesterColumns(row)
-	data := map[string]any{"source": row.Source}
+	data := map[string]any{"source": SourceOf(row)}
 	switch typ {
 	case activity.TypeRunQueued:
 		if row.ContinuesID.Valid {
@@ -113,7 +113,7 @@ func storedCost(runUsage []byte) (float64, bool) {
 }
 
 func revisionEvent(row dbsqlc.AgentRequest) (events.Event, bool) {
-	if !row.DashboardID.Valid || row.Source == string(SourceSuggest) || row.Source == string(SourceInvestigate) {
+	if !row.DashboardID.Valid || SourceOf(row) == SourceSuggest || SourceOf(row) == SourceInvestigate {
 		return events.Event{}, false
 	}
 	ev := events.Event{

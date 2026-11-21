@@ -377,7 +377,6 @@ func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent r
 	case KindDashboard:
 		return r.asks.queue.EnqueueAssigned(r.ctx, q, revisions.EnqueueParams{
 			DashboardID:     thread.Target.ID,
-			Source:          revisions.SourceComment,
 			CommentID:       threadID,
 			Prompt:          prompt,
 			PanelID:         thread.PanelID,

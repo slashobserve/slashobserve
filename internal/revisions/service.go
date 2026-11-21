@@ -61,7 +61,6 @@ func (s *Service) Available() bool {
 
 type EnqueueParams struct {
 	DashboardID pgtype.UUID
-	Source      Source
 	CommentID   pgtype.UUID
 	Prompt      string
 	PanelID     string
@@ -88,7 +87,7 @@ type Point struct {
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, p.Source, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	return s.submit(ctx, p)
@@ -145,7 +144,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		ID:               slot.turn,
 		ChatID:           slot.chat,
 		DashboardID:      p.DashboardID,
-		Source:           string(p.Source),
+		Intent:           string(IntentApply),
 		CommentID:        p.CommentID,
 		Prompt:           p.Prompt,
 		PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
@@ -226,7 +225,7 @@ func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersi
 			return dbsqlc.AgentRequest{}, err
 		}
 	}
-	p.Source, p.BaseVersion = SourcePrompt, base
+	p.BaseVersion = base
 	return s.submit(ctx, p)
 }
 
@@ -244,7 +243,6 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 	}
 	return s.Submit(ctx, EnqueueParams{
 		DashboardID: dashboardID,
-		Source:      SourceComment,
 		CommentID:   threadID,
 		Prompt:      prompt,
 		PanelID:     panelID,
@@ -558,7 +556,7 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if row.Source == string(SourceSuggest) {
+	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
 	switch {
@@ -586,7 +584,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	if err != nil {
 		return dbsqlc.AgentRequest{}, false, err
 	}
-	if row.Source == string(SourceSuggest) {
+	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
 	s.recordRunView(ctx, row, by)
@@ -992,9 +990,9 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 
 func runKind(row dbsqlc.AgentRequest) string {
 	switch {
-	case Source(row.Source) == SourceInvestigate:
+	case SourceOf(row) == SourceInvestigate:
 		return "investigate"
-	case Source(row.Source) == SourceSuggest:
+	case SourceOf(row) == SourceSuggest:
 		return "suggest"
 	case !row.DashboardID.Valid:
 		return "create"
@@ -1094,7 +1092,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
 		ID:           row.ID.String(),
 		DashboardID:  row.DashboardID.String(),
-		Source:       Source(row.Source),
+		Source:       SourceOf(row),
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),
 		State:        State(row.State),

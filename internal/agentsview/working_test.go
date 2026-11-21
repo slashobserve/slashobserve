@@ -87,8 +87,8 @@ func (r *rig) activeRun(t *testing.T, in activeRun) string {
 		failure = "internal"
 	}
 	var id string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, assigned_kind, assigned_id, dashboard_id, observation_id, base_version, created_at)
-		VALUES ($1, nullif($2, ''), $3, 'user', $4::uuid, $5, $12, $6, nullif($13, ''), $7, nullif($8, '')::uuid, nullif($9, '')::uuid, nullif($10, '')::uuid, CASE WHEN $9 <> '' AND $1 NOT IN ('observe', 'investigate') THEN 1 END, now() - make_interval(mins => $11))
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, assigned_kind, assigned_id, dashboard_id, observation_id, base_version, created_at)
+		VALUES (CASE $1 WHEN 'suggest' THEN 'suggest' WHEN 'prompt' THEN 'apply' WHEN 'comment' THEN 'apply' ELSE 'ask' END, nullif($2, ''), $3, 'user', $4::uuid, $5, $12, $6, nullif($13, ''), $7, nullif($8, '')::uuid, nullif($9, '')::uuid, nullif($10, '')::uuid, CASE WHEN $9 <> '' AND $1 NOT IN ('observe', 'investigate') THEN 1 END, now() - make_interval(mins => $11))
 		RETURNING id::text`,
 		source, in.title, prompt, in.by.ID, in.by.Name, state, kind, in.assignedID, in.dashboardID, in.observationID, in.minutesAgo, status, failure).Scan(&id)
 	if err != nil {
@@ -230,7 +230,7 @@ func TestFinishedRunsAndSuggestionsAreNotListed(t *testing.T) {
 	for _, state := range []string{"succeeded", "failed", "canceled"} {
 		r.activeRun(t, activeRun{by: ada, state: state, source: "investigate"})
 	}
-	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, dashboard_id, base_version, panel_id)
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, dashboard_id, base_version, panel_id)
 		VALUES ('suggest', 'p', 'user', $1::uuid, 'Ada', 'queued', 'queued', 'builtin', $2::uuid, 1, 'p1')`, ada.ID, dashboard)
 	kept := r.activeRun(t, activeRun{by: ada, state: "running"})
 

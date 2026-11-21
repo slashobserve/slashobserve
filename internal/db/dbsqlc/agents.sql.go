@@ -133,7 +133,8 @@ func (q *Queries) GrantOwnedBy(ctx context.Context, arg GrantOwnedByParams) (boo
 }
 
 const listAgentRuns = `-- name: ListAgentRuns :many
-SELECT r.id, r.source, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
+SELECT r.id, r.intent, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
+       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id,
        r.created_at, r.started_at, r.finished_at,
        ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
        coalesce((r.run_usage->>'cost_usd')::float8, 0)::float8 AS cost_usd,
@@ -146,7 +147,7 @@ LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[]
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
 WHERE r.assigned_kind = $2
   AND ($3::uuid IS NULL OR r.assigned_id = $3::uuid)
-  AND r.source <> 'suggest'
+  AND r.intent <> 'suggest'
   AND ($4::uuid IS NULL OR (r.requested_by_kind = 'user' AND r.requested_by_id = $4::uuid))
   AND ($5::timestamptz IS NULL
     OR (r.created_at, r.id) < ($5::timestamptz, $6::uuid))
@@ -166,12 +167,16 @@ type ListAgentRunsParams struct {
 
 type ListAgentRunsRow struct {
 	ID                   pgtype.UUID
-	Source               string
+	Intent               string
 	Title                pgtype.Text
 	Prompt               string
 	State                string
 	ResultKind           string
 	FailureCode          pgtype.Text
+	BaseVersion          pgtype.Int4
+	CommentID            pgtype.UUID
+	ThreadMessageID      pgtype.UUID
+	DashboardID          pgtype.UUID
 	CreatedAt            pgtype.Timestamptz
 	StartedAt            pgtype.Timestamptz
 	FinishedAt           pgtype.Timestamptz
@@ -206,12 +211,16 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 		var i ListAgentRunsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Source,
+			&i.Intent,
 			&i.Title,
 			&i.Prompt,
 			&i.State,
 			&i.ResultKind,
 			&i.FailureCode,
+			&i.BaseVersion,
+			&i.CommentID,
+			&i.ThreadMessageID,
+			&i.DashboardID,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.FinishedAt,
@@ -237,7 +246,8 @@ func (q *Queries) ListAgentRuns(ctx context.Context, arg ListAgentRunsParams) ([
 }
 
 const listWorkingRuns = `-- name: ListWorkingRuns :many
-SELECT r.id, r.source, r.title, r.prompt, r.state, r.created_at, r.started_at,
+SELECT r.id, r.intent, r.title, r.prompt, r.state, r.created_at, r.started_at,
+       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.observation_id,
        r.assigned_kind, r.assigned_id,
        r.requested_by_kind, r.requested_by_id, r.requested_by_name,
        d.id AS visible_dashboard_id, d.title AS dashboard_title,
@@ -246,7 +256,7 @@ FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
 WHERE r.state IN ('queued', 'running', 'canceling')
-  AND r.source <> 'suggest' AND r.archived_at IS NULL
+  AND r.intent <> 'suggest' AND r.archived_at IS NULL
   AND (
     (r.requested_by_kind = $2 AND r.requested_by_id = $3)
     OR (d.id IS NOT NULL AND d.created_by_kind = $2 AND d.created_by_id = $3)
@@ -265,12 +275,17 @@ type ListWorkingRunsParams struct {
 
 type ListWorkingRunsRow struct {
 	ID                   pgtype.UUID
-	Source               string
+	Intent               string
 	Title                pgtype.Text
 	Prompt               string
 	State                string
 	CreatedAt            pgtype.Timestamptz
 	StartedAt            pgtype.Timestamptz
+	BaseVersion          pgtype.Int4
+	CommentID            pgtype.UUID
+	ThreadMessageID      pgtype.UUID
+	DashboardID          pgtype.UUID
+	ObservationID        pgtype.UUID
 	AssignedKind         string
 	AssignedID           pgtype.UUID
 	RequestedByKind      string
@@ -298,12 +313,17 @@ func (q *Queries) ListWorkingRuns(ctx context.Context, arg ListWorkingRunsParams
 		var i ListWorkingRunsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Source,
+			&i.Intent,
 			&i.Title,
 			&i.Prompt,
 			&i.State,
 			&i.CreatedAt,
 			&i.StartedAt,
+			&i.BaseVersion,
+			&i.CommentID,
+			&i.ThreadMessageID,
+			&i.DashboardID,
+			&i.ObservationID,
 			&i.AssignedKind,
 			&i.AssignedID,
 			&i.RequestedByKind,

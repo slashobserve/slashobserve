@@ -6,17 +6,17 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:claim', 0));
 
 -- name: CountActiveAgentRequests :one
 SELECT count(*) FROM agent_requests
-WHERE dashboard_id = @dashboard_id AND source NOT IN ('suggest', 'investigate') AND status IN ('queued', 'running');
+WHERE dashboard_id = @dashboard_id AND intent = 'apply' AND status IN ('queued', 'running');
 
 -- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, source, comment_id, prompt, panel_id, base_version,
+  id, dashboard_id, intent, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
   assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
   chat_id, anchor, block_id, client_id
 ) VALUES (
-  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
+  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @intent, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
@@ -42,9 +42,9 @@ WITH running AS (
     AND r.attempts < @max_attempts::integer
     AND r.assigned_kind = @assigned_kind::text
     AND r.assigned_id IS NOT DISTINCT FROM sqlc.narg('assigned_id')::uuid
-    AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
+    AND (r.dashboard_id IS NULL OR r.intent <> 'apply' OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source NOT IN ('suggest', 'investigate') AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.intent = 'apply' AND o.id <> r.id
     ))
     AND (r.chat_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM agent_requests e
@@ -144,7 +144,7 @@ WITH target AS (
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
   LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
-  WHERE r.id = @id AND r.state = ANY(@from_states::text[]) AND r.source <> 'suggest'
+  WHERE r.id = @id AND r.state = ANY(@from_states::text[]) AND r.intent <> 'suggest'
   FOR UPDATE OF r
 )
 UPDATE agent_requests
@@ -175,6 +175,7 @@ SET state = 'succeeded',
   status = 'succeeded',
   result_kind = CASE WHEN EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = @id) THEN 'observation' ELSE 'version' END,
   result_version = @result_version::integer,
+  intent = 'apply',
   run_usage = sqlc.narg('run_usage')::jsonb,
   dashboard_id = coalesce(dashboard_id, (SELECT v.dashboard_id FROM dashboard_versions v WHERE v.agent_request_id = @id)),
   lease_until = NULL,
@@ -202,11 +203,11 @@ WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: GetAgentRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source NOT IN ('suggest', 'investigate');
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND intent = 'apply';
 
 -- name: ListAgentRequests :many
 SELECT * FROM agent_requests
-WHERE dashboard_id = @dashboard_id AND source NOT IN ('suggest', 'investigate')
+WHERE dashboard_id = @dashboard_id AND intent = 'apply'
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY created_at DESC, id DESC
@@ -223,14 +224,16 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:observe', 0));
 
 -- name: CountActiveObserveRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+WHERE intent = 'ask' AND dashboard_id IS NULL AND observation_id IS NULL AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id
+  AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL));
 
 -- name: CountActiveObserveRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
+SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND dashboard_id IS NULL AND observation_id IS NULL AND status IN ('queued', 'running')
+  AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL));
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (id, source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
-VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), 'observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
+INSERT INTO agent_requests (id, intent, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
+VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), 'ask', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
   sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('client_id')::uuid)
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
@@ -268,21 +271,30 @@ SET steps = (
 WHERE id = @id AND status = 'running' AND attempts = @attempts::integer;
 
 -- name: ListAgentRequestsBy :many
-SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
+  r.base_version, r.comment_id, r.thread_message_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
+LEFT JOIN chats ch ON ch.id = r.chat_id
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
-WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
+    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
+    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
+    WHEN r.intent = 'apply' THEN 'prompt'
+    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -302,21 +314,30 @@ ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 
 -- name: ListAgentRequestsAll :many
-SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
+  r.base_version, r.comment_id, r.thread_message_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
+LEFT JOIN chats ch ON ch.id = r.chat_id
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY(sqlc.arg('folders')::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
-WHERE r.source <> 'suggest'
+WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
+    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
+    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
+    WHEN r.intent = 'apply' THEN 'prompt'
+    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -336,9 +357,15 @@ LIMIT @row_limit;
 -- name: CountAgentRequestsBy :one
 SELECT count(*) AS total
 FROM agent_requests r
-WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
+    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
+    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
+    WHEN r.intent = 'apply' THEN 'prompt'
+    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -354,9 +381,15 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
 -- name: CountAgentRequestsAll :one
 SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id)) AS people
 FROM agent_requests r
-WHERE r.source <> 'suggest'
+WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('source')::text IS NULL OR sqlc.narg('source')::text = CASE
+    WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
+    WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
+    WHEN r.intent = 'apply' THEN 'prompt'
+    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
+      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
@@ -374,14 +407,14 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:suggest', 0));
 
 -- name: CountActiveSuggestRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+WHERE intent = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
 
 -- name: CountActiveSuggestRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'suggest' AND status IN ('queued', 'running');
+SELECT count(*) FROM agent_requests WHERE intent = 'suggest' AND status IN ('queued', 'running');
 
 -- name: EnqueueSuggestRequest :one
 INSERT INTO agent_requests (
-  dashboard_id, source, prompt, panel_id, base_version, draft,
+  dashboard_id, intent, prompt, panel_id, base_version, draft,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
 ) VALUES (
   @dashboard_id, 'suggest', @prompt, @panel_id, @base_version::integer, sqlc.narg('draft')::jsonb,
@@ -403,16 +436,16 @@ WHERE id = @id AND state = ANY(@from_states::text[]) AND attempts = @attempts
 RETURNING *;
 
 -- name: GetSuggestRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source = 'suggest';
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND intent = 'suggest';
 
 -- name: EnqueueInvestigateRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, source, prompt, panel_id, context_from, context_to,
+  id, dashboard_id, intent, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
   chat_id, anchor, block_id, client_id
 ) VALUES (
-  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'investigate', @prompt, sqlc.narg('panel_id')::text,
+  coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'ask', @prompt, sqlc.narg('panel_id')::text,
   sqlc.narg('context_from')::timestamptz, sqlc.narg('context_to')::timestamptz,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
@@ -425,10 +458,10 @@ RETURNING *;
 
 -- name: CountActiveInvestigateRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'investigate' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+WHERE intent = 'ask' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
 
 -- name: CountActiveInvestigateRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'investigate' AND status IN ('queued', 'running');
+SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
 
 -- name: SucceedFindingRequest :one
 UPDATE agent_requests
@@ -439,9 +472,7 @@ SET state = 'succeeded',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE agent_requests.id = @id AND agent_requests.state = ANY(@from_states::text[]) AND agent_requests.attempts = @attempts
-  AND (agent_requests.source = 'investigate'
-    OR (agent_requests.source = 'observe' AND agent_requests.dashboard_id IS NULL)
-    OR (agent_requests.source IN ('prompt', 'comment') AND agent_requests.dashboard_id IS NOT NULL))
+  AND agent_requests.intent <> 'suggest'
   AND EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = agent_requests.id)
 RETURNING *;
 

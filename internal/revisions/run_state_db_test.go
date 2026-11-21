@@ -188,7 +188,7 @@ func TestRetryOfAnObserveRunStartsANewObserveRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}
-	if next.ID == row.ID || next.Source != string(revisions.SourceObserve) || next.Prompt != "checkout dashboard" || next.DashboardID.Valid {
+	if next.ID == row.ID || revisions.SourceOf(next) != revisions.SourceObserve || next.Prompt != "checkout dashboard" || next.DashboardID.Valid {
 		t.Fatalf("retry = %+v, want a new observe run with the same prompt", next)
 	}
 }
