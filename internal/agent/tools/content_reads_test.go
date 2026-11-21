@@ -143,6 +143,48 @@ func TestARunReadsWhatOnlyAdminsReadOnlyWhenNoOneElseReadsWhatItWritesAndIsMarke
 	}
 }
 
+func (r *accessRig) builtIn(t *testing.T, key string, ref pgtype.UUID) {
+	t.Helper()
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, key, ref)
+}
+
+func TestAnAdminsPrivateRunListsTitlesInAdminsOnlyFoldersOnlyWhenAskedAndIsMarkedForThem(t *testing.T) {
+	r := newAccessRig(t)
+	r.adminsOnlyContent(t)
+	var shippedFolder pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title, admins_only) VALUES ('Shipped audit folder', true) RETURNING id`).Scan(&shippedFolder); err != nil {
+		t.Fatal(err)
+	}
+	shipped, _, err := r.service.Create(reading(t.Context()), adminCaller, shippedFolder, []byte(boardSpec("Shipped audit board")), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.builtIn(t, "audit/folder", shippedFolder)
+	r.builtIn(t, "audit/dashboards/shipped", mustUUID(t, shipped.ID))
+
+	for _, name := range []string{nameListDashboards, nameListFolders} {
+		t.Run(name, func(t *testing.T) {
+			res, marked := r.callInRun(t, datasource.AudienceCaller, name, `{}`)
+			if text := textOf(t, res); res.IsError || marked || strings.Contains(text, adminsOnlyWord) || !strings.Contains(text, "Shipped audit") ||
+				!strings.Contains(text, `"left_out":1`) || !strings.Contains(text, "include_restricted: true") {
+				t.Errorf("by default: marked %v, read %s", marked, text)
+			}
+			res, marked = r.callInRun(t, datasource.AudienceCaller, name, `{"include_restricted":true}`)
+			if text := textOf(t, res); res.IsError || !marked || !strings.Contains(text, adminsOnlyWord) || strings.Contains(text, "left_out") {
+				t.Errorf("with include_restricted: marked %v, read %s", marked, text)
+			}
+			res, marked = r.callInRun(t, datasource.AudienceEveryone, name, `{"include_restricted":true}`)
+			if text := textOf(t, res); !res.IsError || marked || strings.Contains(text, adminsOnlyWord) {
+				t.Errorf("with include_restricted writing where everyone reads: marked %v, read %s", marked, text)
+			}
+			res, marked = r.callInRun(t, datasource.AudienceAdmins, name, `{}`)
+			if text := textOf(t, res); res.IsError || marked || !strings.Contains(text, adminsOnlyWord) {
+				t.Errorf("writing where only Admins read: marked %v, read %s", marked, text)
+			}
+		})
+	}
+}
+
 func TestARunReadingTheDashboardItChangesIsNotMarkedButAnAskAboutItIs(t *testing.T) {
 	r := newAccessRig(t)
 	content := r.adminsOnlyContent(t)
