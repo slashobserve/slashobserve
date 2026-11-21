@@ -44,6 +44,13 @@ SELECT * FROM archived;
 UPDATE chats SET dashboard_id = @dashboard_id
 WHERE id = @id AND dashboard_id IS NULL AND observation_id IS NULL;
 
+-- name: AttachRunChatToDashboard :exec
+UPDATE chats SET dashboard_id = @dashboard_id
+FROM agent_requests r
+WHERE r.id = @run_id AND chats.id = r.chat_id
+  AND chats.owner_kind = @owner_kind AND chats.owner_id = @owner_id
+  AND chats.dashboard_id IS NULL AND chats.observation_id IS NULL;
+
 -- name: ListChats :many
 SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
