@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -306,7 +307,7 @@ func TestRunIgnoresAFailureCausedByItsOwnCancellation(t *testing.T) {
 func TestRejectedRecordsAreCountedLoggedAndPassed(t *testing.T) {
 	r, ctx := newRig(t)
 	r.source.add("a.one", "b.two")
-	r.answer = Receipt{Rejected: 2, Message: "records too old"}
+	r.answer = Receipt{Rejected: 2, Status: 200}
 	r.stopAt = func(*rig) bool { return true }
 	if err := r.x.Run(ctx); err != nil {
 		t.Fatal(err)
@@ -318,7 +319,7 @@ func TestRejectedRecordsAreCountedLoggedAndPassed(t *testing.T) {
 		t.Fatalf("rejected counted = %d, want 2", r.count.rejected)
 	}
 	logged := r.logs.String()
-	if !strings.Contains(logged, "rejected=2") || !strings.Contains(logged, `"records too old"`) {
+	if !strings.Contains(logged, "rejected=2") || !strings.Contains(logged, "status=200") {
 		t.Fatalf("log = %s", logged)
 	}
 }
@@ -643,5 +644,26 @@ func TestAnAcceptedEventResetsTheCountOfSkippedOnes(t *testing.T) {
 	}
 	if r.count.dropped[DroppedRefused] != 5 || r.delivered() != "d.four,g.seven" {
 		t.Fatalf("dropped %v delivered %s", r.count.dropped, r.delivered())
+	}
+}
+
+func TestTextTheReceiverSendsBackIsNeverLogged(t *testing.T) {
+	srv, _ := receiver(t, func(w http.ResponseWriter) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"partialSuccess":{"rejectedLogRecords":"1","errorMessage":"invalid token s3cr3t-abc"}}`)
+	})
+	r, ctx := newRig(t)
+	r.source.add("a.one")
+	r.x.Post = NewSender(mustParse(t, srv.URL), nil).Send
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	logged := r.logs.String()
+	if strings.Contains(logged, "s3cr3t") || strings.Contains(logged, "invalid token") {
+		t.Fatalf("receiver text in the log: %s", logged)
+	}
+	if !strings.Contains(logged, "rejected=1") {
+		t.Fatalf("log = %s", logged)
 	}
 }

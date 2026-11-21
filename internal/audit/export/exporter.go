@@ -227,7 +227,7 @@ func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {
 	}
 	x.Metrics.ExportRejected(int(receipt.Rejected))
 	x.Logger.WarnContext(ctx, "audit export records rejected by the receiver",
-		slog.Int64("rejected", receipt.Rejected), slog.String("receiver_message", receipt.Message))
+		slog.Int64("rejected", receipt.Rejected), slog.Int("status", receipt.Status))
 }
 
 func (x *Exporter) advance(ctx context.Context, last trail.Positioned) error {

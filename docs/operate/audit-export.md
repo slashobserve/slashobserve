@@ -15,7 +15,7 @@ Nothing is sent while the setting is unset.
 | `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE` | unset | A file of request headers, one `Name: value` per line, for a receiver that needs a token. It needs the endpoint, and it is the only place a header value is read from. |
 
 A bad value stops the server at start with the name of the setting.
-The endpoint and the header values are never logged.
+The endpoint, the header values and the text of a receiver's answers are never logged.
 Keep the headers file out of the image and mount it as a secret.
 
 ## How it delivers
@@ -28,7 +28,8 @@ Delivery is at least once: the position write that follows a `2xx` answer is not
 `slashobserve.audit.id` identifies an event, so a receiver or a query can drop the repeats.
 
 A receiver can answer `200` and still refuse some records in its `partialSuccess` answer, for example records that are too large or too old.
-The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the receiver's message, cut to 200 characters.
+The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the status.
+What the receiver writes in its answer is never logged, because it can repeat a credential or an event.
 
 A failed post is retried with the same events and a growing wait from 1 second to 1 minute, and a `Retry-After` header of the receiver is honoured up to that limit.
 This holds for a network error, a timeout and every status except the three below, including `401`, `403` and `404`, which mean the endpoint or the headers are wrong: the export keeps trying and skips nothing until you fix the setting.

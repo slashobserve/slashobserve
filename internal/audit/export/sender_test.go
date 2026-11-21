@@ -120,14 +120,13 @@ func TestSendReadsThePartialSuccessOfAnAcceptedPost(t *testing.T) {
 		body string
 		want Receipt
 	}{
-		{"count as a string", `{"partialSuccess":{"rejectedLogRecords":"3","errorMessage":"too old"}}`, Receipt{Rejected: 3, Message: "too old"}},
-		{"count as a number", `{"partialSuccess":{"rejectedLogRecords":2}}`, Receipt{Rejected: 2}},
-		{"an empty partial success", `{"partialSuccess":{}}`, Receipt{}},
-		{"an empty object", `{}`, Receipt{}},
-		{"no body", ``, Receipt{}},
-		{"a body that is not JSON", "\x08\x01", Receipt{}},
-		{"a negative count", `{"partialSuccess":{"rejectedLogRecords":"-1"}}`, Receipt{}},
-		{"control characters and length of the message", `{"partialSuccess":{"rejectedLogRecords":"1","errorMessage":"a\nb\u0000c` + strings.Repeat("x", 500) + `"}}`, Receipt{Rejected: 1, Message: "abc" + strings.Repeat("x", maxReceiverMessage-3)}},
+		{"count as a string", `{"partialSuccess":{"rejectedLogRecords":"3","errorMessage":"too old"}}`, Receipt{Rejected: 3, Status: 200}},
+		{"count as a number", `{"partialSuccess":{"rejectedLogRecords":2}}`, Receipt{Rejected: 2, Status: 200}},
+		{"an empty partial success", `{"partialSuccess":{}}`, Receipt{Status: 200}},
+		{"an empty object", `{}`, Receipt{Status: 200}},
+		{"no body", ``, Receipt{Status: 200}},
+		{"a body that is not JSON", "\x08\x01", Receipt{Status: 200}},
+		{"a negative count", `{"partialSuccess":{"rejectedLogRecords":"-1"}}`, Receipt{Status: 200}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

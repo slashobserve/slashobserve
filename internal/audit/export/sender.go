@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -18,13 +17,11 @@ import (
 const (
 	sendTimeout     = 30 * time.Second
 	maxResponseBody = 64 << 10
-
-	maxReceiverMessage = 200
 )
 
 type Receipt struct {
 	Rejected int64
-	Message  string
+	Status   int
 }
 
 type rejectedCount int64
@@ -41,30 +38,15 @@ func (c *rejectedCount) UnmarshalJSON(raw []byte) error {
 type answer struct {
 	PartialSuccess struct {
 		Rejected rejectedCount `json:"rejectedLogRecords"`
-		Message  string        `json:"errorMessage"`
 	} `json:"partialSuccess"`
 }
 
-func receiptOf(body []byte) Receipt {
+func rejectedIn(body []byte) int64 {
 	var a answer
 	if json.Unmarshal(body, &a) != nil || a.PartialSuccess.Rejected <= 0 {
-		return Receipt{}
+		return 0
 	}
-	return Receipt{Rejected: int64(a.PartialSuccess.Rejected), Message: clipped(a.PartialSuccess.Message)}
-}
-
-func clipped(message string) string {
-	kept := make([]rune, 0, maxReceiverMessage)
-	for _, r := range message {
-		if unicode.IsControl(r) {
-			continue
-		}
-		if len(kept) == maxReceiverMessage {
-			break
-		}
-		kept = append(kept, r)
-	}
-	return string(kept)
+	return int64(a.PartialSuccess.Rejected)
 }
 
 type StatusError struct {
@@ -111,10 +93,11 @@ func (s *Sender) Send(ctx context.Context, body []byte) (Receipt, error) {
 	if resp.StatusCode/100 != 2 {
 		return Receipt{}, &StatusError{Status: resp.StatusCode, RetryAfter: retryAfter(resp.Header)}
 	}
-	if len(answered) > maxResponseBody {
-		return Receipt{}, nil
+	receipt := Receipt{Status: resp.StatusCode}
+	if len(answered) <= maxResponseBody {
+		receipt.Rejected = rejectedIn(answered)
 	}
-	return receiptOf(answered), nil
+	return receipt, nil
 }
 
 func retryAfter(header http.Header) time.Duration {
