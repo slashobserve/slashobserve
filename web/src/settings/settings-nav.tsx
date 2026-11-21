@@ -13,12 +13,14 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
+import { clearedAuditSearch } from "./audit/search"
 import type { SettingsGroup, SettingsSectionId } from "./sections"
 
 const closePanels = (prev: { connection?: string; sync?: string }) => ({
   ...prev,
   panel: undefined,
   webhook: undefined,
+  ...clearedAuditSearch,
 })
 
 export function SettingsNav({

@@ -10,6 +10,12 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { roleAtLeast } from "@/lib/roles"
 import { AgentAccessSection } from "@/settings/agent-access-section"
 import { AuditSettings } from "@/settings/audit/audit-settings"
+import {
+  auditSearchOf,
+  auditViewOf,
+  readAuditSearch,
+  type AuditSearch,
+} from "@/settings/audit/search"
 import { AppearanceSection } from "@/settings/appearance-card"
 import { HomeDashboardSection } from "@/settings/home-dashboard-section"
 import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
@@ -27,7 +33,7 @@ import { SettingsNav, SettingsSectionSelect } from "@/settings/settings-nav"
 import { SignInSection } from "@/settings/sign-in-section"
 import { WebhooksSettings } from "@/settings/webhooks/webhooks-settings"
 
-type SettingsSearch = {
+type SettingsSearch = AuditSearch & {
   connection?: string
   sync?: string
   panel?: string
@@ -45,6 +51,7 @@ export const Route = createFileRoute("/_authed/_shell/settings/")({
     sync: optionalText(search.sync),
     panel: optionalText(search.panel),
     webhook: optionalText(search.webhook),
+    ...readAuditSearch(search),
   }),
   component: SettingsPage,
 })
@@ -148,7 +155,23 @@ function SelectedSection({
       )
     case "webhooks":
       return <WebhooksSettings panel={panel} onPanel={onPanel} />
-    case "audit-log":
-      return <AuditSettings />
+    case "audit-log": {
+      const view = auditViewOf(search)
+      return (
+        <AuditSettings
+          view={view}
+          onView={(next) =>
+            void navigate({
+              hash: "audit-log" satisfies SettingsSectionId,
+              search: (prev) => ({ ...prev, ...auditSearchOf(next) }),
+              replace:
+                next.q === view.q &&
+                next.from === view.from &&
+                next.to === view.to,
+            })
+          }
+        />
+      )
+    }
   }
 }

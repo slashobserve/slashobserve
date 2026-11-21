@@ -80,11 +80,25 @@ To see more of the change, read the object through its own endpoint, which check
 
 ## Audit log
 
-An Admin reads these events in the web app under Settings, then **Audit log**, which other roles do not see.
-It lists the admin changes with the public link and comment access request events, newest first, 50 at a time, with **Load older changes** for more; it reads `GET /api/v1/activity?scope=admin`.
-Three filters narrow it: **Who** (anyone, a person or a service account), **Kind of change** (any, or one event type by name) and **Time**, which is the last 7 days unless you pick the last hour, 24 hours, 30 days or all time.
-Each row names who did what, with the time beside it, and never shows a secret.
-`observe activity --admin` and `list_activity` with `scope: "admin"` read the same list.
+An Admin reads the audit trail in the web app under Settings, then **Audit log**, which other roles do not see.
+It shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
+The query box takes the same text as `GET /api/v1/audit/events`, KQL by default, Lucene after `lucene:` and a Query DSL body that starts with `{`, and it names the form it reads and completes field names.
+**Search**, or Ctrl+Enter (Cmd+Enter on a Mac), runs it, and a query the server cannot read is shown with the part it stopped at marked and the parser's message under it.
+The time range is the last 24 hours unless you pick another, and it spans at most 366 days.
+
+A chart counts the matching events over the range, and the chips under it count the top actors, actions, outcomes, origins and initiators.
+Clicking a chip adds its value to a KQL query, or removes it when it is there, and the minus beside it leaves the value out; a Lucene or Query DSL query is edited only as text.
+The table lists the matching events newest first, 100 at a time, with **Load older events** for more.
+A row opens a panel with every field the event has, the other events of the same request and everything the same agent run did.
+**Live**, while the range ends now, adds new matching events at the top as they are recorded and reconnects by itself after a dropped connection.
+It turns itself off with a message when you are no longer an Admin, when you already hold 5 audit streams, or when the query is too slow to follow.
+The query, the time range and the open event are in the page's address, so a link opens the same view.
+
+**Export** downloads the matching events as NDJSON or CSV through `GET /api/v1/audit/export`, which records the download as `audit.export` with the query, the window, the format and the row count.
+An export stops at 1,000,000 events, and a file that reaches the limit comes with a note that more events matched and that a shorter range exports the rest.
+When the connection is cut off before the end, the page saves what arrived with `-incomplete` in the file name and says the file is incomplete.
+The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a panel's CSV, are assembled in the browser from reads that are each recorded, so they have no separate export event.
+`observe audit search` and the `search_audit_events` tool read the same trail; see [Audit queries](../reference/audit-queries.md#api-mcp-and-the-cli).
 
 ## Who sees an event
 
