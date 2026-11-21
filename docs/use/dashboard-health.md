@@ -179,6 +179,7 @@ It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `observe health` lists the same problems in a terminal, in the same ranked order, `observe health repair <dashboard-id>...` queues repairs and `observe health run` starts a check; see [CLI](cli.md).
 Its `STATE` column shows each dashboard's state, and its `REPAIR` column shows the outcome of the latest health repair: `repair queued`, `repair running`, `repaired in version N`, `repair saved version N, still failing`, `repair failed: <error>`, `repair failed` when the failure has no sentence, or `-` when it never had one.
+A listed dashboard with no problem, such as an `outdated` one kept in the list for its repair, shows one row with `-` as its kind and target, and a line after the table says that outdated dashboards wait for a recheck and that their problems belong to an earlier version.
 
 ## From MCP clients
 

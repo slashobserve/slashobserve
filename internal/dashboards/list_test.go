@@ -485,20 +485,22 @@ func TestListFiltersByProblemKeepsADashboardWaitingForARecheckOfAProblemOrARepai
 	edit(repaired, "Repaired")
 	edit(cleanOutdated, "Clean outdated")
 
-	for _, byFolder := range []bool{false, true} {
+	for _, order := range []ListParams{{}, {ByFolder: true}, {ByViews: true}, {ByName: true}} {
 		for problem, want := range map[string][]string{
 			"any":          {"Current", "Had a problem", "Repaired"},
 			"query_failed": {},
 			"no_data":      {"Current"},
 		} {
-			page, err := r.service.List(reading(t.Context()), testUser, ListParams{Limit: 50, Problem: problem, ByFolder: byFolder})
+			params := order
+			params.Limit, params.Problem = 50, problem
+			page, err := r.service.List(reading(t.Context()), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
 			got := titlesOf(page.Items)
 			slices.Sort(got)
 			if !slices.Equal(got, want) || page.Total != len(want) {
-				t.Errorf("problem %q by folder %v: items %v with total %d, want %v with total %d", problem, byFolder, got, page.Total, want, len(want))
+				t.Errorf("problem %q in order %+v: items %v with total %d, want %v with total %d", problem, order, got, page.Total, want, len(want))
 			}
 		}
 	}
