@@ -407,7 +407,7 @@ func TestPrintRequestExplainsQueueAndStoppedBuilds(t *testing.T) {
 		{"failed with a saved build", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, BuildSavedAt: &saved, AllowedActions: []string{"retry", "pin", "archive"}}, "Run it again: observe retry " + stoppedID, "continue"},
 		{"failed and continued", agentRequest{ID: stoppedID, Status: "failed", State: "failed", Build: build, ContinuedBy: &continuedBy, AllowedActions: []string{"pin", "archive"}}, "Continued by " + continuedBy, "Save it in the browser"},
 		{"running with a build", agentRequest{ID: stoppedID, Status: "running", State: "running", Build: build, AllowedActions: []string{"cancel", "pin", "archive"}}, "State", "Save it in the browser"},
-		{"canceled with a build", agentRequest{ID: stoppedID, Status: "failed", State: "canceled", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "State      canceled", "observe retry"},
+		{"canceled with a build", agentRequest{ID: stoppedID, Status: "failed", State: "canceled", Build: build, AllowedActions: []string{"keep_build", "continue", "retry", "pin", "archive"}}, "State          canceled", "observe retry"},
 		{"succeeded and retryable", agentRequest{ID: stoppedID, Status: "succeeded", State: "succeeded", AllowedActions: []string{"retry", "pin", "archive"}}, "", "Run it again"},
 		{"an older server sends no actions", agentRequest{ID: stoppedID, Status: "failed", Build: build}, "", "Save it in the browser"},
 	}
@@ -430,8 +430,36 @@ func TestPrintRequestShowsWhatStartedTheRun(t *testing.T) {
 	var stdout bytes.Buffer
 	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "running", Intent: "apply", Trigger: "person"})
 	lines := strings.Split(stdout.String(), "\n")
-	if len(lines) < 5 || strings.Fields(lines[3])[0] != "Intent" || strings.Fields(lines[3])[1] != "apply" || strings.Fields(lines[4])[0] != "Trigger" || strings.Fields(lines[4])[1] != "person" {
+	if len(lines) < 6 || strings.Fields(lines[3])[0] != "Intent" || strings.Fields(lines[3])[1] != "apply" || strings.Fields(lines[5])[0] != "Trigger" || strings.Fields(lines[5])[1] != "person" {
 		t.Fatalf("output lacks the trigger after the intent:\n%s", stdout.String())
+	}
+}
+
+func TestPrintRequestSaysWhetherTheRunIsAnInvestigation(t *testing.T) {
+	for _, tc := range []struct {
+		investigation bool
+		want          string
+	}{{false, "no"}, {true, "yes"}} {
+		var stdout bytes.Buffer
+		printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Intent: "ask", Investigation: tc.investigation})
+		fields := strings.Fields(strings.Split(stdout.String(), "\n")[4])
+		if len(fields) != 2 || fields[0] != "Investigation" || fields[1] != tc.want {
+			t.Fatalf("investigation %v: line = %q, want Investigation %s:\n%s", tc.investigation, fields, tc.want, stdout.String())
+		}
+	}
+}
+
+func TestPrintRequestSaysTheWordsOfARedactedRunAreHidden(t *testing.T) {
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Intent: "apply", Redacted: true})
+	hidden := map[string]bool{}
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		if label, rest, ok := strings.Cut(line, " "); ok && strings.TrimSpace(rest) == privateChatWords {
+			hidden[label] = true
+		}
+	}
+	if !hidden["Title"] || !hidden["Prompt"] || len(hidden) != 2 {
+		t.Fatalf("hidden lines = %v, want Title and Prompt:\n%s", hidden, stdout.String())
 	}
 }
 
@@ -470,9 +498,9 @@ func TestPrintRequestShowsTheRunCost(t *testing.T) {
 			var stdout bytes.Buffer
 			printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Trigger: "person", Usage: tc.usage})
 			lines := strings.Split(stdout.String(), "\n")
-			fields := strings.Fields(lines[5])
+			fields := strings.Fields(lines[6])
 			if len(fields) < 2 || fields[0] != "Cost" || strings.Join(fields[1:], " ") != tc.want {
-				t.Fatalf("Cost line = %q, want %q after the trigger:\n%s", lines[5], tc.want, stdout.String())
+				t.Fatalf("Cost line = %q, want %q after the trigger:\n%s", lines[6], tc.want, stdout.String())
 			}
 		})
 	}

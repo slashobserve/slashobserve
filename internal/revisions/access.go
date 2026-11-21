@@ -28,12 +28,10 @@ func targetOf(row dbsqlc.AgentRequest) RunTarget {
 }
 
 func (r RunShape) target() RunTarget {
-	t := RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID}
-	if !t.ObservationID.Valid {
-		t.ObservationID = r.SubjectID
+	if r.Investigation {
+		return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID, Files: true}
 	}
-	t.Files = r.Intent == IntentAsk && r.ObservationID.Valid && !r.ThreadMessageID.Valid
-	return t
+	return RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.SubjectID}
 }
 
 func retryTarget(source Source, ran RunTarget) RunTarget {
@@ -164,6 +162,17 @@ func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UU
 		return "", folders.Abilities{}, ErrObservationNotFound
 	}
 	return folder.Title, abilities, nil
+}
+
+func (s *Service) mayComment(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (bool, error) {
+	_, abilities, err := s.observationAccess(ctx, observationID, by)
+	switch {
+	case errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrForbidden):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return abilities.Comment, nil
 }
 
 func (s *Service) checkVisible(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) error {

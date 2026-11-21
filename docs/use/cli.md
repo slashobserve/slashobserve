@@ -104,8 +104,10 @@ An Admin can show anyone's request with `observe status`, read only.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
+
+`observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
-It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
+It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
 While a request is running, `observe status` also prints a `Live text` section with what the agent is writing, the same text the Working row shows in the browser; it is not kept, so it is gone once the run ends, and `--json` carries it as `live_text`.
@@ -493,9 +495,10 @@ When it starts, the command prints `Started run <id>, taken by <builtin|grant|se
 
 When the run ends, it posts one reply in the same thread and never resolves the thread or reopens a resolved one.
 The reply reads "Observe Agent for <your name>" when the built-in agent took the run, "<your name> (via <client>)" when one of your connected agents did, and the service account's own name when a service account did.
-The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered: <title>.` for an answer not filed in an observation, which everyone who can read the thread can open, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, the three followed by the first paragraph of the finding as plain text, cut at a word with `...` when it is long, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was stopped before it finished.`
+The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered: <title>.` for an answer not filed in an observation, which everyone who can read the thread can open, `Saved a finding: <title>.` or, in an observation thread whose page shows the answer, `Wrote the answer into this observation: <title>.`, the three followed by the first paragraph of the finding as plain text, cut at a word with `...` when it is long, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was stopped before it finished.`
 The run's own page has the detail.
 A retry or a continuation of the run answers in the same thread and goes to the same agent; when that connected agent was revoked, has expired or is not yours, or the service account no longer takes runs, the command fails with `assignee_unavailable` and starts nothing.
+Someone who cannot comment on the observation of an observation thread, and retries an answer from it that was saved as an observation, gets a private ask of their own about the saved observation, and nothing is posted in the thread.
 
 Add `--json` to any of them to print the API response unchanged.
 

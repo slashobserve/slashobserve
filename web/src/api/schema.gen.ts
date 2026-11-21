@@ -2401,7 +2401,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -4624,6 +4624,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
             /** @enum {string} */
@@ -4670,6 +4672,8 @@ export interface components {
                 id: string;
                 /** @enum {string} */
                 intent: "ask" | "apply";
+                /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+                investigation: boolean;
                 /** @enum {string} */
                 state: "queued" | "running" | "canceling";
                 /** Format: date-time */
@@ -6293,6 +6297,8 @@ export interface components {
              * @enum {string}
              */
             intent: "apply";
+            /** @description Always false; a version is saved by an apply run, never by an investigation. */
+            investigation: boolean;
             /**
              * Format: uuid
              * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
@@ -6300,7 +6306,7 @@ export interface components {
             comment_id: string | null;
             /** @description The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard. */
             panel_id: string | null;
-            /** @description The follow-up text, or the comment body. */
+            /** @description The follow-up text, or the comment body; empty when `redacted`. */
             prompt: string;
             /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
             base_version: number | null;
@@ -6349,6 +6355,8 @@ export interface components {
             retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` null, while the status, times, requester, kind and saved version stay. */
+            redacted: boolean;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -6548,18 +6556,21 @@ export interface components {
              * @enum {string}
              */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none; empty when `redacted`. */
             title: string;
             /**
              * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
+            /** @description The requester's text; empty when `redacted`. */
             prompt: string;
             /**
              * Format: uuid
@@ -6621,6 +6632,8 @@ export interface components {
             can_cancel: boolean;
             /** @description True when the caller sees this request only because it is an Admin; nothing may be done with it. */
             read_only: boolean;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted. */
+            redacted: boolean;
             /**
              * Format: uuid
              * @description The stopped request this one continues.
@@ -6712,6 +6725,8 @@ export interface components {
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             prompt: string;
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
         };
         Chat: {
             /**
@@ -6766,6 +6781,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}

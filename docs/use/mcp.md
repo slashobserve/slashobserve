@@ -429,6 +429,8 @@ Both are over MCP only, so the built-in agent does not have them, and a service-
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+A run from someone else's private chat, other than an investigation or an answer shared into a thread, has `redacted: true` and its `title`, `prompt`, step messages and `live_text` empty.
+
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.
 When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
@@ -445,9 +447,10 @@ Every run is a turn of a chat: without `chat_id` a new chat starts, and a revise
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
 Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
-`retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
+`retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, a failed or canceled run that was already retried, and a run you read `redacted`, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
-A private ask about a dashboard or an observation is not an investigation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
+A private ask about a dashboard or an observation is not an investigation, also once its answer is saved as an observation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
+The run's `investigation` field says which one a run is.
 
 `list_chats` lists your chats, pinned ones first and then the one most recently asked in, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats by their last turn only and needs an Admin.
 Each chat carries `dashboard_title`, null when you cannot see its dashboard.
@@ -455,7 +458,7 @@ Each chat carries `dashboard_title`, null when you cannot see its dashboard.
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
-`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
+`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `investigation` (true for an investigation that writes into an observation, false for an ask), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
 It takes `state` (a list), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.

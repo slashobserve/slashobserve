@@ -76,6 +76,7 @@ type agentRequestJSON struct {
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind"`
 	Intent         Intent             `json:"intent"`
+	Investigation  bool               `json:"investigation"`
 	Trigger        string             `json:"trigger"`
 	Title          string             `json:"title"`
 	Prompt         string             `json:"prompt"`
@@ -111,6 +112,7 @@ type agentRequestJSON struct {
 	CanceledBy        *authorJSON `json:"canceled_by"`
 	CanCancel         bool        `json:"can_cancel"`
 	ReadOnly          bool        `json:"read_only"`
+	Redacted          bool        `json:"redacted"`
 	AllowedActions    []string    `json:"allowed_actions"`
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
@@ -140,6 +142,7 @@ type requestSummaryJSON struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
 	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	Trigger        string     `json:"trigger"`
 	Title          string     `json:"title"`
 	PinnedAt       *string    `json:"pinned_at"`

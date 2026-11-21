@@ -128,10 +128,10 @@ func investigationServer(t *testing.T, finding string) (*httptest.Server, *[]rec
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","status":"queued","steps":[]}}`)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","investigation":true,"status":"queued","steps":[]}}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","investigation":true,"status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
 	}))
 	t.Cleanup(server.Close)
 	return server, &requests
@@ -163,7 +163,7 @@ func TestInvestigateWithoutAFindingFailsNamingTheRequest(t *testing.T) {
 func TestStatusOfAnInvestigationPrintsItsFinding(t *testing.T) {
 	server, _ := investigationServer(t, findingJSON)
 	stdout, stderr, code := runCLI("--server", server.URL, "--token", "k", "status", investigationID)
-	if code != 0 || !strings.Contains(stdout, "Finding      Checkout errors rose after the deploy") || !strings.Contains(stdout, "Finding URL  https://observe.example.com/findings/f1") {
+	if code != 0 || !strings.Contains(stdout, "Investigation  yes") || !strings.Contains(stdout, "Finding        Checkout errors rose after the deploy") || !strings.Contains(stdout, "Finding URL    https://observe.example.com/findings/f1") {
 		t.Errorf("code %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	stdout, stderr, code = runCLI("--server", server.URL, "--token", "k", "-q", "status", investigationID, "--wait")

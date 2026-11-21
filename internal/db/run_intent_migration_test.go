@@ -35,16 +35,16 @@ VALUES ($1::uuid, general_folder_id(), 'Saved answer', 'user', $2::uuid, 'Ada')`
 VALUES ('p', 'user', $1::uuid, 'Ada', $2`+values+`) RETURNING id::text`, args...)
 	}
 	rows := []struct {
-		name, id, intent, kind, sourceAfterDown string
+		name, id, intent, kind, sourceAfterDown, investigation string
 	}{
-		{"a new-dashboard ask", insert("observe", "", ""), "ask", "build", "observe"},
-		{"a build that saved a dashboard", insert("observe", ", dashboard_id, result_version, status, state", ", $3::uuid, 1, 'succeeded', 'succeeded'"), "apply", "build", "observe"},
-		{"a build that names a dashboard and saved no version", insert("observe", ", dashboard_id, status, state", ", $3::uuid, 'failed', 'failed'"), "ask", "investigate", "investigate"},
-		{"a build whose answer was saved as an observation", insert("observe", ", observation_id, status, state", ", '"+intentObservation+"'::uuid, 'succeeded', 'succeeded'"), "ask", "build", "observe"},
-		{"a dashboard chat revision", insert("prompt", ", dashboard_id, base_version", ", $3::uuid, 1"), "apply", "build", "prompt"},
-		{"a suggestion", insert("suggest", ", dashboard_id, base_version, panel_id", ", $3::uuid, 1, 'a'"), "suggest", "build", "suggest"},
-		{"an investigation", insert("investigate", ", context_from, context_to", ", now() - interval '1 hour', now()"), "ask", "investigate", "investigate"},
-		{"a Home investigation", insert("investigate", "", ""), "ask", "investigate", "investigate"},
+		{"a new-dashboard ask", insert("observe", "", ""), "ask", "build", "observe", "false"},
+		{"a build that saved a dashboard", insert("observe", ", dashboard_id, result_version, status, state", ", $3::uuid, 1, 'succeeded', 'succeeded'"), "apply", "build", "observe", "false"},
+		{"a build that names a dashboard and saved no version", insert("observe", ", dashboard_id, status, state", ", $3::uuid, 'failed', 'failed'"), "ask", "investigate", "investigate", "false"},
+		{"a build whose answer was saved as an observation", insert("observe", ", observation_id, status, state", ", '"+intentObservation+"'::uuid, 'succeeded', 'succeeded'"), "ask", "build", "observe", "false"},
+		{"a dashboard chat revision", insert("prompt", ", dashboard_id, base_version", ", $3::uuid, 1"), "apply", "build", "prompt", "false"},
+		{"a suggestion", insert("suggest", ", dashboard_id, base_version, panel_id", ", $3::uuid, 1, 'a'"), "suggest", "build", "suggest", "false"},
+		{"an investigation", insert("investigate", ", context_from, context_to", ", now() - interval '1 hour', now()"), "ask", "investigate", "investigate", "true"},
+		{"a Home investigation", insert("investigate", "", ""), "ask", "investigate", "investigate", "true"},
 	}
 
 	if err := d.MigrateUpTo(ctx, runIntentVersion); err != nil {
@@ -59,6 +59,9 @@ VALUES ('p', 'user', $1::uuid, 'Ada', $2`+values+`) RETURNING id::text`, args...
 		}
 		if got := foScalar(t, sqlDB, `SELECT kind FROM agent_requests WHERE id = $1::uuid`, r.id); got != r.kind {
 			t.Errorf("%s: kind = %q, want %q", r.name, got, r.kind)
+		}
+		if got := foScalar(t, sqlDB, `SELECT investigation::text FROM agent_requests WHERE id = $1::uuid`, r.id); got != r.investigation {
+			t.Errorf("%s: investigation = %s, want %s", r.name, got, r.investigation)
 		}
 	}
 	if got := foScalar(t, sqlDB, `SELECT count(*)::text FROM information_schema.columns WHERE table_name = 'agent_requests' AND column_name = 'source'`); got != "0" {
