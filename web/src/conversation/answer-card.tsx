@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useState } from "react"
+import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { ChevronDownIcon, ChevronUpIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -73,6 +73,7 @@ type Props = {
   }
   menu?: AnswerMenu
   chatId?: string
+  actions?: ReactNode
 }
 
 export function evidenceChipText(count: number): string {
@@ -362,6 +363,7 @@ export function AnswerCard({
   revise,
   menu,
   chatId,
+  actions,
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
@@ -442,6 +444,7 @@ export function AnswerCard({
             )}
           </>
         )}
+        {actions}
         {menu === undefined ? null : (
           <AnswerMenuButton
             finding={finding}

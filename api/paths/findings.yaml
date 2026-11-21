@@ -171,6 +171,7 @@ findings-id-dashboard:
     summary: Save a finding's evidence panels as a new dashboard.
     description: >-
       Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved.
+      The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call.
       A finding without evidence gives 409 `finding_has_no_evidence`.
       Deprecated: findings are observations now; use /observations. Removed in the release after this one.
     responses:

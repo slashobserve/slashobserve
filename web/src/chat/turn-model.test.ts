@@ -4,6 +4,7 @@ import {
   formatRunDuration,
   mayHaveFinding,
   noFindingText,
+  offersFollowUps,
   resultFinishedAt,
   showsWorkingRow,
   tookText,
@@ -145,5 +146,33 @@ describe("mayHaveFinding", () => {
     ["a revision still running", "build", "none", false],
   ] as const)("%s", (_name, kind, result_kind, expected) => {
     expect(mayHaveFinding({ kind, result_kind })).toBe(expected)
+  })
+})
+
+describe("offersFollowUps", () => {
+  const mine = { status: "succeeded", requested_by: { id: "u1" } }
+  const base = {
+    turnCount: 1,
+    latest: mine,
+    viewerId: "u1",
+    aboutDashboard: true,
+  }
+
+  it("offers them on a chat about a dashboard that nothing was asked in yet", () => {
+    expect(offersFollowUps(base)).toBe(true)
+  })
+
+  it.each([
+    ["a chat not about a dashboard", { aboutDashboard: false }],
+    ["a chat that has gone on", { turnCount: 2 }],
+    ["a run still going", { latest: { ...mine, status: "running" } }],
+    ["a run that failed", { latest: { ...mine, status: "failed" } }],
+    [
+      "another person's turn",
+      { latest: { ...mine, requested_by: { id: "u2" } } },
+    ],
+    ["no turn yet", { latest: undefined }],
+  ])("offers none for %s", (_name, patch) => {
+    expect(offersFollowUps({ ...base, ...patch })).toBe(false)
   })
 })

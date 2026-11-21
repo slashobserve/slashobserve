@@ -82,6 +82,7 @@ export function MakeDashboardAction({
             void navigate({
               ...dashboardLink(saved.dashboard.id, saved.dashboard.title),
               search: chatId === undefined ? {} : { tab: "chat", chat: chatId },
+              viewTransition: chatId !== undefined,
             }),
           onError: toastError,
         })
