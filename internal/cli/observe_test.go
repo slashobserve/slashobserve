@@ -449,6 +449,20 @@ func TestPrintRequestSaysWhetherTheRunIsAnInvestigation(t *testing.T) {
 	}
 }
 
+func TestPrintRequestSaysTheWordsOfARedactedRunAreHidden(t *testing.T) {
+	var stdout bytes.Buffer
+	printRequest(&output{out: &stdout, err: &bytes.Buffer{}}, agentRequest{ID: stoppedID, Status: "succeeded", Intent: "apply", Redacted: true})
+	hidden := map[string]bool{}
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		if label, rest, ok := strings.Cut(line, " "); ok && strings.TrimSpace(rest) == privateChatWords {
+			hidden[label] = true
+		}
+	}
+	if !hidden["Title"] || !hidden["Prompt"] || len(hidden) != 2 {
+		t.Fatalf("hidden lines = %v, want Title and Prompt:\n%s", hidden, stdout.String())
+	}
+}
+
 func TestPrintRequestShowsTheLiveTextOfARunningRun(t *testing.T) {
 	live := "Checking the p99 of checkout.\n\nNow reading the error rate.\x1b[31m"
 	var stdout bytes.Buffer

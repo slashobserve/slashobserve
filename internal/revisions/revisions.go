@@ -325,6 +325,8 @@ type Revision struct {
 	ContinueNote string
 	AssignedKind AssigneeKind
 	AssignedID   string
+
+	audience runAudience
 }
 
 func CheckPrompt(field, s string) (string, error) {

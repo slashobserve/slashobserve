@@ -274,6 +274,7 @@ A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
 Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs.
 When the person who asked retries, the new request stays in the same chat, so the chat lists keep one row for it.
+A retry points at the same panel, spot or block as the request it retries; someone else's retry of a private ask, and a retry of a thread question by someone who cannot comment in that thread, points at nothing.
 A retried investigation writes into the same observation when the person retrying may comment on it, and otherwise into a new one (see [Observations](observations.md#investigations-write-into-an-observation)).
 The states a run moves through, and what each allows, are in [States](../reference/states.md).
 Every request has an id, shown as "Request" and its first eight characters at the bottom of the conversation, which you can quote when reporting a problem.
@@ -312,7 +313,9 @@ Say what you want in the message itself all the same, for example "only 5xx" or 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
+Unless it is an investigation or an answer you shared into a thread, they also read it without your words: its `title`, `prompt`, step messages, `live_text` and `continue_note` are empty and `redacted` is true, while its state, times, your name, its kind and the version it saved stay, and the dashboard's revision list shows its `prompt` empty the same way.
 An Admin reads another person's chat read only.
+
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.
 A list of chats or requests is recorded as one `chat.list` or `run.list` with `scope` (`mine` or `all`) in its data, never one event per row.
 Each is recorded once per reader and chat, request or list in 10 minutes, so a page that polls adds no events, and a refused read is recorded every time.
@@ -378,7 +381,8 @@ An investigation reads "Answered in <title>" with the observation it was saved t
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Create observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 
-A saved answer to a question about an observation is read by the readers of the observation it was saved in, not by the readers of the one it was about.
+A saved answer to a question about a dashboard or an observation is read by the readers of the observation it was saved in, not by the readers of the dashboard or observation it was about.
+Retrying it asks the same private question again in the same chat.
 Sharing it afterwards writes its text onto the page of the observation it was about and posts it in that discussion, and the answer stays in the observation it was saved in, also after a withdraw.
 
 On the Chats page, each of your chats has a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.

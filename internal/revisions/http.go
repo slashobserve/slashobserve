@@ -74,6 +74,7 @@ type revisionJSON struct {
 	ContinuedBy  *string            `json:"continued_by"`
 	RetriedBy    *string            `json:"retried_by"`
 	ContinueNote *string            `json:"continue_note"`
+	Redacted     bool               `json:"redacted"`
 }
 
 type envelopeJSON struct {
@@ -354,6 +355,10 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
+	}
+	if r.audience.viewFor(caller) != viewFull {
+		out.Redacted = true
+		out.Prompt, out.ContinueNote = "", nil
 	}
 	return out
 }

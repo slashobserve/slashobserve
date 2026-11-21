@@ -429,6 +429,8 @@ Both are over MCP only, so the built-in agent does not have them, and a service-
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
+A run from someone else's private chat, other than an investigation or an answer shared into a thread, has `redacted: true` and its `title`, `prompt`, step messages and `live_text` empty.
+
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.
 When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
@@ -447,7 +449,8 @@ Without `client_id` every call queues another run, so read `get_run` or `list_ac
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
-A private ask about a dashboard or an observation is not an investigation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
+A private ask about a dashboard or an observation is not an investigation, also once its answer is saved as an observation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
+The run's `investigation` field says which one a run is.
 
 `list_chats` lists your chats, pinned ones first and then the one most recently asked in, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats by their last turn only and needs an Admin.
 Each chat carries `dashboard_title`, null when you cannot see its dashboard.

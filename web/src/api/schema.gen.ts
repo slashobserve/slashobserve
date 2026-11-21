@@ -6306,7 +6306,7 @@ export interface components {
             comment_id: string | null;
             /** @description The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard. */
             panel_id: string | null;
-            /** @description The follow-up text, or the comment body. */
+            /** @description The follow-up text, or the comment body; empty when `redacted`. */
             prompt: string;
             /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
             base_version: number | null;
@@ -6355,6 +6355,8 @@ export interface components {
             retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` null, while the status, times, requester, kind and saved version stay. */
+            redacted: boolean;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -6554,7 +6556,7 @@ export interface components {
              * @enum {string}
              */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none; empty when `redacted`. */
             title: string;
             /**
              * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
@@ -6568,6 +6570,7 @@ export interface components {
              * @enum {string}
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
+            /** @description The requester's text; empty when `redacted`. */
             prompt: string;
             /**
              * Format: uuid
@@ -6629,6 +6632,8 @@ export interface components {
             can_cancel: boolean;
             /** @description True when the caller sees this request only because it is an Admin; nothing may be done with it. */
             read_only: boolean;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted. */
+            redacted: boolean;
             /**
              * Format: uuid
              * @description The stopped request this one continues.
