@@ -105,7 +105,7 @@ func TestAListRouteRefusesAnUnknownQueryParameterByName(t *testing.T) {
 		"/api/v1/dashboards?health=duplicate_title&limit=200": `unknown query parameter health; this route takes `,
 		"/api/v1/observations?bogus=1":                        `unknown query parameter bogus; this route takes `,
 		"/api/v1/folders?bogus=1":                             `unknown query parameter bogus`,
-		"/api/v1/observe?source=observe":                      `unknown query parameter source; this route takes chat_id, `,
+		"/api/v1/observe?source=observe":                      `unknown query parameter source; this route takes anchored, chat_id, `,
 		"/api/v1/dashboards?folder_id=notauuid&sort=x":        `unknown query parameter folder_id, sort`,
 	} {
 		rec := serve(engine, httptest.NewRequest(http.MethodGet, target, nil))
