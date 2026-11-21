@@ -4983,7 +4983,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise."
+          description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation."
     Chat:
       type: object
       additionalProperties: false
@@ -5008,7 +5008,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The observation the chat is about.
+          description: The observation the chat is about, null when the caller cannot open it.
         pinned_at:
           type: string
           format: date-time

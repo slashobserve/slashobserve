@@ -6738,7 +6738,7 @@ export interface components {
             investigation: boolean;
             /**
              * Format: uuid
-             * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise.
+             * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation.
              */
             subject_observation_id: string | null;
         };
@@ -6758,7 +6758,7 @@ export interface components {
             dashboard_title: string | null;
             /**
              * Format: uuid
-             * @description The observation the chat is about.
+             * @description The observation the chat is about, null when the caller cannot open it.
              */
             observation_id: string | null;
             /** Format: date-time */
