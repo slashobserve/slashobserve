@@ -458,7 +458,7 @@ A chat's owner and Admins read it and nobody else sees it; an Admin reads anothe
 `list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`, and `anchor` and `block_id`; it does not carry the prompt, which `get_run` returns.
 It takes `state` (a list), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
 
-`observation_id` keeps the runs asked about that observation.
+`observation_id` keeps the runs asked about that observation and the runs that wrote into it.
 `anchored: true` keeps the runs that point at a spot, and works only with the default `scope` of `mine`: with `scope: all` it answers `invalid_request`, even for an Admin.
 
 `anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it, and are filled only for the person who asked the run.

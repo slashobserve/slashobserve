@@ -114,7 +114,7 @@ While a request is running, `observe status` also prints a `Live text` section w
 
 `bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard, the spot it points at and title.
 The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
-`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it.
+`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>`, the requests asked about that observation and the ones that wrote into it, narrow it.
 
 `--anchored` keeps the requests you asked about a spot, and the server refuses it with `--scope all`, even for an Admin.
 The `AT` column shows that spot in words, a dash when the request points at nothing, and `--json` carries it as `anchor` and `block_id`.
