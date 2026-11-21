@@ -56,6 +56,7 @@ type Options struct {
 	Limits            datasource.Limits
 	HTTPClient        *http.Client
 	MaxResponseBytes  int64
+	MaxAggregations   int
 }
 
 type Datasource struct {

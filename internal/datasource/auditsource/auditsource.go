@@ -41,14 +41,15 @@ type Store interface {
 
 func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 	ds, err := elasticsearch.New(elasticsearch.Options{
-		Flavor:        elasticsearch.OpenSearch,
-		URL:           unreachableURL,
-		Index:         Index,
-		TimeField:     TimeField,
-		QueryLanguage: elasticsearch.QueryLanguageKQL,
-		Fields:        elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
-		Limits:        datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
-		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
+		Flavor:          elasticsearch.OpenSearch,
+		URL:             unreachableURL,
+		Index:           Index,
+		TimeField:       TimeField,
+		QueryLanguage:   elasticsearch.QueryLanguageKQL,
+		Fields:          elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
+		Limits:          datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
+		MaxAggregations: maxAggregations,
+		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
 	})
 	if err != nil {
 		return datasource.Instance{}, err

@@ -281,6 +281,28 @@ func TestFacetsCountEachFieldInItsOwnAggregation(t *testing.T) {
 	}
 }
 
+func TestTheDefaultFacetsOfEveryFieldStayWithinTheAggregationCap(t *testing.T) {
+	store := &fakeStore{answer: func(q filter.Query) trail.Aggregation {
+		if q.Aggs[0].Type == terms && q.Aggs[0].Field == "outcome" {
+			return trail.Aggregation{Rows: []trail.AggRow{{Keys: []any{"denied"}, DocCount: 2}}}
+		}
+		return trail.Aggregation{}
+	}}
+	ds := open(t, store)
+	facets, err := ds.LogFacets(t.Context(), datasource.FacetRequest{Query: datasource.Query{Text: ""}, Range: span, Limit: 5})
+	if err != nil {
+		t.Fatalf("LogFacets of every field: %v", err)
+	}
+	if len(facets.Fields) <= maxAggregations/2 {
+		t.Fatalf("%d facet fields, want more than one request's worth", len(facets.Fields))
+	}
+	for _, f := range facets.Fields {
+		if f.Name == "outcome" && (len(f.Values) != 1 || f.Values[0].Value != "denied") {
+			t.Errorf("outcome facet = %+v", f.Values)
+		}
+	}
+}
+
 func ptr(v float64) *float64 { return &v }
 
 func TestALuceneBodyIsReadByTheAuditParser(t *testing.T) {
