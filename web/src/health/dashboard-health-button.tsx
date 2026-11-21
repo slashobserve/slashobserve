@@ -9,6 +9,7 @@ import {
 
 import { CheckLine } from "./check-line"
 import {
+  awaitsRecheck,
   dashboardProblems,
   healthyLabel,
   isHealthy,
@@ -21,6 +22,7 @@ import {
   type SummaryLabel,
 } from "./health-labels"
 import { ProblemGroups } from "./problem-groups"
+import { RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 import { useDashboardHealth } from "./use-dashboard-health"
 
@@ -53,6 +55,9 @@ export function DashboardHealthButton({
   const { item, agentAvailable, repair, pending } =
     useDashboardHealth(dashboardId)
   if (item === null) return null
+  if (awaitsRecheck(item)) {
+    return <RecheckPending item={item} variant="ghost" size="sm" align="end" />
+  }
   if (isHealthy(item)) return <HealthyButton item={item} />
   const problems = dashboardProblems(item)
   if (problems.length === 0 && item.repair === null) return null

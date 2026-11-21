@@ -250,4 +250,20 @@ describe("HealthCell", () => {
     await user.click(await screen.findByRole("button", { name: "Repair" }))
     expect(provider.requestRepair).toHaveBeenCalledWith("d1")
   })
+
+  test("says a changed dashboard waits for a recheck instead of listing its old problems", async () => {
+    provider.item = item({ state: "outdated" } as Partial<HealthItem>)
+    const { user } = renderCell()
+    const trigger = await screen.findByRole("button", {
+      name: "Health of Checkout: Recheck pending",
+    })
+    expect(screen.queryByText(/Query fails/)).toBeNull()
+    await user.click(trigger)
+    expect(
+      await screen.findByText(
+        "This dashboard changed since the last check and is waiting for a recheck."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Repair/ })).toBeNull()
+  })
 })

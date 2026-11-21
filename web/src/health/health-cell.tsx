@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import { CheckLine } from "./check-line"
 import {
+  awaitsRecheck,
+  currentProblems,
   healthCellText,
   healthyLabel,
   isHealthy,
@@ -22,6 +24,7 @@ import {
 import { useListHealth, useListHealthRepair } from "./list-health"
 import { KindSummary } from "./kind-summary"
 import { ProblemGroups } from "./problem-groups"
+import { RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 
 function ariaLabel(
@@ -72,6 +75,18 @@ export function HealthCell({
   const { agentAvailable, pendingId, requestRepair } = useListHealthRepair()
   if (pending) return <Skeleton className="h-4 w-20" />
   if (item === null) return null
+  if (awaitsRecheck(item)) {
+    return (
+      <RecheckPending
+        item={item}
+        title={title}
+        variant="ghost"
+        size="xs"
+        align="start"
+        className="-ml-2 h-auto max-w-full py-1 text-left font-normal whitespace-normal"
+      />
+    )
+  }
   const cell = healthCellText(item)
   if (cell === null) {
     return isHealthy(item) ? <HealthyCell item={item} title={title} /> : null
@@ -113,7 +128,7 @@ export function HealthCell({
         <p className="text-xs text-muted-foreground">
           <CheckLine item={item} />
         </p>
-        <ProblemGroups problems={item.problems} />
+        <ProblemGroups problems={currentProblems(item)} />
         <div>
           <RepairControl
             item={item}
