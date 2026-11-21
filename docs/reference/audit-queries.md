@@ -110,6 +110,7 @@ The first frame, `ready`, carries the id of the position the stream starts from,
 A resumed stream sends every matching event committed after that frame whose time is at most 10 minutes before the frame's event, however long the client was away.
 A `Last-Event-ID` whose event is more than 24 hours old answers 400 `invalid_request`; read the gap with a search, then open a new stream.
 An id the stream did not send answers 400 `invalid_request` too.
+
 Opening the stream records one `audit.search` event with the query, not one per event it delivers.
 The server checks every 5 seconds that the caller is still an Admin, and ends the stream with a `forbidden` frame (`forbidden_role`) once they are not; it also ends at shutdown and after 30 minutes, and a client reconnects from its last id.
 

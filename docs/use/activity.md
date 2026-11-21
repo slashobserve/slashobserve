@@ -90,6 +90,7 @@ A chart counts the matching events over the range, and the chips under it count 
 Clicking a chip adds its value to a KQL query, or removes it when it is there, and the minus beside it leaves the value out; a Lucene or Query DSL query is edited only as text.
 The table lists the matching events newest first, 100 at a time, with **Load older events** for more.
 A row opens a panel with every field the event has, the other events of the same request and everything the same agent run did.
+
 **Live**, while the range ends now, adds new matching events at the top as they are recorded.
 After a dropped connection it reconnects and continues from the last event it showed; when the server refuses that resume because the event is more than 24 hours old, Live starts over, reloads the list and says so.
 After 500 new events the page reloads the list up to now, so the newest of them are in the list and the older ones a click on Load older events away.
