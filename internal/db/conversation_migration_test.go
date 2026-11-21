@@ -3,6 +3,8 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -160,9 +162,13 @@ func TestChatsAreBackfilledFromTheirTurns(t *testing.T) {
 	observeRoot, observeTurn, observeAlone := convID(10), convID(11), convID(12)
 	promptFirst, promptSecond, promptOther := convID(13), convID(14), convID(15)
 	comment, investigation := convID(16), convID(17)
+	chainSecond, chainThird, chainFourth := convID(18), convID(19), convID(20)
 	convRequest(t, d, observeRoot, "observe", ada, "", "", "builtin", "")
 	d.Exec(t, `UPDATE agent_requests SET title = 'Checkout', pinned_at = now() WHERE id = $1::uuid`, observeRoot)
 	convRequest(t, d, observeTurn, "observe", ada, "", observeRoot, "builtin", "")
+	convRequest(t, d, chainSecond, "observe", ada, "", observeTurn, "builtin", "")
+	convRequest(t, d, chainThird, "observe", ada, "", chainSecond, "builtin", "")
+	convRequest(t, d, chainFourth, "observe", ada, "", chainThird, "builtin", "")
 	convRequest(t, d, observeAlone, "observe", ada, "", "", "builtin", "")
 	convRequest(t, d, promptFirst, "prompt", ada, convDashboard, "", "builtin", "")
 	convRequest(t, d, promptSecond, "prompt", ada, convDashboard, "", "builtin", "")
@@ -179,6 +185,9 @@ func TestChatsAreBackfilledFromTheirTurns(t *testing.T) {
 	for _, c := range []struct{ name, id, want string }{
 		{"an observe root", observeRoot, observeRoot},
 		{"an observe follow-up", observeTurn, observeRoot},
+		{"a turn that followed a follow-up", chainSecond, observeRoot},
+		{"a turn three follow-ups deep", chainThird, observeRoot},
+		{"a turn four follow-ups deep", chainFourth, observeRoot},
 		{"a lone observe run", observeAlone, observeAlone},
 		{"the first dashboard prompt", promptFirst, promptFirst},
 		{"a later dashboard prompt of the same person", promptSecond, promptFirst},
@@ -200,6 +209,21 @@ func TestChatsAreBackfilledFromTheirTurns(t *testing.T) {
 	if got := foScalar(t, sqlDB, `SELECT owner_id::text || ':' || coalesce(dashboard_id::text, 'none') FROM chats WHERE id = $1::uuid`, promptFirst); got != ada+":"+convDashboard {
 		t.Errorf("dashboard chat = %q, want %q", got, ada+":"+convDashboard)
 	}
+	if got := foScalar(t, sqlDB, `SELECT (last_turn_at = (SELECT created_at FROM agent_requests WHERE id = $2::uuid))::text FROM chats WHERE id = $1::uuid`, observeRoot, chainFourth); got != "true" {
+		t.Errorf("the chain's last turn is not its deepest follow-up")
+	}
+	if got := chatsSchemaState(t, sqlDB); got != "chats:true,true,true" {
+		t.Errorf("after up, foreign key and indexes = %q, want them pointing at chats and valid", got)
+	}
+
+	backfilled := chatsBackfillState(t, sqlDB)
+	runMigrationHalf(t, sqlDB, "00077_chats.sql", "Up")
+	if got := chatsBackfillState(t, sqlDB); got != backfilled {
+		t.Errorf("running the up statements again changed the rows:\n%s\nwant\n%s", got, backfilled)
+	}
+	if got := chatsSchemaState(t, sqlDB); got != "chats:true,true,true" {
+		t.Errorf("after a second up, foreign key and indexes = %q, want them pointing at chats and valid", got)
+	}
 
 	clientInsert := `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, source, client_id)
 VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', '00000000-0000-4000-8000-00000000c11e')`
@@ -217,13 +241,58 @@ VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', '00000000-0000-4000-8000-000000
 	if err := d.MigrateDownTo(ctx, chatsVersion-1); err != nil {
 		t.Fatalf("down: %v", err)
 	}
+	runMigrationHalf(t, sqlDB, "00077_chats.sql", "Down")
 	for _, c := range []struct{ name, id, want string }{
 		{"an observe root", observeRoot, "none"},
 		{"an observe follow-up", observeTurn, observeRoot},
+		{"a turn four follow-ups deep", chainFourth, observeRoot},
 		{"a later dashboard prompt", promptSecond, "none"},
 	} {
 		if got := chatOf(c.id); got != c.want {
 			t.Errorf("after down, %s: chat_id = %s, want %s", c.name, got, c.want)
+		}
+	}
+	if got := foScalar(t, sqlDB, `SELECT confrelid::regclass::text || ':' || convalidated::text FROM pg_constraint WHERE conname = 'agent_requests_chat_id_fkey'`); got != "agent_requests:true" {
+		t.Errorf("after down, chat_id foreign key = %q, want a valid one to agent_requests", got)
+	}
+
+	if err := d.MigrateUpTo(ctx, chatsVersion); err != nil {
+		t.Fatalf("up again: %v", err)
+	}
+	if got := chatOf(chainFourth); got != observeRoot {
+		t.Errorf("after up again, the deepest turn's chat_id = %s, want %s", got, observeRoot)
+	}
+}
+
+func chatsBackfillState(t *testing.T, sqlDB *sql.DB) string {
+	t.Helper()
+	return foScalar(t, sqlDB, `SELECT coalesce((SELECT string_agg(id::text || '=' || coalesce(chat_id::text, '-'), ',' ORDER BY id) FROM agent_requests), '') || E'\n' || coalesce((SELECT string_agg(c::text, ',' ORDER BY c.id) FROM chats c), '')`)
+}
+
+func chatsSchemaState(t *testing.T, sqlDB *sql.DB) string {
+	t.Helper()
+	return foScalar(t, sqlDB, `SELECT (SELECT confrelid::regclass::text || ':' || convalidated::text FROM pg_constraint WHERE conname = 'agent_requests_chat_id_fkey')
+  || ',' || coalesce((SELECT indisvalid::text FROM pg_index WHERE indexrelid = 'agent_requests_client_idx'::regclass), 'missing')
+  || ',' || coalesce((SELECT indisvalid::text FROM pg_index WHERE indexrelid = 'agent_requests_chat_order_idx'::regclass), 'missing')`)
+}
+
+func runMigrationHalf(t *testing.T, sqlDB *sql.DB, file, half string) {
+	t.Helper()
+	body, err := os.ReadFile("migrations/" + file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, rest, ok := strings.Cut(string(body), "-- +goose "+half+"\n")
+	if !ok {
+		t.Fatalf("%s has no %s section", file, half)
+	}
+	rest, _, _ = strings.Cut(rest, "-- +goose ")
+	for statement := range strings.SplitSeq(rest, ";\n") {
+		if strings.TrimSpace(statement) == "" {
+			continue
+		}
+		if _, err := sqlDB.Exec(statement); err != nil {
+			t.Fatalf("%s again: %v\n%s", half, err, statement)
 		}
 	}
 }

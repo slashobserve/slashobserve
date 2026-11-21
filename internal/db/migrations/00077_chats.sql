@@ -1,5 +1,6 @@
+-- +goose NO TRANSACTION
 -- +goose Up
-CREATE TABLE chats (
+CREATE TABLE IF NOT EXISTS chats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_kind TEXT NOT NULL CHECK (owner_kind IN ('user', 'service_account')),
   owner_id UUID NOT NULL,
@@ -12,11 +13,11 @@ CREATE TABLE chats (
   last_turn_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT chats_subject_check CHECK (dashboard_id IS NULL OR observation_id IS NULL)
 );
-CREATE INDEX chats_owner_recent_idx ON chats (owner_id, last_turn_at DESC, id DESC) WHERE archived_at IS NULL;
-CREATE INDEX chats_owner_dashboard_idx ON chats (owner_id, dashboard_id) WHERE dashboard_id IS NOT NULL;
-CREATE INDEX chats_owner_observation_idx ON chats (owner_id, observation_id) WHERE observation_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS chats_owner_recent_idx ON chats (owner_id, last_turn_at DESC, id DESC) WHERE archived_at IS NULL;
+CREATE INDEX IF NOT EXISTS chats_owner_dashboard_idx ON chats (owner_id, dashboard_id) WHERE dashboard_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS chats_owner_observation_idx ON chats (owner_id, observation_id) WHERE observation_id IS NOT NULL;
 
-ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_chat_id_fkey;
+ALTER TABLE agent_requests ADD COLUMN IF NOT EXISTS client_id UUID;
 
 UPDATE agent_requests SET chat_id = id
 WHERE chat_id IS NULL AND source = 'observe' AND thread_message_id IS NULL;
@@ -27,10 +28,25 @@ FROM (
   FROM agent_requests
   WHERE chat_id IS NULL AND source = 'prompt' AND dashboard_id IS NOT NULL AND thread_message_id IS NULL
 ) g
-WHERE r.id = g.id;
+WHERE r.id = g.id AND r.chat_id IS NULL;
 
 UPDATE agent_requests SET chat_id = id
 WHERE chat_id IS NULL AND source NOT IN ('suggest', 'comment') AND thread_message_id IS NULL;
+
+WITH RECURSIVE walk AS (
+  SELECT r.id, p.chat_id AS root, 1 AS depth
+  FROM agent_requests r
+  JOIN agent_requests p ON p.id = r.chat_id
+  WHERE r.chat_id <> r.id AND p.chat_id IS NOT NULL AND p.chat_id <> p.id
+  UNION ALL
+  SELECT w.id, p.chat_id, w.depth + 1
+  FROM walk w
+  JOIN agent_requests p ON p.id = w.root
+  WHERE p.chat_id IS NOT NULL AND p.chat_id <> p.id AND w.depth < 1000
+)
+UPDATE agent_requests r SET chat_id = d.root
+FROM (SELECT DISTINCT ON (id) id, root FROM walk ORDER BY id, depth DESC) d
+WHERE r.id = d.id AND r.chat_id IS DISTINCT FROM d.root;
 
 INSERT INTO chats (id, owner_kind, owner_id, title, dashboard_id, observation_id, pinned_at, archived_at, created_at, last_turn_at)
 SELECT g.chat_id, root.requested_by_kind, root.requested_by_id, root.title,
@@ -48,23 +64,31 @@ FROM (
   WHERE r.chat_id IS NOT NULL
   GROUP BY r.chat_id
 ) g
-JOIN agent_requests root ON root.id = g.chat_id;
+JOIN agent_requests root ON root.id = g.chat_id
+ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE agent_requests
-  ADD CONSTRAINT agent_requests_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES chats (id) ON DELETE SET NULL,
-  ADD COLUMN client_id UUID;
-CREATE UNIQUE INDEX agent_requests_client_idx ON agent_requests (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL;
-CREATE INDEX agent_requests_chat_order_idx ON agent_requests (chat_id, created_at, id) WHERE chat_id IS NOT NULL AND status IN ('queued', 'running');
+  DROP CONSTRAINT IF EXISTS agent_requests_chat_id_fkey,
+  ADD CONSTRAINT agent_requests_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES chats (id) ON DELETE SET NULL NOT VALID;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_chat_id_fkey;
+
+DROP INDEX CONCURRENTLY IF EXISTS agent_requests_client_idx;
+CREATE UNIQUE INDEX CONCURRENTLY agent_requests_client_idx ON agent_requests (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL;
+DROP INDEX CONCURRENTLY IF EXISTS agent_requests_chat_order_idx;
+CREATE INDEX CONCURRENTLY agent_requests_chat_order_idx ON agent_requests (chat_id, created_at, id) WHERE chat_id IS NOT NULL AND status IN ('queued', 'running');
 
 -- +goose Down
-DROP INDEX agent_requests_chat_order_idx;
-DROP INDEX agent_requests_client_idx;
-ALTER TABLE agent_requests DROP CONSTRAINT agent_requests_chat_id_fkey, DROP COLUMN client_id;
+DROP INDEX CONCURRENTLY IF EXISTS agent_requests_chat_order_idx;
+DROP INDEX CONCURRENTLY IF EXISTS agent_requests_client_idx;
+ALTER TABLE agent_requests DROP CONSTRAINT IF EXISTS agent_requests_chat_id_fkey, DROP COLUMN IF EXISTS client_id;
 
 UPDATE agent_requests r SET chat_id = NULL
-WHERE r.chat_id = r.id OR r.source <> 'observe'
-  OR NOT EXISTS (SELECT 1 FROM agent_requests p WHERE p.id = r.chat_id);
+WHERE r.chat_id IS NOT NULL AND (r.chat_id = r.id OR r.source <> 'observe'
+  OR NOT EXISTS (SELECT 1 FROM agent_requests p WHERE p.id = r.chat_id));
 
-ALTER TABLE agent_requests ADD CONSTRAINT agent_requests_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES agent_requests (id) ON DELETE SET NULL;
+ALTER TABLE agent_requests
+  DROP CONSTRAINT IF EXISTS agent_requests_chat_id_fkey,
+  ADD CONSTRAINT agent_requests_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES agent_requests (id) ON DELETE SET NULL NOT VALID;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_chat_id_fkey;
 
-DROP TABLE chats;
+DROP TABLE IF EXISTS chats;
