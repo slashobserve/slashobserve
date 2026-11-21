@@ -11,6 +11,7 @@ import (
 const (
 	shortForms   = "row:<label>=<value>,..., time:<instant>, range:<instant>..<instant>, series:<label>=<value>,... or pos:<x>,<y>"
 	clockLayout  = "15:04Z07:00"
+	secondLayout = "15:04:05Z07:00"
 	minuteLayout = "2006-01-02T15:04Z07:00"
 	day          = 24 * time.Hour
 )
@@ -91,10 +92,12 @@ func parseInstant(text string) (instant, error) {
 			return instant{at: t}, nil
 		}
 	}
-	if t, err := time.Parse(clockLayout, text); err == nil {
-		return instant{at: t.UTC(), clockOnly: true}, nil
+	for _, layout := range []string{clockLayout, secondLayout} {
+		if t, err := time.Parse(layout, text); err == nil {
+			return instant{at: t.UTC(), clockOnly: true}, nil
+		}
 	}
-	return instant{}, fmt.Errorf("%q is not a time such as 2026-11-20T23:56Z or a time of day such as 23:56Z", text)
+	return instant{}, fmt.Errorf("%q is not a time such as 2026-11-20T23:56Z or a time of day such as 23:56Z or 23:56:10Z", text)
 }
 
 func parseTime(text string, now time.Time) (*time.Time, error) {
@@ -132,6 +135,9 @@ func parseRange(text string, now time.Time) (*time.Time, *time.Time, error) {
 	}
 	if end.clockOnly {
 		to = earliestAtOrAfter(from, end.at)
+		if to.After(now) {
+			return nil, nil, errors.New("range would end in the future; check the order of the ends")
+		}
 	}
 	return &from, &to, nil
 }

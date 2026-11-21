@@ -32,6 +32,9 @@ func TestParseShortFormsBuildTheAnchor(t *testing.T) {
 		{"range from a time of day to an instant", "range:23:50Z..2026-11-19T23:58Z", Anchor{Kind: Range, Pos: centre, From: at(19, 23, 50), To: at(19, 23, 58)}},
 		{"range from an instant to a time of day", "range:2026-11-20T23:50Z..23:58Z", Anchor{Kind: Range, Pos: centre, From: at(20, 23, 50), To: at(20, 23, 58)}},
 		{"pos", "pos:0.4,0.3", Anchor{Kind: Position, Pos: Pos{X: 0.4, Y: 0.3}}},
+		{"time of day with seconds", "time:08:15:10Z", Anchor{Kind: Time, Pos: centre, From: new(time.Date(2026, 11, 21, 8, 15, 10, 0, time.UTC))}},
+		{"range crossing midnight ends in the past", "range:23:50Z..00:10Z", Anchor{Kind: Range, Pos: centre, From: at(20, 23, 50), To: at(21, 0, 10)}},
+		{"empty label value is allowed as in the JSON form", "row:host=", Anchor{Kind: Row, Pos: centre, Row: map[string]string{"host": ""}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			got, err := parseShort(c.text, shortNow)
@@ -86,6 +89,7 @@ func TestParseShortRefusesWhatItCannotRead(t *testing.T) {
 		{"range without two ends", "range:23:50Z", "want <instant>..<instant>"},
 		{"range with a bad end", "range:23:50Z..late", `"late" is not a time`},
 		{"range ending before it starts", "range:2026-11-20T23:58Z..2026-11-20T23:50Z", "range ends before it starts"},
+		{"range ending in the future from an instant", "range:2026-11-21T09:00Z..08:00Z", "range would end in the future"},
 		{"pos with one number", "pos:0.4", "want <x>,<y>"},
 		{"pos with a word", "pos:left,top", "want <x>,<y>"},
 		{"pos outside the panel", "pos:1.4,0.3", "pos: x and y must be between 0 and 1"},
@@ -113,5 +117,20 @@ func TestParseTakesTheShortFormAndTheJSONObject(t *testing.T) {
 	}
 	if _, err := Parse("pos:0.4"); err == nil || !strings.HasPrefix(err.Error(), "anchor: ") {
 		t.Fatalf("error = %v, want one prefixed with anchor:", err)
+	}
+}
+
+func TestParseShortRefusesARangeOfTimesOfDayThatEndsInTheFuture(t *testing.T) {
+	noon := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	_, err := parseShort("range:10:00Z..09:00Z", noon)
+	if err == nil || !strings.Contains(err.Error(), "range would end in the future; check the order of the ends") {
+		t.Fatalf("error = %v, want the future-end refusal", err)
+	}
+	got, err := parseShort("range:23:50Z..00:10Z", noon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.From.Equal(*at(20, 23, 50)) || !got.To.Equal(*at(21, 0, 10)) {
+		t.Fatalf("range = %v to %v, want yesterday 23:50 to today 00:10", got.From, got.To)
 	}
 }

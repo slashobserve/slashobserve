@@ -93,6 +93,8 @@ A prompt sent with `--dashboard <dashboard-id>` is never refused, since a comman
 
 The short forms are `row:service=payments,span=authorize_card`, `time:2026-11-20T23:56Z`, `range:23:50Z..23:58Z`, `series:service=checkout` and `pos:0.4,0.3`, and every `--at` of the CLI takes them.
 A time of day such as `23:50Z` means its latest occurrence not after now, and a short form that names no position points at the middle of the panel.
+A time of day may carry seconds, as in `23:56:10Z`, and a range given as times of day must end in the past, so `range:10:00Z..09:00Z` asked at noon is refused.
+A label value in a short form cannot contain a comma, because the comma separates labels; the JSON form takes any value.
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 An Admin can show anyone's request with `observe status`, read only.
