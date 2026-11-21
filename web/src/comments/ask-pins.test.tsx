@@ -125,12 +125,16 @@ describe("AskPins", () => {
     await user.click(
       await screen.findByRole("button", { name: "2 of your questions here" })
     )
-    const asked = await screen.findAllByRole("button", {
-      name: "Your question on Slow services, The row payments, 440",
-    })
-    expect(asked).toHaveLength(2)
-    expect(asked[1]).toHaveTextContent("And yesterday?")
-    await user.click(asked[1])
+    expect(
+      await screen.findByRole("button", {
+        name: "Why is payments slow? Your question on Slow services, The row payments, 440",
+      })
+    ).toBeInTheDocument()
+    await user.click(
+      screen.getByRole("button", {
+        name: "And yesterday? Your question on Slow services, The row payments, 440",
+      })
+    )
     expect(useCanvasTool.getState().openTurn).toMatchObject({
       requestId: "r2",
       chatId: "c2",
