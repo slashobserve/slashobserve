@@ -75,11 +75,11 @@ type Placement struct {
 }
 
 type CreateInput struct {
-	FolderID   pgtype.UUID
-	Title      string
-	From, To   *time.Time
-	FirstBlock *BlockInput
-	RunID      pgtype.UUID
+	FolderID pgtype.UUID
+	Title    string
+	From, To *time.Time
+	Blocks   []BlockInput
+	RunID    pgtype.UUID
 }
 
 type UpdateInput struct {

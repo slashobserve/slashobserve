@@ -810,6 +810,12 @@ type Snapshot struct {
 	DatasourceUids []string
 }
 
+type StarterContent struct {
+	Key      string
+	Ref      pgtype.UUID
+	SeededAt pgtype.Timestamptz
+}
+
 type Team struct {
 	ID            pgtype.UUID
 	Name          string

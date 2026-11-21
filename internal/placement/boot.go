@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 type MisplacedError struct {
@@ -16,7 +17,9 @@ type MisplacedError struct {
 
 func (e *MisplacedError) Error() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "the datasources file makes %q Admins only, but %d dashboards, proposals, observations or saved searches outside folders only Admins can read use it:", e.Datasource, e.Shared+e.Personal)
+	total := e.Shared + e.Personal
+	fmt.Fprintf(&b, "the datasources file makes %q Admins only, but %d %s outside folders only Admins can read %s it:", e.Datasource, total,
+		folders.Agree(total, "dashboard, proposal, observation or saved search", "dashboards, proposals, observations or saved searches"), folders.Agree(total, "uses", "use"))
 	for _, h := range e.Listed {
 		fmt.Fprintf(&b, " %s %s %q in folder %q;", h.Kind.Noun(), h.ID, h.Title, h.FolderTitle)
 	}
@@ -24,9 +27,9 @@ func (e *MisplacedError) Error() string {
 		fmt.Fprintf(&b, " and %d more;", more)
 	}
 	if e.Personal > 0 {
-		fmt.Fprintf(&b, " %d in people's My Dashboards, which only their owners can move;", e.Personal)
+		fmt.Fprintf(&b, " %d in people's My Dashboards, which only %s can move;", e.Personal, folders.Agree(e.Personal, "its owner", "their owners"))
 	}
-	b.WriteString(" move them into a folder only Admins can read while the datasource is still everyone, or keep audience: everyone in the file")
+	b.WriteString(" move " + folders.Agree(total, "it", "them") + " into a folder only Admins can read while the datasource is still everyone, or keep audience: everyone in the file")
 	return b.String()
 }
 

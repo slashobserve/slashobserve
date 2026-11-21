@@ -72,3 +72,26 @@ func TestAnObservationOnAnAdminsOnlyDatasourceKeepsItsSnapshotsInAnAdminsOnlyFol
 		t.Fatalf("a non-Admin reads the snapshot: %v", err)
 	}
 }
+
+func TestCreatingWithABlockOnAnAdminsOnlyDatasourceOutsideAnAdminsOnlyFolderLeavesNothing(t *testing.T) {
+	r := newRig(t)
+	r.adminsOnlyDatasource(t)
+	ctx := reading(t.Context())
+
+	_, err := r.service.Create(ctx, admin, observations.CreateInput{
+		FolderID: r.shared, Title: "Payroll",
+		Blocks: []observations.BlockInput{
+			{Kind: observations.KindText, Body: textBody("fine")},
+			{Kind: observations.KindPanel, Body: auditPanel()},
+		},
+	})
+	refusedAsRestricted(t, err)
+	var blockErr *observations.BlockError
+	if !errors.As(err, &blockErr) || blockErr.Index != 1 {
+		t.Fatalf("err = %v, want the second block named", err)
+	}
+	list, _, err := r.service.List(ctx, admin, observations.ListFilter{FolderID: r.shared}, 10, "")
+	if err != nil || len(list) != 0 {
+		t.Errorf("the refused create left %d observations, %v", len(list), err)
+	}
+}

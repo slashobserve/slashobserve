@@ -142,9 +142,19 @@ func TestAnAdminAddsReadsChangesTestsAndRemovesADatasourceOverHTTP(t *testing.T)
 func TestHTTPErrorsCarryStableCodes(t *testing.T) {
 	server := upstream(t, nil)
 	file := datasource.Instance{UID: "fromfile", Datasource: datasource.NewUnavailable("prometheus", datasource.ErrUnavailable), Source: datasource.SourceFile}
-	h := newHTTPRig(t, file)
+	builtIn := datasource.Instance{UID: "audit", Datasource: datasource.NewUnavailable("opensearch", datasource.ErrUnavailable), Source: datasource.SourceBuiltin, Audience: datasource.AudienceAdmins}
+	h := newHTTPRig(t, file, builtIn)
 	h.call(t, http.MethodPost, "/api/v1/datasources", createBody("added", server.URL))
 
+	for _, method := range []string{http.MethodPatch, http.MethodDelete} {
+		rec := h.call(t, method, "/api/v1/datasources/audit", `{"name":"x"}`)
+		expectCode(t, rec, http.StatusConflict, "datasource_read_only")
+		if !strings.Contains(rec.Body.String(), "built into the server") {
+			t.Errorf("%s of the built-in datasource said %s", method, rec.Body)
+		}
+	}
+	expectCode(t, h.call(t, http.MethodGet, "/api/v1/datasources/audit/config", ""), http.StatusConflict, "datasource_read_only")
+	expectCode(t, h.call(t, http.MethodPost, "/api/v1/datasources", createBody("audit", server.URL)), http.StatusConflict, "uid_taken")
 	expectCode(t, h.call(t, http.MethodPost, "/api/v1/datasources", createBody("added", server.URL)), http.StatusConflict, "uid_taken")
 	expectCode(t, h.call(t, http.MethodPost, "/api/v1/datasources", createBody("fromfile", server.URL)), http.StatusConflict, "uid_taken")
 	expectCode(t, h.call(t, http.MethodPost, "/api/v1/datasources", `{"uid":"x","type":"prometheus"}`), http.StatusUnprocessableEntity, "invalid_datasource")

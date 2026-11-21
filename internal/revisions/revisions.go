@@ -105,8 +105,11 @@ var (
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrObservationNotFound      = errors.New("observation not found")
 	ErrChatNotFound             = errors.New("chat not found")
+	ErrChatReadOnly             = errors.New("this chat is read-only for you: only its owner can ask in it or archive it")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
+
+const CodeChatReadOnly = "chat_read_only"
 
 type PanelChecker interface {
 	HasPanel(ctx context.Context, dashboardID pgtype.UUID, version int, panelID string) (bool, error)

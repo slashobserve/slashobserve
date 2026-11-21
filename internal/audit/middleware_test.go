@@ -137,6 +137,37 @@ func TestADeclaredReadRecordsAnAccessEvent(t *testing.T) {
 	}
 }
 
+func TestARepeatedReadIsDroppedOnlyWhenItIsASuccessfulRead(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	status, fresh := http.StatusOK, false
+	engine := s.engine(t, func(c *gin.Context) {
+		NoteRead(c.Request.Context(), Read{Repeated: true})
+		if fresh {
+			NoteRead(c.Request.Context(), Read{})
+		}
+		c.JSON(status, gin.H{})
+	})
+	_, read := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	_, change := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
+	fresh = true
+	_, mixed := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	fresh, status = false, http.StatusForbidden
+	_, refused := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	s.run(t)()
+	if got := s.eventsOf(t, read); len(got) != 0 {
+		t.Fatalf("a repeated read recorded %+v", got)
+	}
+	if got := s.eventsOf(t, mixed); len(got) != 1 || got[0].action != "dashboard.view" {
+		t.Fatalf("a request with one repeated and one new read recorded %+v, want its view", got)
+	}
+	if got := s.eventsOf(t, change); len(got) != 1 || got[0].action != "dashboard.update" {
+		t.Fatalf("a change marked as a repeated read recorded %+v", got)
+	}
+	if got := s.eventsOf(t, refused); len(got) != 1 || got[0].outcome != "denied" {
+		t.Fatalf("a refused repeated read recorded %+v", got)
+	}
+}
+
 func TestARouteDeclaredNoneRecordsNothing(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
 	engine := s.engine(t, func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"items": []string{}}) })

@@ -198,6 +198,26 @@ func TestUpdateAndDeleteRefuseFileDatasourcesAndUnknownOnes(t *testing.T) {
 	}
 }
 
+func TestAStoredRowCannotShadowTheBuiltInDatasource(t *testing.T) {
+	builtIn := datasource.Instance{UID: "audit", Datasource: datasource.NewUnavailable("opensearch", datasource.ErrUnavailable), Source: datasource.SourceBuiltin, Audience: datasource.AudienceAdmins}
+	r, svc := newRig(t, testKey, builtIn)
+	r.insert(t, testKey, prometheus("audit", "http://prom:9090"), Secrets{})
+
+	if _, err := svc.Update(reading(t.Context()), r.admin, "audit", prometheus("audit", "http://prom:9091"), SecretsChange{}); !errors.Is(err, ErrBuiltIn) {
+		t.Fatalf("Update = %v, want ErrBuiltIn", err)
+	}
+	if err := svc.Delete(reading(t.Context()), r.admin, "audit"); !errors.Is(err, ErrBuiltIn) {
+		t.Fatalf("Delete = %v, want ErrBuiltIn", err)
+	}
+	if _, err := svc.Get(reading(t.Context()), "audit"); !errors.Is(err, ErrBuiltIn) {
+		t.Fatalf("Get = %v, want ErrBuiltIn", err)
+	}
+	row, err := r.db.Queries().GetDatasource(reading(t.Context()), "audit")
+	if err != nil || row.Name != "Metrics audit" {
+		t.Fatalf("stored row = %+v, %v, want it untouched", row, err)
+	}
+}
+
 func TestUpdateCannotChangeUIDOrType(t *testing.T) {
 	server := upstream(t, nil)
 	r, svc := newRig(t, testKey)

@@ -323,8 +323,8 @@ func TestPutAndRemoveLeaveFileDatasourcesAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.Put(datasource.Instance{UID: "file", Datasource: failingHealth{}}); !errors.Is(err, datasource.ErrFileOwned) {
-		t.Fatalf("Put over a file uid = %v, want ErrFileOwned", err)
+	if err := registry.Put(datasource.Instance{UID: "file", Datasource: failingHealth{}}); !errors.Is(err, datasource.ErrServerOwned) {
+		t.Fatalf("Put over a file uid = %v, want ErrServerOwned", err)
 	}
 	if registry.Remove("file") {
 		t.Fatal("Remove took a file datasource")
@@ -432,7 +432,7 @@ func TestHealthHasNoRowForADatasourceTheCallerCannotQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: failingHealth{err: errors.New("down")}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: failingHealth{err: errors.New("down")}}); err != nil {
 		t.Fatal(err)
 	}
 	uids := func(ctx context.Context) []string {

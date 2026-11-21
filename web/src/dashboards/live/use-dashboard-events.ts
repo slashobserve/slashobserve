@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys, proposalKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { closeWhileCached } from "@/lib/page-cache"
 import { catchUpWithSession } from "@/lib/session-sync"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
@@ -35,13 +36,14 @@ const eventNames = [
   "role.changed",
   "version.created",
   "dashboard.deleted",
+  "dashboard.moved",
   "comment.created",
   "comment.updated",
   "revision.updated",
   "proposal.updated",
 ] as const
 
-const hiddenGraceMs = 5 * 60_000
+const hiddenGraceMs = 15_000
 
 function cachedLatestVersion(
   queryClient: QueryClient,
@@ -184,13 +186,15 @@ export function useDashboardEvents(
           report("live")
           const cached = cachedLatestVersion(queryClient, dashboardId)
           const behind = cached !== undefined && cached < event.latestVersion
-          if (behind) {
-            invalidate(dashboardKeys.latest(dashboardId), dashboardKeys.list())
+          const reconnected = readyCount > 1
+          if (behind || reconnected) {
+            invalidate(
+              dashboardKeys.latest(dashboardId),
+              dashboardKeys.list(),
+              dashboardKeys.history(dashboardId)
+            )
           }
-          if (behind || readyCount > 1) {
-            invalidate(dashboardKeys.history(dashboardId))
-          }
-          if (readyCount > 1) {
+          if (reconnected) {
             invalidate(
               dashboardKeys.comments(dashboardId),
               dashboardKeys.revisions(dashboardId),
@@ -223,6 +227,9 @@ export function useDashboardEvents(
             { id: `deleted-${dashboardId}` }
           )
           void checkDashboard({ deletedBy: event.authorName })
+          return
+        case "dashboard.moved":
+          invalidate(dashboardKeys.latest(dashboardId), dashboardKeys.list())
           return
         case "comment.created":
         case "comment.updated":
@@ -334,12 +341,14 @@ export function useDashboardEvents(
     }
 
     document.addEventListener("visibilitychange", onVisibilityChange)
+    const stopWatchingCache = closeWhileCached(suspend, onVisibilityChange)
     if (document.hidden) onVisibilityChange()
     open()
 
     return () => {
       disposed = true
       document.removeEventListener("visibilitychange", onVisibilityChange)
+      stopWatchingCache()
       clearTimeout(retryTimer)
       clearTimeout(hiddenTimer)
       clearTimeout(reconnectingTimer)

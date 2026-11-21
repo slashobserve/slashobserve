@@ -330,7 +330,7 @@ func (h *Handler) create(c *gin.Context) {
 	}
 	in := CreateInput{FolderID: folderID, Title: req.Title, From: req.From, To: req.To}
 	if req.FirstBlock != nil {
-		in.FirstBlock = &BlockInput{Kind: Kind(req.FirstBlock.Kind), Body: req.FirstBlock.Body, Width: Width(req.FirstBlock.Width)}
+		in.Blocks = []BlockInput{{Kind: Kind(req.FirstBlock.Kind), Body: req.FirstBlock.Body, Width: Width(req.FirstBlock.Width)}}
 	}
 	o, err := h.service.Create(c.Request.Context(), httpapi.Caller(c), in)
 	if err != nil {

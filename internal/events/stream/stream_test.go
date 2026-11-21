@@ -93,11 +93,16 @@ var eventViewer = auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleV
 
 func newEventServer(t *testing.T, sessions Principals, access Access, caller auth.Principal, extra func(auth.Routes)) *httptest.Server {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
 	broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
 	t.Cleanup(broker.Close)
+	return serveEvents(t, broker, testPing, sessions, access, caller, extra)
+}
+
+func serveEvents(t *testing.T, broker *events.Broker, ping time.Duration, sessions Principals, access Access, caller auth.Principal, extra func(auth.Routes)) *httptest.Server {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
 	h := NewHandler(broker, fakeDashboards{}, sessions, access, allowAll, slog.New(slog.DiscardHandler))
-	h.pingInterval = testPing
+	h.pingInterval = ping
 	h.roleInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
@@ -390,4 +395,70 @@ func TestStreamTellsTheClientWhenItsRoleChanges(t *testing.T) {
 	sessions.role.Store(auth.RoleEditor)
 	s.waitFor(t, "event: role.changed")
 	s.waitFor(t, `data: {"dashboard_id":"`+dashboardID+`","role":"editor"}`)
+}
+
+type feed chan string
+
+func (f feed) listen(ctx context.Context, _ string, _ func(), handle func(string)) error {
+	for {
+		select {
+		case payload := <-f:
+			handle(payload)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func openFedStream(t *testing.T, access Access) (*openStream, feed) {
+	t.Helper()
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	notices := make(feed, 1)
+	broker := events.NewBroker(notices.listen, slog.New(slog.DiscardHandler))
+	go broker.Run(t.Context())
+	t.Cleanup(broker.Close)
+	s := followEvents(t, serveEvents(t, broker, time.Hour, sessions, access, eventViewer, nil), "")
+	s.waitFor(t, "event: ready")
+	return s, notices
+}
+
+const movedNotice = `{"type":"dashboard.moved","dashboard_id":"` + dashboardID + `","author":{"kind":"user","id":"u2","name":"Grace"}}`
+
+func TestStreamDeliversAMoveToACallerWhoStillSeesTheDashboard(t *testing.T) {
+	s, notices := openFedStream(t, newFakeAccess())
+	notices <- movedNotice
+	s.waitFor(t, "event: dashboard.moved")
+}
+
+func TestStreamEndsInsteadOfDeliveringAMoveTheCallerCanNoLongerSee(t *testing.T) {
+	cases := []struct {
+		name   string
+		revoke func(*fakeAccess)
+	}{
+		{"view removed", func(a *fakeAccess) { a.view.Store(false) }},
+		{"folder access removed", func(a *fakeAccess) { a.err.Store(&folders.ErrNoAccess) }},
+		{"access lookup failed", func(a *fakeAccess) { a.failNext.Store(1) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			access := newFakeAccess()
+			s, notices := openFedStream(t, access)
+			tc.revoke(access)
+			notices <- movedNotice
+			timeout := time.After(waitTimeout)
+			for {
+				select {
+				case line := <-s.lines:
+					if strings.Contains(line, "dashboard.moved") || strings.Contains(line, "Grace") {
+						t.Fatalf("the stream sent %q to a caller who lost the dashboard", line)
+					}
+				case <-s.done:
+					return
+				case <-timeout:
+					t.Fatal("the stream stayed open after a move the caller can no longer see")
+				}
+			}
+		})
+	}
 }

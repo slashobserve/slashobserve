@@ -19,8 +19,7 @@ const listChangeTypes = [
 
 function useLiveInvalidation(
   types: readonly string[],
-  keys: readonly QueryKey[],
-  dashboardId?: string
+  keys: readonly QueryKey[]
 ) {
   const queryClient = useQueryClient()
   const visible = useDocumentVisible()
@@ -40,7 +39,6 @@ function useLiveInvalidation(
     }, debounceMs)
   }
   useActivityStream({
-    dashboardId,
     types,
     enabled: visible,
     onEvent: refresh,
@@ -53,12 +51,4 @@ export function useDashboardListLive() {
     dashboardKeys.list(),
     dashboardKeys.titles(),
   ])
-}
-
-export function useDashboardMovedLive(dashboardId: string) {
-  useLiveInvalidation(
-    ["dashboard.moved"],
-    [dashboardKeys.latest(dashboardId), dashboardKeys.list()],
-    dashboardId
-  )
 }

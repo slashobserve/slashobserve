@@ -51,7 +51,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - Editors arrange the selected panel directly; the layout session opens on load at the latest version (`ensure` in `web/src/dashboards/edit/layout-store.ts`, which also rebases it onto a newer version) and `UnsavedBar` saves it.
   On the dashboard page `editing` means the session has unsaved moves, and it alone greys the other actions ("finish the layout first"); `arranging` means the Editor may move the selected panel now.
   The selected panel (`web/src/dashboards/selection-store.ts`) shows `PanelToolbar`, whose buttons and the panel menu call the same helpers in `web/src/dashboards/panel-actions.ts`.
-- Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal.
+- Panel data requests go through `panelRequestLimiter` (4 concurrent): the proxy allows 8 in-flight requests per principal, and over HTTP/1.1 the browser opens 6 connections per origin, so with the page's one event stream a save or other write always finds a free connection.
+  A page holds at most one long-lived stream for the same reason: a dashboard's changes, its move included, arrive on its own event stream.
 - `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
 - `useDatasources()` returns the list a `DatasourceListProvider` holds without a request, and fetches `GET /api/v1/datasources` only outside one.

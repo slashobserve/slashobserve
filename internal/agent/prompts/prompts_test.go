@@ -21,7 +21,10 @@ var sectionHeadings = map[spec.DatasourceType]string{
 	spec.Elasticsearch: searchHeading,
 }
 
-const searchHeading = "## Elasticsearch and OpenSearch (KQL, Lucene, Query DSL)"
+const (
+	searchHeading = "## Elasticsearch and OpenSearch (KQL, Lucene, Query DSL)"
+	auditHeading  = "## The audit trail (`slashobserve-audit`)"
+)
 
 func TestGuideForNoTypesIsTheCore(t *testing.T) {
 	core := prompts.GuideFor(nil)
@@ -90,10 +93,26 @@ func TestSearchSectionAppearsOnceForEitherOrBothSearchTypes(t *testing.T) {
 	}
 }
 
+func TestTheAuditSectionComesOnlyWithTheBuiltInDatasource(t *testing.T) {
+	builtIn := prompts.GuideFor(prompts.GuideTypes(string(spec.OpenSearch), true))
+	want := strings.TrimRight(prompts.GuideFor(nil), "\n") + "\n\n" + section(t, "search") + "\n\n" + section(t, "audit") + "\n"
+	if builtIn != want {
+		t.Errorf("the built-in datasource's guide is not the core, the search section and the audit section")
+	}
+	for name, guide := range map[string]string{
+		"an OpenSearch datasource": prompts.GuideFor(prompts.GuideTypes(string(spec.OpenSearch), false)),
+		"the investigate guide":    prompts.SpecGuide(),
+	} {
+		if strings.Contains(guide, auditHeading) {
+			t.Errorf("%s holds the audit section", name)
+		}
+	}
+}
+
 func TestGuideFilesAreSectionsWithoutEmDashes(t *testing.T) {
 	files, err := fs.Glob(promptFiles, "guide/*.md")
-	if err != nil || len(files) != len(sectionHeadings) {
-		t.Fatalf("guide files = %v, %v; want %d", files, err, len(sectionHeadings))
+	if err != nil || len(files) != len(sectionHeadings)+1 {
+		t.Fatalf("guide files = %v, %v; want %d", files, err, len(sectionHeadings)+1)
 	}
 	for _, name := range append(files, "spec_guide.md") {
 		body, err := fs.ReadFile(promptFiles, name)

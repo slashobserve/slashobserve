@@ -129,7 +129,8 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
 An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`, each once per reader in 10 minutes.
-`chats archive <chat-id>` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
+`chats archive <chat-id> --yes` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
+It needs `--yes` because nothing brings an archived chat back to the lists, and only the chat's owner can do it: an Admin who can read it gets `chat_read_only`.
 
 ### Discovering what a datasource holds
 
@@ -600,7 +601,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 
 ## Datasources
 
-`bin/observe datasources list` prints each datasource's uid, type, name, health, source (`file` or `app`), the dashboards that use it and when it was last checked.
+`bin/observe datasources list` prints each datasource's uid, type, name, health, source (`file` or `app`), who can query it (`everyone` or `admins`, in an Audience column only an Admin key sees), the dashboards that use it and when it was last checked.
 An unhealthy one shows the failure and, when the server knows it, the cause.
 `bin/observe datasources recheck <uid>` skips the server's 10 second health cache, prints the new status and exits 1 while the datasource is unhealthy.
 Any role can list and recheck; `--json` prints the API response.

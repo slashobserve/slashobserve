@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -80,7 +81,17 @@ func TestTheChatRoutesMatchTheDocumentAndServeOnlyTheOwner(t *testing.T) {
 	if err := json.Unmarshal(admin.call(t, http.MethodGet, chat, "", http.StatusOK).Body.Bytes(), &read); err != nil || !read.Chat.ReadOnly || read.Chat.Owner.Name != user.Name {
 		t.Fatalf("an Admin read %+v, %v", read, err)
 	}
-	admin.call(t, http.MethodDelete, chat, "", http.StatusNotFound)
+	for _, refused := range []*httptest.ResponseRecorder{
+		admin.call(t, http.MethodDelete, chat, "", http.StatusForbidden),
+		admin.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"mine now","chat_id":"`+first.String()+`"}`, http.StatusForbidden),
+	} {
+		var body struct {
+			Code string `json:"code"`
+		}
+		if err := json.Unmarshal(refused.Body.Bytes(), &body); err != nil || body.Code != revisions.CodeChatReadOnly {
+			t.Fatalf("an Admin changing someone else's chat got %s, %v; want code %s", refused.Body, err, revisions.CodeChatReadOnly)
+		}
+	}
 	var theirs chatPage
 	if err := json.Unmarshal(admin.call(t, http.MethodGet, "/api/v1/chats", "", http.StatusOK).Body.Bytes(), &theirs); err != nil || len(theirs.Chats) != 1 || theirs.Chats[0].ID == first.String() {
 		t.Fatalf("an Admin listed %+v, %v", theirs, err)

@@ -188,6 +188,22 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 	return chat, turns, nil
 }
 
+func chatRefusal(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, id pgtype.UUID) error {
+	if !by.Role.AtLeast(auth.RoleAdmin) {
+		return ErrChatNotFound
+	}
+	row, err := q.GetChat(ctx, dbsqlc.GetChatParams{ID: id})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrChatNotFound
+	case err != nil:
+		return fmt.Errorf("get chat: %w", err)
+	case row.ArchivedAt.Valid:
+		return ErrChatNotFound
+	}
+	return ErrChatReadOnly
+}
+
 func (s *Service) ArchiveChat(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
 	ownerID, err := db.ParseUUID(by.ID)
 	if err != nil {
@@ -201,11 +217,11 @@ func (s *Service) ArchiveChat(ctx context.Context, by auth.Principal, id pgtype.
 		row, err := q.ArchiveChat(ctx, dbsqlc.ArchiveChatParams{ID: id, OwnerKind: string(by.Kind), OwnerID: ownerID})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return ErrChatNotFound
+			return chatRefusal(ctx, q, by, id)
 		case err != nil:
 			return fmt.Errorf("archive chat: %w", err)
 		}
 		target := audit.Target{Kind: "chat", ID: row.ID.String(), DashboardID: nullUUID(row.DashboardID), ObservationID: nullUUID(row.ObservationID)}
-		return audit.Record(ctx, q, audit.Event{Action: actionChatDelete, Target: target, Chat: uuid.NullUUID{UUID: row.ID.Bytes, Valid: true}, By: columns.AuditBy()})
+		return audit.Record(ctx, q, audit.Event{Action: actionChatArchive, Target: target, Chat: uuid.NullUUID{UUID: row.ID.Bytes, Valid: true}, By: columns.AuditBy()})
 	})
 }

@@ -33,8 +33,10 @@ func buildView(current *Revision, build *dashboards.Build) *Revision {
 func systemFor(statuses []datasource.Status) string {
 	var types []spec.DatasourceType
 	for _, s := range statuses {
-		if t := spec.DatasourceType(s.Type); !slices.Contains(types, t) {
-			types = append(types, t)
+		for _, t := range prompts.GuideTypes(s.Type, s.Source == datasource.SourceBuiltin) {
+			if !slices.Contains(types, t) {
+				types = append(types, t)
+			}
 		}
 	}
 	return prompts.Build(types)

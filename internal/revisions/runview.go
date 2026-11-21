@@ -353,10 +353,10 @@ func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
 }
 
 func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
-	if !readsTheChat(row, caller) {
+	if !row.ChatID.Valid || !readsTheChat(row, caller) {
 		return nil
 	}
-	chat := chatOf(row.ID, row.ChatID)
+	chat := row.ChatID.String()
 	return &chat
 }
 
@@ -410,7 +410,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 
 		ObservationID:    visibleObservationID(row),
 		ObservationTitle: optionalText(row.ObservationTitle),
-		ChatID:           chatOf(row.ID, row.ChatID),
+		ChatID:           optionalUUID(row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
 	if row.DashboardID.Valid {

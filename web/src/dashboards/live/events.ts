@@ -12,6 +12,7 @@ export type DashboardEvent =
   | { type: "dashboard.deleted"; dashboardId: string; authorName: string }
   | {
       type:
+        | "dashboard.moved"
         | "comment.created"
         | "comment.updated"
         | "revision.updated"
@@ -78,6 +79,7 @@ export function parseEvent(
         authorName: authorNameOf(raw),
       }
     }
+    case "dashboard.moved":
     case "comment.created":
     case "comment.updated":
     case "revision.updated":

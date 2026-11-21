@@ -1281,7 +1281,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment when a thread is resolved or reopened, and the edited message, with `parent_id` when it is a reply, when a message is edited. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text. `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping. `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end. `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -1585,14 +1585,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a datasource added in the app.
-         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         delete: operations["deleteDatasource"];
         options?: never;
         head?: never;
         /**
          * Change a datasource added in the app.
-         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         patch: operations["updateDatasource"];
         trace?: never;
@@ -1608,7 +1608,7 @@ export interface paths {
         };
         /**
          * Read the definition of a datasource added in the app.
-         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         get: operations["getDatasourceConfig"];
         put?: never;
@@ -2185,7 +2185,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to build a new dashboard, revise an existing one with a follow-up prompt, or investigate a question.
-         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a build with `dashboard_id`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). With `kind` `ask` the request is a private ask about `dashboard_id` or `observation_id`, one of them: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins. `panel_id`, `from`, `to` and `observation_id` need `kind` `ask` or `investigate`, `kind` must be `build`, `ask` or `investigate`, `base_version` is not allowed for an ask or an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. When the prompt only asks a question, such as which logs exist, the agent may answer with a finding instead: the request succeeds with `finding` set and `dashboard_id`, `result_version` and `observation_id` null, and `kind` stays `build`. That answer makes no observation: it stays on the request, read by the requester and Admins, until the requester saves it with `POST /observe/{id}/observation`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it. Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees. With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`). Without `chat_id` a new chat starts under the request's own id, except a build with `dashboard_id`, which joins your most recent live chat on that dashboard when there is one. The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back. `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat. `follows_id` excludes `dashboard_id` and `chat_id`. `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`. `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`). When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard. With `kind` `investigate` the agent reads data and ends by saving a finding (`source` is `investigate`), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`). A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`). Every investigation gets an observation when it is queued, the one named by `observation_id` or a new one, and the request carries its id as `observation_id`, which is null for a reader who cannot open that observation; a new observation goes in the dashboard's folder when you can edit it, else in your own folder, and without any folder to write in the run has no observation and `observation_id` is null. A named `observation_id` must be visible to you (404 `not_found`) and allow at least commenting on it (403 `forbidden_role`). With `kind` `ask` the request is a private ask about `dashboard_id` or `observation_id`, one of them: the agent reads data and answers with a finding, but writes nothing shared, so no observation is opened or written, no version is saved and the investigation caps do not apply. A private ask needs Comment on what it is about (403 `forbidden_role`), and its request and answer are read only by you and, read only, by Admins. `panel_id`, `from`, `to` and `observation_id` need `kind` `ask` or `investigate`, `kind` must be `build`, `ask` or `investigate`, `base_version` is not allowed for an ask or an investigation, `panel_id` needs `dashboard_id`, and `from` and `to` go together, must be relative times or epoch milliseconds, `from` must be before `to`, and the range may be at most 400 days; each broken rule answers 400 `invalid_request`. `time_zone` names the IANA time zone the person reads times in, such as `Asia/Kolkata`: the agent writes every time in its answer in that zone with the zone's label, a retry or continue keeps it, and without it, or with `UTC`, times are written in UTC; an unknown zone answers 400 `invalid_request`. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["createObserveRequest"];
         delete?: never;
@@ -2232,7 +2232,7 @@ export interface paths {
         post?: never;
         /**
          * Archive one of your chats and every turn in it, so they leave your lists.
-         * @description Only the chat's owner may archive it; anyone else, an Admin included, gets 404 and nothing changes. Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept. A new request with this `chat_id` answers 404 afterwards.
+         * @description Only the chat's owner may archive it; an Admin who can read the chat gets 403 `chat_read_only`, anyone else gets 404, and nothing changes. The web app calls this action Delete; the rows are kept and marked archived, so `observe chats archive` and the audit trail's `chat.archive` event both name this archive. Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept. A new request with this `chat_id` answers 404 afterwards.
          */
         delete: operations["archiveChat"];
         options?: never;
@@ -4241,6 +4241,8 @@ export interface components {
         Error: {
             error: string;
             code: string;
+            /** @description Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource. */
+            datasource?: string;
             /** @description Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`. The `error` message names the field and says what to change. */
             reason?: string;
             /**
@@ -4868,10 +4870,10 @@ export interface components {
             type: string;
             name: string;
             /**
-             * @description `file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app.
+             * @description `file` for an entry of the datasources file, which only the server's operator changes, `app` for one an Admin added in the app, and `builtin` for the audit trail datasource every server has, which only Admins see and nobody changes or deletes.
              * @enum {string}
              */
-            source: "file" | "app";
+            source: "file" | "app" | "builtin";
             /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
@@ -5026,7 +5028,7 @@ export interface components {
                 folder_id: string;
                 folder_title: string;
             }[];
-            /** @description How many more items that block a datasource change are in folders other people can read and are not in `items`; 0 when the list is complete, absent when `items` is. */
+            /** @description How many more items that block the change are not in `items`; 0 when the list is complete, absent when `items` is. */
             unlisted?: number;
             /** @description How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none. */
             hidden?: number;
@@ -6613,7 +6615,7 @@ export interface components {
             to: string | null;
             /**
              * Format: uuid
-             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for a run an ask in a thread started, which is shared work in that thread and belongs to no chat, and for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
              */
             chat_id: string | null;
             /**
@@ -6763,9 +6765,9 @@ export interface components {
             observation_title: string | null;
             /**
              * Format: uuid
-             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Null for a run an ask in a thread started, which belongs to no chat.
              */
-            chat_id: string;
+            chat_id: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
@@ -10425,7 +10427,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10687,7 +10689,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
+            /** @description The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`, with `items` listing up to 20 of it and `unlisted` counting the rest), or `admins_only` would close a folder holding a dashboard or an observation with an unexpired public link (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12483,7 +12485,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description `base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            /** @description `base` names a datasource from the file or the built-in audit datasource (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12526,7 +12528,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`). */
+            /** @description The datasource is from the file or built in (`datasource_read_only`), or something uses it (`datasource_in_use`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12574,7 +12576,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
+            /** @description The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12619,7 +12621,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`). */
+            /** @description The datasource is from the file or built in (`datasource_read_only`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14630,6 +14632,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -16411,7 +16414,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links. */
+            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links; the `datasource` field names an Admins-only datasource it reads, which keeps it in that folder. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -18224,7 +18227,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard is in My Dashboards (`personal_folder`) or in a folder only Admins can read (`admins_only_folder`); move it to a shared folder first. */
+            /** @description The dashboard is in My Dashboards (`personal_folder`; move it to a shared folder first) or in a folder only Admins can read (`admins_only_folder`; move it to a folder that is not Only Admins, unless it reads an Admins-only datasource, which the `datasource` field names and which keeps it where it is). */
             409: {
                 headers: {
                     [name: string]: unknown;

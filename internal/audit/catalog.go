@@ -77,6 +77,7 @@ var (
 	providerKeys = []string{"provider_error"}
 	overflowKeys = []string{"overflow"}
 	streamKeys   = []string{"stream"}
+	windowKeys   = []string{"from", "to"}
 	tokenKeys    = []string{"grant_type"}
 	deliverKeys  = []string{"event_type"}
 
@@ -164,7 +165,7 @@ var catalog = map[Action]Spec{
 	"thread.agent_set":            change(CategoryConversation),
 	"chat.create":                 change(CategoryConversation),
 	"chat.turn":                   change(CategoryConversation),
-	"chat.delete":                 change(CategoryConversation),
+	"chat.archive":                change(CategoryConversation),
 	"run.share":                   change(CategoryConversation),
 	"run.withdraw":                change(CategoryConversation),
 	"finding.apply":               change(CategoryConversation),
@@ -182,7 +183,7 @@ var catalog = map[Action]Spec{
 	"run.archive":     change(CategoryAgent),
 	"agent.tool_call": access(CategoryAgent),
 
-	"query.run": access(CategoryQuery, streamKeys),
+	"query.run": access(CategoryQuery, streamKeys, windowKeys),
 
 	"user.role_change":           change(CategoryAdmin, personKeys),
 	"user.sign_out_everywhere":   change(CategoryAdmin, personKeys),

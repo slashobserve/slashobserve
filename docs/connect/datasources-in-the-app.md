@@ -14,12 +14,17 @@ A row also links to the page that reads it: **Explore logs**, **Search traces** 
 **Edit** and **Remove** appear only on datasources added in the app.
 The app also reloads its datasource list every 15 seconds while any datasource is unhealthy, which the sidebar and the Logs, Traces and Metrics source lists read, so a source that was still starting when the page loaded shows as available once it answers.
 
-## Two sources
+## Where a datasource comes from
 
 Entries in the [datasources file](../reference/datasources-file.md) show as "From file".
 They are read once at startup and are read-only in the app.
 Datasources added in the app show as "Added in the app".
 When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
+
+Every server also has one built-in datasource, the audit trail, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
+Only Admins see it, nobody can edit or remove it, and `PATCH`, `DELETE` and `GET /api/v1/datasources/slashobserve-audit/config` answer `409 datasource_read_only`.
+A file entry with that uid stops the server at startup, and an app datasource with it is not loaded.
+[Audit queries](../reference/audit-queries.md#the-audit-datasource) describes what it answers.
 
 ## Who can query it
 
@@ -40,7 +45,7 @@ Content in any other folder is read as everyone reads it, by Admins too: a panel
 Only content in a folder only Admins can read, the explore query, panel drafts and agent builds read with the Admin's own role.
 
 Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
-`items` lists up to 20 of them outside people's My Dashboards with their kind, id, title and folder, so an Admin can move them first, the message says how many more are not listed, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
+`items` lists up to 20 of them outside people's My Dashboards with their kind, id, title and folder, so an Admin can move them first, `unlisted` and the message say how many more are not listed, and `hidden` counts the ones in people's My Dashboards, which only their owners can move or remove and an Admin cannot see.
 `observe datasources edit` prints the same list.
 Each server checks every app datasource that is already `admins` when it starts, for content left outside such folders from before this rule: it logs one warning per datasource, `admins only datasource read outside admins only folders`, with the datasource uid and the number of items in shared folders and in people's My Dashboards, never their titles, and starts anyway.
 

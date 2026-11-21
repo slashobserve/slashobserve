@@ -107,6 +107,50 @@ func TestRowsRefuseABadWindowOrCursor(t *testing.T) {
 	}
 }
 
+func TestRowsReadOldestFirstAndSkipAnOffset(t *testing.T) {
+	q := mustParse(t, "outcome:denied")
+	id := uuid.MustParse("0193a1f0-0000-7000-8000-000000000001")
+	at := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	c, err := q.Rows(testWindow, Page{Limit: 10, Offset: 20, Ascending: true, After: &Cursor{OccurredAt: at, ID: id.String()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTail := " AND (occurred_at, id) > ($4, $5::uuid) ORDER BY occurred_at ASC, id ASC LIMIT $6 OFFSET $7"
+	if !strings.HasSuffix(c.SQL, wantTail) {
+		t.Errorf("SQL tail\n got %s\nwant ...%s", c.SQL, wantTail)
+	}
+	if got := c.Args[len(c.Args)-2:]; !reflect.DeepEqual(got, []any{11, 20}) {
+		t.Errorf("limit and offset args = %#v", got)
+	}
+	assertSafeSQL(t, c.SQL, c.Args)
+	if _, err := q.Rows(testWindow, Page{Offset: -1}); err == nil {
+		t.Error("Rows accepted a negative offset")
+	}
+}
+
+func TestCountStopsAtTheCap(t *testing.T) {
+	q := mustParse(t, "outcome:denied")
+	capped, err := q.Count(testWindow, 10001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "SELECT count(*) FROM (SELECT 1 FROM audit_events WHERE " + windowPrefix + " AND COALESCE((outcome = $3), false) LIMIT $4) matched"
+	if capped.SQL != want || capped.Args[3] != 10001 {
+		t.Errorf("capped count\n got %s %#v\nwant %s", capped.SQL, capped.Args, want)
+	}
+	assertSafeSQL(t, capped.SQL, capped.Args)
+	exact, err := q.Count(testWindow, 0)
+	if err != nil || strings.Contains(exact.SQL, "LIMIT") || len(exact.Args) != 3 {
+		t.Errorf("exact count = %s %#v, %v", exact.SQL, exact.Args, err)
+	}
+	if _, err := q.Count(testWindow, -1); err == nil {
+		t.Error("Count accepted a negative cap")
+	}
+	if _, err := q.Count(Window{}, 1); !errors.Is(err, ErrWindow) {
+		t.Errorf("Count with no window error = %v", err)
+	}
+}
+
 func TestFollowReadsInCommitOrderAfterAPosition(t *testing.T) {
 	q, err := Parse("outcome:denied")
 	if err != nil {

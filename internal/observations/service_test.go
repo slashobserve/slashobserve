@@ -89,7 +89,7 @@ func TestCreatingValidatesTheTitleAndTheRange(t *testing.T) {
 func TestCreatingWithAFirstBlockWritesBothInOneTransaction(t *testing.T) {
 	r := newRig(t)
 	o, err := r.service.Create(reading(t.Context()), editor, observations.CreateInput{
-		FolderID: r.shared, Title: "t", FirstBlock: &observations.BlockInput{Kind: observations.KindText, Body: textBody("Start here")},
+		FolderID: r.shared, Title: "t", Blocks: []observations.BlockInput{{Kind: observations.KindText, Body: textBody("Start here")}},
 	})
 	if err != nil || len(o.Blocks) != 1 || o.Blocks[0].State != observations.BlockLive || o.Blocks[0].Position != 0 {
 		t.Fatalf("created %+v, %v", o.Blocks, err)
@@ -99,7 +99,7 @@ func TestCreatingWithAFirstBlockWritesBothInOneTransaction(t *testing.T) {
 		t.Errorf("activity %v, want %v", got, want)
 	}
 	_, err = r.service.Create(reading(t.Context()), editor, observations.CreateInput{
-		FolderID: r.shared, Title: "bad", FirstBlock: &observations.BlockInput{Kind: observations.KindText, Body: textBody("")},
+		FolderID: r.shared, Title: "bad", Blocks: []observations.BlockInput{{Kind: observations.KindText, Body: textBody("")}},
 	})
 	var invalid *observations.InvalidInputError
 	if !errors.As(err, &invalid) {

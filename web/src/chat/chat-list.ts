@@ -53,18 +53,22 @@ function find(parent: Map<string, string>, node: string): string {
   return root
 }
 
+function chatNode(request: RequestSummary): string {
+  return `chat:${request.chat_id ?? request.id}`
+}
+
 function conversationKeys(
   requests: readonly RequestSummary[]
 ): Map<string, string> {
   const parent = new Map<string, string>()
   const nodeOf = (request: RequestSummary) =>
     request.dashboard_id === null
-      ? `chat:${request.chat_id}`
+      ? chatNode(request)
       : `dashboard:${request.dashboard_id}`
   const turns = requests.filter(isChatTurn)
   for (const request of turns) {
     if (request.dashboard_id === null) continue
-    const chat = find(parent, `chat:${request.chat_id}`)
+    const chat = find(parent, chatNode(request))
     const dashboard = find(parent, nodeOf(request))
     if (chat !== dashboard) parent.set(chat, dashboard)
   }

@@ -465,3 +465,45 @@ func TestOneQuestionInThreeFormsReturnsTheSameRows(t *testing.T) {
 		}
 	}
 }
+
+func TestRowsReadOldestFirstFromAnOffset(t *testing.T) {
+	ctx, conn := connect(t)
+	c, err := parse(t, "").Rows(window(), filter.Page{Limit: 2, Offset: 1, Ascending: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rowNumbers(ctx, t, conn, c); !reflect.DeepEqual(got, []int{2, 3, 4}) {
+		t.Fatalf("rows = %v, want the oldest skipped and the page plus one", got)
+	}
+}
+
+func TestCountMatchesUpToTheCap(t *testing.T) {
+	ctx, conn := connect(t)
+	for _, tc := range []struct {
+		text string
+		upTo int
+		want int64
+	}{
+		{"", 0, 5},
+		{"", 3, 3},
+		{"outcome:denied", 0, 2},
+	} {
+		c, err := parse(t, tc.text).Count(window(), tc.upTo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var n int64
+		if err := conn.QueryRow(ctx, c.SQL, c.Args...).Scan(&n); err != nil || n != tc.want {
+			t.Errorf("Count(%q, %d) = %d, %v; want %d", tc.text, tc.upTo, n, err, tc.want)
+		}
+	}
+}
+
+func TestDateHistogramBucketsStartAtLocalMidnight(t *testing.T) {
+	ctx, conn := connect(t)
+	rows := aggregate(ctx, t, conn, `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1d","time_zone":"Asia/Kolkata"}}}}`)
+	want := time.Date(2026, 10, 31, 18, 30, 0, 0, time.UTC)
+	if len(rows) != 1 || !rows[0].keys[0].(time.Time).Equal(want) || rows[0].count != 5 {
+		t.Fatalf("rows = %+v, want one bucket at %s holding all five events", rows, want)
+	}
+}

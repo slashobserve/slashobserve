@@ -35,6 +35,17 @@ describe("parseEvent dashboard.deleted", () => {
   })
 })
 
+describe("parseEvent dashboard.moved", () => {
+  it("reads the dashboard id", () => {
+    expect(
+      parseEvent(
+        "dashboard.moved",
+        '{"type":"dashboard.moved","dashboard_id":"d1","author":{"kind":"user","id":"u1","name":"Ana"}}'
+      )
+    ).toEqual({ type: "dashboard.moved", dashboardId: "d1" })
+  })
+})
+
 describe("parseEvent proposal.updated", () => {
   it("reads the dashboard id", () => {
     expect(

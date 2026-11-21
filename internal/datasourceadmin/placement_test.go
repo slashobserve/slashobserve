@@ -61,3 +61,11 @@ VALUES ('metrics', $1, 'payroll', 'up', 'now-1h', 'now', $2::uuid, 'user', gen_r
 		t.Fatalf("after moving = %d %s", done.Code, done.Body)
 	}
 }
+
+func TestTheInUseRefusalCountsItsUsersInTheRightNumber(t *testing.T) {
+	one := (&InUseError{UID: "audit", Hidden: 1}).Error()
+	many := (&InUseError{UID: "audit", Users: []User{{}}, Hidden: 2}).Error()
+	if one != `datasource "audit" is used by 1 dashboard or saved search` || many != `datasource "audit" is used by 3 dashboards and saved searches` {
+		t.Errorf("%q, %q", one, many)
+	}
+}

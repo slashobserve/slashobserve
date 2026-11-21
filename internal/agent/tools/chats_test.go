@@ -122,6 +122,14 @@ func TestGetChatAnswersNotFoundForAChatThatIsNotYours(t *testing.T) {
 	}
 }
 
+func TestStartRunInAChatOnlyAnOwnerMayAskInAnswersReadOnlyNotNotFound(t *testing.T) {
+	runs := &fakeRuns{err: revisions.ErrChatReadOnly}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"and now?","chat_id":"`+runID+`"}`)
+	if code := errorCode(t, res); code != revisions.CodeChatReadOnly {
+		t.Fatalf("code = %q, want %q", code, revisions.CodeChatReadOnly)
+	}
+}
+
 func TestChatToolsAreMCPOnlyReadOnlyAndNeedAViewer(t *testing.T) {
 	byName := map[string]Tool{}
 	for _, tool := range New(Deps{}).List() {

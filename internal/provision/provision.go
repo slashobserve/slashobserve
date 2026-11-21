@@ -41,7 +41,7 @@ var (
 	ErrDirUnreadable = errors.New("the provisioning directory cannot be read")
 )
 
-var principal = auth.Principal{
+var Principal = auth.Principal{
 	Kind: auth.KindServiceAccount,
 	ID:   "6f1e0c52-7072-4f76-8973-696f6e696e67",
 	Name: "Provisioning",
@@ -232,7 +232,7 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 		if err != nil {
 			return p.fail(ctx, f, found, err)
 		}
-		_, ver, _, err := p.dashboards.AddVersion(ctx, principal, row.DashboardID, latest, raw, summary)
+		_, ver, _, err := p.dashboards.AddVersion(ctx, Principal, row.DashboardID, latest, raw, summary)
 		if err != nil {
 			return p.fail(ctx, f, found, err)
 		}
@@ -240,11 +240,11 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 		p.saves++
 		return false, p.store.saved(ctx, f.Path, row.DashboardID, sum, row.FolderTitle)
 	}
-	target, err := p.folders.ForImport(ctx, principal, f.Folder)
+	target, err := p.folders.ForImport(ctx, Principal, f.Folder)
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}
-	dash, ver, err := p.dashboards.Create(ctx, principal, target.Folder.ID, raw, summary)
+	dash, ver, err := p.dashboards.Create(ctx, Principal, target.Folder.ID, raw, summary)
 	if err != nil {
 		return p.fail(ctx, f, found, err)
 	}

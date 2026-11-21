@@ -87,6 +87,7 @@ func (r *Registry) getRun(ctx context.Context, input json.RawMessage) (Result, e
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Run(ctx, id, principal, runStepLimit)
 	if err != nil {
+		r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
 		switch {
 		case errors.Is(err, revisions.ErrRequestNotFound), errors.Is(err, revisions.ErrNotFound),
 			errors.Is(err, revisions.ErrDashboardNotFound), errors.Is(err, folders.ErrNotFound):
@@ -248,6 +249,7 @@ func (r *Registry) getRunBuild(ctx context.Context, input json.RawMessage) (Resu
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Build(ctx, id, principal)
 	if err != nil {
+		r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
 		return runFailure(err)
 	}
 	return success("Read the build of run "+id.String(), raw), nil

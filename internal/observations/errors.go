@@ -2,6 +2,7 @@ package observations
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -64,3 +65,12 @@ func invalid(code, message string) *InvalidInputError {
 func invalidText(code string, cause error) *InvalidInputError {
 	return &InvalidInputError{Code: code, Message: cause.Error(), Cause: cause}
 }
+
+type BlockError struct {
+	Index int
+	Err   error
+}
+
+func (e *BlockError) Error() string { return fmt.Sprintf("block %d: %v", e.Index, e.Err) }
+
+func (e *BlockError) Unwrap() error { return e.Err }

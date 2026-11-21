@@ -407,6 +407,10 @@ components:
           type: string
         code:
           type: string
+        datasource:
+          type: string
+          description: >-
+            Present with `admins_only_folder` when the content reads an Admins-only datasource, so it cannot leave its folder and public links are not available for it; the uid of that datasource.
         reason:
           type: string
           description: >-
@@ -1614,8 +1618,8 @@ components:
           type: string
         source:
           type: string
-          enum: [file, app]
-          description: "`file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app."
+          enum: [file, app, builtin]
+          description: "`file` for an entry of the datasources file, which only the server's operator changes, `app` for one an Admin added in the app, and `builtin` for the audit trail datasource every server has, which only Admins see and nobody changes or deletes."
         index:
           type: string
           description: The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types.
@@ -1896,7 +1900,7 @@ components:
         unlisted:
           type: integer
           minimum: 0
-          description: How many more items that block a datasource change are in folders other people can read and are not in `items`; 0 when the list is complete, absent when `items` is.
+          description: How many more items that block the change are not in `items`; 0 when the list is complete, absent when `items` is.
         hidden:
           type: integer
           minimum: 1
@@ -4903,7 +4907,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for a run an ask in a thread started, which is shared work in that thread and belongs to no chat, and for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
         observation_id:
           type: string
           format: uuid
@@ -5162,7 +5166,8 @@ components:
         chat_id:
           type: string
           format: uuid
-          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
+          nullable: true
+          description: The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Null for a run an ask in a thread started, which belongs to no chat.
         origin:
           type: string
           enum: [web, cli, mcp, api]

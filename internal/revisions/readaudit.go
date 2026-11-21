@@ -26,11 +26,10 @@ func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by
 		audit.Skip(ctx)
 		return
 	}
-	chat := chatRoot(row.ID, row.ChatID)
 	s.recordFirstRead(ctx, audit.Event{
 		Action: actionRunView,
 		Target: audit.Target{Kind: "run", ID: row.ID.String(), DashboardID: nullUUID(row.DashboardID), ObservationID: nullUUID(row.ObservationID)},
-		Chat:   nullUUID(chat),
+		Chat:   nullUUID(row.ChatID),
 		Data:   map[string]any{"owner_id": row.RequestedByID.String()},
 	})
 }
