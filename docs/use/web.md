@@ -192,7 +192,7 @@ At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask*
 **Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
 In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
-On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
+On a time series, a heatmap, a state timeline or a status history, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
@@ -215,14 +215,14 @@ Each panel type names the finest part of itself that it draws, and a pin follows
 
 | Panel | A click names | The pin follows |
 |---|---|---|
-| Time series | A point on a line, a line, or a moment in time | The series and the time |
+| Time series | A point on a line, a line, a moment in time, or a dragged range | The series and the time, or the range |
 | Bar chart | A bar, a stacked segment or a category | The category and the series |
 | Histogram | A bucket | The bucket's edges |
-| Heatmap | A cell | The cell's time step and bucket |
+| Heatmap | A cell, or a dragged range of time | The cell's time step and bucket, or the range |
 | Pie chart | A slice | The slice's name |
 | Stat, Gauge, Bar gauge | The value under the pointer | The value's series |
 | Table | A column header, or a row with the value under the pointer | The row's identifying cells and the column |
-| State timeline, Status history | A state at a time, or a row | The row and the time |
+| State timeline, Status history | A state at a time, a row, or a dragged range of time | The row and the time, or the range |
 | Logs | A log line | The line |
 | Traces | A span | The span |
 | Alert list | An alert, in the list view | The alert's name and labels |
