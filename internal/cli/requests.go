@@ -71,7 +71,7 @@ func (a *app) requestsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List agent requests, newest first",
-		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, intent, dashboard and, in AT, the spot a question points at.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.\n--anchored keeps only your own requests that point at a spot, and --observation only the questions asked about one observation; --anchored with --scope all is refused.",
+		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, intent, dashboard and, in AT, the spot a question points at.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.\n--anchored keeps only your own requests that point at a spot, and --observation only the requests asked about one observation or written into it; --anchored with --scope all is refused.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := page.check(); err != nil {
@@ -118,7 +118,7 @@ func (a *app) requestsListCommand() *cobra.Command {
 	flags.StringVar(&opts.query, "q", "", "keep requests whose title or prompt contains this text")
 	flags.BoolVar(&opts.pinned, "pinned", false, "keep only pinned requests, or only unpinned ones with --pinned=false")
 	flags.StringVar(&opts.dashboard, "dashboard", "", "keep only the requests about this dashboard id")
-	flags.StringVar(&opts.observation, "observation", "", "keep only the questions asked about this observation id")
+	flags.StringVar(&opts.observation, "observation", "", "keep only the requests asked about or written into this observation id")
 	flags.BoolVar(&opts.anchored, "anchored", false, "keep only your own requests that point at a spot; needs --scope mine, which is the default")
 	return cmd
 }

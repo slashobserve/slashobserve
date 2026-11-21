@@ -304,7 +304,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
-  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (NOT sqlc.arg('anchored')::boolean OR r.anchor IS NOT NULL)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
@@ -342,7 +342,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
-  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -364,7 +364,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
-  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (NOT sqlc.arg('anchored')::boolean OR r.anchor IS NOT NULL)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
@@ -383,7 +383,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
-  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid)
+  AND (sqlc.narg('observation_id')::uuid IS NULL OR r.subject_observation_id = sqlc.narg('observation_id')::uuid OR r.observation_id = sqlc.narg('observation_id')::uuid)
   AND (sqlc.narg('pinned')::boolean IS NULL OR (r.pinned_at IS NOT NULL) = sqlc.narg('pinned')::boolean)
   AND (sqlc.narg('pattern')::text IS NULL OR r.title ILIKE sqlc.narg('pattern')::text OR r.prompt ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM findings sf
