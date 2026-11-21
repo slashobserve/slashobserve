@@ -371,24 +371,25 @@ for (const colorScheme of ["light", "dark"] as const) {
       const box = composerBox(page)
       const counter = (text: string) => card(page).getByText(text)
 
-      await box.fill("a".repeat(3499))
-      await expect(card(page).getByText(/characters? (left|over)/)).toHaveCount(
-        0
-      )
+      await box.fill("a".repeat(3599))
+      await expect(card(page).getByText(/ of 4000/)).toHaveCount(0)
 
-      await box.fill("a".repeat(3500))
-      await expect(counter("500 characters left")).toBeVisible()
       await box.fill("a".repeat(3600))
-      await expect(counter("400 characters left")).toBeVisible()
+      await expect(counter("3600 of 4000")).toBeVisible()
       await expect(sendButton(page)).toBeEnabled()
 
       await box.fill(`  ${"a".repeat(4000)}  `)
-      await expect(counter("0 characters left")).toBeVisible()
-      await expect(sendButton(page)).toBeEnabled()
+      await expect(counter("4000 of 4000")).toBeVisible()
+      await expect(box).not.toHaveAttribute("aria-invalid", "true")
 
       await box.fill("a".repeat(4001))
-      await expect(counter("1 character over")).toBeVisible()
-      await expect(sendButton(page)).toBeDisabled()
+      await expect(counter("4001 of 4000, too long")).toBeVisible()
+      await expect(box).toHaveAttribute("aria-invalid", "true")
+      await sendButton(page).click()
+      await expect(
+        card(page).getByText("Use at most 4000 characters.")
+      ).toBeVisible()
+      await expect(box).toHaveValue("a".repeat(4001))
     })
 
     test.describe("with the replay agent", () => {
