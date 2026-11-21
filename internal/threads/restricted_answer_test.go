@@ -266,3 +266,34 @@ func TestAnAnswerSavedAfterItsSubjectGainedARestrictedAnswerIsMarkedLikeIt(t *te
 		t.Fatalf("the answer saved after its subject held a restricted answer: restricted %v, %v", f.Restricted, err)
 	}
 }
+
+func TestARunThatReadAdminOnlyDataRepliesWithoutItsAnswerWhereNonAdminsRead(t *testing.T) {
+	cases := []struct {
+		name       string
+		adminsOnly bool
+		want       string
+	}{
+		{"a thread others read", false, replyRestricted},
+		{"a thread only Admins read", true, "Saved version 3 of this dashboard."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newAgentRig(t, true)
+			dash := r.createDashboard(t, "rps", "errors")
+			thread, run := r.mentionRun(t, target(KindDashboard, dash))
+			r.db.Exec(t, `UPDATE agent_requests SET read_restricted = true WHERE id = $1`, run.ID)
+			if tc.adminsOnly {
+				r.moveInto(t, "dashboards", dash, r.adminsOnlyFolder(t))
+			}
+
+			if err := r.runEnded(t, succeededWithVersion(run, 3)); err != nil {
+				t.Fatal(err)
+			}
+
+			replies := r.runReplies(t, thread)
+			if len(replies) != 1 || replies[0].Body != tc.want {
+				t.Fatalf("replies = %+v, want one with %q", replies, tc.want)
+			}
+		})
+	}
+}

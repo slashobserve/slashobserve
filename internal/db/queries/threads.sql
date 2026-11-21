@@ -45,13 +45,13 @@ WHERE m.id = @id;
 SELECT id FROM dashboards WHERE id = @id FOR KEY SHARE;
 
 -- name: LockDashboardKeyShareSkipLocked :one
-SELECT id FROM dashboards WHERE id = @id FOR KEY SHARE SKIP LOCKED;
+SELECT folder_id FROM dashboards WHERE id = @id FOR KEY SHARE SKIP LOCKED;
 
 -- name: LockObservationKeyShare :one
 SELECT id FROM observations WHERE id = @id FOR KEY SHARE;
 
 -- name: LockObservationKeyShareSkipLocked :one
-SELECT id FROM observations WHERE id = @id FOR KEY SHARE SKIP LOCKED;
+SELECT folder_id FROM observations WHERE id = @id FOR KEY SHARE SKIP LOCKED;
 
 -- name: LockProposalKeyShare :one
 SELECT id FROM proposals WHERE id = @id FOR KEY SHARE;
