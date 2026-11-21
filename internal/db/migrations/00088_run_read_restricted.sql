@@ -14,7 +14,7 @@ CREATE FUNCTION run_answer_kept_with_admins(run UUID, holders UUID[]) RETURNS BO
 LANGUAGE sql STABLE AS $$
   SELECT r.read_restricted
     OR EXISTS (SELECT 1 FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = r.dashboard_id AND NOT d.id = ANY(array_remove(holders, NULL)) AND f.admins_only)
-    OR EXISTS (SELECT 1 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id IN (r.observation_id, r.subject_observation_id) AND NOT o.id = ANY(array_remove(holders, NULL)) AND f.admins_only)
+    OR EXISTS (SELECT 1 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id IN (r.observation_id, r.subject_observation_id) AND o.run_id IS DISTINCT FROM r.id AND NOT o.id = ANY(array_remove(holders, NULL)) AND f.admins_only)
   FROM agent_requests r WHERE r.id = run
 $$;
 -- +goose StatementEnd

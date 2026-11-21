@@ -331,6 +331,7 @@ Sharing it in a thread or onto a page, saving it as an observation, pinning it, 
 The same refusal reaches MCP tools and the CLI.
 
 An answer about a dashboard or observation that sits in a folder only Admins can read, when the answer is placed, is kept the same way even when its run read nothing only Admins can query: it may go into that dashboard's or observation's own threads and page, or into a folder only Admins can read, and is refused with `409 restricted_answer` anywhere else; saving it as an observation files it in that folder.
+An observation the run made itself, such as the one its answer was saved into, is not what it is about, so its folder keeps nothing.
 A run that starts from such an answer in any of those ways is marked `restricted` too, unless it is about that same dashboard or observation, for example a later turn of the chat on a dashboard in General.
 What it was placed in then holds it as it would hold a restricted answer, so that content moves, is copied and has its folder opened only as [Folders](../teams/folders.md) describes, except the dashboard or observation the answer is about, which moves freely.
 Once the dashboard or observation has moved to a folder others read, nothing is refused.
