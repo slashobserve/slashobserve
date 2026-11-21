@@ -37,6 +37,7 @@ import {
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
 import { requestOrigin, type OriginFields } from "@/observe/request-origin"
+import { runWords } from "@/observe/run-words"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
@@ -68,6 +69,7 @@ const reconnectingAfterFailures = 2
 export type TurnSummary = OriginFields & {
   id: string
   prompt: string
+  redacted: boolean
   investigation: boolean
   status: "queued" | "running" | "succeeded" | "failed"
   state: ObserveRequest["state"]
@@ -263,6 +265,7 @@ export function RequestTurn({
   const showLive = live !== undefined && !(settled && !isTerminal(live))
   const request: TurnSummary = showLive ? live : summary
   const readsData = request.kind === "investigate"
+  const words = runWords(request)
   const investigates = request.investigation
   const detail = showLive ? live : undefined
   const build = request.build
@@ -310,7 +313,7 @@ export function RequestTurn({
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
         <ContinuedFrom summary={request} />
-        <PromptBubble prompt={request.prompt} />
+        <PromptBubble prompt={words} />
       </div>
       <div className="flex gap-3">
         <AgentMark variant="tile" />
@@ -355,6 +358,7 @@ export function RequestTurn({
                 liveText={detail?.live_text}
                 requestId={summary.id}
                 pane={inPane}
+                withMessages={words !== null}
               />
               {request.status === "running" ? (
                 <RunningFor startedAt={request.started_at} />
@@ -388,6 +392,7 @@ export function RequestTurn({
                     reconnecting={false}
                     requestId={summary.id}
                     pane={inPane}
+                    withMessages={words !== null}
                   />
                 ) : query.isError ? (
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -440,10 +445,10 @@ export function RequestTurn({
                     actions={answerActions}
                   />
                 )}
-                {detail.finding.ask_on !== null ? (
+                {detail.finding.ask_on !== null && words !== null ? (
                   <AskOnDashboard
                     askOn={detail.finding.ask_on}
-                    prompt={request.prompt}
+                    prompt={words}
                   />
                 ) : null}
               </>
@@ -463,7 +468,9 @@ export function RequestTurn({
               version={request.result_version}
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
-              partial={savedBuild ? { prompt: request.prompt } : undefined}
+              partial={
+                savedBuild && words !== null ? { prompt: words } : undefined
+              }
               addMissing={latest}
             />
           ) : null}

@@ -391,6 +391,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+			Point:           pointAgain(row, by),
 			Ask:             threadMessage.Valid,
 			Private:         AskedPrivately(row),
 
@@ -413,6 +414,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			RetriesID:       retries,
+			Point:           pointAgain(row, by),
 
 			AppliesFindingID: row.AppliesFindingID,
 
@@ -426,9 +428,16 @@ func (p InvestigateParams) again(row dbsqlc.AgentRequest, inThread bool) Investi
 		p.ObservationID = row.SubjectObservationID
 		return p
 	}
-	p.ThreadMessageID, p.ThreadContext, p.Ask = pgtype.UUID{}, "", false
+	p.ThreadMessageID, p.ThreadContext, p.Ask, p.Point = pgtype.UUID{}, "", false, Point{}
 	p.Private, p.chat = true, chatChoice{mode: newChat}
 	return p
+}
+
+func pointAgain(row dbsqlc.AgentRequest, by auth.Principal) Point {
+	if AskedPrivately(row) && !sameActor(requesterOf(row), by) {
+		return Point{}
+	}
+	return Point{Anchor: row.Anchor, BlockID: row.BlockID}
 }
 
 func investigatedObservation(row dbsqlc.AgentRequest) pgtype.UUID {

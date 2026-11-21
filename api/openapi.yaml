@@ -4157,6 +4157,7 @@ components:
         - continued_by
         - retried_by
         - continue_note
+        - redacted
         - requested_by
         - origin
         - origin_client
@@ -4188,7 +4189,7 @@ components:
           description: The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard.
         prompt:
           type: string
-          description: The follow-up text, or the comment body.
+          description: The follow-up text, or the comment body; empty when `redacted`.
         base_version:
           type: integer
           minimum: 1
@@ -4259,6 +4260,9 @@ components:
           type: string
           nullable: true
           description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
+        redacted:
+          type: boolean
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` null, while the status, times, requester, kind and saved version stay."
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -4685,6 +4689,7 @@ components:
         - canceled_by
         - can_cancel
         - read_only
+        - redacted
         - continues_id
         - continue_note
         - continued_by
@@ -4714,7 +4719,7 @@ components:
           description: "`investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding."
         title:
           type: string
-          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none.
+          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none; empty when `redacted`.
         intent:
           type: string
           enum: [ask, apply]
@@ -4728,6 +4733,7 @@ components:
           description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
+          description: The requester's text; empty when `redacted`.
         dashboard_id:
           type: string
           format: uuid
@@ -4835,6 +4841,9 @@ components:
         read_only:
           type: boolean
           description: True when the caller sees this request only because it is an Admin; nothing may be done with it.
+        redacted:
+          type: boolean
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted."
         continues_id:
           type: string
           format: uuid

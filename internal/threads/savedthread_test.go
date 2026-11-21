@@ -175,3 +175,14 @@ func TestASavedThreadAnswerIsStillReadFromTheThreadByThoseWhoCannotSeeTheSavedOb
 		}
 	}
 }
+
+func TestAReplyToASavedThreadAnswerSaysItWasSavedElsewhere(t *testing.T) {
+	r := newShareRig(t)
+	s := r.savedThreadAnswer(t)
+
+	body, err := succeededBody(reading(t.Context()), r.db.Queries(), r.runRow(t, s.run), target(KindObservation, s.about))
+
+	if err != nil || !strings.HasPrefix(body, "Saved a finding: ") {
+		t.Fatalf("a reply composed after the answer was saved in another observation reads %q, %v", body, err)
+	}
+}

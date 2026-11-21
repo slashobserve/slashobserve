@@ -474,6 +474,38 @@ describe("Conversation", () => {
     await waitFor(() => expect(reads()).toBe(before + 1))
   })
 
+  it("shows a run from someone else's private chat without its words or actions", async () => {
+    stubServer(null)
+    renderConversation({
+      ...root,
+      chat_id: null,
+      prompt: "",
+      redacted: true,
+      status: "failed",
+      state: "failed",
+      allowed_actions: [],
+      requested_by: { kind: "user", id: "u2", name: "Grace" },
+      steps: [
+        {
+          at: "2026-11-21T10:00:30Z",
+          attempt: 0,
+          phase: "discover",
+          tool: "list_metrics",
+          status: "ok",
+          message: "",
+          duration_ms: 10,
+        },
+      ],
+    } as ObserveRequest)
+    expect(await screen.findByText("Asked in a private chat")).toBeVisible()
+    await waitFor(() =>
+      expect(document.title).toBe("Asked in a private chat - SlashObserve")
+    )
+    expect(screen.queryByRole("button", { name: "Copy message" })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull()
+    expect(screen.queryByRole("textbox")).toBeNull()
+  })
+
   it("lets an Admin read another person's chat in full with no actions", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
     const { user } = renderConversation(

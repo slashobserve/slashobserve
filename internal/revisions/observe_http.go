@@ -112,6 +112,7 @@ type agentRequestJSON struct {
 	CanceledBy        *authorJSON `json:"canceled_by"`
 	CanCancel         bool        `json:"can_cancel"`
 	ReadOnly          bool        `json:"read_only"`
+	Redacted          bool        `json:"redacted"`
 	AllowedActions    []string    `json:"allowed_actions"`
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`

@@ -200,6 +200,9 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
+	if viewOf(row, caller) == viewNone {
+		return agentRequestJSON{}, ErrRequestNotFound
+	}
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -364,11 +367,66 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	}
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
+	if viewOf(row, caller) == viewRedacted {
+		out.redact()
+	}
 	return out
 }
 
+func (out *agentRequestJSON) redact() {
+	out.Redacted = true
+	out.Title, out.Prompt, out.LiveText, out.ContinueNote = "", "", nil, nil
+	for i := range out.Steps {
+		out.Steps[i].Message = ""
+	}
+}
+
+type runView int
+
+const (
+	viewNone runView = iota
+	viewRedacted
+	viewFull
+)
+
+type runAudience struct {
+	requester     auth.Principal
+	chat          bool
+	privateAsk    bool
+	shared        bool
+	investigation bool
+}
+
+func audienceOf(row dbsqlc.AgentRequest) runAudience {
+	return runAudience{
+		requester:     requesterOf(row),
+		chat:          row.ChatID.Valid,
+		privateAsk:    PrivateAsk(row),
+		shared:        row.ThreadMessageID.Valid,
+		investigation: row.Investigation,
+	}
+}
+
+func viewOf(row dbsqlc.AgentRequest, caller auth.Principal) runView {
+	return audienceOf(row).viewFor(caller)
+}
+
+func (a runAudience) readsTheChat(caller auth.Principal) bool {
+	return sameActor(a.requester, caller) || caller.Role.AtLeast(auth.RoleAdmin)
+}
+
+func (a runAudience) viewFor(caller auth.Principal) runView {
+	switch {
+	case a.readsTheChat(caller), !a.chat, a.investigation, a.shared:
+		return viewFull
+	case a.privateAsk:
+		return viewNone
+	}
+	return viewRedacted
+}
+
 func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
-	return sameActor(requesterOf(row), caller) || caller.Role.AtLeast(auth.RoleAdmin)
+	return audienceOf(row).readsTheChat(caller)
 }
 
 func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {

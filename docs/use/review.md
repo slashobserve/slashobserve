@@ -29,6 +29,7 @@ They come in six kinds:
 - **Agent requests** sent from a comment show inside their thread, as one status line per run under the message that asked: "Observe Agent is working on it · View the run" while it works, "`<name>` was asked" for a connected agent, and the agent's reply once it ends.
   **View the run** opens the run's conversation at `/c/<id>`, and the agent's reply carries the same link for whoever can open that run; anyone else sees the reply's text alone.
 - **Agent requests** that no loaded thread holds show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A request from someone else's private chat reads "Asked in a private chat" in place of its message.
   A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.

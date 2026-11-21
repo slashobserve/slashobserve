@@ -21,6 +21,14 @@ describe("PromptBubble", () => {
     expect(writeText).toHaveBeenCalledWith("x".repeat(3900))
   })
 
+  it("says a message from someone's private chat was asked there, with nothing to copy", () => {
+    render(<PromptBubble prompt={null} />)
+    expect(screen.getByText("Asked in a private chat")).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Copy message" })
+    ).not.toBeInTheDocument()
+  })
+
   it("collapses a long prompt and expands it on request", async () => {
     const user = userEvent.setup()
     render(<PromptBubble prompt={"x".repeat(3900)} />)

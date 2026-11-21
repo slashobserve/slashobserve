@@ -39,7 +39,7 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	if err != nil || !held {
 		return err
 	}
-	body, err := replyBody(ctx, q, run, sc.target.Kind)
+	body, err := replyBody(ctx, q, run, sc.target)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func lockForReply(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread) 
 	return sc, true, nil
 }
 
-func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Kind) (string, error) {
+func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
 	switch revisions.State(run.State) {
 	case revisions.StateSucceeded:
 		return succeededBody(ctx, q, run, target)
@@ -117,7 +117,7 @@ func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, 
 	return failedBody(run), nil
 }
 
-func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Kind) (string, error) {
+func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
 	switch {
 	case run.ResultVersion.Valid:
 		return fmt.Sprintf("Saved version %d of this dashboard.", run.ResultVersion.Int32), nil
@@ -141,13 +141,27 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if !found.Finding.ObservationID.Valid {
 			return threadAnswerBody(found.Finding), nil
 		}
-		lead := "Saved a finding: "
-		if target == KindObservation {
-			lead = "Wrote the answer into this observation: "
+		lead, err := findingReplyLead(ctx, q, run, target)
+		if err != nil {
+			return "", err
 		}
 		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
 	}
 	return replyFinished, nil
+}
+
+func findingReplyLead(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
+	if target.Kind != KindObservation {
+		return "Saved a finding: ", nil
+	}
+	written, err := q.RunHasTextBlock(ctx, dbsqlc.RunHasTextBlockParams{ObservationID: target.ID, RunID: run.ID})
+	if err != nil {
+		return "", fmt.Errorf("read the answer's blocks in the observation: %w", err)
+	}
+	if written {
+		return "Wrote the answer into this observation: ", nil
+	}
+	return "Saved a finding: ", nil
 }
 
 func threadAnswerBody(found dbsqlc.Finding) string {
