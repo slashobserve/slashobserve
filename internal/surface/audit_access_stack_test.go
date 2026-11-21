@@ -240,9 +240,12 @@ func (s *stack) seedPeople(database *dbtest.Database) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		key := "sok_" + string(role) + "-key"
+		key, keyHash, err := opaquetoken.New("sok_")
+		if err != nil {
+			t.Fatal(err)
+		}
 		if _, err := database.Queries().CreateServiceAccountKey(ctx, dbsqlc.CreateServiceAccountKeyParams{
-			ServiceAccountID: account.ID, Name: "test", DisplayPrefix: key[:8], TokenHash: opaquetoken.Hash(key),
+			ServiceAccountID: account.ID, Name: "test", DisplayPrefix: key[:12], TokenHash: keyHash,
 		}); err != nil {
 			t.Fatal(err)
 		}
