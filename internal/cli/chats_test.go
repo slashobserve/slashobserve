@@ -88,16 +88,23 @@ func TestChatsShowPrintsTheChatAndItsTurnsInOrder(t *testing.T) {
 }
 
 func TestChatsArchiveDeletesTheChat(t *testing.T) {
-	call, stdout, stderr, code := runAgainst(t, http.StatusNoContent, ``, "chats", "archive", stoppedID)
+	call, stdout, stderr, code := runAgainst(t, http.StatusNoContent, ``, "chats", "archive", stoppedID, "--yes")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 	if call.method != http.MethodDelete || call.path != "/api/v1/chats/"+stoppedID || !strings.Contains(stdout+stderr, "Archived chat "+stoppedID) {
 		t.Fatalf("got %+v, stdout %q, stderr %q", call, stdout, stderr)
 	}
-	_, _, stderr, code = runAgainst(t, http.StatusNoContent, ``, "chats", "archive", "nope")
+	_, _, stderr, code = runAgainst(t, http.StatusNoContent, ``, "chats", "archive", "nope", "--yes")
 	if code != 2 || !strings.Contains(stderr, "not a valid id") {
 		t.Fatalf("bad id: exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestChatsArchiveAsksForYesBeforeSendingAnything(t *testing.T) {
+	call, _, stderr, code := runAgainst(t, http.StatusNoContent, ``, "chats", "archive", stoppedID)
+	if code != 2 || !strings.Contains(stderr, "--yes") || call.method != "" {
+		t.Fatalf("exit %d, call %+v, stderr %q", code, call, stderr)
 	}
 }
 
