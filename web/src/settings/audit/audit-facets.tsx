@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 import { liveFacetValues } from "./live-counts"
-import { auditFacetsQuery, auditFieldsQuery } from "./queries"
+import { auditFacetsQuery, auditFieldsQuery, facetValues } from "./queries"
 import {
   canEditTerms,
   termState,
@@ -93,7 +93,12 @@ function FacetGroup({
 }) {
   const facets = useQuery(auditFacetsQuery(window, field.name))
   if (facets.isError) return null
-  const values = liveFacetValues(facets.data?.values ?? [], live, field.name)
+  const values = liveFacetValues(
+    facets.data?.values ?? [],
+    live,
+    field.name,
+    facetValues
+  )
 
   function toggle(value: string, exclude: boolean) {
     const next = toggleTermRemembering(

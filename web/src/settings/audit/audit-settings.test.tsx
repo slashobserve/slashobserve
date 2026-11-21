@@ -550,7 +550,7 @@ describe("AuditSettings", () => {
     await user.click(screen.getByRole("switch"))
     await waitFor(() => expect(streamRequests).toHaveLength(1))
     act(() => first.frame("audit", auditEvent("e9"), "x-9"))
-    await screen.findByText("dashboard.update")
+    await screen.findAllByText("dashboard.update")
     act(() => first.drop())
     await waitFor(() => expect(streamRequests).toHaveLength(3), {
       timeout: 3000,
