@@ -1,0 +1,236 @@
+import { describe, expect, it } from "vitest"
+
+import type { Delivery, Place } from "./delivery"
+import {
+  noSubjectText,
+  noteToSelfText,
+  planRevise,
+  planSend,
+  type Subject,
+} from "./send-plan"
+
+const dashboard: Subject = { kind: "dashboard", id: "d1" }
+const observation: Subject = { kind: "observation", id: "o1" }
+const anchor = { kind: "title" as const, pos: { x: 0.1, y: 0.2 } }
+
+const newChat: Place = { kind: "chat", chatId: null }
+const openChat: Place = { kind: "chat", chatId: "c1" }
+const newThread: Place = {
+  kind: "thread",
+  threadId: null,
+  agent: null,
+  agentOff: false,
+}
+const openThread: Place = { ...newThread, threadId: "t1" }
+
+const privately: Delivery = { to: "agent", visibleTo: "me" }
+const toAgent: Delivery = { to: "agent", visibleTo: "everyone" }
+const toEveryone: Delivery = { to: "everyone", visibleTo: "everyone" }
+
+const draft = { body: "why", clientId: "k1" }
+
+describe("planSend into a chat", () => {
+  it("builds or answers from Home and opens the chat", () => {
+    expect(planSend(newChat, null, privately, draft)).toEqual({
+      via: "chat.turn",
+      input: { prompt: "why", clientId: "k1", kind: "build" },
+      opens: "chat",
+    })
+  })
+
+  it("continues an open chat in place", () => {
+    expect(planSend(openChat, null, privately, draft)).toEqual({
+      via: "chat.turn",
+      input: { prompt: "why", clientId: "k1", chatId: "c1", kind: "build" },
+      opens: "same",
+    })
+  })
+
+  it("asks about a dashboard panel and its spot", () => {
+    expect(
+      planSend(openChat, dashboard, privately, {
+        ...draft,
+        target: { panelId: "p1", anchor, blockId: "b1" },
+      })
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        chatId: "c1",
+        kind: "ask",
+        dashboardId: "d1",
+        panelId: "p1",
+        anchor,
+      },
+      opens: "same",
+    })
+  })
+
+  it("asks about an observation block", () => {
+    expect(
+      planSend(newChat, observation, privately, {
+        ...draft,
+        target: { anchor, blockId: "b1" },
+      })
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        kind: "ask",
+        observationId: "o1",
+        anchor,
+        blockId: "b1",
+      },
+      opens: "same",
+    })
+  })
+
+  it("imports into a new chat even from an open one", () => {
+    expect(
+      planSend(openChat, dashboard, privately, { ...draft, command: "import" })
+    ).toEqual({
+      via: "chat.turn",
+      input: { prompt: "why", clientId: "k1", kind: "build" },
+      opens: "chat",
+    })
+  })
+
+  it("investigates a dashboard panel over a window", () => {
+    expect(
+      planSend(openChat, dashboard, privately, {
+        ...draft,
+        command: "investigate",
+        target: { panelId: "p1" },
+        range: { from: "now-6h", to: "now" },
+      })
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        chatId: "c1",
+        kind: "investigate",
+        dashboardId: "d1",
+        panelId: "p1",
+        from: "now-6h",
+        to: "now",
+      },
+      opens: "same",
+    })
+  })
+})
+
+describe("planSend into a thread", () => {
+  it("replies in the open thread with the chosen recipient", () => {
+    expect(
+      planSend(openThread, dashboard, toEveryone, {
+        ...draft,
+        replyToId: "m1",
+        target: { blockId: "b1" },
+      })
+    ).toEqual({
+      via: "thread.reply",
+      threadId: "t1",
+      body: "why",
+      to: "everyone",
+      clientId: "k1",
+      blockId: "b1",
+      replyToId: "m1",
+    })
+  })
+
+  it("opens a dashboard thread on a panel and spot", () => {
+    expect(
+      planSend(newThread, dashboard, toAgent, {
+        ...draft,
+        target: { panelId: "p1", anchor, blockId: "b1" },
+      })
+    ).toEqual({
+      via: "thread.open",
+      target: "dashboard:d1",
+      body: "why",
+      to: "agent",
+      clientId: "k1",
+      anchor,
+      panelId: "p1",
+    })
+  })
+
+  it("opens an observation thread on a block", () => {
+    expect(
+      planSend(newThread, observation, toEveryone, {
+        ...draft,
+        target: { blockId: "b1" },
+      })
+    ).toEqual({
+      via: "thread.open",
+      target: "observation:o1",
+      body: "why",
+      to: "everyone",
+      clientId: "k1",
+      blockId: "b1",
+    })
+  })
+
+  it("posts a canvas comment as a new thread", () => {
+    expect(
+      planSend(
+        { kind: "canvas", tool: "comment" },
+        dashboard,
+        toEveryone,
+        draft
+      )
+    ).toMatchObject({ via: "thread.open", target: "dashboard:d1" })
+  })
+
+  it("needs a subject to open a thread", () => {
+    expect(planSend(newThread, null, toEveryone, draft)).toEqual({
+      error: noSubjectText,
+    })
+  })
+
+  it("refuses a note only the sender sees", () => {
+    expect(
+      planSend(
+        openThread,
+        dashboard,
+        { to: "everyone", visibleTo: "me" },
+        draft
+      )
+    ).toEqual({ error: noteToSelfText })
+  })
+})
+
+describe("planRevise", () => {
+  it("asks the agent in the thread the answer is in", () => {
+    expect(planRevise(openThread, dashboard, "Add a p99 panel", "k2")).toEqual({
+      via: "thread.reply",
+      threadId: "t1",
+      body: "Revise the dashboard: Add a p99 panel",
+      to: "agent",
+      clientId: "k2",
+    })
+  })
+
+  it("starts a revision as the next turn of the chat", () => {
+    expect(planRevise(openChat, dashboard, "Add a p99 panel", "k2")).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "Revise the dashboard: Add a p99 panel",
+        clientId: "k2",
+        kind: "build",
+        dashboardId: "d1",
+        chatId: "c1",
+      },
+      opens: "same",
+    })
+  })
+
+  it("revises only a dashboard", () => {
+    expect(planRevise(openChat, observation, "x", "k2")).toEqual({
+      error: "Only a dashboard can be revised.",
+    })
+  })
+})

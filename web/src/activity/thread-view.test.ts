@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { Comment } from "@/comments/queries"
 import type { Revision } from "@/revisions/queries"
 
-import type { AgentGate } from "./agent-gate"
+import type { AgentGate } from "@/conversation/delivery"
 import { threadState, threadVerbText } from "./thread-view"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const

@@ -2,13 +2,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
+import { Composer } from "@/conversation/composer"
+import { ungated } from "@/conversation/delivery"
+import { useComposer } from "@/conversation/use-composer"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { DashboardsSection } from "@/home/dashboards-section"
 import { askLink } from "@/lib/links"
 import { SavedPrompts } from "@/prompts/saved-prompts"
 import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
-import { ChatComposer, useOpenSent } from "./chat-composer"
+import { useOpenSentTurn } from "./open-sent"
 import { composerPlaceholder } from "./prompt-length"
 import { RecentChats } from "./recent-chats"
 import { useChooseExample } from "./use-choose-example"
@@ -16,13 +19,56 @@ import { useExamples } from "./use-examples"
 
 type Props = { initialPrompt?: string; dashboardId?: string }
 
+function HomeComposer({
+  initialPrompt,
+  revising,
+  disabled,
+  onRemoveDashboard,
+}: {
+  initialPrompt?: string
+  revising: { id: string; title: string } | undefined
+  disabled: boolean
+  onRemoveDashboard: () => void
+}) {
+  const model = useComposer({
+    subject:
+      revising === undefined ? null : { kind: "dashboard", id: revising.id },
+    place: { kind: "chat", chatId: null },
+    gate: ungated,
+    initialText: initialPrompt,
+    revises: true,
+    onSent: useOpenSentTurn(),
+  })
+  return (
+    <Composer
+      model={model}
+      layout="page"
+      rows={3}
+      disabled={disabled}
+      contextChips={
+        revising === undefined
+          ? []
+          : [
+              {
+                id: "dashboard",
+                label: revising.title,
+                onRemove: onRemoveDashboard,
+              },
+            ]
+      }
+      placeholder={composerPlaceholder}
+      autoFocus
+      promptPicker
+    />
+  )
+}
+
 export function ChatHome({ initialPrompt, dashboardId }: Props) {
   const { examples, agentReady, agentOff } = useExamples()
   const dashboards = useQuery(dashboardTitlesQuery())
   const queryClient = useQueryClient()
   const { choose, pending } = useChooseExample()
   const navigate = useNavigate()
-  const openSent = useOpenSent()
 
   const listed = dashboards.data?.find(
     (dashboard) => dashboard.id === dashboardId
@@ -57,26 +103,14 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
       </h1>
       {agentOff ? <DashboardsSection /> : null}
       <div className="w-full max-w-[720px] min-[1800px]:max-w-[960px]">
-        <ChatComposer
+        <HomeComposer
           key={initialPrompt ?? ""}
-          rows={3}
-          disabled={resolving}
-          dashboardId={revising?.id}
-          dashboardTitle={revising?.title}
-          onRemoveDashboard={
-            revising === undefined
-              ? undefined
-              : () =>
-                  void navigate({
-                    ...askLink(initialPrompt ?? ""),
-                    replace: true,
-                  })
-          }
-          placeholder={composerPlaceholder}
           initialPrompt={initialPrompt}
-          autoFocus
-          promptPicker
-          onSent={openSent}
+          revising={revising}
+          disabled={resolving}
+          onRemoveDashboard={() =>
+            void navigate({ ...askLink(initialPrompt ?? ""), replace: true })
+          }
         />
       </div>
       {!agentReady || examples.length === 0 ? null : (

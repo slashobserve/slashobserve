@@ -1,7 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
@@ -38,12 +38,4 @@ export function revisionsQuery(id: string) {
 
 export function useRevisions(id: string) {
   return useQuery(revisionsQuery(id))
-}
-
-export function isAgentUnavailable(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    error.status === 503 &&
-    error.code === "agent_unavailable"
-  )
 }

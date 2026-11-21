@@ -8,13 +8,14 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { resendOnceOffline, unwrap } from "@/api/errors"
 import { dashboardKeys, observeKeys, threadKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 export type Thread = components["schemas"]["Thread"]
 export type Message = components["schemas"]["Message"]
 export type ThreadPage = components["schemas"]["ThreadPage"]
+export type Anchor = components["schemas"]["Anchor"]
 export type ThreadWithMessages = { thread: Thread; messages: Message[] }
 
 const pageSize = 500
@@ -103,12 +104,16 @@ export type SentMessage = {
   message: Message
   run: NonNullable<Message["run"]> | null
   runRefusal: NonNullable<Message["run_refusal"]> | null
+  to: ThreadSent["to"]
 }
 
-function sentMessage(body: { thread: Thread; message: Message }): SentMessage {
+type ThreadSent = components["schemas"]["ThreadSent"]
+
+function sentMessage(body: ThreadSent): SentMessage {
   return {
     thread: body.thread,
     message: body.message,
+    to: body.to,
     run: body.message.run ?? null,
     runRefusal: body.message.run_refusal ?? null,
   }
@@ -156,22 +161,29 @@ export function useOpenThread(target: string) {
     networkMode: "always",
     mutationFn: (input: {
       body: string
-      startRuns: boolean
+      to: "agent" | "everyone"
+      clientId?: string
       version?: number
       panelId?: string | null
       blockId?: string | null
+      anchor?: Anchor
     }) =>
-      api
-        .POST("/threads", {
+      resendOnceOffline(input.clientId, () =>
+        api.POST("/threads", {
           body: {
             target,
             body: input.body,
+            to: input.to,
+            ...(input.clientId === undefined
+              ? {}
+              : { client_id: input.clientId }),
             ...(input.version === undefined ? {} : { version: input.version }),
             ...(input.panelId == null ? {} : { panel_id: input.panelId }),
             ...(input.blockId == null ? {} : { block_id: input.blockId }),
-            ...(input.startRuns ? { start_runs: true } : {}),
+            ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
           },
         })
+      )
         .then(unwrap)
         .then(sentMessage),
     onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),
@@ -185,22 +197,27 @@ export function useReplyToThread(target: string) {
     mutationFn: (input: {
       threadId: string
       body: string
-      startRuns: boolean
+      to: "agent" | "everyone"
+      clientId?: string
       blockId?: string | null
       replyToId?: string | null
     }) =>
-      api
-        .POST("/threads/{thread_id}/messages", {
+      resendOnceOffline(input.clientId, () =>
+        api.POST("/threads/{thread_id}/messages", {
           params: { path: { thread_id: input.threadId } },
           body: {
             body: input.body,
+            to: input.to,
+            ...(input.clientId === undefined
+              ? {}
+              : { client_id: input.clientId }),
             ...(input.blockId == null ? {} : { block_id: input.blockId }),
             ...(input.replyToId == null
               ? {}
               : { reply_to_id: input.replyToId }),
-            ...(input.startRuns ? { start_runs: true } : {}),
           },
         })
+      )
         .then(unwrap)
         .then(sentMessage),
     onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),

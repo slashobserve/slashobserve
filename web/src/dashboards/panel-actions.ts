@@ -26,9 +26,7 @@ export function commentOnPanel(setSearch: SetSearch, panelId: string) {
 }
 
 export function askAboutPanel(setSearch: SetSearch, panelId: string) {
-  const activity = useActivityStore.getState()
-  activity.setOpen(true)
-  activity.setAgentKind("investigate")
+  useActivityStore.getState().setOpen(true)
   setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
 }
 
@@ -38,8 +36,6 @@ export function editPanelQuery(setSearch: SetSearch, panelId: string) {
 }
 
 export function askAboutDashboard(setSearch: SetSearch) {
-  const activity = useActivityStore.getState()
-  activity.setOpen(true)
-  activity.setAgentKind("investigate")
+  useActivityStore.getState().setOpen(true)
   setSearch((state) => ({ ...state, panel: undefined, edit: undefined }))
 }

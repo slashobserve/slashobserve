@@ -12,7 +12,8 @@ import { MessageText } from "@/comments/message-text"
 import { threadParticipants } from "@/comments/mentions"
 import { useMarkThreadRead, useSetCommentStatus } from "@/comments/queries"
 
-import type { AgentGate } from "./agent-gate"
+import type { AgentGate } from "@/conversation/delivery"
+
 import {
   commentAvatar,
   EntryAction,
@@ -23,7 +24,6 @@ import {
   ResolvedState,
   SentToAgent,
 } from "./entry-frame"
-import { ReplyForm } from "./reply-form"
 import type { TimelineEntry } from "./timeline-model"
 import { RunProposalState } from "./proposal-state"
 import { threadState, threadVerbText } from "./thread-view"
@@ -36,6 +36,7 @@ type Props = {
   onSelectPanel: (panelId: string) => void
   gate: AgentGate
   clientName: string
+  onReply: () => void
 }
 
 function replyCount(count: number): string {
@@ -50,10 +51,10 @@ export function ThreadEntry({
   onSelectPanel,
   gate,
   clientName,
+  onReply,
 }: Props) {
   const { thread, request, panelId, askedAgent } = entry
   const { root, replies } = thread
-  const [replying, setReplying] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const replyButton = useRef<HTMLButtonElement>(null)
   const statusButton = useRef<HTMLButtonElement | null>(null)
@@ -96,14 +97,9 @@ export function ThreadEntry({
     })
   }
 
-  function closeReply() {
-    setReplying(false)
-    replyButton.current?.focus()
-  }
-
   function openReply() {
     if (folded) setExpanded(true)
-    setReplying(true)
+    onReply()
   }
 
   function toggleStatus() {
@@ -121,7 +117,6 @@ export function ThreadEntry({
             document.activeElement !== null &&
             document.activeElement === statusButton.current
           setExpanded(false)
-          setReplying(false)
           if (focusedOnStatus) toggleButton.current?.focus()
         },
       }
@@ -194,15 +189,6 @@ export function ThreadEntry({
           ))}
         </ol>
       )}
-      {canReply && replying && !folded ? (
-        <ReplyForm
-          dashboardId={dashboardId}
-          rootId={root.id}
-          people={people}
-          gate={gate}
-          onClose={closeReply}
-        />
-      ) : null}
       <EntryMeta>
         {state}
         {folded && replies.length > 0 ? (
@@ -213,7 +199,6 @@ export function ThreadEntry({
             <EntryAction
               ref={replyButton}
               icon={<ReplyIcon aria-hidden="true" />}
-              aria-expanded={replying && !folded}
               onClick={openReply}
             >
               Reply

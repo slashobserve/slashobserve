@@ -8,19 +8,19 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 
-import { planSend, type Opens } from "./send-plan"
+import { planSend, type Opens } from "@/conversation/send-plan"
 
 export function AskAgainButton({
   prompt,
   dashboardId,
-  followsId,
+  chatId,
   disabled,
   onSent,
   afterSent,
 }: {
   prompt: string
   dashboardId?: string
-  followsId?: string
+  chatId?: string
   disabled: boolean
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
   afterSent?: () => void
@@ -28,13 +28,13 @@ export function AskAgainButton({
   const create = useCreateObserveRequest()
 
   async function askAgain() {
-    const plan = planSend({
-      command: null,
-      text: prompt,
-      dashboardId,
-      followsId,
-    })
-    if ("error" in plan) return
+    const plan = planSend(
+      { kind: "chat", chatId: chatId ?? null },
+      dashboardId === undefined ? null : { kind: "dashboard", id: dashboardId },
+      { to: "agent", visibleTo: "me" },
+      { body: prompt, clientId: crypto.randomUUID(), revises: true }
+    )
+    if ("error" in plan || plan.via !== "chat.turn") return
     try {
       const request = await create.mutateAsync(plan.input)
       await onSent(request, plan.opens)

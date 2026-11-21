@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest"
 import recipientCasesText from "../../../spec/examples/threads/recipient-cases.json?raw"
 import {
   defaultDelivery,
+  deliveryGate,
+  flips,
+  layoutEditingText,
+  pinnedText,
+  queueFullText,
   storeOf,
   type Delivery,
   type Place,
@@ -90,4 +95,77 @@ describe("storeOf", () => {
   it.each(cases)("%j is stored as %s", (delivery, store) => {
     expect(storeOf(delivery)).toBe(store)
   })
+})
+
+describe("flips", () => {
+  it("turns nothing in a chat", () => {
+    expect(flips({ kind: "chat", chatId: null })).toEqual({
+      to: false,
+      visibleTo: false,
+    })
+  })
+
+  it("turns only the recipient in a thread", () => {
+    expect(
+      flips({ kind: "thread", threadId: null, agent: null, agentOff: false })
+    ).toEqual({ to: true, visibleTo: false })
+  })
+
+  it("turns who can see a canvas ask, and who a canvas comment is for", () => {
+    expect(flips({ kind: "canvas", tool: "ask" })).toEqual({
+      to: false,
+      visibleTo: true,
+    })
+    expect(flips({ kind: "canvas", tool: "comment" })).toEqual({
+      to: true,
+      visibleTo: false,
+    })
+  })
+})
+
+describe("deliveryGate", () => {
+  const open = {
+    canComment: true,
+    agentAvailable: true,
+    pinned: false,
+    layoutEditing: false,
+    activeApplyRuns: 0,
+  }
+  const toAgent: Delivery = { to: "agent", visibleTo: "everyone" }
+  const toEveryone: Delivery = { to: "everyone", visibleTo: "everyone" }
+
+  it("hides the agent from someone who cannot comment", () => {
+    expect(deliveryGate({ ...open, canComment: false }, toAgent)).toEqual({
+      kind: "hidden",
+    })
+  })
+
+  it("allows a message to the agent with room in the queue", () => {
+    expect(deliveryGate(open, toAgent)).toEqual({ kind: "allowed" })
+    expect(
+      deliveryGate({ ...open, agentAvailable: undefined }, toAgent)
+    ).toEqual({ kind: "allowed" })
+    expect(deliveryGate({ ...open, activeApplyRuns: 4 }, toAgent)).toEqual({
+      kind: "allowed",
+    })
+  })
+
+  it("reports no model only for a message to the agent", () => {
+    const off = { ...open, agentAvailable: false }
+    expect(deliveryGate(off, toAgent)).toEqual({ kind: "no-model" })
+    expect(deliveryGate(off, toEveryone)).toEqual({ kind: "allowed" })
+  })
+
+  it.each([
+    ["a pinned version", { pinned: true }, pinnedText],
+    ["a layout being edited", { layoutEditing: true }, layoutEditingText],
+    ["a full queue of changes", { activeApplyRuns: 5 }, queueFullText(5)],
+  ])(
+    "blocks the agent on %s and lets a comment through",
+    (_name, patch, reason) => {
+      const input = { ...open, ...patch }
+      expect(deliveryGate(input, toAgent)).toEqual({ kind: "blocked", reason })
+      expect(deliveryGate(input, toEveryone)).toEqual({ kind: "allowed" })
+    }
+  )
 })

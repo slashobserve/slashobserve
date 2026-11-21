@@ -227,26 +227,25 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       const entry = entryWith(page, "Check the dip")
-      const reply = entry.getByRole("button", { name: "Reply", exact: true })
-      await reply.click()
-      const form = entry.getByRole("form", { name: "Reply to this comment" })
-      const box = form.getByRole("textbox", { name: "Reply" })
-      await expect(box).toBeFocused()
-      await box.fill("Agreed, looking now")
-      await box.press("Control+Enter")
+      await entry.getByRole("button", { name: "Reply", exact: true }).click()
+      const replying = composerForm(page).getByText(/^Replying in /)
+      await expect(replying).toBeVisible()
+      await expect(composerBox(page)).toBeFocused()
+      await composerBox(page).fill("Agreed, looking now")
+      await composerBox(page).press("Control+Enter")
 
-      await expect(form).toHaveCount(0)
       const nested = entry.getByRole("list").locator("> li")
       await expect(nested).toHaveCount(1)
       await expect(nested).toContainText("Agreed, looking now")
       await expect(nested.getByText("replied", { exact: true })).toBeVisible()
-      await expect(reply).toBeFocused()
+      await expect(composerBox(page)).toHaveValue("")
+      await expect(replying).toBeVisible()
 
-      await reply.click()
-      await expect(form.getByRole("textbox", { name: "Reply" })).toBeFocused()
-      await page.keyboard.press("Escape")
-      await expect(form).toHaveCount(0)
-      await expect(reply).toBeFocused()
+      await composerForm(page)
+        .getByRole("button", { name: /^Remove Replying in / })
+        .click()
+      await expect(replying).toHaveCount(0)
+      await expect(composerBox(page)).toBeFocused()
     })
 
     test("resolves and reopens a thread", async ({ page, request }) => {
@@ -443,11 +442,8 @@ for (const colorScheme of ["light", "dark"] as const) {
           hasNot: page.getByText("Version 2", { exact: true }),
         })
         await thread.getByRole("button", { name: "Reply", exact: true }).click()
-        const form = thread.getByRole("form", { name: "Reply to this comment" })
-        await form
-          .getByRole("textbox", { name: "Reply" })
-          .fill(`@observe ${p99Prompt}`)
-        await form
+        await composerBox(page).fill(`@observe ${p99Prompt}`)
+        await composerForm(page)
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()
 
@@ -562,9 +558,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         entry.getByText("Open, waiting for Claude Code")
       ).toBeVisible()
       await entry.getByRole("button", { name: "Reply", exact: true }).click()
-      await expect(
-        entry.getByRole("form", { name: "Reply to this comment" })
-      ).toBeVisible()
+      await expect(composerForm(page).getByText(/^Replying in /)).toBeVisible()
       await expect(askAgentButton(page)).toHaveCount(0)
     })
 

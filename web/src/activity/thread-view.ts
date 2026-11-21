@@ -1,7 +1,7 @@
 import type { Comment } from "@/comments/queries"
 import { isActive, type Revision } from "@/revisions/queries"
 
-import type { AgentGate } from "./agent-gate"
+import type { AgentGate } from "@/conversation/delivery"
 
 export type ThreadState =
   | { kind: "sent" }

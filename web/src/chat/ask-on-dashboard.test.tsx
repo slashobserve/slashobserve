@@ -60,6 +60,7 @@ describe("AskOnDashboard", () => {
     expect(new URL(sent.url).pathname).toBe("/api/v1/observe")
     expect(await sent.json()).toEqual({
       prompt,
+      kind: "build",
       dashboard_id: askOn.dashboard_id,
       time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })

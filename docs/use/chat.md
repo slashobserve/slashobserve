@@ -43,11 +43,11 @@ Type the command and a space, and it turns into a chip above the box:
 | -------------- | ----------- | --------------------------------------------------------------------------------- |
 | `/investigate` | Investigate | Asks a question and answers in an observation, see [Investigate](investigate.md). |
 | `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.                              |
-| `/revise`      | Revise      | Changes the dashboard this chat is about.                                         |
 
 While you type a command, a line under the box lists the matching commands and says "Type a space after the command to use it."
 Remove the chip with its button, or press Backspace in the empty box.
-`/revise` works only in a chat that already has a dashboard, and `/import` only in the chat, not in a dashboard's activity pane.
+In a chat that already has a dashboard, a send without a command changes that dashboard.
+`/import` works only in the chat, and no command works in a dashboard's activity pane.
 `/investigate` is offered to Editors and Admins only, because starting an investigation needs the Editor role.
 In a chat about a dashboard, a second chip names that dashboard.
 
@@ -313,7 +313,8 @@ It does not need to have been your dashboard.
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.
-In its activity pane, write the change in "Write a comment, or type @ to ask the agent" with `@observe` in it and send, or reply to a comment thread with `@observe` in the reply.
+In its activity pane, write the change in "Comment or request" and either mention `@observe` or choose the "To: everyone here" chip above the box so it reads "To: Observe Agent", then send.
+To ask inside a comment thread, choose **Reply** on it: the same box shows "Replying in" and the panel or dashboard, and the send goes to that thread.
 The up arrow recalls your earlier prompts there too, and the footer shows the model.
 These requests carry on in the activity pane; see [Comments, agent requests and versions](review.md).
 In the conversation, a turn sent from the dashboard shows "Sent from the dashboard".

@@ -180,7 +180,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, starts a comment on the panel.
-- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane in investigate mode with the panel as the target; it is disabled and reads "needs the Editor role" when your role is below Editor.
+- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane with the panel as the target; it is disabled and reads "needs the Editor role" when your role is below Editor.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
@@ -190,7 +190,7 @@ While you have unsaved layout changes, Comment, Ask, Edit query and Add to obser
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you can neither comment nor ask, as a Viewer cannot.
 With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
-**Ask** opens the activity pane in investigate mode for the whole dashboard; below the Editor role it is disabled and reads "needs the Editor role".
+**Ask** opens the activity pane for the whole dashboard; below the Editor role it is disabled and reads "needs the Editor role".
 
 ### Arrange panels
 

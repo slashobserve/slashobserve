@@ -6,7 +6,6 @@ import { DockPanel } from "@/components/dock/dock-panel"
 import { useDockFocus } from "@/components/dock/dock-focus"
 import { activityCardId, paneOpener } from "@/dashboards/pane-openers"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
-import { agentZone } from "@/lib/time"
 import { useAgentInfo } from "@/observe/queries"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
@@ -192,7 +191,6 @@ export function ActivityCard({
             dashboardId={dashboardId}
             apiId={apiId}
             spec={spec}
-            latestVersion={latestVersion}
             pinned={pinned}
             layoutEditing={false}
             madeBy={madeBy}
@@ -202,11 +200,6 @@ export function ActivityCard({
             back={back}
             composerRef={composerRef}
             focusedThreadId={search.thread}
-            range={{
-              from: timeRange.from ?? spec.time.from,
-              to: timeRange.to ?? spec.time.to,
-            }}
-            timeZone={agentZone(search.tz ?? spec.timezone)}
           />
         </>
       )}

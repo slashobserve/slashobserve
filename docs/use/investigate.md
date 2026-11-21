@@ -40,11 +40,9 @@ In a chat about a dashboard, the investigation is about that dashboard and its a
 Without a dashboard, the send opens a new chat page for it.
 
 On a dashboard, choose **Investigate** in a panel's menu.
-It opens the activity pane in investigate mode, with the panel as the target and two chips above the box: Investigate and the dashboard's current time range.
-The box reads "Ask a question about this panel", and the button reads **Investigate**.
-Remove the time range chip to send the question without a window, or remove the Investigate chip to go back to a normal follow-up.
-In the activity pane you can also type `/investigate` and a space to ask about the dashboard or the panel the box is on, and `/revise` and a space to go back.
-After the send, the box goes back to a normal follow-up.
+It opens the activity pane with the panel as the target.
+The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
+To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 
 The panel menu item shows only on data panels, when you can edit the dashboard and a model is connected.
 While you have unsaved layout changes it reads "Investigate (finish the layout first)" and cannot be chosen.

@@ -108,6 +108,7 @@ function threadView(
           onSelectPanel={() => {}}
           gate={{ kind: "hidden" }}
           clientName="Claude Code"
+          onReply={() => {}}
         />
       </ol>
     </QueryClientProvider>
@@ -257,7 +258,6 @@ describe("ThreadEntry", () => {
     renderThread("resolved")
     await user.click(screen.getByRole("button", { name: "Reply" }))
     expect(screen.getByText("Looking now")).toBeInTheDocument()
-    expect(screen.getByRole("textbox", { name: "Reply" })).toHaveFocus()
   })
 
   it("folds a thread resolved after replying while it was open", async () => {
@@ -316,20 +316,5 @@ describe("ThreadEntry", () => {
         /@\[Ghost\]\(user:00000000-0000-0000-0000-000000000000\)/
       )
     ).toBeInTheDocument()
-  })
-
-  it("offers the thread's people and the agent in the reply form", async () => {
-    const user = userEvent.setup()
-    renderThread("open")
-    await user.click(screen.getByRole("button", { name: "Reply" }))
-    await user.click(
-      screen.getByRole("combobox", { name: "Mention a person or an agent" })
-    )
-    const options = await screen.findAllByRole("option")
-    expect(options.map((option) => option.textContent)).toEqual([
-      "Observe Agent@observe",
-      "Ada",
-      "Grace",
-    ])
   })
 })

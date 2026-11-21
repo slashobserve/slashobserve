@@ -107,9 +107,11 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("send the thread", async () => {
         await own.getByRole("button", { name: "Reply", exact: true }).click()
-        const form = own.getByRole("form", { name: "Reply to this comment" })
+        const form = card(page).getByRole("form", {
+          name: "Add to the activity",
+        })
         await form
-          .getByRole("textbox", { name: "Reply" })
+          .getByRole("textbox", { name: "Comment or request" })
           .fill(`@observe ${p99Prompt}`)
         await form
           .getByRole("button", { name: "Send and ask Observe Agent" })

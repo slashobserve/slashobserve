@@ -12,7 +12,12 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
+import {
+  ApiError,
+  maxRetryDelayMs,
+  resendOnceOffline,
+  unwrap,
+} from "@/api/errors"
 import {
   type ChatListFilters,
   dashboardKeys,
@@ -248,15 +253,22 @@ export function usePollFailures(id: string): number {
   return query === undefined ? 0 : pollFailures(query)
 }
 
+type ObserveKind = NonNullable<
+  paths["/observe"]["post"]["requestBody"]["content"]["application/json"]["kind"]
+>
+
 export type ObserveInput = {
   prompt: string
+  kind: ObserveKind
+  chatId?: string
+  clientId?: string
   dashboardId?: string
-  followsId?: string
-  kind?: "build" | "investigate"
+  observationId?: string
   panelId?: string
+  anchor?: components["schemas"]["Anchor"]
+  blockId?: string
   from?: string
   to?: string
-  observationId?: string
   timeZone?: string
 }
 
@@ -277,23 +289,29 @@ export function useCreateObserveRequest() {
     networkMode: "always",
     mutationFn: ({
       prompt,
-      dashboardId,
-      followsId,
       kind,
+      chatId,
+      clientId,
+      dashboardId,
+      observationId,
       panelId,
+      anchor,
+      blockId,
       from,
       to,
-      observationId,
       timeZone,
     }: ObserveInput) =>
-      api
-        .POST("/observe", {
+      resendOnceOffline(clientId, () =>
+        api.POST("/observe", {
           body: {
             prompt,
-            dashboard_id: dashboardId,
-            ...(followsId === undefined ? {} : { follows_id: followsId }),
-            ...(kind === undefined ? {} : { kind }),
+            kind,
+            ...(dashboardId === undefined ? {} : { dashboard_id: dashboardId }),
+            ...(chatId === undefined ? {} : { chat_id: chatId }),
+            ...(clientId === undefined ? {} : { client_id: clientId }),
             ...(panelId === undefined ? {} : { panel_id: panelId }),
+            ...(anchor === undefined ? {} : { anchor }),
+            ...(blockId === undefined ? {} : { block_id: blockId }),
             ...(from === undefined ? {} : { from }),
             ...(to === undefined ? {} : { to }),
             ...(observationId === undefined
@@ -302,6 +320,7 @@ export function useCreateObserveRequest() {
             time_zone: timeZone ?? agentZone(undefined),
           },
         })
+      )
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),

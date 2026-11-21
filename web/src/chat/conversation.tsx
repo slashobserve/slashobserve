@@ -19,8 +19,13 @@ import {
 } from "@/observe/queries"
 import { revisionsQuery } from "@/revisions/queries"
 
+import { Composer } from "@/conversation/composer"
+import { ungated } from "@/conversation/delivery"
+import type { Opens } from "@/conversation/send-plan"
+import { useComposer } from "@/conversation/use-composer"
+
 import { AskAgainButton } from "./ask-again"
-import { ChatComposer, useOpenSent } from "./chat-composer"
+import { useOpenSent } from "./open-sent"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { RetryButton } from "./turn-failure"
@@ -190,9 +195,55 @@ function PaneHeading({ requestId }: { requestId: string }) {
   )
 }
 
+function ConversationComposer({
+  chatId,
+  dashboardId,
+  dashboardTitle,
+  disabled,
+  runningRequestId,
+  onSent,
+}: {
+  chatId: string | null
+  dashboardId: string | null
+  dashboardTitle: string | undefined
+  disabled: boolean
+  runningRequestId: string | undefined
+  onSent: (request: ObserveRequest, opens: Opens) => Promise<void>
+}) {
+  const model = useComposer({
+    subject:
+      dashboardId === null ? null : { kind: "dashboard", id: dashboardId },
+    place: { kind: "chat", chatId },
+    gate: ungated,
+    revises: true,
+    runningRequestId,
+    onSent: (sent) =>
+      sent.via === "chat" ? onSent(sent.request, sent.opens) : undefined,
+  })
+  return (
+    <Composer
+      model={model}
+      layout="page"
+      rows={2}
+      disabled={disabled}
+      contextChips={
+        dashboardTitle === undefined
+          ? []
+          : [{ id: "dashboard", label: dashboardTitle }]
+      }
+      placeholder={
+        dashboardId !== null
+          ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
+          : "Ask a follow-up, or describe a dashboard to build"
+      }
+    />
+  )
+}
+
 type ViewProps = {
   requestId: string
   layout: ConversationLayout
+  chatId: string | null
   dashboardId: string | null
   dashboardTitle: string | undefined
   turns: Turn[]
@@ -207,6 +258,7 @@ type ViewProps = {
 function ConversationView({
   requestId,
   layout,
+  chatId,
   dashboardId,
   dashboardTitle,
   turns,
@@ -319,7 +371,7 @@ function ConversationView({
                     <AskAgainButton
                       prompt={turn.summary.prompt}
                       dashboardId={dashboardId ?? undefined}
-                      followsId={hasDashboard ? undefined : turn.id}
+                      chatId={chatId ?? undefined}
                       disabled={active}
                       onSent={openSent}
                       afterSent={focusList}
@@ -356,18 +408,12 @@ function ConversationView({
             pane ? "flex-none" : "sticky -bottom-7 max-w-[760px]"
           )}
         >
-          <ChatComposer
-            rows={2}
-            disabled={waitingForAnswer}
-            dashboardId={dashboardId ?? undefined}
-            followsId={hasDashboard ? undefined : latestTurn?.id}
+          <ConversationComposer
+            chatId={chatId}
+            dashboardId={dashboardId}
             dashboardTitle={dashboardTitle}
+            disabled={waitingForAnswer}
             runningRequestId={runningRequestId}
-            placeholder={
-              hasDashboard
-                ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
-                : "Ask a follow-up, or describe a dashboard to build"
-            }
             onSent={openSent}
           />
           {!agentOff ? (
@@ -466,6 +512,7 @@ export function Conversation({
     <ConversationView
       requestId={requestId}
       layout={layout}
+      chatId={root.data.chat_id ?? null}
       dashboardId={dashboardId}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}

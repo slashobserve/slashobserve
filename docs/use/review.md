@@ -49,8 +49,11 @@ Filters that match nothing say "No activity matches these filters."
 At the bottom of the card, the form "Add to the activity" has an **On** menu with "The whole dashboard" and every panel title, and a box labelled "Comment or request".
 Write the comment and press Enter, or choose **Send** (the up arrow); Shift+Enter adds a line, and on a touch device Enter adds a line and **Send** sends.
 Cmd+Enter (Ctrl+Enter elsewhere) also sends.
-The reply boxes in a thread, in an observation's discussion and in the inbox take the same keys.
-A comment that mentions no agent goes to the team and starts nothing, and while you type one the box says so and says how to ask the agent.
+The boxes in an observation's discussion and in the inbox take the same keys.
+
+Above the box, a "To:" chip says who reads the message and a "Visible to:" chip says who sees it.
+A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
+A mention of an agent turns the chip to that agent's name.
 Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
@@ -119,7 +122,8 @@ With Comment but not Edit, what the agent builds becomes a [proposal](../concept
 - **From the form.** Write what to change, mention `@observe`, and send.
   Pick a panel in **On** to tell the agent which panel you mean.
   The comment is attached to the latest version and the panel you chose.
-- **From a thread.** Choose **Reply** on a comment, write the instruction with the mention, and send.
+- **From a thread.** Choose **Reply** on a comment: the box at the bottom of the card shows "Replying in" and the panel or dashboard, and **On** hides.
+  Write the instruction with the mention, and send; the box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
   The agent gets the earlier messages of the thread as context.
   The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention, unless the reply mentions a person or someone sent a message to everyone through the API, MCP or the CLI.
 

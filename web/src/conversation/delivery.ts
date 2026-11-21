@@ -1,4 +1,5 @@
 import { agentMentionsIn, mentionSegments } from "@/comments/mentions"
+import { maxQueuedRevisions } from "@/revisions/queries"
 
 export type Delivery = {
   to: "agent" | "everyone"
@@ -21,6 +22,18 @@ export type Place =
   | { kind: "canvas"; tool: "comment" | "ask" }
 
 export type Store = "thread" | "chat"
+
+export function threadPlace(
+  threadId: string | null,
+  thread?: { agent: ThreadAgent | null; agent_off: boolean } | null
+): Place {
+  return {
+    kind: "thread",
+    threadId,
+    agent: thread?.agent ?? null,
+    agentOff: thread?.agent_off ?? false,
+  }
+}
 
 function mentionsPerson(body: string): boolean {
   return mentionSegments(body).some(
@@ -53,4 +66,60 @@ export function defaultDelivery(place: Place, body: string): Delivery {
 export function storeOf(delivery: Delivery): Store | null {
   if (delivery.visibleTo === "everyone") return "thread"
   return delivery.to === "agent" ? "chat" : null
+}
+
+export function flips(place: Place): { to: boolean; visibleTo: boolean } {
+  switch (place.kind) {
+    case "chat":
+      return { to: false, visibleTo: false }
+    case "thread":
+      return { to: true, visibleTo: false }
+    case "canvas":
+      return place.tool === "ask"
+        ? { to: false, visibleTo: true }
+        : { to: true, visibleTo: false }
+  }
+}
+
+export type AgentGate =
+  | { kind: "hidden" }
+  | { kind: "allowed" }
+  | { kind: "no-model" }
+  | { kind: "blocked"; reason: string }
+
+export type GateInput = {
+  canComment: boolean
+  agentAvailable: boolean | undefined
+  pinned: boolean
+  layoutEditing: boolean
+  activeApplyRuns: number
+}
+
+export const ungated: GateInput = {
+  canComment: true,
+  agentAvailable: undefined,
+  pinned: false,
+  layoutEditing: false,
+  activeApplyRuns: 0,
+}
+
+export const pinnedText =
+  "You are viewing an older version. Open the latest version to send this to the agent."
+export const layoutEditingText =
+  "Finish editing the layout to send this to the agent."
+
+export function queueFullText(limit: number): string {
+  return `${limit} changes are already waiting for the agent. Send this when one finishes.`
+}
+
+export function deliveryGate(input: GateInput, delivery: Delivery): AgentGate {
+  if (!input.canComment) return { kind: "hidden" }
+  if (delivery.to === "everyone") return { kind: "allowed" }
+  if (input.agentAvailable === false) return { kind: "no-model" }
+  if (input.pinned) return { kind: "blocked", reason: pinnedText }
+  if (input.layoutEditing) return { kind: "blocked", reason: layoutEditingText }
+  if (input.activeApplyRuns >= maxQueuedRevisions) {
+    return { kind: "blocked", reason: queueFullText(maxQueuedRevisions) }
+  }
+  return { kind: "allowed" }
 }
