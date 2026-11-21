@@ -93,3 +93,21 @@ func TestAChatAlreadyAboutADashboardStaysThereWhenAnAnswerBecomesAnother(t *test
 		t.Errorf("the chat left the dashboard it was about: %d chats there", len(chats))
 	}
 }
+
+const refuseChatUpdates = `CREATE FUNCTION refuse_chat_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'chat updates are refused'; END $$;
+CREATE TRIGGER refuse_chat_update BEFORE UPDATE ON chats FOR EACH ROW EXECUTE FUNCTION refuse_chat_update();`
+
+func TestAChatThatCannotBeAttachedLeavesTheDashboardItsAnswerMade(t *testing.T) {
+	d := newDocumented(t)
+	run := d.chat(t, editor, pgtype.UUID{})
+	answer := d.answerWithEvidence(t, editor, run)
+	d.db.Exec(t, refuseChatUpdates)
+
+	made := d.makeDashboardFrom(t, editor, answer, http.StatusCreated)
+	if n := d.count(t, `SELECT count(*) FROM dashboards WHERE id = $1::uuid`, made.String()); n != 1 {
+		t.Fatalf("%d dashboards with the id the route answered", n)
+	}
+	if chats := d.chatsOn(t, editor, made, false); len(chats) != 0 {
+		t.Errorf("the chat was attached through a refused update: %d chats", len(chats))
+	}
+}

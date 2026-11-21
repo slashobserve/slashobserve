@@ -261,14 +261,12 @@ func (s *Service) MakeDashboard(ctx context.Context, by auth.Principal, id, bloc
 	err = s.locked(ctx, key.lockName(), func(q *dbsqlc.Queries) error {
 		var err error
 		made, version, created, err = s.makeOrReadDashboard(ctx, q, by, key, raw, again)
-		if err != nil {
-			return err
-		}
-		return attachRunChat(ctx, q, by, parent.RunID, made.ID)
+		return err
 	})
 	if err != nil {
 		return none(err)
 	}
+	s.attachRunChat(ctx, by, runToAttach(parent, blockID, panels), made.ID)
 	return made, version, created, nil
 }
 
@@ -335,21 +333,24 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 	return d, v, true, nil
 }
 
-func attachRunChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, runID pgtype.UUID, dashboardID string) error {
+func (s *Service) attachRunChat(ctx context.Context, by auth.Principal, runID pgtype.UUID, dashboardID string) {
 	if !runID.Valid {
-		return nil
+		return
 	}
-	dashboard, err := db.ParseUUID(dashboardID)
+	dashboard, dashErr := db.ParseUUID(dashboardID)
+	owner, ownerErr := db.ParseUUID(by.ID)
+	err := errors.Join(dashErr, ownerErr)
+	if err == nil {
+		err = s.store.db.Queries().AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{DashboardID: dashboard, RunID: runID, OwnerKind: string(by.Kind), OwnerID: owner})
+	}
 	if err != nil {
-		return fmt.Errorf("read the made dashboard id: %w", err)
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its observation", logattrs.Failure("chat_attach_failed", err, slog.String("dashboard_id", dashboardID), slog.String("run_id", runID.String()))...)
 	}
-	owner, err := db.ParseUUID(by.ID)
-	if err != nil {
-		return fmt.Errorf("read the caller id: %w", err)
+}
+
+func runToAttach(parent dbsqlc.Observation, blockID pgtype.UUID, panels []dbsqlc.ObservationBlock) pgtype.UUID {
+	if blockID.Valid && len(panels) == 1 && panels[0].RunID.Valid {
+		return panels[0].RunID
 	}
-	err = q.AttachRunChatToDashboard(ctx, dbsqlc.AttachRunChatToDashboardParams{DashboardID: dashboard, RunID: runID, OwnerKind: string(by.Kind), OwnerID: owner})
-	if err != nil {
-		return fmt.Errorf("attach the chat to the dashboard made from its observation: %w", err)
-	}
-	return nil
+	return parent.RunID
 }

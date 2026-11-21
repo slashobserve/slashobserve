@@ -430,7 +430,7 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
 	if err := s.store.attachChat(ctx, by, f.AgentRequestID, made.ID); err != nil {
-		return dashboards.Dashboard{}, dashboards.Version{}, err
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its answer", logattrs.Failure("chat_attach_failed", err, slog.String("finding_id", f.ID), slog.String("dashboard_id", made.ID))...)
 	}
 	return made, version, nil
 }

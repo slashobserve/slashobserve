@@ -2603,7 +2603,7 @@ export interface paths {
         /**
          * Save a finding's evidence panels as a new dashboard.
          * @deprecated
-         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["saveFindingAsDashboard"];
         delete?: never;
@@ -2861,7 +2861,7 @@ export interface paths {
         put?: never;
         /**
          * Make a dashboard from the live panel blocks of an observation.
-         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. An observation without a live panel block answers 409 `observation_has_no_panels`.
+         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. The caller's own chat that wrote the observation becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. An observation without a live panel block answers 409 `observation_has_no_panels`.
          */
         post: operations["makeDashboardFromObservation"];
         delete?: never;
@@ -2883,7 +2883,7 @@ export interface paths {
         put?: never;
         /**
          * Make a dashboard from one panel block.
-         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`. The chat attached is the chat of the run that wrote the block, or of the run that wrote the observation when the block has none, on the same terms.
          */
         post: operations["makeDashboardFromBlock"];
         delete?: never;
