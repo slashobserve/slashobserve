@@ -3,8 +3,10 @@ package revisions_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +28,15 @@ func (noBuilds) ViewBuild(context.Context, auth.Principal, pgtype.UUID) (revisio
 
 func (noBuilds) SaveStoppedBuild(context.Context, auth.Principal, pgtype.UUID) (revisions.SavedBuild, error) {
 	return revisions.SavedBuild{}, revisions.ErrBuildNotFound
+}
+
+type startsFailingWith struct {
+	*revisions.RunDesk
+	err error
+}
+
+func (s startsFailingWith) Start(context.Context, auth.Principal, revisions.StartRequest) (json.RawMessage, error) {
+	return nil, s.err
 }
 
 func recordingAudit(t *testing.T, d *dbtest.Database) (*audit.Recorder, func()) {
@@ -161,5 +172,38 @@ func TestAPromptWithNoVisibleTextIsRefusedWithItsReasonOverHTTP(t *testing.T) {
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusBadRequest || body.Code != "invalid_request" || body.Reason != "text_invisible_only" {
 		t.Fatalf("POST answered %d %s, want 400 invalid_request with reason text_invisible_only", rec.Code, rec.Body)
+	}
+}
+
+func TestAStartThatFailsOverMCPLeavesTheRunQueueEventHTTPLeaves(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger())
+	_, flush := recordingAudit(t, d)
+	desk := revisions.NewRunDesk(svc, revisions.ObserveOptions{})
+	internal := tools.New(tools.Deps{Runs: startsFailingWith{desk, errors.New("the store is down")}, Logger: quietLogger()})
+	gone := tools.New(tools.Deps{Runs: startsFailingWith{desk, context.Canceled}, Logger: quietLogger()})
+	left, leave := context.WithCancel(mcpContext(t, user))
+	leave()
+
+	for name, call := range map[string]func() (tools.Result, error){
+		"an internal failure": func() (tools.Result, error) {
+			return internal.Call(mcpContext(t, user), "start_run", []byte(`{"prompt":"x"}`))
+		},
+		"a caller who went away": func() (tools.Result, error) {
+			return gone.Call(left, "start_run", []byte(`{"prompt":"x"}`))
+		},
+	} {
+		if res, err := call(); err == nil && !res.IsError {
+			t.Fatalf("%s: start_run = %+v; want an error", name, res)
+		}
+	}
+	flush()
+
+	want := []queueEvent{{outcome: "failed", reason: "internal", status: "500"}, {outcome: "failed", reason: "-", status: "499"}}
+	got := queueEvents(t, d, true)
+	slices.SortFunc(got, func(a, b queueEvent) int { return strings.Compare(a.status, b.status) })
+	slices.SortFunc(want, func(a, b queueEvent) int { return strings.Compare(a.status, b.status) })
+	if !slices.Equal(got, want) {
+		t.Fatalf("run.queue events over MCP = %+v, want %+v", got, want)
 	}
 }

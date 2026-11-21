@@ -300,6 +300,17 @@ func failureReplyFor(err error) (Reply, bool) {
 	return Reply{}, false
 }
 
+func StartReplyFor(err error) Reply {
+	var invalid *StartError
+	if errors.As(err, &invalid) {
+		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: invalid.Error()}
+	}
+	if reply, known := failureReplyFor(err); known {
+		return reply
+	}
+	return Reply{Status: http.StatusInternalServerError, Code: "internal", Message: "internal error"}
+}
+
 func principalAttrs(c *gin.Context) []any {
 	principal := httpapi.Caller(c)
 	return []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}
