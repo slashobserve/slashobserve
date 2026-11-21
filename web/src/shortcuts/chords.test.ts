@@ -28,6 +28,8 @@ describe("feedKey", () => {
     [["v"], "view"],
     [["e"], "edit"],
     [["i"], "inspect"],
+    [["a"], "ask"],
+    [["A"], "ask"],
     [["c"], "comment"],
     [["Escape"], "close"],
     [["?"], "help"],
@@ -86,6 +88,8 @@ describe("feedKey", () => {
 describe("shortcutText", () => {
   it.each([
     ["view", "v"],
+    ["ask", "a"],
+    ["comment", "c"],
     ["close", "Esc"],
     ["shiftBack", "t ←"],
     ["tvMode", "d k"],
