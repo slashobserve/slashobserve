@@ -9,6 +9,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const inboxExcerptRunes = 200
@@ -82,8 +84,8 @@ func (t inboxTexts) excerptOf(item InboxItem) string {
 	return ""
 }
 
-func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
-	texts, err := s.loadInboxTexts(ctx, items)
+func (s *Store) describeInbox(ctx context.Context, a folders.Audience, items []InboxItem) error {
+	texts, err := s.loadInboxTexts(ctx, a, items)
 	if err != nil {
 		return err
 	}
@@ -92,7 +94,7 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 		item.TargetTitle = texts.titles[subjectOf(item.Event)]
 		item.Excerpt = texts.excerptOf(*item)
 		if item.Type == TypeThreadReplied {
-			item.Question = Excerpt(texts.questions[dataOf(item.Event).MessageID], inboxExcerptRunes)
+			item.Question = usertext.ShortTitle(plainMentions(texts.questions[dataOf(item.Event).MessageID]))
 		}
 	}
 	return nil
@@ -134,7 +136,7 @@ func inboxRefsOf(items []InboxItem) inboxRefs {
 	return refs
 }
 
-func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTexts, error) {
+func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []InboxItem) (inboxTexts, error) {
 	q := s.db.Queries()
 	refs := inboxRefsOf(items)
 	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
@@ -157,7 +159,7 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	for _, r := range messageRows {
 		texts.bodies[r.ID.String()] = r.Body
 	}
-	questionRows, err := q.InboxAnsweredQuestions(ctx, uuidsOf(messages))
+	questionRows, err := q.InboxAnsweredQuestions(ctx, dbsqlc.InboxAnsweredQuestionsParams{Ids: uuidsOf(messages), Admin: a.Admin, Folders: visibleFolders(a)})
 	if err != nil {
 		return inboxTexts{}, fmt.Errorf("list inbox answered questions: %w", err)
 	}

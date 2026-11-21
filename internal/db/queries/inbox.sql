@@ -87,10 +87,18 @@ SELECT 'proposal', p.id, p.title FROM proposals p WHERE p.id = ANY(@proposal_ids
 SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY(@ids::uuid[]);
 
 -- name: InboxAnsweredQuestions :many
-SELECT m.id, q.body FROM thread_messages m
+SELECT m.id, q.body
+FROM thread_messages m
 JOIN agent_requests r ON r.id = m.run_id
-JOIN thread_messages q ON q.id = r.thread_message_id
-WHERE m.id = ANY(@ids::uuid[]);
+JOIN thread_messages q ON q.id = r.thread_message_id AND q.thread_id = m.thread_id
+JOIN threads t ON t.id = m.thread_id
+WHERE m.id = ANY(@ids::uuid[])
+  AND (@admin::boolean OR coalesce(
+    (SELECT d.folder_id FROM dashboards d WHERE d.id = t.dashboard_id),
+    (SELECT o.folder_id FROM observations o WHERE o.id = t.observation_id),
+    (SELECT d.folder_id FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id WHERE p.id = t.proposal_id),
+    (SELECT d.folder_id FROM annotations a JOIN dashboards d ON d.id = a.dashboard_id WHERE a.id = t.annotation_id)
+  ) = ANY(@folders::uuid[]));
 
 -- name: InboxRunTexts :many
 SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt FROM agent_requests r WHERE r.id = ANY(@ids::uuid[]);

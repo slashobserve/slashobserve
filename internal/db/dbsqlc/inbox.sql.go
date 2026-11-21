@@ -41,19 +41,33 @@ func (q *Queries) InboxAccessRequestNotes(ctx context.Context, ids []pgtype.UUID
 }
 
 const inboxAnsweredQuestions = `-- name: InboxAnsweredQuestions :many
-SELECT m.id, q.body FROM thread_messages m
+SELECT m.id, q.body
+FROM thread_messages m
 JOIN agent_requests r ON r.id = m.run_id
-JOIN thread_messages q ON q.id = r.thread_message_id
+JOIN thread_messages q ON q.id = r.thread_message_id AND q.thread_id = m.thread_id
+JOIN threads t ON t.id = m.thread_id
 WHERE m.id = ANY($1::uuid[])
+  AND ($2::boolean OR coalesce(
+    (SELECT d.folder_id FROM dashboards d WHERE d.id = t.dashboard_id),
+    (SELECT o.folder_id FROM observations o WHERE o.id = t.observation_id),
+    (SELECT d.folder_id FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id WHERE p.id = t.proposal_id),
+    (SELECT d.folder_id FROM annotations a JOIN dashboards d ON d.id = a.dashboard_id WHERE a.id = t.annotation_id)
+  ) = ANY($3::uuid[]))
 `
+
+type InboxAnsweredQuestionsParams struct {
+	Ids     []pgtype.UUID
+	Admin   bool
+	Folders []pgtype.UUID
+}
 
 type InboxAnsweredQuestionsRow struct {
 	ID   pgtype.UUID
 	Body string
 }
 
-func (q *Queries) InboxAnsweredQuestions(ctx context.Context, ids []pgtype.UUID) ([]InboxAnsweredQuestionsRow, error) {
-	rows, err := q.db.Query(ctx, inboxAnsweredQuestions, ids)
+func (q *Queries) InboxAnsweredQuestions(ctx context.Context, arg InboxAnsweredQuestionsParams) ([]InboxAnsweredQuestionsRow, error) {
+	rows, err := q.db.Query(ctx, inboxAnsweredQuestions, arg.Ids, arg.Admin, arg.Folders)
 	if err != nil {
 		return nil, err
 	}

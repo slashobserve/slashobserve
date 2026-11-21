@@ -78,7 +78,8 @@ An access request reads "asked for comment access to" followed by the title, sho
 An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title`, `excerpt` and `question`.
 `target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
 `excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, the reason a proposal was discarded, or the note of an access request, as plain text of at most 200 characters, and is null for other items.
-`question` is the start of the thread message that an agent run answered, as plain text of at most 200 characters, on the `thread.replied` item that run wrote, and is null on every other item.
+`question` is the first line of the thread message that an agent run answered, cut to a title of at most 60 characters, on the `thread.replied` item that run wrote.
+It is null on every other item, once that message is deleted or withdrawn, and when you can no longer read the thread; it never comes from a chat prompt.
 The rest of an item carries no comment, message or finding text, as in the log.
 
 ## Done and the unread filter
