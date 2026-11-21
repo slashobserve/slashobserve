@@ -5814,7 +5814,7 @@ export interface components {
             /** @description True after a message was sent to everyone; plain replies then ask no agent until a message mentions one or is sent to the agent. */
             agent_off: boolean;
         };
-        /** @description One spot on a panel or an observation block, with the fields its kind needs. */
+        /** @description One spot on a panel or an observation block, with the fields its kind needs. Text in it may not contain control, bidirectional override or hidden characters, the rule thread messages follow (400 `invalid_request`). */
         Anchor: {
             /** @enum {string} */
             kind: "time" | "range" | "series" | "point" | "row" | "column" | "cell" | "bar" | "segment" | "heat_cell" | "slice" | "value" | "log_line" | "span" | "element" | "text" | "title" | "variable" | "position";
