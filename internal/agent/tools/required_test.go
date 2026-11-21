@@ -141,7 +141,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"field":          json.RawMessage(`"actor_name"`),
 	}
 
-	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}}
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}, nameStartRun: {"prompt"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {
