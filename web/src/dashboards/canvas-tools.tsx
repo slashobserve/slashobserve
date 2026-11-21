@@ -27,7 +27,6 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
 
 type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
-  canInvestigate: boolean
   idle: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
@@ -35,29 +34,17 @@ type Props = {
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
-export function useCanvasToolsShown(
-  permissions: Pick<DashboardPermissions, "comment" | "edit">
-): boolean {
-  const agentAvailable = useAgentInfo().data?.available === true
-  return permissions.comment || (permissions.edit && agentAvailable)
-}
-
-export function CanvasTools({
-  permissions,
-  canInvestigate,
-  idle,
-  composerRef,
-}: Props) {
+export function CanvasTools({ permissions, idle, composerRef }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
   const setSearch = useSetDashboardSearch()
   const agentAvailable = useAgentInfo().data?.available === true
-  const mayAsk = permissions.edit && agentAvailable
+  const mayAsk = permissions.comment && agentAvailable
   const commenting = permissions.comment && idle && tool === "comment"
 
   useEffect(() => () => setTool("select"), [setTool])
 
-  if (!permissions.comment && !mayAsk) return null
+  if (!permissions.comment) return null
 
   return (
     <div className="sticky bottom-0 z-30 h-0 narrow:hidden">
@@ -94,13 +81,7 @@ export function CanvasTools({
             variant="ghost"
             size="sm"
             className={toolClass}
-            disabled={!idle || !canInvestigate}
-            focusableWhenDisabled={!canInvestigate}
-            title={
-              canInvestigate
-                ? undefined
-                : "Asking the agent needs the Editor role"
-            }
+            disabled={!idle}
             onClick={() => {
               setTool("select")
               askAboutDashboard(setSearch)
@@ -108,7 +89,7 @@ export function CanvasTools({
             }}
           >
             <AtSignIcon aria-hidden="true" />
-            {canInvestigate ? "Ask" : "Ask (needs the Editor role)"}
+            Ask
           </Button>
         ) : null}
       </div>

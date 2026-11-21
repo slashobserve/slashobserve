@@ -69,7 +69,6 @@ type Props = {
   downloadsReady?: boolean
   canComment: boolean
   canEdit: boolean
-  canInvestigate: boolean
   onToggleResponsive?: () => void
   layoutActions?: PanelLayoutActions
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -123,7 +122,6 @@ export function PanelMenu({
   downloadsReady = true,
   canComment,
   canEdit,
-  canInvestigate,
   onToggleResponsive,
   layoutActions,
   composerRef,
@@ -166,7 +164,7 @@ export function PanelMenu({
       onSelect: () => {},
     })
   }
-  if (onDashboard && canInvestigate && data && agentAvailable) {
+  if (onDashboard && canComment && data && agentAvailable) {
     items.push({
       id: "ask",
       label: idle ? "Ask" : "Ask (finish the layout first)",

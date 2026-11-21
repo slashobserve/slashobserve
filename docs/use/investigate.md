@@ -104,8 +104,7 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
 Viewers can read the observations in the folders they can view.
-The web app offers **Ask** in a panel's menu only to an Editor or Admin who has Edit on that dashboard, so a Viewer or Commenter does not see it even on a copy in their own My Dashboards.
-Where the panel toolbar and the bottom tool bar still show **Ask** to someone with Edit on that dashboard, it is disabled and reads "needs the Editor role".
+**Ask** in a panel's menu, the panel toolbar and the bottom tool bar asks a question in a thread rather than starting an investigation, so it needs only Comment on the dashboard and a connected model; a Viewer does not see it.
 Over the API, `POST /api/v1/observe` with `kind` `investigate` from a Viewer or Commenter answers `403` `forbidden_role` with `needed_role` `editor`.
 
 ## From an MCP client
