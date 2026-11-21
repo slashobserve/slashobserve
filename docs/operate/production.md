@@ -31,8 +31,10 @@ Set `SLASHOBSERVE_TRUSTED_PROXIES` to the addresses or CIDR ranges your proxy co
 Unset, which is the default, the client address is the address the connection came from, and the server ignores `X-Forwarded-For`.
 Set, the server reads `X-Forwarded-For` only on a connection from a listed address, and takes the rightmost address in it that is not itself listed, so a client cannot choose its own address by sending the header.
 List every proxy that appends to the header, such as a CDN and the load balancer behind it; an address you leave out is taken for the client.
-Never list `0.0.0.0/0` or `::/0`, because then any client can set its address.
-The check that keeps the built-in agent's token off forwarded requests still looks at the connection itself, never at `X-Forwarded-For`.
+List the narrowest range your proxy or Ingress controller connects from, never the whole pod network, because a client inside a listed range can send any address it likes.
+The server refuses a range with no network bits, such as `0.0.0.0/0` or `::/0`, at startup.
+A load balancer that writes `ip:port` into `X-Forwarded-For`, as some cloud ones do, always records the proxy's own address, because the server does not accept an entry with a port.
+The check that keeps the built-in agent's token off forwarded requests still uses the connection's own address, and refuses the token on any request that carries a forwarding header.
 
 Serve the proxy over HTTP/2.
 The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).

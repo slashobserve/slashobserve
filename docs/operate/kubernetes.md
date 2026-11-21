@@ -77,7 +77,7 @@ The server starts `observe-agent` from the image whenever `llm.provider` is set,
 
 The chart also has `imagePullSecrets`, `logLevel`, `logFormat`, `outboundDomains`, `trustedProxies`, `service.type` and `service.port`, `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` and `metrics.enabled`.
 `logLevel`, `logFormat`, `outboundDomains`, `trustedProxies` and `metrics.enabled` set `SLASHOBSERVE_LOG_LEVEL`, `SLASHOBSERVE_LOG_FORMAT`, `SLASHOBSERVE_OUTBOUND_DOMAINS`, `SLASHOBSERVE_TRUSTED_PROXIES` and `SLASHOBSERVE_METRICS`.
-Set `trustedProxies` to the addresses or ranges your Ingress controller connects from, so the audit trail records the real client address; see [Put TLS in front](production.md#put-tls-in-front).
+Set `trustedProxies` to the narrowest addresses or ranges your Ingress controller connects from, not the pod network, so the audit trail records the real client address; see [Put TLS in front](production.md#put-tls-in-front).
 
 ## Datasources
 
