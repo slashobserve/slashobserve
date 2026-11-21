@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -8,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 var auditTools = []string{nameSearchAuditEvents, nameGetAuditEvent, nameListAuditFacets, nameGetAuditHistogram, nameAggregateAuditEvents, nameListAuditFields}
@@ -179,5 +182,68 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	res = r.call(t, nameGetAuditEvent, map[string]any{"id": trailtest.IDAt(r.base).String()})
 	if body, ok := res.Content.(errorBody); !res.IsError || !ok || body.Code != trail.CodeNotFound {
 		t.Errorf("an unknown event = %+v", res)
+	}
+}
+
+func TestEachAuditToolReadIsRecordedOnceAsThatToolOverMCP(t *testing.T) {
+	r := newAuditToolRig(t)
+	recorder := audit.New(audit.Config{DB: r.db.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
+	audit.Install(recorder)
+	t.Cleanup(func() { audit.Install(nil) })
+	ctx, stop := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		recorder.Run(ctx)
+	}()
+	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.base.Add(-5 * time.Minute)})
+	facets := r.window()
+	facets["field"] = "origin"
+	aggregate := r.window()
+	aggregate["q"] = `{"aggs":{"by":{"terms":{"field":"origin"}}}}`
+	calls := []struct {
+		name  string
+		input any
+	}{
+		{nameSearchAuditEvents, r.window()},
+		{nameGetAuditEvent, map[string]any{"id": ids[0]}},
+		{nameListAuditFacets, facets},
+		{nameGetAuditHistogram, r.window()},
+		{nameAggregateAuditEvents, aggregate},
+	}
+	caller := origin.With(auth.WithPrincipal(t.Context(), adminCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	for _, c := range calls {
+		raw, err := json.Marshal(c.input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := r.registry.Call(caller, c.name, raw); err != nil || res.IsError {
+			t.Fatalf("%s = %+v %v", c.name, res, err)
+		}
+	}
+	stop()
+	<-done
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT tool || ' ' || origin || ' ' || coalesce(origin_client, '') || ' ' || coalesce(actor_name, '') FROM audit_events WHERE action = 'audit.search' ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, s)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := make([]string, 0, len(calls))
+	for _, c := range calls {
+		want = append(want, c.name+" mcp claude-code "+adminCaller.Name)
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("recorded %q, want %q", got, want)
 	}
 }
