@@ -605,6 +605,7 @@ export const PanelContainer = memo(function PanelContainer({
           tool="comment"
           body={body}
           shownRange={shownWindow}
+          wholePanel={tableView && panel.type !== "table"}
         />
       ) : null}
       {draft !== null &&
