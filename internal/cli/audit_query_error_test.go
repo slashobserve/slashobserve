@@ -43,6 +43,32 @@ func TestTheUnderlineCountsCharactersNotBytes(t *testing.T) {
 	}
 }
 
+func TestTheUnderlineCountsACombiningMarkAsNoCell(t *testing.T) {
+	reply := `{"error":"unknown field \"nofield\"","code":"query_invalid","start":8,"end":19}`
+	_, _, stderr, code := runAudit(t, http.StatusUnprocessableEntity, nil, reply, "audit", "search", "--query", "e\u0301 and nofield:foo")
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	if code != 1 || len(lines) != 3 || lines[2] != "      ^^^^^^^^^^^" {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestALongQueryIsShownAsAWindowAroundTheSpan(t *testing.T) {
+	query := strings.Repeat("x ", 100) + "and nofield:foo" + strings.Repeat(" y", 100)
+	reply := `{"error":"unknown field \"nofield\"","code":"query_invalid","start":204,"end":215}`
+	_, _, stderr, code := runAudit(t, http.StatusUnprocessableEntity, nil, reply, "audit", "search", "--query", query)
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	if code != 1 || len(lines) != 3 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	shown, marks := lines[1], lines[2]
+	if len(shown) > 120 || !strings.HasPrefix(shown, "...") || !strings.HasSuffix(shown, "...") {
+		t.Fatalf("shown line is %d bytes: %q", len(shown), shown)
+	}
+	if at := strings.Index(shown, "nofield:foo"); at < 0 || marks != strings.Repeat(" ", at)+strings.Repeat("^", 11) {
+		t.Fatalf("marks %q do not sit under nofield:foo in %q", marks, shown)
+	}
+}
+
 func TestAnUnderlineThatDoesNotFitTheQueryIsLeftOut(t *testing.T) {
 	reply := `{"error":"bad","code":"query_invalid","start":90,"end":99}`
 	_, _, stderr, code := runAudit(t, http.StatusUnprocessableEntity, nil, reply, "audit", "search", "--query", "short")

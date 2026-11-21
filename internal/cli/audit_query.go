@@ -3,9 +3,16 @@ package cli
 import (
 	"errors"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/text/width"
+)
+
+const (
+	maxLineCells = 120
+	leadCells    = 40
+	ellipsis     = "..."
 )
 
 type queryError struct {
@@ -42,8 +49,42 @@ func underline(query string, start, end int) (line, marks string, ok bool) {
 		lineEnd = start + i
 	}
 	end = min(end, lineEnd)
-	column := cells(query[lineStart:start])
-	return text(query[lineStart:lineEnd]), strings.Repeat(" ", column) + strings.Repeat("^", max(cells(query[start:end]), 1)), true
+	shown := []rune(text(query[lineStart:lineEnd]))
+	from := utf8.RuneCountInString(query[lineStart:start])
+	to := utf8.RuneCountInString(query[lineStart:end])
+	first, last := windowAround(shown, from)
+	lead, trail := "", ""
+	if first > 0 {
+		lead = ellipsis
+	}
+	if last < len(shown) {
+		trail = ellipsis
+	}
+	column := len(lead) + cells(string(shown[first:from]))
+	span := cells(string(shown[from:max(min(to, last), from)]))
+	return lead + string(shown[first:last]) + trail, strings.Repeat(" ", column) + strings.Repeat("^", max(span, 1)), true
+}
+
+func windowAround(shown []rune, at int) (first, last int) {
+	if cells(string(shown)) <= maxLineCells {
+		return 0, len(shown)
+	}
+	budget := maxLineCells - 2*len(ellipsis)
+	first = at
+	for first > 0 && cells(string(shown[first-1:at])) <= leadCells {
+		first--
+	}
+	for first < at && cells(string(shown[first:first+1])) == 0 {
+		first++
+	}
+	last = first
+	for last < len(shown) && cells(string(shown[first:last+1])) <= budget {
+		last++
+	}
+	for first > 0 && last == len(shown) && cells(string(shown[first-1:last])) <= budget {
+		first--
+	}
+	return first, last
 }
 
 func onRuneStart(s string, i int) bool {
@@ -53,6 +94,9 @@ func onRuneStart(s string, i int) bool {
 func cells(s string) int {
 	n := 0
 	for _, r := range s {
+		if unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf) {
+			continue
+		}
 		switch width.LookupRune(r).Kind() {
 		case width.EastAsianWide, width.EastAsianFullwidth:
 			n += 2
