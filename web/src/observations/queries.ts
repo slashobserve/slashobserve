@@ -70,6 +70,17 @@ function shiftedBy(
   return existing
 }
 
+function replaceBlocks(
+  envelope: ObservationEnvelope,
+  blocks: readonly Block[]
+): ObservationEnvelope {
+  if (envelope.observation.blocks === undefined) return envelope
+  return {
+    ...envelope,
+    observation: { ...envelope.observation, blocks: [...blocks] },
+  }
+}
+
 export function withoutBlock(
   envelope: ObservationEnvelope,
   blockId: string
@@ -179,6 +190,18 @@ function writeBlock(queryClient: QueryClient, id: string, block: Block) {
     observationKeys.one(id),
     (previous) =>
       previous === undefined ? previous : replaceBlock(previous, block)
+  )
+}
+
+function writeLayout(
+  queryClient: QueryClient,
+  id: string,
+  blocks: readonly Block[]
+) {
+  queryClient.setQueryData<ObservationEnvelope>(
+    observationKeys.one(id),
+    (previous) =>
+      previous === undefined ? previous : replaceBlocks(previous, blocks)
   )
 }
 
@@ -454,6 +477,22 @@ export function useUpdateBlock(id: string) {
         .PATCH("/blocks/{id}", { params: { path: { id: blockId } }, body })
         .then(unwrapBlockWrite),
     (queryClient, { block }) => writeBlock(queryClient, id, block)
+  )
+}
+
+export type ArrangeBody = components["schemas"]["ObservationLayoutRequest"]
+
+export function useArrangeBlocks(id: string) {
+  return useBlockMutation(
+    id,
+    (body: ArrangeBody) =>
+      api
+        .PUT("/observations/{id}/layout", {
+          params: { path: { id } },
+          body,
+        })
+        .then(unwrap),
+    (queryClient, { blocks }) => writeLayout(queryClient, id, blocks)
   )
 }
 

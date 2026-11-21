@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { PublicRcaPage } from "./public-rca-page"
-import { publicRows } from "./rca-document"
+import { packRows } from "@/observations/block-rows"
 import type { RcaBlock } from "./queries"
 
 const token = `pub_${"a".repeat(43)}`
@@ -145,15 +145,18 @@ describe("PublicRcaPage superseded revisions", () => {
   })
 })
 
-describe("publicRows", () => {
-  function block(kind: "text" | "snapshot", width: "full" | "half"): RcaBlock {
+describe("packRows on an RCA", () => {
+  function block(
+    kind: "text" | "snapshot",
+    width: RcaBlock["width"]
+  ): RcaBlock {
     return kind === "text"
       ? { kind, markdown: "text", width }
       : { kind, snapshot_id: snapshotId, title: "Panel", panel: {}, width }
   }
 
   it("pairs consecutive half blocks and leaves a lone half block on its own", () => {
-    const rows = publicRows([
+    const rows = packRows([
       block("text", "full"),
       block("snapshot", "half"),
       block("snapshot", "half"),
@@ -161,5 +164,14 @@ describe("publicRows", () => {
       block("text", "full"),
     ])
     expect(rows.map((row) => row.length)).toEqual([1, 2, 1, 1])
+  })
+
+  it("packs a third beside two thirds", () => {
+    const rows = packRows([
+      block("snapshot", "third"),
+      block("snapshot", "two_thirds"),
+      block("text", "full"),
+    ])
+    expect(rows.map((row) => row.length)).toEqual([2, 1])
   })
 })

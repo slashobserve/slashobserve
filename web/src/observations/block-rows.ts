@@ -4,22 +4,220 @@ import type { DataPanel, Variable } from "@/spec"
 import { blockWriteProblem } from "./errors"
 import type { Block, Observation } from "./queries"
 
-export type BlockRow = { key: string; blocks: [Block] | [Block, Block] }
+export type BlockWidth = Block["width"]
 
-export function blockRows(blocks: readonly Block[]): BlockRow[] {
-  const sorted = blocks.toSorted((a, b) => a.position - b.position)
-  const rows: BlockRow[] = []
-  for (let i = 0; i < sorted.length; i++) {
-    const block = sorted[i]
-    const next = sorted[i + 1]
-    if (block.width === "half" && next !== undefined && next.width === "half") {
-      rows.push({ key: block.id, blocks: [block, next] })
-      i++
+export type BlockRow = { key: string; blocks: Block[] }
+
+export const widthSteps: readonly BlockWidth[] = [
+  "third",
+  "half",
+  "two_thirds",
+  "full",
+]
+
+const columnsOf: Record<BlockWidth, number> = {
+  third: 2,
+  half: 3,
+  two_thirds: 4,
+  full: 6,
+}
+
+const shareOf: Record<BlockWidth, number> = {
+  third: 1 / 3,
+  half: 1 / 2,
+  two_thirds: 2 / 3,
+  full: 1,
+}
+
+const rowColumns = 6
+
+export const spanClass: Record<BlockWidth, string> = {
+  third: "@min-[720px]:col-span-2",
+  half: "@min-[720px]:col-span-3",
+  two_thirds: "@min-[720px]:col-span-4",
+  full: "@min-[720px]:col-span-6",
+}
+
+export const rowGridClass = "grid grid-cols-1 gap-4 @min-[720px]:grid-cols-6"
+
+const minBlockHeight = 120
+const maxBlockHeight = 960
+const heightStep = 20
+const keyHeightStep = 40
+
+export function packRows<T extends { width: BlockWidth }>(
+  items: readonly T[]
+): T[][] {
+  const rows: T[][] = []
+  let used = 0
+  for (const item of items) {
+    const columns = columnsOf[item.width]
+    const last = rows.at(-1)
+    if (last !== undefined && used + columns <= rowColumns) {
+      last.push(item)
+      used += columns
     } else {
-      rows.push({ key: block.id, blocks: [block] })
+      rows.push([item])
+      used = columns
     }
   }
   return rows
+}
+
+export function blockRows(blocks: readonly Block[]): BlockRow[] {
+  const sorted = blocks.toSorted((a, b) => a.position - b.position)
+  return packRows(sorted).map((row) => ({ key: row[0].id, blocks: row }))
+}
+
+export function defaultBlockHeight(width: BlockWidth): number {
+  return width === "full" || width === "two_thirds" ? 280 : 220
+}
+
+export function blockHeight(block: Block): number {
+  return block.height ?? defaultBlockHeight(block.width)
+}
+
+export function hasHeight(block: Block): boolean {
+  return block.kind === "panel" || block.kind === "snapshot"
+}
+
+function clampHeight(pixels: number): number {
+  return Math.min(maxBlockHeight, Math.max(minBlockHeight, pixels))
+}
+
+export function snapHeight(pixels: number): number {
+  return clampHeight(Math.round(pixels / heightStep) * heightStep)
+}
+
+export function snapWidth(pixels: number, rowPixels: number): BlockWidth {
+  if (rowPixels <= 0) return "full"
+  const share = pixels / rowPixels
+  let nearest: BlockWidth = "full"
+  for (const width of widthSteps) {
+    if (Math.abs(shareOf[width] - share) < Math.abs(shareOf[nearest] - share)) {
+      nearest = width
+    }
+  }
+  return nearest
+}
+
+export function stepWidth(width: BlockWidth, direction: -1 | 1): BlockWidth {
+  const index = widthSteps.indexOf(width) + direction
+  return widthSteps[Math.min(widthSteps.length - 1, Math.max(0, index))]
+}
+
+export function stepHeight(pixels: number, direction: -1 | 1): number {
+  return clampHeight(pixels + direction * keyHeightStep)
+}
+
+export type BlockChange = { width?: BlockWidth; height?: number | null }
+
+export type Draft = { order: string[]; changes: Record<string, BlockChange> }
+
+export function orderOf(blocks: readonly Block[]): string[] {
+  return blocks.toSorted((a, b) => a.position - b.position).map((b) => b.id)
+}
+
+export function moveBlock(
+  order: readonly string[],
+  id: string,
+  to: number
+): string[] {
+  const from = order.indexOf(id)
+  if (from === -1) return [...order]
+  const rest = order.filter((entry) => entry !== id)
+  rest.splice(Math.min(rest.length, Math.max(0, to)), 0, id)
+  return rest
+}
+
+export function stepBlock(
+  order: readonly string[],
+  id: string,
+  direction: -1 | 1
+): string[] {
+  const from = order.indexOf(id)
+  if (from === -1) return [...order]
+  return moveBlock(order, id, from + direction)
+}
+
+export type DropTarget = { id: string; after: boolean; sideBySide: boolean }
+
+export type BlockRect = {
+  id: string
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+export function dropTarget(
+  rects: readonly BlockRect[],
+  point: { x: number; y: number },
+  draggedId: string,
+  rowPixels: number
+): DropTarget | null {
+  const hit = rects.find(
+    (rect) =>
+      point.x >= rect.left &&
+      point.x <= rect.left + rect.width &&
+      point.y >= rect.top &&
+      point.y <= rect.top + rect.height
+  )
+  if (hit === undefined || hit.id === draggedId) return null
+  const sideBySide = hit.width < rowPixels * 0.95
+  const after = sideBySide
+    ? point.x > hit.left + hit.width / 2
+    : point.y > hit.top + hit.height / 2
+  return { id: hit.id, after, sideBySide }
+}
+
+export function placeBeside(
+  order: readonly string[],
+  id: string,
+  target: Pick<DropTarget, "id" | "after">
+): string[] {
+  if (id === target.id) return [...order]
+  const rest = order.filter((entry) => entry !== id)
+  const at = rest.indexOf(target.id)
+  if (at === -1) return [...order]
+  rest.splice(target.after ? at + 1 : at, 0, id)
+  return rest
+}
+
+export function applyDraft(blocks: readonly Block[], draft: Draft): Block[] {
+  const byId = new Map(blocks.map((block) => [block.id, block]))
+  const known = draft.order.filter((id) => byId.has(id))
+  const named = new Set(known)
+  const rest = orderOf(blocks).filter((id) => !named.has(id))
+  return [...known, ...rest].map((id, position) => {
+    const block = byId.get(id) as Block
+    const change = draft.changes[id]
+    return {
+      ...block,
+      position,
+      width: change?.width ?? block.width,
+      height: change?.height === undefined ? block.height : change.height,
+    }
+  })
+}
+
+export function arrangeBody(draft: Draft): {
+  blocks: { id: string; width?: BlockWidth; height?: number | null }[]
+} {
+  return {
+    blocks: draft.order.map((id) => ({ id, ...draft.changes[id] })),
+  }
+}
+
+export function sameLayout(blocks: readonly Block[], draft: Draft): boolean {
+  const arranged = applyDraft(blocks, draft)
+  const before = blocks.toSorted((a, b) => a.position - b.position)
+  return arranged.every(
+    (block, index) =>
+      block.id === before[index].id &&
+      block.width === before[index].width &&
+      block.height === before[index].height
+  )
 }
 
 export function blockTitle(block: Block): string {
@@ -66,17 +264,6 @@ export function holdsAgentOutput(block: Block): boolean {
     block.created_by.run_id !== null ||
     block.created_by.origin === "mcp"
   )
-}
-
-export function moveTarget(
-  blocks: readonly Block[],
-  blockId: string,
-  direction: "up" | "down"
-): number | null {
-  const sorted = blocks.toSorted((a, b) => a.position - b.position)
-  const index = sorted.findIndex((block) => block.id === blockId)
-  if (index === -1) return null
-  return sorted[direction === "up" ? index - 1 : index + 1]?.position ?? null
 }
 
 export function nextBlockId(
