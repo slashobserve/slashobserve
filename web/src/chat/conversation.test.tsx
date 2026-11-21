@@ -304,9 +304,10 @@ describe("Conversation", () => {
   })
 
   it("offers sharing into the observation an answer was about after it was saved into another", async () => {
-    stubServer(chatAbout({ observation_id: observationId }))
+    stubServer(null)
     const { user } = renderConversation(
       answered({
+        chat_id: null,
         dashboard_id: null,
         subject_observation_id: observationId,
         observation_id: "o9",
@@ -334,6 +335,16 @@ describe("Conversation", () => {
         subject_observation_id: observationId,
         observation_id: observationId,
         finding: { ...finding, observation_id: observationId },
+      },
+      chatAbout({ observation_id: observationId }),
+    ],
+    [
+      "about an observation the asker can no longer read",
+      {
+        dashboard_id: null,
+        subject_observation_id: null,
+        observation_id: "o9",
+        finding: { ...finding, observation_id: "o9" },
       },
       chatAbout({ observation_id: observationId }),
     ],
