@@ -162,6 +162,72 @@ func TestACanceledQueuedRequestRecordsRunCanceled(t *testing.T) {
 	}
 }
 
+func auditedAgents(t *testing.T, d *dbtest.Database, runID string) map[string]string {
+	t.Helper()
+	rows, err := d.SQLDB(t).QueryContext(reading(t.Context()), `SELECT action, coalesce(agent_name, '') FROM audit_events WHERE target_id = $1`, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var action, agent string
+		if err := rows.Scan(&action, &agent); err != nil {
+			t.Fatal(err)
+		}
+		out[action] = agent
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestAQueuedRunCanceledBeforeAnyAgentTookItNamesNoAgent(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "go")
+	assignTo(t, d, rev.ID, "grant", grantA)
+
+	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := auditedAgents(t, d, rev.ID); got["run.finish"] != "" || got["run.queue"] != "" {
+		t.Fatalf("agents of the audit events = %v, want none", got)
+	}
+}
+
+func TestARunExpiredAsUnclaimedNamesNoAgent(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "nobody came")
+	assignTo(t, d, rev.ID, "grant", grantA)
+	d.Exec(t, "UPDATE agent_requests SET created_at = now() - interval '11 minutes' WHERE id = $1", mustUUID(t, rev.ID))
+
+	if err := svc.Sweep(reading(context.Background())); err != nil {
+		t.Fatal(err)
+	}
+
+	got := auditedAgents(t, d, rev.ID)
+	if _, finished := got["run.finish"]; !finished || got["run.finish"] != "" {
+		t.Fatalf("agents of the audit events = %v, want run.finish with no agent", got)
+	}
+}
+
+func TestARunTheBuiltInAgentTookNamesItOnStartAndFinish(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	rev := submit(t, svc, seedDashboard(t, d, 1), "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitFor(t, "the request to succeed", func() bool {
+		got, err := svc.GetByID(reading(context.Background()), mustUUID(t, rev.ID))
+		return err == nil && got.Status == string(revisions.StatusSucceeded)
+	})
+
+	got := auditedAgents(t, d, rev.ID)
+	if got["run.start"] != "Observe Agent" || got["run.finish"] != "Observe Agent" || got["run.queue"] != "" {
+		t.Fatalf("agents of the audit events = %v, want Observe Agent on start and finish only", got)
+	}
+}
+
 func TestASuggestionRecordsNoActivity(t *testing.T) {
 	svc, d := newSuggestService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)

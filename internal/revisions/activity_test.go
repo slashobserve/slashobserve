@@ -155,7 +155,7 @@ func TestRunActivityActsAsTheRequesterAndOnlyCarriesTheRunIdOnceItRuns(t *testin
 	}
 }
 
-func TestRunActivityNamesTheAgentOnEveryEventOfTheRunSession(t *testing.T) {
+func TestRunActivityNamesTheAgentOnlyOnEventsOfARunThatWasClaimed(t *testing.T) {
 	accountID := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
 	grantID := pgtype.UUID{Bytes: [16]byte{8}, Valid: true}
 	assignees := []struct {
@@ -188,6 +188,7 @@ func TestRunActivityNamesTheAgentOnEveryEventOfTheRunSession(t *testing.T) {
 			t.Run(a.name+" "+ev.typ, func(t *testing.T) {
 				row := runRow(ev.status, SourcePrompt)
 				row.AssignedKind, row.AssignedID = string(a.kind), a.id
+				row.StartedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 				got := runActivityWith(row, ev.typ, a.assignee, nil).Agent
 				want := audit.Agent{}
 				if ev.agent {
@@ -195,6 +196,10 @@ func TestRunActivityNamesTheAgentOnEveryEventOfTheRunSession(t *testing.T) {
 				}
 				if got != want {
 					t.Fatalf("agent = %+v, want %+v", got, want)
+				}
+				row.StartedAt = pgtype.Timestamptz{}
+				if got := runActivityWith(row, ev.typ, a.assignee, nil).Agent; got != (audit.Agent{}) {
+					t.Fatalf("agent of a run nobody claimed = %+v, want none", got)
 				}
 			})
 		}

@@ -67,8 +67,16 @@ func AssignedAgent(row dbsqlc.AgentRequest, assigneeName string) audit.Agent {
 	return audit.Agent{ID: id, Name: assigneeName}
 }
 
-func assigneeNameOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (string, error) {
-	if AssigneeKind(row.AssignedKind) == AssignBuiltin {
+func takenByAgent(row dbsqlc.AgentRequest, typ string) bool {
+	switch typ {
+	case activity.TypeRunStarted, activity.TypeRunSucceeded, activity.TypeRunFailed, activity.TypeRunCanceled, activity.TypeRunReleased:
+		return row.StartedAt.Valid
+	}
+	return false
+}
+
+func assigneeNameOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, typ string) (string, error) {
+	if AssigneeKind(row.AssignedKind) == AssignBuiltin || !takenByAgent(row, typ) {
 		return "", nil
 	}
 	name, err := q.GetAssigneeName(ctx, dbsqlc.GetAssigneeNameParams{Kind: row.AssignedKind, ID: row.AssignedID})
@@ -127,7 +135,7 @@ func runActivityWith(row dbsqlc.AgentRequest, typ string, assigneeName string, e
 		Actor:    actor.FromColumns(columns),
 		Data:     data,
 	}
-	if columns.RunID.Valid {
+	if takenByAgent(row, typ) {
 		entry.Agent = AssignedAgent(row, assigneeName)
 	}
 	return entry
@@ -188,7 +196,7 @@ func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, 
 			extra = outcome.data()
 		}
 	}
-	assigneeName, err := assigneeNameOf(ctx, q, row)
+	assigneeName, err := assigneeNameOf(ctx, q, row, typ)
 	if err != nil {
 		return err
 	}
