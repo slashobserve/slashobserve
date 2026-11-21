@@ -141,7 +141,7 @@ func newRig(t *testing.T) (*rig, context.Context) {
 
 func order(body string) []string {
 	var out []string
-	for _, a := range []string{"a.one", "b.two", "c.three", "d.four", "e.five"} {
+	for _, a := range []string{"a.one", "b.two", "c.three", "d.four", "e.five", "f.six", "g.seven"} {
 		if i := strings.Index(body, `"eventName":"`+a+`"`); i >= 0 {
 			out = append(out, a)
 		}
@@ -604,5 +604,44 @@ func TestThePositionIsWrittenEvenWhenTheRunEndsRightAfterTheReceiverAnswered(t *
 	}
 	if !r.cursor.advanceHadDeadline {
 		t.Fatal("the position write has no deadline of its own")
+	}
+}
+
+func TestAReceiverThatRefusesEveryEventStopsTheSkippingAfterThree(t *testing.T) {
+	r, ctx := newRig(t)
+	r.x.BatchSize = 4
+	r.source.add("a.one", "b.two", "c.three", "d.four", "e.five", "f.six")
+	r.refuseWhen(http.StatusBadRequest, func(string) bool { return true })
+	r.stopAt = func(r *rig) bool { return len(r.waits) == 3 }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.count.dropped[DroppedRefused] != 3 {
+		t.Fatalf("dropped = %v, want 3", r.count.dropped)
+	}
+	if r.cursor.at != (filter.Position{Xid: 103, Seq: 3}) {
+		t.Fatalf("cursor = %+v, want it right after the third skipped event", r.cursor.at)
+	}
+	if want := []time.Duration{time.Second, 2 * time.Second, 4 * time.Second}; !slices.Equal(r.waits, want) {
+		t.Fatalf("waits = %v, want backoff %v", r.waits, want)
+	}
+	if n := strings.Count(r.logs.String(), "refuses every event"); n != 1 {
+		t.Fatalf("the refusal of every event was logged %d times, want once: %s", n, r.logs.String())
+	}
+}
+
+func TestAnAcceptedEventResetsTheCountOfSkippedOnes(t *testing.T) {
+	r, ctx := newRig(t)
+	r.x.BatchSize = 1
+	r.source.add("a.one", "b.two", "c.three", "d.four", "e.five", "f.six", "g.seven")
+	r.refuseWhen(http.StatusBadRequest, func(body string) bool {
+		return !strings.Contains(body, `"d.four"`) && !strings.Contains(body, `"g.seven"`)
+	})
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.count.dropped[DroppedRefused] != 5 || r.delivered() != "d.four,g.seven" {
+		t.Fatalf("dropped %v delivered %s", r.count.dropped, r.delivered())
 	}
 }

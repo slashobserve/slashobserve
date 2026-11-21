@@ -23,6 +23,8 @@ const (
 
 	advanceTimeout = 10 * time.Second
 
+	maxSkipsInARow = 3
+
 	DroppedRefused   = "refused"
 	DroppedRetention = "retention"
 )
@@ -53,6 +55,8 @@ type Exporter struct {
 
 	Wait       func(ctx context.Context, d time.Duration) error
 	gapSeen    filter.Position
+	skipped    int
+	refusedAll bool
 	BatchSize  int
 	PollEvery  time.Duration
 	MinBackoff time.Duration
@@ -164,6 +168,7 @@ func (x *Exporter) step(ctx context.Context, size int, checkRetention bool) (pro
 	if err := x.advance(ctx, events[len(events)-1]); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
+	x.skipped, x.refusedAll = 0, false
 	x.rejected(ctx, receipt)
 	return progress{moved: true}, nil
 }
@@ -194,9 +199,18 @@ func (x *Exporter) refused(ctx context.Context, events []trail.Positioned, sendE
 	if len(events) > 1 {
 		return progress{shrinkTo: len(events) / 2}, nil
 	}
+	if x.skipped >= maxSkipsInARow {
+		if !x.refusedAll {
+			x.refusedAll = true
+			x.Logger.ErrorContext(ctx, "audit export receiver refuses every event, so none is skipped any more",
+				slog.Int("status", status.Status))
+		}
+		return progress{}, stage{"audit_export_receiver_refuses_events", sendErr}
+	}
 	if err := x.advance(ctx, events[0]); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
+	x.skipped++
 	x.Metrics.ExportDropped(DroppedRefused, 1)
 	x.Logger.WarnContext(ctx, "audit export skipped an event the receiver refuses",
 		slog.Int64("seq", events[0].At.Seq), slog.Int("status", status.Status))
