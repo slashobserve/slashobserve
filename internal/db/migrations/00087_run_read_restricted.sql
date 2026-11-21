@@ -5,7 +5,8 @@ ALTER TABLE annotations ADD COLUMN copied_restricted_answer BOOLEAN NOT NULL DEF
 
 UPDATE agent_requests r SET read_restricted = true
 WHERE EXISTS (SELECT 1 FROM audit_events e
-  WHERE e.run_id = r.id AND e.action = 'query.run' AND e.datasource_uid = 'slashobserve-audit' AND e.outcome = 'success');
+  WHERE e.run_id = r.id AND e.action = 'query.run' AND e.outcome <> 'denied'
+    AND (e.datasource_uid = 'slashobserve-audit' OR e.datasource_uid IN (SELECT uid FROM datasources WHERE audience = 'admins')));
 
 -- +goose StatementBegin
 CREATE FUNCTION dashboard_holds_restricted_answer(dashboard UUID) RETURNS BOOLEAN

@@ -7,7 +7,7 @@ import (
 
 const runReadRestrictedVersion = 87
 
-func TestRunReadRestrictedMigrationMarksRunsThatQueriedTheAuditTrail(t *testing.T) {
+func TestRunReadRestrictedMigrationMarksRunsThatQueriedADatasourceOnlyAdminsQuery(t *testing.T) {
 	ctx := context.Background()
 	d := newMigratedTo(t, runReadRestrictedVersion-1)
 	sqlDB := d.SQLDB(t)
@@ -21,12 +21,18 @@ VALUES (gen_random_uuid(), now(), 'query', $1, $2, 'user', $3::uuid, 'agent', $4
 		}
 		return id
 	}
+	for uid, audience := range map[string]string{"secrets": "admins", "prom": "everyone"} {
+		d.Exec(t, `INSERT INTO datasources (uid, type, name, config, audience) VALUES ($1, 'prometheus', $1, '{}', $2)`, uid, audience)
+	}
 	rows := []struct {
 		name, id string
 		want     string
 	}{
 		{"a run that queried the audit trail", run("query.run", "slashobserve-audit", "success"), "true"},
 		{"a run refused the audit trail", run("query.run", "slashobserve-audit", "denied"), "false"},
+		{"a run whose audit trail query failed", run("query.run", "slashobserve-audit", "failed"), "true"},
+		{"a run that queried an app datasource only Admins query", run("query.run", "secrets", "success"), "true"},
+		{"a run refused an app datasource only Admins query", run("query.run", "secrets", "denied"), "false"},
 		{"a run that queried another datasource", run("query.run", "prom", "success"), "false"},
 		{"a run whose tool call named the audit datasource", run("agent.tool_call", "slashobserve-audit", "success"), "false"},
 		{"a run with no queries", run("", "", ""), "false"},
