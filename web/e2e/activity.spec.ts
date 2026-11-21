@@ -37,7 +37,7 @@ const p99Prompt = fixturePrompt("followup-p99-panel.json")
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const threadsPostApi = /\/api\/v1\/threads$/
 const olderVersionNote =
-  "You are viewing an older version. Open the latest version to send changes to the agent."
+  "You are viewing an older version. Open the latest version to send this to the agent."
 const internalError = JSON.stringify({ error: "boom", code: "internal" })
 
 async function createOverview(request: APIRequestContext) {
