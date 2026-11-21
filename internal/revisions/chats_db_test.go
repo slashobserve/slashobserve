@@ -216,7 +216,7 @@ func TestAHomeBuildThatSavesADashboardMakesItTheChatsSubject(t *testing.T) {
 	}
 }
 
-func TestChatsAreListedReadAndArchivedByTheirOwnerOnly(t *testing.T) {
+func TestChatsAreListedAndArchivedByTheirOwnerAndReadByAdmins(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	ctx := context.Background()
 	older := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")})
@@ -249,10 +249,19 @@ func TestChatsAreListedReadAndArchivedByTheirOwnerOnly(t *testing.T) {
 	if err != nil || chat.Turns != 2 || len(turns) != 2 || turns[0].ID != older {
 		t.Fatalf("chat = %+v turns %d, %v", chat, len(turns), err)
 	}
+	if read, _, err := svc.Chat(ctx, bea, older); err != nil || !read.ReadOnly || read.Owner.Name != user.Name {
+		t.Fatalf("an Admin reads %+v, %v; want it read only with its owner", read, err)
+	}
+	if everyone, _, err := svc.Chats(ctx, bea, revisions.ChatFilter{Everyone: true}, 5, ""); err != nil || len(everyone) != 3 || !everyone[0].ReadOnly {
+		t.Fatalf("an Admin lists everyone's chats as %+v, %v", everyone, err)
+	}
+	if _, _, err := svc.Chats(ctx, user, revisions.ChatFilter{Everyone: true}, 5, ""); !errors.Is(err, revisions.ErrForbidden) {
+		t.Fatalf("an Editor lists everyone's chats: %v", err)
+	}
+	if _, _, err := svc.Chat(ctx, account, older); !errors.Is(err, revisions.ErrChatNotFound) {
+		t.Fatalf("%s reads the chat: %v", account.Name, err)
+	}
 	for _, who := range []auth.Principal{bea, account} {
-		if _, _, err := svc.Chat(ctx, who, older); !errors.Is(err, revisions.ErrChatNotFound) {
-			t.Fatalf("%s reads the chat: %v", who.Name, err)
-		}
 		if err := svc.ArchiveChat(ctx, who, older); !errors.Is(err, revisions.ErrChatNotFound) {
 			t.Fatalf("%s archives the chat: %v", who.Name, err)
 		}
