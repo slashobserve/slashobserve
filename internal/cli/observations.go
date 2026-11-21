@@ -144,7 +144,7 @@ func (a *app) observationShowCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <observation-id>",
 		Short: "Show an observation and its blocks",
-		Long:  "show prints the title, state, summary and address of an observation, then one line for each block with its position, id, kind, state, version, width, height and, for text, its first line.",
+		Long:  "show prints the title, state, summary and address of an observation, then one line for each block with its position, id, kind, state, version, width, height, its range and, for text, its first line.\nThe range of a panel block is its own window, as from..to, or page when it follows the observation's range; other blocks have none.",
 		Args:  exactArgs(1, "one observation id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -185,12 +185,26 @@ func printObservation(out *output, o observationRow) {
 	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {summaryLabel, summary}, {"URL", text(o.URL)}})
 	rows := make([][]string, 0, len(o.Blocks))
 	for _, b := range o.Blocks {
-		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), heightColumn(b.Height), blockContent(b)})
+		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), heightColumn(b.Height), blockRange(b), blockContent(b)})
 	}
 	if len(rows) > 0 {
 		out.line("")
-		out.table([]string{"POS", "ID", "KIND", "STATE", "VERSION", "WIDTH", "HEIGHT", "CONTENT"}, rows)
+		out.table([]string{"POS", "ID", "KIND", "STATE", "VERSION", "WIDTH", "HEIGHT", "RANGE", "CONTENT"}, rows)
 	}
+}
+
+func blockRange(b observationBlockRow) string {
+	if b.Kind != "panel" {
+		return "-"
+	}
+	var body struct {
+		From *string `json:"from"`
+		To   *string `json:"to"`
+	}
+	if json.Unmarshal(b.Body, &body) != nil || body.From == nil || body.To == nil {
+		return "page"
+	}
+	return when(*body.From) + ".." + when(*body.To)
 }
 
 func heightColumn(pixels *int) string {

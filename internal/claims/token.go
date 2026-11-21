@@ -5,19 +5,14 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
-
-const builtInAgentName = "Observe Agent"
 
 type RunAccess struct {
 	Request revisions.Request
@@ -46,18 +41,7 @@ func (s *Service) Authenticate(ctx context.Context, header string) (RunAccess, b
 	}
 	req := revisions.RequestOf(held.AgentRequest)
 	req.RequestedBy = requester
-	return RunAccess{Request: req, Mode: grantmode.Parse(held.GrantMode), Agent: assignedAgent(held.AgentRequest, held.AssigneeName)}, true, nil
-}
-
-func assignedAgent(run dbsqlc.AgentRequest, name string) audit.Agent {
-	id := uuid.NullUUID{UUID: run.AssignedID.Bytes, Valid: run.AssignedID.Valid}
-	switch revisions.AssigneeKind(run.AssignedKind) {
-	case revisions.AssignBuiltin:
-		return audit.Agent{Name: builtInAgentName}
-	case revisions.AssignGrant:
-		return audit.Agent{ID: id, Name: origin.CleanClient(name)}
-	}
-	return audit.Agent{ID: id, Name: name}
+	return RunAccess{Request: req, Mode: grantmode.Parse(held.GrantMode), Agent: revisions.AssignedAgent(held.AgentRequest, held.AssigneeName)}, true, nil
 }
 
 func (s *Service) RecordStep(ctx context.Context, req revisions.Request, st revisions.Step) {

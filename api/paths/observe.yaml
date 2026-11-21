@@ -320,7 +320,7 @@ observe-id:
     x-audit: { action: run.update, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [pin_run, unpin_run, rename_run]
-      cli: [observe requests pin, observe requests unpin, observe requests rename]
+      cli: [observe requests pin, observe requests unpin, observe requests rename, observe chats pin, observe chats unpin]
     summary: Rename or pin one of your agent requests.
     description: >-
       Only the principal that made the request may change it (403 `forbidden`); a request hidden from the caller answers 404.

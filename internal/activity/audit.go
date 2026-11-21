@@ -134,7 +134,9 @@ func recordAudit(ctx context.Context, q *dbsqlc.Queries, seq int64, e Entry, col
 	case ownerObservation:
 		target.ObservationID = nullUUID(e.Owner.id)
 	}
-	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Target: target, Data: data, By: columns.AuditBy(), Activity: seq})
+	by := columns.AuditBy()
+	by.Agent = e.Agent
+	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Target: target, Data: data, By: by, Activity: seq})
 }
 
 func displayName(data map[string]any) string {
