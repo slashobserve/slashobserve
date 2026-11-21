@@ -109,12 +109,14 @@ imports:
         description: >-
           The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it.
           Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
               oneOf:
                 - $ref: "../openapi.yaml#/components/schemas/AlreadyImported"
                 - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

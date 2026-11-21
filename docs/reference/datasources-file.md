@@ -60,6 +60,17 @@ Every entry is open to every signed-in person from Viewer up and to every servic
 An `admins` entry is read only by Admins and Admin keys: every other role, key and public link gets the same answer as for a datasource that does not exist, the agent and MCP clients of other roles do not see it, and a dashboard version that queries it serves its panel data and variable values only to Admins.
 There is no per-team or per-folder datasource access; a restricted folder hides its dashboards, not the datasources they read.
 
+A dashboard, proposal, observation or saved search that reads an `admins` entry lives only in a [folder only Admins can read](../teams/folders.md), as for a [datasource added in the app](../connect/datasources-in-the-app.md#who-can-query-it).
+The server reads the file only when it starts, and it refuses to start while content in any other folder reads an entry the file marks `admins`.
+The startup error `datasource_audience_refused` names the datasource and how many items read it, lists up to 20 of the ones outside people's My Dashboards with their kind, id, title and folder, counts the rest, and says the two ways out: move them into a folder only Admins can read while the entry is still `everyone`, or keep `audience: everyone` in the file.
+Items in someone's My Dashboards are only counted, never named, because nobody but their owner may see them.
+
+To make an entry `admins`:
+
+1. While the entry is still `everyone`, make or pick a folder only Admins can read and move every dashboard, observation and saved search that reads the datasource into it; content in someone's My Dashboards can be moved only by its owner.
+2. Set `audience: admins` on the entry in the file on every server.
+3. Restart the servers. Each one checks at start, so a server that refuses names what is still outside; move it and restart that server again.
+
 ## Fields common to every entry
 
 | Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                |

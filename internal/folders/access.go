@@ -27,6 +27,7 @@ type Folder struct {
 	General    bool
 	Personal   bool
 	Restricted bool
+	AdminsOnly bool
 }
 
 type folderLevel struct {
@@ -129,7 +130,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 	entries := make([]folderLevel, 0, len(rows))
 	var personal pgtype.UUID
 	for _, r := range rows {
-		facts := Facts{Restricted: r.Restricted, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
+		facts := Facts{Restricted: r.Restricted, AdminsOnly: r.AdminsOnly, Creator: r.Creator, Personal: r.Personal, Owner: r.Owner}
 		for _, g := range r.Grants {
 			if level, ok := ParseLevel(g); ok {
 				facts.Grants = append(facts.Grants, level)
@@ -143,7 +144,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 			personal = r.ID
 		}
 		entries = append(entries, folderLevel{
-			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Personal: r.Personal, Restricted: r.Restricted},
+			Folder:    Folder{ID: r.ID, Title: r.Title, General: r.General, Personal: r.Personal, Restricted: r.Restricted, AdminsOnly: r.AdminsOnly},
 			Abilities: AbilitiesFor(level),
 		})
 	}

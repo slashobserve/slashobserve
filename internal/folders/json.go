@@ -25,6 +25,7 @@ type folderJSON struct {
 	General        bool         `json:"general"`
 	Personal       bool         `json:"personal"`
 	Restricted     bool         `json:"restricted"`
+	AdminsOnly     bool         `json:"admins_only"`
 	DashboardCount int          `json:"dashboard_count"`
 	Grantees       []string     `json:"grantees"`
 	GranteeCount   int          `json:"grantee_count"`
@@ -40,6 +41,7 @@ func folderBody(f Folder, a Abilities, d dbsqlc.ListFolderDetailsRow) folderJSON
 		General:        f.General,
 		Personal:       f.Personal,
 		Restricted:     f.Restricted,
+		AdminsOnly:     f.AdminsOnly,
 		DashboardCount: int(d.DashboardCount),
 		Grantees:       d.Grantees,
 		GranteeCount:   int(d.GranteeCount),
@@ -72,11 +74,13 @@ type permissionEntryJSON struct {
 
 type folderPermissionsJSON struct {
 	Restricted bool                  `json:"restricted"`
+	AdminsOnly bool                  `json:"admins_only"`
 	Entries    []permissionEntryJSON `json:"entries"`
 }
 
-func permissionsBody(rows []dbsqlc.ListFolderPermissionsRow) folderPermissionsJSON {
-	body := folderPermissionsJSON{Restricted: len(rows) > 0, Entries: make([]permissionEntryJSON, 0, len(rows))}
+func permissionsBody(folder dbsqlc.Folder, rows []dbsqlc.ListFolderPermissionsRow) folderPermissionsJSON {
+	adminsOnly := AdminsOnly(folder)
+	body := folderPermissionsJSON{Restricted: adminsOnly || len(rows) > 0, AdminsOnly: adminsOnly, Entries: make([]permissionEntryJSON, 0, len(rows))}
 	for _, r := range rows {
 		e := permissionEntryJSON{Level: r.Level}
 		if r.GroupName.Valid {

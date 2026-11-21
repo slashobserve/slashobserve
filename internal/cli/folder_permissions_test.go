@@ -209,3 +209,37 @@ func TestFolderPermissionsUsageErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestFolderPermissionsAdminsOnly(t *testing.T) {
+	adminsOnly := `{"restricted":true,"admins_only":true,"entries":[]}`
+	f := newManageFake(t, manageReply{http.MethodPut, permissionsPath, 200, adminsOnly})
+	_, stderr, code := f.run("folders", "permissions", "admins-only", manageFolder)
+	if code != 2 || !strings.Contains(stderr, "rerun with --yes") || len(f.got) != 0 {
+		t.Fatalf("exit %d, stderr %q, requests %v", code, stderr, f.got)
+	}
+	stdout, stderr, code := f.run("folders", "permissions", "admins-only", manageFolder, "--yes")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	f.wantRequests(t, recordedRequest{http.MethodPut, permissionsPath, "", `{"admins_only":true,"entries":[]}`})
+	if want := "Only Admins can read folder " + manageFolder + "\n"; stdout != want {
+		t.Fatalf("stdout %q, want %q", stdout, want)
+	}
+}
+
+func TestFolderPermissionsShowOnAnAdminsOnlyFolder(t *testing.T) {
+	f := newManageFake(t, manageReply{http.MethodGet, permissionsPath, 200, `{"restricted":true,"admins_only":true,"entries":[]}`})
+	stdout, _, code := f.run("folders", "permissions", "show", manageFolder)
+	if code != 0 || !strings.Contains(stdout, "Only Admins can read this folder.") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
+func TestFolderPermissionsPrintTheRestrictedContentRefusal(t *testing.T) {
+	f := newManageFake(t, manageReply{http.MethodPut, permissionsPath, 409,
+		`{"error":"the dashboard \"Salaries\" in this folder reads the datasource \"payroll\", which only Admins can query; move it to another folder only Admins can read before you share this one","code":"restricted_content","datasource":"payroll"}`})
+	_, stderr, code := f.run("folders", "permissions", "open", manageFolder, "--yes")
+	if code != 1 || !strings.Contains(stderr, `reads the datasource "payroll"`) || !strings.Contains(stderr, "(restricted_content)") {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+}

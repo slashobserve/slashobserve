@@ -35,6 +35,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -63,6 +64,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/metrics"
 	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/prompts"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	dashprovision "github.com/slashobserve/slashobserve/internal/provision"
@@ -171,6 +173,41 @@ func datasourcesExit(err error) error {
 		exit.detail = buildErr.Message
 	}
 	return exit
+}
+
+func fileAdminsOnly(sources []config.Datasource) []string {
+	var uids []string
+	for _, ds := range sources {
+		if ds.Audience == datasource.AudienceAdmins {
+			uids = append(uids, ds.UID)
+		}
+	}
+	return uids
+}
+
+func warnExposedAppDatasources(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource, logger *slog.Logger) {
+	exposed, err := placement.ExposedAppDatasources(ctx, q, fileAdminsOnly(sources))
+	if err != nil {
+		logger.Warn("admins only datasources not checked", logattrs.Failure("datasource_audience_check_failed", err)...)
+		return
+	}
+	for _, e := range exposed {
+		logger.Warn("admins only datasource read outside admins only folders",
+			slog.String("datasource_uid", e.Datasource), slog.Int("shared_items", e.Shared), slog.Int("personal_items", e.Personal))
+	}
+}
+
+func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
+	err := placement.CheckFileAudiences(ctx, q, fileAdminsOnly(sources))
+	var misplaced *placement.MisplacedError
+	switch {
+	case err == nil:
+		return nil
+	case errors.As(err, &misplaced):
+		return &exitError{code: "datasource_audience_refused", detail: misplaced.Error(), cause: err,
+			attrs: []any{slog.String("datasource_uid", misplaced.Datasource), slog.Int("count", misplaced.Shared+misplaced.Personal)}}
+	}
+	return withheld("datasource_audience_check_failed", err)
 }
 
 func serviceAccountsExit(err error) error {
@@ -318,6 +355,10 @@ func run() error {
 	if err != nil {
 		return migrationExit(err)
 	}
+	if err := checkFileAudiences(ctx, database.Queries(), cfg.Datasources); err != nil {
+		return err
+	}
+	warnExposedAppDatasources(ctx, database.Queries(), cfg.Datasources, logger)
 	instance, err := database.Queries().GetInstance(ctx)
 	if err != nil {
 		return withheld("instance_lookup_failed", err)
@@ -368,7 +409,7 @@ func run() error {
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService))
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService), observations.WithPlacement(dashboardsService.Placement()))
 	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
@@ -527,7 +568,7 @@ func run() error {
 		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
-			folders.NewHandler(database, folderAccess, logger).SettleSharingWith(accessRequests.SettleFolder),
+			folders.NewHandler(database, folderAccess, logger).SettleSharingWith(accessRequests.SettleFolder).GuardOpeningWith(dashboardsService.Placement().OpeningGuard()),
 			accessrequests.NewHandler(accessRequests, logger),
 			proposals.NewHandler(proposalsService, folderAccess.RequireDashboard(folders.NeedView), logger),
 			imports.NewHandler(importsService, folderAccess),

@@ -783,6 +783,9 @@ func (r *Registry) versionNotFound(ctx context.Context, id pgtype.UUID) (Result,
 }
 
 func saveFailure(err error) (Result, error) {
+	if res, ok := restrictedRefusal(err); ok {
+		return res, nil
+	}
 	var invalidSpec *dashboards.InvalidSpecError
 	var conflict *dashboards.ConflictError
 	var proposalRequired *dashboards.ProposalRequiredError

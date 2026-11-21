@@ -40,11 +40,15 @@ observations-id-rcas:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`).
+        description: >-
+          The observation already has the most revisions it may keep (`rca_limit`), its folder is My Dashboards (`personal_folder`), it changed while it was being published (`observation_changed`), or nothing changed since the latest revision (`rca_unchanged`).
+          Or a panel froze data from a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
         $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
       "500":
@@ -234,7 +238,7 @@ observations-id-rcas-revision-public-links:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation already has the most links it may keep (`too_many_links`).
+        description: The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links.
         content:
           application/json:
             schema:

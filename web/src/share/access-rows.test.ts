@@ -48,6 +48,7 @@ function folder(
     general: false,
     personal: false,
     restricted: true,
+    admins_only: false,
     dashboard_count: 3,
     grantees: [],
     grantee_count: 0,
@@ -59,7 +60,7 @@ function folder(
 }
 
 function restricted(...entries: Entry[]): FolderPermissions {
-  return { restricted: true, entries }
+  return { restricted: true, admins_only: false, entries }
 }
 
 const creatorAuthor = { kind: "user" as const, id: "u-ana", name: "Ana" }
@@ -122,10 +123,20 @@ describe("accessRows", () => {
     ])
   })
 
+  it("lists only instance admins on an Admins-only folder, not its creator", () => {
+    const rows = accessRows(
+      folder(creatorAuthor),
+      { restricted: true, admins_only: true, entries: [] },
+      me,
+      "Dex"
+    )
+    expect(rows.map(({ name }) => name)).toEqual(["Instance admins"])
+  })
+
   it("shows a folder open to everyone by role", () => {
     const rows = accessRows(
       folder(creatorAuthor),
-      { restricted: false, entries: [] },
+      { restricted: false, admins_only: false, entries: [] },
       me,
       "Dex"
     )

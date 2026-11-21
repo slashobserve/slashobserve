@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -75,12 +76,18 @@ type Service struct {
 	runner *queryproxy.Runner
 	access *folders.Access
 	logger *slog.Logger
+	guard  *placement.Guard
 
 	proposer Proposer
 }
 
 func New(database *db.DB, runner *queryproxy.Runner, access *folders.Access, logger *slog.Logger) *Service {
-	return &Service{store: store{db: database}, runner: runner, access: access, logger: logger}
+	guard := placement.New(runner.Registry())
+	return &Service{store: store{db: database, guard: guard}, runner: runner, access: access, logger: logger, guard: guard}
+}
+
+func (s *Service) Placement() *placement.Guard {
+	return s.guard
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string) (Dashboard, Version, error) {

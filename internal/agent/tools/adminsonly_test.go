@@ -153,3 +153,30 @@ func TestTheRunAudienceIsTheRequesters(t *testing.T) {
 		t.Fatalf("run access = %+v", run.Access)
 	}
 }
+
+func TestListDatasourcesNamesTheAudienceOnlyForAnAdmin(t *testing.T) {
+	r, _ := adminsOnlyTools(t)
+	cases := []struct {
+		who  auth.Principal
+		want []string
+		not  string
+	}{
+		{auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}, []string{`"uid":"audit"`, `"audience":"admins"`, `"audience":"everyone"`}, ""},
+		{auth.Principal{Kind: auth.KindUser, ID: "e", Role: auth.RoleEditor}, []string{`"uid":"` + fakeUID + `"`}, `"audience"`},
+	}
+	for _, tc := range cases {
+		listed, err := r.Call(auth.WithPrincipal(t.Context(), tc.who), nameListDatasources, []byte(`{}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := content(t, listed)
+		for _, want := range tc.want {
+			if !strings.Contains(got, want) {
+				t.Fatalf("%s: list_datasources = %s, want %s", tc.who.Role, got, want)
+			}
+		}
+		if tc.not != "" && strings.Contains(got, tc.not) {
+			t.Fatalf("%s: list_datasources = %s, want no %s", tc.who.Role, got, tc.not)
+		}
+	}
+}

@@ -93,11 +93,11 @@ export function useSetFolderPermissions(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: (entries: PutEntry[]) =>
+    mutationFn: (body: { entries: PutEntry[]; admins_only?: boolean }) =>
       api
         .PUT("/folders/{id}/permissions", {
           params: { path: { id } },
-          body: { entries },
+          body,
         })
         .then(unwrap),
     onSettled: () =>

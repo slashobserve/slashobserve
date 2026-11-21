@@ -92,6 +92,13 @@ saved-searches:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -144,11 +151,15 @@ saved-searches-id:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The target is a personal folder (`personal_folder`).
+        description: >-
+          The target is a personal folder (`personal_folder`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

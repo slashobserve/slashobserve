@@ -56,6 +56,7 @@ func adminsOnlyHarness(t *testing.T) (*harness, *fakeDatasource) {
 		},
 		Panels: []spec.Panel{{ID: "p_ds", Type: spec.Table, Title: "picked", Datasource: "${ds}", Queries: []spec.Query{{Query: "count(up)"}}}},
 	}
+	hn.access.adminsOnly(true)
 	return hn, audit
 }
 
@@ -211,6 +212,7 @@ func flippingHarness(t *testing.T) (*harness, func(datasource.Audience)) {
 	d.Variables = append(d.Variables, spec.Variable{Name: "fj", Type: spec.QueryVariable, Datasource: "flip", Query: "label_values(up, job)"})
 	d.Panels = append(d.Panels, spec.Panel{ID: "p_flip", Type: spec.Table, Title: "flip", Datasource: "flip", Queries: []spec.Query{{Query: "count(up)"}}})
 	hn.specs.known[specKey{id: hn.id, version: flipVersion}] = d
+	hn.access.adminsOnly(true)
 	hn.specs.known[specKey{id: hn.id, version: flipPickedVersion}] = &spec.Dashboard{
 		SpecVersion: spec.Version,
 		Title:       "flip picked",
@@ -272,5 +274,38 @@ func TestAnAdminsValuesAreNeverServedFromTheCacheToANonAdminWhoMayReadTheVariabl
 	set(datasource.AudienceEveryone)
 	if rec := hn.getAs(viewer, values); rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `"cached":true`) {
 		t.Fatalf("viewer got what the Admin cached: status %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestAnAdminReadsADashboardInASharedFolderAsEveryoneDoes(t *testing.T) {
+	admin := readers[3]
+	hn, audit := adminsOnlyHarness(t)
+	hn.access.adminsOnly(false)
+	for _, path := range []string{
+		hn.versionPath(pickedVersion, "/variables/ds/values?"+window),
+		hn.versionPath(pickedVersion, "/variables/dj/values?"+window),
+		hn.versionPath(pickedVersion, "/panels/p_ds/data?"+window),
+	} {
+		rec := hn.getAs(admin, path)
+		if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "audit") || strings.Contains(rec.Body.String(), "secret") {
+			t.Fatalf("admin %s: status %d %s", path, rec.Code, rec.Body)
+		}
+	}
+	for _, path := range []string{
+		hn.versionPath(auditVersion, "/panels/p_audit/data?"+window+"&var-job=api"),
+		hn.versionPath(auditVersion, "/variables/aj/values?"+window),
+		hn.versionPath(pickedVersion, "/variables/dj/values?"+window+"&var-ds=audit"),
+	} {
+		if rec := hn.getAs(admin, path); rec.Code == http.StatusOK {
+			t.Fatalf("admin %s in a shared folder: status %d %s", path, rec.Code, rec.Body)
+		}
+	}
+	if ranges, instants, variables, _ := audit.counts(); ranges+instants+variables != 0 {
+		t.Fatal("an Admin's read of a dashboard in a shared folder reached the admins only datasource")
+	}
+
+	hn.access.adminsOnly(true)
+	if rec := hn.getAs(admin, hn.versionPath(pickedVersion, "/variables/dj/values?"+window)); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "secret") {
+		t.Fatalf("admin in an Admins-only folder: status %d %s", rec.Code, rec.Body)
 	}
 }
