@@ -67,6 +67,8 @@ var (
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+	jobKeys      = []string{"trigger", "duration_ms"}
+	importKeys   = []string{"connection_id"}
 	countKeys    = []string{"count"}
 	providerKeys = []string{"provider_error"}
 	overflowKeys = []string{"overflow"}
@@ -140,8 +142,8 @@ var catalog = map[Action]Spec{
 	"folder.create":             change(CategoryContent),
 	"folder.rename":             change(CategoryContent, renamedKeys),
 	"folder.delete":             change(CategoryContent),
-	"grafana_import.start":      change(CategoryContent),
-	"grafana_import.cancel":     change(CategoryContent),
+	"grafana_import.start":      change(CategoryContent, importKeys),
+	"grafana_import.cancel":     change(CategoryContent, importKeys),
 
 	"thread.open":                 change(CategoryConversation, threadKeys),
 	"thread.message":              change(CategoryConversation, threadKeys),
@@ -220,7 +222,7 @@ var catalog = map[Action]Spec{
 	"server.stop":     change(CategorySystem),
 	"migration.apply": change(CategorySystem),
 	"provision.apply": change(CategorySystem),
-	"job.run":         change(CategorySystem),
+	"job.run":         change(CategorySystem, jobKeys),
 	"webhook.deliver": access(CategorySystem, deliverKeys),
 	ActionPrune:       change(CategorySystem, pruneKeys),
 	ActionGap:         change(CategorySystem, gapKeys),

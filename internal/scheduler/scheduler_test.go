@@ -3,6 +3,8 @@ package scheduler
 import (
 	"context"
 	"errors"
+	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -11,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
@@ -176,7 +181,7 @@ func TestFailedJobIsRecordedAndDueAgainAfterItsInterval(t *testing.T) {
 			d := dbtest.New(t)
 			s, metrics := newScheduler(t, d, "server-a")
 			s.Register("broken", time.Hour, tc.fn)
-			if err := s.RunNow(t.Context(), "broken"); err != nil {
+			if err := s.RunNow(t.Context(), "broken", nil); err != nil {
 				t.Fatal(err)
 			}
 			j := row(t, d, "broken")
@@ -206,11 +211,11 @@ func TestSuccessAfterAFailureClearsTheError(t *testing.T) {
 		}
 		return nil
 	})
-	if err := s.RunNow(t.Context(), "flaky"); err != nil {
+	if err := s.RunNow(t.Context(), "flaky", nil); err != nil {
 		t.Fatal(err)
 	}
 	fail = false
-	if err := s.RunNow(t.Context(), "flaky"); err != nil {
+	if err := s.RunNow(t.Context(), "flaky", nil); err != nil {
 		t.Fatal(err)
 	}
 	if j := row(t, d, "flaky"); j.LastOutcome != OutcomeSucceeded || j.LastError != "" {
@@ -242,10 +247,10 @@ func TestLiveLeaseIsNotTakenOver(t *testing.T) {
 		t.Error("a job leased by another server ran")
 		return nil
 	})
-	if err := s.RunNow(t.Context(), "busy"); !errors.Is(err, ErrJobLeased) {
+	if err := s.RunNow(t.Context(), "busy", nil); !errors.Is(err, ErrJobLeased) {
 		t.Errorf("RunNow on a leased job: %v, want ErrJobLeased", err)
 	}
-	if err := s.RunNow(t.Context(), "missing"); !errors.Is(err, ErrUnknownJob) {
+	if err := s.RunNow(t.Context(), "missing", nil); !errors.Is(err, ErrUnknownJob) {
 		t.Errorf("RunNow on an unregistered job: %v, want ErrUnknownJob", err)
 	}
 }
@@ -260,7 +265,7 @@ func TestJobIsCancelledAtLeaseEnd(t *testing.T) {
 		<-ctx.Done()
 		return ctx.Err()
 	})
-	if err := s.RunNow(t.Context(), "slow"); err != nil {
+	if err := s.RunNow(t.Context(), "slow", nil); err != nil {
 		t.Fatal(err)
 	}
 	j := row(t, d, "slow")
@@ -280,7 +285,7 @@ func TestLeaseIsCappedAtTenMinutes(t *testing.T) {
 		lease = row(t, d, "nightly")
 		return nil
 	})
-	if err := s.RunNow(t.Context(), "nightly"); err != nil {
+	if err := s.RunNow(t.Context(), "nightly", nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := lease.LeaseUntil.Time.Sub(lease.LastStartedAt.Time); got != maxLease || lease.LeasedBy != "server-a" {
@@ -298,7 +303,7 @@ func TestShutdownReleasesTheLeaseAndKeepsTheJobDue(t *testing.T) {
 		<-runCtx.Done()
 		return runCtx.Err()
 	})
-	if err := s.RunNow(ctx, "interrupted"); err != nil {
+	if err := s.RunNow(ctx, "interrupted", nil); err != nil {
 		t.Fatal(err)
 	}
 	j := row(t, d, "interrupted")
@@ -388,5 +393,165 @@ func TestADueJobDoesNotWaitForASlowerOne(t *testing.T) {
 
 	if j := row(t, d, "a-slow"); j.LastOutcome != OutcomeSucceeded {
 		t.Fatalf("the slow job ended %q, want it to finish once the fast job ran", j.LastOutcome)
+	}
+}
+
+func dataKeys(e dbtest.AuditEvent) []string {
+	return slices.Sorted(maps.Keys(e.Data))
+}
+
+func TestAScheduledRunThatSucceedsRecordsNothing(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	run, done := signal()
+	s.Register("a-sweep", time.Hour, run)
+	probe, probed := signal()
+	s.Register("z-probe", time.Hour, probe)
+	runUntil(t, s, probed)
+	<-done
+
+	if events := d.AuditEvents(t, "job.run"); len(events) != 0 {
+		t.Fatalf("job.run events = %+v, want none for scheduled runs that succeeded", events)
+	}
+}
+
+func TestAScheduledRunThatFailsRecordsASystemEventWithTheScheduleTrigger(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-broken", time.Hour, func(context.Context) error { return errors.New("sok_secret") })
+	probe, probed := signal()
+	s.Register("z-probe", time.Hour, probe)
+	runUntil(t, s, probed)
+
+	events := d.AuditEvents(t, "job.run")
+	if len(events) != 1 {
+		t.Fatalf("job.run events = %+v, want one for the failed run", events)
+	}
+	e := events[0]
+	if e.Outcome != "failed" || e.Reason != "job_failed" || e.ActorKind != "system" || e.Initiator != "system" || e.Origin != "job" || e.TargetID != "a-broken" {
+		t.Errorf("event %+v", e)
+	}
+	if e.Data["trigger"] != "schedule" || !slices.Equal(dataKeys(e), []string{"duration_ms", "trigger"}) {
+		t.Errorf("data %v, want trigger schedule and duration_ms", e.Data)
+	}
+}
+
+func TestRunNowByAPersonRecordsThatPersonOnceWhateverTheOutcome(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-health", time.Hour, func(context.Context) error { return nil })
+	person := uuid.New()
+	by := &audit.By{Actor: audit.Actor{Kind: audit.ActorUser, ID: uuid.NullUUID{UUID: person, Valid: true}, Name: "Ada", Role: "admin"}, Origin: audit.Origin{Kind: audit.OriginAPI}}
+	if err := s.RunNow(t.Context(), "a-health", by); err != nil {
+		t.Fatal(err)
+	}
+	got := d.AuditEvents(t, "job.run")
+	if len(got) != 1 {
+		t.Fatalf("events %+v, want one", got)
+	}
+	e := got[0]
+	want := dbtest.AuditEvent{Action: "job.run", Outcome: "success", ActorKind: "user", ActorID: person.String(), Initiator: "person", Origin: "api", TargetKind: "job", TargetID: "a-health"}
+	e.Data = nil
+	if fmt.Sprint(e) != fmt.Sprint(want) {
+		t.Errorf("event %+v, want %+v", e, want)
+	}
+	if got[0].Data["trigger"] != "manual" || !slices.Equal(dataKeys(got[0]), []string{"duration_ms", "trigger"}) {
+		t.Errorf("data %v, want trigger manual and duration_ms", got[0].Data)
+	}
+}
+
+func TestAFailedJobRecordsAFailedEventAndAPanicSaysSo(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-broken", time.Hour, func(context.Context) error { return errors.New("sok_secret") })
+	s.Register("a-panics", time.Hour, func(context.Context) error { panic("sok_secret") })
+	for _, name := range []string{"a-broken", "a-panics"} {
+		if err := s.RunNow(t.Context(), name, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reasons := map[string]string{}
+	for _, e := range d.AuditEvents(t, "job.run") {
+		if e.Outcome != "failed" || !slices.Equal(dataKeys(e), []string{"duration_ms", "trigger"}) {
+			t.Errorf("event %+v, want failed with the trigger and duration", e)
+		}
+		reasons[e.TargetID] = e.Reason
+	}
+	if reasons["a-broken"] != "job_failed" || reasons["a-panics"] != "panic" {
+		t.Errorf("reasons %v", reasons)
+	}
+}
+
+type countedDrops struct {
+	mu      sync.Mutex
+	reasons map[string]int
+}
+
+func (c *countedDrops) EventsDropped(reason string, n int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.reasons == nil {
+		c.reasons = map[string]int{}
+	}
+	c.reasons[reason] += n
+}
+
+func (c *countedDrops) countOf(reason string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.reasons[reason]
+}
+
+func (*countedDrops) BatchWritten(time.Duration) {}
+func (*countedDrops) BufferedEvents(int)         {}
+func (*countedDrops) PartitionsAhead(int)        {}
+
+func TestAnEventThatCannotBeRecordedStillFinishesTheJobAndIsCountedAsDropped(t *testing.T) {
+	d := dbtest.New(t)
+	drops := &countedDrops{}
+	audit.Install(audit.New(audit.Config{DB: d.DB, Metrics: drops}))
+	t.Cleanup(func() { audit.Install(nil) })
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-sweep", time.Hour, func(context.Context) error { return nil })
+	if err := s.store.upsert(t.Context(), s.jobs["a-sweep"]); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.store.claim(t.Context(), []string{"a-sweep"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := s.store.finish(t.Context(), c, OutcomeSucceeded, "", &audit.Event{Action: "not.an.action"})
+	if !held || !errors.Is(err, errEventNotRecorded) {
+		t.Fatalf("finish = %v, %v, want the lease held and an event-not-recorded error", held, err)
+	}
+	if j := row(t, d, "a-sweep"); j.LastOutcome != OutcomeSucceeded || j.LeasedBy != "" || j.LeaseUntil.Valid {
+		t.Errorf("job row %+v, want it finished and released", j)
+	}
+	if n := len(d.AuditEvents(t, "job.run")); n != 0 {
+		t.Errorf("events = %d, want 0", n)
+	}
+	if got := drops.countOf(audit.DroppedRecordFailed); got != 1 {
+		t.Errorf("dropped %s = %d, want 1", audit.DroppedRecordFailed, got)
+	}
+}
+
+func TestALostLeaseRecordsNoEvent(t *testing.T) {
+	d := dbtest.New(t)
+	s, _ := newScheduler(t, d, "server-a")
+	s.Register("a-sweep", time.Hour, func(context.Context) error { return nil })
+	if err := s.store.upsert(t.Context(), s.jobs["a-sweep"]); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.store.claim(t.Context(), []string{"a-sweep"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := &store{db: s.store.db, instanceID: "server-b"}
+	held, err := other.finish(t.Context(), c, OutcomeSucceeded, "", &audit.Event{Action: "job.run"})
+	if err != nil || held {
+		t.Fatalf("finish by another server = %v, %v, want not held", held, err)
+	}
+	if n := len(d.AuditEvents(t, "job.run")); n != 0 {
+		t.Errorf("events = %d, want 0", n)
 	}
 }

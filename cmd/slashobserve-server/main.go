@@ -413,9 +413,9 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
-	var startHealthRun func()
+	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
-		StartHealthRun: func() { startHealthRun() },
+		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
 		Datasources:    registry,
 		Runner:         runner,
 		Dashboards:     dashboardsService,

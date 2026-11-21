@@ -281,10 +281,10 @@ type healthRunStartedOut struct {
 	Message string `json:"message"`
 }
 
-func (r *Registry) runDashboardHealth(_ context.Context, _ json.RawMessage) (Result, error) {
+func (r *Registry) runDashboardHealth(ctx context.Context, _ json.RawMessage) (Result, error) {
 	if r.deps.StartHealthRun == nil {
 		return Result{}, errHealthRunsNotConfigured
 	}
-	r.deps.StartHealthRun()
+	r.deps.StartHealthRun(ctx)
 	return success("Started a health run", healthRunStartedOut{Started: true, Message: "the run is starting, or one is already going; read the job field of list_dashboard_health to follow it"}), nil
 }

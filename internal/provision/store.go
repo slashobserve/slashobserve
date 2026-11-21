@@ -2,15 +2,38 @@ package provision
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
+var errEventNotRecorded = errors.New("the audit event was not recorded")
+
 type store struct {
 	db *db.DB
+}
+
+func inTxWithEvent(ctx context.Context, database *db.DB, event audit.Event, write func(*dbsqlc.Queries) error) error {
+	err := database.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := write(q); err != nil {
+			return err
+		}
+		if err := audit.Record(ctx, q, event); err != nil {
+			return fmt.Errorf("%w: %w", errEventNotRecorded, err)
+		}
+		return nil
+	})
+	if !errors.Is(err, errEventNotRecorded) {
+		return err
+	}
+	audit.Dropped(audit.DroppedRecordFailed)
+	return database.InTx(ctx, write)
 }
 
 func (s store) dashboards(ctx context.Context) ([]dbsqlc.ProvisionedDashboard, error) {
@@ -18,12 +41,21 @@ func (s store) dashboards(ctx context.Context) ([]dbsqlc.ProvisionedDashboard, e
 }
 
 func (s store) saved(ctx context.Context, path string, dashboardID pgtype.UUID, sum, folder string) error {
-	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	return inTxWithEvent(ctx, s.db, audit.Event{Action: provisionAction, Target: dashboardTarget(dashboardID)}, func(q *dbsqlc.Queries) error {
 		if err := q.UpsertProvisionedDashboard(ctx, dbsqlc.UpsertProvisionedDashboardParams{Path: path, DashboardID: dashboardID, ContentSha256: sum, FolderTitle: folder}); err != nil {
 			return err
 		}
 		return q.DeleteProvisionError(ctx, path)
 	})
+}
+
+func (s store) unchanged(ctx context.Context) error {
+	event := audit.Event{Action: provisionAction, Reason: reasonUnchanged, Target: audit.Target{Kind: "dashboard"}}
+	return inTxWithEvent(ctx, s.db, event, func(*dbsqlc.Queries) error { return nil })
+}
+
+func dashboardTarget(id pgtype.UUID) audit.Target {
+	return audit.Target{Kind: "dashboard", ID: id.String(), DashboardID: uuid.NullUUID{UUID: id.Bytes, Valid: true}}
 }
 
 func (s store) dashboardFailed(ctx context.Context, path, message string) error {
