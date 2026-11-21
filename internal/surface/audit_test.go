@@ -38,9 +38,7 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	"webhook.deliver":          "the webhook worker, for each delivery attempt",
 }
 
-var pendingAuditActions = []audit.Action{
-	"observation.arrange",
-}
+var pendingAuditActions = []audit.Action{}
 
 type declaredOperation struct {
 	where       string

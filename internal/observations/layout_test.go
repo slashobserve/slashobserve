@@ -2,6 +2,7 @@ package observations_test
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -219,5 +220,45 @@ func TestATextBlockTakesNoHeightOnAddUpdateOrArrange(t *testing.T) {
 	unset := []observations.BlockLayout{{ID: uuidOf(text.ID), Height: observations.HeightChange{Set: true}}}
 	if got, err := r.service.Arrange(reading(t.Context()), editor, id, unset, pgtype.UUID{}); err != nil || got[0].Height != nil {
 		t.Errorf("a null height on a text block: %+v, %v", got, err)
+	}
+}
+
+func TestALayoutChangeIsRecordedAsAnArrangementNamingWhatChanged(t *testing.T) {
+	r := newRig(t)
+	o := r.create(t, editor, r.shared)
+	a := r.addPanel(t, editor, o)
+	b := r.addText(t, editor, o, "b")
+	arrange := func(items []observations.BlockLayout) {
+		t.Helper()
+		if _, err := r.service.Arrange(reading(t.Context()), editor, mustUUID(t, o.ID), items, pgtype.UUID{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	arrange(layoutOf(a, b))
+	arrange(layoutOf(b, a))
+	half := observations.WidthHalf
+	sized := layoutOf(b, a)
+	sized[1].Width = &half
+	sized[1].Height = observations.HeightChange{Set: true, Pixels: new(240)}
+	arrange(sized)
+	reordered := layoutOf(a, b)
+	reordered[0].Width = &half
+	arrange(reordered)
+
+	got := r.db.AuditEvents(t, "observation.arrange")
+	var changed [][]any
+	for _, e := range got {
+		if e.Outcome != "success" || e.TargetID != o.ID || e.Data["title"] != "Checkout 5xx" {
+			t.Errorf("event = %+v, want a success on %s titled Checkout 5xx", e, o.ID)
+		}
+		list, _ := e.Data["changed"].([]any)
+		changed = append(changed, list)
+	}
+	want := [][]any{{"order"}, {"height", "width"}, {"order"}}
+	if !reflect.DeepEqual(changed, want) {
+		t.Fatalf("changed = %v, want %v (the unchanged arrangement records no event of its own)", changed, want)
+	}
+	if n := len(r.db.AuditEvents(t, "observation.update")); n != 0 {
+		t.Fatalf("%d observation.update events, want none: an arrangement is not an update", n)
 	}
 }

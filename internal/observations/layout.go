@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -21,6 +22,8 @@ const (
 	MaxBlockHeight = 960
 
 	automaticHeight = 0
+
+	auditArranged audit.Action = "observation.arrange"
 )
 
 type HeightChange struct {
@@ -180,6 +183,30 @@ func placedAs(row dbsqlc.ObservationBlock, item BlockLayout) placedBlock {
 	return block
 }
 
+func changedLayout(rows []dbsqlc.ObservationBlock, placed []placedBlock) []string {
+	before := make(map[pgtype.UUID]dbsqlc.ObservationBlock, len(rows))
+	for _, row := range rows {
+		before[row.ID] = row
+	}
+	var order, width, height bool
+	for i, block := range placed {
+		row := before[block.id]
+		order = order || rows[i].ID != block.id
+		width = width || Width(row.Width) != block.width
+		height = height || !equalHeights(heightOf(row.Height), block.height)
+	}
+	var changed []string
+	for _, kind := range []struct {
+		name string
+		did  bool
+	}{{"height", height}, {"order", order}, {"width", width}} {
+		if kind.did {
+			changed = append(changed, kind.name)
+		}
+	}
+	return changed
+}
+
 func unchangedLayout(rows []dbsqlc.ObservationBlock, placed []placedBlock) bool {
 	return slices.EqualFunc(rows, placed, func(row dbsqlc.ObservationBlock, block placedBlock) bool {
 		return row.ID == block.id && Width(row.Width) == block.width && equalHeights(heightOf(row.Height), block.height)
@@ -250,7 +277,16 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 			if err := q.TouchObservation(ctx, parent.ID); err != nil {
 				return fmt.Errorf("touch observation: %w", err)
 			}
-			if err := appendEvent(ctx, q, activity.TypeObservationUpdated, who, parent.ID, eventData{Title: parent.Title}); err != nil {
+			_, err := activity.Append(ctx, q, activity.Entry{
+				Type:        activity.TypeObservationUpdated,
+				TargetID:    parent.ID,
+				Owner:       activity.OnObservation(parent.ID),
+				Actor:       who,
+				Data:        eventData{Title: parent.Title},
+				AuditAction: auditArranged,
+				AuditOnly:   map[string]any{"changed": changedLayout(rows, placed)},
+			}, nil)
+			if err != nil {
 				return err
 			}
 			if rows, err = q.BlocksOfObservation(ctx, parent.ID); err != nil {

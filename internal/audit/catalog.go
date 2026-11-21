@@ -57,6 +57,7 @@ var (
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
 	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
 	messageKeys  = []string{"anchor_kind", "body_length"}
+	arrangeKeys  = []string{"title", "changed"}
 	usageKeys    = []string{"model", "input_tokens", "output_tokens"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
@@ -155,7 +156,7 @@ var catalog = map[Action]Spec{
 	"observation.block_keep":    change(CategoryContent, blockKeys),
 	"observation.block_discard": change(CategoryContent, blockKeys),
 	"observation.block_remove":  change(CategoryContent, blockKeys),
-	"observation.arrange":       change(CategoryContent),
+	"observation.arrange":       change(CategoryContent, arrangeKeys),
 	"proposal.open":             change(CategoryContent, proposalKeys),
 	"proposal.update":           change(CategoryContent, proposalKeys),
 	"proposal.merge":            change(CategoryContent, proposalKeys),

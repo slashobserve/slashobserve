@@ -1,6 +1,7 @@
 package activity
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -139,7 +140,7 @@ func recordAudit(ctx context.Context, q *dbsqlc.Queries, seq int64, e Entry, col
 	}
 	by := columns.AuditBy()
 	by.Agent = e.Agent
-	return audit.Record(ctx, q, audit.Event{Action: mapping.action, Outcome: mapping.outcome, Target: target, Data: data, By: by, Activity: seq})
+	return audit.Record(ctx, q, audit.Event{Action: cmp.Or(e.AuditAction, mapping.action), Outcome: mapping.outcome, Target: target, Data: data, By: by, Activity: seq})
 }
 
 func displayName(data map[string]any) string {
