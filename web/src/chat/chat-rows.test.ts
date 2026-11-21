@@ -14,6 +14,7 @@ function chat(id: string, overrides: Partial<Chat> = {}): Chat {
     id,
     title: id,
     dashboard_id: null,
+    dashboard_title: null,
     observation_id: null,
     pinned_at: null,
     created_at: "2026-11-21T09:00:00",
@@ -26,10 +27,9 @@ function chat(id: string, overrides: Partial<Chat> = {}): Chat {
   }
 }
 
-const titles = new Map([
-  ["d1", "Checkout health"],
-  ["d2", "API latency"],
-])
+function about(id: string, title: string | null): Partial<Chat> {
+  return { dashboard_id: id, dashboard_title: title }
+}
 
 describe("turnsText", () => {
   test.each([
@@ -43,19 +43,19 @@ describe("turnsText", () => {
 
 describe("dashboardLabel", () => {
   test("has none for a chat about no dashboard", () => {
-    expect(dashboardLabel(null, titles)).toBeNull()
+    expect(dashboardLabel(chat("a"))).toBeNull()
   })
 
-  test("names the dashboard by its title", () => {
-    expect(dashboardLabel("d1", titles)).toBe("Checkout health")
+  test("names the dashboard by the title the server gives", () => {
+    expect(dashboardLabel(chat("a", about("d1", "Checkout health")))).toBe(
+      "Checkout health"
+    )
   })
 
-  test("names a dashboard the reader cannot see without its title", () => {
-    expect(dashboardLabel("d9", titles)).toBe("A dashboard you cannot see")
-  })
-
-  test("says Dashboard while the titles load", () => {
-    expect(dashboardLabel("d1", undefined)).toBe("Dashboard")
+  test("names a dashboard the server gives no title for", () => {
+    expect(dashboardLabel(chat("a", about("d9", null)))).toBe(
+      "A dashboard you cannot see"
+    )
   })
 })
 
@@ -64,12 +64,11 @@ describe("dashboardChoices", () => {
     expect(
       dashboardChoices(
         [
-          chat("a", { dashboard_id: "d1" }),
+          chat("a", about("d1", "Checkout health")),
           chat("b"),
-          chat("c", { dashboard_id: "d2" }),
-          chat("d", { dashboard_id: "d1" }),
+          chat("c", about("d2", "API latency")),
+          chat("d", about("d1", "Checkout health")),
         ],
-        titles,
         undefined
       )
     ).toEqual([
@@ -79,8 +78,8 @@ describe("dashboardChoices", () => {
   })
 
   test("keeps the chosen dashboard when no listed chat is about it", () => {
-    expect(dashboardChoices([], titles, "d1")).toEqual([
-      { id: "d1", label: "Checkout health" },
+    expect(dashboardChoices([], "d1")).toEqual([
+      { id: "d1", label: "Chosen dashboard" },
     ])
   })
 })

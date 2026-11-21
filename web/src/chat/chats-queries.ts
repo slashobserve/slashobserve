@@ -12,7 +12,6 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { chatKeys, observeKeys, type ChatsFilters } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { dashboardTitlesQuery } from "@/shell/palette-queries"
 
 export type Chat = components["schemas"]["Chat"]
 
@@ -102,15 +101,4 @@ export function useArchiveChat(id: string) {
         queryClient.invalidateQueries({ queryKey: observeKeys.request(id) }),
       ]),
   })
-}
-
-export function useDashboardTitles(): ReadonlyMap<string, string> | undefined {
-  const titles = useQuery(dashboardTitlesQuery())
-  return useMemo(
-    () =>
-      titles.data === undefined
-        ? undefined
-        : new Map(titles.data.map((entry) => [entry.id, entry.title])),
-    [titles.data]
-  )
 }

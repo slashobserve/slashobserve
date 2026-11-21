@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { ChatRowMeta } from "./chat-row-meta"
-import { useChats, useDashboardTitles } from "./chats-queries"
+import { useChats } from "./chats-queries"
 
 const recentLimit = 5
 
@@ -14,7 +14,6 @@ export function RecentChats() {
   const navigate = useNavigate()
   const headingId = useId()
   const { chats, query } = useChats({}, recentLimit)
-  const titles = useDashboardTitles()
 
   const failed = query.data === undefined && !query.isPending
 
@@ -71,7 +70,7 @@ export function RecentChats() {
                         {chat.title}
                       </span>
                       <span className="flex max-w-[260px] min-w-0 flex-none items-center gap-x-2 text-xs text-muted-foreground">
-                        <ChatRowMeta chat={chat} titles={titles} />
+                        <ChatRowMeta chat={chat} />
                       </span>
                       <span className="w-20 flex-none text-right text-xs text-muted-foreground narrow:ml-auto narrow:w-auto">
                         <RelativeTime iso={chat.last_turn_at} />

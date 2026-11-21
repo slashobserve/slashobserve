@@ -25,13 +25,8 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import { chatFooterText } from "./chat-footer"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
-import {
-  dashboardChoices,
-  dashboardLabel,
-  noDashboardLabel,
-  type DashboardTitles,
-} from "./chat-rows"
-import { useChats, useDashboardTitles, type Chat } from "./chats-queries"
+import { dashboardChoices, dashboardLabel, noDashboardLabel } from "./chat-rows"
+import { useChats, type Chat } from "./chats-queries"
 import type { ChatsSearch } from "./chats-search"
 
 type Props = {
@@ -55,7 +50,6 @@ export function ChatsPage({ search, onSearch }: Props) {
   const admin = roleAtLeast(principal.role, "admin")
   const everyone = admin && search.scope === "all"
   const filtered = search.q !== undefined || search.dashboard !== undefined
-  const titles = useDashboardTitles()
   const { chats, query } = useChats(
     {
       q: search.q,
@@ -118,7 +112,6 @@ export function ChatsPage({ search, onSearch }: Props) {
         ) : null}
         <DashboardFilter
           chats={chats}
-          titles={titles}
           value={search.dashboard}
           onChange={(dashboard) => onSearch({ ...search, dashboard })}
         />
@@ -151,7 +144,7 @@ export function ChatsPage({ search, onSearch }: Props) {
         </div>
       ) : (
         <>
-          <ChatTable chats={chats} titles={titles} everyone={everyone} />
+          <ChatTable chats={chats} everyone={everyone} />
           {footer === null ? null : (
             <p className="mt-2 text-xs text-muted-foreground">{footer}</p>
           )}
@@ -170,18 +163,16 @@ export function ChatsPage({ search, onSearch }: Props) {
 
 function DashboardFilter({
   chats,
-  titles,
   value,
   onChange,
 }: {
   chats: readonly Chat[]
-  titles: DashboardTitles | undefined
   value: string | undefined
   onChange: (dashboard: string | undefined) => void
 }) {
   const items = [
     { value: anyDashboard, label: "Dashboard: any" },
-    ...dashboardChoices(chats, titles, value).map((choice) => ({
+    ...dashboardChoices(chats, value).map((choice) => ({
       value: choice.id,
       label: `Dashboard: ${choice.label}`,
     })),
@@ -255,11 +246,9 @@ function SearchField({
 
 function ChatTable({
   chats,
-  titles,
   everyone,
 }: {
   chats: readonly Chat[]
-  titles: DashboardTitles | undefined
   everyone: boolean
 }) {
   const table = useRef<HTMLDivElement>(null)
@@ -281,7 +270,6 @@ function ChatTable({
           <ChatRow
             key={chat.id}
             chat={chat}
-            titles={titles}
             everyone={everyone}
             afterDelete={table}
           />
@@ -296,12 +284,10 @@ const rowActionClass =
 
 function ChatRow({
   chat,
-  titles,
   everyone,
   afterDelete,
 }: {
   chat: Chat
-  titles: DashboardTitles | undefined
   everyone: boolean
   afterDelete: RefObject<HTMLElement | null>
 }) {
@@ -339,7 +325,7 @@ function ChatRow({
       </Cell>
       <Cell data-label="Dashboard" className="text-muted-foreground">
         <span className="block max-w-[240px] truncate">
-          {dashboardLabel(chat.dashboard_id, titles) ?? noDashboardLabel}
+          {dashboardLabel(chat) ?? noDashboardLabel}
         </span>
       </Cell>
       <Cell data-label="Turns" className="text-muted-foreground">

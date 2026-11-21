@@ -19,16 +19,17 @@ type chatTurnRow struct {
 }
 
 type chatRow struct {
-	ID            string       `json:"id"`
-	Title         string       `json:"title"`
-	DashboardID   *string      `json:"dashboard_id"`
-	ObservationID *string      `json:"observation_id"`
-	PinnedAt      *string      `json:"pinned_at"`
-	LastTurnAt    string       `json:"last_turn_at"`
-	Turns         int          `json:"turns"`
-	LastTurn      *chatTurnRow `json:"last_turn"`
-	Owner         chatOwnerRow `json:"owner"`
-	ReadOnly      bool         `json:"read_only"`
+	ID             string       `json:"id"`
+	Title          string       `json:"title"`
+	DashboardID    *string      `json:"dashboard_id"`
+	DashboardTitle *string      `json:"dashboard_title"`
+	ObservationID  *string      `json:"observation_id"`
+	PinnedAt       *string      `json:"pinned_at"`
+	LastTurnAt     string       `json:"last_turn_at"`
+	Turns          int          `json:"turns"`
+	LastTurn       *chatTurnRow `json:"last_turn"`
+	Owner          chatOwnerRow `json:"owner"`
+	ReadOnly       bool         `json:"read_only"`
 }
 
 type chatOwnerRow struct {
@@ -192,6 +193,7 @@ func (a *app) chatsShowCommand() *cobra.Command {
 				{"Owner", text(detail.Chat.Owner.Name)},
 				{"Title", firstLine(detail.Chat.Title)},
 				{"Dashboard", orDash(detail.Chat.DashboardID)},
+				{"Dashboard title", orDash(detail.Chat.DashboardTitle)},
 				{"Observation", orDash(detail.Chat.ObservationID)},
 				{"Pinned", orDash(detail.Chat.PinnedAt)},
 			})

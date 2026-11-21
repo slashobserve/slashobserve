@@ -1,16 +1,10 @@
 import { LayoutDashboardIcon } from "lucide-react"
 
-import { dashboardLabel, turnsText, type DashboardTitles } from "./chat-rows"
+import { dashboardLabel, turnsText } from "./chat-rows"
 import type { Chat } from "./chats-queries"
 
-export function ChatRowMeta({
-  chat,
-  titles,
-}: {
-  chat: Chat
-  titles: DashboardTitles | undefined
-}) {
-  const dashboard = dashboardLabel(chat.dashboard_id, titles)
+export function ChatRowMeta({ chat }: { chat: Chat }) {
+  const dashboard = dashboardLabel(chat)
   return (
     <>
       <span>{turnsText(chat.turns)}</span>

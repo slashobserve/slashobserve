@@ -30,6 +30,7 @@ function chat(id: string, title: string, over: Partial<Chat> = {}): Chat {
     id,
     title,
     dashboard_id: dashboardId,
+    dashboard_title: "Checkout health",
     observation_id: null,
     pinned_at: null,
     created_at: "2026-11-20T10:00:00Z",

@@ -339,7 +339,7 @@ Home's **Recent chats** lists the five chats you asked in most recently, and **A
 A chat is one row however many turns it has: its title, how many turns it has, and the dashboard it is about, if any, with the time of its last message.
 The Ask page's Recent chats shows the same rows.
 The Chats page lists all your chats in a table with the columns Chat, Dashboard, Turns and Last message: the chats you pinned first, then the rest, each part with the chat asked in most recently first, and the order holds as older chats load.
-A chat about no dashboard reads "No dashboard", and one about a dashboard you lost access to "A dashboard you cannot see".
+A chat about no dashboard, or about one that was deleted, reads "No dashboard", and one about a dashboard you cannot see, such as one in another person's My Dashboards in the Everyone list, "A dashboard you cannot see".
 Search finds chats whose title or any of whose prompts contains the text, ignoring case, **Dashboard** keeps the chats about one dashboard, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, by their last message only, and opens someone else's chat read only, with no composer and no actions.
 The list ends with how many chats it shows; while older chats are still to load it says "so far".

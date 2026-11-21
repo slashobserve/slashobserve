@@ -6604,6 +6604,8 @@ export interface components {
              * @description The dashboard the chat is about; a chat about nothing gains the dashboard its first saved build made.
              */
             dashboard_id: string | null;
+            /** @description The title of `dashboard_id`, null when the chat is about no dashboard or the caller cannot see it, as an Admin cannot see one in someone's personal folder. */
+            dashboard_title: string | null;
             /**
              * Format: uuid
              * @description The observation the chat is about.

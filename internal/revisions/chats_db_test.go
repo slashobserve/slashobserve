@@ -353,3 +353,50 @@ func TestYourPinnedChatsComeFirstOnEveryPageAndEveryonesAreByLastTurn(t *testing
 		t.Fatalf("everyone's chats page by page = %v, want them by last turn only %v", everyone, want)
 	}
 }
+
+func TestAChatCarriesItsDashboardTitleOnlyForAReaderWhoSeesTheDashboard(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	shared := seedDashboard(t, d, 1)
+	d.Exec(t, `UPDATE dashboards SET title = 'Checkout health' WHERE id = $1`, shared)
+	private := personalDashboardOf(t, d, user)
+	d.Exec(t, `UPDATE dashboards SET title = 'My scratch board' WHERE id = $1`, private)
+	onShared := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("on shared"), DashboardID: text(shared.String())})
+	onPrivate := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("on private"), DashboardID: text(private.String())})
+	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("about nothing")})
+
+	titles := func(by auth.Principal, f revisions.ChatFilter) map[pgtype.UUID]string {
+		t.Helper()
+		chats, _, err := svc.Chats(ctx, by, f, 10, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[pgtype.UUID]string{}
+		for _, c := range chats {
+			out[c.ID] = "<none>"
+			if c.DashboardTitle != nil {
+				out[c.ID] = *c.DashboardTitle
+			}
+		}
+		return out
+	}
+	ownerSees := titles(user, revisions.ChatFilter{})
+	if ownerSees[chatOfTurnID(t, d, onShared)] != "Checkout health" || ownerSees[chatOfTurnID(t, d, onPrivate)] != "My scratch board" || ownerSees[home] != "<none>" {
+		t.Fatalf("the owner reads titles %v", ownerSees)
+	}
+	adminSees := titles(bea, revisions.ChatFilter{Everyone: true})
+	if adminSees[chatOfTurnID(t, d, onShared)] != "Checkout health" || adminSees[chatOfTurnID(t, d, onPrivate)] != "<none>" {
+		t.Fatalf("an Admin reads titles %v, want none for a dashboard in someone's personal folder", adminSees)
+	}
+	if chat, _, err := svc.Chat(ctx, bea, chatOfTurnID(t, d, onPrivate)); err != nil || chat.DashboardTitle != nil {
+		t.Fatalf("an Admin reads the private chat as %+v, %v; want no dashboard title", chat, err)
+	}
+	if chat, _, err := svc.Chat(ctx, user, chatOfTurnID(t, d, onShared)); err != nil || chat.DashboardTitle == nil || *chat.DashboardTitle != "Checkout health" {
+		t.Fatalf("the owner reads the shared chat as %+v, %v", chat, err)
+	}
+}
+
+func chatOfTurnID(t *testing.T, d *dbtest.Database, turn pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	return mustUUID(t, chatOfTurn(t, d, turn))
+}

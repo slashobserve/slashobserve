@@ -1,38 +1,38 @@
 import type { Chat } from "./chats-queries"
 
-export type DashboardTitles = ReadonlyMap<string, string>
-
 export const noDashboardLabel = "No dashboard"
 const unseenDashboardLabel = "A dashboard you cannot see"
-const loadingDashboardLabel = "Dashboard"
+const chosenDashboardLabel = "Chosen dashboard"
 
 export function turnsText(turns: number): string {
   return `${turns.toLocaleString()} ${turns === 1 ? "turn" : "turns"}`
 }
 
 export function dashboardLabel(
-  dashboardId: string | null,
-  titles: DashboardTitles | undefined
+  chat: Pick<Chat, "dashboard_id" | "dashboard_title">
 ): string | null {
-  if (dashboardId === null) return null
-  if (titles === undefined) return loadingDashboardLabel
-  return titles.get(dashboardId) ?? unseenDashboardLabel
+  if (chat.dashboard_id === null) return null
+  return chat.dashboard_title ?? unseenDashboardLabel
 }
 
 export type DashboardChoice = { id: string; label: string }
 
 export function dashboardChoices(
   chats: readonly Chat[],
-  titles: DashboardTitles | undefined,
   chosen: string | undefined
 ): DashboardChoice[] {
-  const ids = new Set<string>()
+  const labels = new Map<string, string>()
   for (const chat of chats) {
-    if (chat.dashboard_id !== null) ids.add(chat.dashboard_id)
+    const label = dashboardLabel(chat)
+    if (chat.dashboard_id !== null && label !== null) {
+      labels.set(chat.dashboard_id, label)
+    }
   }
-  if (chosen !== undefined) ids.add(chosen)
-  return [...ids]
-    .map((id) => ({ id, label: dashboardLabel(id, titles) ?? "" }))
+  if (chosen !== undefined && !labels.has(chosen)) {
+    labels.set(chosen, chosenDashboardLabel)
+  }
+  return [...labels]
+    .map(([id, label]) => ({ id, label }))
     .toSorted((a, b) => a.label.localeCompare(b.label))
 }
 

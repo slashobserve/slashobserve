@@ -3,7 +3,7 @@ import { Link, useRouteContext } from "@tanstack/react-router"
 import { NotebookTextIcon, UploadIcon } from "lucide-react"
 
 import { ChatRowMeta } from "@/chat/chat-row-meta"
-import { useChats, useDashboardTitles } from "@/chat/chats-queries"
+import { useChats } from "@/chat/chats-queries"
 import { AuthorMark } from "@/components/author-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
@@ -36,7 +36,6 @@ function Time({ iso }: { iso: string }) {
 
 export function RecentChatsList() {
   const { chats, query } = useChats({}, shown)
-  const titles = useDashboardTitles()
   const items = query.data === undefined ? undefined : chats
 
   return (
@@ -56,10 +55,7 @@ export function RecentChatsList() {
             params={{ requestId: chat.id }}
             className={rowLinkClass}
           >
-            <RowText
-              title={chat.title}
-              meta={<ChatRowMeta chat={chat} titles={titles} />}
-            />
+            <RowText title={chat.title} meta={<ChatRowMeta chat={chat} />} />
             <Time iso={chat.last_turn_at} />
           </Link>
         )}

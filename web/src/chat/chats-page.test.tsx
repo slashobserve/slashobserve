@@ -25,6 +25,7 @@ function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
     id,
     title,
     dashboard_id: null,
+    dashboard_title: null,
     observation_id: null,
     pinned_at: null,
     created_at: "2026-11-21T09:00:00Z",
@@ -117,18 +118,6 @@ function stub(
           },
         })
       }
-      if (url.pathname === "/api/v1/dashboards") {
-        return json({
-          dashboards: [
-            {
-              id: dashboardId,
-              title: "Checkout health",
-              permissions: { edit: true },
-              updated_by: { id: "u1" },
-            },
-          ],
-        })
-      }
       if (url.pathname === "/api/v1/observe") {
         return json({
           requests: turns,
@@ -174,6 +163,7 @@ describe("ChatsPage rows", () => {
     stub([
       chat("c1", "Why did checkout errors rise", {
         dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
         turns: 3,
       }),
       chat("c2", "Card declines by issuer", { turns: 2 }),
@@ -191,6 +181,30 @@ describe("ChatsPage rows", () => {
       .closest("tr") as HTMLElement
     expect(within(other).getByText("No dashboard")).toBeInTheDocument()
     expect(screen.getByText("2 chats.")).toBeInTheDocument()
+  })
+
+  it("names each chat's dashboard by the title the server gives it", async () => {
+    const unlisted = "6c1f4d66-7b9f-4f2a-8e7a-1e7f2f7f8f21"
+    stub([
+      chat("c1", "Beyond the first page", {
+        dashboard_id: unlisted,
+        dashboard_title: "Refund volume",
+      }),
+      chat("c2", "Lost access", {
+        dashboard_id: dashboardId,
+        dashboard_title: null,
+      }),
+    ])
+    render()
+    const row = (title: string) =>
+      screen.getByRole("link", { name: title }).closest("tr") as HTMLElement
+    await screen.findByRole("link", { name: "Beyond the first page" })
+    expect(
+      within(row("Beyond the first page")).getByText("Refund volume")
+    ).toBeInTheDocument()
+    expect(
+      within(row("Lost access")).getByText("A dashboard you cannot see")
+    ).toBeInTheDocument()
   })
 
   it("keeps the server's order, which puts your pinned chats first", async () => {
@@ -314,7 +328,10 @@ describe("ChatsPage rows", () => {
 describe("ChatsPage filters", () => {
   it("reads the list from GET /chats with the dashboard chosen", async () => {
     const calls = stub([
-      chat("c1", "Why did checkout errors rise", { dashboard_id: dashboardId }),
+      chat("c1", "Why did checkout errors rise", {
+        dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
+      }),
     ])
     render({ dashboard: dashboardId, q: "checkout" })
     await screen.findByRole("link", { name: "Why did checkout errors rise" })
@@ -327,7 +344,10 @@ describe("ChatsPage filters", () => {
   it("offers the dashboards of the listed chats", async () => {
     const onSearch = vi.fn()
     stub([
-      chat("c1", "Why did checkout errors rise", { dashboard_id: dashboardId }),
+      chat("c1", "Why did checkout errors rise", {
+        dashboard_id: dashboardId,
+        dashboard_title: "Checkout health",
+      }),
       chat("c2", "Card declines by issuer"),
     ])
     const { user } = render({}, onSearch)
