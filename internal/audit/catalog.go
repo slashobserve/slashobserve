@@ -37,6 +37,11 @@ const (
 	ActionGap    Action = "audit.gap"
 	ActionPrune  Action = "audit.prune"
 	ActionRefuse Action = "request.refuse"
+
+	ActionOAuthRegister  Action = "oauth.client_register"
+	ActionOAuthAuthorize Action = "oauth.authorize"
+	ActionOAuthExchange  Action = "oauth.token"
+	ActionOAuthRevoke    Action = "oauth.revoke"
 )
 
 var (
@@ -63,6 +68,17 @@ var (
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+	jobKeys      = []string{"trigger", "duration_ms"}
+	importKeys   = []string{"connection_id"}
+	countKeys    = []string{"count"}
+	providerKeys = []string{"provider_error"}
+	overflowKeys = []string{"overflow"}
+	tokenKeys    = []string{"grant_type"}
+	deliverKeys  = []string{"event_type"}
+
+	renamedKeys    = []string{"from_title", "title"}
+	permissionKeys = []string{"added", "removed", "changed", "count_before", "count_after", "truncated"}
+	memberKeys     = []string{"user_id", "user_name"}
 )
 
 func change(c Category, data ...[]string) Spec {
@@ -78,18 +94,16 @@ var catalog = map[Action]Spec{
 	"auth.logout":              change(CategoryAuth),
 	"oauth.client_register":    change(CategoryAuth),
 	"oauth.authorize":          change(CategoryAuth),
-	"oauth.token":              change(CategoryAuth),
+	"oauth.token":              change(CategoryAuth, tokenKeys),
 	"oauth.revoke":             change(CategoryAuth),
-	"auth.login_failed":        access(CategoryAuth),
-	"auth.credential_rejected": access(CategoryAuth),
-	"auth.csrf_rejected":       access(CategoryAuth),
+	"auth.login_failed":        access(CategoryAuth, countKeys, overflowKeys, providerKeys),
+	"auth.credential_rejected": access(CategoryAuth, countKeys, overflowKeys),
+	"auth.csrf_rejected":       access(CategoryAuth, countKeys, overflowKeys),
 	"request.refuse":           access(CategoryAccess),
 
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
 	"public_link.view": access(CategoryAccess),
-	"dashboard.export": access(CategoryAccess),
-	"logs.export":      access(CategoryAccess),
 	"audit.search":     access(CategoryAccess),
 	"audit.export":     access(CategoryAccess),
 
@@ -127,14 +141,10 @@ var catalog = map[Action]Spec{
 	"proposal.merge":            change(CategoryContent, proposalKeys),
 	"proposal.discard":          change(CategoryContent, proposalKeys),
 	"folder.create":             change(CategoryContent),
-	"folder.rename":             change(CategoryContent),
-	"folder.move":               change(CategoryContent),
+	"folder.rename":             change(CategoryContent, renamedKeys),
 	"folder.delete":             change(CategoryContent),
-	"block.add":                 change(CategoryContent),
-	"block.edit":                change(CategoryContent),
-	"block.remove":              change(CategoryContent),
-	"grafana_import.start":      change(CategoryContent),
-	"grafana_import.cancel":     change(CategoryContent),
+	"grafana_import.start":      change(CategoryContent, importKeys),
+	"grafana_import.cancel":     change(CategoryContent, importKeys),
 
 	"thread.open":                 change(CategoryConversation, threadKeys),
 	"thread.message":              change(CategoryConversation, threadKeys),
@@ -202,23 +212,24 @@ var catalog = map[Action]Spec{
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),
 	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin, sharingKeys),
+	"folder.permissions_change":  change(CategoryAdmin, permissionKeys, sharingKeys),
 	"team.create":                change(CategoryAdmin),
 	"team.delete":                change(CategoryAdmin),
-	"team.member_add":            change(CategoryAdmin),
-	"team.member_remove":         change(CategoryAdmin),
-	"settings.change":            change(CategoryAdmin),
+	"team.member_add":            change(CategoryAdmin, memberKeys),
+	"team.member_remove":         change(CategoryAdmin, memberKeys),
 	"action.run":                 change(CategoryAdmin),
 
 	"server.start":    change(CategorySystem),
 	"server.stop":     change(CategorySystem),
 	"migration.apply": change(CategorySystem),
 	"provision.apply": change(CategorySystem),
-	"job.run":         change(CategorySystem),
-	"webhook.deliver": access(CategorySystem),
+	"job.run":         change(CategorySystem, jobKeys),
+	"webhook.deliver": access(CategorySystem, deliverKeys),
 	ActionPrune:       change(CategorySystem, pruneKeys),
 	ActionGap:         change(CategorySystem, gapKeys),
 }
+
+var foldedActions = []Action{"auth.login_failed", "auth.credential_rejected", "auth.csrf_rejected"}
 
 func Lookup(a Action) (Spec, bool) {
 	s, ok := catalog[a]

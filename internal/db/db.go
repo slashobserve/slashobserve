@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math"
 	"sync/atomic"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -118,18 +119,25 @@ func newMigrator(sqlDB *sql.DB, logger *slog.Logger) (*goose.Provider, error) {
 	return provider, nil
 }
 
-func (d *DB) Migrate(ctx context.Context) error {
+type AppliedMigration struct {
+	Version  int64
+	Duration time.Duration
+}
+
+func (d *DB) Migrate(ctx context.Context) ([]AppliedMigration, error) {
 	results, err := d.migrator.Up(ctx)
 	if err != nil {
-		return fmt.Errorf("apply migrations: %w", err)
+		return nil, fmt.Errorf("apply migrations: %w", err)
 	}
 	d.migrationsApplied.Store(true)
-	for _, result := range results {
+	applied := make([]AppliedMigration, len(results))
+	for i, result := range results {
 		d.logger.InfoContext(ctx, "applied migration",
 			slog.Int64("version", result.Source.Version),
 			slog.Duration("duration", result.Duration))
+		applied[i] = AppliedMigration{Version: result.Source.Version, Duration: result.Duration}
 	}
-	return nil
+	return applied, nil
 }
 
 // FailedMigrationVersion returns the version of the migration that failed, when err says which one did.

@@ -199,7 +199,7 @@ func (h *Handler) remove(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	n, err := h.db.Queries().DeleteFolderIfEmpty(ctx, current.Folder.ID)
+	n, err := h.deleteEmpty(ctx, current.Folder.ID)
 	if isPgError(err, foreignKeyViolation) {
 		httpapi.AbortError(c, http.StatusConflict, "folder_not_empty", "move or delete the dashboards, findings, saved searches and observations in this folder first")
 		return
@@ -214,6 +214,25 @@ func (h *Handler) remove(c *gin.Context) {
 	}
 	h.logger.InfoContext(ctx, "deleted a folder", slog.String("actor_id", httpapi.Caller(c).ID), slog.String("folder_id", current.Folder.ID.String()))
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) deleteEmpty(ctx context.Context, id pgtype.UUID) (int64, error) {
+	var n int64
+	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		folder, err := q.LockFolder(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		n, err = q.DeleteFolderIfEmpty(ctx, id)
+		if err != nil || n == 0 {
+			return err
+		}
+		return recordFolder(ctx, q, "folder.delete", id, folder.Title, "", nil)
+	})
+	return n, err
 }
 
 func (h *Handler) refuseUndeleted(c *gin.Context, id pgtype.UUID) {
@@ -320,6 +339,10 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 		if err := h.setAdminsOnly(ctx, q, folder, next.adminsOnly); err != nil {
 			return err
 		}
+		before, err := q.ListFolderGrantsForAudit(ctx, folderID)
+		if err != nil {
+			return err
+		}
 		if err := q.DeleteFolderPermissions(ctx, folderID); err != nil {
 			return err
 		}
@@ -330,6 +353,16 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 			if err != nil {
 				return err
 			}
+		}
+		after, err := q.ListFolderGrantsForAudit(ctx, folderID)
+		if err != nil {
+			return err
+		}
+		data, unchanged := permissionChange(before, after)
+		data["admins_only"], data["admins_only_before"] = next.adminsOnly, AdminsOnly(folder)
+		unchanged = unchanged && next.adminsOnly == AdminsOnly(folder)
+		if err := recordFolder(ctx, q, "folder.permissions_change", folderID, folder.Title, noChangeReason(unchanged), data); err != nil {
+			return err
 		}
 		if h.settle == nil {
 			return nil
@@ -344,12 +377,10 @@ func (h *Handler) setAdminsOnly(ctx context.Context, q *dbsqlc.Queries, folder d
 			return err
 		}
 	}
-	if folder.AdminsOnly != adminsOnly {
-		if err := q.SetFolderAdminsOnly(ctx, dbsqlc.SetFolderAdminsOnlyParams{ID: folder.ID, AdminsOnly: adminsOnly}); err != nil {
-			return err
-		}
+	if folder.AdminsOnly == adminsOnly {
+		return nil
 	}
-	return recordSharing(ctx, q, folder, adminsOnly)
+	return q.SetFolderAdminsOnly(ctx, dbsqlc.SetFolderAdminsOnlyParams{ID: folder.ID, AdminsOnly: adminsOnly})
 }
 
 func abortPermissionsRefusal(c *gin.Context, err error) bool {

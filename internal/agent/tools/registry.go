@@ -158,7 +158,7 @@ type Deps struct {
 	Observations   *observations.Service
 	SavedSearches  *savedsearches.Service
 	Health         *health.Service
-	StartHealthRun func()
+	StartHealthRun func(context.Context)
 	Annotations    *annotations.Service
 	Activity       *activity.Store
 	Runs           RunDesk
@@ -414,6 +414,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if !ok {
 		return refused, nil
 	}
+	ctx = attributed(ctx, name, run, inRun)
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
 		return Result{}, err

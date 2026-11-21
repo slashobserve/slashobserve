@@ -286,6 +286,46 @@ func (q *Queries) ListFolderDetails(ctx context.Context, ids []pgtype.UUID) ([]L
 	return items, nil
 }
 
+const listFolderGrantsForAudit = `-- name: ListFolderGrantsForAudit :many
+SELECT p.user_id, p.group_name, p.level, coalesce(u.name, '')::text AS user_name
+FROM folder_permissions p
+LEFT JOIN users u ON u.id = p.user_id
+WHERE p.folder_id = $1
+ORDER BY (p.group_name IS NOT NULL), p.group_name, p.user_id
+`
+
+type ListFolderGrantsForAuditRow struct {
+	UserID    pgtype.UUID
+	GroupName pgtype.Text
+	Level     string
+	UserName  string
+}
+
+func (q *Queries) ListFolderGrantsForAudit(ctx context.Context, folderID pgtype.UUID) ([]ListFolderGrantsForAuditRow, error) {
+	rows, err := q.db.Query(ctx, listFolderGrantsForAudit, folderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFolderGrantsForAuditRow
+	for rows.Next() {
+		var i ListFolderGrantsForAuditRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.GroupName,
+			&i.Level,
+			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFolderPermissions = `-- name: ListFolderPermissions :many
 SELECT p.user_id, p.group_name, p.level,
   coalesce(nullif(u.name, ''), u.email, '')::text AS user_name,

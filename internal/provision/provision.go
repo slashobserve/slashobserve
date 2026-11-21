@@ -32,6 +32,8 @@ const (
 	maxMessageBytes = 2048
 	summaryPrefix   = "Provisioned from "
 	sessionLockName = "provision"
+	provisionAction = "provision.apply"
+	reasonUnchanged = "unchanged"
 )
 
 var (
@@ -57,6 +59,7 @@ type Provisioner struct {
 	logged  map[string]string
 	gone    map[string]bool
 	failing bool
+	saves   int
 }
 
 func New(logger *slog.Logger, dash *dashboards.Service, access *folders.Access, database *db.DB, dir string) *Provisioner {
@@ -111,15 +114,21 @@ func (p *Provisioner) Report(ctx context.Context) (Report, error) {
 }
 
 func (p *Provisioner) Run(ctx context.Context) error {
+	return p.run(ctx, true)
+}
+
+func (p *Provisioner) run(ctx context.Context, requested bool) error {
 	if p.dir == "" {
 		return ErrOff
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.store.db.WithSessionLock(datasource.WithAccess(ctx, datasource.Access{System: true}), sessionLockName, p.provisionAll)
+	return p.store.db.WithSessionLock(datasource.WithAccess(ctx, datasource.Access{System: true}), sessionLockName, func(ctx context.Context) error {
+		return p.provisionAll(ctx, requested)
+	})
 }
 
-func (p *Provisioner) provisionAll(ctx context.Context) error {
+func (p *Provisioner) provisionAll(ctx context.Context, requested bool) error {
 	files, err := specfiles.Scan(p.dir)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDirUnreadable, err)
@@ -135,6 +144,7 @@ func (p *Provisioner) provisionAll(ctx context.Context) error {
 	ctx = origin.With(ctx, origin.Origin{Kind: origin.API})
 	present := make(map[string]bool, len(files))
 	failing := false
+	p.saves = 0
 	for _, f := range files {
 		present[f.Path] = true
 		delete(p.gone, f.Path)
@@ -155,6 +165,9 @@ func (p *Provisioner) provisionAll(ctx context.Context) error {
 		}
 	}
 	p.failing = failing
+	if requested && p.saves == 0 && !failing {
+		return p.store.unchanged(ctx)
+	}
 	return nil
 }
 
@@ -177,7 +190,7 @@ func (p *Provisioner) Watch(ctx context.Context) {
 			unreadable = true
 		case stamp != seen || p.retrying():
 			unreadable = false
-			if err := p.Run(ctx); err != nil {
+			if err := p.run(ctx, false); err != nil {
 				if ctx.Err() == nil {
 					p.logger.ErrorContext(ctx, "provisioning run failed", logattrs.Failure("provision_failed", err, slog.String("dir", p.dir))...)
 				}
@@ -224,6 +237,7 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 			return p.fail(ctx, f, found, err)
 		}
 		p.saved(ctx, f, row.DashboardID.String(), ver.Number)
+		p.saves++
 		return false, p.store.saved(ctx, f.Path, row.DashboardID, sum, row.FolderTitle)
 	}
 	target, err := p.folders.ForImport(ctx, principal, f.Folder)
@@ -239,6 +253,7 @@ func (p *Provisioner) provisionFile(ctx context.Context, f specfiles.File, row d
 		return false, err
 	}
 	p.saved(ctx, f, dash.ID, ver.Number)
+	p.saves++
 	return false, p.store.saved(ctx, f.Path, id, sum, target.Folder.Title)
 }
 

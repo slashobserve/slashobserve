@@ -17,6 +17,8 @@ type writerLimits struct {
 	wait    time.Duration
 	timeout time.Duration
 	settle  time.Duration
+	fold    time.Duration
+	folded  int
 }
 
 func (l writerLimits) orDefaults() writerLimits {
@@ -38,6 +40,12 @@ func (l writerLimits) orDefaults() writerLimits {
 	if l.settle == 0 {
 		l.settle = 5 * time.Second
 	}
+	if l.fold == 0 {
+		l.fold = time.Minute
+	}
+	if l.folded == 0 {
+		l.folded = 1000
+	}
 	return l
 }
 
@@ -45,15 +53,19 @@ type Writer struct {
 	recorder *Recorder
 	limits   writerLimits
 	queue    chan dbsqlc.InsertAuditEventParams
+	folds    *folds
 	lost     atomic.Int64
 }
 
 func newWriter(r *Recorder, limits writerLimits) *Writer {
 	limits = limits.orDefaults()
-	return &Writer{recorder: r, limits: limits, queue: make(chan dbsqlc.InsertAuditEventParams, limits.buffer)}
+	return &Writer{recorder: r, limits: limits, queue: make(chan dbsqlc.InsertAuditEventParams, limits.buffer), folds: newFolds(limits.fold, limits.folded)}
 }
 
 func (w *Writer) enqueue(row dbsqlc.InsertAuditEventParams) {
+	if w.folds.absorb(row, time.Now()) {
+		return
+	}
 	select {
 	case w.queue <- row:
 		return
@@ -85,6 +97,7 @@ func (w *Writer) run(ctx context.Context) {
 				batch = w.flush(context.WithoutCancel(ctx), batch)
 			}
 		case <-ticker.C:
+			batch = append(batch, w.folds.due(time.Now())...)
 			batch = w.flush(context.WithoutCancel(ctx), batch)
 		case <-ctx.Done():
 			w.stop(context.WithoutCancel(ctx), batch)
@@ -110,6 +123,7 @@ func (w *Writer) stop(ctx context.Context, batch []dbsqlc.InsertAuditEventParams
 	if n := w.recorder.inflight.Load(); n > 0 {
 		w.recorder.logger.WarnContext(ctx, "audit writer stopped with requests still running", slog.Int64("requests", n))
 	}
+	batch = append(batch, w.folds.drain()...)
 	dctx, cancel := context.WithTimeout(ctx, w.limits.timeout)
 	defer cancel()
 	w.drain(dctx, batch)
@@ -118,7 +132,7 @@ func (w *Writer) stop(ctx context.Context, batch []dbsqlc.InsertAuditEventParams
 func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) {
 	for {
 		if ctx.Err() != nil {
-			w.recorder.metrics.EventsDropped(DroppedWriteFailed, len(batch)+len(w.queue))
+			w.recorder.metrics.EventsDropped(DroppedWriteFailed, weigh(batch)+len(w.queue))
 			return
 		}
 		select {
@@ -136,7 +150,7 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 
 func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) []dbsqlc.InsertAuditEventParams {
 	w.recorder.metrics.BufferedEvents(len(w.queue))
-	events := len(batch)
+	events := weigh(batch)
 	lost := w.lost.Swap(0)
 	if lost > 0 {
 		if gap, err := w.recorder.row(context.Background(), Event{Action: ActionGap, Data: map[string]any{"lost": lost}}); err == nil {
