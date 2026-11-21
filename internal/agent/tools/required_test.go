@@ -116,7 +116,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"comment_id":     json.RawMessage(`"` + comment.ID + `"`),
 		"observation_id": json.RawMessage(`"` + dash.ID + `"`),
 		"finding_id":     json.RawMessage(`"` + dash.ID + `"`),
-		"block_id":      json.RawMessage(`"` + dash.ID + `"`),
+		"block_id":       json.RawMessage(`"` + dash.ID + `"`),
 		"proposal_id":    json.RawMessage(`"` + dash.ID + `"`),
 		"revision":       json.RawMessage(`1`),
 		"version":        json.RawMessage(`1`),
