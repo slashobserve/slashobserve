@@ -217,6 +217,7 @@ SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND
 -- name: ListAgentRequests :many
 SELECT * FROM agent_requests
 WHERE dashboard_id = @dashboard_id AND intent = 'apply'
+  AND (NOT read_restricted OR @reader_admin::boolean OR (requested_by_kind = @reader_kind AND requested_by_id = @reader_id::uuid))
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY created_at DESC, id DESC

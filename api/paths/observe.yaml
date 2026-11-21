@@ -302,6 +302,7 @@ observe-id:
     description: >-
       Works for any agent request, including comment and prompt revisions.
       A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404.
+      So is a request that read data only Admins can query (`restricted`), wherever it writes.
       A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation.
       A private ask is readable only by its requester and Admins, and while its answer is shared into a comment thread also by everyone who can read that thread.
       An Admin also reads a request on a dashboard it cannot see.

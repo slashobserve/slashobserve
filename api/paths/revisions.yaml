@@ -106,6 +106,7 @@ dashboards-id-revisions:
     summary: List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
     description: >-
       A list is recorded in the audit trail as one `run.list` with the dashboard as its target and `scope` `dashboard`, once per caller and dashboard in 10 minutes.
+      A run that read data only Admins can query (`restricted`) is left out for anyone who is neither its requester nor an Admin.
     parameters:
       - name: limit
         in: query
@@ -167,6 +168,7 @@ dashboards-id-revisions-revisionid:
     summary: Read one revision request.
     description: >-
       A read is recorded in the audit trail as `run.view` with the requester's id as `owner_id`, once per reader and request in 10 minutes.
+      A run that read data only Admins can query (`restricted`) answers 404 to anyone who is neither its requester nor an Admin.
     responses:
       "200":
         description: The revision with its current status.

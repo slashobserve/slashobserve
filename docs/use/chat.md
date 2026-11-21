@@ -325,7 +325,8 @@ An answer whose run read such a datasource or such content is marked `restricted
 A restricted answer stays where only Admins read it.
 Sharing it in a thread or onto a page, saving it as an observation, pinning it, making it a dashboard, applying its suggested change, saving its build and proposing its build as a change are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, and the message says why.
 The same refusal reaches MCP tools and the CLI.
-A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and whoever asked reads it in their run.
+A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
+A `restricted` run answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them.
 Saving a restricted answer as an observation files it in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
 Withdrawing a share and the privacy of chats are unchanged.
 

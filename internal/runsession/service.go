@@ -129,12 +129,12 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	}
 	defer release()
 	ctx = origin.With(auth.WithPrincipal(ctx, req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
+	access, err := s.runAccess(ctx, req)
+	if err != nil {
+		return err
+	}
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		access, err := runAccess(ctx, q, req)
-		if err != nil {
-			return err
-		}
 		ctx := datasource.WithAccess(ctx, access)
 		sess, err := s.open(ctx, q, req, id)
 		if err != nil {

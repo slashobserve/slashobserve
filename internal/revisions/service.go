@@ -596,7 +596,7 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	switch {
 	case sameActor(requesterOf(row), by):
 		return row, nil
-	case PrivateAsk(row):
+	case PrivateAsk(row), hidesRun(row, by):
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	case row.DashboardID.Valid:
 		return row, nil
@@ -640,9 +640,13 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	return row, true, nil
 }
 
-func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revision, error) {
+func hidesRun(row dbsqlc.AgentRequest, by auth.Principal) bool {
+	return row.ReadRestricted && !sameActor(requesterOf(row), by) && !by.Role.AtLeast(auth.RoleAdmin)
+}
+
+func (s *Service) Get(ctx context.Context, by auth.Principal, dashboardID, id pgtype.UUID) (Revision, error) {
 	row, err := s.db.Queries().GetAgentRequest(ctx, dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dashboardID})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && hidesRun(row, by)) {
 		return Revision{}, ErrNotFound
 	}
 	if err != nil {
@@ -652,12 +656,16 @@ func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revisio
 	return revisionFromRow(row), nil
 }
 
-func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, cursor string) ([]Revision, string, error) {
+func (s *Service) List(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, limit int, cursor string) ([]Revision, string, error) {
 	after, ok := httpapi.DecodeTimeCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
-	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1)}
+	reader, err := readerOf(by)
+	if err != nil {
+		return nil, "", err
+	}
+	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1), ReaderAdmin: reader.admin, ReaderKind: reader.kind, ReaderID: reader.id}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID

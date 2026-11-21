@@ -1825,14 +1825,18 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 const listAgentRequests = `-- name: ListAgentRequests :many
 SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, read_restricted FROM agent_requests
 WHERE dashboard_id = $1 AND intent = 'apply'
-  AND ($2::timestamptz IS NULL
-    OR (created_at, id) < ($2::timestamptz, $3::uuid))
+  AND (NOT read_restricted OR $2::boolean OR (requested_by_kind = $3 AND requested_by_id = $4::uuid))
+  AND ($5::timestamptz IS NULL
+    OR (created_at, id) < ($5::timestamptz, $6::uuid))
 ORDER BY created_at DESC, id DESC
-LIMIT $4
+LIMIT $7
 `
 
 type ListAgentRequestsParams struct {
 	DashboardID     pgtype.UUID
+	ReaderAdmin     bool
+	ReaderKind      string
+	ReaderID        pgtype.UUID
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
 	RowLimit        int32
@@ -1841,6 +1845,9 @@ type ListAgentRequestsParams struct {
 func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsParams) ([]AgentRequest, error) {
 	rows, err := q.db.Query(ctx, listAgentRequests,
 		arg.DashboardID,
+		arg.ReaderAdmin,
+		arg.ReaderKind,
+		arg.ReaderID,
 		arg.CursorCreatedAt,
 		arg.CursorID,
 		arg.RowLimit,

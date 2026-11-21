@@ -185,7 +185,7 @@ func (s *Service) listRevisions(c *gin.Context) {
 		s.fail(c, "read latest dashboard version", err, dashboardAttr(dashboardID))
 		return
 	}
-	items, next, err := s.List(ctx, dashboardID, limit, c.Query("cursor"))
+	items, next, err := s.List(ctx, httpapi.Caller(c), dashboardID, limit, c.Query("cursor"))
 	if err != nil {
 		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
@@ -211,7 +211,7 @@ func (s *Service) getRevision(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rev, err := s.Get(c.Request.Context(), dashboardID, id)
+	rev, err := s.Get(c.Request.Context(), httpapi.Caller(c), dashboardID, id)
 	if err != nil {
 		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return

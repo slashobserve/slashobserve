@@ -22,7 +22,7 @@ const (
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
 	replyAnswered        = "Answered: "
-	replyRestricted      = "The run ended. Its answer read data only Admins can query, such as the audit trail, and people who are not Admins read this thread, so it is not shown here; whoever asked reads it in their run."
+	replyRestricted      = "The run ended. Its answer read data only Admins can query, such as the audit trail, and people who are not Admins read this thread, so it is not shown here; only whoever asked and Admins read it, in the run."
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500

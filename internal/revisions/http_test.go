@@ -116,7 +116,7 @@ func TestPostQueuesARevisionUntilTheDashboardIsFull(t *testing.T) {
 	if rec.Code != http.StatusTooManyRequests || errorCode(t, rec) != "too_many_revisions" {
 		t.Fatalf("sixth post: %d %s", rec.Code, rec.Body)
 	}
-	items, _, err := svc.List(reading(t.Context()), dash, 100, "")
+	items, _, err := svc.List(reading(t.Context()), user, dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("stored %d, err %v", len(items), err)
 	}
@@ -157,7 +157,7 @@ func TestPostRefusesInvalidRequests(t *testing.T) {
 			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
 		}
 	}
-	items, _, err := svc.List(reading(t.Context()), dash, 100, "")
+	items, _, err := svc.List(reading(t.Context()), user, dash, 100, "")
 	if err != nil || len(items) != 0 {
 		t.Fatalf("a refused request was stored: %v, %v", items, err)
 	}

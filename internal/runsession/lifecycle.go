@@ -282,7 +282,7 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	if !ok {
 		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
-	access, err := runAccess(ctx, s.db.Queries(), req)
+	access, err := s.runAccess(ctx, req)
 	if err != nil {
 		return tools.BriefAnswer{}, err
 	}

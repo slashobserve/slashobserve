@@ -30,14 +30,24 @@ func writesOf(row dbsqlc.GetRunWritesRow) tools.RunWrites {
 	return tools.RunWrites{Shared: shared, AdminsOnly: shared && !slices.Contains(adminsOnly, false)}
 }
 
-func runAccess(ctx context.Context, q *dbsqlc.Queries, req revisions.Request) (datasource.Access, error) {
+func (s *Service) runAccess(ctx context.Context, req revisions.Request) (datasource.Access, error) {
 	id, err := db.ParseUUID(req.ID)
 	if err != nil {
 		return datasource.Access{}, fmt.Errorf("run session: run id: %w", err)
 	}
-	row, err := q.GetRunWrites(ctx, id)
+	var row dbsqlc.GetRunWritesRow
+	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.ShareRunTargets(ctx, id); err != nil {
+			return fmt.Errorf("lock where the run writes: %w", err)
+		}
+		row, err = q.GetRunWrites(ctx, id)
+		if err != nil {
+			return fmt.Errorf("read where the run writes: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return datasource.Access{}, fmt.Errorf("read where the run writes: %w", err)
+		return datasource.Access{}, err
 	}
 	return tools.RunAccess(req, writesOf(row)), nil
 }
