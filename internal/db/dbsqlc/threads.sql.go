@@ -205,6 +205,38 @@ func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteSharedMessages = `-- name: DeleteSharedMessages :many
+DELETE FROM thread_messages
+WHERE thread_id = $1 AND (id = ANY($2::uuid[]) OR run_id = ANY($3::uuid[]))
+RETURNING id
+`
+
+type DeleteSharedMessagesParams struct {
+	ThreadID   pgtype.UUID
+	MessageIds []pgtype.UUID
+	RunIds     []pgtype.UUID
+}
+
+func (q *Queries) DeleteSharedMessages(ctx context.Context, arg DeleteSharedMessagesParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteSharedMessages, arg.ThreadID, arg.MessageIds, arg.RunIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteThread = `-- name: DeleteThread :exec
 DELETE FROM threads WHERE id = $1
 `
@@ -812,7 +844,7 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 }
 
 const lockSharedRunsInThread = `-- name: LockSharedRunsInThread :many
-SELECT r.id, r.chat_id FROM agent_requests r
+SELECT r.id, r.chat_id, r.thread_message_id FROM agent_requests r
 JOIN thread_messages m ON m.id = r.thread_message_id
 WHERE m.thread_id = $1 AND r.chat_id IS NOT NULL
   AND r.requested_by_kind = $2 AND r.requested_by_id = $3
@@ -827,8 +859,9 @@ type LockSharedRunsInThreadParams struct {
 }
 
 type LockSharedRunsInThreadRow struct {
-	ID     pgtype.UUID
-	ChatID pgtype.UUID
+	ID              pgtype.UUID
+	ChatID          pgtype.UUID
+	ThreadMessageID pgtype.UUID
 }
 
 func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRunsInThreadParams) ([]LockSharedRunsInThreadRow, error) {
@@ -840,7 +873,7 @@ func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRuns
 	var items []LockSharedRunsInThreadRow
 	for rows.Next() {
 		var i LockSharedRunsInThreadRow
-		if err := rows.Scan(&i.ID, &i.ChatID); err != nil {
+		if err := rows.Scan(&i.ID, &i.ChatID, &i.ThreadMessageID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -1492,7 +1492,7 @@ export interface paths {
         post?: never;
         /**
          * Withdraw a shared answer back to only you.
-         * @description Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread: it deletes the thread with every message in it and makes each of those runs a private question again, read only by its requester and Admins. It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`). On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block. The run can be shared again afterwards, which opens a new thread. Each withdrawn run is recorded as `run.withdraw`, and the thread's deletion as a `thread.deleted` activity event. Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404. It is a delete, so no MCP tool reaches it.
+         * @description Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread and makes each of those runs a private question again, read only by its requester and Admins. When a share opened the thread, the whole thread is deleted; otherwise only the shared questions and the answers posted under them are, and the thread keeps its other messages. It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`). On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block. The run can be shared again afterwards, which opens a new thread. Each withdrawn run is recorded as `run.withdraw`, and each deletion, of the thread or of a message, as a `thread.deleted` activity event. Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404. It is a delete, so no MCP tool reaches it.
          */
         delete: operations["withdrawSharedAnswer"];
         options?: never;
@@ -12348,7 +12348,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The thread is deleted and its answers are private again. */
+            /** @description The shares are deleted and their answers are private again. */
             204: {
                 headers: {
                     [name: string]: unknown;

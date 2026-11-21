@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 func (r *rig) replyHeldOpen(t *testing.T, by auth.Principal, threadID pgtype.UUID) (written <-chan struct{}, release chan<- struct{}, done <-chan error) {
@@ -67,5 +68,42 @@ func TestAWithdrawWaitsForAReplyWrittenAtTheSameTimeAndThenKeepsTheShare(t *test
 	}
 	if n := r.messageCount(t); n != 3 {
 		t.Fatalf("messages after the race = %d, want the share, its answer and the reply", n)
+	}
+}
+
+func TestWithdrawingAnAnswerSharedIntoAnEarlierThreadKeepsTheThreadAndItsOtherMessages(t *testing.T) {
+	r := newShareRig(t)
+	dash := r.createDashboard(t, "rps", "errors")
+	id := dash.String()
+	earlier, _ := r.open(t, testUser, OpenInput{Target: Target{Kind: KindDashboard, ID: dash}, Body: "errors are up since noon"})
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "errors")
+	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run, ThreadID: mustParse(t, earlier.ID)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.reply(t, testUser, earlier.ID, "and the latency too")
+
+	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, earlier.ID)); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := r.service.ReadMessage(reading(t.Context()), testUser, mustParse(t, earlier.ID))
+	if err != nil || kept.Body != "errors are up since noon" {
+		t.Fatalf("the thread's first message after the withdraw = %+v, %v", kept, err)
+	}
+	if _, err := r.service.ReadMessage(reading(t.Context()), testUser, mustParse(t, shared.Message.ID)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("the share message after the withdraw: %v, want it deleted", err)
+	}
+	if replies := r.runReplies(t, earlier.ID); len(replies) != 0 {
+		t.Fatalf("answers left in the thread = %+v, want none", replies)
+	}
+	if n := r.messageCount(t); n != 2 {
+		t.Fatalf("messages after the withdraw = %d, want the first message and the later reply", n)
+	}
+	stored, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.ThreadMessageID.Valid || !revisions.PrivateAsk(stored) {
+		t.Fatalf("the withdrawn run is %+v", stored)
 	}
 }
