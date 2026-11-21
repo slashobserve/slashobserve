@@ -331,12 +331,12 @@ Sharing it in a thread or onto a page, saving it as an observation, pinning it, 
 The same refusal reaches MCP tools and the CLI.
 
 An answer about a dashboard or observation that sits in a folder only Admins can read, when the answer is placed, is kept the same way even when its run read nothing only Admins can query: it may go into that dashboard's or observation's own threads and page, or into a folder only Admins can read, and is refused with `409 restricted_answer` anywhere else; saving it as an observation files it in that folder.
-An observation the run made itself, such as the one its answer was saved into, is not what it is about, so its folder keeps nothing.
+The observation an ask's answer was saved into is not what the ask is about, so its folder keeps nothing; the observation an investigation opened for itself does keep its answer.
 A run that starts from such an answer in any of those ways is marked `restricted` too, unless it is about that same dashboard or observation, for example a later turn of the chat on a dashboard in General.
 What it was placed in then holds it as it would hold a restricted answer, so that content moves, is copied and has its folder opened only as [Folders](../teams/folders.md) describes, except the dashboard or observation the answer is about, which moves freely.
 Once the dashboard or observation has moved to a folder others read, nothing is refused.
 Deleting it while it is in a folder only Admins can read, or deleting a run whose answer is kept this way, does not free what was placed from the answer: each dashboard and observation it was placed in keeps holding it.
-A run about a dashboard that files into an observation it did not open, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
+A run about a dashboard that files into an observation, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
 
 A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
 A `restricted` run answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them.
