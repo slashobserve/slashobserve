@@ -378,6 +378,32 @@ describe("AuditSettings", () => {
     )
   })
 
+  it("exports as a browser download without reading the file", async () => {
+    serve()
+    const clicked: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push(this.href)
+    })
+    const { user } = renderPage({ q: "origin:mcp" })
+    await screen.findByText("No audit events match these filters.")
+    await user.click(screen.getByRole("button", { name: "Export" }))
+    await user.click(await screen.findByRole("menuitem", { name: /^CSV/ }))
+    expect(clicked).toHaveLength(1)
+    const url = new URL(clicked[0])
+    expect(url.pathname).toBe("/api/v1/audit/export")
+    expect(url.searchParams.get("q")).toBe("origin:mcp")
+    expect(url.searchParams.get("format")).toBe("csv")
+    expect(
+      fetchMock.mock.calls.some(([request]) =>
+        String(typeof request === "string" ? request : request.url).includes(
+          "/audit/export"
+        )
+      )
+    ).toBe(false)
+  })
+
   it("says Live is off when the caller already holds five streams", async () => {
     serve({ stream: () => refusedStream(429, "too_many_streams") })
     const { user } = renderPage()

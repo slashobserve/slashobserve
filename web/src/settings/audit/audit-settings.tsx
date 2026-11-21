@@ -16,7 +16,7 @@ import { SettingsProblem } from "@/settings/settings-card"
 import { SettingsSection } from "@/settings/settings-section"
 
 import { AuditDetail } from "./audit-detail"
-import { ExportMenu, ExportNotice, useAuditExport } from "./audit-export"
+import { ExportMenu, useAuditExport } from "./audit-export"
 import { AuditFacets } from "./audit-facets"
 import { AuditFilterBar } from "./audit-filter-bar"
 import { AuditHistogram } from "./audit-histogram"
@@ -156,9 +156,8 @@ export function AuditSettings({
             quickRanges={auditRanges}
           />
           <ExportMenu
-            disabled={window === null}
-            pending={exporter.pending}
-            onExport={(format) => void exporter.start(format)}
+            disabled={window === null || problem !== null}
+            onExport={exporter.start}
           />
         </div>
       }
@@ -202,9 +201,6 @@ export function AuditSettings({
         <Alert role="alert">
           <AlertDescription>{liveNotice}</AlertDescription>
         </Alert>
-      ) : null}
-      {exporter.notice !== null ? (
-        <ExportNotice notice={exporter.notice} onDismiss={exporter.dismiss} />
       ) : null}
       {resolved.problem !== undefined ? (
         <Alert variant="destructive" role="alert">
