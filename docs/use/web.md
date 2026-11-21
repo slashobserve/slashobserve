@@ -201,9 +201,31 @@ A thread on a part of a panel shows as a pin with its author's mark at the spot 
 A pin follows its data: when the series, bar or row moves, the pin moves with it.
 A resolved thread's pin is grey.
 When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
-A table row that is on the panel but scrolled out of view points at the bottom edge of the table.
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
 Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
+
+### What a click can name
+
+Each panel type names the finest part of itself that it draws, and a pin follows that part when the data moves.
+
+| Panel | A click names | The pin follows |
+|---|---|---|
+| Time series | A point on a line, a line, or a moment in time | The series and the time |
+| Bar chart | A bar, a stacked segment or a category | The category and the series |
+| Histogram | A bucket | The bucket's edges |
+| Heatmap | A cell | The cell's time step and bucket |
+| Pie chart | A slice | The slice's name |
+| Stat, Gauge, Bar gauge | The value under the pointer | The value's series |
+| Table | A column header, or a row with the value under the pointer | The row's identifying cells and the column |
+| State timeline, Status history | A state at a time, or a row | The row and the time |
+| Logs | A log line | The line |
+| Traces | A span | The span |
+| Alert list | An alert, in the list view | The alert's name and labels |
+| Canvas | An element | The element, the topmost one where drawings overlap |
+
+A log line, a span, an alert or a table row that is on the panel but scrolled out of view points at the bottom edge of the panel.
+A canvas element panned out of view, and a row on another page of a state timeline, count as gone.
+The panel types not listed, and the alert list's count view, have nothing finer than the whole panel, so a click there comments on the spot you clicked and the whole panel is outlined.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Arrange panels
