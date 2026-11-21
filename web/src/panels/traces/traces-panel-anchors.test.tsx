@@ -236,7 +236,10 @@ describe("trace anchors with measured rows", () => {
   it("counts the open span's detail pane above a span below it", () => {
     stubTree(60)
     class Immediate {
-      constructor(private callback: ResizeObserverCallback) {}
+      callback: ResizeObserverCallback
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+      }
       observe() {
         this.callback(
           [{ contentRect: { width: 400, height: 60 } } as ResizeObserverEntry],
