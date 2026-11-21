@@ -106,8 +106,8 @@ var catalog = map[Action]Spec{
 	"auth.csrf_rejected":       access(CategoryAuth, countKeys, overflowKeys),
 	"request.refuse":           access(CategoryAccess),
 
-	"dashboard.view":   access(CategoryAccess),
-	"observation.view": access(CategoryAccess),
+	"dashboard.view":   access(CategoryAccess, []string{"version"}),
+	"observation.view": access(CategoryAccess, []string{"updated_at"}),
 	"chat.view":        access(CategoryAccess, []string{"owner_id"}),
 	"chat.list":        access(CategoryAccess, []string{"scope"}),
 	"run.view":         access(CategoryAccess, []string{"owner_id"}),

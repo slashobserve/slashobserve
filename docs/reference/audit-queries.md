@@ -63,6 +63,16 @@ The rest of that key's minute become one later event whose `data.count` is how m
 When more than 1000 keys are open, refusals of new keys fold under one anonymous event marked `data.overflow` that names no actor or target, and those follow the same rule.
 Free text, a word with no field, matches the action, the actor's and the target's names, the reason, the tool, the route and a query's text.
 
+## Event data
+
+An event's `data` holds fields that belong to its action and that a query cannot name; read them from a result.
+Only the fields an action declares are kept, and no event holds a message body, a prompt or an answer.
+
+| Action | Data | What it holds |
+| ------ | ---- | ------------- |
+| `dashboard.view` | `version` | The version number the reader was shown |
+| `observation.view` | `updated_at` | When the observation last changed before the reader opened it, as an RFC 3339 time, since an observation has no versions |
+
 ## Query forms
 
 A query is KQL unless it starts with `lucene:` or `{`, and an empty query matches every event in the window.
