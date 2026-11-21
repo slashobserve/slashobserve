@@ -104,12 +104,13 @@ chats-id:
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
     operationId: archiveChat
-    x-audit: { action: chat.delete, target: { kind: chat, id: path.id } }
+    x-audit: { action: chat.archive, target: { kind: chat, id: path.id } }
     x-surfaces:
       cli: [observe chats archive]
     summary: Archive one of your chats and every turn in it, so they leave your lists.
     description: >-
-      Only the chat's owner may archive it; anyone else, an Admin included, gets 404 and nothing changes.
+      Only the chat's owner may archive it; an Admin who can read the chat gets 403 `chat_read_only`, anyone else gets 404, and nothing changes.
+      The web app calls this action Delete; the rows are kept and marked archived, so `observe chats archive` and the audit trail's `chat.archive` event both name this archive.
       Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept.
       A new request with this `chat_id` answers 404 afterwards.
     responses:
@@ -119,6 +120,8 @@ chats-id:
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":

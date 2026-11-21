@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	actionChatCreate audit.Action = "chat.create"
-	actionChatTurn   audit.Action = "chat.turn"
-	actionChatDelete audit.Action = "chat.delete"
+	actionChatCreate  audit.Action = "chat.create"
+	actionChatTurn    audit.Action = "chat.turn"
+	actionChatArchive audit.Action = "chat.archive"
 )
 
 const (
@@ -109,7 +109,7 @@ func takeChat(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, choice 
 		case !errors.Is(err, pgx.ErrNoRows):
 			return chatSlot{}, fmt.Errorf("touch chat: %w", err)
 		case choice.mode == givenChat:
-			return chatSlot{}, ErrChatNotFound
+			return chatSlot{}, chatRefusal(ctx, q, by, choice.id)
 		}
 	case dashboardChat:
 		row, err := q.TouchLatestDashboardChat(ctx, dbsqlc.TouchLatestDashboardChatParams{OwnerKind: owner, OwnerID: ownerID, DashboardID: subject.dashboard})

@@ -207,15 +207,19 @@ func (a *app) chatsShowCommand() *cobra.Command {
 }
 
 func (a *app) chatsArchiveCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "archive <chat-id>",
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "archive <chat-id> --yes",
 		Short: "Archive one of your chats and its turns so they leave your lists",
-		Long:  "archive removes one of your chats, and every request in it, from chats list and requests list.\nThe requests stay readable with observe status, and the dashboards and observations they made are kept.\nOnly the owner of a chat can archive it.",
+		Long:  "archive removes one of your chats, and every request in it, from chats list and requests list.\nThe requests stay readable with observe status, and the dashboards and observations they made are kept.\nOnly the owner of a chat can archive it; an Admin who can read it gets chat_read_only.\nIt needs --yes, because nothing brings an archived chat back to the lists.",
 		Args:  exactArgs(1, "one chat id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
 			if err != nil {
 				return err
+			}
+			if !yes {
+				return usagef("archiving chat %s removes it and every request in it from your lists and cannot be undone; rerun with --yes", id)
 			}
 			c, err := a.newClient()
 			if err != nil {
@@ -234,4 +238,6 @@ func (a *app) chatsArchiveCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm that the chat and its requests leave your lists")
+	return cmd
 }

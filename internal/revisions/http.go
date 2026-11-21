@@ -262,6 +262,8 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound), errors.Is(err, ErrChatNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrChatReadOnly):
+		httpapi.AbortError(c, http.StatusForbidden, CodeChatReadOnly, err.Error())
 	case errors.Is(err, ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUnknownPanel):

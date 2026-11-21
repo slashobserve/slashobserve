@@ -163,6 +163,7 @@ func (r *Registry) getChat(ctx context.Context, input json.RawMessage) (Result, 
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Chat(ctx, principal, id)
 	if err != nil {
+		r.recordRefusedRead(ctx, actionChatView, "chat", id.String(), err)
 		return runFailure(err)
 	}
 	var out chatOut

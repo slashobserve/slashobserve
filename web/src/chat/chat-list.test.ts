@@ -151,6 +151,14 @@ describe("collapseChats", () => {
     ])
   })
 
+  test("keeps a request that belongs to no chat in a row of its own", () => {
+    const rows = collapseChats([
+      summary({ id: "a", chat_id: null }),
+      summary({ id: "b", chat_id: null }),
+    ])
+    expect(rows.map((row) => row.id)).toEqual(["a", "b"])
+  })
+
   test("keeps a stopped request, its retry and later revisions of what the retry built in one row", () => {
     const rows = collapseChats([
       summary({

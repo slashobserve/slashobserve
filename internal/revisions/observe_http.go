@@ -168,7 +168,7 @@ type requestSummaryJSON struct {
 
 	ObservationID    *string  `json:"observation_id"`
 	ObservationTitle *string  `json:"observation_title"`
-	ChatID           string   `json:"chat_id"`
+	ChatID           *string  `json:"chat_id"`
 	AllowedActions   []string `json:"allowed_actions"`
 }
 
@@ -356,10 +356,6 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 		filter.ChatID = id
 	}
 	return filter, true
-}
-
-func chatOf(id, chat pgtype.UUID) string {
-	return chatRoot(id, chat).String()
 }
 
 func requestTitle(title pgtype.Text, prompt string) string {

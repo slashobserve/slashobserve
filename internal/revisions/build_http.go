@@ -138,6 +138,8 @@ func ReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusConflict, Code: "assignee_unavailable", Message: ErrAssigneeUnavailable.Error()}, true
 	case errors.Is(err, ErrRequestFinished):
 		return Reply{Status: http.StatusConflict, Code: "request_finished", Message: ErrRequestFinished.Error()}, true
+	case errors.Is(err, ErrChatReadOnly):
+		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: ErrChatReadOnly.Error()}, true
 	case errors.Is(err, ErrNotRequester):
 		return Reply{Status: http.StatusForbidden, Code: "forbidden", Message: ErrNotRequester.Error()}, true
 	case errors.Is(err, folders.ErrNoAccess):
