@@ -264,10 +264,13 @@ func (c poolCollector) Collect(ch chan<- prometheus.Metric) {
 var auditWriteBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
 
 type Audit struct {
-	dropped    *prometheus.CounterVec
-	writes     prometheus.Histogram
-	buffered   prometheus.Gauge
-	partitions prometheus.Gauge
+	dropped        *prometheus.CounterVec
+	writes         prometheus.Histogram
+	buffered       prometheus.Gauge
+	partitions     prometheus.Gauge
+	exportLag      prometheus.Gauge
+	exportRejected prometheus.Counter
+	exportDropped  *prometheus.CounterVec
 }
 
 func (r *Registry) Audit() Audit {
@@ -289,8 +292,23 @@ func (r *Registry) Audit() Audit {
 			Name: "slashobserve_audit_partitions_ahead",
 			Help: "Daily audit partitions attached after today, as of the last partition job.",
 		}),
+		exportLag: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "slashobserve_audit_export_lag_seconds",
+			Help: "Seconds between the newest audit event and the last one exported over OTLP, read from the database every 15 seconds by every server that has the export set; 0 when caught up.",
+		}),
+		exportRejected: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "slashobserve_audit_export_rejected_total",
+			Help: "Audit events the OTLP receiver accepted the request for but refused in its partial success answer; they are not sent again.",
+		}),
+		exportDropped: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "slashobserve_audit_export_dropped_total",
+			Help: "Audit events the OTLP export gave up on, by reason: refused counts events the receiver refused on their own with 400, 413 or 422, retention counts gaps where events were deleted before they were exported.",
+		}, []string{"reason"}),
 	}
-	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions)
+	for _, reason := range []string{"refused", "retention"} {
+		a.exportDropped.WithLabelValues(reason)
+	}
+	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions, a.exportLag, a.exportRejected, a.exportDropped)
 	return a
 }
 
@@ -303,3 +321,11 @@ func (a Audit) BatchWritten(took time.Duration) { a.writes.Observe(took.Seconds(
 func (a Audit) BufferedEvents(n int) { a.buffered.Set(float64(n)) }
 
 func (a Audit) PartitionsAhead(n int) { a.partitions.Set(float64(n)) }
+
+func (a Audit) ExportLag(behind time.Duration) { a.exportLag.Set(behind.Seconds()) }
+
+func (a Audit) ExportDropped(reason string, n int) {
+	a.exportDropped.WithLabelValues(reason).Add(float64(n))
+}
+
+func (a Audit) ExportRejected(n int) { a.exportRejected.Add(float64(n)) }
