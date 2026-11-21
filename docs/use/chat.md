@@ -50,6 +50,7 @@ Remove the chip with its button, or press Backspace in the empty box.
 `/revise` works only in a chat that already has a dashboard, and `/import` only in the chat, not in a dashboard's activity pane.
 `/investigate` is offered to Editors and Admins only, because starting an investigation needs the Editor role.
 In a chat about a dashboard, a second chip names that dashboard.
+A chat about no dashboard becomes the chat about the first dashboard it saves, whether a build saved it or you chose **Make a dashboard** on one of its answers.
 
 The footer shows the model and, when the server sets one, its effort, for example "claude-haiku-5-5, medium effort".
 While one of your runs in the chat is queued or running, a square stop button, labelled "Stop the run", sits next to the send button and cancels it, see [Cancel a run](#cancel-a-run).

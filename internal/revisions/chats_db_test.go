@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -233,6 +234,35 @@ func TestAHomeBuildThatSavesADashboardMakesItTheChatsSubject(t *testing.T) {
 	})
 	if _, err := svc.Start(context.Background(), user, revisions.StartRequest{Prompt: text("again"), ChatID: text(turn.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}); err != nil {
 		t.Fatalf("a turn on the saved dashboard in that chat: %v", err)
+	}
+}
+
+func TestADashboardMadeFromAnAnswerBecomesTheSubjectOfAChatAboutNothing(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	made := seedDashboard(t, d, 1)
+	other := seedDashboard(t, d, 1)
+	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why")})
+	onOther := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why"), Kind: text(revisions.KindRevise), DashboardID: text(other.String())})
+	subject := func(turn pgtype.UUID) string {
+		t.Helper()
+		var id string
+		if err := d.SQLDB(t).QueryRowContext(context.Background(), `SELECT coalesce(c.dashboard_id::text, '') FROM chats c JOIN agent_requests r ON r.chat_id = c.id WHERE r.id = $1`, turn).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	for _, turn := range []pgtype.UUID{home, onOther} {
+		if err := d.InTx(context.Background(), func(q *dbsqlc.Queries) error {
+			return revisions.AttachRunChat(context.Background(), q, turn, made)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := subject(home); got != made.String() {
+		t.Fatalf("Home chat subject = %q, want the made dashboard %s", got, made)
+	}
+	if got := subject(onOther); got != other.String() {
+		t.Fatalf("dashboard chat subject = %q, want it kept on %s", got, other)
 	}
 }
 

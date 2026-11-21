@@ -91,7 +91,13 @@ func (s *Service) Placement() *placement.Guard {
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string) (Dashboard, Version, error) {
-	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{})
+	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{}, nil)
+}
+
+type CreateHook func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version) error
+
+func (s *Service) CreateWith(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, hook CreateHook) (Dashboard, Version, error) {
+	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{}, hook)
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
@@ -107,7 +113,7 @@ func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal,
 	if dash, ver, found, err := s.CreatedByRequest(ctx, requestID); err != nil || found {
 		return dash, ver, found, err
 	}
-	dash, ver, err := s.create(ctx, by, folderID, rawSpec, summary, requestID)
+	dash, ver, err := s.create(ctx, by, folderID, rawSpec, summary, requestID, nil)
 	if !errors.Is(err, errRequestSaved) {
 		return dash, ver, false, err
 	}
@@ -176,7 +182,7 @@ func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (
 	return dash, ver, true, nil
 }
 
-func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID, hook CreateHook) (Dashboard, Version, error) {
 	target, err := s.creationTarget(ctx, by, folderID)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -188,7 +194,11 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), folder: target.folder})
+	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
+	if hook != nil {
+		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error { return hook(ctx, q, dash, ver) }
+	}
+	dash, ver, err := s.store.createWith(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), folder: target.folder}, inTx)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
