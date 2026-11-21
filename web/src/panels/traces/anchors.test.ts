@@ -48,7 +48,10 @@ describe("traces locate", () => {
   })
 
   it("points at the bottom edge for a span scrolled out of view", () => {
-    const scrolled = { ...layout, elsewhere: ["c3"] }
+    const scrolled = {
+      ...layout,
+      resolve: (id: string) => (id === "c3" ? id : undefined),
+    }
     expect(
       locate(scrolled, { kind: "span", pos: { x: 0, y: 0 }, id: "c3" })
     ).toEqual({ x: 0, y: 100 - edgeHeight, width: 400, height: edgeHeight })
@@ -63,7 +66,10 @@ describe("traces locate", () => {
 })
 
 describe("traces reveal", () => {
-  const scrolled = { ...layout, elsewhere: ["c3"] }
+  const scrolled = {
+    ...layout,
+    resolve: (id: string) => (id === "c3" ? id : undefined),
+  }
   const pos = { x: 0, y: 0 }
 
   it("asks the panel to scroll a span that is out of view into view", () => {

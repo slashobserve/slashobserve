@@ -17,7 +17,7 @@ export type SpanAnchorLayout = {
     rect: Rect
     span: Pick<Span, "id" | "service" | "operation">
   }[]
-  elsewhere?: readonly string[]
+  resolve?: (id: string) => string | undefined
   reveal?: (id: string) => void
 }
 
@@ -41,7 +41,7 @@ function hiddenId(
   if (layout.spans.some(({ span }) => clip(span.id) === anchor.id)) {
     return undefined
   }
-  return (layout.elsewhere ?? []).find((id) => clip(id) === anchor.id)
+  return anchor.id === undefined ? undefined : layout.resolve?.(anchor.id)
 }
 
 export function locate(layout: SpanAnchorLayout, anchor: Anchor): Rect | null {
