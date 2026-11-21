@@ -254,6 +254,17 @@ func TestStartRunPassesThePromptAndTheCallerAndReturnsTheRun(t *testing.T) {
 	}
 }
 
+func TestStartRunPassesTheAnchorTheTurnIsAbout(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why this spike","dashboard_id":"`+runID+`","anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}}}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	if got := runs.started; got == nil || got.Anchor == nil || got.Anchor.Kind != "position" || got.Anchor.Pos.X != 0.4 {
+		t.Fatalf("start request = %+v", got)
+	}
+}
+
 func TestStartRunHasNoWayToAskForAnInvestigation(t *testing.T) {
 	runs := &fakeRuns{raw: json.RawMessage(`{}`)}
 	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why is it slow","kind":"investigate"}`)

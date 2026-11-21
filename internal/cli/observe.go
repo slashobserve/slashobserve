@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/links"
 )
 
@@ -73,6 +74,7 @@ type promptOptions struct {
 	dashboard string
 	chat      string
 	follows   string
+	at        string
 	noWait    bool
 	timeout   time.Duration
 }
@@ -87,6 +89,7 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "revise this dashboard with a follow-up prompt")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
+	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object")
 	flags.BoolVar(&a.prompt.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.prompt.timeout, "timeout", defaultTimeout, "stop waiting after this long; the request keeps running on the server")
 }
@@ -137,7 +140,22 @@ func (o promptOptions) payload(prompt string) (map[string]any, error) {
 		}
 		payload[field] = id
 	}
+	if err := addAnchor(payload, o.at); err != nil {
+		return nil, err
+	}
 	return payload, nil
+}
+
+func addAnchor(payload map[string]any, at string) error {
+	if at == "" {
+		return nil
+	}
+	spot, err := anchor.Parse(at)
+	if err != nil {
+		return usagef("--at: %v", err)
+	}
+	payload["anchor"] = spot
+	return nil
 }
 
 func (a *app) submit(ctx context.Context, c *client, payload map[string]any, noWait bool, timeout time.Duration) error {
