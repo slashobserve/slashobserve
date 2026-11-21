@@ -42,6 +42,9 @@ func (s *Service) Withdraw(ctx context.Context, by auth.Principal, threadID pgty
 		if err := lockTarget(ctx, q, sc, false); err != nil {
 			return err
 		}
+		if _, err := q.LockThreadForWrite(ctx, row.ID); err != nil {
+			return threadLookup(err)
+		}
 		runs, err := q.LockSharedRunsInThread(ctx, dbsqlc.LockSharedRunsInThreadParams{ThreadID: row.ID, RequestedByKind: string(by.Kind), RequestedByID: requester})
 		if err != nil {
 			return fmt.Errorf("lock the runs shared in the thread: %w", err)
