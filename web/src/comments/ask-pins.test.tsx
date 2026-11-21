@@ -14,6 +14,18 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useRouteContext: () => ({ principal: { id: "u1", role: "admin" } }),
 }))
 
+const outOfRange = vi.hoisted(() => ({
+  hitTest: () => null,
+  locate: () => ({ x: 0, y: 0, width: 400, height: 200 }),
+  hides: (_layout: never, anchor: { kind: string }) => anchor.kind === "range",
+}))
+
+vi.mock("@/panels/anchor-layout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/panels/anchor-layout")>()),
+  useAnchorsModule: (type: string | null) =>
+    type === "timeseries" ? outOfRange : null,
+}))
+
 const onRow: Anchor = {
   kind: "row",
   pos: { x: 0.5, y: 0.5 },
@@ -47,14 +59,14 @@ function stubRequests(requests: Record<string, unknown>[]) {
   return listed
 }
 
-function renderPins(view: PinView = "data") {
+function renderPins(view: PinView = "data", store = createAnchorLayoutStore()) {
   return renderWithProviders(
     <AskPins
       dashboardId="d1"
       panelId="p1"
       panelTitle="Slow services"
       surfaceId="s1"
-      store={createAnchorLayoutStore()}
+      store={store}
       body={{ width: 400, height: 200 }}
       view={view}
     />,
@@ -130,5 +142,31 @@ describe("AskPins", () => {
     renderPins("hidden")
     await waitFor(() => expect(listed).toHaveLength(1))
     expect(screen.queryByRole("button")).toBeNull()
+  })
+
+  it("draws no pin on a spot the panel does not show, such as a range outside the shown time", async () => {
+    const listed = stubRequests([
+      summary({ id: "r1" }),
+      summary({
+        id: "r2",
+        chat_id: "c2",
+        anchor: {
+          kind: "range",
+          pos: { x: 0.2, y: 0.5 },
+          from: "2026-11-20T10:00:00Z",
+          to: "2026-11-20T11:00:00Z",
+        },
+      }),
+    ])
+    const store = createAnchorLayoutStore()
+    store.publish("timeseries", {})
+    renderPins("data", store)
+    await waitFor(() => expect(listed).toHaveLength(1))
+    expect(
+      await screen.findByRole("button", {
+        name: "Your question on Slow services, The row payments, 440",
+      })
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole("button")).toHaveLength(1)
   })
 })

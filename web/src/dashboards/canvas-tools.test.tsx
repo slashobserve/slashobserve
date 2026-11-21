@@ -48,6 +48,33 @@ describe("useCanvasTool", () => {
     })
   })
 
+  it("keeps a draft that has text when a pin's turn is opened", () => {
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("half a question")
+    useCanvasTool
+      .getState()
+      .showTurn({ requestId: "r1", chatId: "c1", ...draft })
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft,
+      openTurn: null,
+      text: "half a question",
+    })
+  })
+
+  it("keeps an open turn whose follow-up has text, and opens the next once it is empty", () => {
+    const turn = { requestId: "r1", chatId: "c1", ...draft }
+    useCanvasTool.getState().showTurn(turn)
+    useCanvasTool.getState().setText("and yesterday")
+    useCanvasTool.getState().openDraft(draft)
+    expect(useCanvasTool.getState()).toMatchObject({
+      openTurn: turn,
+      draft: null,
+    })
+    useCanvasTool.getState().setText("")
+    useCanvasTool.getState().openDraft(draft)
+    expect(useCanvasTool.getState()).toMatchObject({ openTurn: null, draft })
+  })
+
   it("drops the text with the draft, and starts the next draft empty", () => {
     useCanvasTool.getState().openDraft(draft)
     useCanvasTool.getState().setText("half a thought")
