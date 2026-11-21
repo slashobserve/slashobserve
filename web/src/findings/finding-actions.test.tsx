@@ -83,6 +83,38 @@ describe("MakeDashboardAction", () => {
     expect(router?.state.location.search).toEqual({ tab: "chat", chat: "c1" })
     vi.unstubAllGlobals()
   })
+
+  it.each([
+    ["moves the chat into the side panel with a view transition", "c1", true],
+    ["opens a dashboard with no chat to move without one", undefined, false],
+  ])("%s", async (_name, chatId, viewTransition) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              dashboard: {
+                id: "33333333-3333-4333-8333-333333333333",
+                title: "A",
+              },
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } }
+          )
+      )
+    )
+    const { user, router } = renderWithProviders(
+      <MakeDashboardAction finding={finding()} chatId={chatId} />,
+      route
+    )
+    const navigate = vi.spyOn(router!, "navigate")
+    await user.click(
+      await screen.findByRole("button", { name: "Make a dashboard" })
+    )
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce())
+    expect(navigate.mock.calls[0][0]).toMatchObject({ viewTransition })
+    vi.unstubAllGlobals()
+  })
 })
 
 describe("PinAction", () => {

@@ -109,12 +109,14 @@ function ChatAnswer({
   own,
   about,
   onRevised,
+  actions,
 }: {
   request: ObserveRequest
   finding: Finding
   own: boolean
   about: Subject | null
   onRevised: (next: ObserveRequest) => Promise<void>
+  actions: ReactNode
 }) {
   const dashboardId = request.dashboard_id
   const revised: Subject | null =
@@ -163,6 +165,7 @@ function ChatAnswer({
           : undefined
       }
       chatId={request.chat_id ?? undefined}
+      actions={actions}
       menu={{
         shareTarget: own && subject !== null ? threadTargetOf(subject) : null,
         sharedThreadId: request.shared_thread_id,
@@ -420,16 +423,14 @@ export function RequestTurn({
             detail?.finding != null ? (
               <>
                 {!investigates ? (
-                  <>
-                    <ChatAnswer
-                      request={detail}
-                      finding={detail.finding}
-                      own={request.requested_by.id === principal.id}
-                      about={about}
-                      onRevised={openNewRun}
-                    />
-                    {answerActions}
-                  </>
+                  <ChatAnswer
+                    request={detail}
+                    finding={detail.finding}
+                    own={request.requested_by.id === principal.id}
+                    about={about}
+                    onRevised={openNewRun}
+                    actions={answerActions}
+                  />
                 ) : (
                   <FindingCard
                     finding={detail.finding}

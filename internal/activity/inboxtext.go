@@ -9,6 +9,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const inboxExcerptRunes = 200
@@ -60,11 +62,12 @@ func quotesRun(item InboxItem) bool {
 }
 
 type inboxTexts struct {
-	titles   map[objectRef]string
-	bodies   map[string]string
-	failures map[string]string
-	closes   map[string]string
-	notes    map[string]string
+	titles    map[objectRef]string
+	bodies    map[string]string
+	questions map[string]string
+	failures  map[string]string
+	closes    map[string]string
+	notes     map[string]string
 }
 
 func (t inboxTexts) excerptOf(item InboxItem) string {
@@ -81,8 +84,8 @@ func (t inboxTexts) excerptOf(item InboxItem) string {
 	return ""
 }
 
-func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
-	texts, err := s.loadInboxTexts(ctx, items)
+func (s *Store) describeInbox(ctx context.Context, a folders.Audience, items []InboxItem) error {
+	texts, err := s.loadInboxTexts(ctx, a, items)
 	if err != nil {
 		return err
 	}
@@ -90,6 +93,9 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 		item := &items[i]
 		item.TargetTitle = texts.titles[subjectOf(item.Event)]
 		item.Excerpt = texts.excerptOf(*item)
+		if item.Type == TypeThreadReplied {
+			item.Question = usertext.ShortTitle(plainMentions(texts.questions[dataOf(item.Event).MessageID]))
+		}
 	}
 	return nil
 }
@@ -130,15 +136,17 @@ func inboxRefsOf(items []InboxItem) inboxRefs {
 	return refs
 }
 
-func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTexts, error) {
+func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []InboxItem) (inboxTexts, error) {
 	q := s.db.Queries()
 	refs := inboxRefsOf(items)
 	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
-	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
+	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, questions: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
 	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
 		ProposalIds:    uuidsOf(byKind["proposal"]),
+		Admin:          a.Admin,
+		Folders:        visibleFolders(a),
 	})
 	if err != nil {
 		return inboxTexts{}, fmt.Errorf("list inbox titles: %w", err)
@@ -146,12 +154,15 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	for _, r := range titleRows {
 		texts.titles[objectRef{r.Kind, r.ID.String()}] = r.Title
 	}
-	messageRows, err := q.InboxMessageBodies(ctx, uuidsOf(messages))
+	threadRows, err := q.InboxThreadTexts(ctx, dbsqlc.InboxThreadTextsParams{Ids: uuidsOf(messages), Admin: a.Admin, Folders: visibleFolders(a)})
 	if err != nil {
-		return inboxTexts{}, fmt.Errorf("list inbox messages: %w", err)
+		return inboxTexts{}, fmt.Errorf("list inbox thread texts: %w", err)
 	}
-	for _, r := range messageRows {
+	for _, r := range threadRows {
 		texts.bodies[r.ID.String()] = r.Body
+		if r.Question.Valid {
+			texts.questions[r.ID.String()] = r.Question.String
+		}
 	}
 	runRows, err := q.InboxRunTexts(ctx, uuidsOf(runs))
 	if err != nil {

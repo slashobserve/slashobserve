@@ -52,6 +52,7 @@ Under the card, **Recent imports** lists your five newest imports, each with the
 
 **Needs you** shows the three newest items of your [inbox](inbox.md) that have a reason, and **Open Inbox** opens it.
 Each row ends with its action: **Review** on a proposal or a suggested block, **Reply** on a mention or a reply, **Open** on a repair you started or a proposal of yours that was closed, **Share** on a request for comment access, or **Change role** when the request is for something in General, and **Try again** on a failed run, which starts the run again and opens the new chat; the action sits beside the row, and the row itself opens the item.
+A reply the agent wrote reads "Observe Agent answered" followed by the question, as in the inbox.
 **Working now**, with an **All agents** link, lists the agent runs that are queued, running or canceling and that you started or that act on a dashboard or observation you created, whoever started them, and refreshes every five seconds while one is listed.
 Each row shows the agent's mark, "<agent> is working on <title>", how long it has run or "Queued", who asked, and the observation or dashboard it works in; a run you started opens its chat, and another person's or agent's run opens the dashboard or observation.
 A run on a dashboard or observation you cannot see is listed without its name.
