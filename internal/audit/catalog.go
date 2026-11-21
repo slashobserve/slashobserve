@@ -62,6 +62,7 @@ var (
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
 	jobKeys      = []string{"trigger", "duration_ms"}
+	importKeys   = []string{"connection_id"}
 )
 
 func change(c Category, data ...[]string) Spec {
@@ -132,8 +133,8 @@ var catalog = map[Action]Spec{
 	"block.add":                 change(CategoryContent),
 	"block.edit":                change(CategoryContent),
 	"block.remove":              change(CategoryContent),
-	"grafana_import.start":      change(CategoryContent),
-	"grafana_import.cancel":     change(CategoryContent),
+	"grafana_import.start":      change(CategoryContent, importKeys),
+	"grafana_import.cancel":     change(CategoryContent, importKeys),
 
 	"thread.open":                 change(CategoryConversation, threadKeys),
 	"thread.message":              change(CategoryConversation, threadKeys),

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -399,7 +400,7 @@ func asAdmin(r *rig) context.Context {
 	})
 }
 
-func TestStartAndCancelEachRecordOneEventInTheirTransaction(t *testing.T) {
+func TestStartAndCancelEachRecordOneEventNamingTheSyncAndItsConnection(t *testing.T) {
 	hold := make(chan struct{})
 	r := newRigWith(t, rigOptions{secretKey: secretKey, hold: hold})
 	r.grafana.add(&fakeDashboard{uid: "d", title: "Dash", model: simpleModel("graf-prom", "prometheus"), version: 1})
@@ -414,7 +415,7 @@ func TestStartAndCancelEachRecordOneEventInTheirTransaction(t *testing.T) {
 	if _, err := r.svc.StartSync(ctx, r.admin, connectionID, grafanaconn.SyncRequest{All: true}); !errors.Is(err, grafanaconn.ErrSyncRunning) {
 		t.Fatalf("second start: %v", err)
 	}
-	if _, err := r.svc.CancelSync(ctx, r.admin, connectionID, started.ID); err != nil {
+	if _, err := r.svc.CancelSync(ctx, r.admin, connectionID, strings.ToUpper(started.ID)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := r.svc.CancelSync(ctx, r.admin, connectionID, started.ID); err == nil {
@@ -422,8 +423,8 @@ func TestStartAndCancelEachRecordOneEventInTheirTransaction(t *testing.T) {
 	}
 
 	actor := auth.AuditActor(r.admin).ID.UUID.String()
-	wantStart := []dbtest.AuditEvent{{Action: "grafana_import.start", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_connection", TargetID: conn.ID}}
-	wantCancel := []dbtest.AuditEvent{{Action: "grafana_import.cancel", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_import", TargetID: started.ID}}
+	wantStart := []dbtest.AuditEvent{{Action: "grafana_import.start", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_import", TargetID: started.ID, Data: map[string]any{"connection_id": conn.ID}}}
+	wantCancel := []dbtest.AuditEvent{{Action: "grafana_import.cancel", Outcome: "success", ActorKind: "user", ActorID: actor, Initiator: "person", Origin: "api", TargetKind: "grafana_import", TargetID: started.ID, Data: map[string]any{"connection_id": conn.ID}}}
 	if got := r.db.AuditEvents(t, "grafana_import.start"); fmt.Sprint(got) != fmt.Sprint(wantStart) {
 		t.Errorf("start events %+v, want %+v", got, wantStart)
 	}
