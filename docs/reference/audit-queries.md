@@ -43,7 +43,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent` (what the built-in agent does with its run key), `job`, `provision` or `unknown` (history copied from activity that recorded no origin) |
 | `origin_client` | | text | The connected client's name |
 | `tool` | | text | The MCP or agent tool |
-| `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16` |
+| `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16`. Behind a proxy it is the proxy's address unless `SLASHOBSERVE_TRUSTED_PROXIES` lists the proxy; see [Put TLS in front](../operate/production.md#put-tls-in-front) |
 | `user_agent` | | text | The request's user agent |
 | `request_id` | `request` | uuid | The request id, also the `X-Request-Id` response header |
 | `trace_id` | | text | The request's trace id, when one was sent |
