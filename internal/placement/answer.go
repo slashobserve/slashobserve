@@ -67,7 +67,9 @@ func readRestricted(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (
 	return restricted, nil
 }
 
-func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, holds func() (bool, error)) error {
+type keptWithAdmins struct{ Restricted, InFlight bool }
+
+func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error)) error {
 	folder, err := q.ShareFolderPlacement(ctx, to)
 	if err == nil && folder.AdminsOnly {
 		return nil
@@ -75,12 +77,16 @@ func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind fol
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("lock folder: %w", err)
 	}
-	held, err := holds()
-	if err != nil {
+	held, err := kept()
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil
+	case err != nil:
 		return fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
-	}
-	if held {
+	case held.Restricted:
 		return folders.RestrictedAnswerMove(kind)
+	case held.InFlight:
+		return folders.RunInFlightMove(kind)
 	}
 	return nil
 }
@@ -93,9 +99,14 @@ func restrictedAnswerOpening(ctx context.Context, q *dbsqlc.Queries, folderID pg
 	if len(rows) == 0 {
 		return nil
 	}
-	items := make([]folders.ContentItem, len(rows))
-	for i, r := range rows {
-		items[i] = folders.ContentItem{Kind: folders.ContentKind(r.Kind), ID: r.ID.String(), Title: r.Title, FolderID: folderID.String()}
+	items := make([]folders.ContentItem, 0, len(rows))
+	for _, r := range rows {
+		if r.Restricted == rows[0].Restricted {
+			items = append(items, folders.ContentItem{Kind: folders.ContentKind(r.Kind), ID: r.ID.String(), Title: r.Title, FolderID: folderID.String()})
+		}
+	}
+	if !rows[0].Restricted {
+		return folders.RunInFlightOpening(items)
 	}
 	return folders.RestrictedAnswerOpening(items)
 }

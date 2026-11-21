@@ -2,6 +2,7 @@ package placement
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -14,6 +15,11 @@ import (
 func (r holdersRig) run(t *testing.T, readRestricted bool) string {
 	t.Helper()
 	return r.scalar(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, read_restricted) VALUES ('ask', 'who changed it', 'user', gen_random_uuid(), 'Root', $1) RETURNING id::text`, readRestricted)
+}
+
+func (r holdersRig) ended(t *testing.T, run, set, id string) {
+	t.Helper()
+	r.d.Exec(t, `UPDATE agent_requests SET `+set+`, status = 'failed', state = 'failed', failure_code = 'internal', finished_at = now() WHERE id = $1::uuid`, run, id)
 }
 
 func (r holdersRig) uuid(t *testing.T, raw string) pgtype.UUID {
@@ -80,6 +86,26 @@ var answerHolders = map[string]answerHolder{
 			return g.MoveObservation(t.Context(), r.d.Queries(), id, to)
 		},
 	},
+	"a run on a dashboard, with its steps and answer": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			r.ended(t, run, `dashboard_id = $2::uuid`, id)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
+	"an ask about an observation, with its steps and answer": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.observation(t, folder)
+			r.ended(t, run, `subject_observation_id = $2::uuid`, id)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveObservation(t.Context(), r.d.Queries(), id, to)
+		},
+	},
 	"an observation block a run wrote": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
 			id := r.observation(t, folder)
@@ -128,6 +154,52 @@ func TestContentHoldingOnlyUnrestrictedAnswersMovesAndOpensAsBefore(t *testing.T
 			}
 			if err := h.move(g, r, t, id, general); err != nil {
 				t.Fatalf("moving it to General: %v", err)
+			}
+		})
+	}
+}
+
+func TestARunInFlightKeepsWhatItIsAboutWhereOnlyAdminsReadUntilItEnds(t *testing.T) {
+	r := newHoldersRig(t)
+	g := New(nil)
+	general := r.uuid(t, r.scalar(t, `SELECT id::text FROM folders WHERE general`))
+	for name, h := range map[string]struct {
+		about string
+		add   func(t *testing.T, folder pgtype.UUID) string
+		move  func(id, to pgtype.UUID) error
+	}{
+		"a dashboard": {`dashboard_id`, func(t *testing.T, folder pgtype.UUID) string { return r.dashboard(t, folder, readsProm) },
+			func(id, to pgtype.UUID) error { return g.MoveDashboard(t.Context(), r.d.Queries(), id, to) }},
+		"an observation": {`subject_observation_id`, r.observation,
+			func(id, to pgtype.UUID) error { return g.MoveObservation(t.Context(), r.d.Queries(), id, to) }},
+	} {
+		t.Run(name, func(t *testing.T) {
+			folder := foldertest.AdminsOnly(t, r.d, name)
+			raw := h.add(t, folder)
+			id := r.uuid(t, raw)
+			run := r.run(t, false)
+			r.d.Exec(t, `UPDATE agent_requests SET `+h.about+` = $2::uuid, status = 'running', state = 'running' WHERE id = $1::uuid`, run, raw)
+
+			err := g.OpeningGuard()(t.Context(), r.d.Queries(), dbsqlc.Folder{ID: folder})
+			if !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "has not finished") {
+				t.Fatalf("opening the folder while a run is working: err = %v", err)
+			}
+			if err := h.move(id, general); !errors.Is(err, folders.ErrRestrictedAnswer) || !strings.Contains(err.Error(), "wait for it to end") {
+				t.Fatalf("moving it to General while a run is working: err = %v", err)
+			}
+			shared := r.uuid(t, r.scalar(t, `INSERT INTO folders (title) VALUES ($1) RETURNING id::text`, name+" shared"))
+			sharedItem := r.uuid(t, h.add(t, shared))
+			r.d.Exec(t, `UPDATE agent_requests SET `+h.about+` = $2::uuid WHERE id = $1::uuid`, r.run(t, false), sharedItem)
+			if err := h.move(sharedItem, general); err != nil {
+				t.Fatalf("moving shared content with a run waiting: %v", err)
+			}
+
+			r.d.Exec(t, `UPDATE agent_requests SET status = 'succeeded', state = 'succeeded', finished_at = now() WHERE id = $1::uuid`, run)
+			if err := g.OpeningGuard()(t.Context(), r.d.Queries(), dbsqlc.Folder{ID: folder}); err != nil {
+				t.Fatalf("opening the folder after the run ended: %v", err)
+			}
+			if err := h.move(id, general); err != nil {
+				t.Fatalf("moving it to General after the run ended: %v", err)
 			}
 		})
 	}

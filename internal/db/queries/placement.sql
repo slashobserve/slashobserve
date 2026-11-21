@@ -89,30 +89,31 @@ SELECT folder_id FROM dashboards WHERE id = @id FOR UPDATE;
 SELECT folder_id FROM dashboards WHERE id = @id FOR SHARE;
 
 -- name: DashboardHoldsRestrictedAnswer :one
-SELECT (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = @id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = @id AND f.annotation_id IS NOT NULL AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = @id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE n.dashboard_id = @id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = @id AND r.read_restricted))::boolean;
+SELECT dashboard_holds_restricted_answer(@id::uuid)::boolean;
 
 -- name: ObservationHoldsRestrictedAnswer :one
-SELECT (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = @id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = @id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = @id AND r.read_restricted))::boolean;
+SELECT observation_holds_restricted_answer(@id::uuid)::boolean;
+
+-- name: DashboardKeptWithAdmins :one
+SELECT (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted,
+  (f.admins_only AND dashboard_has_run_in_flight(d.id))::boolean AS in_flight
+FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = @id;
+
+-- name: ObservationKeptWithAdmins :one
+SELECT (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean AS restricted,
+  (f.admins_only AND observation_has_run_in_flight(o.id))::boolean AS in_flight
+FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = @id;
 
 -- name: RestrictedAnswerHolders :many
-SELECT 'dashboard'::text AS kind, d.id, d.title FROM dashboards d
-WHERE d.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = d.id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = d.id AND f.annotation_id IS NOT NULL AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = d.id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE n.dashboard_id = d.id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = d.id AND r.read_restricted))
-UNION ALL
-SELECT 'observation'::text AS kind, o.id, o.title FROM observations o
-WHERE o.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = o.id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = o.id AND r.read_restricted)
-  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = o.id AND r.read_restricted))
-ORDER BY kind, title, id
+SELECT kind, id, title, restricted FROM (
+  SELECT 'dashboard'::text AS kind, d.id, d.title, (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted, dashboard_has_run_in_flight(d.id) AS in_flight
+  FROM dashboards d WHERE d.folder_id = @folder_id
+  UNION ALL
+  SELECT 'observation'::text, o.id, o.title, (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean, observation_has_run_in_flight(o.id)
+  FROM observations o WHERE o.folder_id = @folder_id
+) held
+WHERE restricted OR in_flight
+ORDER BY restricted DESC, kind, title, id
 LIMIT @row_limit;
 
 -- name: RestrictedAnswerFolder :one

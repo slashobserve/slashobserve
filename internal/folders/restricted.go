@@ -45,6 +45,20 @@ func RestrictedAnswerOpening(items []ContentItem) error {
 	return restrictedAnswerError{message}
 }
 
+func RunInFlightMove(kind ContentKind) error {
+	return restrictedAnswerError{fmt.Sprintf(
+		"an agent run on this %s has not finished, and what it writes may read data only Admins can query, such as the audit trail; wait for it to end before you move the %s out of folders only Admins can read", kind.Noun(), kind.Noun())}
+}
+
+func RunInFlightOpening(items []ContentItem) error {
+	first := items[0]
+	message := fmt.Sprintf("an agent run on the %s %q in this folder has not finished, and what it writes may read data only Admins can query, such as the audit trail; wait for it to end before you share this folder", first.Kind.Noun(), first.Title)
+	if len(items) > 1 {
+		message = fmt.Sprintf("agent runs on %d items in this folder, such as the %s %q, have not finished, and what they write may read data only Admins can query, such as the audit trail; wait for them to end before you share this folder", len(items), first.Kind.Noun(), first.Title)
+	}
+	return restrictedAnswerError{message}
+}
+
 func ShowAnswer(readRestricted, adminsOnly bool) error {
 	if readRestricted && !adminsOnly {
 		return ErrRestrictedAnswer
