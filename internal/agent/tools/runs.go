@@ -241,7 +241,7 @@ func runFailure(err error) (Result, error) {
 	}
 	if reply, ok := revisions.ReplyFor(err); ok {
 		if reply.Code == forbidden.Code {
-			return toolError(codeForbiddenRole, reply.Message), nil
+			return forbiddenBy(err, reply.Message), nil
 		}
 		return toolError(reply.Code, reply.Message), nil
 	}

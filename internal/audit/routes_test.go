@@ -182,7 +182,7 @@ func TestTheErrorCodeIsReadFromAnErrorResponseOnly(t *testing.T) {
 		if _, err := capture.WriteString(tt.body); err != nil {
 			t.Fatal(err)
 		}
-		if got := capture.code(); got != tt.want {
+		if got := capture.refusal().Code; got != tt.want {
 			t.Errorf("status %d body %s: code = %q, want %q", tt.status, tt.body, got, tt.want)
 		}
 		if rec.Body.String() != tt.body {

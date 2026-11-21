@@ -16,6 +16,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/audit/audittest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/grafanaconn"
@@ -27,11 +29,22 @@ type httpRig struct {
 	engine *gin.Engine
 	router routers.Router
 	caller auth.Principal
+	flush  func()
 }
 
 var serviceAccount = auth.Principal{Kind: auth.KindServiceAccount, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "ci", Role: auth.RoleAdmin}
 
 func newHTTPRig(t *testing.T, base *rig) *httpRig {
+	t.Helper()
+	return buildHTTPRig(t, base, false)
+}
+
+func newAuditedHTTPRig(t *testing.T, base *rig) *httpRig {
+	t.Helper()
+	return buildHTTPRig(t, base, true)
+}
+
+func buildHTTPRig(t *testing.T, base *rig, audited bool) *httpRig {
 	t.Helper()
 	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
 	doc := apitest.Load(t)
@@ -42,9 +55,17 @@ func newHTTPRig(t *testing.T, base *rig) *httpRig {
 	h := &httpRig{rig: base, router: router, caller: base.admin}
 	gin.SetMode(gin.TestMode)
 	h.engine = gin.New()
-	grafanaconn.NewHandler(base.svc).Register(auth.NewRoutes(h.engine.Group("/api/v1", func(c *gin.Context) {
+	var middleware []gin.HandlerFunc
+	if audited {
+		var mw gin.HandlerFunc
+		mw, h.flush = audittest.Middleware(t, base.db)
+		middleware = append(middleware, mw)
+	}
+	middleware = append(middleware, func(c *gin.Context) {
+		auth.Authenticated(c.Request.Context(), h.caller, audit.AuthSession, "")
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.caller), datasource.Access{By: h.caller}))
-	})))
+	})
+	grafanaconn.NewHandler(base.svc).Register(auth.NewRoutes(h.engine.Group("/api/v1", middleware...)))
 	return h
 }
 

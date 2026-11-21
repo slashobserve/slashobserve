@@ -481,7 +481,7 @@ export interface paths {
         put?: never;
         /**
          * Save a prompt.
-         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`). At most 100 prompts per person.
+         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`). At most 100 prompts per person. A prompt saved shared is recorded in the audit trail as `saved_prompt.create`; a personal prompt is not.
          */
         post: operations["createSavedPrompt"];
         delete?: never;
@@ -504,14 +504,14 @@ export interface paths {
         post?: never;
         /**
          * Delete a saved prompt.
-         * @description Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared. A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+         * @description Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared. A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`. Deleting a shared prompt is recorded in the audit trail as `saved_prompt.delete`; deleting a personal one is not.
          */
         delete: operations["deleteSavedPrompt"];
         options?: never;
         head?: never;
         /**
          * Change a saved prompt.
-         * @description Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared. Only the fields sent change. Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
+         * @description Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared. Only the fields sent change. A change to a shared prompt is recorded in the audit trail as `saved_prompt.update`, and making a prompt shared or personal as `saved_prompt.share` or `saved_prompt.unshare`; a prompt that is personal before and after is not recorded. Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
          */
         patch: operations["updateSavedPrompt"];
         trace?: never;
@@ -1608,7 +1608,7 @@ export interface paths {
         put?: never;
         /**
          * Check a datasource definition against the real datasource without saving it.
-         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
          */
         post: operations["testDatasource"];
         delete?: never;
@@ -3384,7 +3384,7 @@ export interface paths {
         put?: never;
         /**
          * Check that Grafana answers with the stored token.
-         * @description Only Admins can call this endpoint. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message.
+         * @description Only Admins can call this endpoint. The server reads `/api/health`, `/api/folders` and the first page of `/api/search`, and stores the outcome in `last_test`. A Grafana that cannot be reached or refuses the token still answers 200, with `last_test.ok` false and a fixed message. Every test is recorded as `grafana_connection.test` with the host and the outcome.
          */
         post: operations["testGrafanaConnection"];
         delete?: never;
@@ -3538,7 +3538,7 @@ export interface paths {
         put?: never;
         /**
          * Fetch a Grafana dashboard from its link through a stored connection.
-         * @description Only Admins can call this endpoint, because the stored connection's token is an Admin's credential. The link must be a dashboard link (`/d/<uid>` or `/d-solo/<uid>`) on the address of a stored connection, under that address's path; the server only fetches from hosts an Admin already stored. `json` is the dashboard as Grafana returns it, in a string that `POST /imports` takes as its `json`. Redirects are not followed.
+         * @description Only Admins can call this endpoint, because the stored connection's token is an Admin's credential. The link must be a dashboard link (`/d/<uid>` or `/d-solo/<uid>`) on the address of a stored connection, under that address's path; the server only fetches from hosts an Admin already stored. `json` is the dashboard as Grafana returns it, in a string that `POST /imports` takes as its `json`. Redirects are not followed. Every fetch is recorded as `grafana_connection.fetch_dashboard`, naming the connection and its host and never the link.
          */
         post: operations["fetchGrafanaLink"];
         delete?: never;

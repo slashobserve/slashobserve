@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -458,6 +459,11 @@ func (h *Handler) get(c *gin.Context) {
 		h.fail(c, "get observation", err)
 		return
 	}
+	audit.Conclude(c.Request.Context(), audit.Result{
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "observation", ID: c.Param("id")},
+		Data:    map[string]any{"updated_at": o.UpdatedAt.UTC().Format(time.RFC3339Nano)},
+	})
 	c.JSON(http.StatusOK, h.envelope(o))
 }
 
