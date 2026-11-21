@@ -850,7 +850,3 @@ func decodeVersionCursor(cursor string) (int, error) {
 	}
 	return n, nil
 }
-
-func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {
-	return s.persist(withAcceptedEmpty(ctx), by, in)
-}
