@@ -71,7 +71,7 @@ func TestAnInvestigationAskedInAThreadSkipsThePersonAndInstanceCaps(t *testing.T
 		investigate(t, svc, revisions.InvestigateParams{})
 	}
 	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
-		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', (SELECT id FROM observations LIMIT 1))`)
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', 'investigate', (SELECT id FROM observations LIMIT 1))`)
 	}
 	ctx := reading(context.Background())
 	if _, err := svc.SubmitInvestigate(ctx, revisions.InvestigateParams{Prompt: "one more", By: user}); !errors.Is(err, revisions.ErrTooManyInvestigations) {

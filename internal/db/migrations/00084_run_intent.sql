@@ -27,7 +27,7 @@ BEGIN
         IF NEW.kind IS NULL THEN
           NEW.kind := CASE
             WHEN NEW.source = 'investigate' THEN 'investigate'
-            WHEN NEW.intent = 'ask' AND (NEW.dashboard_id IS NOT NULL OR NEW.observation_id IS NOT NULL OR NEW.subject_observation_id IS NOT NULL) THEN 'investigate'
+            WHEN NEW.intent = 'ask' AND (NEW.dashboard_id IS NOT NULL OR NEW.subject_observation_id IS NOT NULL) THEN 'investigate'
             ELSE 'build' END;
         END IF;
         RETURN NEW;
@@ -81,7 +81,7 @@ ALTER TABLE agent_requests
   ADD CONSTRAINT agent_requests_intent_check CHECK (intent IS NOT NULL AND intent IN ('ask', 'apply', 'suggest')) NOT VALID,
   ADD CONSTRAINT agent_requests_kind_check CHECK (kind IS NOT NULL AND (kind = 'build' OR (kind = 'investigate' AND intent = 'ask'))) NOT VALID,
   ADD CONSTRAINT agent_requests_build_ask_check
-    CHECK (kind <> 'build' OR intent <> 'ask' OR (dashboard_id IS NULL AND observation_id IS NULL AND subject_observation_id IS NULL)) NOT VALID,
+    CHECK (kind <> 'build' OR intent <> 'ask' OR (dashboard_id IS NULL AND subject_observation_id IS NULL)) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_target_check CHECK (intent = 'ask' OR dashboard_id IS NOT NULL) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_shape_check
     CHECK (intent <> 'ask' OR (base_version IS NULL AND comment_id IS NULL AND (panel_id IS NULL OR dashboard_id IS NOT NULL))) NOT VALID,
@@ -212,6 +212,7 @@ DROP INDEX CONCURRENTLY IF EXISTS agent_requests_investigate_active_idx;
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_suggest_active_idx;
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_listed_recent_idx;
 ALTER TABLE agent_requests DROP COLUMN IF EXISTS source;
+ALTER TABLE agent_requests ALTER COLUMN kind SET DEFAULT 'build';
 
 UPDATE audit_activity_actions SET keys = array_replace(keys, 'source', 'intent') WHERE type LIKE 'run.%';
 

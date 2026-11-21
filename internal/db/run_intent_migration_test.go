@@ -14,6 +14,7 @@ const (
 	runIntentVersion       = 84
 	runIntentMigrationFile = "00084_run_intent.sql"
 	intentDashboard        = "00000000-0000-4000-8000-0000000084d1"
+	intentObservation      = "00000000-0000-4000-8000-0000000084a1"
 )
 
 func TestRunIntentMigrationBackfillsIntentDropsSourceAndRollsBack(t *testing.T) {
@@ -23,6 +24,8 @@ func TestRunIntentMigrationBackfillsIntentDropsSourceAndRollsBack(t *testing.T) 
 	ada := convUser(t, sqlDB, "Ada")
 	seedDashboard(t, d, intentDashboard, 1)
 	seedVersion(t, d, intentDashboard, 1, "{}")
+	d.Exec(t, `INSERT INTO observations (id, folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, general_folder_id(), 'Saved answer', 'user', $2::uuid, 'Ada')`, intentObservation, ada)
 	insert := func(source, extra, values string) string {
 		args := []any{ada, source}
 		if strings.Contains(values, "$3") {
@@ -37,6 +40,7 @@ VALUES ('p', 'user', $1::uuid, 'Ada', $2`+values+`) RETURNING id::text`, args...
 		{"a new-dashboard ask", insert("observe", "", ""), "ask", "build", "observe"},
 		{"a build that saved a dashboard", insert("observe", ", dashboard_id, result_version, status, state", ", $3::uuid, 1, 'succeeded', 'succeeded'"), "apply", "build", "observe"},
 		{"a build that names a dashboard and saved no version", insert("observe", ", dashboard_id, status, state", ", $3::uuid, 'failed', 'failed'"), "ask", "investigate", "investigate"},
+		{"a build whose answer was saved as an observation", insert("observe", ", observation_id, status, state", ", '"+intentObservation+"'::uuid, 'succeeded', 'succeeded'"), "ask", "build", "observe"},
 		{"a dashboard chat revision", insert("prompt", ", dashboard_id, base_version", ", $3::uuid, 1"), "apply", "build", "prompt"},
 		{"a suggestion", insert("suggest", ", dashboard_id, base_version, panel_id", ", $3::uuid, 1, 'a'"), "suggest", "build", "suggest"},
 		{"an investigation", insert("investigate", ", context_from, context_to", ", now() - interval '1 hour', now()"), "ask", "investigate", "investigate"},
@@ -74,6 +78,9 @@ VALUES ('p', 'user', $1::uuid, 'Ada', $2`+values+`) RETURNING id::text`, args...
 	}
 	if _, err := sqlDB.Exec(`INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, dashboard_id) VALUES ('p', 'user', $1::uuid, 'Ada', 'ask', 'build', $2::uuid)`, ada, intentDashboard); constraintOf(err) != "agent_requests_build_ask_check" {
 		t.Errorf("a build ask about a dashboard: error = %v, want agent_requests_build_ask_check", err)
+	}
+	if _, err := sqlDB.Exec(`INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, observation_id) VALUES ('p', 'user', $1::uuid, 'Ada', 'ask', $2::uuid)`, ada, intentObservation); err != nil {
+		t.Errorf("a build ask whose answer was saved as an observation: %v", err)
 	}
 	if _, err := sqlDB.Exec(`INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, dashboard_id, base_version) VALUES ('p', 'user', $1::uuid, 'Ada', 'apply', 'investigate', $2::uuid, 1)`, ada, intentDashboard); constraintOf(err) != "agent_requests_kind_check" {
 		t.Errorf("an investigate apply: error = %v, want agent_requests_kind_check", err)
@@ -113,6 +120,8 @@ func TestAnOldServersInsertDuringTheIntentBackfillGetsAnIntent(t *testing.T) {
 	sqlDB := d.SQLDB(t)
 	ada := convUser(t, sqlDB, "Ada")
 	seedDashboard(t, d, intentDashboard, 1)
+	d.Exec(t, `INSERT INTO observations (id, folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, general_folder_id(), 'Saved answer', 'user', $2::uuid, 'Ada')`, intentObservation, ada)
 	body := readMigrationUp(t, runIntentMigrationFile)
 	head, _, ok := strings.Cut(body, "ALTER TABLE agent_requests\n  DROP CONSTRAINT IF EXISTS agent_requests_intent_check")
 	if !ok {
@@ -125,6 +134,7 @@ func TestAnOldServersInsertDuringTheIntentBackfillGetsAnIntent(t *testing.T) {
 	}
 	cases := []struct{ source, extra, values, want, kind string }{
 		{"observe", "", "", "ask", "build"},
+		{"observe", ", observation_id", ", '" + intentObservation + "'::uuid", "ask", "build"},
 		{"prompt", ", dashboard_id, base_version", ", $3::uuid, 1", "apply", "build"},
 		{"suggest", ", dashboard_id, base_version, panel_id", ", $3::uuid, 1, 'a'", "suggest", "build"},
 		{"investigate", "", "", "ask", "investigate"},

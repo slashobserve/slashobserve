@@ -22,8 +22,8 @@ VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, nullif($3, '')::uuid, nu
   CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
 
 const insertRequestWithStateSQL = `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name,
-  intent, status, state, dashboard_id, base_version, panel_id, title, context_from, context_to)
-VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
+  intent, kind, status, state, dashboard_id, base_version, panel_id, title, context_from, context_to)
+VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, CASE WHEN $1 = 'ask' AND $3 <> '' THEN 'investigate' ELSE 'build' END, $2, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
   CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
 
 func insertRequest(sqlDB *sql.DB, r requestRow) error {
