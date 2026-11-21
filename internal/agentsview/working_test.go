@@ -55,6 +55,8 @@ type activeRun struct {
 	assignedID    string
 	dashboardID   string
 	observationID string
+	subjectID     string
+	chatID        string
 	minutesAgo    int
 }
 
@@ -87,10 +89,10 @@ func (r *rig) activeRun(t *testing.T, in activeRun) string {
 		failure = "internal"
 	}
 	var id string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, assigned_kind, assigned_id, dashboard_id, observation_id, base_version, created_at)
-		VALUES (CASE $1 WHEN 'suggest' THEN 'suggest' WHEN 'prompt' THEN 'apply' WHEN 'comment' THEN 'apply' ELSE 'ask' END, nullif($2, ''), $3, 'user', $4::uuid, $5, $12, $6, nullif($13, ''), $7, nullif($8, '')::uuid, nullif($9, '')::uuid, nullif($10, '')::uuid, CASE WHEN $9 <> '' AND $1 NOT IN ('observe', 'investigate') THEN 1 END, now() - make_interval(mins => $11))
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, failure_code, assigned_kind, assigned_id, dashboard_id, observation_id, base_version, created_at, subject_observation_id, chat_id, kind)
+		VALUES (CASE $1 WHEN 'suggest' THEN 'suggest' WHEN 'prompt' THEN 'apply' WHEN 'comment' THEN 'apply' ELSE 'ask' END, nullif($2, ''), $3, 'user', $4::uuid, $5, $12, $6, nullif($13, ''), $7, nullif($8, '')::uuid, nullif($9, '')::uuid, nullif($10, '')::uuid, CASE WHEN $9 <> '' AND $1 NOT IN ('observe', 'investigate') THEN 1 END, now() - make_interval(mins => $11), nullif($14, '')::uuid, nullif($15, '')::uuid, CASE WHEN $14 <> '' THEN 'investigate' ELSE 'build' END)
 		RETURNING id::text`,
-		source, in.title, prompt, in.by.ID, in.by.Name, state, kind, in.assignedID, in.dashboardID, in.observationID, in.minutesAgo, status, failure).Scan(&id)
+		source, in.title, prompt, in.by.ID, in.by.Name, state, kind, in.assignedID, in.dashboardID, in.observationID, in.minutesAgo, status, failure, in.subjectID, in.chatID).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,6 +206,26 @@ func TestAnotherPersonsRunOnTheCallersThingsHidesItsTitle(t *testing.T) {
 	}
 	if got := r.working(t, bob, url.Values{}); !slices.Equal(workingIDs(got), []string{onObservation, onDashboard}) || !got.Items[0].Mine || got.Items[0].Title == nil || *got.Items[0].Title != "Secret prompt" {
 		t.Fatalf("Bob's page = %+v, want his own two runs with titles", got)
+	}
+}
+
+func TestAThreadAskAboutTheCallersObservationIsListedWithItAndAPrivateAskIsNot(t *testing.T) {
+	r := newRig(t, Observe{})
+	observation := r.observationBy(t, "Slow checkout", ada)
+	var chat string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO chats (owner_kind, owner_id, observation_id) VALUES ('user', $1::uuid, $2::uuid) RETURNING id::text`, bob.ID, observation).Scan(&chat); err != nil {
+		t.Fatal(err)
+	}
+	inThread := r.activeRun(t, activeRun{by: bob, source: "investigate", subjectID: observation, minutesAgo: 2})
+	private := r.activeRun(t, activeRun{by: bob, source: "investigate", subjectID: observation, chatID: chat, minutesAgo: 1})
+
+	page := r.working(t, ada, url.Values{})
+	if !slices.Equal(workingIDs(page), []string{inThread}) || page.Items[0].Observation == nil || page.Items[0].Observation.ID != observation {
+		t.Fatalf("Ada's page = %+v, want only Bob's thread ask, with her observation", page)
+	}
+	mine := r.working(t, bob, url.Values{})
+	if !slices.Equal(workingIDs(mine), []string{private, inThread}) || mine.Items[0].Observation != nil || mine.Items[1].Observation == nil {
+		t.Fatalf("Bob's page = %+v, want both asks, the private one without the observation", mine)
 	}
 }
 
