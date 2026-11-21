@@ -25,6 +25,11 @@ func (r holdersRig) uuid(t *testing.T, raw string) pgtype.UUID {
 	return id
 }
 
+func (r holdersRig) reply(t *testing.T, thread, run string) {
+	t.Helper()
+	r.d.Exec(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1::uuid, 'Root changed it', 'user', gen_random_uuid(), 'Ada', $2::uuid, 'builtin')`, thread, run)
+}
+
 type answerHolder struct {
 	add  func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string
 	move func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error
@@ -39,6 +44,40 @@ var answerHolders = map[string]answerHolder{
 		},
 		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
 			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
+	"a run's reply in a thread on a dashboard": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			thread := r.scalar(t, `INSERT INTO threads (dashboard_id, dashboard_version) VALUES ($1::uuid, 1) RETURNING id::text`, id)
+			r.reply(t, thread, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
+	"a run's reply in a thread on an annotation of a dashboard": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			annotation := r.scalar(t, `INSERT INTO annotations (dashboard_id, time_from, text) VALUES ($1::uuid, now(), 'deploy') RETURNING id::text`, id)
+			thread := r.scalar(t, `INSERT INTO threads (annotation_id) VALUES ($1::uuid) RETURNING id::text`, annotation)
+			r.reply(t, thread, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
+	"a run's reply in a thread on an observation": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.observation(t, folder)
+			thread := r.scalar(t, `INSERT INTO threads (observation_id) VALUES ($1::uuid) RETURNING id::text`, id)
+			r.reply(t, thread, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveObservation(t.Context(), r.d.Queries(), id, to)
 		},
 	},
 	"an observation block a run wrote": {
