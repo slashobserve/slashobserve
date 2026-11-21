@@ -77,6 +77,9 @@ export function DashboardHealthButton({
         render={<Button variant="outline" size="sm" aria-haspopup="dialog" />}
       >
         <StatusLabel tone={label.tone}>{label.label}</StatusLabel>
+        {awaiting && label.label !== recheckPendingLabel ? (
+          <span className="text-muted-foreground">{recheckPendingLabel}</span>
+        ) : null}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
         <PopoverTitle>Health</PopoverTitle>

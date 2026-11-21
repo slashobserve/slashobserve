@@ -169,7 +169,9 @@ describe("DashboardHealthButton", () => {
       } as Partial<HealthItem>),
     ])
     const { user } = renderButton()
-    await user.click(await screen.findByRole("button", { name: "1 problem" }))
+    await user.click(
+      await screen.findByRole("button", { name: "1 problem Recheck pending" })
+    )
     expect(
       await screen.findByText(
         "This dashboard changed since the last check and is waiting for a recheck."
@@ -199,7 +201,11 @@ describe("DashboardHealthButton", () => {
       ])
       const { user } = renderButton()
       expect(screen.queryByRole("button", { name: "Queries OK" })).toBeNull()
-      await user.click(await screen.findByRole("button", { name: status }))
+      await user.click(
+        await screen.findByRole("button", {
+          name: `${status} Recheck pending`,
+        })
+      )
       expect(
         await screen.findByText(
           "This dashboard changed since the last check and is waiting for a recheck."
@@ -258,7 +264,7 @@ describe("DashboardHealthButton", () => {
     ])
     renderButton()
     expect(
-      await screen.findByRole("button", { name: "1 problem" })
+      await screen.findByRole("button", { name: "1 problem Recheck pending" })
     ).toBeTruthy()
   })
 
