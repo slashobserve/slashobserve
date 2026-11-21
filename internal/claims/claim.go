@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -26,19 +27,21 @@ type Offer struct {
 }
 
 type OfferedRun struct {
-	ID            string    `json:"id"`
-	Attempt       int       `json:"attempt"`
-	Kind          string    `json:"kind"`
-	Intent        string    `json:"intent"`
-	Prompt        string    `json:"prompt"`
-	DashboardID   *string   `json:"dashboard_id"`
-	BaseVersion   *int      `json:"base_version"`
-	PanelID       *string   `json:"panel_id"`
-	From          *string   `json:"from"`
-	To            *string   `json:"to"`
-	ContinueNote  *string   `json:"continue_note"`
-	ThreadContext *string   `json:"thread_context"`
-	RequestedBy   Requester `json:"requested_by"`
+	ID            string         `json:"id"`
+	Attempt       int            `json:"attempt"`
+	Kind          string         `json:"kind"`
+	Intent        string         `json:"intent"`
+	Prompt        string         `json:"prompt"`
+	DashboardID   *string        `json:"dashboard_id"`
+	BaseVersion   *int           `json:"base_version"`
+	PanelID       *string        `json:"panel_id"`
+	From          *string        `json:"from"`
+	To            *string        `json:"to"`
+	ContinueNote  *string        `json:"continue_note"`
+	ThreadContext *string        `json:"thread_context"`
+	Anchor        *anchor.Anchor `json:"anchor"`
+	BlockID       *string        `json:"block_id"`
+	RequestedBy   Requester      `json:"requested_by"`
 }
 
 type Requester struct {
@@ -162,6 +165,8 @@ func offeredRun(req revisions.Request) OfferedRun {
 		PanelID:       nonEmpty(req.PanelID),
 		ContinueNote:  nonEmpty(req.ContinueNote),
 		ThreadContext: nonEmpty(req.ThreadContext),
+		Anchor:        req.Anchor,
+		BlockID:       nonEmpty(req.BlockID),
 		From:          formatTime(req.From),
 		To:            formatTime(req.To),
 		RequestedBy:   Requester{Kind: string(req.RequestedBy.Kind), ID: req.RequestedBy.ID, Name: req.RequestedBy.Name},

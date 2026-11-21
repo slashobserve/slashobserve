@@ -15,6 +15,7 @@ import { SearchIcon } from "lucide-react"
 import type { Selections } from "@/api/keys"
 import { ApiError } from "@/api/errors"
 import { isTransient } from "@/api/issues"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -597,9 +598,9 @@ export default function PanelEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
+      <ScrollPane
         ref={bodyRef}
-        className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3.5"
+        className="flex flex-1 flex-col gap-4 px-4 py-3.5"
       >
         {backup.kept ? (
           <Alert>
@@ -736,7 +737,7 @@ export default function PanelEditor({
             onLeaveRequest={registerJsonGuard}
           />
         )}
-      </div>
+      </ScrollPane>
       {readOnly || (newer === 0 && !showsProblem(problem)) ? null : (
         <div className="flex max-h-[40%] flex-col gap-2 overflow-auto px-4 pb-3">
           {newer > 0 ? (

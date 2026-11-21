@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -121,7 +122,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 		}
 		state := states[row.ID]
 		state.build = state.progressFor(requester, caller)
-		body.Requests[i] = r.summary(row, state, allowed)
+		body.Requests[i] = r.summary(row, caller, state, allowed)
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -350,6 +351,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		SubjectID:     optionalUUID(row.SubjectObservationID),
 		ChatID:        chatShownTo(row, caller),
 	}
+	out.Anchor, out.BlockID = pointShownTo(row.RequestedByKind, row.RequestedByID, row.Anchor, row.BlockID, caller)
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
 	}
@@ -385,6 +387,13 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
 	return out
+}
+
+func pointShownTo(requesterKind string, requesterID pgtype.UUID, raw []byte, block pgtype.UUID, caller auth.Principal) (*anchor.Anchor, *string) {
+	if !sameActor(auth.Principal{Kind: auth.PrincipalKind(requesterKind), ID: requesterID.String()}, caller) {
+		return nil, nil
+	}
+	return anchorOf(raw), optionalUUID(block)
 }
 
 func (out *agentRequestJSON) redact() {
@@ -477,7 +486,7 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 	return &text
 }
 
-func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
+func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Principal, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:            row.ID.String(),
 		Kind:          Kind(listedSource(row)),
@@ -514,6 +523,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 		ChatID:           optionalUUID(row.ChatID),
 		AllowedActions:   actionStrings(allowed),
 	}
+	out.Anchor, out.BlockID = pointShownTo(row.RequestedByKind, row.RequestedByID, row.Anchor, row.BlockID, caller)
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()
 		out.DashboardID = &id
