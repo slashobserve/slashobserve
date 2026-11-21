@@ -59,7 +59,9 @@ func (r *httpRig) engine(t *testing.T, principal *auth.Principal) *gin.Engine {
 	engine := gin.New()
 	api := engine.Group("/api/v1", mw, func(c *gin.Context) {
 		if principal != nil {
-			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), *principal))
+			ctx := auth.WithPrincipal(c.Request.Context(), *principal)
+			audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(*principal) })
+			c.Request = c.Request.WithContext(ctx)
 		}
 		c.Next()
 	})
