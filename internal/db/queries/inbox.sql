@@ -77,14 +77,28 @@ UPDATE inbox_item_states SET done = false, updated_at = now()
 WHERE user_id = @user_id::uuid AND seq = @seq::bigint;
 
 -- name: InboxObjectTitles :many
-SELECT 'dashboard'::text AS kind, d.id AS id, d.title AS title FROM dashboards d WHERE d.id = ANY(@dashboard_ids::uuid[])
+SELECT 'dashboard'::text AS kind, d.id AS id, d.title AS title FROM dashboards d
+WHERE d.id = ANY(@dashboard_ids::uuid[]) AND (@admin::boolean OR d.folder_id = ANY(@folders::uuid[]))
 UNION ALL
-SELECT 'observation', o.id, o.title FROM observations o WHERE o.id = ANY(@observation_ids::uuid[])
+SELECT 'observation', o.id, o.title FROM observations o
+WHERE o.id = ANY(@observation_ids::uuid[]) AND (@admin::boolean OR o.folder_id = ANY(@folders::uuid[]))
 UNION ALL
-SELECT 'proposal', p.id, p.title FROM proposals p WHERE p.id = ANY(@proposal_ids::uuid[]);
+SELECT 'proposal', p.id, p.title FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id
+WHERE p.id = ANY(@proposal_ids::uuid[]) AND (@admin::boolean OR d.folder_id = ANY(@folders::uuid[]));
 
--- name: InboxMessageBodies :many
-SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY(@ids::uuid[]);
+-- name: InboxThreadTexts :many
+SELECT m.id, m.body, q.body AS question
+FROM thread_messages m
+JOIN threads t ON t.id = m.thread_id
+LEFT JOIN agent_requests r ON r.id = m.run_id
+LEFT JOIN thread_messages q ON q.id = r.thread_message_id AND q.thread_id = m.thread_id
+WHERE m.id = ANY(@ids::uuid[])
+  AND (@admin::boolean OR coalesce(
+    (SELECT d.folder_id FROM dashboards d WHERE d.id = t.dashboard_id),
+    (SELECT o.folder_id FROM observations o WHERE o.id = t.observation_id),
+    (SELECT d.folder_id FROM proposals p JOIN dashboards d ON d.id = p.dashboard_id WHERE p.id = t.proposal_id),
+    (SELECT coalesce(d.folder_id, (SELECT f.id FROM folders f WHERE f.general)) FROM annotations a LEFT JOIN dashboards d ON d.id = a.dashboard_id WHERE a.id = t.annotation_id)
+  ) = ANY(@folders::uuid[]));
 
 -- name: InboxRunTexts :many
 SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt FROM agent_requests r WHERE r.id = ANY(@ids::uuid[]);

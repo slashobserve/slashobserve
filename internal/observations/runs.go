@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -22,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 const defaultRunTitle = "Investigation"
@@ -183,45 +182,11 @@ func (s *Service) runParent(ctx context.Context, q *dbsqlc.Queries, in RunOpen, 
 	return created, nil
 }
 
-const (
-	runTitleRunes    = 60
-	minRunTitleRunes = 3
-)
-
-var observeMention = regexp.MustCompile(`(?i)(^|\s)@observe\b[:,]?`)
-
 func runTitle(prompt string) string {
-	if title := shortTitle(prompt); title != "" {
+	if title := usertext.ShortTitle(prompt); title != "" {
 		return title
 	}
 	return defaultRunTitle
-}
-
-func shortTitle(text string) string {
-	var line string
-	for l := range strings.Lines(text) {
-		line = strings.Join(strings.Fields(observeMention.ReplaceAllString(l, " ")), " ")
-		if line != "" {
-			break
-		}
-	}
-	runes := []rune(line)
-	switch {
-	case len(runes) < minRunTitleRunes:
-		return ""
-	case len(runes) <= runTitleRunes:
-		return line
-	}
-	end := runTitleRunes
-	if runes[end] != ' ' {
-		for i := end - 1; i > end/2; i-- {
-			if runes[i] == ' ' {
-				end = i
-				break
-			}
-		}
-	}
-	return strings.TrimRight(string(runes[:end]), " ,;:-") + "..."
 }
 
 func cutRunes(s string, n int) string {
