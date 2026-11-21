@@ -126,7 +126,7 @@ var (
 
 func queryOf(pairs ...string) string {
 	values := url.Values{}
-	for i := 0; i < len(pairs); i += 2 {
+	for i := 0; i+1 < len(pairs); i += 2 {
 		values.Set(pairs[i], pairs[i+1])
 	}
 	return values.Encode()

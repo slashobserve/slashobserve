@@ -316,7 +316,7 @@ type response struct {
 func (s *stack) authorize(req *http.Request, c caller) {
 	switch c.kind {
 	case personSession:
-		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: s.sessions[c.role]})
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: s.sessions[c.role], Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 		req.Header.Set("Origin", s.server.URL)
 	case serviceAccountKey:
 		req.Header.Set("Authorization", "Bearer "+s.keys[c.role])
