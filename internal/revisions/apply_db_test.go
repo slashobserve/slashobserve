@@ -70,8 +70,15 @@ func TestApplyingAnAnswerRefusesWhatItCannotApply(t *testing.T) {
 	finding := suggestingAnswer(t, svc, d, dash, text(declinesPanel))
 	plain := suggestingAnswer(t, svc, d, dash, nil)
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	elsewhere, err := svc.Start(reading(t.Context()), user, revisions.StartRequest{Prompt: text("which logs exist?"), DashboardID: text(dash.String())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inAnotherChat := applying(dash, finding)
+	inAnotherChat.ChatID = text(elsewhere.ChatID.String())
 
 	refusals := map[string]revisions.StartRequest{
+		"in another chat":          inAnotherChat,
 		"with a prompt":            {Kind: text(revisions.KindRevise), DashboardID: text(dash.String()), AppliesFindingID: text(finding), Prompt: text("something else")},
 		"as an ask":                {DashboardID: text(dash.String()), AppliesFindingID: text(finding)},
 		"on another dashboard":     applying(other, finding),
