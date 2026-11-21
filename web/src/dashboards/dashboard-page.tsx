@@ -72,7 +72,7 @@ import {
 import { ActivityToggle } from "./activity-toggle"
 import {
   askAboutPanelAndFocus,
-  commentOnPanelAndFocus,
+  commentOnThisPanel,
   conversationActionsFor,
   focusComment,
 } from "./panel-actions"
@@ -84,7 +84,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, openKeyDraft, useCanvasTool } from "./canvas-tools"
+import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { commentKeyAction } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
@@ -611,22 +611,22 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
+      const onCanvas = !kiosk && viewed === undefined
       const action = commentKeyAction({
         commenting: commentTool,
         panelId: shortcutPanel()?.id,
         canComment: permissions.comment,
         editing,
-        onCanvas: !kiosk && viewed === undefined,
+        onCanvas,
       })
       switch (action.kind) {
         case "leaveMode":
           return useCanvasTool.getState().setTool("select")
         case "enterMode":
           return useCanvasTool.getState().setTool("comment")
-        case "panelDraft":
-          return openKeyDraft(action.panelId, "comment")
-        case "panelInPane":
-          return commentOnPanelAndFocus(setSearch, action.panelId, composerRef)
+        case "panel":
+          commentOnThisPanel(setSearch, action.panelId, onCanvas, composerRef)
+          return
         case "pane":
           return focusComment(setSearch, composerRef)
       }
