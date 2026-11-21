@@ -59,7 +59,7 @@ datasources:
       "409":
         description: >-
           The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`).
-          Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open.
+          Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove.
         content:
           application/json:
             schema:
@@ -222,7 +222,7 @@ datasources-uid:
       "409":
         description: >-
           The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`).
-          Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open.
+          Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove.
         content:
           application/json:
             schema:

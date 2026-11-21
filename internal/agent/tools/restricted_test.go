@@ -51,7 +51,8 @@ func TestASaveOnAnAdminsOnlyDatasourceOutsideAnAdminsOnlyFolderAnswersRestricted
 	}
 	got := textOf(t, res)
 	if !res.IsError || !strings.Contains(got, `"code":"restricted_content"`) || !strings.Contains(got, `datasource \"audit\"`) ||
-		!strings.Contains(got, "folder only Admins can read") {
+		!strings.Contains(got, "folder only Admins can read") || !strings.Contains(got, "admins_only is true (see list_folders)") ||
+		!strings.Contains(got, "observe folders permissions admins-only") {
 		t.Fatalf("create_dashboard = %s, want restricted_content naming the datasource", got)
 	}
 }

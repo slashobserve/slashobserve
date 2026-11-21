@@ -121,13 +121,13 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err := validateRange(in.From, in.To); err != nil {
 		return Observation{}, err
 	}
-	var first *preparedBlock
-	if in.FirstBlock != nil {
-		prepared, err := s.prepare(ctx, by, folders.Folder{}, pgtype.UUID{}, *in.FirstBlock, anyBlock)
+	prepared := make([]preparedBlock, len(in.Blocks))
+	for i, b := range in.Blocks {
+		block, err := s.prepare(ctx, by, folders.Folder{}, pgtype.UUID{}, b, anyBlock)
 		if err != nil {
-			return Observation{}, err
+			return Observation{}, &BlockError{Index: i, Err: err}
 		}
-		first = &prepared
+		prepared[i] = block
 	}
 	folder, err := s.access.CreationFolder(ctx, by, in.FolderID)
 	switch {
@@ -162,13 +162,17 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 		if err := appendEvent(ctx, q, activity.TypeObservationCreated, who, row.ID, eventData{Title: row.Title}); err != nil {
 			return err
 		}
-		if first == nil {
-			return nil
+		for i, block := range prepared {
+			if _, err := s.insertBlock(ctx, q, row, block, BlockLive, who); err != nil {
+				return &BlockError{Index: i, Err: err}
+			}
 		}
-		_, err = s.insertBlock(ctx, q, row, *first, BlockLive, who)
-		return err
+		return nil
 	})
+	var refused *BlockError
 	switch {
+	case errors.As(err, &refused):
+		return Observation{}, err
 	case db.IsForeignKeyViolation(err):
 		return Observation{}, ErrFolderNotFound
 	case err != nil:
