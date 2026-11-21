@@ -3,6 +3,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
+import { ApiError } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
 import { AnswerCard, type RevisionAsked } from "@/conversation/answer-card"
 import {
@@ -127,14 +128,18 @@ function ChatAnswer({
     try {
       const sent = await deliver(plan)
       if (sent.via === "chat") await onRevised(sent.request)
+      return true
     } catch (error) {
+      if (error instanceof ApiError && error.code === "already_applied") {
+        return true
+      }
       toast.error(
         error instanceof Error && error.message !== ""
           ? sentence(error.message)
           : "The change could not be asked for. Try again."
       )
+      return false
     }
-    return false
   }
 
   return (

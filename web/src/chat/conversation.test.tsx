@@ -1,3 +1,4 @@
+import { useParams } from "@tanstack/react-router"
 import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -55,18 +56,33 @@ function chatAbout(subject: {
       owner: { kind: "user", name: "Ada" },
       read_only: false,
     },
-    turns: [],
+    turns: [] as ObserveRequest[],
   }
 }
 
-function stubServer(chat?: ReturnType<typeof chatAbout>) {
+type Answer = { status: number; body: unknown }
+
+function stubServer(
+  chat?: ReturnType<typeof chatAbout>,
+  observe?: Answer,
+  requests: readonly ObserveRequest[] = []
+) {
   const fetch = vi.fn<(request: Request) => Promise<Response>>(
     async (request) => {
       const url = new URL(request.url)
       if (chat !== undefined && url.pathname === `/api/v1/chats/${rootId}`) {
         return Response.json(chat)
       }
+      const known = requests.find(
+        ({ id }) => url.pathname === `/api/v1/observe/${id}`
+      )
+      if (request.method === "GET" && known !== undefined) {
+        return Response.json(known)
+      }
       if (request.method === "POST" && url.pathname === "/api/v1/observe") {
+        if (observe !== undefined) {
+          return Response.json(observe.body, { status: observe.status })
+        }
         const body = (await request.clone().json()) as { prompt: string }
         return Response.json(
           { request: { ...root, id: "r2", prompt: body.prompt } },
@@ -83,7 +99,12 @@ function stubServer(chat?: ReturnType<typeof chatAbout>) {
   return fetch
 }
 
-function renderConversation(request: ObserveRequest = root) {
+function ChatPage() {
+  const { requestId } = useParams({ strict: false }) as { requestId: string }
+  return <Conversation key={requestId} requestId={requestId} layout="page" />
+}
+
+function seededClient(request: ObserveRequest) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.request(rootId), request)
   queryClient.setQueryData(observeKeys.agent(), {
@@ -93,6 +114,18 @@ function renderConversation(request: ObserveRequest = root) {
     effort: "medium",
   })
   queryClient.setQueryData(datasourceKeys.list(), { datasources: [] })
+  return queryClient
+}
+
+function renderChatPage(request: ObserveRequest) {
+  return renderWithProviders(<ChatPage />, {
+    queryClient: seededClient(request),
+    route: { path: "/c/$requestId", url: `/c/${rootId}` },
+  })
+}
+
+function renderConversation(request: ObserveRequest = root) {
+  const queryClient = seededClient(request)
   return renderWithProviders(
     <Conversation requestId={rootId} layout="page" />,
     { queryClient, route: { path: "/", url: "/" } }
@@ -304,6 +337,73 @@ describe("Conversation", () => {
       chat_id: rootId,
     })
     expect(body).not.toHaveProperty("prompt")
+  })
+
+  const revision = {
+    ...root,
+    id: "r2",
+    kind: "build",
+    intent: "apply",
+    status: "queued",
+    state: "queued",
+    prompt: "Add a p99 panel",
+    build: {
+      saves: 0,
+      panels: 0,
+      planned_panels: 0,
+      title: null,
+      updated_at: "2026-11-21T10:02:00Z",
+    },
+  } as ObserveRequest
+
+  it.each([
+    ["a new revision", { status: 202, body: { request: revision } }, "/c/r2"],
+    [
+      "a replay of the first one",
+      { status: 200, body: { request: revision, replayed: true } },
+      "/c/r2",
+    ],
+    [
+      "a change already applied",
+      {
+        status: 409,
+        body: { error: "already applied", code: "already_applied" },
+      },
+      `/c/${rootId}`,
+    ],
+  ])(
+    "says the revision was asked for after %s",
+    async (_name, answer, page) => {
+      const chat = {
+        ...chatAbout({ dashboard_id: dashboardId }),
+        turns: [answered()],
+      }
+      stubServer(chat, answer, [answered(), revision])
+      const { user, router } = renderChatPage(answered())
+      await user.click(
+        await screen.findByRole("button", { name: "Revise the dashboard" })
+      )
+      await waitFor(() => expect(router?.state.location.pathname).toBe(page))
+      expect(
+        await screen.findByRole("button", { name: "Revision asked for" })
+      ).toBeDisabled()
+    }
+  )
+
+  it("keeps Revise the dashboard when the revision is refused", async () => {
+    stubServer(undefined, {
+      status: 429,
+      body: { error: "too many revisions", code: "too_many_revisions" },
+    })
+    const { user } = renderConversation(answered())
+    const button = await screen.findByRole("button", {
+      name: "Revise the dashboard",
+    })
+    await user.click(button)
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(
+      screen.queryByRole("button", { name: "Revision asked for" })
+    ).toBeNull()
   })
 
   it("lets an Admin read another person's chat in full with no actions", async () => {

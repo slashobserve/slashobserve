@@ -28,6 +28,7 @@ import {
   useWithdrawShare,
 } from "@/observe/queries"
 
+import { useRevisionsAsked } from "./revisions-asked"
 import { subjectOf } from "./send-plan"
 
 const FindingMarkdown = lazy(() =>
@@ -340,7 +341,10 @@ export function AnswerCard({
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
-  const [revisionAsked, setRevisionAsked] = useState(false)
+  const revisionAsked = useRevisionsAsked((state) =>
+    state.findingIds.has(finding.id)
+  )
+  const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const change = finding.suggested_change
   const observationId = finding.observation_id
@@ -385,7 +389,9 @@ export function AnswerCard({
             disabled={revise.pending || revisionAsked}
             aria-busy={revise.pending}
             onClick={() =>
-              void revise.onRevise().then((asked) => setRevisionAsked(asked))
+              void revise.onRevise().then((asked) => {
+                if (asked) markAsked(finding.id)
+              })
             }
           >
             {revisionAsked ? "Revision asked for" : "Revise the dashboard"}
