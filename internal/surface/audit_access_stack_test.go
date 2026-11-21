@@ -97,6 +97,7 @@ type stack struct {
 	auditFolder  string
 	starters     []string
 	starterTitle string
+	starterPanel string
 	controlBoard string
 	controlDir   string
 	eventID      string
@@ -285,6 +286,10 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 		t.Fatal(err)
 	}
 
+	if err := database.SQLDB(t).QueryRowContext(ctx, `SELECT spec->'panels'->0->>'id' FROM dashboard_versions WHERE dashboard_id = $1 AND version = 1`, s.starters[0]).Scan(&s.starterPanel); err != nil {
+		t.Fatal(err)
+	}
+
 	folder, _, err := access.CreateFolder(ctx, provision.Principal, controlFolderName)
 	if err != nil {
 		t.Fatal(err)
@@ -296,6 +301,10 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 		t.Fatal(err)
 	}
 	s.controlBoard = dash.ID
+}
+
+func (s *stack) previewBody() string {
+	return fmt.Sprintf(`{"dashboard_id":%q,"version":1,"panel_id":"draft","panel":{"id":"draft","type":"stat","title":"draft","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":%q,"queries":[{"query":"action:dashboard.update"}]}}`, s.starters[0], auditUID)
 }
 
 type response struct {

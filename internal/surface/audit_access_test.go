@@ -21,6 +21,11 @@ const (
 	forbiddenRole   outcome = "403 forbidden_role"
 	notFound        outcome = "404 not found"
 	unauthenticated outcome = "401"
+	builtInReadOnly outcome = "409 datasource_read_only"
+	wrongKind       outcome = "400 invalid_request"
+	noModel         outcome = "503 agent_unavailable"
+	sessionRequired outcome = "403 user_session_required"
+	unknownSource   outcome = "refused unknown_datasource"
 )
 
 const (
@@ -61,6 +66,14 @@ func (o observed) classify(want string, list bool) outcome {
 		return unauthenticated
 	case o.status == http.StatusForbidden && o.code == "forbidden_role", o.refusal == "forbidden_role":
 		return forbiddenRole
+	case o.status == http.StatusForbidden && o.code == "user_session_required":
+		return sessionRequired
+	case o.status == http.StatusConflict && o.code == "datasource_read_only":
+		return builtInReadOnly
+	case o.status == http.StatusBadRequest && o.code == "invalid_request":
+		return wrongKind
+	case o.status == http.StatusServiceUnavailable && o.code == "agent_unavailable":
+		return noModel
 	case o.status == http.StatusNotFound, o.refusal == "not_found":
 		return notFound
 	case o.refusal != "":
@@ -82,9 +95,15 @@ type surfaceRow struct {
 	list    bool
 	admin   outcome
 	member  outcome
+	special func(c caller) (outcome, bool)
 }
 
 func (r surfaceRow) expected(c caller) outcome {
+	if r.special != nil {
+		if o, ok := r.special(c); ok {
+			return o
+		}
+	}
 	switch {
 	case c.kind == anonymousCaller:
 		return unauthenticated
@@ -124,6 +143,7 @@ type restSpec struct {
 	list    bool
 	admin   outcome
 	member  outcome
+	special func(c caller) (outcome, bool)
 }
 
 func (r restSpec) row(name string) surfaceRow {
@@ -136,7 +156,7 @@ func (r restSpec) row(name string) surfaceRow {
 			return observeREST(s.rest(c, r.method, resolve(s), r.body))
 		}
 	}
-	row := surfaceRow{name: name, send: send(target), proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member}
+	row := surfaceRow{name: name, send: send(target), proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member, special: r.special}
 	if r.hidden != nil {
 		row.twin = send(func(s *stack) string {
 			replacement := missingID
@@ -212,29 +232,46 @@ func onAuditDatasource(method, template, suffix, body, proof string) surfaceRow 
 	return restSpec{method: method, path: "/datasources/" + auditUID + suffix, body: body, hidden: fixed(auditUID), proof: fixed(proof), admin: servesData, member: notFound}.row(method + " /datasources/{uid}" + template)
 }
 
+func adminOnlyDatasource(method, suffix, body string, admin outcome) surfaceRow {
+	return restSpec{method: method, path: "/datasources/" + auditUID + suffix, body: body, proof: fixed(auditUID), admin: admin, member: forbiddenRole}.row(method + " /datasources/{uid}" + suffix)
+}
+
+func unsupportedOnAudit(row surfaceRow) surfaceRow {
+	row.admin = wrongKind
+	return row
+}
+
+
 func datasourceRESTRows() []surfaceRow {
 	return []surfaceRow{
 		restSpec{method: http.MethodGet, path: "/datasources", proof: fixed(auditUID), control: fixed(controlUID), list: true, admin: servesData, member: absentFromList}.row("GET /datasources"),
-		onAuditDatasource(http.MethodGet, "/config", "/config", "", auditUID),
+		adminOnlyDatasource(http.MethodGet, "/config", "", builtInReadOnly),
 		onAuditDatasource(http.MethodPost, "/recheck", "/recheck", "", auditUID),
 		onAuditDatasource(http.MethodPost, "/query", "/query", `{"query":"actor_name:Ada","kind":"instant",`+window+`}`, "frames"),
 		onAuditDatasource(http.MethodPost, "/log-volume", "/log-volume", `{"query":"*",`+window+`}`, "buckets"),
-		onAuditDatasource(http.MethodPost, "/log-facets", "/log-facets", `{"query":"*",`+window+`}`, "facets"),
+		onAuditDatasource(http.MethodPost, "/log-facets", "/log-facets", `{"query":"*",`+window+`}`, `"fields"`),
 		onAuditDatasource(http.MethodPost, "/log-patterns", "/log-patterns", `{"query":"*",`+window+`}`, "patterns"),
 		onAuditDatasource(http.MethodPost, "/log-context", "/log-context", `{"query":"*","anchor":"1700000000000000000"}`, "before"),
 		onAuditDatasource(http.MethodPost, "/lint", "/lint", `{"query":"outcome:denied"}`, "diagnostics"),
-		onAuditDatasource(http.MethodPost, "/trace-stats", "/trace-stats", `{"query":"*",`+window+`}`, "meta"),
-		onAuditDatasource(http.MethodPost, "/trace-compare", "/trace-compare", `{"selected":["0123456789abcdef"],"baseline":["fedcba9876543210"],`+window+`}`, "attributes"),
+		unsupportedOnAudit(onAuditDatasource(http.MethodPost, "/trace-stats", "/trace-stats", `{"query":"*",`+window+`}`, "meta")),
+		unsupportedOnAudit(onAuditDatasource(http.MethodPost, "/trace-compare", "/trace-compare", `{"selected":["0123456789abcdef"],"baseline":["fedcba9876543210"],`+window+`}`, "attributes")),
 		onAuditDatasource(http.MethodPost, "/trace-logs", "/trace-logs", `{"trace_id":"0123456789abcdef0123456789abcdef",`+window+`}`, "frames"),
-		onAuditDatasource(http.MethodPost, "/draft-query", "/draft-query", `{"question":"how many denied reads"}`, "query"),
-		onAuditDatasource(http.MethodPost, "/preview", "/preview", `{"query":"*",`+window+`}`, "frames"),
+		restSpec{method: http.MethodPost, path: "/datasources/" + auditUID + "/draft-query", body: `{"question":"how many denied reads"}`, proof: fixed("query"), admin: noModel, member: noModel}.row("POST /datasources/{uid}/draft-query"),
+		{
+			name: "POST /datasources/{uid}/preview",
+			send: func(s *stack, c caller) observed {
+				return observeREST(s.rest(c, http.MethodPost, "/datasources/"+auditUID+"/preview", s.previewBody()))
+			},
+			proof: fixed("frames"), admin: servesData, member: notFound,
+			special: func(c caller) (outcome, bool) { return sessionRequired, c.kind == serviceAccountKey },
+		},
 		onAuditDatasource(http.MethodGet, "/schema", "/schema", "", "tables"),
 		onAuditDatasource(http.MethodGet, "/sample", "/sample", "", "rows"),
 		onAuditDatasource(http.MethodGet, "/metrics", "/metrics", "", "metrics"),
 		onAuditDatasource(http.MethodGet, "/labels", "/labels", "", "labels"),
 		onAuditDatasource(http.MethodGet, "/labels/{name}/values", "/labels/outcome/values", "", "values"),
 		onAuditDatasource(http.MethodGet, "/services", "/services", "", "services"),
-		onAuditDatasource(http.MethodGet, "/traces/{trace_id}", "/traces/0123456789abcdef0123456789abcdef", "", "frames"),
+		unsupportedOnAudit(onAuditDatasource(http.MethodGet, "/traces/{trace_id}", "/traces/0123456789abcdef0123456789abcdef", "", "frames")),
 		{
 			name: "GET /datasources/{uid}/tail",
 			send: func(s *stack, c caller) observed {
@@ -250,8 +287,8 @@ func datasourceRESTRows() []surfaceRow {
 
 func datasourceMutationRows() []surfaceRow {
 	return []surfaceRow{
-		onAuditDatasource(http.MethodPatch, "", "", `{"name":"renamed"}`, auditUID),
-		onAuditDatasource(http.MethodDelete, "", "", "", auditUID),
+		adminOnlyDatasource(http.MethodPatch, "", `{"name":"renamed"}`, builtInReadOnly),
+		adminOnlyDatasource(http.MethodDelete, "", "", builtInReadOnly),
 	}
 }
 
@@ -265,14 +302,15 @@ func workspaceRESTRows() []surfaceRow {
 	return []surfaceRow{
 		restSpec{method: http.MethodGet, path: "/folders", proof: fixed(`"Audit"`), control: fixed(controlFolderName), list: true, admin: servesData, member: absentFromList}.row("GET /folders"),
 		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/folders/" + s.auditFolder }, hidden: auditFolderID, proof: fixed(`"Audit"`), admin: servesData, member: notFound}.row("GET /folders/{id}"),
-		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/folders/" + s.auditFolder + "/permissions" }, hidden: auditFolderID, proof: fixed("grants"), admin: servesData, member: notFound}.row("GET /folders/{id}/permissions"),
+		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/folders/" + s.auditFolder + "/permissions" }, hidden: auditFolderID, proof: fixed("admins_only"), admin: servesData, member: notFound}.row("GET /folders/{id}/permissions"),
 		restSpec{method: http.MethodGet, path: "/dashboards", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /dashboards"),
 		dashboard("", "", `"title"`),
 		dashboard("/versions", "/versions", `"version"`),
 		dashboard("/versions/{version}", "/versions/1", `"version"`),
-		dashboard("/events", "/events", `"events"`),
-		dashboard("/comments", "/comments", `"comments"`),
-		dashboard("/revisions", "/revisions", `"revisions"`),
+		restSpec{
+			method: http.MethodGet, target: func(s *stack) string { return "/dashboards/" + s.starters[0] + "/versions/1/panels/" + s.starterPanel + "/data" },
+			hidden: starterID, proof: fixed(`"meta"`), admin: servesData, member: notFound,
+		}.row("GET /dashboards/{id}/versions/{version}/panels/{panel_id}/data"),
 		restSpec{method: http.MethodGet, path: "/search?" + queryOf("q", "audit"), proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /search"),
 		restSpec{method: http.MethodGet, path: "/activity", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /activity"),
 	}
@@ -284,7 +322,7 @@ func mcpRows() []surfaceRow {
 	}
 	onAudit := func(tool, proof string, extra map[string]any) surfaceRow {
 		return toolSpec{
-			tool: tool, hidden: fixed(auditUID), proof: fixed(proof), admin: servesData, member: notFound,
+			tool: tool, hidden: fixed(auditUID), proof: fixed(proof), admin: servesData, member: unknownSource,
 			args: func(_ *stack, uid string) map[string]any {
 				args := map[string]any{"datasource": uid}
 				for k, v := range extra {
@@ -311,7 +349,7 @@ func mcpRows() []surfaceRow {
 		adminOnly("list_audit_fields", "actor_name", nil),
 		toolSpec{tool: "list_datasources", proof: fixed(auditUID), control: fixed(controlUID), list: true, admin: servesData, member: absentFromList}.row(),
 		onAudit("get_schema", "tables", nil),
-		onAudit("list_metrics", "metrics", nil),
+		onAudit("list_labels", "labels", nil),
 		onAudit("recheck_datasource", auditUID, nil),
 		onAudit("query_instant", "frames", map[string]any{"query": "actor_name:Ada", "from": "now-1h", "to": "now"}),
 		toolSpec{tool: "list_folders", proof: fixed("Audit"), control: fixed(controlFolderName), list: true, admin: servesData, member: absentFromList}.row(),
