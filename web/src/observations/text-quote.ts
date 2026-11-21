@@ -1,4 +1,3 @@
-import { maxText } from "@/conversation/anchor"
 import {
   clip,
   positionOf,
@@ -13,7 +12,7 @@ import { rectWithin } from "@/panels/anchor-layout"
 export type TextLayout = { root: HTMLElement; markdown: string }
 
 export function quoteOf(selected: string): string {
-  return clip(selected.replace(/\s+/g, " ").trim()).slice(0, maxText).trim()
+  return clip(selected.replace(/\s+/g, " ").trim()).trim()
 }
 
 export function textAnchor(quote: string, at: Point, body: Size): Anchor {
@@ -38,18 +37,28 @@ function indexText(root: Node): TextIndex {
   return index
 }
 
-export function findQuote(root: Node, quote: string): Range | null {
-  const needle = quote.replace(/\s+/g, "")
-  if (needle === "") return null
-  const index = indexText(root)
-  const start = index.text.indexOf(needle)
-  if (start < 0) return null
+function rangeOf(index: TextIndex, start: number, length: number): Range {
   const first = index.at[start]
-  const last = index.at[start + needle.length - 1]
+  const last = index.at[start + length - 1]
   const range = document.createRange()
   range.setStart(first.node, first.offset)
   range.setEnd(last.node, last.offset + 1)
   return range
+}
+
+export function findQuotes(root: Node, quote: string): Range[] {
+  const needle = quote.replace(/\s+/g, "")
+  if (needle === "") return []
+  const index = indexText(root)
+  const found: Range[] = []
+  for (
+    let start = index.text.indexOf(needle);
+    start >= 0;
+    start = index.text.indexOf(needle, start + 1)
+  ) {
+    found.push(rangeOf(index, start, needle.length))
+  }
+  return found
 }
 
 export function rangeRect(range: Range, root: Element): Rect | null {
@@ -64,12 +73,32 @@ export function rangeRect(range: Range, root: Element): Rect | null {
   }
 }
 
+function distance(rect: Rect, target: Point): number {
+  return Math.hypot(rect.x - target.x, rect.y + rect.height - target.y)
+}
+
+function nearest(rects: readonly Rect[], target: Point): Rect | null {
+  let best: Rect | null = null
+  for (const rect of rects) {
+    if (best === null || distance(rect, target) < distance(best, target)) {
+      best = rect
+    }
+  }
+  return best
+}
+
 function locate(layout: TextLayout, anchor: Anchor): Rect | null {
   if (anchor.kind !== "text" || anchor.quote === undefined) return null
-  const range = findQuote(layout.root, anchor.quote)
-  if (range === null) return null
-  const surface = layout.root.closest("[data-canvas-surface]") ?? layout.root
-  return rangeRect(range, surface) ?? rectWithin(layout.root, surface)
+  const ranges = findQuotes(layout.root, anchor.quote)
+  if (ranges.length === 0) return null
+  const surface =
+    layout.root.closest<HTMLElement>("[data-canvas-surface]") ?? layout.root
+  const target = {
+    x: anchor.pos.x * surface.offsetWidth,
+    y: anchor.pos.y * surface.offsetHeight,
+  }
+  const rects = ranges.flatMap((range) => rangeRect(range, surface) ?? [])
+  return nearest(rects, target) ?? rectWithin(layout.root, surface)
 }
 
 export const textAnchors: AnchorsModule = {
