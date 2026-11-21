@@ -13,7 +13,8 @@ import (
 
 const getFinding = `-- name: GetFinding :one
 SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id, r.context_to AS request_to,
-  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
+  r.thread_message_id AS request_thread_message_id
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -22,12 +23,13 @@ WHERE f.id = $1
 `
 
 type GetFindingRow struct {
-	Finding             Finding
-	ObservationFolderID pgtype.UUID
-	RequestTo           pgtype.Timestamptz
-	RequestedByKind     pgtype.Text
-	RequestedByID       pgtype.UUID
-	AskDashboardTitle   pgtype.Text
+	Finding                Finding
+	ObservationFolderID    pgtype.UUID
+	RequestTo              pgtype.Timestamptz
+	RequestedByKind        pgtype.Text
+	RequestedByID          pgtype.UUID
+	AskDashboardTitle      pgtype.Text
+	RequestThreadMessageID pgtype.UUID
 }
 
 func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow, error) {
@@ -59,13 +61,15 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 		&i.RequestedByKind,
 		&i.RequestedByID,
 		&i.AskDashboardTitle,
+		&i.RequestThreadMessageID,
 	)
 	return i, err
 }
 
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
 SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, o.folder_id AS observation_folder_id,
-  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
+  r.thread_message_id AS request_thread_message_id
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 JOIN agent_requests r ON r.id = f.agent_request_id
@@ -74,11 +78,12 @@ WHERE f.agent_request_id = $1
 `
 
 type GetFindingByAgentRequestRow struct {
-	Finding             Finding
-	ObservationFolderID pgtype.UUID
-	RequestedByKind     string
-	RequestedByID       pgtype.UUID
-	AskDashboardTitle   pgtype.Text
+	Finding                Finding
+	ObservationFolderID    pgtype.UUID
+	RequestedByKind        string
+	RequestedByID          pgtype.UUID
+	AskDashboardTitle      pgtype.Text
+	RequestThreadMessageID pgtype.UUID
 }
 
 func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID pgtype.UUID) (GetFindingByAgentRequestRow, error) {
@@ -109,6 +114,7 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 		&i.RequestedByKind,
 		&i.RequestedByID,
 		&i.AskDashboardTitle,
+		&i.RequestThreadMessageID,
 	)
 	return i, err
 }

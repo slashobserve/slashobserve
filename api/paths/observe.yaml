@@ -534,6 +534,78 @@ observe-id-observation:
                 - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+observe-id-share:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: shareObserveRequestAnswer
+    x-audit: { action: run.share, target: { kind: run, id: path.id } }
+    x-surfaces:
+      cli: [observe share-answer]
+      mcp: [share_answer]
+    summary: Share the answer of a private question in a comment thread.
+    description: >-
+      A private question (`kind` `ask` with a `chat_id`, about a dashboard or an observation) is read only by its requester and Admins and writes nothing shared.
+      This shows its answer to everyone who can read what it was about: it opens a comment thread there at the question's panel, block or anchor, with the prompt as the caller's message and the agent's answer as the reply, and on an observation it also writes the answer onto the page.
+      With `thread_id` the two are added to that thread instead, which must be on the same dashboard or observation.
+      Both are written in one transaction and the run is shared once; a repeat call answers 200 with `replayed` true and the first thread.
+      Only the requester may call it, with Comment there; anyone else, an Admin included, gets 404.
+      The request itself and the rest of its chat stay readable only by the requester and Admins, and the answer is then read through the thread.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              thread_id:
+                type: string
+                format: uuid
+                description: A thread on the same dashboard or observation to add the question and answer to; omit to open a new one.
+    responses:
+      "200":
+        description: The run was already shared; nothing changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerShared"
+      "201":
+        description: The question and its answer were posted.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AnswerShared"
+      "400":
+        description: >-
+          The body is not valid, or `thread_id` is not a thread you can comment in on the dashboard or observation the question was about (`invalid_thread`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`).
+          Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 observe-id-cancel:
   parameters:
     - name: id

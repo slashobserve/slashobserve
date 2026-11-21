@@ -9,7 +9,8 @@ RETURNING *;
 
 -- name: GetFinding :one
 SELECT sqlc.embed(f), o.folder_id AS observation_folder_id, r.context_to AS request_to,
-  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
+  r.thread_message_id AS request_thread_message_id
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -18,7 +19,8 @@ WHERE f.id = @id;
 
 -- name: GetFindingByAgentRequest :one
 SELECT sqlc.embed(f), o.folder_id AS observation_folder_id,
-  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
+  r.thread_message_id AS request_thread_message_id
 FROM findings f
 LEFT JOIN observations o ON o.id = f.observation_id
 JOIN agent_requests r ON r.id = f.agent_request_id

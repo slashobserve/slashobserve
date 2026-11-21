@@ -141,11 +141,16 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
+	f.SharedIn = row.RequestThreadMessageID
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err
 }
 
 func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding, bool, error) {
-	row, err := s.db.Queries().GetFindingByAgentRequest(ctx, requestID)
+	return s.forRequestIn(ctx, s.db.Queries(), requestID)
+}
+
+func (s *store) forRequestIn(ctx context.Context, q *dbsqlc.Queries, requestID pgtype.UUID) (Finding, bool, error) {
+	row, err := q.GetFindingByAgentRequest(ctx, requestID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Finding{}, false, nil
@@ -153,6 +158,7 @@ func (s *store) forRequest(ctx context.Context, requestID pgtype.UUID) (Finding,
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
+	f.SharedIn = row.RequestThreadMessageID
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
 }
 

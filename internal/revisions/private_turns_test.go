@@ -391,3 +391,57 @@ func TestARunInAnObservationIsReadByEveryoneWhoReadsTheObservation(t *testing.T)
 	w.http(eve, "/api/v1/observe/"+private, http.StatusNotFound)
 	w.mcp(eve, "get_run", `{"id":"`+private+`"}`, true)
 }
+
+func TestAPrivateAskAboutADashboardOrAnObservationIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{FailureCode: revisions.FailureRateLimited}, errors.New("failed")
+	}))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	for _, p := range []auth.Principal{user, bea, eve, vic} {
+		d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $3, $2)`, p.ID, p.Name, p.Name+"@example.com")
+	}
+	const observation = "eeeeeeee-0000-4000-8000-0000000000a1"
+	d.Exec(t, `INSERT INTO observations (id, folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada')`, observation, userID)
+	dash := seedDashboard(t, d, 1)
+	onDashboard := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why does " + privateWord + " spike"), Kind: text("ask"), DashboardID: text(dash.String())})
+	onObservation := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("is " + privateWord + " the cause"), Kind: text("ask"), ObservationID: text(observation)})
+	private := []string{onDashboard.String(), onObservation.String()}
+	chats := []string{chatOfTurn(t, d, onDashboard), chatOfTurn(t, d, onObservation)}
+	failAllRuns(t, svc, d, private...)
+
+	w := newPrivateWalk(t, svc, d)
+	for _, who := range []auth.Principal{user, bea} {
+		for _, id := range private {
+			mustContain(t, who.Name, "the run", w.http(who, "/api/v1/observe/"+id, http.StatusOK)+w.mcp(who, "get_run", `{"id":"`+id+`"}`, false), privateWord)
+		}
+	}
+	for _, chat := range chats {
+		mustContain(t, user.Name, "the chat", w.mcp(user, "get_chat", `{"id":"`+chat+`"}`, false), privateWord)
+	}
+	for _, who := range []auth.Principal{eve, vic} {
+		for _, id := range private {
+			w.http(who, "/api/v1/observe/"+id, http.StatusNotFound)
+			w.mcp(who, "get_run", `{"id":"`+id+`"}`, true)
+		}
+		for _, chat := range chats {
+			w.http(who, "/api/v1/chats/"+chat, http.StatusNotFound)
+			w.mcp(who, "get_chat", `{"id":"`+chat+`"}`, true)
+		}
+		w.http(who, "/api/v1/chats", http.StatusOK)
+		w.mcp(who, "list_chats", `{}`, false)
+		w.http(who, "/api/v1/observe", http.StatusOK)
+		w.http(who, "/api/v1/observe?dashboard_id="+dash.String(), http.StatusOK)
+		w.mcp(who, "list_runs", `{}`, false)
+		w.mcp(who, "list_runs", `{"dashboard_id":"`+dash.String()+`"}`, false)
+		w.http(who, "/api/v1/agents/runs?kind=builtin", http.StatusOK)
+		w.http(who, "/api/v1/activity", http.StatusOK)
+		w.mcp(who, "list_activity", `{}`, false)
+		w.http(who, "/api/v1/inbox", http.StatusOK)
+		w.http(who, "/api/v1/search?q="+privateWord, http.StatusOK)
+		for _, body := range w.seen[who.Name] {
+			mustNotContain(t, who.Name, "a read", body, privateWord)
+			mustNotContain(t, who.Name, "a read", body, private...)
+		}
+	}
+}

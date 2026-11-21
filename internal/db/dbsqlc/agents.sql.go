@@ -262,7 +262,7 @@ WHERE r.state IN ('queued', 'running', 'canceling')
   AND (
     (r.requested_by_kind = $2 AND r.requested_by_id = $3)
     OR (d.id IS NOT NULL AND d.created_by_kind = $2 AND d.created_by_id = $3
-      AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.thread_message_id IS NULL AND r.observation_id IS NULL))
+      AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = $2 AND o.created_by_id = $3)
   )
 ORDER BY r.created_at DESC, r.id DESC

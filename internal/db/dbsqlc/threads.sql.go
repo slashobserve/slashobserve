@@ -1190,6 +1190,23 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 	return i, err
 }
 
+const shareRunInThread = `-- name: ShareRunInThread :execrows
+UPDATE agent_requests SET thread_message_id = $1 WHERE id = $2 AND thread_message_id IS NULL
+`
+
+type ShareRunInThreadParams struct {
+	ThreadMessageID pgtype.UUID
+	ID              pgtype.UUID
+}
+
+func (q *Queries) ShareRunInThread(ctx context.Context, arg ShareRunInThreadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, shareRunInThread, arg.ThreadMessageID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const threadTranscript = `-- name: ThreadTranscript :many
 SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, m.client_id
 FROM thread_messages m

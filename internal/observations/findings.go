@@ -31,6 +31,9 @@ func (s *Service) WriteConclusion(ctx context.Context, q *dbsqlc.Queries, by aut
 	}
 	in := conclusion{runID: c.RunID, title: c.Title, markdown: c.Markdown, evidence: evidence, from: c.From, to: c.To}
 	who := actor.Of(by, origin.From(ctx), c.RunID.String())
+	if c.Into.Valid {
+		return c.Into, false, s.writeIntoObservation(ctx, q, by, who, c.Into, in)
+	}
 	if c.RunID.Valid {
 		id, err := s.store.db.Queries().RunObservation(ctx, c.RunID)
 		switch {

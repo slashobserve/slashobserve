@@ -67,6 +67,9 @@ WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = @run_id::uuid AND thread_replied_at IS NULL)
 RETURNING *;
 
+-- name: ShareRunInThread :execrows
+UPDATE agent_requests SET thread_message_id = @thread_message_id WHERE id = @id AND thread_message_id IS NULL;
+
 -- name: MarkRunReplied :exec
 UPDATE agent_requests SET thread_replied_at = clock_timestamp() WHERE id = @id AND thread_replied_at IS NULL;
 

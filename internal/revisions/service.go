@@ -578,7 +578,7 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	switch {
 	case sameActor(requesterOf(row), by):
 		return row, nil
-	case privateAsk(row):
+	case PrivateAsk(row):
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	case row.DashboardID.Valid:
 		return row, nil

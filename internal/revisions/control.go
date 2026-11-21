@@ -408,7 +408,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
-	if !row.ThreadMessageID.Valid {
+	if !row.ThreadMessageID.Valid || row.ChatID.Valid {
 		return pgtype.UUID{}, ""
 	}
 	return row.ThreadMessageID, row.ThreadContext.String

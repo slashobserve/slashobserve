@@ -224,6 +224,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe-id-build-save"
   /observe/{id}/observation:
     $ref: "./paths/observe.yaml#/observe-id-observation"
+  /observe/{id}/share:
+    $ref: "./paths/observe.yaml#/observe-id-share"
   /observe/{id}/build/panels/{panel_id}/data:
     $ref: "./paths/observe.yaml#/observe-id-build-panels-panel-id-data"
   /observe/{id}/build/variables/{name}/values:
@@ -4601,6 +4603,22 @@ components:
         replayed:
           type: boolean
           description: True when the answer was already an observation, so this call changed nothing.
+    AnswerShared:
+      type: object
+      additionalProperties: false
+      required: [thread_id, message_id, replayed]
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+          description: The comment thread that holds the question and the answer.
+        message_id:
+          type: string
+          format: uuid
+          description: The message that holds the question; the agent's answer is the reply under it.
+        replayed:
+          type: boolean
+          description: True when the run was already shared, so this call changed nothing.
     AgentBuildSaved:
       type: object
       additionalProperties: false

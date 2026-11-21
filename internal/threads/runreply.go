@@ -19,6 +19,7 @@ const (
 	replyUnclaimed       = "No agent picked this up within 10 minutes."
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
+	replyAnswered        = "Answered: "
 	replyAnsweredInChat  = "Answered in the chat of the person who asked."
 	replyChatLinkLead    = "Full answer (only the person who asked and Admins can open it): "
 	replyAgentFailed     = "the agent reported that it could not finish"
@@ -139,7 +140,10 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		if err != nil {
 			return "", fmt.Errorf("read finding of run: %w", err)
 		}
-		if !found.Finding.ObservationID.Valid {
+		switch {
+		case !found.Finding.ObservationID.Valid && run.ChatID.Valid:
+			return sharedAnswerBody(found.Finding), nil
+		case !found.Finding.ObservationID.Valid:
 			return chatAnswerBody(found.Finding, run.ID), nil
 		}
 		lead := "Saved a finding: "
@@ -149,6 +153,10 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
 	}
 	return replyFinished, nil
+}
+
+func sharedAnswerBody(found dbsqlc.Finding) string {
+	return replyAnswered + sentenceEnd(activity.Excerpt(found.Title, maxReplyHeadingRunes)) + findingLead(found.Markdown, found.Title)
 }
 
 func chatAnswerBody(found dbsqlc.Finding, runID pgtype.UUID) string {

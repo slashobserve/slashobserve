@@ -41,7 +41,6 @@ var nonHTTPAuditSources = map[audit.Action]string{
 var pendingAuditActions = []audit.Action{
 	"finding.apply",
 	"observation.arrange",
-	"run.share",
 	"run.withdraw",
 }
 

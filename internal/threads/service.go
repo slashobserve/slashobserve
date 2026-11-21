@@ -46,6 +46,7 @@ type Service struct {
 	observations *observations.Service
 	proposals    *proposals.Service
 	panelSets    *panelCache
+	showAnswer   AnswerShower
 }
 
 func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {

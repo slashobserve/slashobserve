@@ -2402,6 +2402,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observe/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Share the answer of a private question in a comment thread.
+         * @description A private question (`kind` `ask` with a `chat_id`, about a dashboard or an observation) is read only by its requester and Admins and writes nothing shared. This shows its answer to everyone who can read what it was about: it opens a comment thread there at the question's panel, block or anchor, with the prompt as the caller's message and the agent's answer as the reply, and on an observation it also writes the answer onto the page. With `thread_id` the two are added to that thread instead, which must be on the same dashboard or observation. Both are written in one transaction and the run is shared once; a repeat call answers 200 with `replayed` true and the first thread. Only the requester may call it, with Comment there; anyone else, an Admin included, gets 404. The request itself and the rest of its chat stay readable only by the requester and Admins, and the answer is then read through the thread.
+         */
+        post: operations["shareObserveRequestAnswer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/observe/{id}/build/panels/{panel_id}/data": {
         parameters: {
             query?: never;
@@ -6421,6 +6443,20 @@ export interface components {
             /** @description The address of the observation, empty when the server has no public URL configured. */
             url: string;
             /** @description True when the answer was already an observation, so this call changed nothing. */
+            replayed: boolean;
+        };
+        AnswerShared: {
+            /**
+             * Format: uuid
+             * @description The comment thread that holds the question and the answer.
+             */
+            thread_id: string;
+            /**
+             * Format: uuid
+             * @description The message that holds the question; the agent's answer is the reply under it.
+             */
+            message_id: string;
+            /** @description True when the run was already shared, so this call changed nothing. */
             replayed: boolean;
         };
         AgentBuildSaved: {
@@ -14956,6 +14992,69 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    shareObserveRequestAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description A thread on the same dashboard or observation to add the question and answer to; omit to open a new one.
+                     */
+                    thread_id?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The run was already shared; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerShared"];
+                };
+            };
+            /** @description The question and its answer were posted. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerShared"];
+                };
+            };
+            /** @description The body is not valid, or `thread_id` is not a thread you can comment in on the dashboard or observation the question was about (`invalid_thread`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`). Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;

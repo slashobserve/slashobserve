@@ -117,6 +117,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
 | `set_inbox_item_done` | Viewer |
+| `share_answer` | Viewer |
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
@@ -447,6 +448,13 @@ Only the person or key that started a run can rename, pin, unpin or archive it, 
 It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
 Until then a run's `result_kind` is `answer` and its `observation_id` is null, and it reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
+
+`share_answer` takes `run_id` and shows the answer of a private question (`start_run` with `kind` `ask`) to the people who can read the dashboard or observation it was about.
+It opens a comment thread there, at the same panel or block, with the question as your message and the agent's answer as its reply, and on an observation it also writes the answer onto the page; with `thread_id` it adds both to that thread instead, which must be on the same dashboard or observation.
+It answers `thread_id`, `message_id` and `replayed`, true when the run was already shared, and a run is shared once.
+Only the one who asked can share it, and only when you can comment there: anyone else gets `not_found`, a run that is not a private question gets `not_shareable` and one without an answer gets `no_answer`.
+An answer whose evidence reads a datasource only Admins can query is refused with `restricted_content` unless the dashboard or observation is in a folder only Admins can read.
+The run and the rest of the chat stay readable only by you and Admins.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

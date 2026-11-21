@@ -103,7 +103,7 @@ func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) 
 }
 
 func runOwner(row dbsqlc.AgentRequest) activity.Owner {
-	if privateAsk(row) {
+	if PrivateAsk(row) {
 		return activity.Owner{}
 	}
 	return activity.OnDashboard(row.DashboardID)

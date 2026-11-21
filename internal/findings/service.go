@@ -34,6 +34,7 @@ type Service struct {
 	annotations  *annotations.Service
 	dashboards   *dashboards.Service
 	observations Observations
+	threads      ThreadReader
 	logger       *slog.Logger
 }
 
@@ -42,6 +43,10 @@ func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash
 		return nil, ErrNoObservations
 	}
 	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
+}
+
+func (s *Service) ReadThreadsWith(read ThreadReader) {
+	s.threads = read
 }
 
 type SaveInput struct {
@@ -135,6 +140,35 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 	}
 	f, err = s.Get(ctx, by, id)
 	return f, !attached, err
+}
+
+func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requestID, observationID pgtype.UUID) error {
+	f, found, err := s.store.forRequestIn(ctx, q, requestID)
+	if err == nil && !found {
+		err = ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	id, err := db.ParseUUID(f.ID)
+	if err != nil {
+		return err
+	}
+	current, err := q.LockFinding(ctx, id)
+	if err != nil {
+		return fmt.Errorf("lock finding: %w", err)
+	}
+	if current.Valid {
+		return nil
+	}
+	conclusion := Conclusion{RunID: requestID, Into: observationID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	if _, _, err := s.observations.WriteConclusion(ctx, q, by, conclusion); err != nil {
+		return err
+	}
+	if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
+		return fmt.Errorf("show finding in observation: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
@@ -399,7 +433,7 @@ func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (fold
 
 func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Finding) error {
 	if !isRequester(by, f) && !by.Role.AtLeast(auth.RoleAdmin) {
-		return ErrNotFound
+		return s.readableInThread(ctx, by, f)
 	}
 	if f.DashboardID == "" {
 		return nil
@@ -409,6 +443,16 @@ func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Find
 		return err
 	}
 	return s.viewable(ctx, by, dashboardID)
+}
+
+func (s *Service) readableInThread(ctx context.Context, by auth.Principal, f Finding) error {
+	if !f.SharedIn.Valid || s.threads == nil {
+		return ErrNotFound
+	}
+	if err := s.threads(ctx, by, f.SharedIn); err != nil {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Service) viewable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {

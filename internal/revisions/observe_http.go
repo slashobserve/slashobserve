@@ -44,6 +44,7 @@ type ObserveOptions struct {
 	ObservationURL     func(observationID string) string
 	Finding            func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
 	SaveAnswer         AnswerSaver
+	ShareAnswer        AnswerSharer
 	LiveText           func(runID string, attempt int) (string, bool)
 	ShareTitle         TitleSharer
 	ObservationVisible func(ctx context.Context, by auth.Principal, id pgtype.UUID) (bool, error)
@@ -199,6 +200,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
 	api.POST("/observe/:id/observation", auth.RoleViewer, h.saveAnswer)
+	api.POST("/observe/:id/share", auth.RoleViewer, h.shareAnswer)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
