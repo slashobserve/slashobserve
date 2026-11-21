@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -211,5 +213,20 @@ func TestSlotsBlockWhenFullAndFreeOnRelease(t *testing.T) {
 	release()
 	if _, err := l.acquire(context.Background()); err != nil {
 		t.Fatalf("acquire after release = %v", err)
+	}
+}
+
+func TestBriefTaskPointsAtTheAnchorOfTheRequest(t *testing.T) {
+	pointed := &anchor.Anchor{Kind: anchor.Title, Pos: anchor.Pos{X: 0.1, Y: 0.1}}
+	asked := briefTask(revisions.Request{Anchor: pointed, BlockID: "b1", SubjectObservationID: "o1", ObservationID: "own"}, tools.ModeInvestigate)
+	if asked.Pointer != (brief.Pointer{Anchor: pointed, BlockID: "b1", ObservationID: "o1"}) {
+		t.Fatalf("pointer = %+v", asked.Pointer)
+	}
+	own := briefTask(revisions.Request{Anchor: pointed, ObservationID: "own"}, tools.ModeInvestigate)
+	if own.Pointer.ObservationID != "own" {
+		t.Fatalf("pointer = %+v", own.Pointer)
+	}
+	if none := briefTask(revisions.Request{}, tools.ModeInvestigate); none.Pointer != (brief.Pointer{}) {
+		t.Fatalf("pointer = %+v", none.Pointer)
 	}
 }

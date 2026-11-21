@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -21,11 +22,13 @@ const (
 )
 
 type chatTurnJSON struct {
-	ID                   string  `json:"id"`
-	State                State   `json:"state"`
-	Prompt               string  `json:"prompt"`
-	Investigation        bool    `json:"investigation"`
-	SubjectObservationID *string `json:"subject_observation_id"`
+	ID                   string         `json:"id"`
+	State                State          `json:"state"`
+	Prompt               string         `json:"prompt"`
+	Investigation        bool           `json:"investigation"`
+	SubjectObservationID *string        `json:"subject_observation_id"`
+	Anchor               *anchor.Anchor `json:"anchor"`
+	BlockID              *string        `json:"block_id"`
 }
 
 type chatJSON struct {
@@ -73,7 +76,7 @@ func newChatJSON(c Chat) chatJSON {
 		ReadOnly:       c.ReadOnly,
 	}
 	if c.LastTurn != nil {
-		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Investigation: c.LastTurn.Investigation, SubjectObservationID: optionalUUID(c.LastTurn.Subject)}
+		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Investigation: c.LastTurn.Investigation, SubjectObservationID: optionalUUID(c.LastTurn.Subject), Anchor: c.LastTurn.Anchor, BlockID: c.LastTurn.BlockID}
 	}
 	return out
 }
