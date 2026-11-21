@@ -251,6 +251,9 @@ A revision freezes:
 
 A revision published before heights were kept has none, so its panels show at the default height for their width.
 
+A published page lays its blocks out in rows of thirds like the observation page does, so a block that sits alone at half width takes half the row.
+Revisions published before this packing existed show such a block at half width too, where they used to give it the whole row.
+
 A revision leaves out requested blocks, run blocks, and the query text of every panel: a published copy shows what the data was and never how to query your datasources.
 If a panel cannot be frozen, nothing is published and the answer is `panel_failed` with the block it names, so fix or remove that panel and publish again.
 If the page changed while it was being frozen, the answer is `observation_changed`, and publishing again takes the new page.
