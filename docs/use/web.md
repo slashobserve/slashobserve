@@ -237,6 +237,7 @@ The copies of a repeated panel take no canvas questions: Ask mode does nothing o
 
 Each spot you asked about shows a teal pin that only you see, named "Your question on" and the spot; choose it, or Tab to it and press Enter, to open the box on that chat again.
 Your pins that would overlap stack into one teal marker with their count, "N of your questions here", which lists them; choose one to open its box.
+Pins are drawn for your newest 100 questions on the dashboard that name a spot, and a Viewer, who cannot ask, loads none.
 An Admin reading your chat does not see your pins, and an answer you share into a thread also shows that thread's pin for everyone.
 
 ### Arrange panels

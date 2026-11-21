@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { act, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useCanvasTool } from "@/dashboards/canvas-tools"
@@ -139,6 +139,21 @@ describe("AskPins", () => {
       requestId: "r2",
       chatId: "c2",
     })
+  })
+
+  it("does not poll while a question works, since a pin does not change with its answer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const listed = stubRequests([summary({ id: "r1", status: "running" })])
+      renderPins()
+      await screen.findByRole("button", {
+        name: "Your question on Slow services, The row payments, 440",
+      })
+      await act(() => vi.advanceTimersByTimeAsync(30_000))
+      expect(listed).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("draws no pin while the panel is not showing its data", async () => {

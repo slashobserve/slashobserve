@@ -158,7 +158,9 @@ export function AskPins({
   const { principal } = useRouteContext({ from: "/_authed" })
   const { requests } = useMyRequests(
     { dashboardId, anchored: true },
-    listedTurns
+    listedTurns,
+    true,
+    false
   )
   const published = usePublished(store)
   const module = useAnchorsModule(published?.type ?? null)

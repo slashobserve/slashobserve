@@ -463,6 +463,40 @@ describe("dashboard page panel keys", () => {
     act(() => useCanvasTool.getState().setTool("select"))
   })
 
+  it.each([
+    ["reads", { comment: true, edit: true, manage: true, create: true }, true],
+    [
+      "does not read",
+      { comment: false, edit: false, manage: false, create: false },
+      false,
+    ],
+  ])(
+    "%s the anchored questions for pins by whether the viewer can ask",
+    async (_, permissions, fetched) => {
+      mockServer({
+        ...envelope,
+        dashboard: { ...envelope.dashboard, permissions },
+      })
+      renderDashboard()
+      await screen.findByRole("article", { name: "Latency" })
+      await waitFor(() => expect(agentRequested()).toBe(true))
+      const anchored = () =>
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([input]) =>
+            (typeof input === "string"
+              ? input
+              : (input as Request).url
+            ).includes("anchored=true")
+          )
+      if (fetched) await waitFor(() => expect(anchored()).toBe(true))
+      else {
+        await act(async () => {})
+        expect(anchored()).toBe(false)
+      }
+    }
+  )
+
   it("enters Ask mode with a over no panel and leaves it with a again", async () => {
     const { user } = renderDashboard()
     await screen.findByRole("article", { name: "Note" })

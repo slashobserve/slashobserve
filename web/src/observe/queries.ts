@@ -191,11 +191,13 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
 export function useMyRequests(
   filters: ChatListFilters,
   limit = 20,
-  enabled = true
+  enabled = true,
+  pollsWhileWorking = true
 ) {
   const query = useInfiniteQuery({
     ...myRequestsQuery(filters, limit),
     enabled,
+    ...(pollsWhileWorking ? {} : { refetchInterval: false as const }),
   })
   const requests = useMemo(() => {
     const seen = new Set<string>()
