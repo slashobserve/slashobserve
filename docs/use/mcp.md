@@ -261,7 +261,7 @@ Both answer `folder_exists` for a taken title and `rename_folder` answers `gener
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A retry is safe: when the same caller already saved a dashboard with that title and an identical spec in that folder, `create_dashboard` returns it with `replayed` true instead of making a second one.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
-`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it.
+`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it into `folder_id`, by default the dashboard's own folder when you may create there, else your My Dashboards or General, as the web dialog does.
 No tool deletes a dashboard: people do that in the web app, through the HTTP API or with `observe dashboards delete`.
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
