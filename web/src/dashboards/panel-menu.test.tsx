@@ -189,6 +189,7 @@ describe("PanelMenu", () => {
         ownerId="b1"
         canComment
         canEdit={false}
+        canPropose={false}
         composerRef={createRef<HTMLTextAreaElement>()}
         block={{ actions: [] }}
       />,
@@ -219,6 +220,7 @@ describe("PanelMenu", () => {
         onCanvas={false}
         canComment
         canEdit={false}
+        canPropose={false}
         composerRef={createRef<HTMLTextAreaElement>()}
         block={{ actions: [] }}
       />,
