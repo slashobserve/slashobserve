@@ -314,7 +314,7 @@ It does not need to have been your dashboard.
 ### In the dashboard's Chat tab
 
 A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.
-It opens your latest chat about the dashboard, and the address names it as `tab=chat&chat=<chat id>`.
+It opens your latest chat about the dashboard and names it in the address as `tab=chat&chat=<chat id>`, so the chat stays open when a turn in another chat makes that one the latest.
 The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns, and **All your chats** opens the Chats page filtered to this dashboard.
 **New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left; the chat your first message lands in then takes its place in the address.
 For now the first message after **New chat** still joins your latest chat about the dashboard when you have one, and the tab then shows that chat.

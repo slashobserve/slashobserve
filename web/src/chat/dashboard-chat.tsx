@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
@@ -53,7 +54,13 @@ export function DashboardChat({
   const now = useNow()
   const fresh = chatId === newChatId
   const { chats, query } = useChats({ dashboardId }, listedChats)
-  const openId = fresh ? undefined : (chatId ?? chats.at(0)?.id)
+  const latestId = chats.at(0)?.id
+  const openId = fresh ? undefined : (chatId ?? latestId)
+  useEffect(() => {
+    if (chatId === undefined && latestId !== undefined) {
+      onOpenChat(latestId, { replace: true })
+    }
+  }, [chatId, latestId, onOpenChat])
   const open = useChat(openId)
   const options = withOpenChat(chats, open.data?.chat)
   const elsewhere =

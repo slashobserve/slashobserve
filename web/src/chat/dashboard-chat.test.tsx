@@ -90,6 +90,7 @@ function Address({ initial }: { initial: string | undefined }) {
         Back
       </button>
       <output aria-label="Address">{chatId ?? "none"}</output>
+      <output aria-label="Entries">{entries.length}</output>
       <DashboardChat
         dashboardId={dashboardId}
         dashboardTitle="Checkout health"
@@ -151,6 +152,25 @@ describe("DashboardChat", () => {
     expect(screen.getByTestId("composer").dataset.dashboard).toBe(dashboardId)
     expect(screen.queryByTestId("conversation")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled()
+  })
+
+  it("holds the chat it opened when the list reorders", async () => {
+    const listed = [
+      chat("c1", "Why did checkout errors rise"),
+      chat("c2", "Card declines by issuer"),
+    ]
+    stub(listed)
+    const { queryClient } = renderAddress(undefined)
+    expect((await screen.findByTestId("conversation")).dataset.request).toBe(
+      "c1"
+    )
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText("Address")).toHaveTextContent("c1")
+    )
+    expect(screen.getByLabelText("Entries")).toHaveTextContent("1")
+    listed.reverse()
+    await queryClient.invalidateQueries()
+    expect(screen.getByTestId("conversation").dataset.request).toBe("c1")
   })
 
   it("goes back to the chat it left when the address goes back", async () => {
