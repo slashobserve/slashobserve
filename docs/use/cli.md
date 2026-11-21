@@ -574,6 +574,7 @@ Last check finished 2026-11-06T03:04Z: succeeded.
 `--kind` takes `no_data`, `query_failed`, `variable_failed`, `duplicate_title` or `unopened`, `--folder` takes a folder id, and `--limit` lists up to 100 dashboards (50 by default), with `--cursor` and `--all` for the rest.
 `STATE` is the dashboard's health state and `REPAIR` the outcome of its latest repair, both described in [Dashboard health](dashboard-health.md#from-the-cli).
 A variable shows as `$<name>`, and the last line says how the last daily check went.
+A dashboard listed with no problem shows one row with `-` as its kind and target, and when a listed dashboard is `outdated`, a line after the table says its problems belong to an earlier version and a recheck is pending.
 Listing exits 0 whatever it finds, and `--json` prints the response of `GET /api/v1/health`.
 
 ### Repair dashboards and run a check

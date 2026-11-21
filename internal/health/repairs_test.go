@@ -4,9 +4,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -109,5 +111,28 @@ func TestAStarterDashboardIsNotEditableForRepairAndIsSkippedAsProvisioned(t *tes
 	r.scan(t, `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, starter.String(), &runs)
 	if runs != 0 {
 		t.Errorf("%d runs queued on the starter, want none", runs)
+	}
+}
+
+func TestAStarterDashboardReportsNoRepairEvenWhenOneFailedBeforeItWasRefused(t *testing.T) {
+	r := newRig(t)
+	starter := r.create(t, boardSpec("Starter", "up", "empty_series"))
+	ordinary := r.create(t, boardSpec("Ordinary", "up", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, starter.String())
+	gaveUp := "this dashboard is a starter"
+	for _, id := range []pgtype.UUID{starter, ordinary} {
+		r.request(t, id, request{prompt: repairprompt.Prefix, status: "failed", failure: &gaveUp, ago: time.Hour})
+	}
+
+	items := r.list(t, r.editor, "")
+	if got := items[starter.String()].Repair; got != nil {
+		t.Errorf("the starter's repair = %+v, want none", got)
+	}
+	if got := items[ordinary.String()].Repair; got == nil || got.Outcome != "failed" {
+		t.Errorf("the ordinary dashboard's repair = %+v, want its failed repair", got)
 	}
 }
