@@ -240,12 +240,16 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	}
 }
 
-func TestRevisionEventIsSentOnlyForDashboardRequestsThatAreNotSuggestionsOrInvestigations(t *testing.T) {
+func TestRevisionEventIsSentOnlyForRunsThatChangeADashboard(t *testing.T) {
 	withComment := runRow(StatusSucceeded, SourceComment)
 	withComment.CommentID = pgtype.UUID{Bytes: [16]byte{4}, Valid: true}
 	withComment.ResultVersion = pgtype.Int4{Int32: 3, Valid: true}
 	noDashboard := runRow(StatusQueued, SourceObserve)
 	noDashboard.DashboardID = pgtype.UUID{}
+	privateAsk := runRow(StatusRunning, SourceObserve)
+	privateAsk.Intent, privateAsk.ChatID = string(IntentAsk), pgtype.UUID{Bytes: [16]byte{5}, Valid: true}
+	threadAsk := runRow(StatusRunning, SourceObserve)
+	threadAsk.Intent, threadAsk.ThreadMessageID = string(IntentAsk), pgtype.UUID{Bytes: [16]byte{6}, Valid: true}
 
 	ev, ok := revisionEvent(withComment)
 	want := events.Event{
@@ -263,6 +267,8 @@ func TestRevisionEventIsSentOnlyForDashboardRequestsThatAreNotSuggestionsOrInves
 		"a request with no dashboard yet": noDashboard,
 		"a suggestion":                    runRow(StatusQueued, SourceSuggest),
 		"an investigation":                runRow(StatusQueued, SourceInvestigate),
+		"a private ask on the dashboard":  privateAsk,
+		"an ask in a dashboard thread":    threadAsk,
 	} {
 		if ev, ok := revisionEvent(row); ok {
 			t.Errorf("%s sent %+v", name, ev)

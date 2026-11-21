@@ -120,7 +120,7 @@ func storedCost(runUsage []byte) (float64, bool) {
 }
 
 func revisionEvent(row dbsqlc.AgentRequest) (events.Event, bool) {
-	if !row.DashboardID.Valid || SourceOf(row) == SourceSuggest || SourceOf(row) == SourceInvestigate {
+	if !row.DashboardID.Valid || Intent(row.Intent) != IntentApply {
 		return events.Event{}, false
 	}
 	ev := events.Event{
