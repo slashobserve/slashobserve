@@ -29,10 +29,13 @@ const hoverFadeClass = cn(
   `${finePointer}:group-focus-within/panel:opacity-100`
 )
 
+const hiddenWhileToolbarShown = "group-data-[selected]/panel:hidden"
+
 type Props = {
   panel: LayoutPanel
   canComment: boolean
   idle: boolean
+  viewing?: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -74,6 +77,7 @@ export function PanelHoverActions({
   panel,
   canComment,
   idle,
+  viewing = false,
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
@@ -84,7 +88,11 @@ export function PanelHoverActions({
   return (
     <div
       data-panel-hover-actions=""
-      className={cn("flex items-center gap-0.5", hoverFadeClass)}
+      className={cn(
+        "flex items-center gap-0.5",
+        hoverFadeClass,
+        !viewing && hiddenWhileToolbarShown
+      )}
     >
       {actions.ask ? (
         <HoverAction

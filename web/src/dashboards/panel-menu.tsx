@@ -342,6 +342,7 @@ export function PanelMenu({
           panel={panel}
           canComment={canComment}
           idle={idle}
+          viewing={viewing}
           composerRef={composerRef}
         />
       ) : null}

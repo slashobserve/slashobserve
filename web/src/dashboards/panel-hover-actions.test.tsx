@@ -40,12 +40,14 @@ function renderActions(over: {
   canComment?: boolean
   idle?: boolean
   panel?: LayoutPanel
+  viewing?: boolean
 }) {
   return renderWithProviders(
     <PanelHoverActions
       panel={over.panel ?? panel}
       canComment={over.canComment ?? true}
       idle={over.idle ?? true}
+      viewing={over.viewing}
       composerRef={createRef<HTMLTextAreaElement>()}
     />,
     { route: { path: "/", url: "/" } }
@@ -119,4 +121,21 @@ describe("PanelHoverActions", () => {
     expect(classes).toContain("motion-safe:duration-100")
     expect(classes).not.toMatch(/translate|scale|transition-all/)
   })
+
+  it.each([
+    { viewing: false, hidden: true },
+    { viewing: true, hidden: false },
+  ])(
+    "hides under a selected panel's toolbar only outside the full-size view (viewing $viewing)",
+    async ({ viewing, hidden }) => {
+      serveAgent(true)
+      const { container } = renderActions({ viewing })
+      await screen.findByRole("button", { name: "Comment on Checkout latency" })
+      const classes =
+        container.querySelector("[data-panel-hover-actions]")?.className ?? ""
+      expect(classes.includes("group-data-[selected]/panel:hidden")).toBe(
+        hidden
+      )
+    }
+  )
 })
