@@ -24,9 +24,15 @@ The dashboard events stream sends a ping every 15 seconds, tells the page within
 Each person can hold 20 streams and one server process 1000; past either limit the server answers `429` or `503` with the code `too_many_streams`.
 A log tail ends after 30 minutes too, and each person can hold 5 tails and one server process 200.
 Allow request bodies of at least 8 MiB, the size limit of a Grafana import and of an MCP request.
-The server does not use `X-Forwarded-For` to find the client address.
 Keep `/metrics` off the public internet, because it needs no sign-in (see [Metrics](metrics.md)).
 A proxy on the same host as the server must send `X-Forwarded-For` or another forwarding header, so the server can tell its traffic from the built-in agent's; see [The agent process](../concepts/agent.md#the-agent-process).
+
+Set `SLASHOBSERVE_TRUSTED_PROXIES` to the addresses or CIDR ranges your proxy connects from, so the audit trail records the person's address and not the proxy's.
+Unset, which is the default, the client address is the address the connection came from, and the server ignores `X-Forwarded-For`.
+Set, the server reads `X-Forwarded-For` only on a connection from a listed address, and takes the rightmost address in it that is not itself listed, so a client cannot choose its own address by sending the header.
+List every proxy that appends to the header, such as a CDN and the load balancer behind it; an address you leave out is taken for the client.
+Never list `0.0.0.0/0` or `::/0`, because then any client can set its address.
+The check that keeps the built-in agent's token off forwarded requests still looks at the connection itself, never at `X-Forwarded-For`.
 
 Serve the proxy over HTTP/2.
 The server itself speaks HTTP/1.1, which lets a browser fetch about six files at once, and the first visit loads the app's script files (about 35 on the entry page, 270 KB gzipped).
