@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -115,6 +116,9 @@ func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing
 			}
 			if run.Access.System || run.Access.By.ID != req.RequestedBy.ID || run.Access.By.Role != tc.role || run.Access.Audience != tc.want {
 				t.Fatalf("run access = %+v, want the requester %+v writing for %q", run.Access, req.RequestedBy, tc.want)
+			}
+			if tc.want != datasource.AudienceCaller && !slices.Equal(run.WriteFolders, []pgtype.UUID{folder}) {
+				t.Fatalf("the run writes to the folders %v, want only %v", run.WriteFolders, folder)
 			}
 			if datasource.ReadsRestricted(datasource.WithAccess(context.Background(), run.Access)) != tc.reads {
 				t.Fatalf("reads Admins-only data = %v, want %v", !tc.reads, tc.reads)

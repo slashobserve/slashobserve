@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -59,6 +61,7 @@ type RunSessions interface {
 type RunWrites struct {
 	Shared     bool
 	AdminsOnly bool
+	Folders    []pgtype.UUID
 }
 
 func RunAudience(w RunWrites) datasource.Audience {
@@ -94,6 +97,11 @@ func RunFor(req revisions.Request) (Run, error) {
 		run.Mode, run.PanelID = ModeInvestigate, req.PanelID
 		if req.From != nil && req.To != nil {
 			run.From, run.To = *req.From, *req.To
+		}
+	}
+	for _, id := range []string{req.ObservationID, req.SubjectObservationID} {
+		if id != "" {
+			run.Observations = append(run.Observations, id)
 		}
 	}
 	if req.DashboardID == "" {

@@ -41,7 +41,7 @@ var inRunReads = map[string]inRunRead{
 	nameGetDashboard:     readsContent,
 	nameGetPanels:        readsContent,
 	nameGetObservation:   readsContent,
-	nameListObservations: readsContent,
+	nameListObservations: readsTitles,
 	nameListAnnotations:  readsContent,
 	nameListDashboards:   readsTitles,
 	nameListFolders:      readsTitles,
@@ -77,7 +77,7 @@ func TestEveryToolOfferedInARunSaysHowItReadsWhatOnlyAdminsRead(t *testing.T) {
 const adminsOnlyWord = "Sign-ins-by-Root"
 
 type adminsOnlyContent struct {
-	dashboard, observation pgtype.UUID
+	folder, dashboard, observation pgtype.UUID
 }
 
 var contentReads = map[string]func(adminsOnlyContent) string{
@@ -85,9 +85,8 @@ var contentReads = map[string]func(adminsOnlyContent) string{
 	nameGetPanels: func(c adminsOnlyContent) string {
 		return `{"dashboard_id":"` + c.dashboard.String() + `","ids":["p_up"]}`
 	},
-	nameGetObservation:   func(c adminsOnlyContent) string { return `{"observation_id":"` + c.observation.String() + `"}` },
-	nameListObservations: func(adminsOnlyContent) string { return `{}` },
-	nameListAnnotations:  func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameGetObservation:  func(c adminsOnlyContent) string { return `{"observation_id":"` + c.observation.String() + `"}` },
+	nameListAnnotations: func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
 }
 
 func (r *accessRig) adminsOnlyContent(t *testing.T) adminsOnlyContent {
@@ -100,7 +99,7 @@ func (r *accessRig) adminsOnlyContent(t *testing.T) adminsOnlyContent {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := adminsOnlyContent{dashboard: mustUUID(t, dash.ID)}
+	c := adminsOnlyContent{folder: folder, dashboard: mustUUID(t, dash.ID)}
 	r.db.Exec(t, `INSERT INTO annotations (dashboard_id, time_from, text, tags) VALUES ($1, now() - interval '1 minute', $2, ARRAY[]::text[])`, c.dashboard, adminsOnlyWord+" annotation")
 	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO observations (folder_id, title, summary, created_by_kind, created_by_id, created_by_name) VALUES ($1, $2, $2, 'user', $3::uuid, 'Root') RETURNING id`, folder, adminsOnlyWord+" observation", adminCaller.ID).Scan(&c.observation); err != nil {
 		t.Fatal(err)
@@ -110,8 +109,13 @@ func (r *accessRig) adminsOnlyContent(t *testing.T) adminsOnlyContent {
 
 func (r *accessRig) callInRun(t *testing.T, audience datasource.Audience, tool, input string) (Result, bool) {
 	t.Helper()
+	return r.callAs(t, Run{Mode: ModeInvestigate, Access: datasource.Access{By: adminCaller, Audience: audience}}, tool, input)
+}
+
+func (r *accessRig) callAs(t *testing.T, run Run, tool, input string) (Result, bool) {
+	t.Helper()
 	ctx, read := datasource.NotingRestrictedReads(auth.WithPrincipal(reading(t.Context()), adminCaller))
-	run := Run{Mode: ModeInvestigate, RequestID: "00000000-0000-4000-8000-000000000001", Access: datasource.Access{By: adminCaller, Audience: audience}}
+	run.RequestID = "00000000-0000-4000-8000-000000000001"
 	res, err := r.registry.Call(WithRun(ctx, run), tool, []byte(input))
 	if err != nil {
 		t.Fatalf("%s: %v", tool, err)
@@ -148,9 +152,9 @@ func (r *accessRig) builtIn(t *testing.T, key string, ref pgtype.UUID) {
 	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, key, ref)
 }
 
-func TestAnAdminsPrivateRunListsTitlesInAdminsOnlyFoldersOnlyWhenAskedAndIsMarkedForThem(t *testing.T) {
+func TestAnAdminsRunListsTitlesInOtherAdminsOnlyFoldersOnlyWhenAskedAndIsMarkedForThem(t *testing.T) {
 	r := newAccessRig(t)
-	r.adminsOnlyContent(t)
+	content := r.adminsOnlyContent(t)
 	var shippedFolder pgtype.UUID
 	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO folders (title, admins_only) VALUES ('Shipped audit folder', true) RETURNING id`).Scan(&shippedFolder); err != nil {
 		t.Fatal(err)
@@ -162,46 +166,58 @@ func TestAnAdminsPrivateRunListsTitlesInAdminsOnlyFoldersOnlyWhenAskedAndIsMarke
 	r.builtIn(t, "audit/folder", shippedFolder)
 	r.builtIn(t, "audit/dashboards/shipped", mustUUID(t, shipped.ID))
 
-	for _, name := range []string{nameListDashboards, nameListFolders} {
+	for _, name := range []string{nameListDashboards, nameListFolders, nameListObservations} {
 		t.Run(name, func(t *testing.T) {
-			res, marked := r.callInRun(t, datasource.AudienceCaller, name, `{}`)
-			if text := textOf(t, res); res.IsError || marked || strings.Contains(text, adminsOnlyWord) || !strings.Contains(text, "Shipped audit") ||
-				!strings.Contains(text, `"left_out":1`) || !strings.Contains(text, "include_restricted: true") {
-				t.Errorf("by default: marked %v, read %s", marked, text)
+			shipsOne := name != nameListObservations
+			for _, audience := range []datasource.Audience{datasource.AudienceCaller, datasource.AudienceAdmins} {
+				res, marked := r.callInRun(t, audience, name, `{}`)
+				if text := textOf(t, res); res.IsError || marked || strings.Contains(text, adminsOnlyWord) || shipsOne != strings.Contains(text, "Shipped audit") ||
+					!strings.Contains(text, `"left_out":1`) || !strings.Contains(text, "include_restricted: true") {
+					t.Errorf("%s by default: marked %v, read %s", audience, marked, text)
+				}
+				res, marked = r.callInRun(t, audience, name, `{"include_restricted":true}`)
+				if text := textOf(t, res); res.IsError || !marked || !strings.Contains(text, adminsOnlyWord) || strings.Contains(text, "left_out") {
+					t.Errorf("%s with include_restricted: marked %v, read %s", audience, marked, text)
+				}
 			}
-			res, marked = r.callInRun(t, datasource.AudienceCaller, name, `{"include_restricted":true}`)
-			if text := textOf(t, res); res.IsError || !marked || !strings.Contains(text, adminsOnlyWord) || strings.Contains(text, "left_out") {
-				t.Errorf("with include_restricted: marked %v, read %s", marked, text)
-			}
-			res, marked = r.callInRun(t, datasource.AudienceEveryone, name, `{"include_restricted":true}`)
+			res, marked := r.callInRun(t, datasource.AudienceEveryone, name, `{"include_restricted":true}`)
 			if text := textOf(t, res); !res.IsError || marked || strings.Contains(text, adminsOnlyWord) {
 				t.Errorf("with include_restricted writing where everyone reads: marked %v, read %s", marked, text)
 			}
-			res, marked = r.callInRun(t, datasource.AudienceAdmins, name, `{}`)
-			if text := textOf(t, res); res.IsError || marked || !strings.Contains(text, adminsOnlyWord) {
-				t.Errorf("writing where only Admins read: marked %v, read %s", marked, text)
+			home := Run{Mode: ModeInvestigate, WriteFolders: []pgtype.UUID{content.folder}, Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceAdmins}}
+			res, marked = r.callAs(t, home, name, `{}`)
+			if text := textOf(t, res); res.IsError || marked || !strings.Contains(text, adminsOnlyWord) || strings.Contains(text, "left_out") {
+				t.Errorf("listing the folder the run writes to: marked %v, read %s", marked, text)
 			}
 		})
 	}
 }
 
-func TestARunReadingTheDashboardItChangesIsNotMarkedButAnAskAboutItIs(t *testing.T) {
+func TestARunReadingWhatItIsAboutIsNotMarkedButReadingOtherContentOnlyAdminsReadIs(t *testing.T) {
 	r := newAccessRig(t)
 	content := r.adminsOnlyContent(t)
+	elsewhere := "55555555-5555-4555-8555-555555555555"
+	admin := datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}
+	readDashboard := `{"dashboard_id":"` + content.dashboard.String() + `"}`
+	readObservation := `{"observation_id":"` + content.observation.String() + `"}`
 	for _, c := range []struct {
-		mode   Mode
+		name   string
+		run    Run
+		tool   string
+		input  string
 		marked bool
-	}{{ModeRevise, false}, {ModeSuggest, false}, {ModeInvestigate, true}} {
-		t.Run(string(c.mode), func(t *testing.T) {
-			ctx, read := datasource.NotingRestrictedReads(auth.WithPrincipal(reading(t.Context()), adminCaller))
-			run := Run{Mode: c.mode, RequestID: "00000000-0000-4000-8000-000000000001", DashboardID: content.dashboard.String(), PanelID: "p_up",
-				Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
-			res, err := r.registry.Call(WithRun(ctx, run), nameGetDashboard, []byte(`{"dashboard_id":"`+content.dashboard.String()+`"}`))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if read() != c.marked {
-				t.Fatalf("marked %v, want %v, read %s", read(), c.marked, textOf(t, res))
+	}{
+		{"a revision of the dashboard", Run{Mode: ModeRevise, DashboardID: content.dashboard.String(), Access: admin}, nameGetDashboard, readDashboard, false},
+		{"a suggestion on the dashboard", Run{Mode: ModeSuggest, DashboardID: content.dashboard.String(), PanelID: "p_up", Access: admin}, nameGetDashboard, readDashboard, false},
+		{"an ask about the dashboard", Run{Mode: ModeInvestigate, DashboardID: content.dashboard.String(), Access: admin}, nameGetDashboard, readDashboard, false},
+		{"an investigation about the observation", Run{Mode: ModeInvestigate, Observations: []string{content.observation.String()}, Access: admin}, nameGetObservation, readObservation, false},
+		{"an ask about another dashboard", Run{Mode: ModeInvestigate, DashboardID: elsewhere, Access: admin}, nameGetDashboard, readDashboard, true},
+		{"an investigation about another observation", Run{Mode: ModeInvestigate, Observations: []string{elsewhere}, Access: admin}, nameGetObservation, readObservation, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			res, marked := r.callAs(t, c.run, c.tool, c.input)
+			if res.IsError || marked != c.marked {
+				t.Fatalf("marked %v, want %v, read %s", marked, c.marked, textOf(t, res))
 			}
 		})
 	}

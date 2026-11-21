@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
@@ -213,6 +215,12 @@ type Run struct {
 	From, To      time.Time
 	TimeZone      string
 	Access        datasource.Access
+	Observations  []string
+	WriteFolders  []pgtype.UUID
+}
+
+func (run Run) about(id string) bool {
+	return id != "" && (run.DashboardID == id || slices.Contains(run.Observations, id))
 }
 
 type runKey struct{}

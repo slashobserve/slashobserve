@@ -33,11 +33,11 @@ func TestRunForMapsEachSourceToItsMode(t *testing.T) {
 		},
 		"an ask into an observation keeps its window and panel": {
 			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, ObservationID: runForObservationID, Prompt: "why", Attempt: 1, PanelID: "p_up", From: &from, To: &to},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", PanelID: "p_up", From: from, To: to, Observations: []string{runForObservationID}},
 		},
 		"a private ask about an observation with half a window has none": {
 			req:  revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, SubjectObservationID: runForObservationID, Prompt: "why", Attempt: 1, From: &from},
-			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why"},
+			want: Run{Mode: ModeInvestigate, RequestID: runForRequestID, Attempt: 1, Prompt: "why", Observations: []string{runForObservationID}},
 		},
 	}
 	for name, tc := range cases {

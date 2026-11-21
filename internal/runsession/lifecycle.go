@@ -282,10 +282,11 @@ func (s *Service) Brief(ctx context.Context, req revisions.Request, reason strin
 	if !ok {
 		return tools.BriefAnswer{}, tools.ErrInvalidReason
 	}
-	access, err := s.runAccess(ctx, req)
+	writes, err := s.runWrites(ctx, req)
 	if err != nil {
 		return tools.BriefAnswer{}, err
 	}
+	access := tools.RunAccess(req, writes)
 	health := s.statuses.Health(datasource.WithAccess(ctx, access))
 	var answer tools.BriefAnswer
 	ended := false

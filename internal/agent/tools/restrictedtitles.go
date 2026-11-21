@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"slices"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -25,7 +26,7 @@ func titleRuleFor(run Run, inRun, include bool) titleRule {
 		return listEveryTitle
 	case a.Audience == datasource.AudienceEveryone && include:
 		return refuseRestrictedTitles
-	case a.Audience != datasource.AudienceCaller || !a.Reads(datasource.AudienceAdmins):
+	case !a.Reads(datasource.AudienceAdmins):
 		return listEveryTitle
 	case include:
 		return listRestrictedTitles
@@ -35,6 +36,7 @@ func titleRuleFor(run Run, inRun, include bool) titleRule {
 
 type restrictedTitles struct {
 	rule       titleRule
+	run        Run
 	adminsOnly map[pgtype.UUID]bool
 	builtIn    map[string]bool
 	leftOut    int
@@ -43,7 +45,7 @@ type restrictedTitles struct {
 
 func (r *Registry) restrictedTitles(ctx context.Context, include bool) (*restrictedTitles, Result, bool, error) {
 	run, inRun := RunFrom(ctx)
-	t := &restrictedTitles{rule: titleRuleFor(run, inRun, include)}
+	t := &restrictedTitles{rule: titleRuleFor(run, inRun, include), run: run}
 	switch t.rule {
 	case refuseRestrictedTitles:
 		return nil, invalid("include_restricted is refused here. %s", datasource.WithheldNote), false, nil
@@ -74,7 +76,7 @@ func (r *Registry) restrictedTitles(ctx context.Context, include bool) (*restric
 }
 
 func (t *restrictedTitles) keep(folder pgtype.UUID, id string) bool {
-	if t.rule == listEveryTitle || !t.adminsOnly[folder] || t.builtIn[id] {
+	if t.rule == listEveryTitle || !t.adminsOnly[folder] || t.builtIn[id] || t.run.about(id) || slices.Contains(t.run.WriteFolders, folder) {
 		return true
 	}
 	if t.rule == leaveOutRestrictedTitles {

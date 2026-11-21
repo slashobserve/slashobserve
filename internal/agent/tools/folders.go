@@ -156,13 +156,13 @@ func folderWriteFailure(err error) (Result, bool) {
 func (r *Registry) viewableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
 	access, res, ok, err := r.dashboardAccess(ctx, id, notFoundMessage)
 	if ok {
-		readDashboardIn(ctx, id, access.Folder)
+		readContentIn(ctx, id.String(), access.Folder)
 	}
 	return res, ok, err
 }
 
-func readDashboardIn(ctx context.Context, id pgtype.UUID, f folders.Folder) {
-	if run, inRun := RunFrom(ctx); inRun && (run.Mode == ModeRevise || run.Mode == ModeSuggest) && run.DashboardID == id.String() {
+func readContentIn(ctx context.Context, id string, f folders.Folder) {
+	if run, inRun := RunFrom(ctx); inRun && run.about(id) {
 		return
 	}
 	folders.Read(ctx, f)

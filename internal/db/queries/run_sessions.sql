@@ -70,7 +70,20 @@ SELECT
   COALESCE((
     SELECT f.admins_only FROM folders f
     WHERE f.id = COALESCE(b.folder_id, (SELECT d.folder_id FROM dashboards d WHERE d.id = b.dashboard_id))
-  ), false)::boolean AS build_admins_only
+  ), false)::boolean AS build_admins_only,
+  (
+    SELECT COALESCE(d.folder_id, o.folder_id)
+    FROM thread_messages m
+    JOIN threads t ON t.id = m.thread_id
+    LEFT JOIN proposals p ON p.id = t.proposal_id
+    LEFT JOIN annotations n ON n.id = t.annotation_id
+    LEFT JOIN dashboards d ON d.id = COALESCE(t.dashboard_id, p.dashboard_id, n.dashboard_id)
+    LEFT JOIN observations o ON o.id = t.observation_id
+    WHERE m.id = r.thread_message_id
+  )::uuid AS thread_folder_id,
+  (SELECT o.folder_id FROM observations o WHERE o.id = r.observation_id)::uuid AS observation_folder_id,
+  (SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id)::uuid AS dashboard_folder_id,
+  COALESCE(b.folder_id, (SELECT d.folder_id FROM dashboards d WHERE d.id = b.dashboard_id))::uuid AS build_folder_id
 FROM agent_requests r
 LEFT JOIN agent_request_builds b ON b.agent_request_id = r.id
 WHERE r.id = @id;

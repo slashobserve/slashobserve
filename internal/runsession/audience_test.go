@@ -1,7 +1,10 @@
 package runsession
 
 import (
+	"slices"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -41,5 +44,21 @@ func TestEachKindOfRunReadsAdminsOnlyDataOnlyWhenEveryoneWhoReadsWhatItWritesIsA
 				t.Fatalf("audience = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestTheFoldersARunWritesToAreThoseOfWhatItWritesNotOfWhatItAsksAbout(t *testing.T) {
+	thread, dashboard, build := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}, pgtype.UUID{Bytes: [16]byte{2}, Valid: true}, pgtype.UUID{Bytes: [16]byte{3}, Valid: true}
+	ask := writesOf(dbsqlc.GetRunWritesRow{Intent: "ask", InThread: true, ThreadFolderID: thread, OnDashboard: true, DashboardFolderID: dashboard})
+	if !slices.Equal(ask.Folders, []pgtype.UUID{thread}) {
+		t.Fatalf("an ask in a thread writes to %v, want only the thread's folder", ask.Folders)
+	}
+	apply := writesOf(dbsqlc.GetRunWritesRow{Intent: "apply", OnDashboard: true, DashboardFolderID: dashboard, Building: true, BuildFolderID: dashboard})
+	if !slices.Equal(apply.Folders, []pgtype.UUID{dashboard}) {
+		t.Fatalf("a revision writes to %v, want the dashboard's folder once", apply.Folders)
+	}
+	create := writesOf(dbsqlc.GetRunWritesRow{Intent: "ask", Building: true, BuildFolderID: build})
+	if !slices.Equal(create.Folders, []pgtype.UUID{build}) {
+		t.Fatalf("a new dashboard writes to %v, want the build's folder", create.Folders)
 	}
 }
